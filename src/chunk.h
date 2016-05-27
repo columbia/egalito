@@ -6,6 +6,9 @@
 
 typedef uint64_t address_t;
 
+class Slot;
+class Sandbox;
+
 class Chunk {
 public:
     virtual ~Chunk() {}
@@ -15,7 +18,7 @@ public:
     virtual bool moveTo(address_t newAddress) { return false; }
 
     virtual size_t getSize() const = 0;
-    virtual void appendBytes(uint8_t *output) = 0;
+    virtual void writeTo(Slot *slot) = 0;
 
     virtual std::string getName() const = 0;
 };
