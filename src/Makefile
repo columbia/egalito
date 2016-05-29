@@ -10,7 +10,7 @@ LDFLAGS         = -lcapstone -Wl,-q
 
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
-MAIN_SOURCES        = $(wildcard main/*.c)
+MAIN_SOURCES        = $(wildcard main/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(MAIN_SOURCES) $(TRANSFORM_SOURCES)

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include "types.h"
 
 class ElfMap {
 private:
@@ -22,6 +23,8 @@ private:
     const char *strtab;
     const char *dynstr;
     std::map<std::string, void *> sectionMap;
+private:
+    address_t copyBase;
 public:
     ElfMap(pid_t pid);
     ElfMap(const char *filename);
@@ -32,6 +35,14 @@ private:
     void parseElf(const char *filename);
     void verifyElf();
     void makeSectionMap();
+    void findProgramHeaders();
+public:
+    address_t getBaseAddress() const { return 0; }
+    address_t getCopyBaseAddress() const { return copyBase; }
+    const char *getStrtab() const { return strtab; }
+    const char *getDynstrtab() const { return dynstr; }
+    void *findSectionHeader(const char *name);
+    void *findSection(const char *name);
 };
 
 #endif
