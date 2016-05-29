@@ -8,6 +8,7 @@ typedef uint64_t address_t;
 
 class Slot;
 class Sandbox;
+class Symbol;
 
 class Chunk {
 public:
@@ -25,16 +26,20 @@ public:
 
 class Function : public Chunk {
 private:
+    Symbol *symbol;
     bool allReferencesKnown;
+    std::vector<std::shared_ptr<Block>> blockList;
 public:
-    Function(bool known) : allReferencesKnown(known) {}
+    Function(Symbol *symbol, bool known)
+        : symbol(symbol), allReferencesKnown(known) {}
     
     virtual bool canMove() const { return allReferencesKnown; }
+    virtual void writeTo(Slot *slot);
 };
 
 class Block : public Chunk {
 public:
-    
+    virtual void writeTo(Slot *slot);
 };
 
 class Instruction {
