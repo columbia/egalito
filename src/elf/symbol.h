@@ -1,6 +1,9 @@
 #ifndef EGALITO_SYMBOL_H
 #define EGALITO_SYMBOL_H
 
+#include <cstddef>  // for size_t
+#include <map>
+
 class Symbol {
 private:
     const char *name;

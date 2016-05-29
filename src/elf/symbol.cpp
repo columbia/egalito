@@ -11,7 +11,7 @@ bool SymbolList::add(Symbol *symbol) {
 Symbol *SymbolList::find(const char *name) {
     auto it = lookup.find(name);
     if(it != lookup.end()) {
-        return it.second;
+        return (*it).second;
     }
     else {
         return nullptr;

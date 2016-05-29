@@ -1,10 +1,10 @@
 #ifndef EGALITO_CHUNK_H
 #define EGALITO_CHUNK_H
 
-#include <cstddef>
+#include <cstdint>
 #include <vector>
-
-typedef uint64_t address_t;
+#include <memory>  // for std::shared_ptr
+#include "types.h"
 
 class Slot;
 class Sandbox;
@@ -23,6 +23,8 @@ public:
 
     virtual std::string getName() const = 0;
 };
+
+class Block;
 
 class Function : public Chunk {
 private:

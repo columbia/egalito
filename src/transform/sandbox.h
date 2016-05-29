@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <new>
+#include "types.h"
 
 #define MAX_SANDBOX_SIZE (100 * 0x1000 * 0x1000)
 
@@ -51,7 +52,8 @@ class MemoryBacking : public SandboxBacking {
 private:
     address_t base;
 public:
-    MemoryBacking(size_t size) throw std::bad_alloc;
+    /** May throw std::bad_alloc. */
+    MemoryBacking(size_t size);
     address_t getBase() const { return base; }
 
     void finalize();
@@ -66,26 +68,47 @@ public:
     void finalize();
 };
 
+template <typename Backing>
 class SandboxAllocator {
 protected:
-    SandboxBacking *backing;
+    Backing *backing;
 public:
-    SandboxAllocator(SandboxBacking *backing) : backing(backing) {}
-    Slot allocate(size_t request) throw std::bad_alloc;
+    SandboxAllocator(Backing *backing) : backing(backing) {}
+
+    /** May throw std::bad_alloc. */
+    Slot allocate(size_t request);
 };
 
-class WatermarkAllocator : public SandboxAllocator {
+template <typename Backing>
+class WatermarkAllocator : public SandboxAllocator<Backing> {
 private:
     address_t watermark;
 public:
-    WatermarkAllocator(SandboxBacking *backing) : SandboxAllocator(backing), watermark(backing->getBase()) {}
-    Slot allocate(size_t request) throw std::bad_alloc;
+    WatermarkAllocator(SandboxBacking *backing) : SandboxAllocator<Backing>(backing), watermark(backing->getBase()) {}
+
+    Slot allocate(size_t request);
 };
+
+template <typename Backing>
+Slot WatermarkAllocator<Backing>::allocate(size_t request) {
+    size_t max = this->backing->getBase()
+        + this->backing->getSize();
+
+    if(watermark + request > max) {
+        throw std::bad_alloc();
+    }
+
+    address_t region = watermark;
+    watermark += request;
+    return Slot(region, request);
+}
 
 class Sandbox {
 public:
     virtual ~Sandbox() {}
-    virtual Slot allocate(size_t request) throw std::bad_alloc = 0;
+
+    /** May throw std::bad_alloc. */
+    virtual Slot allocate(size_t request) = 0;
     virtual void finalize() = 0;
 };
 
@@ -95,9 +118,10 @@ private:
     Backing backing;
     Allocator alloc;
 public:
-    Sandbox(const Backing &&backing) : backing(backing), alloc(Allocator(backing)) {}
+    SandboxImpl(const SandboxBacking &&backing)
+        : backing(backing), alloc(Allocator(backing)) {}
 
-    virtual Slot allocate(size_t request) throw std::bad_alloc
+    virtual Slot allocate(size_t request)
         { return alloc.allocate(request); }
     virtual void finalize() { backing.finalize(); }
 };

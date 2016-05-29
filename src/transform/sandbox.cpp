@@ -1,10 +1,12 @@
 #include <iostream>
+#include <cstring>
 #include "sandbox.h"
+#include <sys/mman.h>
 
 bool Slot::append(uint8_t *data, size_t size) {
     if(size > available) return false;
 
-    memcpy(static_cast<void *>(address), static_cast<void *>(data), size);
+    std::memcpy((void *)address, (void *)data, size);
     address += size;
     size -= available;
     return true;
@@ -16,7 +18,7 @@ bool AnyLengthSlot::append(uint8_t *data, size_t size) {
 }
 
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
-    base = mmap(0, size, PROT_READ | PROT_WRITE,
+    base = (address_t) mmap(0, size, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(!base) {
         throw std::bad_alloc();
@@ -24,7 +26,7 @@ MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
 }
 
 void MemoryBacking::finalize() {
-    mprotect(base, size, PROT_READ | PROT_EXEC);
+    mprotect((void *)base, getSize(), PROT_READ | PROT_EXEC);
 }
 
 ELFBacking::ELFBacking(std::string filename)
@@ -38,18 +40,3 @@ void ELFBacking::finalize() {
         << filename << "\"\n";
 }
 
-WatermarkSandbox::WatermarkSandbox(Allocator alloc, size_t size)
-    : Sandbox(alloc), size(size) {
-
-    watermark = base;
-}
-
-Slot WatermarkAllocator::allocate(size_t request) {
-    if(watermark + request > getBase() + getSize()) {
-        throw std::bad_alloc();
-    }
-
-    address_t region = watermark;
-    watermark += request;
-    return Slot(region, request);
-}
