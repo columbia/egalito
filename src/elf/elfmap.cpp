@@ -1,0 +1,84 @@
+#include <sstream>
+#include "elfmap.h"
+#include <elf.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+ElfMap::ElfMap(pid_t pid) {
+    std::ostringstream stream;
+    stream << "/proc/" << static_cast<int>(pid) << "/exe";
+    parseElf(stream.str().c_str());
+    setup();
+}
+
+ElfMap::ElfMap(const char *filename) {
+    parseElf(filename);
+    setup();
+}
+
+ElfMap::ElfMap(void *self) : map(self), length(0), fd(-1) {
+    setup();
+}
+
+ElfMap::~ElfMap() {
+    if(length) munmap(map, length);
+    if(fd > 0) close(fd);
+}
+
+void ElfMap::setup() {
+    verifyElf();
+    makeSectionMap();
+}
+
+void ElfMap::parseElf(const char *filename) {
+    fd = open(filename, O_RDONLY, 0);
+    if(fd < 0) throw "can't open executable image\n";
+    
+    // find the length of the file
+    length = static_cast<size_t>(lseek(fd, 0, SEEK_END));
+    lseek(fd, 0, SEEK_SET);
+    
+    // make a private copy of the file in memory
+    int prot = PROT_READ /*| PROT_WRITE*/;
+    map = mmap(NULL, length, prot, MAP_PRIVATE, fd, 0);
+    if(map == (void *)-1) throw "can't mmap executable image\n";
+    
+    verifyElf();
+}
+
+void ElfMap::verifyElf() {
+    // make sure this is an ELF file
+    if(*(Elf64_Word *)map != *(Elf64_Word *)ELFMAG) {
+        throw "executable image does not have ELF magic\n";
+    }
+    
+    // check architecture type
+    char type = ((char *)map)[EI_CLASS];
+    if(type != ELFCLASS64) {
+        throw "file is not 64-bit ELF, unsupported\n";
+    }
+}
+
+void ElfMap::makeSectionMap() {
+    char *charmap = static_cast<char *>(map);
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    if(sizeof(Elf64_Shdr) != header->e_shentsize) {
+        throw "header shentsize mismatch\n";
+    }
+    
+    Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
+    //Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
+
+    this->shstrtab = charmap + sheader[header->e_shstrndx].sh_offset;
+
+    for(int i = 0; i < header->e_shnum; i ++) {
+        Elf64_Shdr *s = &sheader[i];
+        const char *name = shstrtab + s->sh_name;
+
+        sectionMap[name] = static_cast<void *>(charmap + s->sh_offset);
+    }
+
+    this->strtab = static_cast<const char *>(sectionMap[".strtab"]);
+    this->dynstr = static_cast<const char *>(sectionMap[".dynstr"]);
+}

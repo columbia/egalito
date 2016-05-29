@@ -2,9 +2,11 @@
 
 CC  = gcc
 CXX = g++
-CFLAGS      = -Wall -Wextra
-CXXFLAGS    = -std=c++11 -Wall -Wextra -I. -g -O2
-LDFLAGS     = -lcapstone -Wl,-q
+GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
+OPT_FLAGS       = -g -O2
+CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
+CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
+LDFLAGS         = -lcapstone -Wl,-q
 
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
@@ -12,7 +14,7 @@ MAIN_SOURCES        = $(wildcard main/*.c)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(MAIN_SOURCES) $(TRANSFORM_SOURCES)
-OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES:.s=.o))
+OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES:.s=.o)))
 
 TARGET = egalito
 
