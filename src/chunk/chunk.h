@@ -36,7 +36,7 @@ private:
     BlockListType blockList;
 public:
     Function(Symbol *symbol) : symbol(symbol),
-        address(symbol->getAddress()), size(symbol->getSize()) {}
+        address(symbol->getAddress()), size(0) {}
     void append(Block *block);
 
     virtual address_t getAddress() const { return address; }
@@ -67,11 +67,14 @@ public:
 
     virtual address_t getAddress() const;
     virtual size_t getSize() const { return size; }
+    size_t getOffset() const { return offset; }
+    Function *getOuter() const { return outer; }
 
     virtual std::string getName() const { return name; }
 
     void setOuter(Function *outer) { this->outer = outer; }
     void setName(const std::string &name) { this->name = name; }
+    void setOffset(size_t offset) { this->offset = offset; }
 
     InstrListType::iterator begin() { return instrList.begin(); }
     InstrListType::iterator end() { return instrList.end(); }
@@ -82,14 +85,30 @@ public:
 
 class Instruction {
 private:
+    enum detail_t {
+        DETAIL_NONE,
+        DETAIL_CAPSTONE
+    } detail;
+
+    std::string data;
     cs_insn insn;
+    size_t offset;
+    Block *outer;
 public:
-    Instruction(cs_insn insn) : insn(insn) {}
+    Instruction(std::string data) : detail(DETAIL_NONE), data(data),
+        offset(0), outer(nullptr) {}
+    Instruction(cs_insn insn) : detail(DETAIL_CAPSTONE), insn(insn),
+        offset(0), outer(nullptr) {}
 
     cs_insn &raw() { return insn; }
-    size_t getSize() const { return insn.size; }
+    virtual address_t getAddress() const;
+    size_t getSize() const;
+
+    void setOuter(Block *outer) { this->outer = outer; }
+    void setOffset(size_t offset) { this->offset = offset; }
 
     void writeTo(Slot *slot);
+    void dump();
 };
 
 #endif

@@ -27,12 +27,16 @@ int main(int argc, char *argv[]) {
                 auto sym = s.second;
                 Function *function = Disassemble::function(sym, baseAddr, &symbolList);
 
+                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+
                 std::cout << "---[" << sym->getName() << "]---\n";
                 for(auto bb : *function) {
                     std::cout << bb->getName() << ":\n";
                     for(auto instr : *bb) {
                         std::cout << "    ";
-                        Disassemble::printInstruction(&instr.raw());
+                        instr.dump();
                     }
                 }
 

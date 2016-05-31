@@ -1,3 +1,4 @@
+#include <cstring>
 #include <capstone/x86.h>
 #include "disassemble.h"
 #include "elf/symbol.h"
@@ -29,6 +30,11 @@ void Disassemble::printInstruction(cs_insn *instr, const char *name,
         std::printf("0x%08lx:\t%s\t\t%s\n",
             instr->address, instr->mnemonic, instr->op_str);
     }
+}
+
+void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset) {
+    std::printf("0x%08lx <+%d>:\t%s\t\t%s\n",
+        instr->address, (int)offset, instr->mnemonic, instr->op_str);
 }
 
 void Disassemble::debug(const uint8_t *code, size_t length,
@@ -109,4 +115,24 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
     cs_free(insn, count);
     return function;
+}
+
+Instruction Disassemble::makeInstruction(const char *str) {
+    Instruction instr{std::string(str)};
+    return instr;
+}
+
+cs_insn Disassemble::getInsn(const char *str, address_t address) {
+    Handle handle(true);
+
+    cs_insn *insn;
+    if(cs_disasm(handle.raw(), (const uint8_t *)str, std::strlen(str),
+        address, 0, &insn) != 1) {
+
+        throw "Invalid instruction opcode string provided";
+    }
+
+    cs_insn ret = *insn;
+    cs_free(insn, 1);
+    return ret;
 }
