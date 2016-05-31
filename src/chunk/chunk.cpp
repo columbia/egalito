@@ -37,6 +37,7 @@ void Function::sizeChanged(ssize_t bytesAdded, Block *which) {
 }
 
 void Function::writeTo(Slot *slot) {
+    setAddress(slot->getAddress());
     for(auto block : blockList) {
         block->writeTo(slot);
     }

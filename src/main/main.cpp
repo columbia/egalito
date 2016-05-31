@@ -1,72 +1,95 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
+#include <cstring>
 #include "main.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/disassemble.h"
+#include "transform/sandbox.h"
 
 int main(int argc, char *argv[]) {
-    if(argc > 1) {
-        try {
-            ElfMap elf(argv[1]);
-            SymbolList symbolList = SymbolList::buildSymbolList(&elf);
+    if(argc < 1) return -1;
 
-            std::cout << "\n=== Initial code disassembly ===\n";
+    try {
+        ElfMap elf(argv[1]);
+        SymbolList symbolList = SymbolList::buildSymbolList(&elf);
 
-            auto baseAddr = elf.getCopyBaseAddress();
-            for(auto sym : symbolList) {
-                std::cout << "---[" << sym->getName() << "]---\n";
-                auto addr = sym->getAddress();
-                std::cout << "addr " << std::hex << addr
-                    << " -> " << std::hex << addr + baseAddr << "\n";
-                Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
-                    &symbolList);
-            }
+        std::cout << "\n=== Initial code disassembly ===\n";
 
-            std::cout << "\n=== Creating internal data structures ===\n";
+        auto baseAddr = elf.getCopyBaseAddress();
+        for(auto sym : symbolList) {
+            std::cout << "---[" << sym->getName() << "]---\n";
+            auto addr = sym->getAddress();
+            std::cout << "addr " << std::hex << addr
+                << " -> " << std::hex << addr + baseAddr << "\n";
+            Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
+                &symbolList);
+        }
 
-            std::vector<Function *> functionList;
-            for(auto sym : symbolList) {
-                Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+        std::cout << "\n=== Creating internal data structures ===\n";
 
-                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
-                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
-                (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+        std::vector<Function *> functionList;
+        for(auto sym : symbolList) {
+            Function *function = Disassemble::function(sym, baseAddr, &symbolList);
 
-                std::cout << "---[" << sym->getName() << "]---\n";
-                for(auto bb : *function) {
-                    std::cout << bb->getName() << ":\n";
-                    for(auto &instr : *bb) {
-                        std::cout << "    ";
-                        instr.dump();
-                    }
+#if 0
+            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
+#endif
+
+            std::cout << "---[" << sym->getName() << "]---\n";
+            for(auto bb : *function) {
+                std::cout << bb->getName() << ":\n";
+                for(auto &instr : *bb) {
+                    std::cout << "    ";
+                    instr.dump();
                 }
-
-                functionList.push_back(function);
             }
 
-            std::cout << "\n=== Re-compacting code at new location ===\n";
+            functionList.push_back(function);
+        }
 
-            address_t watermark = 0x10000;
-            for(auto f : functionList) {
-                f->setAddress(watermark);
-                watermark += f->getSize();
-            }
+        auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
+        Sandbox *sandbox = new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 
-            for(auto f : functionList) {
-                std::cout << "---[" << f->getName() << "]---\n";
-                for(auto bb : *f) {
-                    for(auto &instr : *bb) {
-                        std::cout << "    ";
-                        instr.dump();
-                    }
+        std::cout << "\n=== Copying code into sandbox ===\n";
+        for(auto f : functionList) {
+            auto slot = sandbox->allocate(f->getSize());
+            //f->setAddress(address);
+            f->writeTo(&slot);
+        }
+        sandbox->finalize();
+
+        for(auto f : functionList) {
+            std::cout << "---[" << f->getName() << "]---\n";
+            for(auto bb : *f) {
+                for(auto &instr : *bb) {
+                    std::cout << "    ";
+                    instr.dump();
                 }
             }
         }
-        catch(const char *s) {
-            std::cerr << "Error: " << s;
+
+#if 0
+        for(auto f : functionList) {
+            if(f->getName() == "main") {
+                std::cout << "main is at " << std::hex << f->getAddress() << "\n";
+                int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
+
+                int argc = 1;
+                char *argv[] = {"/dev/null", NULL};
+                mainp(argc, argv);
+            }
         }
+#endif
     }
+    catch(const char *s) {
+        std::cerr << "Error: " << s;
+        if(*s && s[std::strlen(s) - 1] != '\n') std::cerr << '\n';
+        return 1;
+    }
+    return 0;
 }

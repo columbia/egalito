@@ -16,6 +16,7 @@ public:
         : address(address), available(size) {}
     uint8_t *read() { return 0; }
     bool append(uint8_t *data, size_t size);
+    address_t getAddress() const { return address; }
 };
 
 class AnyLengthSlot {
@@ -54,6 +55,8 @@ private:
 public:
     /** May throw std::bad_alloc. */
     MemoryBacking(size_t size);
+    MemoryBacking(const MemoryBacking &other)
+        : SandboxBacking(other.getSize()), base(other.base) {}
     address_t getBase() const { return base; }
 
     void finalize();
@@ -84,7 +87,7 @@ class WatermarkAllocator : public SandboxAllocator<Backing> {
 private:
     address_t watermark;
 public:
-    WatermarkAllocator(SandboxBacking *backing) : SandboxAllocator<Backing>(backing), watermark(backing->getBase()) {}
+    WatermarkAllocator(Backing *backing) : SandboxAllocator<Backing>(backing), watermark(backing->getBase()) {}
 
     Slot allocate(size_t request);
 };
@@ -118,8 +121,8 @@ private:
     Backing backing;
     Allocator alloc;
 public:
-    SandboxImpl(const SandboxBacking &&backing)
-        : backing(backing), alloc(Allocator(backing)) {}
+    SandboxImpl(const Backing &backing)
+        : backing(backing), alloc(Allocator(&this->backing)) {}
 
     virtual Slot allocate(size_t request)
         { return alloc.allocate(request); }
