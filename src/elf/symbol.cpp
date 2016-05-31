@@ -8,12 +8,23 @@ bool SymbolList::add(Symbol *symbol) {
     if(it != symbolList.end()) return false;
 
     symbolList[symbol->getName()] = symbol;
+    spaceMap[symbol->getAddress()] = symbol;
     return true;
 }
 
 Symbol *SymbolList::find(const char *name) {
     auto it = symbolList.find(name);
     if(it != symbolList.end()) {
+        return (*it).second;
+    }
+    else {
+        return nullptr;
+    }
+}
+
+Symbol *SymbolList::find(address_t address) {
+    auto it = spaceMap.find(address);
+    if(it != spaceMap.end()) {
         return (*it).second;
     }
     else {
@@ -126,7 +137,8 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
                 std::printf("symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
                     (int)list.symbolList.size(), address,
                     size, name);
-                list.symbolList[name] = symbol;
+                //list.symbolList[name] = symbol;
+                list.add(symbol);
             }
         }
 

@@ -28,9 +28,11 @@ class SymbolList {
 private:
     typedef std::map<const char *, Symbol *> ListType;
     ListType symbolList;
+    std::map<address_t, Symbol *> spaceMap;
 public:
     bool add(Symbol *symbol);
     Symbol *find(const char *name);
+    Symbol *find(address_t address);
 
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }

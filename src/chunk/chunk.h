@@ -37,6 +37,11 @@ public:
     
     virtual bool canMove() const { return allReferencesKnown; }
     virtual void writeTo(Slot *slot);
+
+    std::vector<std::shared_ptr<Block>>::iterator begin()
+        { return blockList.begin(); }
+    std::vector<std::shared_ptr<Block>>::iterator end()
+        { return blockList.end(); }
 };
 
 class Block : public Chunk {
