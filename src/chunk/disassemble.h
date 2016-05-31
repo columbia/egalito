@@ -30,8 +30,8 @@ public:
 
     static Function *function(Symbol *symbol, address_t baseAddr,
         SymbolList *symbolList = 0);
-    static Instruction makeInstruction(const char *str);
-    static cs_insn getInsn(const char *str, address_t address = 0);
+    static Instruction makeInstruction(std::string str);
+    static cs_insn getInsn(std::string str, address_t address = 0);
 };
 
 #endif

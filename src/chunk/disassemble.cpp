@@ -1,3 +1,4 @@
+#include <iostream>  // for debugging
 #include <cstring>
 #include <capstone/x86.h>
 #include "disassemble.h"
@@ -30,6 +31,12 @@ void Disassemble::printInstruction(cs_insn *instr, const char *name,
         std::printf("0x%08lx:\t%s\t\t%s\n",
             instr->address, instr->mnemonic, instr->op_str);
     }
+
+    std::printf("    ");
+    for(int i = 0; i < instr->size; i ++) {
+        std::printf("%02x ", (unsigned)instr->bytes[i] & 0xff);
+    }
+    std::printf("\n");
 }
 
 void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset) {
@@ -117,19 +124,18 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     return function;
 }
 
-Instruction Disassemble::makeInstruction(const char *str) {
-    Instruction instr{std::string(str)};
-    return instr;
+Instruction Disassemble::makeInstruction(std::string str) {
+    return Instruction{str};
 }
 
-cs_insn Disassemble::getInsn(const char *str, address_t address) {
+cs_insn Disassemble::getInsn(std::string str, address_t address) {
     Handle handle(true);
 
     cs_insn *insn;
-    if(cs_disasm(handle.raw(), (const uint8_t *)str, std::strlen(str),
+    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
         address, 0, &insn) != 1) {
 
-        throw "Invalid instruction opcode string provided";
+        throw "Invalid instruction opcode string provided\n";
     }
 
     cs_insn ret = *insn;

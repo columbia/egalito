@@ -21,7 +21,7 @@ public:
     virtual std::string getName() const = 0;
     virtual int getVersion() const { return 0; }
 
-    virtual void sizeChanged(ssize_t bytesAdded) = 0;
+    //virtual void sizeChanged(ssize_t bytesAdded) = 0;
     virtual void writeTo(Slot *slot) = 0;
 };
 
@@ -47,7 +47,7 @@ public:
     BlockListType::iterator begin() { return blockList.begin(); }
     BlockListType::iterator end() { return blockList.end(); }
 
-    virtual void sizeChanged(ssize_t bytesAdded);
+    virtual void sizeChanged(ssize_t bytesAdded, Block *which);
     virtual void writeTo(Slot *slot);
 };
 
@@ -74,7 +74,7 @@ public:
 
     void setOuter(Function *outer) { this->outer = outer; }
     void setName(const std::string &name) { this->name = name; }
-    void setOffset(size_t offset) { this->offset = offset; }
+    void setOffset(size_t offset);
 
     InstrListType::iterator begin() { return instrList.begin(); }
     InstrListType::iterator end() { return instrList.end(); }
@@ -94,6 +94,8 @@ private:
     cs_insn insn;
     size_t offset;
     Block *outer;
+private:
+    void regenerate();
 public:
     Instruction(std::string data) : detail(DETAIL_NONE), data(data),
         offset(0), outer(nullptr) {}
@@ -105,7 +107,7 @@ public:
     size_t getSize() const;
 
     void setOuter(Block *outer) { this->outer = outer; }
-    void setOffset(size_t offset) { this->offset = offset; }
+    void setOffset(size_t offset);
 
     void writeTo(Slot *slot);
     void dump();
