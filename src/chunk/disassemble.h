@@ -6,6 +6,7 @@
 
 class Symbol;
 class SymbolList;
+class Function;
 
 class Disassemble {
 private:
@@ -18,14 +19,14 @@ private:
 
         csh &raw() { return handle; }
     };
-private:
+public:
     static void printInstruction(cs_insn *instr,
         const char *name = 0, long offset = 0);
 public:
     static void debug(const uint8_t *code, size_t length,
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
-    static void function(Symbol *symbol, address_t baseAddr,
+    static Function *function(Symbol *symbol, address_t baseAddr,
         SymbolList *symbolList = 0);
 };
 

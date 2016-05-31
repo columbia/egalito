@@ -4,24 +4,25 @@
 #include <cstdint>
 #include <vector>
 #include <memory>  // for std::shared_ptr
+#include <capstone/capstone.h>  // for cs_insn
+#include "elf/symbol.h"
 #include "types.h"
 
 class Slot;
 class Sandbox;
-class Symbol;
 
 class Chunk {
 public:
     virtual ~Chunk() {}
 
     virtual address_t getAddress() const = 0;
-    virtual bool canMove() const { return true; }
-    virtual bool moveTo(address_t newAddress) { return false; }
-
     virtual size_t getSize() const = 0;
-    virtual void writeTo(Slot *slot) = 0;
 
     virtual std::string getName() const = 0;
+    virtual int getVersion() const { return 0; }
+
+    virtual void sizeChanged(ssize_t bytesAdded) = 0;
+    virtual void writeTo(Slot *slot) = 0;
 };
 
 class Block;
@@ -29,34 +30,66 @@ class Block;
 class Function : public Chunk {
 private:
     Symbol *symbol;
-    bool allReferencesKnown;
-    std::vector<std::shared_ptr<Block>> blockList;
+    address_t address;
+    size_t size;
+    typedef std::vector<Block *> BlockListType;
+    BlockListType blockList;
 public:
-    Function(Symbol *symbol, bool known)
-        : symbol(symbol), allReferencesKnown(known) {}
-    
-    virtual address_t getAddress() const { return symbol->getAddress(); }
-    virtual bool canMove() const { return allReferencesKnown; }
-    virtual void writeTo(Slot *slot);
+    Function(Symbol *symbol) : symbol(symbol),
+        address(symbol->getAddress()), size(symbol->getSize()) {}
+    void append(Block *block);
 
-    virtual size_t getSize() const { return symbol->getSize(); }
-
+    virtual address_t getAddress() const { return address; }
+    virtual size_t getSize() const { return size; }
 
     virtual std::string getName() const { return symbol->getName(); }
 
-    std::vector<std::shared_ptr<Block>>::iterator begin()
-        { return blockList.begin(); }
-    std::vector<std::shared_ptr<Block>>::iterator end()
-        { return blockList.end(); }
+    BlockListType::iterator begin() { return blockList.begin(); }
+    BlockListType::iterator end() { return blockList.end(); }
+
+    virtual void sizeChanged(ssize_t bytesAdded);
+    virtual void writeTo(Slot *slot);
 };
 
+class Instruction;
+
 class Block : public Chunk {
+private:
+    std::string name;
+    size_t offset;
+    size_t size;
+    typedef std::vector<Instruction> InstrListType;
+    InstrListType instrList;
+    Function *outer;
 public:
+    Block() : offset(0), size(0), outer(nullptr) {}
+    void append(Instruction instr);
+
+    virtual address_t getAddress() const;
+    virtual size_t getSize() const { return size; }
+
+    virtual std::string getName() const { return name; }
+
+    void setOuter(Function *outer) { this->outer = outer; }
+    void setName(const std::string &name) { this->name = name; }
+
+    InstrListType::iterator begin() { return instrList.begin(); }
+    InstrListType::iterator end() { return instrList.end(); }
+
+    virtual void sizeChanged(ssize_t bytesAdded);
     virtual void writeTo(Slot *slot);
 };
 
 class Instruction {
+private:
+    cs_insn insn;
 public:
+    Instruction(cs_insn insn) : insn(insn) {}
+
+    cs_insn &raw() { return insn; }
+    size_t getSize() const { return insn.size; }
+
+    void writeTo(Slot *slot);
 };
 
 #endif

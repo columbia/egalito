@@ -60,7 +60,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-void Disassemble::function(Symbol *symbol, address_t baseAddr,
+Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     SymbolList *symbolList) {
 
     address_t readAddress = baseAddr + symbol->getAddress();
@@ -71,26 +71,42 @@ void Disassemble::function(Symbol *symbol, address_t baseAddr,
         (const uint8_t *)readAddress, symbol->getSize(),
         trueAddress, 0, &insn);
 
-    Function *func = new Function(symbol, false);
-    //Block *block = new Block();
+    Function *function = new Function(symbol);
+    Block *block = new Block();
 
     for(size_t j = 0; j < count; j++) {
-        printInstruction(&insn[j]);
+        block->append(Instruction(insn[j]));
 
+        bool split = false;
         if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_JUMP)) {
-            std::printf("---\n");
+            split = true;
         }
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_CALL)) {
-            std::printf("---\n");
+            split = true;
         }
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_RET)) {
-            std::printf("---\n");
+            split = true;
         }
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_INT)) {
         }
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_IRET)) {
         }
+
+        if(split) {
+            function->append(block);
+            block = new Block();
+        }
+    }
+
+    if(block->getSize() == 0) {
+        delete block;
+    }
+    else {
+        std::printf("fall-through function [%s]... "
+            "adding basic block\n", symbol->getName());
+        function->append(block);
     }
 
     cs_free(insn, count);
+    return function;
 }

@@ -4,6 +4,7 @@
 #include "main.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
+#include "chunk/chunk.h"
 #include "chunk/disassemble.h"
 
 int main(int argc, char *argv[]) {
@@ -24,8 +25,18 @@ int main(int argc, char *argv[]) {
             }
             for(auto s : symbolList) {
                 auto sym = s.second;
+                Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+
                 std::cout << "---[" << sym->getName() << "]---\n";
-                Disassemble::function(sym, baseAddr, &symbolList);
+                for(auto bb : *function) {
+                    std::cout << bb->getName() << ":\n";
+                    for(auto instr : *bb) {
+                        std::cout << "    ";
+                        Disassemble::printInstruction(&instr.raw());
+                    }
+                }
+
+                delete function;
             }
         }
         catch(const char *s) {
