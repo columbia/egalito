@@ -26,8 +26,10 @@ public:
 
 class SymbolList {
 private:
-    typedef std::map<const char *, Symbol *> ListType;
+    typedef std::vector<Symbol *> ListType;
     ListType symbolList;
+    typedef std::map<const char *, Symbol *> MapType;
+    MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
 public:
     bool add(Symbol *symbol);
@@ -38,6 +40,8 @@ public:
     ListType::iterator end() { return symbolList.end(); }
 
     static SymbolList buildSymbolList(ElfMap *elfmap);
+private:
+    void sortSymbols();
 };
 
 #endif

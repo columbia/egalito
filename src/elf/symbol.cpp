@@ -1,20 +1,22 @@
+#include <algorithm>  // for std::sort
 #include <cstdio>
 #include <elf.h>
 #include "symbol.h"
 #include "elfmap.h"
 
 bool SymbolList::add(Symbol *symbol) {
-    auto it = symbolList.find(symbol->getName());
-    if(it != symbolList.end()) return false;
+    auto it = symbolMap.find(symbol->getName());
+    if(it != symbolMap.end()) return false;
 
-    symbolList[symbol->getName()] = symbol;
+    symbolList.push_back(symbol);
+    symbolMap[symbol->getName()] = symbol;
     spaceMap[symbol->getAddress()] = symbol;
     return true;
 }
 
 Symbol *SymbolList::find(const char *name) {
-    auto it = symbolList.find(name);
-    if(it != symbolList.end()) {
+    auto it = symbolMap.find(name);
+    if(it != symbolMap.end()) {
         return (*it).second;
     }
     else {
@@ -137,7 +139,6 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
                 std::printf("symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
                     (int)list.symbolList.size(), address,
                     size, name);
-                //list.symbolList[name] = symbol;
                 list.add(symbol);
             }
         }
@@ -162,5 +163,14 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
 #endif
     }
 
+    list.sortSymbols();
+
     return std::move(list);
+}
+
+void SymbolList::sortSymbols() {
+    std::sort(symbolList.begin(), symbolList.end(),
+        [](Symbol *a, Symbol *b) {
+            return a->getAddress() < b->getAddress();
+        });
 }

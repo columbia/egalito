@@ -16,8 +16,7 @@ int main(int argc, char *argv[]) {
             std::cout << "\n=== Initial code disassembly ===\n";
 
             auto baseAddr = elf.getCopyBaseAddress();
-            for(auto s : symbolList) {
-                auto sym = s.second;
+            for(auto sym : symbolList) {
                 std::cout << "---[" << sym->getName() << "]---\n";
                 auto addr = sym->getAddress();
                 std::cout << "addr " << std::hex << addr
@@ -29,8 +28,7 @@ int main(int argc, char *argv[]) {
             std::cout << "\n=== Creating internal data structures ===\n";
 
             std::vector<Function *> functionList;
-            for(auto s : symbolList) {
-                auto sym = s.second;
+            for(auto sym : symbolList) {
                 Function *function = Disassemble::function(sym, baseAddr, &symbolList);
 
                 (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
