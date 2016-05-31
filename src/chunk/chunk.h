@@ -35,8 +35,14 @@ public:
     Function(Symbol *symbol, bool known)
         : symbol(symbol), allReferencesKnown(known) {}
     
+    virtual address_t getAddress() const { return symbol->getAddress(); }
     virtual bool canMove() const { return allReferencesKnown; }
     virtual void writeTo(Slot *slot);
+
+    virtual size_t getSize() const { return symbol->getSize(); }
+
+
+    virtual std::string getName() const { return symbol->getName(); }
 
     std::vector<std::shared_ptr<Block>>::iterator begin()
         { return blockList.begin(); }
