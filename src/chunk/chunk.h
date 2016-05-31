@@ -29,6 +29,7 @@ class Block;
 
 class Function : public Chunk {
 private:
+    Slot *slot;
     Symbol *symbol;
     address_t address;
     size_t size;
@@ -45,12 +46,14 @@ public:
     virtual std::string getName() const { return symbol->getName(); }
 
     void setAddress(address_t newAddress);
+    void updateAddress();
 
     BlockListType::iterator begin() { return blockList.begin(); }
     BlockListType::iterator end() { return blockList.end(); }
 
     virtual void sizeChanged(ssize_t bytesAdded, Block *which);
-    virtual void writeTo(Slot *slot);
+    void prepareWrite(Slot *slot);
+    virtual void writeTo(Slot *_unused);
 };
 
 class Instruction;
@@ -65,7 +68,7 @@ private:
     Function *outer;
 public:
     Block() : offset(0), size(0), outer(nullptr) {}
-    void append(Instruction instr);
+    Instruction *append(Instruction instr);
 
     virtual address_t getAddress() const;
     virtual size_t getSize() const { return size; }
@@ -85,6 +88,8 @@ public:
     virtual void writeTo(Slot *slot);
 };
 
+class CodeReference;
+
 class Instruction {
 private:
     enum detail_t {
@@ -96,13 +101,17 @@ private:
     cs_insn insn;
     size_t offset;
     Block *outer;
+    bool fixup;
+    CodeReference *target;
+    address_t originalAddress;
+    address_t originalTarget;
 private:
     void regenerate();
 public:
     Instruction(std::string data) : detail(DETAIL_NONE), data(data),
-        offset(0), outer(nullptr) {}
+        offset(0), outer(nullptr), fixup(false) {}
     Instruction(cs_insn insn) : detail(DETAIL_CAPSTONE), insn(insn),
-        offset(0), outer(nullptr) {}
+        offset(0), outer(nullptr), fixup(false) {}
 
     cs_insn &raw() { return insn; }
     virtual address_t getAddress() const;
@@ -110,9 +119,47 @@ public:
 
     void setOuter(Block *outer) { this->outer = outer; }
     void setOffset(size_t offset);
+    void setFixup(bool on) { fixup = on; }
+    void setOriginalAddress(address_t a) { originalAddress = a; }
+    void setOriginalTarget(address_t a) { originalTarget = a; }
+    void setCodeReference(CodeReference *c) { target = c; }
+
+    bool hasFixup() const { return fixup; }
+    CodeReference *getCodeReference() const { return target; }
 
     void writeTo(Slot *slot);
     void dump();
 };
+
+class CodeReference {
+private:
+    address_t source;
+    enum { FIXED, CHUNK } type;
+    address_t fixedAddress;
+    Chunk *chunk;
+    size_t offset;
+public:
+    CodeReference(address_t source, address_t fixedAddress)
+        : source(source), type(FIXED), fixedAddress(fixedAddress) {}
+    CodeReference(address_t source, Chunk *chunk, size_t offset = 0)
+        : source(source), type(CHUNK), chunk(chunk), offset(offset) {}
+
+    bool hasChunkTarget() const { return type == CHUNK; }
+    address_t getSource() const { return source; }
+    address_t getTarget();
+};
+
+#if 0
+class CodeReference {
+private:
+    Instruction *instr;
+    size_t sourceOffset;
+    Chunk *target;
+    size_t destOffset;
+public:
+    Fixup(Instruction *instr, size_t offset)
+        : instr(instr), offset(offset) {}
+};
+#endif
 
 #endif

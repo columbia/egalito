@@ -19,7 +19,7 @@ bool AnyLengthSlot::append(uint8_t *data, size_t size) {
 
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
     base = (address_t) mmap(0, size, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if(!base) {
         throw std::bad_alloc();
     }

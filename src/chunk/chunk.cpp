@@ -18,6 +18,8 @@ void Function::append(Block *block) {
 
 void Function::setAddress(address_t newAddress) {
     this->address = newAddress;
+}
+void Function::updateAddress() {
     for(auto block : blockList) {
         block->setOffset(block->getOffset());
     }
@@ -36,20 +38,28 @@ void Function::sizeChanged(ssize_t bytesAdded, Block *which) {
     size += bytesAdded;
 }
 
-void Function::writeTo(Slot *slot) {
+void Function::prepareWrite(Slot *slot) {
     setAddress(slot->getAddress());
+    this->slot = slot;
+}
+
+void Function::writeTo(Slot *) {
+    updateAddress();
+    //setAddress(slot->getAddress());
     for(auto block : blockList) {
         block->writeTo(slot);
     }
 }
 
-void Block::append(Instruction instr) {
+Instruction *Block::append(Instruction instr) {
     instr.setOuter(this);
     instr.setOffset(size);
     size += instr.getSize();
     instrList.push_back(instr);
 
     if(outer) outer->sizeChanged(+ instr.getSize(), this);
+    
+    return &instrList.back();
 }
 
 address_t Block::getAddress() const {
@@ -120,9 +130,35 @@ void Instruction::setOffset(size_t offset) {
     if(detail == DETAIL_CAPSTONE) {
         regenerate();
     }
+
+    if(fixup) {
+        if(detail == DETAIL_CAPSTONE) {
+            data.assign((char *)insn.bytes, insn.size);
+            //detail = DETAIL_NONE;
+        }
+        char *p = (char *)data.data();
+        unsigned int *i = (unsigned int *)(p + 1);
+
+        auto delta = -(getAddress() - originalAddress);
+        delta += target->getTarget() - originalTarget;
+        std::printf("target is %lx\n", target->getTarget());
+        std::printf("ADJUST instruction from %lx to %lx by %lx\n",
+            originalAddress, getAddress(), delta);
+        *i += delta;
+        originalAddress = getAddress();
+        originalTarget = target->getTarget();
+
+        if(detail == DETAIL_CAPSTONE) {
+            std::memcpy((void *)insn.bytes, p, insn.size);
+            regenerate();
+        }
+
+        dump();
+    }
 }
 
 void Instruction::writeTo(Slot *slot) {
+    std::printf("append bytes to %lx\n", slot->getAddress());
     slot->append(raw().bytes, raw().size);
 }
 
@@ -143,4 +179,10 @@ void Instruction::dump() {
     else {
         Disassemble::printInstruction(&i);
     }
+}
+
+address_t CodeReference::getTarget() {
+    if(type == FIXED) return fixedAddress;
+
+    return chunk->getAddress();
 }

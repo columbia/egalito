@@ -52,14 +52,46 @@ int main(int argc, char *argv[]) {
             functionList.push_back(function);
         }
 
+        for(auto f : functionList) {
+            for(auto bb : *f) {
+                for(auto &instr : *bb) {
+                    if(instr.hasFixup()) {
+                        auto old = instr.getCodeReference();
+
+                        auto sym = symbolList.find(old->getTarget());
+                        if(!sym) continue;
+
+                        Function *target = 0;
+                        for(auto f2 : functionList) {
+                            if(f2->getName() == sym->getName()) {
+                                target = f2;
+                                break;
+                            }
+                        }
+                        if(!target) continue;
+
+                        std::cout << "FOUND REFERENCE from " << f->getName() << " -> " << target->getName() << std::endl;
+
+                        instr.setCodeReference(
+                            new CodeReference(old->getSource(), target, 0));
+                    }
+                }
+            }
+        }
+
         auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
         Sandbox *sandbox = new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 
         std::cout << "\n=== Copying code into sandbox ===\n";
         for(auto f : functionList) {
             auto slot = sandbox->allocate(f->getSize());
+            std::cout << "ALLOC " << slot.getAddress() << "\n";
             //f->setAddress(address);
-            f->writeTo(&slot);
+            //f->writeTo(&slot);
+            f->prepareWrite(new Slot(slot));
+        }
+        for(auto f : functionList) {
+            f->writeTo(nullptr);
         }
         sandbox->finalize();
 
@@ -73,7 +105,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-#if 0
+#if 1
         for(auto f : functionList) {
             if(f->getName() == "main") {
                 std::cout << "main is at " << std::hex << f->getAddress() << "\n";

@@ -90,7 +90,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     Block *block = new Block();
 
     for(size_t j = 0; j < count; j++) {
-        block->append(Instruction(insn[j]));
+        auto instr = block->append(Instruction(insn[j]));
 
         bool split = false;
         if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_JUMP)) {
@@ -105,6 +105,29 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_INT)) {
         }
         else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_IRET)) {
+        }
+
+        cs_detail *detail = insn[j].detail;
+        cs_x86 *x = &detail->x86;
+        if(x->op_count > 0) {
+            for(size_t p = 0; p < x->op_count; p ++) {
+                cs_x86_op *op = &x->operands[p];
+                if(op->type == X86_OP_IMM) {
+                    std::printf("    immediate operand in ");
+                    printInstruction(&insn[j]);
+
+                    if(insn[j].id == X86_INS_CALL) {
+                        unsigned long imm = op->imm;
+                        std::printf("        call\n");
+                        instr->setFixup(true);
+                        instr->setOriginalAddress(insn[j].address);
+                        instr->setOriginalTarget(imm);
+
+                        instr->setCodeReference(new CodeReference(
+                            insn[j].address, imm));
+                    }
+                }
+            }
         }
 
         if(split) {
