@@ -13,6 +13,8 @@ int main(int argc, char *argv[]) {
             ElfMap elf(argv[1]);
             SymbolList symbolList = SymbolList::buildSymbolList(&elf);
 
+            std::cout << "\n=== Initial code disassembly ===\n";
+
             auto baseAddr = elf.getCopyBaseAddress();
             for(auto s : symbolList) {
                 auto sym = s.second;
@@ -23,6 +25,10 @@ int main(int argc, char *argv[]) {
                 Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
                     &symbolList);
             }
+
+            std::cout << "\n=== Creating internal data structures ===\n";
+
+            std::vector<Function *> functionList;
             for(auto s : symbolList) {
                 auto sym = s.second;
                 Function *function = Disassemble::function(sym, baseAddr, &symbolList);
@@ -40,7 +46,25 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                delete function;
+                functionList.push_back(function);
+            }
+
+            std::cout << "\n=== Re-compacting code at new location ===\n";
+
+            address_t watermark = 0x10000;
+            for(auto f : functionList) {
+                f->setAddress(watermark);
+                watermark += f->getSize();
+            }
+
+            for(auto f : functionList) {
+                std::cout << "---[" << f->getName() << "]---\n";
+                for(auto bb : *f) {
+                    for(auto &instr : *bb) {
+                        std::cout << "    ";
+                        instr.dump();
+                    }
+                }
             }
         }
         catch(const char *s) {

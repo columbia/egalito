@@ -32,11 +32,13 @@ void Disassemble::printInstruction(cs_insn *instr, const char *name,
             instr->address, instr->mnemonic, instr->op_str);
     }
 
+#if 0
     std::printf("    ");
     for(int i = 0; i < instr->size; i ++) {
         std::printf("%02x ", (unsigned)instr->bytes[i] & 0xff);
     }
     std::printf("\n");
+#endif
 }
 
 void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset) {

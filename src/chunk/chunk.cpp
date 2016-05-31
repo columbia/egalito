@@ -16,6 +16,13 @@ void Function::append(Block *block) {
     block->setName(name.str());
 }
 
+void Function::setAddress(address_t newAddress) {
+    this->address = newAddress;
+    for(auto block : blockList) {
+        block->setOffset(block->getOffset());
+    }
+}
+
 void Function::sizeChanged(ssize_t bytesAdded, Block *which) {
     bool after = false;
     for(auto block : blockList) {

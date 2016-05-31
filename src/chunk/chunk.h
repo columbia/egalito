@@ -44,6 +44,8 @@ public:
 
     virtual std::string getName() const { return symbol->getName(); }
 
+    void setAddress(address_t newAddress);
+
     BlockListType::iterator begin() { return blockList.begin(); }
     BlockListType::iterator end() { return blockList.end(); }
 
