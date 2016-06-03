@@ -6,6 +6,7 @@
 #include <memory>  // for std::shared_ptr
 #include <capstone/capstone.h>  // for cs_insn
 #include "elf/symbol.h"
+#include "position.h"
 #include "types.h"
 
 class Slot;
@@ -15,6 +16,9 @@ class Chunk {
 public:
     virtual ~Chunk() {}
 
+    virtual Chunk *getParent() = 0;
+    virtual 
+
     virtual address_t getAddress() const = 0;
     virtual size_t getSize() const = 0;
 
@@ -22,6 +26,7 @@ public:
     virtual int getVersion() const { return 0; }
 
     //virtual void sizeChanged(ssize_t bytesAdded) = 0;
+    virtual void assignTo(Slot *slot) = 0;
     virtual void writeTo(Slot *slot) = 0;
 };
 
@@ -51,8 +56,8 @@ public:
     BlockListType::iterator begin() { return blockList.begin(); }
     BlockListType::iterator end() { return blockList.end(); }
 
-    virtual void sizeChanged(ssize_t bytesAdded, Block *which);
-    void prepareWrite(Slot *slot);
+    void sizeChanged(ssize_t bytesAdded, Block *which);
+    virtual void assignTo(Slot *slot);
     virtual void writeTo(Slot *_unused);
 };
 
@@ -84,25 +89,31 @@ public:
     InstrListType::iterator begin() { return instrList.begin(); }
     InstrListType::iterator end() { return instrList.end(); }
 
-    virtual void sizeChanged(ssize_t bytesAdded);
+    void sizeChanged(ssize_t bytesAdded);
+    virtual void assignTo(Slot *slot);
     virtual void writeTo(Slot *slot);
 };
 
-class CodeReference;
+
+class NativeInstruction {
+private:
+    bool present;
+    cs_insn insn;
+public:
+    NativeInstruction() : present(false) {}
+    cs_insn &raw() { return insn; }
+};
 
 class Instruction {
 private:
-    enum detail_t {
-        DETAIL_NONE,
-        DETAIL_CAPSTONE
-    } detail;
-
     std::string data;
-    cs_insn insn;
+    NativeInstruction native;
     size_t offset;
     Block *outer;
     bool fixup;
     CodeReference *target;
+    Position position, target;
+    address_t target;
     address_t originalAddress;
     address_t originalTarget;
 private:
@@ -127,39 +138,9 @@ public:
     bool hasFixup() const { return fixup; }
     CodeReference *getCodeReference() const { return target; }
 
-    void writeTo(Slot *slot);
+    virtual void assignTo(Slot *slot);
+    virtual void writeTo(Slot *slot);
     void dump();
 };
-
-class CodeReference {
-private:
-    address_t source;
-    enum { FIXED, CHUNK } type;
-    address_t fixedAddress;
-    Chunk *chunk;
-    size_t offset;
-public:
-    CodeReference(address_t source, address_t fixedAddress)
-        : source(source), type(FIXED), fixedAddress(fixedAddress) {}
-    CodeReference(address_t source, Chunk *chunk, size_t offset = 0)
-        : source(source), type(CHUNK), chunk(chunk), offset(offset) {}
-
-    bool hasChunkTarget() const { return type == CHUNK; }
-    address_t getSource() const { return source; }
-    address_t getTarget();
-};
-
-#if 0
-class CodeReference {
-private:
-    Instruction *instr;
-    size_t sourceOffset;
-    Chunk *target;
-    size_t destOffset;
-public:
-    Fixup(Instruction *instr, size_t offset)
-        : instr(instr), offset(offset) {}
-};
-#endif
 
 #endif

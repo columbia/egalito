@@ -38,12 +38,12 @@ void Function::sizeChanged(ssize_t bytesAdded, Block *which) {
     size += bytesAdded;
 }
 
-void Function::prepareWrite(Slot *slot) {
+void Function::assignTo(Slot *slot) {
     setAddress(slot->getAddress());
     this->slot = slot;
 }
 
-void Function::writeTo(Slot *) {
+void Function::writeTo(Slot *_unused) {
     updateAddress();
     //setAddress(slot->getAddress());
     for(auto block : blockList) {
@@ -82,6 +82,10 @@ void Block::setOffset(size_t offset) {
         instr.setOffset(addr);
         addr += instr.getSize();
     }
+}
+
+void Block::assignTo(Slot *slot) {
+    throw "Can't assign a Block to a Slot yet";
 }
 
 void Block::writeTo(Slot *slot) {
@@ -157,6 +161,10 @@ void Instruction::setOffset(size_t offset) {
     }
 }
 
+void Instruction::assignTo(Slot *slot) {
+    throw "Can't assign an Instruction to a Slot yet";
+}
+
 void Instruction::writeTo(Slot *slot) {
     std::printf("append bytes to %lx\n", slot->getAddress());
     slot->append(raw().bytes, raw().size);
@@ -179,10 +187,4 @@ void Instruction::dump() {
     else {
         Disassemble::printInstruction(&i);
     }
-}
-
-address_t CodeReference::getTarget() {
-    if(type == FIXED) return fixedAddress;
-
-    return chunk->getAddress();
 }
