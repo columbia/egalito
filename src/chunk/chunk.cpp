@@ -1,134 +1,152 @@
 #include <iostream>  // for debugging
 #include <sstream>
 #include <cstring>  // for memcpy
+#include <cassert>
 #include "chunk.h"
 #include "disassemble.h"
 #include "transform/sandbox.h"
 
+template class ChunkImpl<NormalPosition>;
+template class ChunkImpl<RelativePosition>;
+template class ChunkImpl<OriginalPosition>;
+
+template class CompositeImpl<Block>;
+template class CompositeImpl<Instruction>;
+
+template class ChildImpl<Function>;
+template class ChildImpl<Block>;
+
+template <typename PositionType>
+address_t ChunkImpl<PositionType>::getAddress() const {
+    return position.get();
+}
+
+template <typename PositionType>
+void ChunkImpl<PositionType>::setAddress(address_t address) {
+    position.set(address);
+}
+
+template <typename ParentType>
+void ChildImpl<ParentType>::invalidateSize() {
+    if(getParent()) {
+        getParent()->invalidateSize();
+    }
+}
+
+template <typename PositionType>
+size_t CompositeImpl<PositionType>::getSize() const {
+    if(!size.isValid()) {
+        size_t sum = 0;
+        for(auto child : children()) {
+            sum += child->getSize();
+        }
+        size.set(sum);
+    }
+    return size.get();
+}
+
+template <typename PositionType>
+void CompositeImpl<PositionType>::setSize(size_t size) {
+    this->size.set(size);
+}
+
+template <typename PositionType>
+bool ChunkImpl<PositionType>::contains(address_t a) {
+    auto base = getAddress();  // only get once for efficiency
+    return a >= base && a < base + getSize();
+}
+
+template <typename PositionType>
+bool ChunkImpl<PositionType>::contains(address_t a, size_t s) {
+    auto base = getAddress();  // only get once for efficiency
+    return a >= base && a + s <= base + getSize();
+}
+
+template <typename PositionType>
+void ChunkImpl<PositionType>::setVersion(int version) {
+    throw "This type of Chunk cannot be versioned";
+}
+
 void Function::append(Block *block) {
-    blockList.push_back(block);
-    block->setOuter(this);
-    block->setOffset(size);
-    size += block->getSize();
+    children().push_back(block);
+    block->setParent(this);
+    block->setOffset(getSize());
+    getCalculatedSize().add(block->getSize());
 
     std::ostringstream name;
-    name << "bb" << blockList.size() << "-offset-" << block->getOffset();
+    name << "bb" << children().size() << "-offset-" << block->getOffset();
     block->setName(name.str());
 }
 
-void Function::setAddress(address_t newAddress) {
-    this->address = newAddress;
-}
-void Function::updateAddress() {
-    for(auto block : blockList) {
-        block->setOffset(block->getOffset());
-    }
-}
+void Function::writeTo(Sandbox *sandbox) {
+    getPosition().finalize();
 
-void Function::sizeChanged(ssize_t bytesAdded, Block *which) {
-    bool after = false;
-    for(auto block : blockList) {
-        if(after) {
-            block->setOffset(block->getOffset() + bytesAdded);
-        }
-        else if(block == which) {
-            after = true;
-        }
-    }
-    size += bytesAdded;
-}
-
-void Function::assignTo(Slot *slot) {
-    setAddress(slot->getAddress());
-    this->slot = slot;
-}
-
-void Function::writeTo(Slot *_unused) {
-    updateAddress();
-    //setAddress(slot->getAddress());
-    for(auto block : blockList) {
-        block->writeTo(slot);
+    for(auto block : children()) {
+        block->writeTo(sandbox);
     }
 }
 
 Instruction *Block::append(Instruction instr) {
-    instr.setOuter(this);
-    instr.setOffset(size);
-    size += instr.getSize();
-    instrList.push_back(instr);
+    instr.setParent(this);
+    instr.setOffset(getSize());
+    getCalculatedSize().add(instr.getSize());
 
-    if(outer) outer->sizeChanged(+ instr.getSize(), this);
-    
-    return &instrList.back();
+    auto i = new Instruction(instr);
+    children().push_back(i);
+
+    if(getParent()) getParent()->invalidateSize();
+    return i;
 }
 
-address_t Block::getAddress() const {
-    //std::cout << "block " << getName() << ", outer = " << outer << '\n';
-    if(!outer) {
-        throw "Can't get address of block outside a function";
-    }
-    return outer->getAddress() + offset;
+void Block::invalidateSize() {
+    CompositeImpl<Instruction>::invalidateSize();
+    ChildImpl<Function>::invalidateSize();
 }
 
-void Block::sizeChanged(ssize_t bytesAdded) {
-    size += bytesAdded;
-}
-
-void Block::setOffset(size_t offset) {
-    this->offset = offset;
-
-    size_t addr = 0;
-    for(auto &instr : instrList) {
-        instr.setOffset(addr);
-        addr += instr.getSize();
+void Block::writeTo(Sandbox *sandbox) {
+    for(auto instr : children()) {
+        instr->writeTo(sandbox);
     }
 }
 
-void Block::assignTo(Slot *slot) {
-    throw "Can't assign a Block to a Slot yet";
+void NativeInstruction::regenerate() {
+    auto address = instr->getAddress();
+    insn = Disassemble::getInsn(instr->getRawData(), address);
 }
 
-void Block::writeTo(Slot *slot) {
-    for(auto &instr : instrList) {
-        instr.writeTo(slot);
-    }
+cs_insn &NativeInstruction::raw() {
+    if(!cached) regenerate();
+    return insn;
 }
 
-void Instruction::regenerate() {
-    if(!outer || !outer->getOuter()) return;
+Instruction::Instruction(std::string data, address_t originalAddress)
+    : ChunkImpl<RelativePosition>(originalAddress, data.size()), data(data),
+    link(nullptr), native(this), originalAddress(originalAddress) {
 
-    std::string bytes;
-    if(detail == DETAIL_CAPSTONE) {
-        bytes.assign((char *)insn.bytes, insn.size);
-        /*std::cout << "regenerate [";
-        for(int i = 0; i < insn.size; i ++) std::cout << std::hex << ((unsigned)bytes[i] & 0xff) << " ";
-        std::cout << "]\n";*/
-    }
-    else {
-        bytes = data;
-    }
-
-    //std::cout << "regenerate at " << getAddress() << ", offset = " << outer->getOffset() << "\n";
-
-    this->insn = Disassemble::getInsn(bytes, getAddress());
-    detail = DETAIL_CAPSTONE;
+    // nothing more to do
 }
 
-address_t Instruction::getAddress() const {
-    //if(detail == DETAIL_CAPSTONE) return insn.address;
+Instruction::Instruction(cs_insn insn)
+    : ChunkImpl<RelativePosition>(insn.address, insn.size),
+    link(nullptr), native(this, insn), originalAddress(insn.address) {
 
-    if(!outer) {
-        throw "Can't get address of instruction outside a function";
-    }
-    return outer->getAddress() + offset;
+    data.assign((char *)insn.bytes, insn.size);
 }
 
-size_t Instruction::getSize() const {
-    if(detail == DETAIL_CAPSTONE) return insn.size;
-
-    return data.size();
+void Instruction::setParent(Block *parent) {
+    ChildImpl<Block>::setParent(parent);
+    native.invalidate();
 }
 
+void Instruction::setSize(size_t size) {
+    throw "Cannot set the size of an Instruction directly";
+}
+
+void Instruction::invalidateSize() {
+    throw "It is meaningless to invalidate the size of an Instruction";
+}
+
+#if 0
 void Instruction::setOffset(size_t offset) {
     this->offset = offset;
     if(detail == DETAIL_CAPSTONE) {
@@ -160,31 +178,20 @@ void Instruction::setOffset(size_t offset) {
         dump();
     }
 }
+#endif
 
-void Instruction::assignTo(Slot *slot) {
-    throw "Can't assign an Instruction to a Slot yet";
-}
-
-void Instruction::writeTo(Slot *slot) {
-    std::printf("append bytes to %lx\n", slot->getAddress());
-    slot->append(raw().bytes, raw().size);
+void Instruction::writeTo(Sandbox *sandbox) {
+    throw "Supposed to implement Instruction::writeTo!!!";
+    /*std::printf("append bytes to %lx\n", slot->getAddress());
+    slot->append(raw().bytes, raw().size);*/
 }
 
 void Instruction::dump() {
-    //std::cout << "block = " << outer << " ";
-    cs_insn i;
-    if(detail == DETAIL_CAPSTONE) {
-        i = insn;
+    if(getParent() && getParent()->getParent()) {
+        Disassemble::printInstructionAtOffset(&getNative(),
+            getPosition().getOffset() + getParent()->getOffset());
     }
     else {
-        i = Disassemble::getInsn(data.data(), getAddress());
-    }
-
-    if(outer && outer->getOuter()) {
-        Disassemble::printInstructionAtOffset(&i,
-            offset + outer->getOffset());
-    }
-    else {
-        Disassemble::printInstruction(&i);
+        Disassemble::printInstruction(&getNative());
     }
 }

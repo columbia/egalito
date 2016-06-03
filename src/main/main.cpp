@@ -86,9 +86,7 @@ int main(int argc, char *argv[]) {
         for(auto f : functionList) {
             auto slot = sandbox->allocate(f->getSize());
             std::cout << "ALLOC " << slot.getAddress() << "\n";
-            //f->setAddress(address);
-            //f->writeTo(&slot);
-            f->prepareWrite(new Slot(slot));
+            f->assignTo(new Slot(slot));
         }
         for(auto f : functionList) {
             f->writeTo(nullptr);
