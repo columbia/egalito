@@ -120,14 +120,14 @@ cs_insn &NativeInstruction::raw() {
 }
 
 Instruction::Instruction(std::string data, address_t originalAddress)
-    : ChunkImpl<RelativePosition>(originalAddress, data.size()), data(data),
+    : ChunkImpl<RelativePosition>(RelativePosition(nullptr, 0)), data(data),
     link(nullptr), native(this), originalAddress(originalAddress) {
 
     // nothing more to do
 }
 
 Instruction::Instruction(cs_insn insn)
-    : ChunkImpl<RelativePosition>(insn.address, insn.size),
+    : ChunkImpl<RelativePosition>(RelativePosition(nullptr, insn.address)),
     link(nullptr), native(this, insn), originalAddress(insn.address) {
 
     data.assign((char *)insn.bytes, insn.size);
@@ -179,6 +179,11 @@ void Instruction::setOffset(size_t offset) {
     }
 }
 #endif
+
+void Instruction::makeLink(address_t sourceOffset, Position *target) {
+    this->link = new KnownSourceLink<RelativePosition>(
+        RelativePosition(this, sourceOffset), target);
+}
 
 void Instruction::writeTo(Sandbox *sandbox) {
     throw "Supposed to implement Instruction::writeTo!!!";

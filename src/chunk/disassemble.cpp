@@ -119,12 +119,9 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
                     if(insn[j].id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
                         std::printf("        call\n");
-                        instr->setFixup(true);
-                        instr->setOriginalAddress(insn[j].address);
-                        instr->setOriginalTarget(imm);
-
-                        instr->setCodeReference(new CodeReference(
-                            insn[j].address, imm));
+                        instr->makeLink(
+                            insn[j].size - 4,
+                            new OriginalPosition(imm));
                     }
                 }
             }
@@ -147,10 +144,6 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
     cs_free(insn, count);
     return function;
-}
-
-Instruction Disassemble::makeInstruction(std::string str) {
-    return Instruction{str};
 }
 
 cs_insn Disassemble::getInsn(std::string str, address_t address) {

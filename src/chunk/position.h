@@ -123,6 +123,8 @@ private:
     SourcePosition source;
     Position *target;
 public:
+    KnownSourceLink(SourcePosition source, Position *target)
+        : source(source), target(target) {}
     address_t getSourceAddress() const { return source.get(); }
     address_t getTargetAddress() const { return target->get(); }
     SourcePosition *getSource() { return &source; }

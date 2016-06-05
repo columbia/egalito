@@ -45,7 +45,7 @@ class ChunkImpl : public Chunk {
 private:
     PositionType position;
 public:
-    ChunkImpl(address_t address, size_t size);
+    ChunkImpl(PositionType position) : position(position) {}
     virtual Chunk *getParent() { return nullptr; }
 
     virtual address_t getAddress() const;
@@ -106,12 +106,16 @@ class Function : public ChunkImpl<NormalPosition>,
 private:
     Symbol *symbol;
 public:
-    Function(Symbol *symbol) : ChunkImpl(symbol->getAddress(), 0),
+    Function(Symbol *symbol) : ChunkImpl(symbol->getAddress()),
         symbol(symbol) {}
     void append(Block *block);
 
-    using CompositeImpl<Block>::getSize;
-    using CompositeImpl<Block>::invalidateSize;
+    virtual size_t getSize() const
+        { return CompositeImpl<Block>::getSize(); }
+    virtual void setSize(size_t size)
+        { CompositeImpl<Block>::setSize(size); }
+    virtual void invalidateSize()
+        { CompositeImpl<Block>::invalidateSize(); }
 
     virtual std::string getName() const { return symbol->getName(); }
 
@@ -125,12 +129,15 @@ class Block : public ChunkImpl<RelativePosition>,
 private:
     std::string name;
 public:
-    Block(std::string name, address_t address)
-        : ChunkImpl<RelativePosition>(address, 0), name(name) {}
+    Block() : ChunkImpl(RelativePosition(nullptr, 0)) {}
     Instruction *append(Instruction instr);
 
-    using ChildImpl<Function>::getParent;
-    using CompositeImpl<Instruction>::getSize;
+    virtual Function *getParent()
+        { return ChildImpl<Function>::getParent(); }
+    virtual size_t getSize() const
+        { return CompositeImpl<Instruction>::getSize(); }
+    virtual void setSize(size_t size)
+        { CompositeImpl<Instruction>::setSize(size); }
 
     virtual void invalidateSize();
 
@@ -170,7 +177,8 @@ public:
     Instruction(std::string data, address_t originalAddress);
     Instruction(cs_insn insn);
 
-    using ChildImpl<Block>::getParent;
+    virtual Block *getParent()
+        { return ChildImpl<Block>::getParent(); }
     virtual void setParent(Block *parent);
     virtual size_t getSize() const { return data.size(); }
     virtual void setSize(size_t size);
@@ -179,7 +187,7 @@ public:
     size_t getOffset() const { return getPosition().getOffset(); }
     void setOffset(size_t offset) { getPosition().setOffset(offset); }
 
-    void makeLink(address_t source, address_t target);
+    void makeLink(address_t sourceOffset, Position *target);
     bool hasLink() const { return link != nullptr; }
     KnownSourceLink<RelativePosition> *getLink() { return link; }
 

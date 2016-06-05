@@ -43,9 +43,9 @@ int main(int argc, char *argv[]) {
             std::cout << "---[" << sym->getName() << "]---\n";
             for(auto bb : *function) {
                 std::cout << bb->getName() << ":\n";
-                for(auto &instr : *bb) {
+                for(auto instr : *bb) {
                     std::cout << "    ";
-                    instr.dump();
+                    instr->dump();
                 }
             }
 
@@ -54,11 +54,11 @@ int main(int argc, char *argv[]) {
 
         for(auto f : functionList) {
             for(auto bb : *f) {
-                for(auto &instr : *bb) {
-                    if(instr.hasFixup()) {
-                        auto old = instr.getCodeReference();
+                for(auto instr : *bb) {
+                    if(instr->hasLink()) {
+                        auto old = instr->getLink();
 
-                        auto sym = symbolList.find(old->getTarget());
+                        auto sym = symbolList.find(old->getTargetAddress());
                         if(!sym) continue;
 
                         Function *target = 0;
@@ -72,8 +72,9 @@ int main(int argc, char *argv[]) {
 
                         std::cout << "FOUND REFERENCE from " << f->getName() << " -> " << target->getName() << std::endl;
 
-                        instr.setCodeReference(
-                            new CodeReference(old->getSource(), target, 0));
+                        instr->makeLink(
+                            old->getSource()->getOffset(),
+                            new RelativePosition(target, 0));
                     }
                 }
             }
@@ -86,19 +87,20 @@ int main(int argc, char *argv[]) {
         for(auto f : functionList) {
             auto slot = sandbox->allocate(f->getSize());
             std::cout << "ALLOC " << slot.getAddress() << "\n";
-            f->assignTo(new Slot(slot));
+            f->setAddress(slot.getAddress());
+            //f->assignTo(new Slot(slot));
         }
         for(auto f : functionList) {
-            f->writeTo(nullptr);
+            f->writeTo(sandbox);
         }
         sandbox->finalize();
 
         for(auto f : functionList) {
             std::cout << "---[" << f->getName() << "]---\n";
             for(auto bb : *f) {
-                for(auto &instr : *bb) {
+                for(auto instr : *bb) {
                     std::cout << "    ";
-                    instr.dump();
+                    instr->dump();
                 }
             }
         }
