@@ -3,18 +3,13 @@
 #include "chunk.h"
 
 address_t RelativePosition::get() const {
-    assert(relativeTo != nullptr);
+    //assert(relativeTo != nullptr);
+    if(!relativeTo) return offset.get();
     return relativeTo->getAddress() + offset.get();
 }
 
 void RelativePosition::set(address_t value) {
     assert(relativeTo != nullptr);
-
-#if 0
-    if(!relativeTo->contains(value)) {
-        throw "Can't set RelativePosition outside enclosing bounds";
-    }
-#endif
 
     setOffset(value - relativeTo->getAddress());
 }

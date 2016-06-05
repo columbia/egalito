@@ -67,6 +67,8 @@ public:
 
     address_t getOffset() const { return offset.get(); }
     void setOffset(address_t value) { offset.set(value); }
+    void setRelativeTo(Chunk *to) { relativeTo = to; }
+    bool hasRelativeTo() const { return relativeTo != nullptr; }
 
     virtual void finalize();
 };

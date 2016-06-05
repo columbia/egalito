@@ -98,6 +98,11 @@ Instruction *Block::append(Instruction instr) {
     return i;
 }
 
+void Block::setParent(Function *parent) {
+    ChildImpl<Function>::setParent(parent);
+    getPosition().setRelativeTo(this);
+}
+
 void Block::invalidateSize() {
     CompositeImpl<Instruction>::invalidateSize();
     ChildImpl<Function>::invalidateSize();
@@ -110,8 +115,12 @@ void Block::writeTo(Sandbox *sandbox) {
 }
 
 void NativeInstruction::regenerate() {
-    auto address = instr->getAddress();
-    insn = Disassemble::getInsn(instr->getRawData(), address);
+    return;
+    if(instr->getParent()) {
+        auto address = instr->getAddress();
+        insn = Disassemble::getInsn(instr->getRawData(), address);
+        //cached = true;
+    }
 }
 
 cs_insn &NativeInstruction::raw() {
@@ -186,7 +195,14 @@ void Instruction::makeLink(address_t sourceOffset, Position *target) {
 }
 
 void Instruction::writeTo(Sandbox *sandbox) {
+#if 0
     throw "Supposed to implement Instruction::writeTo!!!";
+#else
+    native.regenerate();
+    auto address = getAddress();
+    std::memcpy((void *)address, data.data(), data.size());
+#endif
+
     /*std::printf("append bytes to %lx\n", slot->getAddress());
     slot->append(raw().bytes, raw().size);*/
 }

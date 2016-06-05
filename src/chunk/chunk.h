@@ -134,6 +134,7 @@ public:
 
     virtual Function *getParent()
         { return ChildImpl<Function>::getParent(); }
+    virtual void setParent(Function *parent);
     virtual size_t getSize() const
         { return CompositeImpl<Instruction>::getSize(); }
     virtual void setSize(size_t size)
