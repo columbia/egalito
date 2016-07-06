@@ -30,7 +30,7 @@ ElfMap::~ElfMap() {
 void ElfMap::setup() {
     verifyElf();
     makeSectionMap();
-    findProgramHeaders();
+    makeSegmentList();
 }
 
 void ElfMap::parseElf(const char *filename) {
@@ -78,7 +78,7 @@ void ElfMap::makeSectionMap() {
         Elf64_Shdr *s = &sheader[i];
         const char *name = shstrtab + s->sh_name;
 
-        std::cout << "section [" << name << "]\n";
+        //std::cout << "section [" << name << "]\n";
 
         sectionMap[name] = static_cast<void *>(s);
     }
@@ -87,12 +87,16 @@ void ElfMap::makeSectionMap() {
     this->dynstr = static_cast<const char *>(findSection(".dynstr"));
 }
 
-void ElfMap::findProgramHeaders() {
+void ElfMap::makeSegmentList() {
+    // this also calculates copyBase
+
     char *charmap = static_cast<char *>(map);
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
     for(int i = 0; i < header->e_phnum; i ++) {
         Elf64_Phdr *phdr = &pheader[i];
+
+        segmentList.push_back(static_cast<void *>(phdr));
 
         if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
             copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
@@ -114,4 +118,9 @@ void *ElfMap::findSection(const char *name) {
     char *charmap = static_cast<char *>(map);
     auto shdr = static_cast<Elf64_Shdr *>((*it).second);
     return static_cast<void *>(charmap + shdr->sh_offset);
+}
+
+size_t ElfMap::getEntryPoint() const {
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    return header->e_entry;
 }

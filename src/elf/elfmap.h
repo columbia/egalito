@@ -2,6 +2,7 @@
 #define EGALITO_ELF_ELFMAP_H
 
 #include <map>
+#include <vector>
 #include <string>
 #include "types.h"
 
@@ -23,6 +24,7 @@ private:
     const char *strtab;
     const char *dynstr;
     std::map<std::string, void *> sectionMap;
+    std::vector<void *> segmentList;
 private:
     address_t copyBase;
 public:
@@ -35,7 +37,7 @@ private:
     void parseElf(const char *filename);
     void verifyElf();
     void makeSectionMap();
-    void findProgramHeaders();
+    void makeSegmentList();
 public:
     address_t getBaseAddress() const { return 0; }
     address_t getCopyBaseAddress() const { return copyBase; }
@@ -43,6 +45,12 @@ public:
     const char *getDynstrtab() const { return dynstr; }
     void *findSectionHeader(const char *name);
     void *findSection(const char *name);
+
+    size_t getEntryPoint() const;
+
+    int getFileDescriptor() const { return fd; }
+    const std::vector<void *> &getSegmentList() const
+        { return segmentList; }
 };
 
 #endif
