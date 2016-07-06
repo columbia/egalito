@@ -120,6 +120,23 @@ void *ElfMap::findSection(const char *name) {
     return static_cast<void *>(charmap + shdr->sh_offset);
 }
 
+std::vector<void *> ElfMap::findSectionsByType(int type) {
+    std::vector<void *> sections;
+
+    char *charmap = static_cast<char *>(map);
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
+    for(int i = 0; i < header->e_shnum; i ++) {
+        Elf64_Shdr *s = &sheader[i];
+
+        if(s->sh_type == static_cast<uint32_t>(type)) {
+            sections.push_back(static_cast<void *>(s));
+        }
+    }
+
+    return std::move(sections);
+}
+
 size_t ElfMap::getEntryPoint() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     return header->e_entry;

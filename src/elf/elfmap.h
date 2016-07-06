@@ -43,11 +43,14 @@ public:
     address_t getCopyBaseAddress() const { return copyBase; }
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
+    const char *getSHStrtab() const { return shstrtab; }
     void *findSectionHeader(const char *name);
     void *findSection(const char *name);
+    std::vector<void *> findSectionsByType(int type);
 
     size_t getEntryPoint() const;
 
+    char *getCharmap() { return static_cast<char *>(map); }
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
