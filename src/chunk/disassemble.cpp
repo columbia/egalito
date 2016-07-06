@@ -91,6 +91,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
     for(size_t j = 0; j < count; j++) {
         auto instr = block->append(Instruction(insn[j]));
+        instr->setRelativeTo(block);
 
         bool split = false;
         if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_JUMP)) {
@@ -129,6 +130,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
         if(split) {
             function->append(block);
+            block->setRelativeTo(function);
             block = new Block();
         }
     }
@@ -140,6 +142,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         std::printf("fall-through function [%s]... "
             "adding basic block\n", symbol->getName());
         function->append(block);
+        block->setRelativeTo(function);
     }
 
     cs_free(insn, count);

@@ -86,11 +86,12 @@ int main(int argc, char *argv[]) {
         std::cout << "\n=== Copying code into sandbox ===\n";
         for(auto f : functionList) {
             auto slot = sandbox->allocate(f->getSize());
-            std::cout << "ALLOC " << slot.getAddress() << "\n";
+            std::cout << "ALLOC " << slot.getAddress() << " for " << f->getName() << "\n";
             f->setAddress(slot.getAddress());
             //f->assignTo(new Slot(slot));
         }
         for(auto f : functionList) {
+            std::cout << "writing out " << f->getName() << "\n";
             f->writeTo(sandbox);
         }
         sandbox->finalize();

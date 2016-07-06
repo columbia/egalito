@@ -131,6 +131,8 @@ private:
 public:
     Block() : ChunkImpl(RelativePosition(nullptr, 0)) {}
     Instruction *append(Instruction instr);
+    void setRelativeTo(Chunk *outside)
+        { getPosition().setRelativeTo(outside); }
 
     virtual Function *getParent()
         { return ChildImpl<Function>::getParent(); }
@@ -187,6 +189,8 @@ public:
 
     size_t getOffset() const { return getPosition().getOffset(); }
     void setOffset(size_t offset) { getPosition().setOffset(offset); }
+    void setRelativeTo(Chunk *outside)
+        { getPosition().setRelativeTo(outside); }
 
     void makeLink(address_t sourceOffset, Position *target);
     bool hasLink() const { return link != nullptr; }

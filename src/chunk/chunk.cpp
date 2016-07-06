@@ -68,9 +68,10 @@ void ChunkImpl<PositionType>::setVersion(int version) {
 }
 
 void Function::append(Block *block) {
+    size_t oldSize = getSize();
     children().push_back(block);
     block->setParent(this);
-    block->setOffset(getSize());
+    block->setOffset(oldSize);
     getCalculatedSize().add(block->getSize());
 
     std::ostringstream name;
@@ -203,8 +204,8 @@ void Instruction::writeTo(Sandbox *sandbox) {
     std::memcpy((void *)address, data.data(), data.size());
 #endif
 
-    /*std::printf("append bytes to %lx\n", slot->getAddress());
-    slot->append(raw().bytes, raw().size);*/
+    //std::printf("append bytes to %lx\n", address);
+    //slot->append(raw().bytes, raw().size);
 }
 
 void Instruction::dump() {

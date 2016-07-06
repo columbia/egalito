@@ -3,7 +3,7 @@
 #include "chunk.h"
 
 address_t RelativePosition::get() const {
-    //assert(relativeTo != nullptr);
+    assert(relativeTo != nullptr);
     if(!relativeTo) return offset.get();
     return relativeTo->getAddress() + offset.get();
 }
