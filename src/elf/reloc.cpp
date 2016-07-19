@@ -44,6 +44,10 @@ RelocList RelocList::buildRelocList(ElfMap *elf) {
                 r->r_addend                             // addend
             );
 
+            std::printf("reloc at address 0x%08lx, type %d, target %d\n",
+                reloc->getAddress(), reloc->getType(),
+                reloc->getSymbolIndex());
+
             /*if(reloc.type == R_X86_64_COPY) {
                 Elf64_Sym *dynsym = (Elf64_Sym *)
                     (elfspace->elf->map + elfspace->elf->dynsym->sh_offset);

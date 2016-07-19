@@ -1,0 +1,15 @@
+#ifndef EGALITO_LOAD_SEGMAP_H
+#define EGALITO_LOAD_SEGMAP_H
+
+#include <elf.h>  // for Elf64_Phdr
+#include "elf/elfmap.h"
+#include "types.h"
+
+class SegMap {
+public:
+    static void mapSegments(ElfMap &elf, address_t baseAddress = 0);
+private:
+    static void mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr, address_t baseAddress);
+};
+
+#endif
