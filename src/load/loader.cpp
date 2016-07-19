@@ -20,24 +20,30 @@ int main(int argc, char *argv[]) {
         //SymbolList symbolList = SymbolList::buildSymbolList(&elf);
         //RelocList relocList = RelocList::buildRelocList(&elf);
 
-        //const address_t baseAddress = 0x7000000;
-        const address_t baseAddress = 0x777000000;
+        const address_t baseAddress = 0x7000000;
+        //const address_t baseAddress = 0x777000000;
         //const address_t baseAddress = 0;
         SegMap::mapSegments(elf, baseAddress);
 
-        size_t entry_point = elf.getEntryPoint();
+        size_t entry_point = elf.getEntryPoint() + baseAddress;
         std::cout << "jumping to ELF entry point at " << entry_point << std::endl;
-
-        entry_point += baseAddress;
 
         int (*mainp)(int, char **) = (int (*)(int, char **))entry_point;
         entry = (void (*)(void))entry_point;
 
         // invoke main
-        if(0) {
-            int argc = 1;
-            char *argv[] = {"/dev/null", NULL};
-            mainp(argc, argv);
+        if(1) {
+            int argc = 2;
+            //char *argv[] = {"/dev/null", NULL};
+            char *argv[] = {"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2", "test/hi0-z", NULL};
+            __asm__ __volatile__ (
+                "push %%rax\n"
+                "push %%rbx\n"
+                "jmp  *%%rcx\n"
+                "hlt\n"
+                : : "a"(argc), "b"(argv), "c"(mainp)
+            );
+            //mainp(argc, argv);
         }
     }
     catch(const char *s) {
