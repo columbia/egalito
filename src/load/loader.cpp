@@ -10,6 +10,8 @@
 #include "chunk/disassemble.h"
 #include "transform/sandbox.h"
 
+#include <elf.h>
+
 void (*entry)(void) = 0;
 extern "C" void _start2(void);
 
@@ -23,9 +25,8 @@ int main(int argc, char *argv[]) {
         //SymbolList symbolList = SymbolList::buildSymbolList(&elf);
         //RelocList relocList = RelocList::buildRelocList(&elf);
 
-        //const address_t baseAddress = 0x7000000;
-        //const address_t baseAddress = 0x777000000;
-        const address_t baseAddress = 0;
+        address_t baseAddress = elf.isSharedLibrary() ? 0x7000000 : 0;
+
         SegMap::mapSegments(elf, baseAddress);
 
         size_t entry_point = elf.getEntryPoint() + baseAddress;
@@ -49,6 +50,7 @@ int main(int argc, char *argv[]) {
             );
             //mainp(argc, argv);
 #else
+            elf.adjustAuxV(argv, baseAddress);
             _start2();
 #endif
         }

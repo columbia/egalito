@@ -49,11 +49,15 @@ public:
     std::vector<void *> findSectionsByType(int type);
 
     size_t getEntryPoint() const;
+    bool isExecutable() const;
+    bool isSharedLibrary() const;
 
     char *getCharmap() { return static_cast<char *>(map); }
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
+
+    void adjustAuxV(char **argv, address_t baseAddress);
 };
 
 #endif

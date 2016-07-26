@@ -141,3 +141,57 @@ size_t ElfMap::getEntryPoint() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     return header->e_entry;
 }
+
+bool ElfMap::isExecutable() const {
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    return header->e_type == ET_EXEC;
+}
+
+bool ElfMap::isSharedLibrary() const {
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    return header->e_type == ET_DYN;
+}
+
+void ElfMap::adjustAuxV(char **argv, address_t baseAddress) {
+    address_t *auxv = reinterpret_cast<address_t *>(argv);
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+
+    std::cout << "Fixing auxiliary vector\n";
+
+    // Loop through all auxiliary vector entries, stopping at the terminating
+    // entry of type AT_NULL.
+    for(address_t *p = auxv; p[0] != AT_NULL; p += 2) {
+        address_t type = p[0];
+        address_t *new_value = &p[1];
+        switch(type) {
+        case AT_PHDR:
+            *new_value = reinterpret_cast<address_t>(map) + header->e_phoff;
+            break;
+        case AT_PHENT:
+            *new_value = header->e_phentsize;
+            break;
+        case AT_PHNUM:
+            *new_value = header->e_phnum;
+            break;
+        case AT_ENTRY:
+            *new_value = header->e_entry;
+            std::printf("AUXV: Entry point: 0x%lx\n", *new_value);
+            break;
+        case AT_BASE:
+            *new_value = baseAddress;
+            std::printf("AUXV: Base address: 0x%lx\n", *new_value);
+            break;
+        case AT_EXECFN:
+            static const char *fakeFilename
+                = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2";
+            std::printf("AUXV: old exec filename is [%s]\n",
+                reinterpret_cast<char *>(*new_value));
+            *new_value = reinterpret_cast<address_t>(fakeFilename);
+            std::printf("AUXV: new exec filename is [%s]\n",
+                reinterpret_cast<char *>(*new_value));
+            break;
+        default:
+            break;
+        }
+    }
+}

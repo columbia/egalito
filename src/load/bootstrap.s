@@ -39,9 +39,18 @@ _start2:
     mov     initial_stack, %rsp     # restore %rsp
 
     mov     entry, %rbx
-    pop     %rdx                    # restore %rdx
+    ##pop     %rdx                    # restore %rdx
+    pop     %r9                     # get argc
+    dec     %r9                     # subtract from argc
+    pop     %r10                    # remove loader from argv array
+    push    %r9                     # put argc back
 
     jmp     *%rbx                   # jump to entry point
+
+#main2:
+#    sub     $1, %rdi        # subtract from argc
+#    add     $8, %rsi        # and remove loader from argv array
+#    jmp     main
 
 .section    .note.GNU-stack, "", @progbits
 
