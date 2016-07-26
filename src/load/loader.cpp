@@ -10,19 +10,22 @@
 #include "chunk/disassemble.h"
 #include "transform/sandbox.h"
 
-static void (*entry)(void) = 0;
+void (*entry)(void) = 0;
+extern "C" void _start2(void);
 
 int main(int argc, char *argv[]) {
-    if(argc < 1) return -1;
+    if(argc < 2) return -1;
+
+    std::cout << "trying to load [" << argv[1] << "]...\n";
 
     try {
         ElfMap elf(argv[1]);
         //SymbolList symbolList = SymbolList::buildSymbolList(&elf);
         //RelocList relocList = RelocList::buildRelocList(&elf);
 
-        const address_t baseAddress = 0x7000000;
+        //const address_t baseAddress = 0x7000000;
         //const address_t baseAddress = 0x777000000;
-        //const address_t baseAddress = 0;
+        const address_t baseAddress = 0;
         SegMap::mapSegments(elf, baseAddress);
 
         size_t entry_point = elf.getEntryPoint() + baseAddress;
@@ -33,6 +36,7 @@ int main(int argc, char *argv[]) {
 
         // invoke main
         if(1) {
+#if 0
             int argc = 2;
             //char *argv[] = {"/dev/null", NULL};
             char *argv[] = {"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2", "test/hi0-z", NULL};
@@ -44,6 +48,9 @@ int main(int argc, char *argv[]) {
                 : : "a"(argc), "b"(argv), "c"(mainp)
             );
             //mainp(argc, argv);
+#else
+            _start2();
+#endif
         }
     }
     catch(const char *s) {

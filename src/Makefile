@@ -8,10 +8,15 @@ CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 LDFLAGS         = -lcapstone -Wl,-q
 
+GLIBCDIR = /usr/lib/x86_64-linux-gnu
+#STARTFILES = $(GLIBCDIR)/crt1.o $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbeginT.o`
+STARTFILES = $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbegin.o`
+ENDFILES = `gcc --print-file-name=crtend.o` $(GLIBCDIR)/crtn.o
+
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
-LOAD_SOURCES        = $(wildcard load/*.cpp)
+LOAD_SOURCES        = $(wildcard load/*.cpp) load/bootstrap.s
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES)
@@ -35,9 +40,10 @@ all: $(TARGET) $(LOADER)
 $(TARGET): $(TARGET_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -static -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+	$(CXX) -v $(CXXFLAGS) -o $@ $(STARTFILES) $^ $(ENDFILES) $(LDFLAGS) -nostartfiles \
+        -static -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 
 # Other targets
 .PHONY: clean
 clean:
-	-rm $(TARGET) $(LOADER) $(OBJECTS)
+	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS)
