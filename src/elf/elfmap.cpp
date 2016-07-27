@@ -88,7 +88,10 @@ void ElfMap::makeSectionMap() {
 }
 
 void ElfMap::makeSegmentList() {
-    // this also calculates copyBase
+    // this also calculates copyBase and sets interpreter
+    baseAddress = 0;
+    copyBase = 0;
+    interpreter = nullptr;
 
     char *charmap = static_cast<char *>(map);
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
@@ -100,6 +103,9 @@ void ElfMap::makeSegmentList() {
 
         if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
             copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
+        }
+        if(phdr->p_type == PT_INTERP) {
+            interpreter = charmap + phdr->p_offset;
         }
     }
 }
@@ -150,72 +156,4 @@ bool ElfMap::isExecutable() const {
 bool ElfMap::isSharedLibrary() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     return header->e_type == ET_DYN;
-}
-
-address_t *ElfMap::findAuxV(char **argv) {
-    address_t *address = reinterpret_cast<address_t *>(argv);
-    
-    //address ++;  // skip argc
-    while(*address++) {}  // skip argv entries
-    while(*address++) {}  // skip envp entries
-    
-    return address;
-}
-
-
-void ElfMap::adjustAuxV(char **argv, address_t baseAddress,
-    bool isInterp) {
-
-    address_t *auxv = findAuxV(argv);
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-
-    std::cout << "Fixing auxiliary vector\n";
-
-    // Loop through all auxiliary vector entries, stopping at the terminating
-    // entry of type AT_NULL.
-    for(address_t *p = auxv; p[0] != AT_NULL; p += 2) {
-        address_t type = p[0];
-        address_t *new_value = &p[1];
-        if(isInterp) {
-            switch(type) {
-            case AT_BASE:
-                // *new_value = baseAddress;
-                *new_value = reinterpret_cast<address_t>(map);
-                std::printf("AUXV: Base address: 0x%lx\n", *new_value);
-                break;
-            case AT_ENTRY:
-                *new_value = baseAddress + header->e_entry;
-                std::printf("AUXV: Entry point: 0x%lx\n", *new_value);
-                break;
-            default:
-                break;
-            }
-        }
-        else {
-            switch(type) {
-            case AT_PHDR:
-                *new_value = reinterpret_cast<address_t>(map) + header->e_phoff;
-                // *new_value = baseAddress + header->e_phoff;
-                break;
-            case AT_PHENT:
-                *new_value = header->e_phentsize;
-                break;
-            case AT_PHNUM:
-                *new_value = header->e_phnum;
-                break;
-            case AT_EXECFN:
-                static const char *fakeFilename
-                    //= "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2";
-                    = "./hello";
-                std::printf("AUXV: old exec filename is [%s]\n",
-                    reinterpret_cast<char *>(*new_value));
-                *new_value = reinterpret_cast<address_t>(fakeFilename);
-                std::printf("AUXV: new exec filename is [%s]\n",
-                    reinterpret_cast<char *>(*new_value));
-                break;
-            default:
-                break;
-            }
-        }
-    }
 }

@@ -25,7 +25,9 @@ private:
     const char *dynstr;
     std::map<std::string, void *> sectionMap;
     std::vector<void *> segmentList;
+    const char *interpreter;
 private:
+    address_t baseAddress;
     address_t copyBase;
 public:
     ElfMap(pid_t pid);
@@ -39,7 +41,8 @@ private:
     void makeSectionMap();
     void makeSegmentList();
 public:
-    address_t getBaseAddress() const { return 0; }
+    void setBaseAddress(address_t base) { baseAddress = base; }
+    address_t getBaseAddress() const { return baseAddress; }
     address_t getCopyBaseAddress() const { return copyBase; }
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
@@ -47,6 +50,9 @@ public:
     void *findSectionHeader(const char *name);
     void *findSection(const char *name);
     std::vector<void *> findSectionsByType(int type);
+
+    bool hasInterpreter() const { return interpreter != nullptr; }
+    const char *getInterpreter() const { return interpreter; }
 
     size_t getEntryPoint() const;
     bool isExecutable() const;

@@ -40,7 +40,7 @@ all: $(TARGET) $(LOADER)
 $(TARGET): $(TARGET_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
-	$(CXX) -v $(CXXFLAGS) -o $@ $(STARTFILES) $^ $(ENDFILES) $(LDFLAGS) -nostartfiles \
+	$(CXX) $(CXXFLAGS) -o $@ $(STARTFILES) $^ $(ENDFILES) $(LDFLAGS) -nostartfiles \
         -static -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 
 # Other targets

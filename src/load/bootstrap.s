@@ -44,8 +44,6 @@ _start2:
     mov     initial_stack, %rsp     # restore %rsp
 
     mov     entry, %rbx
-    ##pop     %rdx                    # restore %rdx
-    ##clr     %rdx                    # no term func
     mov     saved_rdx, %rdx         # restore %rdx
     ##pop     %r9                     # get argc
     ##dec     %r9                     # subtract from argc
@@ -53,8 +51,7 @@ _start2:
     ##push    %r9                     # put argc back
 
     jmp     *%rbx                   # jump to entry point
-what:
-    jmp     what
+    hlt
 
 #main2:
 #    sub     $1, %rdi        # subtract from argc
