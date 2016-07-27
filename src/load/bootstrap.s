@@ -20,7 +20,7 @@ _start:
     pop     %rsi
     mov     %rsp, %rdx
     and     $~15,%rsp
-    push    %rsi  # junk
+    push    %rdx
 
     push    %rsp
 
@@ -39,13 +39,16 @@ _start2:
     mov     initial_stack, %rsp     # restore %rsp
 
     mov     entry, %rbx
-    ##pop     %rdx                    # restore %rdx
+    pop     %rdx                    # restore %rdx
+    pop     %rdx                    # restore %rdx
     pop     %r9                     # get argc
     dec     %r9                     # subtract from argc
     pop     %r10                    # remove loader from argv array
     push    %r9                     # put argc back
 
     jmp     *%rbx                   # jump to entry point
+what:
+    jmp     what
 
 #main2:
 #    sub     $1, %rdi        # subtract from argc

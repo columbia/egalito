@@ -57,7 +57,8 @@ public:
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
 
-    void adjustAuxV(char **argv, address_t baseAddress);
+    void adjustAuxV(char **argv, address_t baseAddress,
+        bool isInterp);
 };
 
 #endif

@@ -12,48 +12,32 @@
 
 #include <elf.h>
 
-void (*entry)(void) = 0;
+address_t entry = 0;
 extern "C" void _start2(void);
 
 int main(int argc, char *argv[]) {
-    if(argc < 2) return -1;
+    if(argc < 1) return -1;
 
     std::cout << "trying to load [" << argv[1] << "]...\n";
 
     try {
         ElfMap elf(argv[1]);
-        //SymbolList symbolList = SymbolList::buildSymbolList(&elf);
-        //RelocList relocList = RelocList::buildRelocList(&elf);
+        ElfMap interpreter("/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2");
 
-        address_t baseAddress = elf.isSharedLibrary() ? 0x7000000 : 0;
+        address_t baseAddress = elf.isSharedLibrary() ? 0x4000000 : 0;
+        address_t interpreterAddress = 0x7000000;
 
         SegMap::mapSegments(elf, baseAddress);
+        SegMap::mapSegments(interpreter, interpreterAddress);
 
-        size_t entry_point = elf.getEntryPoint() + baseAddress;
-        std::cout << "jumping to ELF entry point at " << entry_point << std::endl;
+        address_t elfEntry = elf.getEntryPoint() + baseAddress;
+        entry = interpreter.getEntryPoint() + interpreterAddress;
+        std::cout << "jumping to interpreter entry point at " << entry << std::endl;
+        std::cout << "while ELF entry point is " << elfEntry << std::endl;
 
-        int (*mainp)(int, char **) = (int (*)(int, char **))entry_point;
-        entry = (void (*)(void))entry_point;
-
-        // invoke main
-        if(1) {
-#if 0
-            int argc = 2;
-            //char *argv[] = {"/dev/null", NULL};
-            char *argv[] = {"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2", "test/hi0-z", NULL};
-            __asm__ __volatile__ (
-                "push %%rax\n"
-                "push %%rbx\n"
-                "jmp  *%%rcx\n"
-                "hlt\n"
-                : : "a"(argc), "b"(argv), "c"(mainp)
-            );
-            //mainp(argc, argv);
-#else
-            elf.adjustAuxV(argv, baseAddress);
-            _start2();
-#endif
-        }
+        interpreter.adjustAuxV(argv, interpreterAddress, true);
+        elf.adjustAuxV(argv, baseAddress, false);
+        _start2();  // never returns
     }
     catch(const char *s) {
         std::cerr << "Error: " << s;
@@ -61,8 +45,5 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    getchar();
-
-    (*entry)();
     return 0;
 }
