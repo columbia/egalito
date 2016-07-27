@@ -152,10 +152,21 @@ bool ElfMap::isSharedLibrary() const {
     return header->e_type == ET_DYN;
 }
 
+address_t *ElfMap::findAuxV(char **argv) {
+    address_t *address = reinterpret_cast<address_t *>(argv);
+    
+    //address ++;  // skip argc
+    while(*address++) {}  // skip argv entries
+    while(*address++) {}  // skip envp entries
+    
+    return address;
+}
+
+
 void ElfMap::adjustAuxV(char **argv, address_t baseAddress,
     bool isInterp) {
 
-    address_t *auxv = reinterpret_cast<address_t *>(argv);
+    address_t *auxv = findAuxV(argv);
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
 
     std::cout << "Fixing auxiliary vector\n";
@@ -168,9 +179,13 @@ void ElfMap::adjustAuxV(char **argv, address_t baseAddress,
         if(isInterp) {
             switch(type) {
             case AT_BASE:
-                *new_value = baseAddress;
-                // *new_value = reinterpret_cast<address_t>(map);
+                // *new_value = baseAddress;
+                *new_value = reinterpret_cast<address_t>(map);
                 std::printf("AUXV: Base address: 0x%lx\n", *new_value);
+                break;
+            case AT_ENTRY:
+                *new_value = baseAddress + header->e_entry;
+                std::printf("AUXV: Entry point: 0x%lx\n", *new_value);
                 break;
             default:
                 break;
@@ -179,18 +194,14 @@ void ElfMap::adjustAuxV(char **argv, address_t baseAddress,
         else {
             switch(type) {
             case AT_PHDR:
-                // *new_value = reinterpret_cast<address_t>(map) + header->e_phoff;
-                *new_value = baseAddress + header->e_phoff;
+                *new_value = reinterpret_cast<address_t>(map) + header->e_phoff;
+                // *new_value = baseAddress + header->e_phoff;
                 break;
             case AT_PHENT:
                 *new_value = header->e_phentsize;
                 break;
             case AT_PHNUM:
                 *new_value = header->e_phnum;
-                break;
-            case AT_ENTRY:
-                *new_value = header->e_entry;
-                std::printf("AUXV: Entry point: 0x%lx\n", *new_value);
                 break;
             case AT_EXECFN:
                 static const char *fakeFilename
