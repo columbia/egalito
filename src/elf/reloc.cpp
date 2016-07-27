@@ -44,7 +44,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf) {
                 r->r_addend                             // addend
             );
 
-            std::printf("reloc at address 0x%08lx, type %d, target %d\n",
+            std::printf("reloc at address 0x%08lx, type %d, target %lu\n",
                 reloc->getAddress(), reloc->getType(),
                 reloc->getSymbolIndex());
 

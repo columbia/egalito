@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
                 int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
 
                 int argc = 1;
-                char *argv[] = {"/dev/null", NULL};
+                char *argv[] = {(char *)"/dev/null", NULL};
                 mainp(argc, argv);
             }
         }

@@ -13,7 +13,7 @@
 
 #include <elf.h>
 
-address_t entry = 0;
+extern address_t entry;
 extern "C" void _start2(void);
 
 int main(int argc, char *argv[]) {
@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
         }
         std::cout << "jumping to entry point at " << entry << std::endl;
 
+        // set up execution environment
         adjustAuxiliaryVector(argv, elf, interpreter);
 
         // jump to the interpreter/target program (never returns)

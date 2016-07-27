@@ -57,7 +57,7 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
             address_t address = sym->st_value;
             size_t size = sym->st_size;
             const char *name = elfmap->getStrtab() + sym->st_name;
-            auto index = sym->st_shndx;
+            //auto index = sym->st_shndx;
 
 #if 0
             symbol.is_ifunc = (ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC);
