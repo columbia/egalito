@@ -8,6 +8,7 @@
 #include "elf/reloc.h"
 #include "elf/auxv.h"
 #include "chunk/chunk.h"
+#include "chunk/chunklist.h"
 #include "chunk/disassemble.h"
 #include "transform/sandbox.h"
 
@@ -15,6 +16,8 @@
 
 extern address_t entry;
 extern "C" void _start2(void);
+
+void examineElf(ElfMap *elf);
 
 int main(int argc, char *argv[]) {
     if(argc < 1) return -1;
@@ -38,6 +41,9 @@ int main(int argc, char *argv[]) {
             SegMap::mapSegments(*interpreter, interpreter->getBaseAddress());
         }
 
+        examineElf(elf);
+        //examineElf(interpreter);
+
         // find entry point
         if(interpreter) {
             entry = interpreter->getEntryPoint() + interpreterAddress;
@@ -60,4 +66,61 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+void examineElf(ElfMap *elf) {
+    SymbolList symbolList = SymbolList::buildSymbolList(elf);
+
+    std::cout << "\n=== Initial code disassembly ===\n";
+
+    auto baseAddr = elf->getCopyBaseAddress();
+    for(auto sym : symbolList) {
+        std::cout << "---[" << sym->getName() << "]---\n";
+        auto addr = sym->getAddress();
+        std::cout << "addr " << std::hex << addr
+            << " -> " << std::hex << addr + baseAddr << "\n";
+        Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
+            &symbolList);
+    }
+
+    std::cout << "\n=== Creating internal data structures ===\n";
+
+    ChunkList<Function> functionList;
+    for(auto sym : symbolList) {
+        Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+
+        std::cout << "---[" << sym->getName() << "]---\n";
+        for(auto bb : *function) {
+            std::cout << bb->getName() << ":\n";
+            for(auto instr : *bb) {
+                std::cout << "    ";
+                instr->dump();
+            }
+        }
+
+        functionList.add(function);
+    }
+
+    for(auto f : functionList) {
+        for(auto bb : *f) {
+            for(auto instr : *bb) {
+                if(instr->hasLink()) {
+                    auto link = instr->getLink();
+
+                    Function *target = functionList.find(link->getTargetAddress());
+                    if(!target) continue;
+
+                    std::cout << "FOUND REFERENCE from "
+                        << f->getName() << " -> " << target->getName()
+                        << std::endl;
+
+                    instr->makeLink(
+                        link->getSource()->getOffset(),
+                        new RelativePosition(target, 0));
+                }
+            }
+        }
+    }
+
+    RelocList relocList = RelocList::buildRelocList(elf);
 }
