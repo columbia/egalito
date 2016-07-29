@@ -62,10 +62,6 @@ public:
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
-
-    address_t *findAuxV(char **argv);
-    void adjustAuxV(char **argv, address_t baseAddress,
-        bool isInterp);
 };
 
 #endif
