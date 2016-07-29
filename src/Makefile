@@ -24,6 +24,7 @@ TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
 LOADER_SOURCES = $(SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(LOADER_SOURCES:.s=.o)))
+ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES)
 
 TARGET = egalito
 LOADER = loader
@@ -32,9 +33,22 @@ LOADER = loader
 .PHONY: all
 all: $(TARGET) $(LOADER)
 
+# Dependencies
+-include depend
+depend: $(ALL_SOURCES) $(shell find -name '*.h')
+	@echo '# generating dependencies'
+	-@$(RM) depend
+	@bash -c 'for file in $(filter %.cpp,$(ALL_SOURCES)); do \
+		$(CXX) $(CXXFLAGS) -MM -MT $${file/.cpp/.o} $$file >> depend ; \
+	done'
+
 # Rules
 %.o: %.s
 	$(CC) -fPIC -c $^ -o $@
+%.o: %.c
+	$(CC) $(CFLAGS) -DDEBUG=D_$(shell echo $< | perl -ne 's|/|_|g;s/\.c$$//;print uc') -c -o $@ $<
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -DDEBUG=D_$(shell echo $< | perl -ne 's|/|_|g;s/\.cpp$$//;print uc') -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
