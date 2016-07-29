@@ -1,6 +1,11 @@
 #include <cstdio>
 #include <cstring>
 #include "reloc.h"
+#include "symbol.h"
+
+std::string Reloc::getSymbolName() const {
+    return symbol ? symbol->getName() : "???";
+}
 
 bool RelocList::add(Reloc *reloc) {
     relocList.push_back(reloc);
@@ -15,7 +20,7 @@ bool RelocList::add(Reloc *reloc) {
     }
 }
 
-RelocList RelocList::buildRelocList(ElfMap *elf) {
+RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
     RelocList list;
 
     std::vector<void *> sectionList
@@ -41,12 +46,13 @@ RelocList RelocList::buildRelocList(ElfMap *elf) {
                 elf->getBaseAddress() + r->r_offset,    // address
                 ELF64_R_TYPE(r->r_info),                // type
                 ELF64_R_SYM(r->r_info),                 // symbol index
+                symbolList->get(ELF64_R_SYM(r->r_info)),  // symbol index
                 r->r_addend                             // addend
             );
 
-            std::printf("reloc at address 0x%08lx, type %d, target %lu\n",
+            std::printf("reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),
-                reloc->getSymbolIndex());
+                reloc->getSymbolName().c_str());
 
             /*if(reloc.type == R_X86_64_COPY) {
                 Elf64_Sym *dynsym = (Elf64_Sym *)

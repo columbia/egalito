@@ -122,5 +122,13 @@ void examineElf(ElfMap *elf) {
         }
     }
 
-    RelocList relocList = RelocList::buildRelocList(elf);
+    RelocList relocList = RelocList::buildRelocList(elf, &symbolList);
+    for(auto r : relocList) {
+        Function *target = functionList.find(r->getSymbol()->getName());
+        if(target) {
+            std::cout << "FOUND RELOCATION from "
+                << r->getAddress() << " -> " << target->getName()
+                << std::endl;
+        }
+    }
 }

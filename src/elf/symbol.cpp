@@ -14,6 +14,11 @@ bool SymbolList::add(Symbol *symbol) {
     return true;
 }
 
+Symbol *SymbolList::get(size_t index) {
+    if(index >= symbolList.size()) return nullptr;
+    return symbolList[index];
+}
+
 Symbol *SymbolList::find(const char *name) {
     auto it = symbolMap.find(name);
     if(it != symbolMap.end()) {
@@ -169,7 +174,8 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
 }
 
 void SymbolList::sortSymbols() {
-    std::sort(symbolList.begin(), symbolList.end(),
+    sortedSymbolList = symbolList;
+    std::sort(sortedSymbolList.begin(), sortedSymbolList.end(),
         [](Symbol *a, Symbol *b) {
             return a->getAddress() < b->getAddress();
         });

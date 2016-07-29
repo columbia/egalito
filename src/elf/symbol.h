@@ -28,11 +28,13 @@ class SymbolList {
 private:
     typedef std::vector<Symbol *> ListType;
     ListType symbolList;
+    ListType sortedSymbolList;
     typedef std::map<const char *, Symbol *> MapType;
     MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
 public:
     bool add(Symbol *symbol);
+    Symbol *get(size_t index);
     Symbol *find(const char *name);
     Symbol *find(address_t address);
 
