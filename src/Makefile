@@ -13,6 +13,7 @@ GLIBCDIR = /usr/lib/x86_64-linux-gnu
 STARTFILES = $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbegin.o`
 ENDFILES = `gcc --print-file-name=crtend.o` $(GLIBCDIR)/crtn.o
 
+BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
@@ -22,7 +23,7 @@ MAIN_SOURCES        = $(wildcard main/*.cpp)
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES)
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
-LOADER_SOURCES = $(SOURCES) $(LOAD_SOURCES)
+LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(LOADER_SOURCES:.s=.o)))
 ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES)
 
