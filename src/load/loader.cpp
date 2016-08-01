@@ -11,6 +11,7 @@
 #include "chunk/chunklist.h"
 #include "chunk/disassemble.h"
 #include "transform/sandbox.h"
+#include "log/log.h"
 
 #include <elf.h>
 
@@ -23,6 +24,8 @@ int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
 
     std::cout << "trying to load [" << argv[1] << "]...\n";
+    LOG(0, "loading ELF program [" << argv[1] << "]\n");
+    LOG(10, "loading ELF program [" << argv[1] << "]\n");
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
