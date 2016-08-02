@@ -17,6 +17,8 @@
 
 #include <elf.h>
 
+LOGGING_PRELUDE("LOAD");
+
 extern address_t entry;
 extern "C" void _start2(void);
 
@@ -28,8 +30,9 @@ int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
 
     std::cout << "trying to load [" << argv[1] << "]...\n";
-    LOG(0, "loading ELF program [" << argv[1] << "]\n");
-    LOG(10, "loading ELF program [" << argv[1] << "]\n");
+    LOG(0, "loading ELF program [" << argv[1] << "]");
+    LOG(10, "loading ELF program [" << argv[1] << "]");
+    CLOG(0, "hi there %d", 42);
 
     Signals::registerHandlers();
 

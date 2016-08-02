@@ -18,9 +18,10 @@ CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 LOAD_SOURCES        = $(wildcard load/*.cpp) load/bootstrap.s
+LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 
-SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES)
+SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES)
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
 LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)

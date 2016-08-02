@@ -11,4 +11,4 @@
 #define D_TRANSFORM_SANDBOX     9
 #define D_MAIN_MAIN             9
 #define D_LOAD_SEGMAP           9
-#define D_LOAD_LOADER           0
+#define D_LOAD_LOADER           9
