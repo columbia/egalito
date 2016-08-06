@@ -13,6 +13,7 @@
 #include "transform/sandbox.h"
 #include "break/signals.h"
 #include "break/breakpoint.h"
+#include "log/registry.h"
 #include "log/log.h"
 
 #include <elf.h>
@@ -29,12 +30,10 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList);
 int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
 
-    std::cout << "trying to load [" << argv[1] << "]...\n";
     LOG(0, "loading ELF program [" << argv[1] << "]");
-    LOG(10, "loading ELF program [" << argv[1] << "]");
-    CLOG(0, "hi there %d", 42);
 
     Signals::registerHandlers();
+    FileRegistry::getInstance()->dumpSettings();
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
@@ -64,7 +63,7 @@ int main(int argc, char *argv[]) {
         else {
             entry = elf->getEntryPoint() + baseAddress;
         }
-        std::cout << "jumping to entry point at " << entry << std::endl;
+        CLOG(0, "jumping to entry point at 0x%lx", entry);
 
         // set up execution environment
         adjustAuxiliaryVector(argv, elf, interpreter);
@@ -73,6 +72,7 @@ int main(int argc, char *argv[]) {
         _start2();
     }
     catch(const char *s) {
+        LOG(0, "ERROR: " << s);
         std::cerr << "Error: " << s;
         if(*s && s[std::strlen(s) - 1] != '\n') std::cerr << '\n';
         return 1;
@@ -84,30 +84,32 @@ int main(int argc, char *argv[]) {
 void examineElf(ElfMap *elf) {
     SymbolList symbolList = SymbolList::buildSymbolList(elf);
 
-    std::cout << "\n=== Initial code disassembly ===\n";
+    LOG(1, "");
+    LOG(1, "=== Initial code disassembly ===");
 
     auto baseAddr = elf->getCopyBaseAddress();
     for(auto sym : symbolList) {
-        std::cout << "---[" << sym->getName() << "]---\n";
+        LOG(2, "---[" << sym->getName() << "]---");
         auto addr = sym->getAddress();
-        std::cout << "addr " << std::hex << addr
-            << " -> " << std::hex << addr + baseAddr << "\n";
+        LOG(2, "addr " << std::hex << addr
+            << " -> " << std::hex << addr + baseAddr);
         Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
             &symbolList);
     }
 
-    std::cout << "\n=== Creating internal data structures ===\n";
+    LOG(1, "");
+    LOG(1, "=== Creating internal data structures ===");
 
     ChunkList<Function> functionList;
     for(auto sym : symbolList) {
         Function *function = Disassemble::function(sym, baseAddr, &symbolList);
 
-        std::cout << "---[" << sym->getName() << "]---\n";
+        LOG(2, "---[" << sym->getName() << "]---");
         for(auto bb : *function) {
-            std::cout << bb->getName() << ":\n";
+            LOG(3, bb->getName() << ":");
             for(auto instr : *bb) {
-                std::cout << "    ";
-                instr->dump();
+                LOG0(3, "    ");
+                IF_LOG(3) instr->dump();
             }
         }
 

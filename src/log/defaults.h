@@ -9,6 +9,7 @@
 #define D_ELF_AUXV              9
 #define D_TRANSFORM_TRANSFORM   9
 #define D_TRANSFORM_SANDBOX     9
+#define D_LOG_REGISTRY          9
 #define D_MAIN_MAIN             9
 #define D_LOAD_SEGMAP           9
 #define D_LOAD_LOADER           9

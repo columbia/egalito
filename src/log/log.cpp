@@ -9,7 +9,7 @@
 LogLevelSettings::LogLevelSettings(const char *file, const char *shortFile,
     int initialBound) : file(file), bound(initialBound) {
 
-    FileRegistry::getInstance()->addFile(file, this);
+    FileRegistry::getInstance()->addFile(shortFile, this);
 
     std::ostringstream ss1;
     ss1 << "[" << shortFile << "] ";
@@ -21,8 +21,13 @@ LogLevelSettings::LogLevelSettings(const char *file, const char *shortFile,
 int _log_fprintf(FILE *stream, const char *type, const char *format, ...) {
     va_list args;
 
+#if 0
     char buffer[4096] = {0};
     snprintf(buffer, sizeof buffer, "%s%s\n", type, format);
+#else
+    char buffer[4096] = {0};
+    snprintf(buffer, sizeof buffer, "%s\n", format);
+#endif
 
     va_start(args, format);
     int ret = vfprintf(stream, buffer, args);

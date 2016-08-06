@@ -12,6 +12,9 @@ private:
 public:
     void addFile(const char *file, LogLevelSettings *level);
     LogLevelSettings *getFile(const std::string &name);
+
+    void parseEnvVar(const char *var);
+    void dumpSettings();
     
     static FileRegistry *getInstance() {
         static FileRegistry instance;

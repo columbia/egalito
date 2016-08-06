@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <iostream>  // for std::cout
 #include "defaults.h"
 
 class LogLevelSettings {
@@ -15,6 +16,10 @@ public:
         int initialBound);
     bool shouldShow(int level) const { return level < bound; }
     const char *getPrefix() const { return prefix.c_str(); }
+
+    // for debugging
+    const char *getFile() const { return file; }
+    int getBound() const { return bound; }
 };
 
 int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
@@ -22,12 +27,15 @@ int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
 #if defined(DEBUG) && DEBUG > 0
     #define LOGGING_PRELUDE(shortName) \
         static LogLevelSettings _logLevels(__FILE__, shortName, DEBUG)
+    #define LOGTYPE() \
+        _logLevels.getPrefix()
+    #define IF_LOG(level) \
+        if(_logLevels.shouldShow(level))
 
     #define LOG(level, ...) \
         do { \
             if(_logLevels.shouldShow(level)) { \
-                std::cout << _logLevels.getPrefix() \
-                    << __VA_ARGS__ << '\n'; \
+                std::cout << __VA_ARGS__ << '\n'; \
             } \
         } while(0)
     #define LOG0(level, ...) \
@@ -52,6 +60,9 @@ int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
         } while(0)
 #else
     #define LOGGING_PRELUDE(shortName)  /* nothing */
+    #define LOGTYPE() ""
+    #define IF_LOG(level) if(0)
+
     #define LOG(level, ...)             /* nothing */
     #define LOG0(level, ...)            /* nothing */
     #define CLOG(level, ...)            /* nothing */
