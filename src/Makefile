@@ -7,9 +7,9 @@ OPT_FLAGS       = -g -O2
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = -lcapstone -Wl,-q
-LDFLAGS         = -lcapstone -q
+#LDFLAGS         = -lcapstone -q
 #LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
-LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
+#LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
 
 GLIBCDIR = /usr/lib/x86_64-linux-gnu
 #STARTFILES = $(GLIBCDIR)/crt1.o $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbeginT.o`
@@ -57,13 +57,13 @@ depend: $(ALL_SOURCES) $(shell find -name '*.h')
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -v
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
 	$(CXX) -static -o $@ \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
-	#$(LD) --eh-frame-hdr -static -o $@ $(STARTFILES) $^ -lc $(LDFLAGS) $(LDFLAGS2) $(ENDFILES) \
-    #    -Ttext-segment=0x7400000 -Trodata-segment=0x7600000
+#$(LD) --eh-frame-hdr -static -o $@ $(STARTFILES) $^ -lc $(LDFLAGS) $(LDFLAGS2) $(ENDFILES) \
+#    -Ttext-segment=0x7400000 -Trodata-segment=0x7600000
 
 # Other targets
 .PHONY: clean

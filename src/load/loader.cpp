@@ -28,12 +28,6 @@ void setBreakpointsInInterpreter(ElfMap *elf);
 void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList);
 
 int main(int argc, char *argv[]) {
-    try {
-        throw "??";
-    }
-    catch(const char *s) {
-        std::cout << "exception " << s << std::endl;
-    }
     if(argc < 2) return -1;
 
     LOG(0, "loading ELF program [" << argv[1] << "]");
