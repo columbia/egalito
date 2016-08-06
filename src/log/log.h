@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <string>
-#include <iostream>  // for std::cout
+#include <iostream>  // for operator <<
 #include "defaults.h"
 
 class LogLevelSettings {
@@ -14,8 +14,9 @@ private:
 public:
     LogLevelSettings(const char *file, const char *shortFile,
         int initialBound);
-    bool shouldShow(int level) const { return level < bound; }
+    bool shouldShow(int level) const { return level <= bound; }
     const char *getPrefix() const { return prefix.c_str(); }
+    void setBound(int b) { this->bound = b; }
 
     // for debugging
     const char *getFile() const { return file; }
@@ -23,8 +24,9 @@ public:
 };
 
 int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
+std::ostream &_log_stream();
 
-#if defined(DEBUG) && DEBUG > 0
+#if defined(DEBUG) && DEBUG >= 0
     #define LOGGING_PRELUDE(shortName) \
         static LogLevelSettings _logLevels(__FILE__, shortName, DEBUG)
     #define LOGTYPE() \
@@ -35,13 +37,13 @@ int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
     #define LOG(level, ...) \
         do { \
             if(_logLevels.shouldShow(level)) { \
-                std::cout << __VA_ARGS__ << '\n'; \
+                _log_stream() << __VA_ARGS__ << '\n'; \
             } \
         } while(0)
     #define LOG0(level, ...) \
         do { \
             if(_logLevels.shouldShow(level)) { \
-                std::cout << __VA_ARGS__; \
+                _log_stream() << __VA_ARGS__; \
             } \
         } while(0)
 
@@ -49,13 +51,13 @@ int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
         do { \
             if(_logLevels.shouldShow(level)) { \
                 _log_fprintf(stdout, _logLevels.getPrefix(), \
-                    format, __VA_ARGS__); \
+                    format, ##__VA_ARGS__); \
             } \
         } while(0)
     #define CLOG0(level, format, ...) \
         do { \
             if(_logLevels.shouldShow(level)) { \
-                std::printf(format, __VA_ARGS__); \
+                std::printf(format, ##__VA_ARGS__); \
             } \
         } while(0)
 #else

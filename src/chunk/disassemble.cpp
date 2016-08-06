@@ -1,9 +1,12 @@
-#include <iostream>  // for debugging
+#include <cstdio>
 #include <cstring>
 #include <capstone/x86.h>
 #include "disassemble.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("DIS");
 
 Disassemble::Handle::Handle(bool detailed) {
     if(cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
@@ -32,12 +35,12 @@ void Disassemble::printInstruction(cs_insn *instr, const char *name,
             instr->address, instr->mnemonic, instr->op_str);
     }
 
-#if 0
-    std::printf("    ");
+#if 1
+    CLOG0(10, "\t\t\t");
     for(int i = 0; i < instr->size; i ++) {
-        std::printf("%02x ", (unsigned)instr->bytes[i] & 0xff);
+        CLOG0(10, "%02x ", (unsigned)instr->bytes[i] & 0xff);
     }
-    std::printf("\n");
+    CLOG(10, "");
 #endif
 }
 
@@ -53,7 +56,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_insn *insn;
     size_t count = cs_disasm(handle.raw(), code, length, realAddress, 0, &insn);
     if(count == 0) {
-        std::printf("# empty\n");
+        CLOG(3, "# empty");
         return;
     }
     for(size_t j = 0; j < count; j++) {
@@ -69,7 +72,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
             }
         }
 
-        printInstruction(&insn[j], name);
+        IF_LOG(3) printInstruction(&insn[j], name);
     }
 
     cs_free(insn, count);
@@ -114,12 +117,12 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             for(size_t p = 0; p < x->op_count; p ++) {
                 cs_x86_op *op = &x->operands[p];
                 if(op->type == X86_OP_IMM) {
-                    std::printf("    immediate operand in ");
-                    printInstruction(&insn[j]);
+                    CLOG0(3, "    immediate operand in ");
+                    IF_LOG(3) printInstruction(&insn[j]);
 
                     if(insn[j].id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
-                        std::printf("        call\n");
+                        CLOG(3, "        call\n");
                         instr->makeLink(
                             insn[j].size - 4,
                             new OriginalPosition(imm));
@@ -139,7 +142,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         delete block;
     }
     else {
-        std::printf("fall-through function [%s]... "
+        CLOG0(1, "fall-through function [%s]... "
             "adding basic block\n", symbol->getName());
         function->append(block);
         block->setRelativeTo(function);

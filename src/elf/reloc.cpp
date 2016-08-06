@@ -2,6 +2,9 @@
 #include <cstring>
 #include "reloc.h"
 #include "symbol.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("RELOC");
 
 std::string Reloc::getSymbolName() const {
     return symbol ? symbol->getName() : "???";
@@ -50,7 +53,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 r->r_addend                             // addend
             );
 
-            std::printf("reloc at address 0x%08lx, type %d, target [%s]\n",
+            CLOG0(1, "reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),
                 reloc->getSymbolName().c_str());
 
@@ -64,7 +67,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 list.add(reloc);
             }
             else*/ if(!list.add(reloc)) {
-                std::printf("ignoring duplicate relocation for %lx\n", reloc->getAddress());
+                CLOG0(0, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
             }
         }
     }

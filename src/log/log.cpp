@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <iostream>
 #include <sstream>
 #include <iomanip>
 #include "log.h"
@@ -34,4 +35,8 @@ int _log_fprintf(FILE *stream, const char *type, const char *format, ...) {
     va_end(args);
 
     return ret;
+}
+
+std::ostream &_log_stream() {
+    return std::cout;
 }

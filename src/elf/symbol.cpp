@@ -3,6 +3,9 @@
 #include <elf.h>
 #include "symbol.h"
 #include "elfmap.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("SYM");
 
 bool SymbolList::add(Symbol *symbol) {
     auto it = symbolMap.find(symbol->getName());
@@ -135,13 +138,13 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
                     (*prev).second->addAlias(name);
                 }
                 else {
-                    std::printf("OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
+                    CLOG0(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
                         address, name);
                 }
             }
             else {
                 Symbol *symbol = new Symbol{address, size, name};
-                std::printf("symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
+                CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
                     (int)list.symbolList.size(), address,
                     size, name);
                 list.add(symbol);

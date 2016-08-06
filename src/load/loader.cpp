@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     Signals::registerHandlers();
+    SettingsParser().parseEnvVar("EGALITO_DEBUG");
     FileRegistry::getInstance()->dumpSettings();
 
     try {
@@ -125,9 +126,8 @@ void examineElf(ElfMap *elf) {
                     Function *target = functionList.find(link->getTargetAddress());
                     if(!target) continue;
 
-                    std::cout << "FOUND REFERENCE from "
-                        << f->getName() << " -> " << target->getName()
-                        << std::endl;
+                    LOG(2, "FOUND REFERENCE from "
+                        << f->getName() << " -> " << target->getName());
 
                     instr->makeLink(
                         link->getSource()->getOffset(),
@@ -142,9 +142,8 @@ void examineElf(ElfMap *elf) {
         if(!r->getSymbol()) continue;
         Function *target = functionList.find(r->getSymbol()->getName());
         if(target) {
-            std::cout << "FOUND RELOCATION from "
-                << r->getAddress() << " -> " << target->getName()
-                << std::endl;
+            LOG(2, "FOUND RELOCATION from "
+                << r->getAddress() << " -> " << target->getName());
         }
     }
 
@@ -174,26 +173,27 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
     Sandbox *sandbox = new SandboxImpl<
         MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 
-    std::cout << "\n=== Copying code into sandbox ===\n";
+    LOG(1, "");
+    LOG(1, "=== Copying code into sandbox ===");
     for(auto f : functionList) {
         auto slot = sandbox->allocate(f->getSize());
-        std::cout << "ALLOC " << slot.getAddress() << " for " << f->getName() << "\n";
+        LOG(2, "ALLOC " << slot.getAddress() << " for " << f->getName());
         f->setAddress(slot.getAddress());
         //f->assignTo(new Slot(slot));
     }
     for(auto f : functionList) {
-        std::cout << "writing out " << f->getName() << "\n";
+        LOG(2, "writing out " << f->getName());
         f->writeTo(sandbox);
     }
     sandbox->finalize();
 
     for(auto f : functionList) {
-        std::cout << "---[" << f->getName() << "]---\n";
+        LOG(2, "---[" << f->getName() << "]---");
 #if 1
         for(auto bb : *f) {
             for(auto instr : *bb) {
-                std::cout << "    ";
-                instr->dump();
+                LOG0(3, "    ");
+                IF_LOG(3) instr->dump();
             }
         }
 #endif

@@ -4,6 +4,9 @@
 #include <elf.h>
 
 #include "segmap.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("LOAD2");
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
@@ -59,7 +62,7 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
         if(mem == (void *)-1) throw "Out of memory?";
     }
 
-    std::cout << "mapped file offset " << std::hex << phdr->p_offset
+    LOG(1, "mapped file offset " << std::hex << phdr->p_offset
         << " (virtual address " << std::hex << phdr->p_vaddr << ")"
-        << " to " << std::hex << mem << std::endl;
+        << " to " << std::hex << mem);
 }

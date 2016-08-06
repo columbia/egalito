@@ -1,3 +1,8 @@
+/** This file contains the default log levels for other source files.
+
+    If any constant is set to -1, those messages are removed at compile time.
+*/
+
 #define D_CHUNK_GENERATION      9
 #define D_CHUNK_POSITION        9
 #define D_CHUNK_CHUNK           9
