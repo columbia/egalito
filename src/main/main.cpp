@@ -10,6 +10,12 @@
 #include "transform/sandbox.h"
 
 int main(int argc, char *argv[]) {
+    try {
+        throw "??";
+    }
+    catch(const char *s) {
+        std::cout << "exception " << s << std::endl;
+    }
     if(argc < 2) return -1;
 
     try {

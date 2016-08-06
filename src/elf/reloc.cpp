@@ -13,6 +13,7 @@ std::string Reloc::getSymbolName() const {
 bool RelocList::add(Reloc *reloc) {
     relocList.push_back(reloc);
     address_t address = reloc->getAddress();
+#if 0
     auto it = relocMap.find(address);
     if(it == relocMap.end()) {
         relocMap[address] = reloc;
@@ -21,6 +22,9 @@ bool RelocList::add(Reloc *reloc) {
     else {
         return false;
     }
+#else
+    return relocMap.insert(std::make_pair(address, reloc)).second;
+#endif
 }
 
 RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {

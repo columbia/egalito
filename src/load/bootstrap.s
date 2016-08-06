@@ -15,6 +15,8 @@ entry:
 # We only need to preserve %rdx and %rsp, according to
 # glibc's sysdeps/x86_64/elf/start.S, which cites the SVR4/i386 ABI.
 _start:
+    .cfi_startproc
+    .cfi_undefined %rip
     xor     %rbp, %rbp
     mov     %rsp, initial_stack     # save top of stack
     mov     %rdx, saved_rdx
@@ -43,8 +45,11 @@ _start:
     mov     %rsp, %rbp
     call    __libc_start_main@plt   # this does not return
     hlt
+    .cfi_endproc
 
 _start2:
+    .cfi_startproc
+    .cfi_undefined %rip
     mov     initial_stack, %rsp     # restore %rsp
     mov     saved_rdx, %rdx         # restore %rdx
 
@@ -56,6 +61,7 @@ _start2:
     mov     entry, %rbx
     jmp     *%rbx                   # jump to entry point
     hlt
+    .cfi_endproc
 
 .section    .note.GNU-stack, "", @progbits
 
