@@ -45,7 +45,8 @@ int main(int argc, char *argv[]) {
 
         // set base addresses and map PT_LOAD sections into memory
         const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
-        const address_t interpreterAddress = interpreter->isSharedLibrary() ? 0x7000000 : 0;
+        const address_t interpreterAddress = interpreter && interpreter->isSharedLibrary()
+            ? 0x7000000 : 0;
         elf->setBaseAddress(baseAddress);
         SegMap::mapSegments(*elf, elf->getBaseAddress());
         if(interpreter) {
@@ -54,8 +55,10 @@ int main(int argc, char *argv[]) {
         }
 
         examineElf(elf);
-        //examineElf(interpreter);
-        setBreakpointsInInterpreter(interpreter);
+        if(interpreter) {
+            //examineElf(interpreter);
+            //setBreakpointsInInterpreter(interpreter);
+        }
 
         // find entry point
         if(interpreter) {
