@@ -62,8 +62,6 @@ $(LOADER): $(LOADER_OBJECTS)
 	$(CXX) -static -o $@ \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
-#$(LD) --eh-frame-hdr -static -o $@ $(STARTFILES) $^ -lc $(LDFLAGS) $(LDFLAGS2) $(ENDFILES) \
-#    -Ttext-segment=0x7400000 -Trodata-segment=0x7600000
 
 # Other targets
 .PHONY: clean
