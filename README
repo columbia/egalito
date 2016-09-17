@@ -2,3 +2,8 @@ Egalito is a binary rewriting framework that focuses on being able to rewrite
 all code in a target program, including itself. This is important for
 implementing binary-level security schemes since the attacker can easily
 target the instrumentation framework if it is undefended.
+
+To test, run
+    $ cd src ; make
+    $ make -C test
+    $ ./loader test/hello
