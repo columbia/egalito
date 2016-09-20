@@ -44,9 +44,17 @@ void Disassemble::printInstruction(cs_insn *instr, const char *name,
 #endif
 }
 
-void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset) {
-    std::printf("0x%08lx <+%d>:\t%s\t\t%s\n",
-        instr->address, (int)offset, instr->mnemonic, instr->op_str);
+void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset,
+    const char *name) {
+
+    if(name) {
+        std::printf("0x%08lx <+%d>:\t%s\t\t%s <%s>\n",
+            instr->address, (int)offset, instr->mnemonic, instr->op_str, name);
+    }
+    else {
+        std::printf("0x%08lx <+%d>:\t%s\t\t%s\n",
+            instr->address, (int)offset, instr->mnemonic, instr->op_str);
+    }
 }
 
 void Disassemble::debug(const uint8_t *code, size_t length,

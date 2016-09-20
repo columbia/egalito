@@ -210,8 +210,16 @@ void Instruction::writeTo(Sandbox *sandbox) {
 
 void Instruction::dump() {
     if(getParent() && getParent()->getParent()) {
+        const char *name = 0;
+        if(hasLink()) {
+            auto pos = dynamic_cast<RelativePosition *>(
+                link->getTarget());
+            if(pos) name = pos->getRelativeTo()->getName().c_str();
+        }
+
         Disassemble::printInstructionAtOffset(&getNative(),
-            getPosition().getOffset() + getParent()->getOffset());
+            getPosition().getOffset() + getParent()->getOffset(),
+            name);
     }
     else {
         Disassemble::printInstruction(&getNative());

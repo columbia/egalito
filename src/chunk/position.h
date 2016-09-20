@@ -69,6 +69,7 @@ public:
     void setOffset(address_t value) { offset.set(value); }
     void setRelativeTo(Chunk *to) { relativeTo = to; }
     bool hasRelativeTo() const { return relativeTo != nullptr; }
+    Chunk *getRelativeTo() const { return relativeTo; }
 
     virtual void finalize();
 };
