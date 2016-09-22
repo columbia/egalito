@@ -187,13 +187,13 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
         //f->assignTo(new Slot(slot));
     }
     for(auto f : functionList) {
-        LOG(2, "writing out " << f->getName());
+        LOG(2, "writing out " << f->getName() << " at " << std::hex << f->getAddress());
         f->writeTo(sandbox);
     }
     sandbox->finalize();
 
     for(auto f : functionList) {
-        LOG(2, "---[" << f->getName() << "]---");
+        LOG(2, "---[" << f->getName() << "]--- at " << std::hex << f->getAddress());
 #if 1
         for(auto bb : *f) {
             for(auto instr : *bb) {

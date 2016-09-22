@@ -5,6 +5,9 @@
 #include "chunk.h"
 #include "disassemble.h"
 #include "transform/sandbox.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("CHUNK");
 
 template class ChunkImpl<NormalPosition>;
 template class ChunkImpl<RelativePosition>;
@@ -87,16 +90,15 @@ void Function::writeTo(Sandbox *sandbox) {
     }
 }
 
-Instruction *Block::append(Instruction instr) {
-    instr.setParent(this);
-    instr.setOffset(getSize());
-    getCalculatedSize().add(instr.getSize());
+Instruction *Block::append(Instruction *instr) {
+    instr->setParent(this);
+    instr->setOffset(getSize());
+    getCalculatedSize().add(instr->getSize());
 
-    auto i = new Instruction(instr);
-    children().push_back(i);
+    children().push_back(instr);
 
     if(getParent()) getParent()->invalidateSize();
-    return i;
+    return instr;
 }
 
 void Block::setParent(Function *parent) {
@@ -116,7 +118,11 @@ void Block::writeTo(Sandbox *sandbox) {
 }
 
 void NativeInstruction::regenerate() {
+    if(instr->getParent() && instr->hasRelativeTo()) {
+        Disassemble::relocateInstruction(&insn, instr->getAddress());
+    }
     return;
+
     if(instr->getParent()) {
         auto address = instr->getAddress();
         insn = Disassemble::getInsn(instr->getRawData(), address);

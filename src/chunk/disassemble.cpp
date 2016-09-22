@@ -101,7 +101,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     Block *block = new Block();
 
     for(size_t j = 0; j < count; j++) {
-        auto instr = block->append(Instruction(insn[j]));
+        auto instr = block->append(new Instruction(insn[j]));
         instr->setRelativeTo(block);
 
         bool split = false;
@@ -173,4 +173,8 @@ cs_insn Disassemble::getInsn(std::string str, address_t address) {
     cs_insn ret = *insn;
     cs_free(insn, 1);
     return ret;
+}
+
+void Disassemble::relocateInstruction(cs_insn *instr, address_t newAddress) {
+    instr->address = newAddress;
 }

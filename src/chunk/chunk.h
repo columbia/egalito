@@ -130,7 +130,7 @@ private:
     std::string name;
 public:
     Block() : ChunkImpl(RelativePosition(nullptr, 0)) {}
-    Instruction *append(Instruction instr);
+    Instruction *append(Instruction *instr);
     void setRelativeTo(Chunk *outside)
         { getPosition().setRelativeTo(outside); }
 
@@ -191,6 +191,7 @@ public:
     void setOffset(size_t offset) { getPosition().setOffset(offset); }
     void setRelativeTo(Chunk *outside)
         { getPosition().setRelativeTo(outside); }
+    bool hasRelativeTo() const { return getPosition().hasRelativeTo(); }
 
     void makeLink(address_t sourceOffset, Position *target);
     bool hasLink() const { return link != nullptr; }
