@@ -1,0 +1,26 @@
+david
+- library design
+- bootstrapping, relocation parsing
+- erasing old generations, exec migration
+- reimplementation of shuffling
+- start wiki (github/pmwiki?)
+
+graham
+- library design
+- ELF re-generation with symbols & dwarf unwind info
+- binary disassembly support without any symbols or relocs
+- reimplementation of binary stirring
+
+abhishek
+- stack unwinding code based on DWARF
+- libunwind integration
+- stack frame resize support
+- register renaming/remapping (data flow analysis)
+
+heather
+- reproducible regression test environment
+- enable/disable security features repeatedly at runtime
+
+linjie
+- reading cfi papers
+
