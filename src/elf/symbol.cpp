@@ -7,19 +7,21 @@
 
 LOGGING_PRELUDE("SYM");
 
-bool SymbolList::add(Symbol *symbol) {
+bool SymbolList::add(Symbol *symbol, size_t index) {
     auto it = symbolMap.find(symbol->getName());
     if(it != symbolMap.end()) return false;
 
     symbolList.push_back(symbol);
+    if(indexMap.size() < index) indexMap.resize(index + 1);
+    indexMap[index] = symbol;
     symbolMap[symbol->getName()] = symbol;
     spaceMap[symbol->getAddress()] = symbol;
     return true;
 }
 
 Symbol *SymbolList::get(size_t index) {
-    if(index >= symbolList.size()) return nullptr;
-    return symbolList[index];
+    if(index >= indexMap.size()) return nullptr;
+    return indexMap[index];
 }
 
 Symbol *SymbolList::find(const char *name) {
@@ -147,7 +149,7 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
                 CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
                     (int)list.symbolList.size(), address,
                     size, name);
-                list.add(symbol);
+                list.add(symbol, (size_t)j);
             }
         }
 

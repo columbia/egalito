@@ -30,6 +30,7 @@ bool RelocList::add(Reloc *reloc) {
 RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
     RelocList list;
 
+    CLOG(0, "building relocation list");
     std::vector<void *> sectionList
         = elf->findSectionsByType(SHT_RELA);
     for(void *p : sectionList) {
@@ -42,6 +43,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
         // So ignore all sections with debug relocations.
         const char *name = elf->getSHStrtab() + s->sh_name;
         if(std::strstr(name, "debug")) continue;
+        LOG(1, "reloc section [" << name << ']');
 
         Elf64_Rela *data = reinterpret_cast<Elf64_Rela *>
             (elf->getCharmap() + s->sh_offset);
@@ -57,7 +59,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 r->r_addend                             // addend
             );
 
-            CLOG0(1, "reloc at address 0x%08lx, type %d, target [%s]\n",
+            CLOG0(2, "    reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),
                 reloc->getSymbolName().c_str());
 
@@ -71,7 +73,7 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 list.add(reloc);
             }
             else*/ if(!list.add(reloc)) {
-                CLOG0(0, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
+                CLOG0(1, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
             }
         }
     }

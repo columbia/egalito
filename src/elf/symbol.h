@@ -29,11 +29,13 @@ private:
     typedef std::vector<Symbol *> ListType;
     ListType symbolList;
     ListType sortedSymbolList;
+    typedef std::vector<Symbol *> IndexMapType;
+    IndexMapType indexMap;
     typedef std::map<const char *, Symbol *> MapType;
     MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
 public:
-    bool add(Symbol *symbol);
+    bool add(Symbol *symbol, size_t index);
     Symbol *get(size_t index);
     Symbol *find(const char *name);
     Symbol *find(address_t address);

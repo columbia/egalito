@@ -118,16 +118,17 @@ void Block::writeTo(Sandbox *sandbox) {
 }
 
 void NativeInstruction::regenerate() {
-    if(instr->getParent() && instr->hasRelativeTo()) {
+#if 1
+    if(instr->hasRelativeTo()) {
         Disassemble::relocateInstruction(&insn, instr->getAddress());
     }
-    return;
-
+#else
     if(instr->getParent()) {
         auto address = instr->getAddress();
         insn = Disassemble::getInsn(instr->getRawData(), address);
         //cached = true;
     }
+#endif
 }
 
 cs_insn &NativeInstruction::raw() {
