@@ -55,6 +55,10 @@ depend: $(ALL_SOURCES) $(shell find -name '*.h')
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
+# Special files
+load/usage.o: load/usage.cpp
+	$(CXX) $(CXXFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)

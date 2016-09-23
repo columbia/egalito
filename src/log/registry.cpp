@@ -47,15 +47,17 @@ bool GroupRegistry::applySetting(const std::string &name, int value) {
     return true;  // no errors
 }
 
-void SettingsParser::parseEnvVar(const char *var) {
+bool SettingsParser::parseEnvVar(const char *var) {
     const char *env = getenv(var);
-    if(!env) return;
+    if(!env) return true;
+    if(!*env) return false;  // empty setting means print the usage
 
     std::istringstream ss(env);
     std::string setting;
     while(std::getline(ss, setting, ':')) {
         parseSetting(setting);
     }
+    return true;
 }
 
 void SettingsParser::parseFile(const std::string &filename) {

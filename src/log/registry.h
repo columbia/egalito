@@ -41,7 +41,7 @@ class SettingsParser {
 private:
     std::set<std::string> alreadySeen;
 public:
-    void parseEnvVar(const char *var);
+    bool parseEnvVar(const char *var);
     void parseFile(const std::string &filename);
 private:
     void parseSetting(const std::string &setting);

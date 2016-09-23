@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <cstring>
 
+#include "usage.h"
 #include "segmap.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
@@ -26,10 +27,17 @@ void setBreakpointsInInterpreter(ElfMap *elf);
 void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList);
 
 int main(int argc, char *argv[]) {
-    if(argc < 2) return -1;
+    if(argc < 2) {
+        printUsage(argv[0]);
+        return -1;
+    }
 
-    SettingsParser().parseEnvVar("EGALITO_DEBUG");
+    if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
+        printUsage(argv[0]);
+        return -2;
+    }
     GroupRegistry::getInstance()->dumpSettings();
+
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     Signals::registerHandlers();
