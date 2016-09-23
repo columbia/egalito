@@ -6,8 +6,6 @@
 #include "chunk/chunk.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("DIS");
-
 Disassemble::Handle::Handle(bool detailed) {
     if(cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
         throw "Can't initialize capstone handle!";

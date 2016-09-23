@@ -4,8 +4,6 @@
 #include "symbol.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("RELOC");
-
 std::string Reloc::getSymbolName() const {
     return symbol ? symbol->getName() : "???";
 }

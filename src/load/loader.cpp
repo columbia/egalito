@@ -18,8 +18,6 @@
 
 #include <elf.h>
 
-LOGGING_PRELUDE("LOAD");
-
 extern address_t entry;
 extern "C" void _start2(void);
 
@@ -31,7 +29,7 @@ int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
 
     SettingsParser().parseEnvVar("EGALITO_DEBUG");
-    FileRegistry::getInstance()->dumpSettings();
+    GroupRegistry::getInstance()->dumpSettings();
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     Signals::registerHandlers();

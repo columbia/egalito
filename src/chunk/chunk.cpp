@@ -7,8 +7,6 @@
 #include "transform/sandbox.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("CHUNK");
-
 template class ChunkImpl<NormalPosition>;
 template class ChunkImpl<RelativePosition>;
 template class ChunkImpl<OriginalPosition>;

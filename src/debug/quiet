@@ -1,6 +1,4 @@
-!LOG
-!DIS
-!LOAD
-!LOAD2
-!SYM
-!RELOC
+!log
+!elf
+!load
+!chunk

@@ -5,8 +5,6 @@
 #include "elfmap.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("SYM");
-
 bool SymbolList::add(Symbol *symbol, size_t index) {
     auto it = symbolMap.find(symbol->getName());
     if(it != symbolMap.end()) return false;

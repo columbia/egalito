@@ -6,63 +6,71 @@
 #include <iostream>  // for operator <<
 #include "defaults.h"
 
-class LogLevelSettings {
+/* Any file which wishes to use logging must define DEBUG_GROUP
+    as some lower-case string foo, and ensure that D_foo exists in
+    defaults.h and is set to some number.
+
+    To change the logging group, any file may undefine DEBUG_GROUP
+    and re-define it prior to including this header file.
+*/
+
+class LogLevelSetting {
 private:
-    const char *file;
-    std::string prefix;
     int bound;
 public:
-    LogLevelSettings(const char *file, const char *shortFile,
-        int initialBound);
+    LogLevelSetting(const char *group, int initialBound);
     bool shouldShow(int level) const { return level <= bound; }
-    const char *getPrefix() const { return prefix.c_str(); }
     void setBound(int b) { this->bound = b; }
 
     // for debugging
-    const char *getFile() const { return file; }
     int getBound() const { return bound; }
 };
 
-int _log_fprintf(FILE *stream, const char *type, const char *format, ...);
+int _log_fprintf(FILE *stream, const char *format, ...);
 std::ostream &_log_stream();
 
-#if defined(DEBUG) && DEBUG >= 0
-    #define LOGGING_PRELUDE(shortName) \
-        static LogLevelSettings _logLevels(__FILE__, shortName, DEBUG)
-    #define LOGTYPE() \
-        _logLevels.getPrefix()
+#define _APPEND(x, y) x ## y
+#define _APPEND2(x, y) _APPEND(x, y)
+#define DEBUG_LEVEL _APPEND2(D_, DEBUG_GROUP)
+
+#define _STRINGIZE(x) # x
+#define _STRINGIZE2(x) _STRINGIZE(x)
+#define DEBUG_GROUP_NAME _STRINGIZE2(DEBUG_GROUP)
+
+#if defined(DEBUG_LEVEL) && DEBUG_LEVEL >= 0
+    #define LOGGING_PRELUDE() \
+        static LogLevelSetting _logLevel( \
+            DEBUG_GROUP_NAME, DEBUG_LEVEL)
     #define IF_LOG(level) \
-        if(_logLevels.shouldShow(level))
+        if(_logLevel.shouldShow(level))
 
     #define LOG(level, ...) \
         do { \
-            if(_logLevels.shouldShow(level)) { \
+            if(_logLevel.shouldShow(level)) { \
                 _log_stream() << __VA_ARGS__ << '\n'; \
             } \
         } while(0)
     #define LOG0(level, ...) \
         do { \
-            if(_logLevels.shouldShow(level)) { \
+            if(_logLevel.shouldShow(level)) { \
                 _log_stream() << __VA_ARGS__; \
             } \
         } while(0)
 
     #define CLOG(level, format, ...) \
         do { \
-            if(_logLevels.shouldShow(level)) { \
-                _log_fprintf(stdout, _logLevels.getPrefix(), \
-                    format, ##__VA_ARGS__); \
+            if(_logLevel.shouldShow(level)) { \
+                _log_fprintf(stdout, format, ##__VA_ARGS__); \
             } \
         } while(0)
     #define CLOG0(level, format, ...) \
         do { \
-            if(_logLevels.shouldShow(level)) { \
+            if(_logLevel.shouldShow(level)) { \
                 std::printf(format, ##__VA_ARGS__); \
             } \
         } while(0)
 #else
-    #define LOGGING_PRELUDE(shortName)  /* nothing */
-    #define LOGTYPE() ""
+    #define LOGGING_PRELUDE(group)      /* nothing */
     #define IF_LOG(level) if(0)
 
     #define LOG(level, ...)             /* nothing */
@@ -70,5 +78,7 @@ std::ostream &_log_stream();
     #define CLOG(level, ...)            /* nothing */
     #define CLOG0(level, ...)           /* nothing */
 #endif
+
+LOGGING_PRELUDE();
 
 #endif

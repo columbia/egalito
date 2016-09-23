@@ -6,8 +6,6 @@
 #include "segmap.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("LOAD2");
-
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 

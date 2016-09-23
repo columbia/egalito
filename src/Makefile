@@ -51,9 +51,9 @@ depend: $(ALL_SOURCES) $(shell find -name '*.h')
 %.o: %.s
 	$(CC) -fPIC -c $^ -o $@
 %.o: %.c
-	$(CC) $(CFLAGS) -DDEBUG=D_$(shell echo $< | perl -ne 's|/|_|g;s/\.c$$//;print uc') -c -o $@ $<
+	$(CC) $(CFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -DDEBUG=D_$(shell echo $< | perl -ne 's|/|_|g;s/\.cpp$$//;print uc') -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)

@@ -3,8 +3,6 @@
 #include "auxv.h"
 #include "log/log.h"
 
-LOGGING_PRELUDE("ELF");
-
 static address_t *findAuxiliaryVector(char **argv) {
     address_t *address = reinterpret_cast<address_t *>(argv);
     

@@ -3,23 +3,36 @@
 
 #include <map>
 #include <set>
+#include <vector>
 #include <string>
 
-class LogLevelSettings;
+class LogLevelSetting;
 
-class FileRegistry {
+class GroupRegistry {
 private:
-    std::map<std::string, LogLevelSettings *> fileMap;
+    class Group {
+    private:
+        int value;
+        std::vector<LogLevelSetting *> settingList;
+    public:
+        Group(int value = -1) : value(value) {}
+        void addSetting(LogLevelSetting *setting)
+            { settingList.push_back(setting); }
+        int getValue() const { return value; }
+        void setValue(int value);
+    };
+private:
+    std::map<std::string, Group> groupMap;
 public:
-    void addFile(const char *file, LogLevelSettings *level);
-    LogLevelSettings *getFile(const std::string &name);
+    void addGroup(const char *group, int bound,
+        LogLevelSetting *level);
 
     void dumpSettings();
     bool applySetting(const std::string &name, int value);
     void muteAllSettings();
     
-    static FileRegistry *getInstance() {
-        static FileRegistry instance;
+    static GroupRegistry *getInstance() {
+        static GroupRegistry instance;
         return &instance;
     }
 };

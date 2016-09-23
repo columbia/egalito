@@ -5,44 +5,44 @@
 #include "registry.h"
 #include "log.h"
 
-LOGGING_PRELUDE("LOG");
-
-void FileRegistry::addFile(const char *file, LogLevelSettings *level) {
-    fileMap[std::string(file)] = level;
-}
-
-LogLevelSettings *FileRegistry::getFile(const std::string &name) {
-    auto it = fileMap.find(name);
-    return (it != fileMap.end() ? (*it).second : nullptr);
-}
-
-void FileRegistry::dumpSettings() {
-    LOG(0, "dumping all logging levels");
-    for(auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-        auto name = (*it).first;
-        auto settings = (*it).second;
-        CLOG(0, "    logging level %d for [%s]", settings->getBound(), name.c_str());
+void GroupRegistry::Group::setValue(int value) {
+    this->value = value;
+    for(auto setting : settingList) {
+        setting->setBound(value);
     }
 }
 
-void FileRegistry::muteAllSettings() {
-    for(auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-        (*it).second->setBound(-1);
+void GroupRegistry::addGroup(const char *group, int bound,
+    LogLevelSetting *setting) {
+
+    std::string g{group};
+    if(groupMap.find(g) == groupMap.end()) {
+        groupMap.insert(std::make_pair(g, Group(bound)));
+    }
+    groupMap[g].addSetting(setting);
+}
+
+void GroupRegistry::dumpSettings() {
+    CLOG(0, "dumping all logging levels");
+    for(auto group : groupMap) {
+        CLOG(0, "    logging level for group %s is %d",
+            group.first.c_str(), group.second.getValue());
     }
 }
 
-bool FileRegistry::applySetting(const std::string &name, int value) {
-    auto it = fileMap.find(name);
-    if(it == fileMap.end()) return false;
+void GroupRegistry::muteAllSettings() {
+    for(auto group : groupMap) {
+        group.second.setValue(-1);
+    }
+}
 
-    auto setting = (*it).second;
-    // only use more verbose levels than the default
-    //if(setting->getBound() < value) {
+bool GroupRegistry::applySetting(const std::string &name, int value) {
+    auto it = groupMap.find(name);
+    if(it == groupMap.end()) return false;
 
     // print message first in case we're disabling our own messages
-    LOG(1, "    set debug level for " << name << " to " << value
-        << " (source " << setting->getFile() << ")");
-    setting->setBound(value);
+    LOG(1, "set debug level for " << name << " to " << value);
+    (*it).second.setValue(value);
 
     return true;  // no errors
 }
@@ -65,7 +65,7 @@ void SettingsParser::parseFile(const std::string &filename) {
     }
 
     if(filename == "/dev/null") {
-        FileRegistry::getInstance()->muteAllSettings();
+        GroupRegistry::getInstance()->muteAllSettings();
     }
     else {
         std::ifstream file(filename.c_str());
@@ -93,9 +93,8 @@ void SettingsParser::parseSetting(const std::string &setting) {
     else if(setting.find('=') != std::string::npos) {
         std::istringstream ss(setting);
         std::string key;
-        char equal;
         int value;
-        if(!(ss >> key >> equal >> value) || equal != '=') {
+        if(!std::getline(ss, key, '=') || !(ss >> value)) {
             LOG(0, "Malformed setting: [" << setting << "]");
         }
         else {
@@ -115,5 +114,5 @@ void SettingsParser::parseSetting(const std::string &setting) {
 }
 
 bool SettingsParser::applySetting(const std::string &name, int value) {
-    return FileRegistry::getInstance()->applySetting(name, value);
+    return GroupRegistry::getInstance()->applySetting(name, value);
 }
