@@ -1,6 +1,9 @@
 #include <iostream>
 #include <elf.h>
 #include "auxv.h"
+#include "log/log.h"
+
+LOGGING_PRELUDE("ELF");
 
 static address_t *findAuxiliaryVector(char **argv) {
     address_t *address = reinterpret_cast<address_t *>(argv);
@@ -18,7 +21,7 @@ void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
 
     address_t *auxv = findAuxiliaryVector(argv);
 
-    std::cout << "Fixing auxiliary vector\n";
+    CLOG(0, "fixing auxiliary vector");
 
     // Loop through all auxiliary vector entries, stopping at the terminating
     // entry of type AT_NULL.
@@ -28,12 +31,12 @@ void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
         switch(type) {
         case AT_BASE:
             *new_value = reinterpret_cast<address_t>(beginning->getCharmap());
-            std::printf("AUXV: Base address: 0x%lx\n", *new_value);
+            CLOG(1, "    auxv base address: 0x%lx", *new_value);
             break;
         case AT_ENTRY:
             *new_value = beginning->getBaseAddress()
                 + beginning->getEntryPoint();
-            std::printf("AUXV: Entry point: 0x%lx\n", *new_value);
+            CLOG(1, "    auxv entry point: 0x%lx", *new_value);
             break;
         case AT_PHDR:
             *new_value = reinterpret_cast<address_t>(elf->getCharmap())

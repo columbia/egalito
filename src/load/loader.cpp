@@ -30,11 +30,11 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList);
 int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
 
+    SettingsParser().parseEnvVar("EGALITO_DEBUG");
+    FileRegistry::getInstance()->dumpSettings();
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     Signals::registerHandlers();
-    SettingsParser().parseEnvVar("EGALITO_DEBUG");
-    FileRegistry::getInstance()->dumpSettings();
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);

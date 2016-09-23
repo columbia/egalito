@@ -25,6 +25,12 @@ void FileRegistry::dumpSettings() {
     }
 }
 
+void FileRegistry::muteAllSettings() {
+    for(auto it = fileMap.begin(); it != fileMap.end(); ++it) {
+        (*it).second->setBound(-1);
+    }
+}
+
 bool FileRegistry::applySetting(const std::string &name, int value) {
     auto it = fileMap.find(name);
     if(it == fileMap.end()) return false;
@@ -53,27 +59,28 @@ void SettingsParser::parseEnvVar(const char *var) {
 }
 
 void SettingsParser::parseFile(const std::string &filename) {
-    parseFile(filename.c_str());
-}
-
-void SettingsParser::parseFile(const char *filename) {
     if(!alreadySeen.insert(filename).second) {
         LOG(0, "Recursive include of settings file \"" << filename << "\"");
         return;
     }
 
-    std::ifstream file(filename);
-    if(!file) {
-        LOG(0, "Can't open settings file \"" << filename << "\"");
-        alreadySeen.erase(filename);
-        return;
+    if(filename == "/dev/null") {
+        FileRegistry::getInstance()->muteAllSettings();
     }
+    else {
+        std::ifstream file(filename.c_str());
+        if(!file) {
+            LOG(0, "Can't open settings file \"" << filename << "\"");
+            alreadySeen.erase(filename);
+            return;
+        }
 
-    LOG(0, "Parsing settings file \"" << filename << "\"");
+        LOG(0, "Parsing settings file \"" << filename << "\"");
 
-    std::string setting;
-    while(std::getline(file, setting)) {
-        parseSetting(setting);
+        std::string setting;
+        while(std::getline(file, setting)) {
+            parseSetting(setting);
+        }
     }
 
     alreadySeen.erase(filename);
