@@ -2,6 +2,9 @@
 #include <cstring>
 #include "reloc.h"
 #include "symbol.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP reloc
 #include "log/log.h"
 
 std::string Reloc::getSymbolName() const {
