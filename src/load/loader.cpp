@@ -191,6 +191,8 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
         LOG(2, "ALLOC " << slot.getAddress() << " for " << f->getName());
         f->setAddress(slot.getAddress());
         //f->assignTo(new Slot(slot));
+
+        sandbox->allocate(0x10000);  // skip some pages
     }
     for(auto f : functionList) {
         LOG(2, "writing out " << f->getName() << " at " << std::hex << f->getAddress());

@@ -116,7 +116,7 @@ void Block::writeTo(Sandbox *sandbox) {
 }
 
 void NativeInstruction::regenerate() {
-#if 1
+#if 0
     if(instr->hasRelativeTo()) {
         Disassemble::relocateInstruction(&insn, instr->getAddress());
     }
