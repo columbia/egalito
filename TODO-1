@@ -6,16 +6,15 @@ david
 - start wiki (github/pmwiki?)
 
 graham
-- library design
 - ELF re-generation with symbols & dwarf unwind info
-- binary disassembly support without any symbols or relocs
 - reimplementation of binary stirring
 
 abhishek
+- binary disassembly support without any symbols or relocs
 - stack unwinding code based on DWARF
 - libunwind integration
-- stack frame resize support
-- register renaming/remapping (data flow analysis)
+//- stack frame resize support
+//- register renaming/remapping (data flow analysis)
 
 heather
 - reproducible regression test environment
@@ -23,4 +22,4 @@ heather
 
 linjie
 - reading cfi papers
-
+- construct attacks against DynamoRIO & Pin
