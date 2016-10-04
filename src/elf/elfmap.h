@@ -6,16 +6,19 @@
 #include <string>
 #include "types.h"
 
+class ELFGen;
+
 class ElfMap {
+    friend class ELFGen;
 private:
     /** Memory map of executable image.
     */
     void *map;
-    
+
     /** Size of memory map.
     */
     size_t length;
-    
+
     /** File descriptor associated with memory map.
     */
     int fd;
