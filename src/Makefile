@@ -25,6 +25,7 @@ LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES)
+TYPICAL_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES:.s=.o)))
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
 LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
@@ -66,6 +67,15 @@ $(LOADER): $(LOADER_OBJECTS)
 	$(CXX) -static -o $@ \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+
+# Tests
+REGRESSION_SOURCES = $(wildcard regression/*.cpp)
+REGRESSION_TESTS = $(REGRESSION_SOURCES:.cpp=)
+.PHONY: rtest
+rtest: $(REGRESSION_TESTS)
+
+$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
 .PHONY: clean

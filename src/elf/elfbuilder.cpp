@@ -6,29 +6,29 @@ void ElfBuilder::buildChunkList() {
     if(symbolList == nullptr)
         throw "ElfMap or Symbol List not set";
 
-    ChunkList<Function> functionList;
+    ChunkList<Function> *functionList = new ChunkList<Function>();
     auto baseAddr = elfSpace->getElfMap()->getCopyBaseAddress();
     for(auto sym : *symbolList) {
         Function *function = Disassemble::function(sym, baseAddr, symbolList);
-        functionList.add(function);
+        functionList->add(function);
     }
-    elfSpace->setChunkList(&functionList);
+    elfSpace->setChunkList(functionList);
 }
 
-void ElfBuilder::buildSymbols() {
+void ElfBuilder::buildSymbolList() {
     if(elfSpace->getElfMap() == nullptr)
         throw "ElfMap not set";
 
-    SymbolList symbolList = SymbolList::buildSymbolList(elfSpace->getElfMap());
-    elfSpace->setSymbolList(&symbolList);
+    SymbolList *symbolList = SymbolList::buildSymbolList(elfSpace->getElfMap());
+    elfSpace->setSymbolList(symbolList);
 }
 
 void ElfBuilder::buildRelocList() {
     if(elfSpace->getElfMap() == nullptr || elfSpace->getSymbolList() == nullptr)
         throw "ElfMap not set";
 
-    RelocList relocList = RelocList::buildRelocList(elfSpace->getElfMap(), elfSpace->getSymbolList());
-    elfSpace->setRelocList(&relocList);
+    RelocList *relocList = RelocList::buildRelocList(elfSpace->getElfMap(), elfSpace->getSymbolList());
+    elfSpace->setRelocList(relocList);
 }
 
 void ElfBuilder::copyCodeToSandbox() {

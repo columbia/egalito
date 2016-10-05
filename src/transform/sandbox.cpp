@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cstring>
-#include "sandbox.h"
 #include <sys/mman.h>
+#include "sandbox.h"
+#include "elf/elfgen.h"
 
 bool Slot::append(uint8_t *data, size_t size) {
     if(size > available) return false;
@@ -29,14 +30,15 @@ void MemoryBacking::finalize() {
     mprotect((void *)base, getSize(), PROT_READ | PROT_EXEC);
 }
 
-ELFBacking::ELFBacking(std::string filename)
-    : MemoryBacking(MAX_SANDBOX_SIZE), filename(filename) {
-    
+ElfBacking::ElfBacking(ElfSpace *elfSpace, std::string filename)
+    : MemoryBacking(MAX_SANDBOX_SIZE), elfSpace(elfSpace), filename(filename) {
+
 }
 
-void ELFBacking::finalize() {
+void ElfBacking::finalize() {
     MemoryBacking::finalize();
     std::cerr << "Not yet implemented: write ELF data to \""
         << filename << "\"\n";
+    ElfGen *gen = new ElfGen(elfSpace, filename);
+    gen->generate();
 }
-

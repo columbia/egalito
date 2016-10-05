@@ -43,7 +43,7 @@ public:
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }
 
-    static SymbolList buildSymbolList(ElfMap *elfmap);
+    static SymbolList *buildSymbolList(ElfMap *elfmap);
 private:
     void sortSymbols();
 };
