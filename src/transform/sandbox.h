@@ -3,7 +3,9 @@
 
 #include <vector>
 #include <new>
+#include <string>
 #include "types.h"
+#include "elf/elfspace.h"
 
 #define MAX_SANDBOX_SIZE (100 * 0x1000 * 0x1000)
 
@@ -62,11 +64,12 @@ public:
     void finalize();
 };
 
-class ELFBacking : public MemoryBacking {
+class ElfBacking : public MemoryBacking {
 private:
+    ElfSpace *elfSpace;
     std::string filename;
 public:
-    ELFBacking(std::string filename);
+    ElfBacking(ElfSpace *elfSpace, std::string filename);
 
     void finalize();
 };

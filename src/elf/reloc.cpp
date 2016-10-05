@@ -28,8 +28,8 @@ bool RelocList::add(Reloc *reloc) {
 #endif
 }
 
-RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
-    RelocList list;
+RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
+    RelocList *list = new RelocList();
 
     CLOG(0, "building relocation list");
     std::vector<void *> sectionList
@@ -73,11 +73,11 @@ RelocList RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 printf("Found a copy reloc at %lx for [%s]\n", reloc.address, name);
                 list.add(reloc);
             }
-            else*/ if(!list.add(reloc)) {
+            else*/ if(!list->add(reloc)) {
                 CLOG0(1, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
             }
         }
     }
 
-    return std::move(list);
+    return list;
 }

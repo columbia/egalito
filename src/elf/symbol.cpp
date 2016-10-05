@@ -42,8 +42,8 @@ Symbol *SymbolList::find(address_t address) {
     }
 }
 
-SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
-    SymbolList list;
+SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
+    SymbolList *list = new SymbolList();
     std::map<address_t, Symbol *> seen;
 
     Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".symtab");
@@ -145,9 +145,9 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
             else {
                 Symbol *symbol = new Symbol{address, size, name};
                 CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
-                    (int)list.symbolList.size(), address,
+                    (int)list->symbolList.size(), address,
                     size, name);
-                list.add(symbol, (size_t)j);
+                list->add(symbol, (size_t)j);
             }
         }
 
@@ -171,9 +171,9 @@ SymbolList SymbolList::buildSymbolList(ElfMap *elfmap) {
 #endif
     }
 
-    list.sortSymbols();
+    list->sortSymbols();
 
-    return std::move(list);
+    return list;
 }
 
 void SymbolList::sortSymbols() {

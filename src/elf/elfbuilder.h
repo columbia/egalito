@@ -11,7 +11,7 @@ public:
     ElfBuilder(ElfSpace *elfSpace)
         : sandbox(nullptr), elfSpace(elfSpace){}
 public:
-    void buildSymbols();
+    void buildSymbolList();
     void buildChunkList();
     void buildRelocList();
     void copyCodeToSandbox();

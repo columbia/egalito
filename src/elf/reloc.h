@@ -40,11 +40,11 @@ private:
     MapType relocMap;
 public:
     bool add(Reloc *reloc);
-    
+
     ListType::iterator begin() { return relocList.begin(); }
     ListType::iterator end() { return relocList.end(); }
 
-    static RelocList buildRelocList(ElfMap *elfmap, SymbolList *symbolList);
+    static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList);
 };
 
 #endif
