@@ -37,8 +37,6 @@ ElfBacking::ElfBacking(ElfSpace *elfSpace, std::string filename)
 
 void ElfBacking::finalize() {
     MemoryBacking::finalize();
-    std::cerr << "Not yet implemented: write ELF data to \""
-        << filename << "\"\n";
-    ElfGen *gen = new ElfGen(elfSpace, filename);
+    ElfGen *gen = new ElfGen(elfSpace, this, filename);
     gen->generate();
 }

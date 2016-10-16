@@ -52,6 +52,7 @@ public:
     const char *getSHStrtab() const { return shstrtab; }
     void *findSectionHeader(const char *name);
     void *findSection(const char *name);
+    //size_t getSectionIndex(const char *name);
     std::vector<void *> findSectionsByType(int type);
 
     bool hasInterpreter() const { return interpreter != nullptr; }
@@ -62,6 +63,7 @@ public:
     bool isSharedLibrary() const;
 
     char *getCharmap() { return static_cast<char *>(map); }
+    void *getMap() { return map; }
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }

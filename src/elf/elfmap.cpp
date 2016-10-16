@@ -36,16 +36,16 @@ void ElfMap::setup() {
 void ElfMap::parseElf(const char *filename) {
     fd = open(filename, O_RDONLY, 0);
     if(fd < 0) throw "can't open executable image\n";
-    
+
     // find the length of the file
     length = static_cast<size_t>(lseek(fd, 0, SEEK_END));
     lseek(fd, 0, SEEK_SET);
-    
+
     // make a private copy of the file in memory
     int prot = PROT_READ /*| PROT_WRITE*/;
     map = mmap(NULL, length, prot, MAP_PRIVATE, fd, 0);
     if(map == (void *)-1) throw "can't mmap executable image\n";
-    
+
     verifyElf();
 }
 
@@ -54,7 +54,7 @@ void ElfMap::verifyElf() {
     if(*(Elf64_Word *)map != *(Elf64_Word *)ELFMAG) {
         throw "executable image does not have ELF magic\n";
     }
-    
+
     // check architecture type
     char type = ((char *)map)[EI_CLASS];
     if(type != ELFCLASS64) {
@@ -68,7 +68,7 @@ void ElfMap::makeSectionMap() {
     if(sizeof(Elf64_Shdr) != header->e_shentsize) {
         throw "header shentsize mismatch\n";
     }
-    
+
     Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
     //Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
 
@@ -142,6 +142,17 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
 
     return std::move(sections);
 }
+
+// size_t ElfMap::getSectionIndex(const char *name) {
+//     auto offset = findSection(name);
+//     if(offset == nullptr)
+//         return static_cast<size_t>(-1);
+//
+//     char *charmap = static_cast<char *>(map);
+//     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+//     Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
+//     return (offset - static_cast<void *>(sheader)) / sizeof(Elf64_Shdr);
+// }
 
 size_t ElfMap::getEntryPoint() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
