@@ -30,8 +30,8 @@ int main(int argc, char *argv[]) {
         elfBuilder->buildChunkList();
         elfBuilder->buildRelocList();
 
-        auto backing = ElfBacking(space, "output/gen");
-        Sandbox *sandbox = new SandboxImpl<ElfBacking, WatermarkAllocator<ElfBacking>>(backing);
+        auto backing = ElfBacking(space, "gen");
+        Sandbox *sandbox = new SandboxImpl<ElfBacking, WatermarkAllocator<ElfBacking> >(backing);
         elfBuilder->setSandbox(sandbox);
         elfBuilder->copyCodeToSandbox();
 

@@ -1,5 +1,6 @@
 #include "chunk/disassemble.h"
 #include "elfbuilder.h"
+#include <iostream>
 
 void ElfBuilder::buildChunkList() {
     SymbolList *symbolList = elfSpace->getSymbolList();
@@ -34,10 +35,11 @@ void ElfBuilder::buildRelocList() {
 void ElfBuilder::copyCodeToSandbox() {
     ChunkList<Function> *chunkList = elfSpace->getChunkList();
     if(sandbox == nullptr || chunkList == nullptr)
-      throw "Sandbox, elfspace, or chunklist not set";
+        throw "Sandbox, elfspace, or chunklist not set";
 
     for(auto chunk : *chunkList) {
         auto slot = sandbox->allocate(chunk->getSize());
         chunk->setAddress(slot.getAddress());
+        chunk->writeTo(sandbox);
     }
 }

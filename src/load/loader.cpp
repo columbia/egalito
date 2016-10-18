@@ -92,27 +92,27 @@ int main(int argc, char *argv[]) {
 }
 
 void examineElf(ElfMap *elf) {
-    SymbolList symbolList = SymbolList::buildSymbolList(elf);
+    SymbolList *symbolList = SymbolList::buildSymbolList(elf);
 
     LOG(1, "");
     LOG(1, "=== Initial code disassembly ===");
 
     auto baseAddr = elf->getCopyBaseAddress();
-    for(auto sym : symbolList) {
+    for(auto sym : *symbolList) {
         LOG(2, "---[" << sym->getName() << "]---");
         auto addr = sym->getAddress();
         LOG(2, "addr " << std::hex << addr
             << " -> " << std::hex << addr + baseAddr);
         Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
-            &symbolList);
+            symbolList);
     }
 
     LOG(1, "");
     LOG(1, "=== Creating internal data structures ===");
 
     ChunkList<Function> functionList;
-    for(auto sym : symbolList) {
-        Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+    for(auto sym : *symbolList) {
+        Function *function = Disassemble::function(sym, baseAddr, symbolList);
 
         LOG(2, "---[" << sym->getName() << "]---");
         for(auto bb : *function) {
@@ -146,8 +146,8 @@ void examineElf(ElfMap *elf) {
         }
     }
 
-    RelocList relocList = RelocList::buildRelocList(elf, &symbolList);
-    for(auto r : relocList) {
+    RelocList *relocList = RelocList::buildRelocList(elf, symbolList);
+    for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
         Function *target = functionList.find(r->getSymbol()->getName());
         if(target) {
@@ -160,12 +160,12 @@ void examineElf(ElfMap *elf) {
 }
 
 void setBreakpointsInInterpreter(ElfMap *elf) {
-    SymbolList symbolList = SymbolList::buildSymbolList(elf);
+    SymbolList *symbolList = SymbolList::buildSymbolList(elf);
 
     auto baseAddr = elf->getCopyBaseAddress();
     ChunkList<Function> functionList;
-    for(auto sym : symbolList) {
-        Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+    for(auto sym : *symbolList) {
+        Function *function = Disassemble::function(sym, baseAddr, symbolList);
         functionList.add(function);
     }
 

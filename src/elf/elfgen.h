@@ -19,8 +19,9 @@ private:
         std::string getData() const { return data; }
         void setSize(size_t size) { this->size = size; }
         Section add(const void *data, size_t size);
+        Elf64_Shdr getSectionHeader() const;
         template<typename ElfStructType> ElfStructType *castAs()
-            { return static_cast<ElfStructType *>(data.data()); }
+            { return (ElfStructType *)(data.data()); }
         template<typename ElfStructType> size_t getElementCount()
             { return size / sizeof(ElfStructType); }
     };
@@ -29,17 +30,18 @@ private:
         address_t address;
         size_t fileOffset;
         size_t size;
-        std::vector<Section> sections;
+        std::vector<Section *> sections;
     public:
         Segment(address_t address, size_t fileOffset = 0)
             : address(address), fileOffset(fileOffset), size(0){}
         address_t getAddress() const { return address; }
         size_t getFileOff() const { return fileOffset; }
         size_t getSize() const { return size; }
-        std::vector<Section> getSections() const { return sections; }
+        Elf64_Phdr getProgramHeader() const;
+        std::vector<Section *> getSections() const { return sections; }
         void setAddress(address_t addr) { address = addr; }
         void setFileOff(size_t offset) { fileOffset = offset; }
-        Segment add(Section sec);
+        Segment add(Section *sec);
     };
 private:
     std::vector<Segment> segments;

@@ -14,25 +14,25 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap elf(argv[1]);
-        SymbolList symbolList = SymbolList::buildSymbolList(&elf);
+        SymbolList *symbolList = SymbolList::buildSymbolList(&elf);
 
         std::cout << "\n=== Initial code disassembly ===\n";
 
         auto baseAddr = elf.getCopyBaseAddress();
-        for(auto sym : symbolList) {
+        for(auto sym : *symbolList) {
             std::cout << "---[" << sym->getName() << "]---\n";
             auto addr = sym->getAddress();
             std::cout << "addr " << std::hex << addr
                 << " -> " << std::hex << addr + baseAddr << "\n";
             Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
-                &symbolList);
+                symbolList);
         }
 
         std::cout << "\n=== Creating internal data structures ===\n";
 
         std::vector<Function *> functionList;
-        for(auto sym : symbolList) {
-            Function *function = Disassemble::function(sym, baseAddr, &symbolList);
+        for(auto sym : *symbolList) {
+            Function *function = Disassemble::function(sym, baseAddr, symbolList);
 
 #if 0
             (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
                     if(instr->hasLink()) {
                         auto old = instr->getLink();
 
-                        auto sym = symbolList.find(old->getTargetAddress());
+                        auto sym = symbolList->find(old->getTargetAddress());
                         if(!sym) continue;
 
                         Function *target = 0;

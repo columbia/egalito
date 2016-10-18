@@ -1,19 +1,32 @@
+#include <cstring>
 #include <fstream>
 #include <elf.h>
 #include "elfgen.h"
+#include "log/registry.h"
+#include "log/log.h"
 
 std::ostream& operator<<(std::ostream &stream, ElfGen::Segment &rhs) {
     stream.seekp(rhs.getFileOff());
     for(auto section : rhs.getSections()) {
-        stream << section;
+        stream << *section;
     }
     return stream;
 }
 
-ElfGen::Segment ElfGen::Segment::add(ElfGen::Section sec) {
-    size += sec.getSize();
+ElfGen::Segment ElfGen::Segment::add(ElfGen::Section *sec) {
+    size += sec->getSize();
     sections.push_back(sec);
     return *this;
+}
+
+Elf64_Phdr ElfGen::Segment::getProgramHeader() const {
+    Elf64_Phdr entry;
+    entry.p_offset = fileOffset;
+    entry.p_vaddr = address;
+    entry.p_paddr = entry.p_vaddr;
+    entry.p_memsz = size;
+    entry.p_filesz = size;
+    return entry;
 }
 
 std::ostream& operator<<(std::ostream &stream, ElfGen::Section &rhs) {
@@ -27,19 +40,26 @@ ElfGen::Section ElfGen::Section::add(const void *data, size_t size) {
     return *this;
 }
 
+Elf64_Shdr ElfGen::Section::getSectionHeader() const {
+    // So compiler doesn't complain
+    Elf64_Shdr entry;
+    return entry;
+}
+
 void ElfGen::generate() {
     // Elf Header
     Section hdr = Section(".elfheader").add(elfSpace->getElfMap()->getMap(), sizeof(Elf64_Ehdr));
-    Segment hdrSegment = Segment(0, 0).add(hdr);
+    Elf64_Ehdr *header = hdr.castAs<Elf64_Ehdr>();
+    Segment hdrSegment = Segment(0, 0).add(&hdr);
 
     // Interp
     std::string interpreter = "/lib64/ld-linux-x86-64.so.2";
     Section interp = Section(".interp").add(static_cast<const void *>(interpreter.c_str()), interpreter.length());
-    auto interpSegment = Segment(0).add(interp);
+    auto interpSegment = Segment(0).add(&interp);
 
     auto originalSegments = elfSpace->getElfMap()->getSegmentList();
-    Elf64_Phdr *rodata;
-    Elf64_Phdr *rwdata;
+    Elf64_Phdr *rodata = nullptr;
+    Elf64_Phdr *rwdata = nullptr;
     for(auto original : originalSegments) {
         Elf64_Phdr *segment = static_cast<Elf64_Phdr *>(original);
         if(segment->p_type == PT_LOAD && segment->p_flags == (PF_R | PF_X)) {
@@ -51,14 +71,21 @@ void ElfGen::generate() {
     }
     // Rodata
     Segment loadRESegment(rodata->p_vaddr, rodata->p_offset);
+    Section loadRE = Section(".old_re").add(elfSpace->getElfMap()->getMap(), rodata->p_memsz);
+    loadRESegment.add(&loadRE);
 
     // Read Write data
     Segment loadRWSegment(rwdata->p_vaddr, rwdata->p_offset);
+    char *loadRWVirtualAdress = static_cast<char *>(elfSpace->getElfMap()->getMap()) + loadRESegment.getFileOff();
+    Section loadRW = Section(".old_rw").add(static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz);
+    loadRWSegment.add(&loadRW);
 
     // Text
-    Segment loadTextSegment(0);
+    Segment loadTextSegment(backing->getBase(), loadRWSegment.getFileOff() + loadRWSegment.getSize());
+
     Section text = Section(".text").add((const uint8_t *)backing->getBase(), backing->getSize());
-    loadTextSegment.add(text);
+    loadTextSegment.add(&text);
+    interpSegment.setFileOff(loadTextSegment.getFileOff() + loadTextSegment.getSize());
 
     // Symbol Table
     // Section symtabSection(".symtab");
@@ -74,73 +101,49 @@ void ElfGen::generate() {
 
     // Program Header Table
     Section phdrTable(".phdr_table");
-    Segment phdrTableSegment(sizeof(Elf64_Ehdr), sizeof(Elf64_Ehdr));
+    Segment phdrTableSegment(loadRESegment.getAddress() + loadRESegment.getSize(), sizeof(Elf64_Ehdr));
     {
-        Elf64_Phdr entry; // Load RE
-        entry.p_type = PT_LOAD;
-        entry.p_offset = loadRESegment.getFileOff();
-        entry.p_vaddr = loadRESegment.getAddress();
-        entry.p_paddr = entry.p_vaddr;
-        entry.p_flags = PF_R | PF_X;
-        entry.p_memsz = loadRESegment.getSize();
-        entry.p_filesz = loadRESegment.getSize();
-        entry.p_align = rodata->p_align;
-        phdrTable.add(&entry, sizeof(Elf64_Phdr));
-    }
-    {
-        Elf64_Phdr entry; // Load RW
-        entry.p_type = PT_LOAD;
-        entry.p_offset = loadRWSegment.getFileOff();
-        entry.p_vaddr = loadRWSegment.getAddress();
-        entry.p_paddr = entry.p_vaddr;
-        entry.p_flags = PF_R | PF_W;
-        entry.p_memsz = loadRESegment.getSize();
-        entry.p_filesz = loadRESegment.getSize();
-        entry.p_align = rwdata->p_align;
-        phdrTable.add(&entry, sizeof(Elf64_Phdr));
-    }
-    {
-        Elf64_Phdr entry; // Load Text Section
-        entry.p_type = PT_LOAD;
-        entry.p_offset = loadRWSegment.getFileOff() + loadRWSegment.getSize();
-        loadTextSegment.setFileOff(entry.p_offset);
-        entry.p_vaddr = backing->getBase(); // Some really large memory address
-        loadTextSegment.setAddress(entry.p_vaddr);
-        entry.p_paddr = entry.p_vaddr;
-        entry.p_flags = PF_R | PF_X;
-        entry.p_memsz = text.getSize();
-        entry.p_filesz = text.getSize();
-        entry.p_align = rodata->p_align; // Rip the alignment from original elf file
-        phdrTable.add(&entry, sizeof(Elf64_Phdr));
-    }
-    {
-        Elf64_Phdr entry; // Program Table Header
+        Elf64_Phdr entry = phdrTableSegment.getProgramHeader(); // Program Table Header
         entry.p_type = PT_PHDR;
-        entry.p_offset = phdrTableSegment.getFileOff();
-        entry.p_vaddr = loadTextSegment.getAddress() + sizeof(Elf64_Ehdr);
-        phdrTableSegment.setAddress(entry.p_vaddr);
-        entry.p_paddr = entry.p_vaddr;
         entry.p_flags = PF_R | PF_X;
         entry.p_memsz = 5 * sizeof(Elf64_Phdr); // 5 is for number of segments
         entry.p_filesz = 5 * sizeof(Elf64_Phdr);
         entry.p_align = 8;
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
+        interpSegment.setAddress(phdrTableSegment.getAddress() + entry.p_memsz);
     }
     {
-        Elf64_Phdr entry; // Interp
+        Elf64_Phdr entry = loadRESegment.getProgramHeader();
+        entry.p_type = PT_LOAD;
+        entry.p_flags = PF_R | PF_X;
+        entry.p_align = rodata->p_align;
+        phdrTable.add(&entry, sizeof(Elf64_Phdr));
+    }
+    {
+        Elf64_Phdr entry = loadRWSegment.getProgramHeader();
+        entry.p_type = PT_LOAD;
+        entry.p_flags = PF_R | PF_W;
+        entry.p_align = rwdata->p_align;
+        phdrTable.add(&entry, sizeof(Elf64_Phdr));
+    }
+    {
+        Elf64_Phdr entry = loadTextSegment.getProgramHeader();
+        entry.p_type = PT_LOAD;
+        entry.p_flags = PF_R | PF_X;
+        entry.p_align = rodata->p_align; // Rip the alignment from original elf file
+        phdrTable.add(&entry, sizeof(Elf64_Phdr));
+    }
+    {
+        Elf64_Phdr entry = interpSegment.getProgramHeader();
         entry.p_type = PT_INTERP;
-        entry.p_offset = 5 * sizeof(Elf64_Phdr) + phdrTableSegment.getFileOff();
-        interpSegment.setFileOff(entry.p_offset);
-        entry.p_vaddr = 5 * sizeof(Elf64_Phdr) + loadTextSegment.getAddress() + sizeof(Elf64_Ehdr);
-        interpSegment.setAddress(entry.p_vaddr);
-        entry.p_paddr = entry.p_vaddr;
         entry.p_flags = PF_R;
-        entry.p_memsz = interp.getSize();
-        entry.p_filesz = interp.getSize();
         entry.p_align = 1;
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
     }
-    phdrTableSegment.add(phdrTable);
+    phdrTableSegment.add(&phdrTable);
+    header->e_entry = loadTextSegment.getAddress();
+    header->e_phoff = phdrTableSegment.getFileOff();
+    header->e_phnum = phdrTable.getSize() / sizeof(Elf64_Phdr);
 
     // Write to file
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
@@ -150,6 +153,6 @@ void ElfGen::generate() {
     fs << hdrSegment;
     fs << phdrTableSegment;
     fs << loadTextSegment;
-    fs << phdrTableSegment;
+    fs << interpSegment;
     fs.close();
 }

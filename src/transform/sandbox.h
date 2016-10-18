@@ -7,7 +7,7 @@
 #include "types.h"
 #include "elf/elfspace.h"
 
-#define MAX_SANDBOX_SIZE (100 * 0x1000 * 0x1000)
+#define MAX_SANDBOX_SIZE (16 * 0x1000 * 0x1000)
 
 class Slot {
 private:
@@ -42,11 +42,13 @@ public:
 class SandboxBacking {
 private:
     size_t size;
+    size_t memSize;
 public:
     SandboxBacking(size_t size) : size(size) {}
 
     address_t getBase() const;
     size_t getSize() const { return size; }
+    size_t getMemorySize() const { return memSize;}
 
     void finalize();
 };
