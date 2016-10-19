@@ -98,6 +98,12 @@ void ElfGen::generate() {
     //     symbol.st_size = chunk.getSize();
     //     symtabSection.add(symbol, sizeof(Elf64_Sym));
     // }
+    address_t entry_pt = 0;
+    ChunkList<Function> *chunkList = elfSpace->getChunkList();
+    for(auto chunk : *chunkList) {
+        if(!strcmp(chunk->getName().c_str(), "_start"))
+            entry_pt = chunk->getAddress();
+    }
 
     // Program Header Table
     Section phdrTable(".phdr_table");
@@ -141,9 +147,12 @@ void ElfGen::generate() {
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
     }
     phdrTableSegment.add(&phdrTable);
-    header->e_entry = loadTextSegment.getAddress();
+    header->e_entry = entry_pt;
     header->e_phoff = phdrTableSegment.getFileOff();
     header->e_phnum = phdrTable.getSize() / sizeof(Elf64_Phdr);
+    header->e_shoff = 0;
+    header->e_shnum = 0;
+    header->e_shstrndx = SHN_UNDEF;
 
     // Write to file
     std::ofstream fs(filename, std::ios::out | std::ios::binary);

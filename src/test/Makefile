@@ -18,6 +18,9 @@ hi0: hi0.c hi0-s.s
 hi0-q: hi0.c hi0-s.s
 	$(CC) $^ -o $@ -Wl,-q
 
+hi0-static: hi0.c hi0-s.s
+	$(CC) $^ -o $@ -static
+
 .PHONY: clean
 clean:
 	-$(RM) $(TARGETS)

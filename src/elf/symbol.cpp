@@ -1,5 +1,6 @@
 #include <algorithm>  // for std::sort
 #include <cstdio>
+#include <string.h>
 #include <elf.h>
 #include "symbol.h"
 #include "elfmap.h"
@@ -65,8 +66,12 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             address_t address = sym->st_value;
             size_t size = sym->st_size;
             const char *name = elfmap->getStrtab() + sym->st_name;
+#if 1 // Get entry point
+            if(!strcmp(name, "_start") && !sym->st_size) {
+                size = 42; // no really! :)
+            }
+#endif
             //auto index = sym->st_shndx;
-
 #if 0
             symbol.is_ifunc = (ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC);
             symbol.is_private = (ELF64_ST_BIND(sym->st_info) == STB_LOCAL);
