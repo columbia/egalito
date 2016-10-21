@@ -14,6 +14,7 @@ std::ostream& operator<<(std::ostream &stream, ElfGen::Segment &rhs) {
 }
 
 ElfGen::Segment ElfGen::Segment::add(ElfGen::Section *sec) {
+    sec->setFileOff(fileOffset + size);
     size += sec->getSize();
     sections.push_back(sec);
     return *this;
@@ -29,6 +30,14 @@ Elf64_Phdr ElfGen::Segment::getProgramHeader() const {
     return entry;
 }
 
+void ElfGen::Segment::setFileOff(size_t offset) {
+    long int diff = offset - fileOffset;
+    for(auto sec : sections) {
+        sec->setFileOff(sec->getFileOff() + diff);
+    }
+    fileOffset = offset;
+}
+
 std::ostream& operator<<(std::ostream &stream, ElfGen::Section &rhs) {
     stream << rhs.getData();
     return stream;
@@ -41,8 +50,9 @@ ElfGen::Section ElfGen::Section::add(const void *data, size_t size) {
 }
 
 Elf64_Shdr ElfGen::Section::getSectionHeader() const {
-    // So compiler doesn't complain
     Elf64_Shdr entry;
+    entry.sh_offset = fileOffset;
+    entry.sh_size = size;
     return entry;
 }
 
@@ -55,7 +65,6 @@ void ElfGen::generate() {
     // Interp
     std::string interpreter = "/lib64/ld-linux-x86-64.so.2";
     Section interp = Section(".interp").add(static_cast<const void *>(interpreter.c_str()), interpreter.length());
-    auto interpSegment = Segment(0).add(&interp);
 
     auto originalSegments = elfSpace->getElfMap()->getSegmentList();
     Elf64_Phdr *rodata = nullptr;
@@ -82,28 +91,34 @@ void ElfGen::generate() {
 
     // Text
     Segment loadTextSegment(backing->getBase(), loadRWSegment.getFileOff() + loadRWSegment.getSize());
-
     Section text = Section(".text").add((const uint8_t *)backing->getBase(), backing->getSize());
     loadTextSegment.add(&text);
-    interpSegment.setFileOff(loadTextSegment.getFileOff() + loadTextSegment.getSize());
+    loadTextSegment.add(&interp);
 
     // Symbol Table
-    // Section symtabSection(".symtab");
-    // for(auto chunk : elfSpace->getChunkList()) {
-    //     Elf64_Sym symbol;
-    //     symbol.st_name = chunk.getName();
-    //     symbol.st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
-    //     symbol.st_shndx = getSectionIndex();
-    //     symbol.st_addr = chunk.getAddress(); // This should change
-    //     symbol.st_size = chunk.getSize();
-    //     symtabSection.add(symbol, sizeof(Elf64_Sym));
-    // }
-    address_t entry_pt = 0;
+    Segment debugSegment(0, loadTextSegment.getFileOff() + loadTextSegment.getSize());
+    Section strtab(".strtab");
+    std::vector<char> strtabData = {'\0'};
+    Section symtab(".symtab");
     ChunkList<Function> *chunkList = elfSpace->getChunkList();
+    size_t strtabIndex = 1;
     for(auto chunk : *chunkList) {
-        if(!strcmp(chunk->getName().c_str(), "_start"))
-            entry_pt = chunk->getAddress();
+        auto name = chunk->getName();
+        strtabData.insert(strtabData.end(), name.begin(), name.end());
+        strtabData.push_back('\0');
+        Elf64_Sym symbol;
+        symbol.st_name = strtabIndex;
+        symbol.st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
+        symbol.st_shndx = 1; // getSectionIndex();
+        symbol.st_value = chunk->getAddress();
+        symbol.st_size = chunk->getSize();
+        symtab.add(static_cast<void *>(&symbol), sizeof(Elf64_Sym));
+        strtabIndex += chunk->getName().length() + 1;
     }
+
+    strtab.add(static_cast<const void *>(strtabData.data()), strtabIndex);
+    debugSegment.add(&symtab);
+    debugSegment.add(&strtab);
 
     // Program Header Table
     Section phdrTable(".phdr_table");
@@ -112,11 +127,10 @@ void ElfGen::generate() {
         Elf64_Phdr entry = phdrTableSegment.getProgramHeader(); // Program Table Header
         entry.p_type = PT_PHDR;
         entry.p_flags = PF_R | PF_X;
-        entry.p_memsz = 5 * sizeof(Elf64_Phdr); // 5 is for number of segments
-        entry.p_filesz = 5 * sizeof(Elf64_Phdr);
+        entry.p_memsz = 4 * sizeof(Elf64_Phdr); // 4 is for number of segments
+        entry.p_filesz = entry.p_memsz;
         entry.p_align = 8;
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
-        interpSegment.setAddress(phdrTableSegment.getAddress() + entry.p_memsz);
     }
     {
         Elf64_Phdr entry = loadRESegment.getProgramHeader();
@@ -139,6 +153,7 @@ void ElfGen::generate() {
         entry.p_align = rodata->p_align; // Rip the alignment from original elf file
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
     }
+#if 0
     {
         Elf64_Phdr entry = interpSegment.getProgramHeader();
         entry.p_type = PT_INTERP;
@@ -146,13 +161,54 @@ void ElfGen::generate() {
         entry.p_align = 1;
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
     }
+#endif
     phdrTableSegment.add(&phdrTable);
+
+    // Section header table
+    Section shdrTable(".shdr_table");
+    {
+        Elf64_Shdr entry = shdrTable.getSectionHeader(); // Program Table Header
+        entry.sh_type = SHT_NULL;
+        entry.sh_addralign = 1;
+        shdrTable.add(&entry, sizeof(Elf64_Shdr));
+    }
+    {
+        Elf64_Shdr entry = symtab.getSectionHeader();
+        entry.sh_addr = 0;
+        entry.sh_type = SHT_SYMTAB;
+        entry.sh_addralign = 8;
+        entry.sh_entsize = sizeof(Elf64_Sym);
+        entry.sh_link = 2;
+        entry.sh_flags = 0;
+        entry.sh_info = 0;
+        shdrTable.add(&entry, sizeof(Elf64_Shdr));
+    }
+    {
+        Elf64_Shdr entry = strtab.getSectionHeader();
+        entry.sh_addr = 0;
+        entry.sh_type = SHT_STRTAB;
+        entry.sh_entsize = sizeof(Elf64_Sym);
+        entry.sh_addralign = 1;
+        entry.sh_entsize = 0;
+        entry.sh_link = 0;
+        entry.sh_flags = 0;
+        entry.sh_info = 0;
+        shdrTable.add(&entry, sizeof(Elf64_Shdr));
+    }
+    debugSegment.add(&shdrTable);
+
+    // entry point
+    address_t entry_pt = 0;
+    for(auto chunk : *chunkList) {
+        if(!strcmp(chunk->getName().c_str(), "_start"))
+            entry_pt = chunk->getAddress();
+    }
     header->e_entry = entry_pt;
     header->e_phoff = phdrTableSegment.getFileOff();
     header->e_phnum = phdrTable.getSize() / sizeof(Elf64_Phdr);
-    header->e_shoff = 0;
-    header->e_shnum = 0;
-    header->e_shstrndx = SHN_UNDEF;
+    header->e_shoff = shdrTable.getFileOff();
+    header->e_shnum = shdrTable.getSize() / sizeof(Elf64_Shdr);
+    header->e_shstrndx = 2;
 
     // Write to file
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
@@ -162,6 +218,6 @@ void ElfGen::generate() {
     fs << hdrSegment;
     fs << phdrTableSegment;
     fs << loadTextSegment;
-    fs << interpSegment;
+    fs << debugSegment;
     fs.close();
 }

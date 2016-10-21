@@ -41,6 +41,5 @@ void ElfBuilder::copyCodeToSandbox() {
         auto slot = sandbox->allocate(chunk->getSize());
         chunk->setAddress(slot.getAddress());
         chunk->writeTo(sandbox);
-        std::cout << "writing out " << chunk->getName() << "\n";
     }
 }

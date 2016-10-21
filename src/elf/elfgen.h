@@ -12,12 +12,15 @@ private:
         std::string data;
         std::string name;
         size_t size;
+        size_t fileOffset;
     public:
         Section(std::string name) : name(name), size(0) {}
         size_t getSize() const { return size; }
+        size_t getFileOff() const { return fileOffset; }
         std::string getName() const { return name; }
         std::string getData() const { return data; }
         void setSize(size_t size) { this->size = size; }
+        void setFileOff(size_t offset) { fileOffset = offset; }
         Section add(const void *data, size_t size);
         Elf64_Shdr getSectionHeader() const;
         template<typename ElfStructType> ElfStructType *castAs()
@@ -40,7 +43,7 @@ private:
         Elf64_Phdr getProgramHeader() const;
         std::vector<Section *> getSections() const { return sections; }
         void setAddress(address_t addr) { address = addr; }
-        void setFileOff(size_t offset) { fileOffset = offset; }
+        void setFileOff(size_t offset);
         Segment add(Section *sec);
     };
 private:
