@@ -3,7 +3,8 @@
 CC  = gcc
 CXX = g++
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
-OPT_FLAGS       = -g -O2
+#OPT_FLAGS       = -g -O2
+OPT_FLAGS       = -g -O0
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = -lcapstone -Wl,-q

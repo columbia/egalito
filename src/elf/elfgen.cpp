@@ -90,7 +90,9 @@ void ElfGen::generate() {
     loadRWSegment.add(&loadRW);
 
     // Text
-    Segment loadTextSegment(backing->getBase(), loadRWSegment.getFileOff() + loadRWSegment.getSize());
+    size_t newLoadOffset = loadRWSegment.getFileOff() + loadRWSegment.getSize();
+    newLoadOffset += 0xfff - ((newLoadOffset + 0xfff) & 0xfff);
+    Segment loadTextSegment(backing->getBase(), newLoadOffset);
     Section text = Section(".text").add((const uint8_t *)backing->getBase(), backing->getSize());
     loadTextSegment.add(&text);
     loadTextSegment.add(&interp);
@@ -150,7 +152,7 @@ void ElfGen::generate() {
         Elf64_Phdr entry = loadTextSegment.getProgramHeader();
         entry.p_type = PT_LOAD;
         entry.p_flags = PF_R | PF_X;
-        entry.p_align = rodata->p_align; // Rip the alignment from original elf file
+        entry.p_align = 0x1000; // Rip the alignment from original elf file
         phdrTable.add(&entry, sizeof(Elf64_Phdr));
     }
 #if 0

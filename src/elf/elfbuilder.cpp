@@ -1,5 +1,6 @@
 #include "chunk/disassemble.h"
 #include "elfbuilder.h"
+#include "log/log.h"
 #include <iostream>
 
 void ElfBuilder::buildChunkList() {
@@ -41,5 +42,6 @@ void ElfBuilder::copyCodeToSandbox() {
         auto slot = sandbox->allocate(chunk->getSize());
         chunk->setAddress(slot.getAddress());
         chunk->writeTo(sandbox);
+        CLOG(1, "ElfBuilder writing [%s] to 0x%lx", chunk->getName().c_str(), slot.getAddress());
     }
 }
