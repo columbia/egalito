@@ -124,6 +124,35 @@ public:
     void set(size_t value);
 };
 
+template <typename ChildType>
+class ChunkList {
+private:
+    typedef std::vector<ChildType *> ChildListType;
+    ChildListType childList;
+public:
+    virtual ~ChunkList() {}
+
+    IterableImpl<ChildType *> iterable()
+        { return IterableImpl<ChildType *>(childList); }
+
+    virtual void add(ChildType *child) { childList.push_back(child); }
+};
+
+#if 0
+template <typename ChildType>
+class SearchableChunkList : public ChunkList<ChildType> {
+private:
+    typedef std::set<ChildType *> ChildSetType;
+    ChildSetType childSet;
+public:
+    virtual void add(ChildType *child)
+        { ChunkList<ChildType>::add(child); childSet.insert(child); }
+
+    bool contains(ChildType *child)
+        { return childSet.find(child) != childSet.end(); }
+};
+#endif
+
 class Event {
 public:
     enum EventType {
@@ -247,49 +276,57 @@ public:
 class ChunkVisitor;
 
 /** Chunks represent pieces of code arranged in a hierarchical structure.
-    
-    Some attributes are inherited from parents, such as relative positions.
-    Other attributes are gathered from children, e.g. code sizes and links.
-
-    Attributes:
 */
-class Chunk : public EventObserverRegistry {
+class Chunk {
 public:
     virtual ~Chunk() {}
 
+    virtual EventObserverRegistry *getRegistry() const = 0;
+
     virtual Chunk *getParent() const = 0;
+    virtual ChunkList<Chunk *> *getChildren() const = 0;
     virtual Position *getPosition() const = 0;
     virtual Size *getSize() const = 0;
+    virtual XRefDatabase *getDatabase() const = 0;
 
-    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
+    virtual void accept(ChunkVisitor *visitor) = 0;
 };
 
 class ChunkImpl : public Chunk {
 private:
+    EventObserverRegistry registry;
+    Chunk *parent;
+    Position *position;
+public:
+    ChunkImpl(Chunk *parent = nullptr, Position *position = nullptr)
+        : parent(parent), position(position) {}
+    virtual EventObserverRegistry *getRegistry() const { return &registry; }
+
+    virtual Chunk *getParent() const { return parent; }
+    virtual ChunkList<Chunk *> *getChildren() const { return nullptr; }
+    virtual Position *getPosition() const { return position; }
+    virtual Size *getSize() const { return nullptr; }
+    virtual XRefDatabase *getDatabase() const { return nullptr; }
 };
 
-template <typename ChildType>
-class CompositeChunkImpl : public CompositeChunk {
+template <typename ChunkType, typename ChildType>
+class ChildListDecorator : public ChunkType {
 private:
-    typedef std::vector<ChildType *> ChildListType;
-    ChildListType childList;
+    ChunkList<ChildType> childList;
 public:
-    IterableImpl<ChildType *> getChildren()
-        { return IterableImpl<ChildType *>(childList); }
+    virtual ChunkList<ChildType *> *getChildren() const { return &childList; }
 };
 
 template <typename ChunkType>
-class ObserverRegistryDecorator : public ChunkType {
+class SummationSizeDecorator : public ChunkType {
 private:
-    EventObserverRegistry registry;
+    SummationSize size;
 public:
-    EventObserverRegistry &getRegistry() { return registry; }
+    virtual Size *getSize() const { return &size; }
+};
 
-    virtual void handle(ResizeEvent e) { ChunkType::handle(e); registry.fire(e); }
-    virtual void handle(MoveSourceEvent e) { ChunkType::handle(e); registry.fire(e); }
-    virtual void handle(MoveTargetEvent e) { ChunkType::handle(e); registry.fire(e); }
-    virtual void handle(AddLinkEvent e) { ChunkType::handle(e); registry.fire(e); }
-    virtual void handle(ReEncodeEvent e) { ChunkType::handle(e); registry.fire(e); }
+template <typename ChildType>
+class CompositeChunkImpl : public ChildListDecorator<SummationSizeDecorator<ChunkImpl>, ChildType> {
 };
 
 template <typename ChunkType>
@@ -297,6 +334,8 @@ class XRefDecorator : public ChunkType {
 private:
     XRefDatabase database;
 public:
+    virtual XRefDatabase *getDatabase() const { return &database; }
+
     virtual void handle(AddLinkEvent e)
         { database.add(XRef(e.getOrigin(), e.getLink())); ChunkType::handle(e); }
 };
@@ -313,21 +352,46 @@ class Block;
 class Instruction;
 class InstructionSemantic;
 
+class Program : public ChunkImpl {
+public:
+    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
+};
 class CodePage : public XRefDecorator<CompositeChunkImpl<Block>> {
+public:
+    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
 };
 class Function : public CompositeChunkImpl<Block> {
+public:
+    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
 };
 class Block : public CompositeChunkImpl<Instruction> {
+public:
+    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
 };
-class Instruction : public Chunk {
+class Instruction : public ChunkImpl {
 private:
     InstructionSemantic *semantic;
 public:
+    Instruction(InstructionSemantic *semantic) : semantic(semantic) {}
+
+    virtual Size *getSize() { return semantic->getSize(); }
+
+    virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
+};
+
+class ChunkFactory {
+public:
+    Program *makeProgram();
+    CodePage *makeCodePage();
+    Function *makeFunction();
+    Block *makeBlock();
+    Instruction *makeInstruction(InstructionSemantic *semantic);
 };
 
 class ChunkVisitor {
 public:
     virtual ~ChunkVisitor() {}
+    virtual void visit(Program *program) = 0;
     virtual void visit(CodePage *codePage) = 0;
     virtual void visit(Function *function) = 0;
     virtual void visit(Block *block) = 0;
@@ -335,6 +399,7 @@ public:
 };
 class ChunkListener {
 public:
+    virtual void visit(Program *program) {}
     virtual void visit(CodePage *codePage) {}
     virtual void visit(Function *function) {}
     virtual void visit(Block *block) {}
