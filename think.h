@@ -125,26 +125,50 @@ public:
 };
 
 class Event {
+public:
+    enum EventType {
+        EVENT_RESIZE,
+        EVENT_MOVE_SOURCE,
+        EVENT_MOVE_TARGET,
+        EVENT_ADD_LINK,
+        EVENT_RE_ENCODE,
+        EVENTS
+    };
 private:
     Chunk *origin;
 public:
     Event(Chunk *origin) : origin(origin) {}
-
+    virtual ~Event() {}
+    
+    virtual EventType getType() const = 0;
     Chunk *getOrigin() const { return origin; }
 };
 
-class ResizeEvent : public Event {};
-class MoveSourceEvent : public Event {};
-class MoveTargetEvent : public Event {};
+class ResizeEvent : public Event {
+public:
+    virtual EventType getType() const { return EVENT_RESIZE; }
+};
+class MoveSourceEvent : public Event {
+public:
+    virtual EventType getType() const { return EVENT_MOVE_SOURCE; }
+};
+class MoveTargetEvent : public Event {
+public:
+    virtual EventType getType() const { return EVENT_MOVE_TARGET; }
+};
 class AddLinkEvent : public Event {
 private:
     Link *link;
 public:
     Link *getLink() const { return link; }
+    virtual EventType getType() const { return EVENT_ADD_LINK; }
 };
-class ReEncodeEvent : public Event {};
+class ReEncodeEvent : public Event {
+public:
+    virtual EventType getType() const { return EVENT_RE_ENCODE; }
+};
 
-class EventListener {
+class EventObserver {
 public:
     virtual ~EventListener() {}
     virtual void handle(ResizeEvent e) {}
@@ -152,6 +176,32 @@ public:
     virtual void handle(MoveTargetEvent e) {}
     virtual void handle(AddLinkEvent e) {}
     virtual void handle(ReEncodeEvent e) {}
+};
+
+template <typename EventType>
+class SingleEventObserver : public EventObserver {
+public:
+    virtual void handle(EventType e) = 0;
+};
+
+/** Stores a list of observers for each type for easy triggering. */
+class EventObserverRegistry {
+private:
+    typedef std::vector<EventObserver *> ObserverList;
+    typedef ObserverList ObserverMatrix[Event::EVENTS];
+    ObserverMatrix registry;
+public:
+    template <typename EventType>
+    void add(SingleEventObserver<EventType> observer) { registry[EventType].push_back(observer); }
+    void add(EventObserver *observer, Event::EventType type) { registry[type].push_back(observer); }
+    void addToAll(EventObserver *observer);
+
+    template <typename EventType>
+    void remove(SingleEventObserver<EventType> observer);
+    void remove(EventObserver *observer, Event::EventType type);
+    void removeFromAll(EventObserver *observer);
+
+    void fire(Event *event) { for(auto obs : registry[event->getType()]) { obs.handle(*event); } }
 };
 
 class ChunkReference {
@@ -203,7 +253,7 @@ class ChunkVisitor;
 
     Attributes:
 */
-class Chunk : public EventListener {
+class Chunk : public EventObserverRegistry {
 public:
     virtual ~Chunk() {}
 
@@ -226,6 +276,20 @@ private:
 public:
     IterableImpl<ChildType *> getChildren()
         { return IterableImpl<ChildType *>(childList); }
+};
+
+template <typename ChunkType>
+class ObserverRegistryDecorator : public ChunkType {
+private:
+    EventObserverRegistry registry;
+public:
+    EventObserverRegistry &getRegistry() { return registry; }
+
+    virtual void handle(ResizeEvent e) { ChunkType::handle(e); registry.fire(e); }
+    virtual void handle(MoveSourceEvent e) { ChunkType::handle(e); registry.fire(e); }
+    virtual void handle(MoveTargetEvent e) { ChunkType::handle(e); registry.fire(e); }
+    virtual void handle(AddLinkEvent e) { ChunkType::handle(e); registry.fire(e); }
+    virtual void handle(ReEncodeEvent e) { ChunkType::handle(e); registry.fire(e); }
 };
 
 template <typename ChunkType>
