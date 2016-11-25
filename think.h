@@ -94,7 +94,7 @@ private:
     mutable ValueCache<address_t> cache;
 public:
     CachedRelativePosition(ChunkReference within) : RelativePosition(within) {}
-    
+
     virtual address_t get() const
         { return cache.isValid() ? cache.get() : RelativePosition::get(); }
     virtual void set(address_t value) { RelativePosition::set(value); cache.set(value); }
@@ -109,19 +109,44 @@ class Size {
 public:
     virtual ~Size() {}
     virtual size_t get() const = 0;
+    virtual void set(size_t value) = 0;
     virtual void adjustBy(size_t add) = 0;
 };
 
-class SummationSize {
+class SizeImpl : public Size {
+public:
+    virtual void adjustBy(size_t add) { set(get() + add); }
+};
+
+class FixedSize : public SizeImpl {
+private:
+    size_t size;
+public:
+    FixedSize(size_t size = 0) : size(size) {}
+    virtual size_t get() const { return size; }
+    virtual void set(size_t value) const { size = value; }
+};
+
+template <typename ChunkType>
+class DelegatedSize : public SizeImpl {
+private:
+    ChunkType *within;
+public:
+    DelegatedSize(ChunkType *within) : within(within) {}
+
+    virtual size_t get() const { return within->getSize(); }
+    virtual void set(size_t value) { within->setSize(value); }
+};
+
+class SummationSize : public SizeImpl {
 private:
     size_t totalSize;
 public:
     SummationSize() : totalSize(0) {}
 
     virtual size_t get() const;
+    virtual void set(size_t value);
     virtual void adjustBy(size_t add);
-
-    void set(size_t value);
 };
 
 template <typename ChildType>
@@ -168,7 +193,7 @@ private:
 public:
     Event(Chunk *origin) : origin(origin) {}
     virtual ~Event() {}
-    
+
     virtual EventType getType() const = 0;
     Chunk *getOrigin() const { return origin; }
 };
@@ -371,10 +396,14 @@ public:
 class Instruction : public ChunkImpl {
 private:
     InstructionSemantic *semantic;
+    DelegatedSize<InstructionSemantic> delegatedSize;
 public:
-    Instruction(InstructionSemantic *semantic) : semantic(semantic) {}
+    Instruction(InstructionSemantic *semantic)
+        : semantic(semantic), delegatedSize(semantic) {}
 
-    virtual Size *getSize() { return semantic->getSize(); }
+    void setSemantic(InstructionSemantic *semantic);
+
+    virtual Size *getSize() { return &delegatedSize; }
 
     virtual void accept(ChunkVisitor *visitor) { visitor.visit(this); }
 };
@@ -407,15 +436,63 @@ public:
 };
 class ChunkDebugDisplay : public ChunkVisitor {};
 
+class SemanticVisitor;
+
 /** Abstract base class for special instruction data.
 */
 class InstructionSemantic {
 public:
     virtual ~InstructionSemantic() {}
+
+    virtual size_t getSize() const = 0;
+    virtual void setSize(size_t value) = 0;
+
+    virtual void accept(SemanticVisitor *visitor) = 0;
+};
+
+class SemanticImpl : public InstructionSemantic {
+private:
+
+public:
+    virtual size_t setSize(size_t value);
 };
 
 class UnprocessedInstruction : public InstructionSemantic {
 private:
     std::string rawData;
 public:
+    virtual size_t getSize() const { return rawData.size(); }
+
+    virtual void accept(SemanticVisitor *visitor) { visitor->visit(this); }
+};
+class NormalSemanticImpl : public SemanticImpl {
+private:
+    cs_insn insn;
+public:
+    NormalSemanticImpl(const cs_insn &insn) : insn(insn) {}
+
+    virtual size_t getSize() const { return insn.size; }
+
+    uint8_t *getBytes() const { return insn.bytes; }
+};
+
+class ControlFlowInstruction : public InstructionSemantic {
+private:
+    std::string opcode;
+    int displacementSize;
+    Link *target;
+public:
+    ControlFlowInstruction() : target(nullptr) {}
+    ControlFlowInstruction(Link *target) : target(target) {}
+
+    virtual size_t getSize() const { return opcode.size() + displacementSize; }
+
+    virtual void accept(SemanticVisitor *visitor) { visitor->visit(this); }
+};
+
+class SemanticVisitor {
+public:
+    virtual ~SemanticVisitor() {}
+    virtual void visit(UnprocessedInstruction *semantic) = 0;
+    virtual void visit(ControlFlowInstruction *semantic) = 0;
 };
