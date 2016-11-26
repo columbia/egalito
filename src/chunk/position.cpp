@@ -3,40 +3,40 @@
 #include "chunk.h"
 
 address_t RelativePosition::get() const {
-    assert(relativeTo != nullptr);
-    if(!relativeTo) return offset.get();
-    return relativeTo->getAddress() + offset.get();
+    assert(object != nullptr);
+    assert(object->getParent() != nullptr);
+    return object->getParent()->getPosition()->get() + offset;
 }
 
 void RelativePosition::set(address_t value) {
-    assert(relativeTo != nullptr);
-
-    setOffset(value - relativeTo->getAddress());
+    assert(object != nullptr);
+    assert(object->getParent() != nullptr);
+    assert(value >= object->getParent()->getPosition()->get());
+    setOffset(value - object->getParent()->getPosition()->get());
 }
 
-void RelativePosition::finalize() {
-    assert(relativeTo != nullptr);
+address_t CachedRelativePosition::get() const {
+    if(cache.isValid()) return cache.get();
 
-    if(!relativeTo->contains(offset.get())) {
-        throw "RelativePosition is outside bounds of enclosing Chunk";
+    auto value = RelativePosition::get();
+    cache.set(value);
+    return value;
+}
+
+void CachedRelativePosition::set(address_t value) {
+    RelativePosition::set(value);
+    cache.set(value);
+}
+
+void CachedRelativePosition::setOffset(address_t offset) {
+    RelativePosition::setOffset(offset);
+    cache.invalidate();
+}
+
+void CompositeSize::adjustBy(size_t add) {
+    if(static_cast<long>(size + add) < 0) {
+        throw "Shrinking CompositeSize below 0";
     }
 
-    offset.finalize();
+    size += add;
 }
-
-size_t CalculatedSize::get() const {
-    if(!valid) throw "Can't get invalidated summation size!";
-
-    return cache;
-}
-
-#if 0
-void Position::resolve(Chunk *relativeTo, bool makeRelative) {
-    this->relativeTo = relativeTo;
-
-    if(makeRelative) {
-        auto within = relativeTo->getPosition();
-        //...
-    }
-}
-#endif

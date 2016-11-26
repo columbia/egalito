@@ -1,9 +1,8 @@
 #ifndef EGALITO_POSITION_H
 #define EGALITO_POSITION_H
 
+#include "chunkref.h"
 #include "types.h"
-
-class Chunk;
 
 class Position {
 public:
@@ -11,109 +10,109 @@ public:
 
     virtual address_t get() const = 0;
     virtual void set(address_t value) = 0;
-
-    virtual void finalize() {}
 };
 
-template <typename Type>
-class FixedValue {
+class AbsolutePosition : public Position {
 private:
-    Type value;
+    address_t address;
 public:
-    FixedValue(Type value) : value(value) {}
+    AbsolutePosition(address_t address) : address(address) {}
 
-    Type get() const { return value; }
-    void set(const Type &newValue)
-        { throw "Can't set FixedValue!"; }
-};
-
-template <typename Type>
-class MemoryValue {
-private:
-    Type previous;
-    Type proposed;
-public:
-    MemoryValue(Type value) : previous(value), proposed(value) {}
-
-    Type get() const { return proposed; }
-    void set(const Type &newValue) { this->proposed = newValue; }
-
-    Type getDelta() const { return proposed - previous; }
-    void finalize() { previous = proposed; }
-};
-
-class NormalPosition : public Position, public MemoryValue<address_t> {
-public:
-    NormalPosition(address_t address) : MemoryValue<address_t>(address) {}
-
-    virtual address_t get() const
-        { return MemoryValue<address_t>::get(); }
-    virtual void set(address_t value)
-        { MemoryValue<address_t>::set(value); }
-    using MemoryValue<address_t>::getDelta;
-    using MemoryValue<address_t>::finalize;
+    virtual address_t get() const { return address; }
+    virtual void set(address_t value) { this->address = value; }
 };
 
 class RelativePosition : public Position {
 private:
-    MemoryValue<address_t> offset;
-    Chunk *relativeTo;
+    ChunkRef object;
+    address_t offset;
 public:
-    RelativePosition(Chunk *relativeTo, address_t offset)
-        : offset(offset), relativeTo(relativeTo) {}
+    RelativePosition(ChunkRef object) : object(object) {}
 
     virtual address_t get() const;
     virtual void set(address_t value);
 
-    address_t getOffset() const { return offset.get(); }
-    void setOffset(address_t value) { offset.set(value); }
-    void setRelativeTo(Chunk *to) { relativeTo = to; }
-    bool hasRelativeTo() const { return relativeTo != nullptr; }
-    Chunk *getRelativeTo() const { return relativeTo; }
-
-    virtual void finalize();
+    address_t getOffset() const { return offset; }
+    void setOffset(address_t offset) { this->offset = offset; }
 };
 
-class OriginalPosition : public Position, public FixedValue<address_t> {
+template <typename Type, int InvalidInitializer = -1>
+class ValueCache {
 public:
-    OriginalPosition(address_t address) : FixedValue<address_t>(address) {}
+    static const Type INVALID = static_cast<Type>(InvalidInitializer);
+private:
+    Type cache;
+public:
+    ValueCache() : cache(INVALID) {}
 
-    virtual address_t get() const
-        { return FixedValue<address_t>::get(); }
-    virtual void set(address_t value)
-        { FixedValue<address_t>::set(value); }
+    Type get() const { return cache; }
+    void set(Type value) { cache = value; }
+
+    void invalidate() { cache = INVALID; }
+    bool isValid() const { return cache != INVALID; }
 };
+
+class CachedRelativePosition : protected RelativePosition {
+private:
+    mutable ValueCache<address_t> cache;
+public:
+    CachedRelativePosition(ChunkRef object) : RelativePosition(object) {}
+
+    virtual address_t get() const;
+    virtual void set(address_t value);
+
+    using RelativePosition::getOffset;
+    void setOffset(address_t offset);
+
+    void invalidateCache() { cache.invalidate(); }
+};
+
 
 class Size {
-private:
-    size_t value;
-    Chunk *within;
-};
-
-class SimpleSize : public FixedValue<size_t> {
 public:
-    SimpleSize(size_t size) : FixedValue<size_t>(size) {}
-
-    using FixedValue<size_t>::get;
-    using FixedValue<size_t>::set;
+    virtual ~Size() {}
+    virtual size_t get() const = 0;
+    virtual void set(size_t value) = 0;
+    virtual void adjustBy(size_t add) = 0;
 };
 
-class CalculatedSize {
-private:
-    size_t cache;
-    bool valid;
+class SizeImpl : public Size {
 public:
-    CalculatedSize(size_t size, bool valid = true)
-        : cache(size), valid(valid) {}
-
-    size_t get() const;
-    void set(size_t size) { cache = size, valid = true; }
-    void add(size_t a) { cache += a; }
-
-    bool isValid() const { return valid; }
-    void invalidate() { valid = false; }
+    virtual void adjustBy(size_t add) { set(get() + add); }
 };
 
+class FixedSize : public SizeImpl {
+private:
+    size_t size;
+public:
+    FixedSize(size_t size = 0) : size(size) {}
+    virtual size_t get() const { return size; }
+    virtual void set(size_t value) { size = value; }
+};
+
+template <typename ChunkType>
+class DelegatedSize : public SizeImpl {
+private:
+    ChunkType *object;
+public:
+    DelegatedSize(ChunkType *object) : object(object) {}
+
+    virtual size_t get() const { return object->getSize(); }
+    virtual void set(size_t value) { object->setSize(value); }
+};
+
+class CompositeSize : public SizeImpl {
+private:
+    size_t totalSize;
+public:
+    CompositeSize() : totalSize(0) {}
+
+    virtual size_t get() const { return totalSize; }
+    virtual void set(size_t value) { totalSize = value; }
+    virtual void adjustBy(size_t add);
+};
+
+#if 0
 class CodeLink {
 public:
     address_t getSourceAddress() const;
@@ -133,48 +132,6 @@ public:
     SourcePosition *getSource() { return &source; }
     Position *getTarget() { return target; }
     void setTarget(Position *position) { target = position; }
-};
-
-#if 0
-class Position {
-private:
-    /** Original address as it appeared in the ELF file. */
-    address_t original;
-
-    /** Address currently encoded in instruction opcodes. */
-    address_t current;
-
-    /** The new address that will soon be used. */
-    address_t assigned;
-
-    /** If non-NULL, then addresses are relative to this as a base address. */
-    Chunk *relativeTo;
-public:
-    Position(address_t original)
-        : original(original), current(original), assigned(original),
-        relativeTo(nullptr) {}
-    Position(address_t original, address_t current, Chunk *relativeTo = nullptr)
-        : original(original), current(current), assigned(assigned),
-        relativeTo(relativeTo) {}
-
-    void assign(address_t to) { assigned = to; }
-    void resolve(Chunk *relativeTo, bool makeRelative = false);
-    void finalize() { current = assigned; }
-
-    address_t getAssignment() const { return assigned; }
-    address_t getOriginalDelta() const { return assigned - original; }
-    address_t getDelta() const { return assigned - current; }
-};
-
-class CodeLink {
-private:
-    Position source;
-    Position target;
-public:
-    address_t getSourceAddress() const { return source.get(); }
-    address_t getTargetAddress() const { return target.get(); }
-    Position &getSource() { return source; }
-    Position &getTarget() { return target; }
 };
 #endif
 
