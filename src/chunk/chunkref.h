@@ -10,7 +10,13 @@ public:
     ChunkRef(Chunk *ref = nullptr) : ref(ref) {}
 
     Chunk &operator * () const { return *ref; }
+    Chunk *operator -> () const { return ref; }
     operator bool() const { return ref != nullptr; }
+
+    bool operator == (Chunk *other) const { return ref == other; }
+    bool operator == (const ChunkRef &other) const { return ref == other.ref; }
+    bool operator != (Chunk *other) const { return ref != other; }
+    bool operator != (const ChunkRef &other) const { return ref != other.ref; }
 };
 
 #endif

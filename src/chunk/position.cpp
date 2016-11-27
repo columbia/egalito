@@ -34,9 +34,9 @@ void CachedRelativePosition::setOffset(address_t offset) {
 }
 
 void CompositeSize::adjustBy(size_t add) {
-    if(static_cast<long>(size + add) < 0) {
+    if(static_cast<long>(totalSize + add) < 0) {
         throw "Shrinking CompositeSize below 0";
     }
 
-    size += add;
+    totalSize += add;
 }
