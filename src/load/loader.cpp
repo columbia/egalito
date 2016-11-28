@@ -24,7 +24,7 @@ extern "C" void _start2(void);
 
 void examineElf(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
-void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList);
+void writeOutElf(ElfMap *elf, ElfChunkList<Function> &functionList);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
 
     Signals::registerHandlers();
 
+#if 0
     try {
         ElfMap *elf = new ElfMap(argv[1]);
         ElfMap *interpreter = nullptr;
@@ -87,10 +88,12 @@ int main(int argc, char *argv[]) {
         if(*s && s[std::strlen(s) - 1] != '\n') std::cerr << '\n';
         return 1;
     }
+#endif
 
     return 0;
 }
 
+#if 0
 void examineElf(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
 
@@ -212,3 +215,4 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
 #endif
     }
 }
+#endif

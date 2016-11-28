@@ -7,6 +7,7 @@
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/disassemble.h"
+#include "chunk/dump.h"
 #include "transform/sandbox.h"
 
 int main(int argc, char *argv[]) {
@@ -28,7 +29,6 @@ int main(int argc, char *argv[]) {
                 symbolList);
         }
 
-#if 0
         std::cout << "\n=== Creating internal data structures ===\n";
 
         std::vector<Function *> functionList;
@@ -44,15 +44,17 @@ int main(int argc, char *argv[]) {
             std::cout << "---[" << sym->getName() << "]---\n";
             for(auto bb : function->getChildren()->iterable()) {
                 std::cout << bb->getName() << ":\n";
-                for(auto instr : *bb) {
+                for(auto instr : bb->getChildren()->iterable()) {
                     std::cout << "    ";
-                    instr->dump();
+                    ChunkDumper dumper;
+                    instr->accept(&dumper);
                 }
             }
 
             functionList.push_back(function);
         }
 
+#if 0
         for(auto f : functionList) {
             for(auto bb : *f) {
                 for(auto instr : *bb) {

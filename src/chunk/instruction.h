@@ -23,6 +23,8 @@ public:
     virtual void writeTo(char *target) = 0;
     virtual void writeTo(std::string &target) = 0;
     virtual std::string getData() = 0;
+
+    virtual cs_insn *getCapstone() = 0;
 };
 
 #if 0
@@ -63,18 +65,7 @@ public:
     virtual std::string getData() const;
 };
 #else
-class Storage {
-public:
-    virtual ~Storage() {}
-
-    virtual size_t getSize() const = 0;
-
-    virtual void writeTo(char *target) = 0;
-    virtual void writeTo(std::string &target) = 0;
-    virtual std::string getData() = 0;
-};
-
-class RawByteStorage : public Storage {
+class RawByteStorage {
 private:
     std::string rawData;
 public:
@@ -85,9 +76,11 @@ public:
     void writeTo(char *target);
     void writeTo(std::string &target);
     std::string getData();
+
+    cs_insn *getCapstone() { return nullptr; }
 };
 
-class DisassembledStorage : public Storage {
+class DisassembledStorage {
 private:
     cs_insn insn;
 public:
@@ -98,6 +91,8 @@ public:
     void writeTo(char *target);
     void writeTo(std::string &target);
     std::string getData();
+
+    cs_insn *getCapstone() { return &insn; }
 };
 #endif
 
@@ -107,6 +102,8 @@ private:
     Storage storage;
 public:
     SemanticImpl(const Storage &storage) : storage(storage) {}
+
+    Storage &getStorage() { return storage; }
 
     virtual size_t getSize() const { return storage.getSize(); }
     virtual void setSize(size_t value)
@@ -119,6 +116,8 @@ public:
     virtual void writeTo(char *target) { storage.writeTo(target); }
     virtual void writeTo(std::string &target) { storage.writeTo(target); }
     virtual std::string getData() { return storage.getData(); }
+
+    virtual cs_insn *getCapstone() { return storage.getCapstone(); }
 };
 
 template <typename BaseType>
@@ -152,8 +151,11 @@ public:
     virtual void writeTo(char *target);
     virtual void writeTo(std::string &target);
     virtual std::string getData();
-private:
+
+    virtual cs_insn *getCapstone() { return nullptr; }
+
     Instruction *getSource() const { return source; }
+private:
     diff_t calculateDisplacement();
 };
 

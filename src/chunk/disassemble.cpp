@@ -99,7 +99,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     Function *function = new Function(symbol);
     function->setPosition(new AbsolutePosition(symbol->getAddress()));
     Block *block = new Block();
-    block->setPosition(new RelativePosition(function, function->getSize()));
+    block->setPosition(new RelativePosition(block, function->getSize()));
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
@@ -128,12 +128,12 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             for(size_t p = 0; p < x->op_count; p ++) {
                 cs_x86_op *op = &x->operands[p];
                 if(op->type == X86_OP_IMM) {
-                    CLOG0(3, "    immediate operand in ");
-                    IF_LOG(3) printInstruction(ins);
+                    //CLOG0(3, "    immediate operand in ");
+                    //IF_LOG(3) printInstruction(ins);
 
                     if(ins->id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
-                        CLOG(3, "        call\n");
+                        //CLOG(3, "        call\n");
                         /*instr->makeLink(
                             insn[j].size - 4,
                             new OriginalPosition(imm));*/
@@ -149,6 +149,8 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         if(!semantic) {
             semantic = new DisassembledInstruction(*ins);
         }
+        instr->setSemantic(semantic);
+        instr->setPosition(new RelativePosition(instr, block->getSize()));
 
         block->getChildren()->add(instr);
         instr->setParent(block);
@@ -159,6 +161,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             function->addToSize(block->getSize());
 
             block = new Block();
+            block->setPosition(new RelativePosition(block, function->getSize()));
         }
     }
 

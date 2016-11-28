@@ -60,7 +60,8 @@ public:
         : semantic(semantic) {}
 
     InstructionSemantic *getSemantic() const { return semantic; }
-    void setSemantic(InstructionSemantic *semantic);
+    void setSemantic(InstructionSemantic *semantic)
+        { this->semantic = semantic; }
 
     virtual size_t getSize() const { return semantic->getSize(); }
     virtual void setSize(size_t value) { semantic->setSize(value); }
