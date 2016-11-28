@@ -1,5 +1,9 @@
 #include "concrete.h"
 
+Function *ChunkFactory::makeFunction(Symbol *symbol) {
+    return new Function(symbol);
+}
+
 #if 0
 void Function::append(Block *block) {
     size_t oldSize = getSize();

@@ -56,7 +56,8 @@ class Instruction : public ChunkImpl {
 private:
     InstructionSemantic *semantic;
 public:
-    Instruction(InstructionSemantic *semantic) : semantic(semantic) {}
+    Instruction(InstructionSemantic *semantic = nullptr)
+        : semantic(semantic) {}
 
     InstructionSemantic *getSemantic() const { return semantic; }
     void setSemantic(InstructionSemantic *semantic);
@@ -65,7 +66,15 @@ public:
     virtual void setSize(size_t value) { semantic->setSize(value); }
 
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-    void accept(SemanticVisitor *visitor) { semantic->accept(visitor); }
+};
+
+class ChunkFactory {
+public:
+    Program *makeProgram();
+    CodePage *makeCodePage();
+    Function *makeFunction(Symbol *symbol);
+    Block *makeBlock();
+    Instruction *makeInstruction(InstructionSemantic *semantic);
 };
 
 #endif

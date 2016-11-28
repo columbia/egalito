@@ -4,6 +4,7 @@
 #include "disassemble.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
+#include "chunk/instruction.h"
 #include "log/log.h"
 
 Disassemble::Handle::Handle(bool detailed) {
@@ -99,34 +100,35 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     Block *block = new Block();
 
     for(size_t j = 0; j < count; j++) {
-        auto instr = block->append(new Instruction(insn[j]));
-        instr->setRelativeTo(block);
+        auto ins = &insn[j];
+        auto instr = new Instruction(insn[j]);
 
+        // check if this instruction ends the current basic block
         bool split = false;
-        if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_JUMP)) {
+        if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
             split = true;
         }
-        else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_CALL)) {
+        else if(cs_insn_group(handle.raw(), ins, X86_GRP_CALL)) {
             split = true;
         }
-        else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_RET)) {
+        else if(cs_insn_group(handle.raw(), ins, X86_GRP_RET)) {
             split = true;
         }
-        else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_INT)) {
+        else if(cs_insn_group(handle.raw(), ins, X86_GRP_INT)) {
         }
-        else if(cs_insn_group(handle.raw(), &insn[j], X86_GRP_IRET)) {
+        else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
         }
 
-        cs_detail *detail = insn[j].detail;
+        cs_detail *detail = ins->detail;
         cs_x86 *x = &detail->x86;
         if(x->op_count > 0) {
             for(size_t p = 0; p < x->op_count; p ++) {
                 cs_x86_op *op = &x->operands[p];
                 if(op->type == X86_OP_IMM) {
                     CLOG0(3, "    immediate operand in ");
-                    IF_LOG(3) printInstruction(&insn[j]);
+                    IF_LOG(3) printInstruction(ins);
 
-                    if(insn[j].id == X86_INS_CALL) {
+                    if(ins->id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
                         CLOG(3, "        call\n");
                         instr->makeLink(
@@ -137,6 +139,8 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             }
         }
 
+        block->getChildren()->add(instr);
+        instr->setParent(block);
         if(split) {
             function->append(block);
             block->setRelativeTo(function);
