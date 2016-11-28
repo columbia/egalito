@@ -7,13 +7,15 @@
 #include <capstone/capstone.h>  // for cs_insn
 #include "elf/symbol.h"
 #include "observer.h"  // for EventObserverRegistry
-#include "position.h"  // for Position
+#include "position.h"  // for Position, ComputedSize
 #include "link.h"  // for Link, XRefDatabase
 #include "types.h"
 
 class Sandbox;
 
-template <typename ChildType> class ChunkList;
+class ChunkList;
+template <typename ChildType, typename ParentType>
+class IterableChunkList;
 
 class ChunkVisitor;
 
@@ -27,11 +29,12 @@ public:
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
-    virtual ChunkList<Chunk *> *getChildren() const = 0;
+    virtual ChunkList *getChildren() const = 0;
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
     virtual size_t getSize() const = 0;
     virtual void setSize(size_t newSize) = 0;
+    virtual void addToSize(diff_t add) = 0;
     virtual XRefDatabase *getDatabase() const = 0;
 
     virtual address_t getAddress() const = 0;
@@ -51,10 +54,12 @@ public:
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
-    virtual ChunkList<Chunk *> *getChildren() const { return nullptr; }
+    virtual ChunkList *getChildren() const { return nullptr; }
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
     virtual size_t getSize() const { return 0; }
+    virtual void setSize(size_t newSize);
+    virtual void addToSize(diff_t add);
     virtual XRefDatabase *getDatabase() const { return nullptr; }
 
     virtual address_t getAddress() const { return getPosition()->get(); }
@@ -63,13 +68,24 @@ public:
 template <typename ChunkType, typename ChildType>
 class ChildListDecorator : public ChunkType {
 private:
-    ChunkList<ChildType> childList;
+    IterableChunkList<ChildType, ChunkList> childList;
 public:
-    virtual ChunkList<ChildType *> *getChildren() const { return &childList; }
+    virtual IterableChunkList<ChildType, ChunkList> *getChildren() const { return &childList; }
+};
+
+template <typename ChunkType>
+class ComputedSizeDecorator : public ChunkType {
+private:
+    ComputedSize size;
+public:
+    virtual size_t getSize() const { return size.get(); }
+    virtual void setSize(size_t newSize) { size.set(newSize); }
+    virtual void addToSize(diff_t add) { size.adjustBy(add); }
 };
 
 template <typename ChildType>
-class CompositeChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
+class CompositeChunkImpl : public ChildListDecorator<
+    ComputedSizeDecorator<ChunkImpl>, ChildType> {
 };
 
 template <typename ChunkType>
@@ -81,66 +97,6 @@ public:
 
     virtual void handle(AddLinkEvent e)
         { database.add(XRef(e.getOrigin(), e.getLink())); ChunkType::handle(e); }
-};
-
-// --- concrete Chunk implementations follow ---
-
-class Program;
-class CodePage;
-class Function;
-class Block;
-class Instruction;
-
-class ChunkVisitor {
-public:
-    virtual ~ChunkVisitor() {}
-    virtual void visit(Program *program) = 0;
-    virtual void visit(CodePage *codePage) = 0;
-    virtual void visit(Function *function) = 0;
-    virtual void visit(Block *block) = 0;
-    virtual void visit(Instruction *instruction) = 0;
-};
-class ChunkListener {
-public:
-    virtual void visit(Program *program) {}
-    virtual void visit(CodePage *codePage) {}
-    virtual void visit(Function *function) {}
-    virtual void visit(Block *block) {}
-    virtual void visit(Instruction *instruction) {}
-};
-
-class Program : public ChunkImpl {
-public:
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
-class CodePage : public XRefDecorator<CompositeChunkImpl<Block>> {
-public:
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
-class Function : public CompositeChunkImpl<Block> {
-public:
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
-class Block : public CompositeChunkImpl<Instruction> {
-public:
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
-class InstructionSemantic;
-class Instruction : public ChunkImpl {
-private:
-    InstructionSemantic *semantic;
-public:
-    Instruction(InstructionSemantic *semantic)
-        : semantic(semantic), delegatedSize(semantic) {}
-
-    InstructionSemantic *getSemantic() const { return semantic; }
-    void setSemantic(InstructionSemantic *semantic);
-
-    virtual size_t getSize() const { return semantic->getSize(); }
-    virtual void setSize(size_t value) { semantic->setSize(value); }
-
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-    void accept(SemanticVisitor *visitor) { semantic->accept(visitor); }
 };
 
 #if 0

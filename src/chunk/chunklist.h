@@ -12,9 +12,9 @@ class ChunkList {
 public:
     virtual ~ChunkList() {}
 
-    virtual void add(Chunk *child) { childList.push_back(child); }
+    //virtual void add(Chunk *child) = 0;
 
-    virtual IterableImpl<Chunk *> iterable() = 0;
+    //virtual IterableImpl<Chunk *> iterable() = 0;
 };
 
 template <typename ChildType, typename ParentType = ChunkList>
@@ -23,8 +23,6 @@ private:
     typedef std::vector<ChildType *> ChildListType;
     ChildListType childList;
 public:
-    virtual ~ChunkList() {}
-
     IterableImpl<ChildListType> iterable() { return childList; }
 
     virtual void add(ChildType *child) { childList.push_back(child); }
@@ -48,7 +46,7 @@ public:
 template <typename ChildType, typename ParentType = ChunkList>
 class SpatialChunkList : public ParentType {
 private:
-    typedef std::map<address_t, ChunkType *> SpaceMapType;
+    typedef std::map<address_t, ChildType *> SpaceMapType;
     SpaceMapType spaceMap;
 public:
     virtual void add(ChildType *child)
@@ -60,7 +58,7 @@ public:
 template <typename ChildType, typename ParentType = ChunkList>
 class NamedChunkList : public ParentType {
 private:
-    typedef std::map<std::string, ChunkType *> NameMapType;
+    typedef std::map<std::string, ChildType *> NameMapType;
     NameMapType nameMap;
 public:
     virtual void add(ChildType *child)
@@ -69,14 +67,14 @@ public:
     ChildType *find(const std::string &name);
 };
 
-template <typename ChunkType>
-ChunkType *NamedChunkList<ChunkType>::find(const std::string &name) {
+template <typename ChunkType, typename ParentType>
+ChunkType *NamedChunkList<ChunkType, ParentType>::find(const std::string &name) {
     auto it = nameMap.find(name);
     return (it != nameMap.end() ? (*it).second : nullptr);
 }
 
-template <typename ChunkType>
-ChunkType *SpatialChunkList<ChunkType>::find(address_t address) {
+template <typename ChunkType, typename ParentType>
+ChunkType *SpatialChunkList<ChunkType, ParentType>::find(address_t address) {
     auto it = spaceMap.find(address);
     return (it != spaceMap.end() ? (*it).second : nullptr);
 }

@@ -67,6 +67,16 @@ public:
     void invalidateCache() { cache.invalidate(); }
 };
 
+class ComputedSize {
+private:
+    size_t size;
+public:
+    ComputedSize() : size(0) {}
+    size_t get() const { return size; }
+    void set(size_t newSize) { size = newSize; }
+    void adjustBy(diff_t add);
+};
+
 #if 0
 class Size {
 public:

@@ -33,10 +33,7 @@ void CachedRelativePosition::setOffset(address_t offset) {
     cache.invalidate();
 }
 
-void CompositeSize::adjustBy(size_t add) {
-    if(static_cast<long>(totalSize + add) < 0) {
-        throw "Shrinking CompositeSize below 0";
-    }
-
-    totalSize += add;
+void ComputedSize::adjustBy(diff_t add) {
+    assert(static_cast<diff_t>(size + add) >= 0);
+    size += add;
 }
