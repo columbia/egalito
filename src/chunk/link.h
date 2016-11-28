@@ -2,12 +2,13 @@
 #define EGALITO_CHUNK_LINK_H
 
 #include "chunkref.h"
+#include "util/iter.h"
 
 class Link {
 private:
     ChunkRef target;
 public:
-    LinkAttribute(ChunkRef target) : target(target) {}
+    Link(ChunkRef target) : target(target) {}
     ChunkRef getTarget() const { return target; }
 };
 

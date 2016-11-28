@@ -272,7 +272,7 @@ class Link {
 private:
     ChunkReference target;
 public:
-    LinkAttribute(ChunkReference target) : target(target) {}
+    Link(ChunkReference target) : target(target) {}
     ChunkReference getTarget() const { return target; }
 };
 
@@ -363,13 +363,6 @@ public:
 
     virtual void handle(AddLinkEvent e)
         { database.add(XRef(e.getOrigin(), e.getLink())); ChunkType::handle(e); }
-};
-
-class InstructionBase : public Chunk {
-private:
-    InstructionSemantic *semantic;
-public:
-    
 };
 
 class Function;

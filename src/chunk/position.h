@@ -67,7 +67,7 @@ public:
     void invalidateCache() { cache.invalidate(); }
 };
 
-
+#if 0
 class Size {
 public:
     virtual ~Size() {}
@@ -111,6 +111,7 @@ public:
     virtual void set(size_t value) { totalSize = value; }
     virtual void adjustBy(size_t add);
 };
+#endif
 
 #if 0
 class CodeLink {

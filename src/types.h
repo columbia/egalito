@@ -6,5 +6,6 @@
 
 typedef uint64_t address_t;
 typedef std::size_t size_t;
+typedef int64_t signed_address_t;
 
 #endif

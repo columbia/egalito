@@ -10,12 +10,14 @@
 
 class ChunkList {
 public:
+    virtual ~ChunkList() {}
+
     virtual void add(Chunk *child) { childList.push_back(child); }
 
     virtual IterableImpl<Chunk *> iterable() = 0;
 };
 
-template <typename ChildType, typename ParentType>
+template <typename ChildType, typename ParentType = ChunkList>
 class IterableChunkList : public ParentType {
 private:
     typedef std::vector<ChildType *> ChildListType;
@@ -27,6 +29,59 @@ public:
 
     virtual void add(ChildType *child) { childList.push_back(child); }
 };
+
+#if 0
+template <typename ChildType, typename ParentType = ChunkList>
+class SearchableChunkList : public ParentType {
+private:
+    typedef std::set<ChildType *> ChildSetType;
+    ChildSetType childSet;
+public:
+    virtual void add(ChildType *child)
+        { ParentType::add(child); childSet.insert(child); }
+
+    bool contains(ChildType *child)
+        { return childSet.find(child) != childSet.end(); }
+};
+#endif
+
+template <typename ChildType, typename ParentType = ChunkList>
+class SpatialChunkList : public ParentType {
+private:
+    typedef std::map<address_t, ChunkType *> SpaceMapType;
+    SpaceMapType spaceMap;
+public:
+    virtual void add(ChildType *child)
+        { ParentType::add(child); spaceMap[child->getPosition().get()] = child; }
+
+    ChildType *find(address_t address);
+};
+
+template <typename ChildType, typename ParentType = ChunkList>
+class NamedChunkList : public ParentType {
+private:
+    typedef std::map<std::string, ChunkType *> NameMapType;
+    NameMapType nameMap;
+public:
+    virtual void add(ChildType *child)
+        { ParentType::add(child); nameMap[child->getName()] = child; }
+
+    ChildType *find(const std::string &name);
+};
+
+template <typename ChunkType>
+ChunkType *NamedChunkList<ChunkType>::find(const std::string &name) {
+    auto it = nameMap.find(name);
+    return (it != nameMap.end() ? (*it).second : nullptr);
+}
+
+template <typename ChunkType>
+ChunkType *SpatialChunkList<ChunkType>::find(address_t address) {
+    auto it = spaceMap.find(address);
+    return (it != spaceMap.end() ? (*it).second : nullptr);
+}
+
+typedef IterableChunkList<Chunk> DefaultChunkList;
 
 #if 0
 template <typename ChildType>

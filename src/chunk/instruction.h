@@ -16,6 +16,13 @@ public:
     virtual void visit(ControlFlowInstruction *semantic) = 0;
 };
 
+class SemanticFactory {
+public:
+    ProcessedInstruction *makeProcessed();
+    UnprocessedInstruction *makeUnprocessed();
+    ControlFlowInstruction *makeControlFlow();
+};
+
 /** Abstract base class for special instruction data.
 */
 class InstructionSemantic {
@@ -58,7 +65,7 @@ public:
         { visitor->visit(static_cast<DerivedType *>(this)); }
 };
 
-// concrete classes follow
+// --- concrete classes follow ---
 
 class ProcessedInstruction : public VisitorDecorator<
     ProcessedInstruction, NormalSemanticImpl> {
