@@ -27,7 +27,8 @@ private:
     ChunkRef object;
     address_t offset;
 public:
-    RelativePosition(ChunkRef object) : object(object) {}
+    RelativePosition(ChunkRef object, address_t offset = 0)
+        : object(object), offset(offset) {}
 
     virtual address_t get() const;
     virtual void set(address_t value);

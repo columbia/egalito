@@ -143,8 +143,8 @@ private:
     std::string opcode;
     int displacementSize;
 public:
-    ControlFlowInstruction(Instruction *source)
-        : source(source), displacementSize(0) {}
+    ControlFlowInstruction(Instruction *source, std::string opcode, int displacementSize)
+        : source(source), opcode(opcode), displacementSize(displacementSize) {}
 
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);

@@ -25,6 +25,7 @@ class Chunk {
 public:
     virtual ~Chunk() {}
 
+    virtual std::string getName() const = 0;
     virtual EventObserverRegistry *getRegistry() = 0;
 
     virtual Chunk *getParent() const = 0;
@@ -38,8 +39,8 @@ public:
     virtual XRefDatabase *getDatabase() const = 0;
 
     virtual address_t getAddress() const = 0;
-    virtual bool contains(address_t a) const;
-    virtual bool contains(address_t a, size_t s) const;
+    virtual bool contains(address_t a) const = 0;
+    virtual bool contains(address_t a, size_t s) const = 0;
 
     virtual void accept(ChunkVisitor *visitor) = 0;
 };
@@ -52,6 +53,8 @@ private:
 public:
     ChunkImpl(Chunk *parent = nullptr, Position *position = nullptr)
         : parent(parent), position(position) {}
+
+    virtual std::string getName() const { return "???"; }
     virtual EventObserverRegistry *getRegistry() { return &registry; }
 
     virtual Chunk *getParent() const { return parent; }

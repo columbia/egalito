@@ -102,9 +102,9 @@ void ElfGen::generate() {
     Section strtab(".strtab");
     std::vector<char> strtabData = {'\0'};
     Section symtab(".symtab");
-    ChunkList<Function> *chunkList = elfSpace->getChunkList();
+    ElfChunkList<Function> *chunkList = elfSpace->getChunkList();
     size_t strtabIndex = 1;
-    for(auto chunk : *chunkList) {
+    for(auto chunk : chunkList->iterable()) {
         auto name = chunk->getName();
         strtabData.insert(strtabData.end(), name.begin(), name.end());
         strtabData.push_back('\0');
@@ -201,7 +201,7 @@ void ElfGen::generate() {
 
     // entry point
     address_t entry_pt = 0;
-    for(auto chunk : *chunkList) {
+    for(auto chunk : chunkList->iterable()) {
         if(!strcmp(chunk->getName().c_str(), "_start"))
             entry_pt = chunk->getAddress();
     }

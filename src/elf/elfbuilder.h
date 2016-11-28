@@ -22,7 +22,7 @@ public:
 public:
     ElfSpace *getElfSpace() const { return elfSpace; }
     Sandbox *getSandBox() const { return sandbox; }
-    ChunkList<Function> *getChunkList() const { return elfSpace->getChunkList(); }
+    ElfChunkList<Function> *getChunkList() const { return elfSpace->getChunkList(); }
     SymbolList *getSymbolList() const { return elfSpace->getSymbolList(); }
     RelocList *getRelocList() const { return elfSpace->getRelocList(); }
 };

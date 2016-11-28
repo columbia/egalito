@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
                 symbolList);
         }
 
+#if 0
         std::cout << "\n=== Creating internal data structures ===\n";
 
         std::vector<Function *> functionList;
@@ -41,7 +42,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             std::cout << "---[" << sym->getName() << "]---\n";
-            for(auto bb : *function) {
+            for(auto bb : function->getChildren()->iterable()) {
                 std::cout << bb->getName() << ":\n";
                 for(auto instr : *bb) {
                     std::cout << "    ";
@@ -117,6 +118,7 @@ int main(int argc, char *argv[]) {
                 mainp(argc, argv);
             }
         }
+#endif
 #endif
     }
     catch(const char *s) {

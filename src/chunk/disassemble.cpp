@@ -97,11 +97,14 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         trueAddress, 0, &insn);
 
     Function *function = new Function(symbol);
+    function->setPosition(new AbsolutePosition(symbol->getAddress()));
     Block *block = new Block();
+    block->setPosition(new RelativePosition(function, function->getSize()));
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
-        auto instr = new Instruction(insn[j]);
+        auto instr = new Instruction();
+        InstructionSemantic *semantic = nullptr;
 
         // check if this instruction ends the current basic block
         bool split = false;
@@ -131,19 +134,30 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
                     if(ins->id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
                         CLOG(3, "        call\n");
-                        instr->makeLink(
+                        /*instr->makeLink(
                             insn[j].size - 4,
-                            new OriginalPosition(imm));
+                            new OriginalPosition(imm));*/
+                        auto cfi = new ControlFlowInstruction(instr,
+                            std::string((char *)ins->bytes, ins->size - 4), 4);
+                        //cfi->setLink(new Link
+                        semantic = cfi;
                     }
                 }
             }
         }
 
+        if(!semantic) {
+            semantic = new DisassembledInstruction(*ins);
+        }
+
         block->getChildren()->add(instr);
         instr->setParent(block);
+        block->addToSize(instr->getSize());
         if(split) {
-            function->append(block);
-            block->setRelativeTo(function);
+            function->getChildren()->add(block);
+            block->setParent(function);
+            function->addToSize(block->getSize());
+
             block = new Block();
         }
     }
@@ -154,8 +168,9 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     else {
         CLOG0(1, "fall-through function [%s]... "
             "adding basic block\n", symbol->getName());
-        function->append(block);
-        block->setRelativeTo(function);
+        function->getChildren()->add(block);
+        block->setParent(function);
+        function->addToSize(block->getSize());
     }
 
     cs_free(insn, count);

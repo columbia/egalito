@@ -8,7 +8,7 @@ void ElfBuilder::buildChunkList() {
     if(symbolList == nullptr)
         throw "ElfMap or Symbol List not set";
 
-    ChunkList<Function> *functionList = new ChunkList<Function>();
+    ElfChunkList<Function> *functionList = new ElfChunkList<Function>();
     auto baseAddr = elfSpace->getElfMap()->getCopyBaseAddress();
     for(auto sym : *symbolList) {
         Function *function = Disassemble::function(sym, baseAddr, symbolList);
@@ -33,15 +33,38 @@ void ElfBuilder::buildRelocList() {
     elfSpace->setRelocList(relocList);
 }
 
+class ChunkWriter : public ChunkVisitor {
+private:
+    template <typename Type>
+    void recurse(Type *root) {
+        for(auto child : root->getChildren()->iterable()) {
+            child->accept(this);
+        }
+    }
+public:
+    virtual void visit(Program *program) {}
+    virtual void visit(CodePage *codePage) {}
+    virtual void visit(Function *function) { recurse(function); }
+    virtual void visit(Block *block) { recurse(block); }
+    virtual void visit(Instruction *instruction) {
+        address_t address = instruction->getAddress();
+        instruction->getSemantic()->writeTo(
+            reinterpret_cast<char *>(address));
+    }
+};
+
 void ElfBuilder::copyCodeToSandbox() {
-    ChunkList<Function> *chunkList = elfSpace->getChunkList();
+    ElfChunkList<Function> *chunkList = elfSpace->getChunkList();
     if(sandbox == nullptr || chunkList == nullptr)
         throw "Sandbox, elfspace, or chunklist not set";
 
-    for(auto chunk : *chunkList) {
+#if 1
+    for(auto chunk : chunkList->iterable()) {
         auto slot = sandbox->allocate(chunk->getSize());
-        chunk->setAddress(slot.getAddress());
-        chunk->writeTo(sandbox);
+        chunk->getPosition()->set(slot.getAddress());
+        auto writer = ChunkWriter();
+        chunk->accept(&writer);
         CLOG(1, "ElfBuilder writing [%s] to 0x%lx", chunk->getName().c_str(), slot.getAddress());
     }
+#endif
 }
