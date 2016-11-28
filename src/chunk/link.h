@@ -1,6 +1,7 @@
 #ifndef EGALITO_CHUNK_LINK_H
 #define EGALITO_CHUNK_LINK_H
 
+#include <vector>
 #include "chunkref.h"
 #include "util/iter.h"
 

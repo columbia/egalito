@@ -4,6 +4,7 @@
 #include <capstone/capstone.h>
 #include "types.h"
 #include "chunk/chunk.h"
+#include "chunk/concrete.h"
 
 class Symbol;
 class SymbolList;

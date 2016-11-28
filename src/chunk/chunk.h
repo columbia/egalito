@@ -29,7 +29,7 @@ public:
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
-    virtual ChunkList *getChildren() const = 0;
+    virtual ChunkList *getChildren() = 0;
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
     virtual size_t getSize() const = 0;
@@ -38,6 +38,8 @@ public:
     virtual XRefDatabase *getDatabase() const = 0;
 
     virtual address_t getAddress() const = 0;
+    virtual bool contains(address_t a) const;
+    virtual bool contains(address_t a, size_t s) const;
 
     virtual void accept(ChunkVisitor *visitor) = 0;
 };
@@ -54,7 +56,7 @@ public:
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
-    virtual ChunkList *getChildren() const { return nullptr; }
+    virtual ChunkList *getChildren() { return nullptr; }
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
     virtual size_t getSize() const { return 0; }
@@ -62,7 +64,9 @@ public:
     virtual void addToSize(diff_t add);
     virtual XRefDatabase *getDatabase() const { return nullptr; }
 
-    virtual address_t getAddress() const { return getPosition()->get(); }
+    virtual address_t getAddress() const;
+    virtual bool contains(address_t a) const;
+    virtual bool contains(address_t a, size_t s) const;
 };
 
 template <typename ChunkType, typename ChildType>
@@ -70,7 +74,7 @@ class ChildListDecorator : public ChunkType {
 private:
     IterableChunkList<ChildType, ChunkList> childList;
 public:
-    virtual IterableChunkList<ChildType, ChunkList> *getChildren() const { return &childList; }
+    virtual IterableChunkList<ChildType, ChunkList> *getChildren() { return &childList; }
 };
 
 template <typename ChunkType>

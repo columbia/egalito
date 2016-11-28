@@ -37,8 +37,13 @@ class CodePage : public XRefDecorator<CompositeChunkImpl<Block>> {
 public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
+class Symbol;
 class Function : public CompositeChunkImpl<Block> {
+private:
+    Symbol *symbol;
 public:
+    Function(Symbol *symbol) : symbol(symbol) {}
+
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 class Block : public CompositeChunkImpl<Instruction> {

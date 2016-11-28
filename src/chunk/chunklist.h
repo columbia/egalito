@@ -81,6 +81,10 @@ ChunkType *SpatialChunkList<ChunkType, ParentType>::find(address_t address) {
 
 typedef IterableChunkList<Chunk> DefaultChunkList;
 
+template <typename ChildType>
+class ElfChunkList : public NamedChunkList<
+    ChildType, IterableChunkList<ChildType>> {};
+
 #if 0
 template <typename ChildType>
 class SearchableChunkList : public ChunkList<ChildType> {
