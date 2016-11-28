@@ -10,11 +10,15 @@ void ChunkDumper::visit(Instruction *instruction) {
     if(!ins) {
         if(auto p = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
 
-            std::printf("0x%08lx <+%d>:\t%s\t\t%s <%s>\n",
+            auto link = p->getLink();
+
+            std::printf("0x%08lx <+%d>:\t%s\t\t0x%lx <%s>\n",
                 instruction->getAddress(),
                 pos ? pos->getOffset() : 0,
-                "(CALL)", "???", "???");
+                "(CALL)", link ? link->getTargetAddress() : 0,
+                "???");
         }
+        else std::printf("...unknown...\n");
         return;
     }
 

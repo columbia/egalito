@@ -8,6 +8,7 @@
 #include "chunk/chunk.h"
 #include "chunk/disassemble.h"
 #include "chunk/dump.h"
+#include "chunk/resolve.h"
 #include "transform/sandbox.h"
 
 int main(int argc, char *argv[]) {
@@ -52,6 +53,11 @@ int main(int argc, char *argv[]) {
             }
 
             functionList.push_back(function);
+        }
+
+        for(auto f : functionList) {
+            ChunkResolver resolver;
+            f->accept(&resolver);
         }
 
 #if 0

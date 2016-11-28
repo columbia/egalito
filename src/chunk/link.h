@@ -4,13 +4,34 @@
 #include <vector>
 #include "chunkref.h"
 #include "util/iter.h"
+#include "types.h"
 
 class Link {
+public:
+    virtual ~Link() {}
+
+    virtual ChunkRef getTarget() const = 0;
+    virtual address_t getTargetAddress() const = 0;
+};
+
+class NormalLink : public Link {
 private:
     ChunkRef target;
 public:
-    Link(ChunkRef target) : target(target) {}
-    ChunkRef getTarget() const { return target; }
+    NormalLink(ChunkRef target) : target(target) {}
+
+    virtual ChunkRef getTarget() const { return target; }
+    virtual address_t getTargetAddress() const;
+};
+
+class UnresolvedLink : public Link {
+private:
+    address_t target;
+public:
+    UnresolvedLink(address_t target) : target(target) {}
+
+    virtual ChunkRef getTarget() const { return nullptr; }
+    address_t getTargetAddress() const { return target; }
 };
 
 class XRef {

@@ -139,7 +139,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
                             new OriginalPosition(imm));*/
                         auto cfi = new ControlFlowInstruction(instr,
                             std::string((char *)ins->bytes, ins->size - 4), 4);
-                        //cfi->setLink(new Link
+                        cfi->setLink(new UnresolvedLink(imm));
                         semantic = cfi;
                     }
                 }
