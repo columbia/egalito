@@ -138,9 +138,43 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
                             insn[j].size - 4,
                             new OriginalPosition(imm));*/
                         auto cfi = new ControlFlowInstruction(instr,
-                            std::string((char *)ins->bytes, ins->size - 4), 4);
+                            std::string((char *)ins->bytes,
+                            ins->size - 4),
+                            ins->mnemonic,
+                            4);
                         cfi->setLink(new UnresolvedLink(imm));
                         semantic = cfi;
+                    }
+                    else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+
+#if 0
+                        if(op->size <= ins->size) {
+                            unsigned long imm = op->imm;
+                            auto cfi = new ControlFlowInstruction(instr,
+                                std::string((char *)ins->bytes,
+                                ins->size - op->size),
+                                ins->mnemonic,
+                                op->size);
+                            cfi->setLink(new UnresolvedLink(imm));
+                            semantic = cfi;
+                        }
+                        else {
+                            std::cout << "total size " << ins->size
+                                << ", op size " << (int)op->size << std::endl;
+                            printInstruction(ins, "BUG", 0);
+                        }
+#else
+                        // !!! should subtract op->size,
+                        // !!! can't right now due to bug in capstone
+                        size_t use = ins->size /* - op->size*/;
+                        unsigned long imm = op->imm;
+                        auto cfi = new ControlFlowInstruction(instr,
+                            std::string((char *)ins->bytes, use),
+                            ins->mnemonic,
+                            /*op->size*/ 0);
+                        cfi->setLink(new UnresolvedLink(imm));
+                        semantic = cfi;
+#endif
                     }
                 }
             }

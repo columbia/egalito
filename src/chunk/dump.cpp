@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <cstdio>
 #include "disassemble.h"
 #include "dump.h"
@@ -26,10 +27,14 @@ void ChunkDumper::visit(Instruction *instruction) {
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
 
+            std::ostringstream name;
+            if(p->getMnemonic() == "callq") name << "(CALL)";
+            else name << "(JUMP " << p->getMnemonic() << ")";
+
             std::printf("0x%08lx <+%lu>:\t%s\t\t0x%lx <%s>\n",
                 instruction->getAddress(),
                 pos ? pos->getOffset() : 0,
-                "(CALL)",
+                name.str().c_str(),
                 link ? link->getTargetAddress() : 0,
                 target ? target->getName().c_str() : "???");
         }

@@ -140,10 +140,11 @@ class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
     std::string opcode;
+    std::string mnemonic;
     int displacementSize;
 public:
-    ControlFlowInstruction(Instruction *source, std::string opcode, int displacementSize)
-        : source(source), opcode(opcode), displacementSize(displacementSize) {}
+    ControlFlowInstruction(Instruction *source, std::string opcode, std::string mnemonic, int displacementSize)
+        : source(source), opcode(opcode), mnemonic(mnemonic), displacementSize(displacementSize) {}
 
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
@@ -155,6 +156,7 @@ public:
     virtual cs_insn *getCapstone() { return nullptr; }
 
     Instruction *getSource() const { return source; }
+    std::string getMnemonic() const { return mnemonic; }
 private:
     diff_t calculateDisplacement();
 };
