@@ -42,26 +42,22 @@ int main(int argc, char *argv[]) {
             (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
 #endif
 
-            std::cout << "---[" << sym->getName() << "]---\n";
-            for(auto bb : function->getChildren()->iterable()) {
-                std::cout << bb->getName() << ":\n";
-                for(auto instr : bb->getChildren()->iterable()) {
-                    std::cout << "    ";
-                    ChunkDumper dumper;
-                    instr->accept(&dumper);
-                }
-            }
-
             functionList.push_back(function);
         }
 
         ChunkResolver resolver(functionList);
+        ChunkDumper dumper;
         for(auto f : functionList) {
             f->accept(&resolver);
         }
 
-        std::cout << "DUMPING AGAIN\n";
-        ChunkDumper dumper;
+        for(auto f : functionList) {
+            f->accept(&dumper);
+        }
+
+        functionList[functionList.size() - 1]->getPosition()->set(0xf00d1000);
+        std::cout << "AFTER TEST\n";
+
         for(auto f : functionList) {
             f->accept(&dumper);
         }
