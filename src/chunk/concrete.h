@@ -44,6 +44,9 @@ private:
 public:
     Function(Symbol *symbol) : symbol(symbol) {}
 
+    Symbol *getSymbol() const { return symbol; }
+    std::string getName() const { return symbol->getName(); }
+
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 class Block : public CompositeChunkImpl<Instruction> {

@@ -3,8 +3,11 @@
 
 #include "chunk.h"
 #include "concrete.h"
+#include "chunklist.h"
 
 class ChunkResolver : public ChunkVisitor {
+private:
+    SpatialChunkList<Function, ChunkList> functionList;
 private:
     template <typename Type>
     void recurse(Type *root) {
@@ -13,6 +16,7 @@ private:
         }
     }
 public:
+    ChunkResolver(std::vector<Function *> &flist);
     virtual void visit(Program *program) {}
     virtual void visit(CodePage *codePage) {}
     virtual void visit(Function *function) { recurse(function); }

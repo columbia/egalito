@@ -50,7 +50,7 @@ private:
     SpaceMapType spaceMap;
 public:
     virtual void add(ChildType *child)
-        { ParentType::add(child); spaceMap[child->getPosition().get()] = child; }
+        { /*ParentType::add(child);*/ spaceMap[child->getAddress()] = child; }
 
     ChildType *find(address_t address);
 };

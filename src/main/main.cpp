@@ -55,9 +55,15 @@ int main(int argc, char *argv[]) {
             functionList.push_back(function);
         }
 
+        ChunkResolver resolver(functionList);
         for(auto f : functionList) {
-            ChunkResolver resolver;
             f->accept(&resolver);
+        }
+
+        std::cout << "DUMPING AGAIN\n";
+        ChunkDumper dumper;
+        for(auto f : functionList) {
+            f->accept(&dumper);
         }
 
 #if 0

@@ -16,7 +16,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 instruction->getAddress(),
                 pos ? pos->getOffset() : 0,
                 "(CALL)", link ? link->getTargetAddress() : 0,
-                "???");
+                link->getTarget() ? link->getTarget()->getName().c_str() : "???");
         }
         else std::printf("...unknown...\n");
         return;
