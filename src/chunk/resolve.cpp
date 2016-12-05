@@ -1,5 +1,6 @@
 #include <iostream>
 #include "resolve.h"
+#include "addressrange.h"
 
 ChunkResolver::ChunkResolver(std::vector<Function *> &flist) {
     for(auto f : flist) {
@@ -23,6 +24,7 @@ void ChunkResolver::visit(Instruction *instruction) {
         }
         else {
             auto enclosing = dynamic_cast<Function *>(instruction->getParent()->getParent());
+#if 0
             SpatialChunkList<Block, ChunkList> blockList;
             for(auto b : enclosing->getChildren()->iterable()) {
                 blockList.add(b);
@@ -36,6 +38,24 @@ void ChunkResolver::visit(Instruction *instruction) {
                 delete link;
             }
             else std::cout << "...unknown\n";
+#else
+            RangeList blockList;
+            for(auto b : enclosing->getChildren()->iterable()) {
+                blockList.insert(
+                    Range(b->getAddress(), b->getSize()),
+                    b);
+                std::cout << "insert [" << b->getAddress() << "," << b->getAddress() + b->getSize() << "]\n";
+            }
+
+            auto blockFound = blockList.overlapping(link->getTargetAddress());
+            if(blockFound) {
+                std::cout << "FOUND BLOCK [" << blockFound->first.getStart() << "," << blockFound->first.getEnd() << "]\n";
+
+                semantic->setLink(new NormalLink(blockFound->second));
+                delete link;
+            }
+            else std::cout << "...unknown\n";
+#endif
         }
     }
 }
