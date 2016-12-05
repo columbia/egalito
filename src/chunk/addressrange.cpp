@@ -1,14 +1,6 @@
 #include <utility>  // for std::make_pair
 #include "addressrange.h"
 
-bool Range::overlaps(address_t point) const {
-    return point >= _start && point < _start + _size;
-}
-
-bool Range::overlaps(const Range &other) const {
-    return !(other._start >= getEnd() || other.getEnd() <= _start);
-}
-
 RangeList::RangeNode::~RangeNode() {
     if(left) delete left;
     if(right) delete right;

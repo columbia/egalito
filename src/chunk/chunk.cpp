@@ -19,12 +19,6 @@ address_t ChunkImpl::getAddress() const {
     return getPosition()->get();
 }
 
-bool ChunkImpl::contains(address_t a) const {
-    auto base = getAddress();  // only get once for efficiency
-    return a >= base && a < base + getSize();
-}
-
-bool ChunkImpl::contains(address_t a, size_t s) const {
-    auto base = getAddress();  // only get once for efficiency
-    return a >= base && a + s <= base + getSize();
+Range ChunkImpl::getRange() const {
+    return std::move(Range(getAddress(), getSize()));
 }

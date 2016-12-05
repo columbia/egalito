@@ -1,4 +1,5 @@
 #include <sstream>
+#include <iomanip>
 #include "concrete.h"
 
 Function *ChunkFactory::makeFunction(Symbol *symbol) {
@@ -8,11 +9,17 @@ Function *ChunkFactory::makeFunction(Symbol *symbol) {
 std::string Block::getName() const {
     std::ostringstream stream;
     if(getParent() && getParent()->getName() != "???") {
-        stream << getParent()->getName() << "-";
+        stream << getParent()->getName() << "/";
     }
     if(auto p = dynamic_cast<RelativePosition *>(getPosition())) {
         stream << "bb+" << p->getOffset();
     }
+    return stream.str();
+}
+
+std::string Instruction::getName() const {
+    std::ostringstream stream;
+    stream << "i/0x" << std::hex << getAddress();
     return stream.str();
 }
 

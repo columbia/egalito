@@ -64,6 +64,8 @@ public:
     Instruction(InstructionSemantic *semantic = nullptr)
         : semantic(semantic) {}
 
+    virtual std::string getName() const;
+
     InstructionSemantic *getSemantic() const { return semantic; }
     void setSemantic(InstructionSemantic *semantic)
         { this->semantic = semantic; }

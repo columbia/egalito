@@ -39,8 +39,7 @@ public:
     virtual XRefDatabase *getDatabase() const = 0;
 
     virtual address_t getAddress() const = 0;
-    virtual bool contains(address_t a) const = 0;
-    virtual bool contains(address_t a, size_t s) const = 0;
+    virtual Range getRange() const = 0;
 
     virtual void accept(ChunkVisitor *visitor) = 0;
 };
@@ -68,8 +67,7 @@ public:
     virtual XRefDatabase *getDatabase() const { return nullptr; }
 
     virtual address_t getAddress() const;
-    virtual bool contains(address_t a) const;
-    virtual bool contains(address_t a, size_t s) const;
+    virtual Range getRange() const;
 };
 
 template <typename ChunkType, typename ChildType>

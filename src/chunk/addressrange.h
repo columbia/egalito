@@ -2,22 +2,8 @@
 #define EGALITO_CHUNK_ADDRESSRANGE_H
 
 #include <vector>
+#include "position.h"
 #include "types.h"
-
-class Range {
-private:
-    address_t _start;
-    size_t _size;
-public:
-    Range(address_t start, size_t size) : _start(start), _size(size) {}
-
-    address_t getStart() const { return _start; }
-    address_t getEnd() const { return _start + _size; }
-    size_t getSize() const { return _size; }
-
-    bool overlaps(address_t point) const;
-    bool overlaps(const Range &other) const;
-};
 
 class Chunk;
 
