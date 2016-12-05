@@ -32,35 +32,25 @@ int main(int argc, char *argv[]) {
 
         std::cout << "\n=== Creating internal data structures ===\n";
 
+        Module *module = new Module();
         std::vector<Function *> functionList;
         for(auto sym : *symbolList) {
             Function *function = Disassemble::function(sym, baseAddr, symbolList);
-
-#if 0
-            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
-            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
-            (*function->begin())->append(Disassemble::makeInstruction("\xcc"));
-#endif
-
+            module->getChildren()->add(function);
             functionList.push_back(function);
         }
 
         ChunkResolver resolver(functionList);
-        ChunkDumper dumper;
-        for(auto f : functionList) {
-            f->accept(&resolver);
-        }
+        module->accept(&resolver);
 
-        for(auto f : functionList) {
-            f->accept(&dumper);
-        }
+        ChunkDumper dumper;
+        /*std::cout << "\n=== Code with links included ===\n";
+        module->accept(&dumper);*/
 
         functionList[functionList.size() - 1]->getPosition()->set(0xf00d1000);
-        std::cout << "AFTER TEST\n";
 
-        for(auto f : functionList) {
-            f->accept(&dumper);
-        }
+        std::cout << "\n=== After code modifications ===\n";
+        module->accept(&dumper);
 
 #if 0
         for(auto f : functionList) {
