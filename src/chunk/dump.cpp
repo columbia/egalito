@@ -4,6 +4,10 @@
 #include "disassemble.h"
 #include "dump.h"
 
+void ChunkDumper::visit(Module *module) {
+    recurse(module);
+}
+
 void ChunkDumper::visit(Function *function) {
     std::cout << "---[" << function->getName() << "]---\n";
     recurse(function);

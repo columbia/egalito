@@ -6,6 +6,14 @@ Function *ChunkFactory::makeFunction(Symbol *symbol) {
     return new Function(symbol);
 }
 
+std::string Module::getName() const {
+    std::ostringstream stream;
+    long count = 0;
+    for(auto x : const_cast<Module *>(this)->getChildren()->iterable()) count ++;
+    stream << "module-" << count << "-functions";
+    return stream.str();
+}
+
 std::string Block::getName() const {
     std::ostringstream stream;
     if(getParent() && getParent()->getName() != "???") {

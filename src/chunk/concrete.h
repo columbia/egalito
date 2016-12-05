@@ -7,6 +7,7 @@
 
 class Program;
 class CodePage;
+class Module;
 class Function;
 class Block;
 class Instruction;
@@ -16,6 +17,7 @@ public:
     virtual ~ChunkVisitor() {}
     virtual void visit(Program *program) = 0;
     virtual void visit(CodePage *codePage) = 0;
+    virtual void visit(Module *function) = 0;
     virtual void visit(Function *function) = 0;
     virtual void visit(Block *block) = 0;
     virtual void visit(Instruction *instruction) = 0;
@@ -24,6 +26,7 @@ class ChunkListener {
 public:
     virtual void visit(Program *program) {}
     virtual void visit(CodePage *codePage) {}
+    virtual void visit(Module *block) {}
     virtual void visit(Function *function) {}
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
@@ -35,6 +38,13 @@ public:
 };
 class CodePage : public XRefDecorator<CompositeChunkImpl<Block>> {
 public:
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
+};
+class Function;
+class Module : public CompositeChunkImpl<Function> {
+public:
+    std::string getName() const;
+
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 class Symbol;

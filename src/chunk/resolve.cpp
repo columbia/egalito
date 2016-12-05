@@ -93,3 +93,29 @@ void ChunkResolver::visit(Instruction *instruction) {
         }
     }
 }
+
+template <typename ChunkType>
+Chunk *ChunkResolver::find(ChunkType *root, address_t targetAddress) {
+    std::cout << "resolve " << std::hex << targetAddress << " -> ";
+    Chunk *found = findHelper(root, targetAddress);
+    std::cout << found->getName() << std::endl;
+    return found;
+}
+
+template <typename ChunkType>
+Chunk *ChunkResolver::findHelper(ChunkType *root, address_t targetAddress) {
+    ChunkOverlapSearch chunkList;
+    chunkList.addChildren(root);
+    auto found = chunkList.find(Range::fromPoint(targetAddress));
+    if(found) {
+        auto p = found->getRange();
+        if(targetAddress == p.getStart()) {
+            return found;
+        }
+        else {
+            return findHelper(found, targetAddress);
+        }
+    }
+
+    return nullptr;
+}
