@@ -10,7 +10,8 @@ void ChunkDumper::visit(Function *function) {
 }
 
 void ChunkDumper::visit(Block *block) {
-    std::cout << ".block:\n";
+    //std::cout << ".block:\n";
+    std::cout << block->getName() << ":\n";
     recurse(block);
 }
 
@@ -27,6 +28,17 @@ void ChunkDumper::visit(Instruction *instruction) {
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
 
+            std::ostringstream targetName;
+            if(target) {
+                if(target->getName() != "???") {
+                    targetName << target->getName().c_str();
+                }
+                else {
+                    targetName << "target-" << std::hex << &target;
+                }
+            }
+            else targetName << "[unresolved]";
+
             std::ostringstream name;
             if(p->getMnemonic() == "callq") name << "(CALL)";
             else name << "(JUMP " << p->getMnemonic() << ")";
@@ -36,7 +48,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 pos ? pos->getOffset() : 0,
                 name.str().c_str(),
                 link ? link->getTargetAddress() : 0,
-                target ? target->getName().c_str() : "???");
+                targetName.str().c_str());
         }
         else std::printf("...unknown...\n");
         return;

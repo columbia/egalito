@@ -183,10 +183,16 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         if(!semantic) {
 #if 1
             semantic = new DisassembledInstruction(*ins);
+#elif 0
 #else
-            std::string raw;
-            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
-            semantic = new RawInstruction(raw);
+            if(split) {
+                semantic = new DisassembledInstruction(*ins);
+            }
+            else {
+                std::string raw;
+                raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+                semantic = new RawInstruction(raw);
+            }
 #endif
         }
         instr->setSemantic(semantic);

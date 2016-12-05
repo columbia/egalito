@@ -51,6 +51,8 @@ public:
 };
 class Block : public CompositeChunkImpl<Instruction> {
 public:
+    virtual std::string getName() const;
+
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 class InstructionSemantic;

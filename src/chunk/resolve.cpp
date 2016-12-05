@@ -22,7 +22,20 @@ void ChunkResolver::visit(Instruction *instruction) {
             delete link;
         }
         else {
-            std::cout << "...unknown\n";
+            auto enclosing = dynamic_cast<Function *>(instruction->getParent()->getParent());
+            SpatialChunkList<Block, ChunkList> blockList;
+            for(auto b : enclosing->getChildren()->iterable()) {
+                blockList.add(b);
+            }
+
+            auto blockFound = blockList.find(link->getTargetAddress());
+            if(blockFound) {
+                std::cout << "FOUND BLOCK\n";
+
+                semantic->setLink(new NormalLink(blockFound));
+                delete link;
+            }
+            else std::cout << "...unknown\n";
         }
     }
 }

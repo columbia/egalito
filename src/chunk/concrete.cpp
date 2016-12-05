@@ -1,7 +1,19 @@
+#include <sstream>
 #include "concrete.h"
 
 Function *ChunkFactory::makeFunction(Symbol *symbol) {
     return new Function(symbol);
+}
+
+std::string Block::getName() const {
+    std::ostringstream stream;
+    if(getParent() && getParent()->getName() != "???") {
+        stream << getParent()->getName() << "-";
+    }
+    if(auto p = dynamic_cast<RelativePosition *>(getPosition())) {
+        stream << "bb+" << p->getOffset();
+    }
+    return stream.str();
 }
 
 #if 0
