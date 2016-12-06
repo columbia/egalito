@@ -30,6 +30,11 @@ public:
         { return new IteratorImpl<ChildListType, Chunk *>(childList); }
 
     virtual void add(ChildType *child) { childList.push_back(child); }
+
+    virtual ChildType *get(size_t index)
+        { return childList[index]; }
+    virtual void insertAt(size_t index, ChildType *child)
+        { childList.insert(childList.begin() + index, child); }
 };
 
 #if 0

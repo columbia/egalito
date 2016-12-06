@@ -44,9 +44,14 @@ int main(int argc, char *argv[]) {
         module->accept(&resolver);
 
         ChunkDumper dumper;
-        /*std::cout << "\n=== Code with links included ===\n";
-        module->accept(&dumper);*/
 
+        {
+            auto bb = functionList[3]->getChildren()->get(1);
+            Instruction *cc = new Instruction(new DisassembledInstruction(Disassemble::getInsn("\xcc")));
+            cc->setPosition(new RelativePosition(cc, 0));
+            bb->getChildren()->insertAt(1, cc);
+            cc->setParent(bb);
+        }
         functionList[functionList.size() - 1]->getPosition()->set(0xf00d1000);
 
         std::cout << "\n=== After code modifications ===\n";
