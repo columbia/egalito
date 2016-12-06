@@ -15,6 +15,8 @@ public:
     //virtual void add(Chunk *child) = 0;
 
     //virtual IterableImpl<Chunk *> iterable() = 0;
+
+    virtual Iterator<Chunk *> *genericIterator() = 0;
 };
 
 template <typename ChildType, typename ParentType = ChunkList>
@@ -24,6 +26,8 @@ private:
     ChildListType childList;
 public:
     IterableImpl<ChildListType> iterable() { return childList; }
+    virtual Iterator<Chunk *> *genericIterator()
+        { return new IteratorImpl<ChildListType, Chunk *>(childList); }
 
     virtual void add(ChildType *child) { childList.push_back(child); }
 };
@@ -51,6 +55,7 @@ private:
 public:
     virtual void add(ChildType *child)
         { /*ParentType::add(child);*/ spaceMap[child->getAddress()] = child; }
+    virtual Iterator<Chunk *> *genericIterator() { return nullptr; }
 
     ChildType *find(address_t address);
 };

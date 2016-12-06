@@ -9,7 +9,6 @@ private:
     std::vector<std::pair<Range, Chunk *>> rangeList;
 public:
     ChunkOverlapSearch() {}
-    ChunkOverlapSearch(Chunk *chunk) { add(chunk); }
 
     void add(Chunk *chunk);
 

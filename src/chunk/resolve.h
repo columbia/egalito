@@ -24,10 +24,8 @@ public:
     virtual void visit(Block *block) { recurse(block); }
     virtual void visit(Instruction *instruction);
 private:
-    template <typename ChunkType>
-    Chunk *find(ChunkType *root, address_t targetAddress);
-    template <typename ChunkType>
-    Chunk *findHelper(ChunkType *root, address_t targetAddress);
+    Chunk *find(Chunk *root, address_t targetAddress);
+    Chunk *findHelper(Chunk *root, address_t targetAddress);
 };
 
 #endif
