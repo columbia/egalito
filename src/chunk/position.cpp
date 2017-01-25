@@ -15,6 +15,14 @@ void RelativePosition::set(address_t value) {
     setOffset(value - object->getParent()->getPosition()->get());
 }
 
+address_t SubsequentPosition::get() const {
+    return following->getPosition()->get() + following->getSize();
+}
+
+void SubsequentPosition::set(address_t value) {
+    throw "Can't set position of a SubsequentPosition";
+}
+
 address_t CachedRelativePosition::get() const {
     if(cache.isValid()) return cache.get();
 

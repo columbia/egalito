@@ -37,6 +37,16 @@ public:
     void setOffset(address_t offset) { this->offset = offset; }
 };
 
+class SubsequentPosition : public Position {
+private:
+    ChunkRef following;
+public:
+    SubsequentPosition(ChunkRef following) : following(following) {}
+
+    virtual address_t get() const;
+    virtual void set(address_t value);
+};
+
 template <typename Type, int InvalidInitializer = -1>
 class ValueCache {
 public:

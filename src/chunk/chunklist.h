@@ -33,8 +33,10 @@ public:
 
     virtual ChildType *get(size_t index)
         { return childList[index]; }
+    virtual ChildType *getLast() { return childList[childList.size() - 1]; }
     virtual void insertAt(size_t index, ChildType *child)
         { childList.insert(childList.begin() + index, child); }
+    virtual size_t getCount() const { return childList.size(); }
 };
 
 #if 0
