@@ -16,7 +16,11 @@ public:
 
     //virtual IterableImpl<Chunk *> iterable() = 0;
 
-    virtual Iterator<Chunk *> *genericIterator() = 0;
+    //virtual Iterator<Chunk *> *genericIterator() = 0;
+    //virtual PolyIterator<Chunk *> begin() = 0;
+    //virtual PolyIterator<Chunk *> end() = 0;
+
+    virtual Iterable<Chunk *> iterable() = 0;
 };
 
 template <typename ChildType, typename ParentType = ChunkList>
@@ -25,6 +29,11 @@ private:
     typedef std::vector<ChildType *> ChildListType;
     ChildListType childList;
 public:
+    //virtual PolyIterator<ChildType *> begin() { return PolyIterator<ChildType *>(new STLIteratorWrapper(childList.begin())); }
+    //virtual PolyIterator<ChildType *> begin() { return ContainerIteratorConstructor<ChildListType>(childList).begin(); }
+    //virtual PolyIterator<ChildType *> end() { return ContainerIteratorConstructor<ChildListType>(childList).end(); }
+
+
     IterableImpl<ChildListType> iterable() { return childList; }
     virtual Iterator<Chunk *> *genericIterator()
         { return new IteratorImpl<ChildListType, Chunk *>(childList); }
