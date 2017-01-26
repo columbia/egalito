@@ -8,164 +8,103 @@
 #include "util/iter.h"
 #include "types.h"
 
+template <typename ChildType>
+class IterableChunkList;
+template <typename ChildType>
+class SpatialChunkList;
+template <typename ChildType>
+class NamedChunkList;
+
+template <typename ChildType>
 class ChunkList {
 public:
     virtual ~ChunkList() {}
-
-    //virtual void add(Chunk *child) = 0;
-
-    //virtual IterableImpl<Chunk *> iterable() = 0;
-
-    //virtual Iterator<Chunk *> *genericIterator() = 0;
-    //virtual PolyIterator<Chunk *> begin() = 0;
-    //virtual PolyIterator<Chunk *> end() = 0;
-
-    virtual Iterable<Chunk *> iterable() = 0;
+    virtual IterableChunkList<ChildType> *getIterable() = 0;
+    virtual SpatialChunkList<ChildType> *getSpatial() = 0;
+    virtual NamedChunkList<ChildType> *getByName() = 0;
 };
 
-template <typename ChildType, typename ParentType = ChunkList>
-class IterableChunkList : public ParentType {
+template <typename ChildType>
+class ChunkListImpl : public ChunkList<ChildType> {
+private:
+    IterableChunkList<ChildType> iterable;
+    SpatialChunkList<ChildType> *spatial;
+    NamedChunkList<ChildType> *named;
+public:
+    ChunkListImpl() : spatial(nullptr), named(nullptr) {}
+    virtual ~ChunkListImpl() { delete spatial, delete named; }
+
+    virtual void add(ChildType child);
+    virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
+    virtual SpatialChunkList<ChildType> *getSpatial() { return spatial; }
+    virtual NamedChunkList<ChildType> *getByName() { return named; }
+
+    void setSpatial(SpatialChunkList<ChildType> *s) { spatial = s; }
+    void setNamed(NamedChunkList<ChildType> *n) { named = n; }
+};
+
+template <typename ChildType>
+void ChunkListImpl<ChildType>::add(ChildType child) {
+    iterable.add(child);
+    if(spatial) spatial->add(child);
+    if(named) named->add(child);
+}
+
+template <typename ChildType>
+class IterableChunkList {
 private:
     typedef std::vector<ChildType *> ChildListType;
     ChildListType childList;
 public:
-    //virtual PolyIterator<ChildType *> begin() { return PolyIterator<ChildType *>(new STLIteratorWrapper(childList.begin())); }
-    //virtual PolyIterator<ChildType *> begin() { return ContainerIteratorConstructor<ChildListType>(childList).begin(); }
-    //virtual PolyIterator<ChildType *> end() { return ContainerIteratorConstructor<ChildListType>(childList).end(); }
+    ConcreteIterable<ChildListType> iterable() { return childList; }
 
+    void add(ChildType *child) { childList.push_back(child); }
 
-    IterableImpl<ChildListType> iterable() { return childList; }
-    virtual Iterator<Chunk *> *genericIterator()
-        { return new IteratorImpl<ChildListType, Chunk *>(childList); }
-
-    virtual void add(ChildType *child) { childList.push_back(child); }
-
-    virtual ChildType *get(size_t index)
-        { return childList[index]; }
-    virtual ChildType *getLast() { return childList[childList.size() - 1]; }
-    virtual void insertAt(size_t index, ChildType *child)
+    ChildType *get(size_t index) { return childList[index]; }
+    ChildType *getLast() { return childList[childList.size() - 1]; }
+    void insertAt(size_t index, ChildType *child)
         { childList.insert(childList.begin() + index, child); }
-    virtual size_t getCount() const { return childList.size(); }
+    size_t getCount() const { return childList.size(); }
 };
 
-#if 0
-template <typename ChildType, typename ParentType = ChunkList>
-class SearchableChunkList : public ParentType {
-private:
-    typedef std::set<ChildType *> ChildSetType;
-    ChildSetType childSet;
-public:
-    virtual void add(ChildType *child)
-        { ParentType::add(child); childSet.insert(child); }
-
-    bool contains(ChildType *child)
-        { return childSet.find(child) != childSet.end(); }
-};
-#endif
-
-template <typename ChildType, typename ParentType = ChunkList>
-class SpatialChunkList : public ParentType {
+template <typename ChildType>
+class SpatialChunkList {
 private:
     typedef std::map<address_t, ChildType *> SpaceMapType;
     SpaceMapType spaceMap;
 public:
-    virtual void add(ChildType *child)
-        { /*ParentType::add(child);*/ spaceMap[child->getAddress()] = child; }
-    virtual Iterator<Chunk *> *genericIterator() { return nullptr; }
+    ConcreteIterable<SpaceMapType, std::pair<address_t, ChildType *>> iterable() { return spaceMap; }
+    void add(ChildType *child)
+        { spaceMap[child->getAddress()] = child; }
 
     ChildType *find(address_t address);
 };
 
-template <typename ChildType, typename ParentType = ChunkList>
-class NamedChunkList : public ParentType {
+template <typename ChunkType>
+ChunkType *SpatialChunkList<ChunkType>::find(address_t address) {
+    auto it = spaceMap.find(address);
+    return (it != spaceMap.end() ? (*it).second : nullptr);
+}
+
+template <typename ChildType>
+class NamedChunkList {
 private:
     typedef std::map<std::string, ChildType *> NameMapType;
     NameMapType nameMap;
 public:
-    virtual void add(ChildType *child)
-        { ParentType::add(child); nameMap[child->getName()] = child; }
+    void add(ChildType *child)
+        { nameMap[child->getName()] = child; }
 
     ChildType *find(const std::string &name);
 };
 
-template <typename ChunkType, typename ParentType>
-ChunkType *NamedChunkList<ChunkType, ParentType>::find(const std::string &name) {
+template <typename ChunkType>
+ChunkType *NamedChunkList<ChunkType>::find(const std::string &name) {
     auto it = nameMap.find(name);
     return (it != nameMap.end() ? (*it).second : nullptr);
 }
 
-template <typename ChunkType, typename ParentType>
-ChunkType *SpatialChunkList<ChunkType, ParentType>::find(address_t address) {
-    auto it = spaceMap.find(address);
-    return (it != spaceMap.end() ? (*it).second : nullptr);
-}
-
-typedef IterableChunkList<Chunk> DefaultChunkList;
-
 template <typename ChildType>
-class ElfChunkList : public NamedChunkList<
-    ChildType, IterableChunkList<ChildType>> {};
-
-#if 0
-template <typename ChildType>
-class SearchableChunkList : public ChunkList<ChildType> {
-private:
-    typedef std::set<ChildType *> ChildSetType;
-    ChildSetType childSet;
-public:
-    virtual void add(ChildType *child)
-        { ChunkList<ChildType>::add(child); childSet.insert(child); }
-
-    bool contains(ChildType *child)
-        { return childSet.find(child) != childSet.end(); }
-};
-
-
-
-
-
-template <typename ChunkType>
-class ChunkList {
-private:
-    typedef std::vector<ChunkType *> ListType;
-    ListType chunkList;
-    typedef std::map<std::string, ChunkType *> MapType;
-    MapType chunkMap;
-    std::map<address_t, ChunkType *> spaceMap;
-public:
-    bool add(ChunkType *chunk);
-    ChunkType *find(const char *name);
-    ChunkType *find(address_t address);
-
-    typename ListType::iterator begin() { return chunkList.begin(); }
-    typename ListType::iterator end() { return chunkList.end(); }
-
-    IterableImpl<ChunkType *> iterable()
-        { return IterableImpl<ChunkType *>(chunkList); }
-};
-
-template <typename ChunkType>
-bool ChunkList<ChunkType>::add(ChunkType *chunk) {
-    auto it = chunkMap.find(chunk->getName());
-    if(it != chunkMap.end()) return false;
-
-    chunkList.push_back(chunk);
-    chunkMap[chunk->getName()] = chunk;
-    spaceMap[chunk->getAddress()] = chunk;
-    return true;
-}
-
-template <typename ChunkType>
-ChunkType *ChunkList<ChunkType>::find(const char *name) {
-    auto it = chunkMap.find(name);
-    return (it != chunkMap.end() ? (*it).second : nullptr);
-}
-
-template <typename ChunkType>
-ChunkType *ChunkList<ChunkType>::find(address_t address) {
-    auto it = spaceMap.find(address);
-    return (it != spaceMap.end() ? (*it).second : nullptr);
-}
-#endif
+class ElfChunkList : public ChunkList<ChildType> {};
 
 #endif

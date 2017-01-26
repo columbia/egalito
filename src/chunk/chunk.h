@@ -13,9 +13,10 @@
 
 class Sandbox;
 
+template <typename ChildType>
 class ChunkList;
-template <typename ChildType, typename ParentType>
-class IterableChunkList;
+template <typename ChildType>
+class ChunkListImpl;
 
 class ChunkVisitor;
 
@@ -30,7 +31,7 @@ public:
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
-    virtual ChunkList *getChildren() = 0;
+    virtual ChunkList<Chunk> *getChildren() = 0;
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
     virtual size_t getSize() const = 0;
@@ -58,7 +59,7 @@ public:
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
-    virtual ChunkList *getChildren() { return nullptr; }
+    virtual ChunkList<Chunk> *getChildren() { return nullptr; }
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
     virtual size_t getSize() const { return 0; }
@@ -73,9 +74,9 @@ public:
 template <typename ChunkType, typename ChildType>
 class ChildListDecorator : public ChunkType {
 private:
-    IterableChunkList<ChildType, ChunkList> childList;
+    ChunkListImpl<ChildType> childList;
 public:
-    virtual IterableChunkList<ChildType, ChunkList> *getChildren() { return &childList; }
+    virtual ChunkList<ChildType> *getChildren() { return &childList; }
 };
 
 template <typename ChunkType>

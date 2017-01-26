@@ -52,8 +52,8 @@ private:
 public:
     void add(XRef xref) { database.push_back(xref); }
 
-    IterableImpl<DatabaseType> iterable()
-        { return IterableImpl<DatabaseType>(database); }
+    ConcreteIterable<DatabaseType> iterable()
+        { return ConcreteIterable<DatabaseType>(database); }
 };
 
 #endif

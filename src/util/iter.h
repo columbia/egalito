@@ -81,7 +81,7 @@ public:
     IteratorType end() { return generator->end(); }
 };
 
-template <typename ContainerType, typename ValueType,
+template <typename ContainerType, typename ValueType = typename ContainerType::value_type,
     typename GeneratorType = ConcreteIteratorGenerator<ContainerType, ValueType>>
 class ConcreteIterable {
 public:
