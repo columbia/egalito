@@ -133,10 +133,6 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
                     if(ins->id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
-                        //CLOG(3, "        call\n");
-                        /*instr->makeLink(
-                            insn[j].size - 4,
-                            new OriginalPosition(imm));*/
                         auto cfi = new ControlFlowInstruction(instr,
                             std::string((char *)ins->bytes,
                             ins->size - 4),
@@ -183,7 +179,6 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         if(!semantic) {
 #if 1
             semantic = new DisassembledInstruction(*ins);
-#elif 0
 #else
             if(split) {
                 semantic = new DisassembledInstruction(*ins);

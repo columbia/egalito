@@ -36,10 +36,10 @@ public:
     virtual void add(ChildType *child);
     virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
     virtual SpatialChunkList<ChildType> *getSpatial() { return spatial; }
-    virtual NamedChunkList<ChildType> *getByName() { return named; }
+    virtual NamedChunkList<ChildType> *getNamed() { return named; }
 
-    void setSpatial(SpatialChunkList<ChildType> *s) { spatial = s; }
-    void setNamed(NamedChunkList<ChildType> *n) { named = n; }
+    void setSpatial(SpatialChunkList<ChildType> *s) { spatial = s; for(auto c : iterable.iterable()) { spatial->add(c); } }
+    void setNamed(NamedChunkList<ChildType> *n) { named = n; for(auto c : iterable.iterable()) { named->add(c); } }
 };
 
 template <typename ChildType>
@@ -55,7 +55,7 @@ private:
     typedef std::vector<ChildType *> ChildListType;
     ChildListType childList;
 public:
-    ConcreteIterable<ChildListType> iterable() { return childList; }
+    ConcreteIterable<ChildListType> iterable() { return ConcreteIterable<ChildListType>(childList); }
 
     Iterable<Chunk *> genericIterable() { return Iterable<Chunk *>(new STLIteratorGenerator<ChildListType, Chunk *>(childList)); }
 

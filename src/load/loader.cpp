@@ -130,16 +130,15 @@ void examineElf(ElfMap *elf) {
     module->accept(&dumper);
 
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList);
-#if 0
+    module->getChildren()->setNamed(new NamedChunkList<Function>());
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
-        Function *target = functionList.find(r->getSymbol()->getName());
+        Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
         if(target) {
             LOG(2, "FOUND RELOCATION from "
                 << r->getAddress() << " -> " << target->getName());
         }
     }
-#endif
 
     //writeOutElf(elf, functionList);
 }
