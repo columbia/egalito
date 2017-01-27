@@ -11,6 +11,8 @@
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "chunk/disassemble.h"
+#include "chunk/resolve.h"
+#include "chunk/dump.h"
 #include "transform/sandbox.h"
 #include "break/signals.h"
 #include "break/breakpoint.h"
@@ -24,7 +26,7 @@ extern "C" void _start2(void);
 
 void examineElf(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
-void writeOutElf(ElfMap *elf, ElfChunkList<Function> &functionList);
+void writeOutElf(ElfMap *elf, std::vector<Function> &functionList);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -42,7 +44,7 @@ int main(int argc, char *argv[]) {
 
     Signals::registerHandlers();
 
-#if 0
+#if 1
     try {
         ElfMap *elf = new ElfMap(argv[1]);
         ElfMap *interpreter = nullptr;
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-#if 0
+#if 1
 void examineElf(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
 
@@ -113,43 +115,22 @@ void examineElf(ElfMap *elf) {
     LOG(1, "");
     LOG(1, "=== Creating internal data structures ===");
 
-    ChunkList<Function> functionList;
+    Module *module = new Module();
+    std::vector<Function *> functionList;
     for(auto sym : *symbolList) {
         Function *function = Disassemble::function(sym, baseAddr, symbolList);
-
-        LOG(2, "---[" << sym->getName() << "]---");
-        for(auto bb : *function) {
-            LOG(3, bb->getName() << ":");
-            for(auto instr : *bb) {
-                LOG0(3, "    ");
-                IF_LOG(3) instr->dump();
-            }
-        }
-
-        functionList.add(function);
+        module->getChildren()->add(function);
+        functionList.push_back(function);
     }
 
-    for(auto f : functionList) {
-        for(auto bb : *f) {
-            for(auto instr : *bb) {
-                if(instr->hasLink()) {
-                    auto link = instr->getLink();
+    ChunkResolver resolver(functionList);
+    module->accept(&resolver);
 
-                    Function *target = functionList.find(link->getTargetAddress());
-                    if(!target) continue;
-
-                    LOG(2, "FOUND REFERENCE from "
-                        << f->getName() << " -> " << target->getName());
-
-                    instr->makeLink(
-                        link->getSource()->getOffset(),
-                        new RelativePosition(target, 0));
-                }
-            }
-        }
-    }
+    ChunkDumper dumper;
+    module->accept(&dumper);
 
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList);
+#if 0
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
         Function *target = functionList.find(r->getSymbol()->getName());
@@ -158,10 +139,12 @@ void examineElf(ElfMap *elf) {
                 << r->getAddress() << " -> " << target->getName());
         }
     }
+#endif
 
-    writeOutElf(elf, functionList);
+    //writeOutElf(elf, functionList);
 }
 
+#if 0
 void setBreakpointsInInterpreter(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
 
@@ -181,8 +164,10 @@ void setBreakpointsInInterpreter(ElfMap *elf) {
     else std::cout << "Unable to find ld.so function to set breakpoints!\n";
 #endif
 }
+#endif
 
-void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
+#if 0
+void writeOutElf(ElfMap *elf, std::vector<Function> &functionList) {
     auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
     Sandbox *sandbox = new SandboxImpl<
         MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
@@ -215,4 +200,5 @@ void writeOutElf(ElfMap *elf, ChunkList<Function> &functionList) {
 #endif
     }
 }
+#endif
 #endif
