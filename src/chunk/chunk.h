@@ -75,7 +75,7 @@ class ChildListDecorator : public ChunkType {
 private:
     ChunkListImpl<ChildType> childList;
 public:
-    virtual ChunkList *getChildren() { return &childList; }
+    virtual ChunkListImpl<ChildType> *getChildren() { return &childList; }
 };
 
 template <typename ChunkType>

@@ -5,9 +5,9 @@ template <typename ValueType>
 class AbstractIterator {
 public:
     virtual ~AbstractIterator() {}
-    virtual ValueType get();
-    virtual void increment();
-    virtual bool equals(const AbstractIterator<ValueType> &_other);
+    virtual ValueType get() = 0;
+    virtual void increment() = 0;
+    virtual bool equals(const AbstractIterator<ValueType> &_other) = 0;
 };
 
 template <typename IteratorType, typename ValueType>

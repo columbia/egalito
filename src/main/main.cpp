@@ -46,12 +46,13 @@ int main(int argc, char *argv[]) {
         ChunkDumper dumper;
 
         {
-            auto bb = functionList[3]->getChildren()->get(1);
+            auto bb = functionList[3]->getChildren()->getIterable()->get(1);
             Instruction *cc = new Instruction(new DisassembledInstruction(Disassemble::getInsn("\xcc")));
             //cc->setPosition(new RelativePosition(cc, 0));
-            cc->setPosition(new SubsequentPosition(bb->getChildren()->get(0)));
-            bb->getChildren()->insertAt(1, cc);
-            bb->getChildren()->get(2)->setPosition(new SubsequentPosition(bb->getChildren()->get(1)));
+            cc->setPosition(new SubsequentPosition(bb->getChildren()->getIterable()->get(0)));
+            bb->getChildren()->getIterable()->insertAt(1, cc);
+            bb->getChildren()->getIterable()->get(2)->setPosition(
+                new SubsequentPosition(bb->getChildren()->getIterable()->get(1)));
             cc->setParent(bb);
         }
         functionList[functionList.size() - 1]->getPosition()->set(0xf00d1000);

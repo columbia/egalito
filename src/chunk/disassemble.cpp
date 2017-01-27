@@ -202,7 +202,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             instr->setPosition(new SubsequentPosition(
                 block->getChildren()->getIterable()->getLast()));
         }
-        else if(function->getChildren()->getCount() > 0) {
+        else if(function->getChildren()->getIterable()->getCount() > 0) {
             instr->setPosition(new SubsequentPosition(
                 function->getChildren()->getIterable()->getLast()));
         }

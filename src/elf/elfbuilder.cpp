@@ -37,7 +37,7 @@ class ChunkWriter : public ChunkVisitor {
 private:
     template <typename Type>
     void recurse(Type *root) {
-        for(auto child : root->getChildren()->iterable()) {
+        for(auto child : root->getChildren()->genericIterable()) {
             child->accept(this);
         }
     }
@@ -60,7 +60,7 @@ void ElfBuilder::copyCodeToSandbox() {
         throw "Sandbox, elfspace, or chunklist not set";
 
 #if 1
-    for(auto chunk : chunkList->iterable()) {
+    for(auto chunk : chunkList->genericIterable()) {
         auto slot = sandbox->allocate(chunk->getSize());
         chunk->getPosition()->set(slot.getAddress());
         auto writer = ChunkWriter();
