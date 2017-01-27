@@ -51,11 +51,9 @@ Chunk *ChunkResolver::findHelper(Chunk *root, address_t targetAddress) {
     ChunkOverlapSearch chunkList;
     if(!root->getChildren()) return nullptr;
 
-    auto it = root->getChildren()->genericIterator();
-    while(it->hasNext()) {
-        chunkList.add(it->next());
+    for(auto chunk : root->getChildren()->genericIterable()) {
+        chunkList.add(chunk);
     }
-    delete it;
 
     auto found = chunkList.find(Range::fromPoint(targetAddress));
     if(found) {

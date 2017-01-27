@@ -8,7 +8,7 @@ class ChunkDumper : public ChunkVisitor {
 private:
     template <typename Type>
     void recurse(Type *root) {
-        for(auto child : root->getChildren()->iterable()) {
+        for(auto child : root->getChildren()->genericIterable()) {
             child->accept(this);
         }
     }

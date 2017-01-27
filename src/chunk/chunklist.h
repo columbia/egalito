@@ -15,26 +15,28 @@ class SpatialChunkList;
 template <typename ChildType>
 class NamedChunkList;
 
-template <typename ChildType>
 class ChunkList {
 public:
     virtual ~ChunkList() {}
-    virtual IterableChunkList<ChildType> *getIterable() = 0;
-    virtual SpatialChunkList<ChildType> *getSpatial() = 0;
-    virtual NamedChunkList<ChildType> *getByName() = 0;
+    virtual void add(Chunk *chunk) = 0;
+    virtual Iterable<Chunk *> genericIterable() = 0;
 };
 
 template <typename ChildType>
-class ChunkListImpl : public ChunkList<ChildType> {
+class ChunkListImpl : public ChunkList {
 private:
     IterableChunkList<ChildType> iterable;
     SpatialChunkList<ChildType> *spatial;
     NamedChunkList<ChildType> *named;
+protected:
+    virtual void add(Chunk *chunk) { if(auto p = dynamic_cast<ChildType *>(chunk)) add(p); }
 public:
     ChunkListImpl() : spatial(nullptr), named(nullptr) {}
     virtual ~ChunkListImpl() { delete spatial, delete named; }
 
-    virtual void add(ChildType child);
+    virtual Iterable<Chunk *> genericIterable() { return iterable.genericIterable(); }
+
+    virtual void add(ChildType *child);
     virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
     virtual SpatialChunkList<ChildType> *getSpatial() { return spatial; }
     virtual NamedChunkList<ChildType> *getByName() { return named; }
@@ -44,7 +46,7 @@ public:
 };
 
 template <typename ChildType>
-void ChunkListImpl<ChildType>::add(ChildType child) {
+void ChunkListImpl<ChildType>::add(ChildType *child) {
     iterable.add(child);
     if(spatial) spatial->add(child);
     if(named) named->add(child);
@@ -57,6 +59,8 @@ private:
     ChildListType childList;
 public:
     ConcreteIterable<ChildListType> iterable() { return childList; }
+
+    Iterable<Chunk *> genericIterable() { return Iterable<Chunk *>(new STLIteratorGenerator<ChildListType, Chunk *>(childList)); }
 
     void add(ChildType *child) { childList.push_back(child); }
 
@@ -105,6 +109,6 @@ ChunkType *NamedChunkList<ChunkType>::find(const std::string &name) {
 }
 
 template <typename ChildType>
-class ElfChunkList : public ChunkList<ChildType> {};
+class ElfChunkList : public ChunkListImpl<ChildType> {};
 
 #endif

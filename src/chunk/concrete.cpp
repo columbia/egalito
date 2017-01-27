@@ -9,7 +9,7 @@ Function *ChunkFactory::makeFunction(Symbol *symbol) {
 std::string Module::getName() const {
     std::ostringstream stream;
     long count = 0;
-    for(auto x : const_cast<Module *>(this)->getChildren()->iterable()) count ++;
+    for(auto x : const_cast<Module *>(this)->getChildren()->genericIterable()) count ++;
     stream << "module-" << count << "-functions";
     return stream.str();
 }

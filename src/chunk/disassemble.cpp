@@ -198,13 +198,13 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         instr->setSemantic(semantic);
         //instr->setPosition(new RelativePosition(instr, block->getSize()));
         //instr->setPosition(new SubsequentPosition(instr, block->getSize()));
-        if(block->getChildren()->getCount() > 0) {
+        if(block->getChildren()->getIterable()->getCount() > 0) {
             instr->setPosition(new SubsequentPosition(
-                block->getChildren()->getLast()));
+                block->getChildren()->getIterable()->getLast()));
         }
         else if(function->getChildren()->getCount() > 0) {
             instr->setPosition(new SubsequentPosition(
-                function->getChildren()->getLast()));
+                function->getChildren()->getIterable()->getLast()));
         }
         else {
             instr->setPosition(new RelativePosition(instr, 0));

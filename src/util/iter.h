@@ -7,6 +7,7 @@ public:
     virtual ~AbstractIterator() {}
     virtual ValueType get();
     virtual void increment();
+    virtual bool equals(const AbstractIterator<ValueType> &_other);
 };
 
 template <typename IteratorType, typename ValueType>
@@ -18,7 +19,14 @@ public:
 
     virtual ValueType get() { return *it; }
     virtual void increment() { it ++; }
+    virtual bool equals(const AbstractIterator<ValueType> &_other);
 };
+
+template <typename IteratorType, typename ValueType>
+bool STLIterator<IteratorType, ValueType>::equals(const AbstractIterator<ValueType> &_other) {
+    auto other = dynamic_cast<const STLIterator<IteratorType, ValueType> *>(&_other);
+    return other && it == other->it;
+}
 
 template <typename ValueType>
 class PolyIterator {
@@ -32,6 +40,8 @@ public:
 
     ValueType operator * () { return it->get(); }
     PolyIterator &operator ++ () { it->increment(); return *this; }
+    bool operator == (const PolyIterator<ValueType> &other) { return it->equals(*other.it); }
+    bool operator != (const PolyIterator<ValueType> &other) { return !it->equals(*other.it); }
 };
 
 template <typename ValueType, typename IteratorType = PolyIterator<ValueType>>
@@ -43,9 +53,9 @@ public:
 };
 
 template <typename ContainerType, typename ValueType = typename ContainerType::value_type>
-class ConcreteIteratorGenerator : public IteratorGenerator<ValueType> {
+class ConcreteIteratorGenerator : public IteratorGenerator<ValueType, typename ContainerType::iterator> {
 public:
-    typedef PolyIterator<ValueType> IteratorType;
+    typedef typename ContainerType::iterator IteratorType;
 private:
     ContainerType &container;
 public:
