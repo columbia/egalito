@@ -131,14 +131,41 @@ void examineElf(ElfMap *elf) {
 
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList);
     module->getChildren()->setNamed(new NamedChunkList<Function>());
+    module->getChildren()->setSpatial(new SpatialChunkList<Function>());
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
         Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
         if(target) {
             LOG(2, "FOUND RELOCATION from "
                 << r->getAddress() << " -> " << target->getName());
+
+            auto f = module->getChildren()->getSpatial()->findContaining(r->getAddress());
+            if(f) {
+                LOG(2, "    inside function " << f->getName());
+
+                f->getChildren()->setSpatial(new SpatialChunkList<Block>());
+                auto b = f->getChildren()->getSpatial()->findContaining(r->getAddress());
+                if(b) {
+                    LOG(2, "    inside block " << b->getName());
+                    b->getChildren()->setSpatial(new SpatialChunkList<Instruction>());
+                    auto i = b->getChildren()->getSpatial()->findContaining(r->getAddress());
+                    if(i) {
+                        LOG(2, "    found instruction!!");
+                        if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+                            LOG(2, "    (duplicate of control flow)");
+                        }
+                        else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
+                            auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
+                            ri->setLink(new NormalLink(target));
+                            i->setSemantic(ri);
+                        }
+                    }
+                }
+            }
         }
     }
+
+    module->accept(&dumper);
 
     //writeOutElf(elf, functionList);
 }

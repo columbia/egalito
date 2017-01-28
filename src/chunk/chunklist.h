@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <algorithm>
 #include "chunk.h"
 #include "util/iter.h"
 #include "types.h"
@@ -79,12 +80,23 @@ public:
         { spaceMap[child->getAddress()] = child; }
 
     ChildType *find(address_t address);
+    ChildType *findContaining(address_t address);
 };
 
-template <typename ChunkType>
-ChunkType *SpatialChunkList<ChunkType>::find(address_t address) {
+template <typename ChildType>
+ChildType *SpatialChunkList<ChildType>::find(address_t address) {
     auto it = spaceMap.find(address);
     return (it != spaceMap.end() ? (*it).second : nullptr);
+}
+
+template <typename ChildType>
+ChildType *SpatialChunkList<ChildType>::findContaining(address_t address) {
+    auto it = spaceMap.upper_bound(address);
+    if(it == spaceMap.begin()) return nullptr;
+
+    it --;
+    auto c = (*it).second;
+    return (c->getRange().contains(address) ? c : nullptr);
 }
 
 template <typename ChildType>

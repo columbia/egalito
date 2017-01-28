@@ -127,6 +127,9 @@ private:
 public:
     LinkDecorator() : link(nullptr) {}
 
+    template <typename Storage>
+    LinkDecorator(const Storage &storage) : BaseType(storage) {}
+
     virtual Link *getLink() const { return link; }
     virtual void setLink(Link *link) { this->link = link; }
 };
@@ -135,6 +138,7 @@ public:
 
 typedef SemanticImpl<RawByteStorage> RawInstruction;
 typedef SemanticImpl<DisassembledStorage> DisassembledInstruction;
+typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:

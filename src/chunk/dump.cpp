@@ -58,6 +58,20 @@ void ChunkDumper::visit(Instruction *instruction) {
         return;
     }
 
+    if(auto r = dynamic_cast<RelocationInstruction *>(instruction->getSemantic())) {
+        auto link = r->getLink();
+        auto target = link ? link->getTarget() : nullptr;
+        if(target) {
+            if(pos) {
+                Disassemble::printInstructionAtOffset(ins, pos->getOffset(), target->getName().c_str());
+            }
+            else {
+                Disassemble::printInstruction(ins, target->getName().c_str());
+            }
+            return;
+        }
+    }
+
     // !!! we shouldn't need to modify the addr inside a dump function
     // !!! this is just to keep the cs_insn up-to-date
     ins->address = instruction->getAddress();
