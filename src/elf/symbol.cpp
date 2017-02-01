@@ -68,7 +68,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             const char *name = elfmap->getStrtab() + sym->st_name;
 #if 1 // Get entry point
             if(!strcmp(name, "_start") && !sym->st_size) {
+#ifdef ARCH_X86_64
                 size = 42; // no really! :)
+#elif defined(ARCH_AARCH64)
+                size = 44; // this does not include embedded following literals
+#endif
             }
 #endif
             //auto index = sym->st_shndx;
