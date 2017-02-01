@@ -12,6 +12,17 @@ CLDFLAGS        = -lcapstone -Wl,-q
 #LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
 #LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
 
+P_ARCH := $(shell uname -p)
+ifeq (aarch64,$(P_ARCH))
+	CFLAGS += -DARCH_AARCH64
+	CXXFLAGS += -DARCH_AARCH64
+else ifeq (x86_64,$(P_ARCH))
+	CFLAGS += -DARCH_X86_64
+	CXXFLAGS += -DARCH_X86_64
+else
+	$(error Unsupported platform, we only handle aarch64 and x86_64)
+endif
+
 ifneq (,$(wildcard /usr/lib64))
 	GLIBCDIR = /usr/lib64
 else ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
@@ -25,7 +36,12 @@ BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
-LOAD_SOURCES        = $(wildcard load/*.cpp) load/bootstrap.s
+LOAD_SOURCES        = $(wildcard load/*.cpp)
+ifeq (aarch64,$(P_ARCH))
+	LOAD_SOURCES += load/bootstrap-aarch64.S
+else ifeq (x86_64,$(P_ARCH))
+	LOAD_SOURCES += load/bootstrap.s
+endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 
@@ -34,7 +50,7 @@ TYPICAL_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES:.s=.o)))
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
 LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
-LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(LOADER_SOURCES:.s=.o)))
+LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(patsubst %.S,%.o,$(LOADER_SOURCES:.s=.o))))
 ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES)
 
 TARGET = egalito

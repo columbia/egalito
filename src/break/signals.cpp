@@ -18,7 +18,11 @@ void Signals::registerHandlers() {
 
 void sigsegv_handler(int sig, siginfo_t *info, void *context) {
     ucontext_t *uc = (ucontext_t *)context;
+#ifdef ARCH_X86_64
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+#elif defined(ARCH_AARCH64)
+    unsigned long rip = uc->uc_mcontext.pc;
+#endif
     std::printf("received SIGSEGV at 0x%lx\n", rip);
     std::exit(1);
 }
