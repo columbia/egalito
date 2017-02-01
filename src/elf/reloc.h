@@ -14,18 +14,18 @@ class SymbolList;
 class Reloc {
 private:
     address_t address;      // source address
-    uint8_t type;           // type
+    uint16_t type;          // type
     uint64_t symbolIndex;   // target index
     Symbol *symbol;         // target
     uint64_t addend;        // for RELA relocs
 public:
-    Reloc(address_t address, uint8_t type, uint64_t symbolIndex,
+    Reloc(address_t address, uint16_t type, uint64_t symbolIndex,
         Symbol *symbol, uint64_t addend)
         : address(address), type(type), symbolIndex(symbolIndex),
         symbol(symbol), addend(addend) {}
 
     address_t getAddress() const { return address; }
-    uint8_t getType() const { return type; }
+    uint16_t getType() const { return type; }
     Symbol *getSymbol() const { return symbol; }
     uint64_t getAddend() const { return addend; }
 
