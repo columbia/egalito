@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <capstone/x86.h>
+#include <capstone/arm64.h>
 #include "disassemble.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
@@ -8,9 +9,15 @@
 #include "log/log.h"
 
 Disassemble::Handle::Handle(bool detailed) {
+#ifdef ARCH_X86_64
     if(cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
         throw "Can't initialize capstone handle!";
     }
+#elif defined(ARCH_AARCH64)
+    if(cs_open(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN, &handle) != CS_ERR_OK) {
+        throw "Can't initialize capstone handle!";
+    }
+#endif
 
     cs_option(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);  // AT&T syntax
     if(detailed) {
@@ -68,6 +75,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     }
     for(size_t j = 0; j < count; j++) {
         const char *name = 0;
+#ifdef ARCH_X86_64
         if(symbolList && insn[j].id == X86_INS_CALL) {
             cs_x86_op *op = &insn[j].detail->x86.operands[0];
             if(op->type == X86_OP_IMM) {
@@ -78,6 +86,18 @@ void Disassemble::debug(const uint8_t *code, size_t length,
                 }
             }
         }
+#elif defined(ARCH_AARCH64)
+        if(symbolList && insn[j].id == ARM64_INS_BL) {
+            cs_arm64_op *op = &insn[j].detail->arm64.operands[0];
+            if (op->type == ARM64_OP_IMM) {
+                unsigned long imm = op->imm;
+                auto sym = symbolList->find(imm);
+                if(sym) {
+                    name = sym->getName();
+                }
+            }
+        }
+#endif
 
         IF_LOG(3) printInstruction(&insn[j], name);
     }
@@ -106,6 +126,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         auto instr = new Instruction();
         InstructionSemantic *semantic = nullptr;
 
+#ifdef ARCH_X86_64
         // check if this instruction ends the current basic block
         bool split = false;
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
@@ -121,16 +142,42 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
         }
+#elif defined(ARCH_AARCH64)
+        bool split = false;
+        if (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
+            split = true;
+        }
+        else if(ins->id == ARM64_INS_BL) {
+            split = true;
+        }
+        else if(ins->id == ARM64_INS_BLR) {
+            split = true;
+        }
+        else if(ins->id == ARM64_INS_RET) {
+            split = true;
+        }
+        //exception generation instructions don't require split
+#endif
 
         cs_detail *detail = ins->detail;
+#ifdef ARCH_X86_64
         cs_x86 *x = &detail->x86;
+#elif defined(ARCH_AARCH64)
+        cs_arm64 *x = &detail->arm64;
+#endif
         if(x->op_count > 0) {
             for(size_t p = 0; p < x->op_count; p ++) {
+#ifdef ARCH_X86_64
                 cs_x86_op *op = &x->operands[p];
                 if(op->type == X86_OP_IMM) {
+#elif defined(ARCH_AARCH64)
+                cs_arm64_op *op = &x->operands[p];
+                if(op->type == ARM64_OP_IMM) {
+#endif
                     //CLOG0(3, "    immediate operand in ");
                     //IF_LOG(3) printInstruction(ins);
 
+#ifdef ARCH_X86_64
                     if(ins->id == X86_INS_CALL) {
                         unsigned long imm = op->imm;
                         auto cfi = new ControlFlowInstruction(instr,
@@ -172,6 +219,28 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
                         semantic = cfi;
 #endif
                     }
+#elif defined(ARCH_AARCH64)
+                    if(ins->id == ARM64_INS_BL) {
+                        unsigned long imm = op->imm;
+                        auto cfi = new ControlFlowInstruction(instr,
+                            std::string((char *)ins->bytes,
+                            ins->size - 4),
+                            ins->mnemonic,
+                            4);
+                        cfi->setLink(new UnresolvedLink(imm));
+                        semantic = cfi;
+                    }
+                    else if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
+                        size_t use = ins->size /* - op->size*/;
+                        unsigned long imm = op->imm;
+                        auto cfi = new ControlFlowInstruction(instr,
+                            std::string((char *)ins->bytes, use),
+                            ins->mnemonic,
+                            /*op->size*/ 0);
+                        cfi->setLink(new UnresolvedLink(imm));
+                        semantic = cfi;
+                    }
+#endif
                 }
             }
         }
