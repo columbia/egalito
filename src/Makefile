@@ -12,7 +12,11 @@ CLDFLAGS        = -lcapstone -Wl,-q
 #LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
 #LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
 
-GLIBCDIR = /usr/lib/x86_64-linux-gnu
+ifneq (,$(wildcard /usr/lib64))
+	GLIBCDIR = /usr/lib64
+else ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
+	GLIBCDIR = /usr/lib/x86_64-linux-gnu
+endif
 #STARTFILES = $(GLIBCDIR)/crt1.o $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbeginT.o`
 STARTFILES = $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbegin.o`
 ENDFILES = `gcc --print-file-name=crtend.o` $(GLIBCDIR)/crtn.o
