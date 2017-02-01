@@ -1,3 +1,4 @@
+#include <climits>
 #include <cassert>
 #include <cstring>
 #include <sstream>
@@ -54,9 +55,9 @@ std::string ControlFlowInstruction::getData() {
 
 diff_t ControlFlowInstruction::calculateDisplacement() {
     address_t dest = getLink()->getTarget()->getAddress();
-    diff_t disp = dest - getSource()->getAddress() + getSize();
+    diff_t disp = dest - (getSource()->getAddress() + getSize());
 
-    auto mask = (1 << disp) - 1;
+    auto mask = (1 << (displacementSize * CHAR_BIT)) - 1;
     bool fits = false;
     if(disp >= 0) {
         if(disp == (disp & mask)) fits = true;
@@ -74,3 +75,4 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 
     return disp;
 }
+
