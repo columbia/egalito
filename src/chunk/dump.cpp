@@ -44,7 +44,11 @@ void ChunkDumper::visit(Instruction *instruction) {
             else targetName << "[unresolved]";
 
             std::ostringstream name;
+#ifdef ARCH_X86_64
             if(p->getMnemonic() == "callq") name << "(CALL)";
+#elif defined(ARCH_AARCH64)
+            if(p->getMnemonic() == "bl") name << "(CALL)";
+#endif
             else name << "(JUMP " << p->getMnemonic() << ")";
 
             std::printf("0x%08lx <+%lu>:\t%s\t\t0x%lx <%s>\n",
