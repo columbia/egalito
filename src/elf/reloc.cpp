@@ -28,6 +28,11 @@ bool RelocList::add(Reloc *reloc) {
 #endif
 }
 
+Reloc *RelocList::find(address_t address) {
+    auto it = relocMap.find(address);
+    return (it != relocMap.end() ? (*it).second : nullptr);
+}
+
 RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
     RelocList *list = new RelocList();
 
@@ -59,6 +64,8 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
                 symbolList->get(ELF64_R_SYM(r->r_info)),  // symbol index
                 r->r_addend                             // addend
             );
+
+            CLOG0(2, "    reloc symbol index %d\n", ELF64_R_SYM(r->r_info));
 
             CLOG0(2, "    reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),

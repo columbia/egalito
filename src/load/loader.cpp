@@ -13,6 +13,7 @@
 #include "chunk/disassemble.h"
 #include "chunk/resolve.h"
 #include "chunk/dump.h"
+#include "pass/resolverelocs.h"
 #include "transform/sandbox.h"
 #include "break/signals.h"
 #include "break/breakpoint.h"
@@ -164,6 +165,11 @@ void examineElf(ElfMap *elf) {
             }
         }
     }
+
+    SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
+
+    ResolveRelocs resolveRelocs(relocList);
+    module->accept(&resolveRelocs);
 
     module->accept(&dumper);
 

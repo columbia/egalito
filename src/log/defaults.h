@@ -12,6 +12,7 @@
 #define D_log           9
 #define D_main          9
 #define D_regression    9
+#define D_pass          9
 
 // Custom groups
 #define D_reloc         9

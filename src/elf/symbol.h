@@ -44,6 +44,7 @@ public:
     ListType::iterator end() { return symbolList.end(); }
 
     static SymbolList *buildSymbolList(ElfMap *elfmap);
+    static SymbolList *buildDynamicSymbolList(ElfMap *elfmap);
 private:
     void sortSymbols();
 };

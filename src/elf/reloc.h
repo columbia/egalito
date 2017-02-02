@@ -44,6 +44,8 @@ public:
     ListType::iterator begin() { return relocList.begin(); }
     ListType::iterator end() { return relocList.end(); }
 
+    Reloc *find(address_t address);
+
     static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList);
 };
 

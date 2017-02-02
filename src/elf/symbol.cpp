@@ -185,6 +185,44 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     return list;
 }
 
+SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
+    SymbolList *list = new SymbolList();
+    std::map<address_t, Symbol *> seen;
+
+    Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".dynsym");
+    if(!s || s->sh_type != SHT_DYNSYM) throw "No dynamic symtab in ELF\n";
+
+    Elf64_Sym *sym = (Elf64_Sym *)elfmap->findSection(".dynsym");
+
+    // look through symbols for ones of type FUNC and GLOBAL
+    int symcount = s->sh_size / s->sh_entsize;
+    for(int j = 0; j < symcount; j ++, sym ++) {
+        // sym->st_shndx will be 0 for load-time relocations
+        if((ELF64_ST_TYPE(sym->st_info) == STT_FUNC
+                || ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)  // strcmp etc
+            && (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL
+                || ELF64_ST_BIND(sym->st_info) == STB_LOCAL
+                || ELF64_ST_BIND(sym->st_info) == STB_WEAK)
+            /*&& sym->st_shndx > 0*/) {
+
+            address_t address = sym->st_value;
+            size_t size = sym->st_size;
+            const char *name = elfmap->getDynstrtab() + sym->st_name;
+            auto index = sym->st_shndx;
+
+            Symbol *symbol = new Symbol{address, size, name};
+            CLOG0(1, "dynamic symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
+                (int)list->symbolList.size(), address,
+                size, name);
+            list->add(symbol, (size_t)j);
+        }
+    }
+
+    list->sortSymbols();
+
+    return list;
+}
+
 void SymbolList::sortSymbols() {
     sortedSymbolList = symbolList;
     std::sort(sortedSymbolList.begin(), sortedSymbolList.end(),
