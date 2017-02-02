@@ -12,7 +12,7 @@ CLDFLAGS        = -lcapstone -Wl,-q
 #LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
 #LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
 
-P_ARCH := $(shell uname -p)
+P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
 	CXXFLAGS += -DARCH_AARCH64
@@ -20,13 +20,13 @@ else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
 	CXXFLAGS += -DARCH_X86_64
 else
-	$(error Unsupported platform, we only handle aarch64 and x86_64)
+$(error Unsupported platform, we only handle aarch64 and x86_64)
 endif
 
-ifneq (,$(wildcard /usr/lib64))
-	GLIBCDIR = /usr/lib64
-else ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
+ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
 	GLIBCDIR = /usr/lib/x86_64-linux-gnu
+else ifneq (,$(wildcard /usr/lib64))
+	GLIBCDIR = /usr/lib64
 endif
 #STARTFILES = $(GLIBCDIR)/crt1.o $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbeginT.o`
 STARTFILES = $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbegin.o`

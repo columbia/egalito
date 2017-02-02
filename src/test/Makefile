@@ -4,13 +4,13 @@ CC = gcc
 
 CFLAGS	=
 
-P_ARCH := $(shell uname -p)
+P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
 else
-	$(error Unsupported platform, we only handle aarch64 and x86_64)
+$(error Unsupported platform, we only handle aarch64 and x86_64)
 endif
 
 TARGETS = hello hello-static helloq hi0 hi0-q
