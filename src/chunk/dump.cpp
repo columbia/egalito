@@ -22,8 +22,17 @@ void ChunkDumper::visit(Block *block) {
 
 void ChunkDumper::visit(Instruction *instruction) {
     const char *target = nullptr;
-    auto pos = dynamic_cast<RelativePosition *>(instruction->getPosition());
     cs_insn *ins = instruction->getSemantic()->getCapstone();
+
+    int pos = INT_MIN;
+    auto parent = instruction->getParent();
+    if(parent) {
+        auto currentPos = instruction->getPosition();
+        auto parentPos = parent->getPosition();
+        if(currentPos && parentPos) {
+            pos = currentPos->get() - parentPos->get();
+        }
+    }
 
     std::printf("    ");
 
@@ -55,9 +64,8 @@ void ChunkDumper::visit(Instruction *instruction) {
 #endif
             else name << "(JUMP " << p->getMnemonic() << ")";
 
-            std::printf("0x%08lx <+%lu>:\t%s\t\t0x%lx <%s>\n",
-                instruction->getAddress(),
-                pos ? pos->getOffset() : 0,
+            Disassemble::printInstructionRaw(instruction->getAddress(),
+                pos,
                 name.str().c_str(),
                 link ? link->getTargetAddress() : 0,
                 targetName.str().c_str());
@@ -70,12 +78,7 @@ void ChunkDumper::visit(Instruction *instruction) {
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
-            if(pos) {
-                Disassemble::printInstructionAtOffset(ins, pos->getOffset(), target->getName().c_str());
-            }
-            else {
-                Disassemble::printInstruction(ins, target->getName().c_str());
-            }
+            Disassemble::printInstruction(ins, pos, target->getName().c_str());
             return;
         }
     }
@@ -83,10 +86,5 @@ void ChunkDumper::visit(Instruction *instruction) {
     // !!! we shouldn't need to modify the addr inside a dump function
     // !!! this is just to keep the cs_insn up-to-date
     ins->address = instruction->getAddress();
-    if(pos) {
-        Disassemble::printInstructionAtOffset(ins, pos->getOffset(), target);
-    }
-    else {
-        Disassemble::printInstruction(ins, target);
-    }
+    Disassemble::printInstruction(ins, pos, target);
 }

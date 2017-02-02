@@ -18,6 +18,8 @@ int main(int argc, char *argv[]) {
         ElfMap elf(argv[1]);
         SymbolList *symbolList = SymbolList::buildSymbolList(&elf);
 
+        auto baseAddr = elf.getCopyBaseAddress();
+#if 0
         std::cout << "\n=== Initial code disassembly ===\n";
 
         auto baseAddr = elf.getCopyBaseAddress();
@@ -29,6 +31,7 @@ int main(int argc, char *argv[]) {
             Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
                 symbolList);
         }
+#endif
 
         std::cout << "\n=== Creating internal data structures ===\n";
 

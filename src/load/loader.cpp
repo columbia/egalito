@@ -101,6 +101,8 @@ void examineElf(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
     SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
 
+    auto baseAddr = elf->getCopyBaseAddress();
+#if 0
     LOG(1, "");
     LOG(1, "=== Initial code disassembly ===");
 
@@ -113,6 +115,7 @@ void examineElf(ElfMap *elf) {
         Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
             symbolList);
     }
+#endif
 
     LOG(1, "");
     LOG(1, "=== Creating internal data structures ===");

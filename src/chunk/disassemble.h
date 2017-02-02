@@ -1,6 +1,7 @@
 #ifndef EGALITO_DISASSEMBLE_H
 #define EGALITO_DISASSEMBLE_H
 
+#include <climits>  // for INT_MIN
 #include <capstone/capstone.h>
 #include "types.h"
 #include "chunk/chunk.h"
@@ -22,9 +23,13 @@ private:
     };
 public:
     static void printInstruction(cs_insn *instr,
-        const char *name = 0, long offset = 0);
-    static void printInstructionAtOffset(cs_insn *instr,
-        size_t offset, const char *name = 0);
+        int offset = INT_MIN, const char *name = 0);
+    static void printInstructionRaw(unsigned long address,
+        int offset, const char *opcode, unsigned long target,
+        const char *name = 0, const char *rawDisasm = 0);
+    static void printInstructionRaw(unsigned long address,
+        int offset, const char *opcode, const char *args,
+        const char *name, const char *rawDisasm);
 public:
     static void debug(const uint8_t *code, size_t length,
         address_t realAddress = 0, SymbolList *symbolList = 0);

@@ -29,38 +29,65 @@ Disassemble::Handle::~Handle() {
     cs_close(&handle);
 }
 
-void Disassemble::printInstruction(cs_insn *instr, const char *name,
-    long offset) {
-
-    if(name) {
-        std::printf("0x%08lx:\t%s\t\t%s <%s>\n",
-            instr->address, instr->mnemonic, instr->op_str, name);
-    }
-    else {
-        std::printf("0x%08lx:\t%s\t\t%s\n",
-            instr->address, instr->mnemonic, instr->op_str);
-    }
-
-#if 1
-    CLOG0(10, "\t\t\t");
-    for(int i = 0; i < instr->size; i ++) {
-        CLOG0(10, "%02x ", (unsigned)instr->bytes[i] & 0xff);
-    }
-    CLOG(10, "");
-#endif
-}
-
-void Disassemble::printInstructionAtOffset(cs_insn *instr, size_t offset,
+void Disassemble::printInstruction(cs_insn *instr, int offset,
     const char *name) {
 
-    if(name) {
-        std::printf("0x%08lx <+%d>:\t%s\t\t%s <%s>\n",
-            instr->address, (int)offset, instr->mnemonic, instr->op_str, name);
+    char buffer[16*3 + 1];
+
+    // show disassembly of each instruction
+    const char *rawDisasm = 0;
+    IF_LOG(10) {
+        size_t pos = 0;
+        for(int i = 0; i < instr->size; i ++) {
+            pos += sprintf(buffer + pos, "%02x ", (unsigned)instr->bytes[i] & 0xff);
+        }
+        rawDisasm = buffer;
+    }
+
+    printInstructionRaw(instr->address, offset, instr->mnemonic,
+        instr->op_str, name, rawDisasm);
+}
+
+void Disassemble::printInstructionRaw(unsigned long address, int offset,
+    const char *opcode, unsigned long target, const char *name,
+    const char *rawDisasm) {
+
+    char targetString[64];
+    sprintf(targetString, "0x%lx", target);
+
+    printInstructionRaw(address, offset, opcode, targetString, name, rawDisasm);
+}
+
+#define APPEND(...) \
+    pos += std::snprintf(buffer + pos, sizeof buffer - pos, __VA_ARGS__)
+void Disassemble::printInstructionRaw(unsigned long address, int offset,
+    const char *opcode, const char *args, const char *name,
+    const char *rawDisasm) {
+
+    char buffer[1024];
+    size_t pos = 0;
+
+    IF_LOG(10) {
+        const int displaySize = 10 * 3;
+        APPEND("%-*s ", displaySize, rawDisasm ? rawDisasm : "---");
+    }
+
+    APPEND("0x%08lx", address);
+
+    if(offset != INT_MIN) {
+        APPEND(" <+%3d>: ", offset);
     }
     else {
-        std::printf("0x%08lx <+%d>:\t%s\t\t%s\n",
-            instr->address, (int)offset, instr->mnemonic, instr->op_str);
+        APPEND(":        ");
     }
+
+    APPEND(" %-12s %-20s", opcode, args);
+
+    if(name) {
+        APPEND("<%s>", name);
+    }
+
+    std::printf("%s\n", buffer);
 }
 
 void Disassemble::debug(const uint8_t *code, size_t length,
@@ -99,7 +126,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
         }
 #endif
 
-        IF_LOG(3) printInstruction(&insn[j], name);
+        IF_LOG(3) printInstruction(&insn[j], INT_MIN, name);
     }
 
     cs_free(insn, count);

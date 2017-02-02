@@ -186,7 +186,7 @@ void Instruction::dump() {
             if(pos) name = pos->getRelativeTo()->getName().c_str();
         }
 
-        Disassemble::printInstructionAtOffset(&getNative(),
+        Disassemble::printInstruction(&getNative(),
             getPosition().getOffset() + getParent()->getOffset(),
             name);
     }

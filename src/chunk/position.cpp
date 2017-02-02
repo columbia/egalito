@@ -1,3 +1,4 @@
+#include <climits>  // for INT_MIN
 #include <cassert>
 #include "position.h"
 #include "chunk.h"
@@ -21,6 +22,11 @@ address_t SubsequentPosition::get() const {
 
 void SubsequentPosition::set(address_t value) {
     throw "Can't set position of a SubsequentPosition";
+}
+
+address_t SubsequentPosition::getOffset() const {
+    auto parent = following->getParent();
+    return parent ? get() - parent->getAddress() : INT_MIN;
 }
 
 address_t CachedRelativePosition::get() const {

@@ -45,6 +45,8 @@ public:
 
     virtual address_t get() const;
     virtual void set(address_t value);
+
+    address_t getOffset() const;
 };
 
 template <typename Type, int InvalidInitializer = -1>
