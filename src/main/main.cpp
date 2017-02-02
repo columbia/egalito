@@ -10,9 +10,15 @@
 #include "chunk/dump.h"
 #include "chunk/resolve.h"
 #include "transform/sandbox.h"
+#include "log/registry.h"
 
 int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
+
+    if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
+        return -2;
+    }
+    GroupRegistry::getInstance()->dumpSettings();
 
     try {
         ElfMap elf(argv[1]);
@@ -75,7 +81,7 @@ int main(int argc, char *argv[]) {
             brk->setParent(bb);
 #endif
         }
-        functionList[functionList.size() - 1]->getPosition()->set(0xf00d1000);
+        functionList[functionList.size() - 2]->getPosition()->set(0xf00d1000);
 
         std::cout << "\n=== After code modifications ===\n";
         module->accept(&dumper);
