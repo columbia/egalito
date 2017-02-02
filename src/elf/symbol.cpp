@@ -11,7 +11,7 @@ bool SymbolList::add(Symbol *symbol, size_t index) {
     if(it != symbolMap.end()) return false;
 
     symbolList.push_back(symbol);
-    if(indexMap.size() < index) indexMap.resize(index + 1);
+    if(indexMap.size() <= index) indexMap.resize(index + 1);
     indexMap[index] = symbol;
     symbolMap[symbol->getName()] = symbol;
     spaceMap[symbol->getAddress()] = symbol;
@@ -73,6 +73,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 #elif defined(ARCH_AARCH64)
                 size = 44; // this does not include embedded following literals
 #endif
+            }
+
+            if(!strcmp(name, "_init") && !sym->st_size) {
+                Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".init");
+                if(s) size = s->sh_size;
             }
 #endif
             //auto index = sym->st_shndx;
@@ -211,9 +216,8 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
             auto index = sym->st_shndx;
 
             Symbol *symbol = new Symbol{address, size, name};
-            CLOG0(1, "dynamic symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
-                (int)list->symbolList.size(), address,
-                size, name);
+            CLOG0(1, "dynamic symbol #%d, index %d, [%s]\n",
+                (int)list->symbolList.size(), j, name);
             list->add(symbol, (size_t)j);
         }
     }
