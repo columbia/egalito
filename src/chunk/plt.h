@@ -8,7 +8,7 @@
 class Chunk;
 class Symbol;
 
-class PLT {
+/*class PLT {
 private:
     address_t entry;
     Chunk *target;
@@ -20,7 +20,7 @@ public:
     address_t getAddress() const { return entry; }
     Chunk *getTarget() const { return target; }
     Symbol *getTargetSymbol() const { return targetSymbol; }
-};
+};*/
 
 class PLTRegistry {
 private:
