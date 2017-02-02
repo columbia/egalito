@@ -29,20 +29,25 @@ Disassemble::Handle::~Handle() {
     cs_close(&handle);
 }
 
+std::string Disassemble::formatBytes(const char *bytes, size_t size) {
+    IF_LOG(10) {
+        char buffer[16*3 + 1];
+        size_t pos = 0;
+        for(size_t i = 0; i < size; i ++) {
+            pos += sprintf(buffer + pos, "%02x ", (unsigned)bytes[i] & 0xff);
+        }
+        return std::string(buffer);
+    }
+
+    return std::string();
+}
+
 void Disassemble::printInstruction(cs_insn *instr, int offset,
     const char *name) {
 
-    char buffer[16*3 + 1];
-
     // show disassembly of each instruction
-    const char *rawDisasm = 0;
-    IF_LOG(10) {
-        size_t pos = 0;
-        for(int i = 0; i < instr->size; i ++) {
-            pos += sprintf(buffer + pos, "%02x ", (unsigned)instr->bytes[i] & 0xff);
-        }
-        rawDisasm = buffer;
-    }
+    std::string rawDisasm = formatBytes(
+        reinterpret_cast<const char *>(instr->bytes), instr->size);
 
     printInstructionRaw(instr->address, offset, instr->mnemonic,
         instr->op_str, name, rawDisasm);
@@ -50,7 +55,7 @@ void Disassemble::printInstruction(cs_insn *instr, int offset,
 
 void Disassemble::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, unsigned long target, const char *name,
-    const char *rawDisasm) {
+    const std::string &rawDisasm) {
 
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
@@ -62,14 +67,14 @@ void Disassemble::printInstructionRaw(unsigned long address, int offset,
     pos += std::snprintf(buffer + pos, sizeof buffer - pos, __VA_ARGS__)
 void Disassemble::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, const char *args, const char *name,
-    const char *rawDisasm) {
+    const std::string &rawDisasm) {
 
     char buffer[1024];
     size_t pos = 0;
 
     IF_LOG(10) {
         const int displaySize = 10 * 3;
-        APPEND("%-*s ", displaySize, rawDisasm ? rawDisasm : "---");
+        APPEND("%-*s ", displaySize, rawDisasm.size() ? rawDisasm.c_str() : "---");
     }
 
     APPEND("0x%08lx", address);

@@ -22,14 +22,15 @@ private:
         csh &raw() { return handle; }
     };
 public:
+    static std::string formatBytes(const char *bytes, size_t size);
     static void printInstruction(cs_insn *instr,
         int offset = INT_MIN, const char *name = 0);
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, unsigned long target,
-        const char *name = 0, const char *rawDisasm = 0);
+        const char *name = 0, const std::string &rawDisasm = "");
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, const char *args,
-        const char *name, const char *rawDisasm);
+        const char *name, const std::string &rawDisasm);
 public:
     static void debug(const uint8_t *code, size_t length,
         address_t realAddress = 0, SymbolList *symbolList = 0);

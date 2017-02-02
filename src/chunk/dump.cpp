@@ -64,11 +64,15 @@ void ChunkDumper::visit(Instruction *instruction) {
 #endif
             else name << "(JUMP " << p->getMnemonic() << ")";
 
+            std::string bytes = instruction->getSemantic()->getData();
+            std::string bytes2 = Disassemble::formatBytes(bytes.c_str(), bytes.size());
+
             Disassemble::printInstructionRaw(instruction->getAddress(),
                 pos,
                 name.str().c_str(),
                 link ? link->getTargetAddress() : 0,
-                targetName.str().c_str());
+                targetName.str().c_str(),
+                bytes2.c_str());
         }
         else std::printf("...unknown...\n");
         return;
