@@ -15,10 +15,11 @@ void ResolveRelocs::visit(Instruction *instruction) {
                 address_t got_location
                     = *(unsigned int *)(address + 2)  // +2 to get to addr
                     + address + 2+4;  // +2+4 to skip jmpq instruction
-                LOG(0, "plt call at " << instruction->getAddress() << ", suspect got at " << got_location);
                 auto found = pltRegistry.find(got_location);
                 if(found) {
-                    LOG(0, "FOUND CORRESPONDING reloc! " << found);
+                    LOG(0, "plt call at " << instruction->getAddress()
+                        << " to GOT " << got_location
+                        << " i.e. [" << found->getSymbolName() << "]");
                     v->setLink(new PLTLink(found));
                 }
             }
@@ -29,7 +30,6 @@ void ResolveRelocs::visit(Instruction *instruction) {
 void ResolveRelocs::buildRegistry() {
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_JUMP_SLOT) {
-            LOG(0, "register reloc at " << r->getAddress() << " target " << r->getSymbol());
             pltRegistry.add(r->getAddress(), r);
         }
     }

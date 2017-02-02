@@ -53,21 +53,18 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
         if(std::strstr(name, "debug")) continue;
         LOG(1, "reloc section [" << name << ']');
 
+        SymbolList *currentSymbolList = symbolList;
+        if(std::strcmp(name, ".rela.plt") == 0) {
+            currentSymbolList = dynamicSymbolList;
+        }
+
         Elf64_Rela *data = reinterpret_cast<Elf64_Rela *>
             (elf->getCharmap() + s->sh_offset);
 
         size_t count = s->sh_size / sizeof(*data);
         for(size_t i = 0; i < count; i ++) {
             Elf64_Rela *r = &data[i];
-            Symbol *sym;
-            if(dynamicSymbolList && std::strcmp(name, ".rela.plt") == 0) {
-                sym = dynamicSymbolList->get(ELF64_R_SYM(r->r_info));
-                LOG(0, "RUN GET ON " << ELF64_R_SYM(r->r_info) << " -> " << sym);
-                if(sym) LOG(0, "GOT DYNAMIC symbol named " << sym->getName());
-            }
-            else {
-                sym = symbolList->get(ELF64_R_SYM(r->r_info));
-            }
+            Symbol *sym = currentSymbolList->get(ELF64_R_SYM(r->r_info));
 
             Reloc *reloc = new Reloc(
                 elf->getBaseAddress() + r->r_offset,    // address
@@ -77,7 +74,6 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
                 r->r_addend                             // addend
             );
 
-            CLOG0(2, "    reloc symbol index %d\n", ELF64_R_SYM(r->r_info));
 
             CLOG0(2, "    reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),
