@@ -20,7 +20,7 @@ void ResolveRelocs::visit(Instruction *instruction) {
                     LOG(0, "plt call at " << instruction->getAddress()
                         << " to GOT " << got_location
                         << " i.e. [" << found->getSymbolName() << "]");
-                    v->setLink(new PLTLink(found));
+                    v->setLink(new PLTLink(address, found));
                 }
             }
         }

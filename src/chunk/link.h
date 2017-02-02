@@ -28,13 +28,15 @@ public:
 class Reloc;
 class PLTLink : public Link {
 private:
+    address_t originalAddress;
     Reloc *reloc;
 public:
-    PLTLink(Reloc *reloc) : reloc(reloc) {}
+    PLTLink(address_t originalAddress, Reloc *reloc)
+        : originalAddress(originalAddress), reloc(reloc) {}
 
     Reloc *getReloc() const { return reloc; }
     virtual ChunkRef getTarget() const { return nullptr; }
-    virtual address_t getTargetAddress() const;
+    virtual address_t getTargetAddress() const { return originalAddress; }
 };
 
 class UnresolvedLink : public Link {

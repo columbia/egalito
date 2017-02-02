@@ -106,7 +106,6 @@ void examineElf(ElfMap *elf) {
     LOG(1, "");
     LOG(1, "=== Initial code disassembly ===");
 
-    auto baseAddr = elf->getCopyBaseAddress();
     for(auto sym : *symbolList) {
         LOG(2, "---[" << sym->getName() << "]---");
         auto addr = sym->getAddress();

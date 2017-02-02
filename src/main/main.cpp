@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
 #if 0
         std::cout << "\n=== Initial code disassembly ===\n";
 
-        auto baseAddr = elf.getCopyBaseAddress();
         for(auto sym : *symbolList) {
             std::cout << "---[" << sym->getName() << "]---\n";
             auto addr = sym->getAddress();
