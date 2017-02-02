@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
 #if 1
 void examineElf(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
+    SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
 
     LOG(1, "");
     LOG(1, "=== Initial code disassembly ===");
@@ -130,7 +131,7 @@ void examineElf(ElfMap *elf) {
     ChunkDumper dumper;
     module->accept(&dumper);
 
-    RelocList *relocList = RelocList::buildRelocList(elf, symbolList);
+    RelocList *relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
     module->getChildren()->setNamed(new NamedChunkList<Function>());
     module->getChildren()->setSpatial(new SpatialChunkList<Function>());
     for(auto r : *relocList) {
@@ -165,8 +166,6 @@ void examineElf(ElfMap *elf) {
             }
         }
     }
-
-    SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
 
     ResolveRelocs resolveRelocs(relocList);
     module->accept(&resolveRelocs);

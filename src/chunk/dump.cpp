@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include "disassemble.h"
+#include "elf/reloc.h"  // for dumping PLTLink
 #include "dump.h"
 
 void ChunkDumper::visit(Module *module) {
@@ -40,6 +41,9 @@ void ChunkDumper::visit(Instruction *instruction) {
                 else {
                     targetName << "target-" << std::hex << &target;
                 }
+            }
+            else if(auto v = dynamic_cast<PLTLink *>(link)) {
+                targetName << "PLT::" << v->getReloc()->getSymbolName();
             }
             else targetName << "[unresolved]";
 

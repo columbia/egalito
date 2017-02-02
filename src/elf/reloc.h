@@ -46,7 +46,8 @@ public:
 
     Reloc *find(address_t address);
 
-    static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList);
+    static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList,
+        SymbolList *dynamicSymbolList = nullptr);
 };
 
 #endif

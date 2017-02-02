@@ -2,6 +2,7 @@
 #define EGALITO_CHUNK_LINK_H
 
 #include <vector>
+#include <string>
 #include "chunkref.h"
 #include "util/iter.h"
 #include "types.h"
@@ -21,6 +22,18 @@ public:
     NormalLink(ChunkRef target) : target(target) {}
 
     virtual ChunkRef getTarget() const { return target; }
+    virtual address_t getTargetAddress() const;
+};
+
+class Reloc;
+class PLTLink : public Link {
+private:
+    Reloc *reloc;
+public:
+    PLTLink(Reloc *reloc) : reloc(reloc) {}
+
+    Reloc *getReloc() const { return reloc; }
+    virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
 };
 

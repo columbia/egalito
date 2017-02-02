@@ -33,7 +33,9 @@ Reloc *RelocList::find(address_t address) {
     return (it != relocMap.end() ? (*it).second : nullptr);
 }
 
-RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
+RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
+    SymbolList *dynamicSymbolList) {
+
     RelocList *list = new RelocList();
 
     CLOG(0, "building relocation list");
@@ -57,11 +59,21 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList) {
         size_t count = s->sh_size / sizeof(*data);
         for(size_t i = 0; i < count; i ++) {
             Elf64_Rela *r = &data[i];
+            Symbol *sym;
+            if(dynamicSymbolList && std::strcmp(name, ".rela.plt") == 0) {
+                sym = dynamicSymbolList->get(ELF64_R_SYM(r->r_info));
+                LOG(0, "RUN GET ON " << ELF64_R_SYM(r->r_info) << " -> " << sym);
+                if(sym) LOG(0, "GOT DYNAMIC symbol named " << sym->getName());
+            }
+            else {
+                sym = symbolList->get(ELF64_R_SYM(r->r_info));
+            }
+
             Reloc *reloc = new Reloc(
                 elf->getBaseAddress() + r->r_offset,    // address
                 ELF64_R_TYPE(r->r_info),                // type
                 ELF64_R_SYM(r->r_info),                 // symbol index
-                symbolList->get(ELF64_R_SYM(r->r_info)),  // symbol index
+                sym,
                 r->r_addend                             // addend
             );
 
