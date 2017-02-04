@@ -5,13 +5,11 @@
 
 class ResolveCalls : public ChunkPass {
 private:
-    SpatialChunkList<Function> functionList;
+    SpatialChunkList<Function> *functionList;
 public:
+    ResolveCalls() : functionList(nullptr) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction);
-private:
-    Chunk *find(Chunk *root, address_t targetAddress);
-    Chunk *findHelper(Chunk *root, address_t targetAddress);
 };
 
 #endif

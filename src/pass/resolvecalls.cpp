@@ -4,10 +4,10 @@
 #include "log/log.h"
 
 void ResolveCalls::visit(Module *module) {
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
-        functionList.add(f);
+    if(!module->getChildren()->getSpatial()) {
+        module->getChildren()->createSpatial();
     }
-
+    functionList = module->getChildren()->getSpatial();
     recurse(module);
 }
 
@@ -25,7 +25,7 @@ void ResolveCalls::visit(Instruction *instruction) {
     Chunk *found = nullptr;
     // Common case for call instructions: point at another function
     if(!found) {
-        found = functionList.find(link->getTargetAddress());
+        found = functionList->find(link->getTargetAddress());
     }
     // Common case for jumps: internal jump elsewhere within function
     if(!found) {

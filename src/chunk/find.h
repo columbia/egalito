@@ -8,34 +8,29 @@
 class ChunkFind {
 public:
     template <typename RootType>
-    Chunk *findInnermostAt(RootType *root, address_t target);
+    Chunk *findInnermostAt(RootType *root, address_t target)
+        { return findImpl(root, target, false, false); }
 
     template <typename RootType>
-    Chunk *findInnermostInsideInstruction(RootType *root, address_t target);
+    Chunk *findInnermostInsideInstruction(RootType *root, address_t target)
+        { return findImpl(root, target, false, true); }
+
+    template <typename RootType>
+    Chunk *findInnermostContaining(RootType *root, address_t target)
+        { return findImpl(root, target, true, true); }
+private:
+    template <typename RootType>
+    Chunk *findImpl(RootType *root, address_t target,
+        bool compositeContains, bool instructionContains);
 };
 
 template <>
-Chunk *ChunkFind::findInnermostAt(Instruction *root, address_t target);
+Chunk *ChunkFind::findImpl(Instruction *root, address_t target,
+    bool compositeContains, bool instructionContains);
 
 template <typename RootType>
-Chunk *ChunkFind::findInnermostAt(RootType *root, address_t target) {
-    if(!root->getChildren()->getSpatial()) {
-        root->getChildren()->createSpatial();
-    }
-
-    auto child = root->getChildren()->getSpatial()->findContaining(target);
-    if(child) {
-        return findInnermostAt(child, target);
-    }
-
-    return (root->getAddress() == target ? root : nullptr);
-}
-
-template <>
-Chunk *ChunkFind::findInnermostInsideInstruction(Instruction *root, address_t target);
-
-template <typename RootType>
-Chunk *ChunkFind::findInnermostInsideInstruction(RootType *root, address_t target) {
+Chunk *ChunkFind::findImpl(RootType *root, address_t target,
+    bool compositeContains, bool instructionContains) {
 
     if(!root->getChildren()->getSpatial()) {
         root->getChildren()->createSpatial();
@@ -43,10 +38,15 @@ Chunk *ChunkFind::findInnermostInsideInstruction(RootType *root, address_t targe
 
     auto child = root->getChildren()->getSpatial()->findContaining(target);
     if(child) {
-        return findInnermostInsideInstruction(child, target);
+        return findImpl(child, target, compositeContains, instructionContains);
     }
 
-    return (root->getAddress() == target ? root : nullptr);
+    if(compositeContains) {
+        return (root->getRange().contains(target) ? root : nullptr);
+    }
+    else {
+        return (root->getAddress() == target ? root : nullptr);
+    }
 }
 
 #endif
