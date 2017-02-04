@@ -11,7 +11,9 @@
 #include "chunk/dump.h"
 #include "pass/resolvecalls.h"
 #include "transform/sandbox.h"
+#include "transform/generator.h"
 #include "log/registry.h"
+#include "log/log.h"
 
 int main(int argc, char *argv[]) {
     if(argc < 2) return -1;
@@ -86,44 +88,17 @@ int main(int argc, char *argv[]) {
         std::cout << "\n=== After code modifications ===\n";
         module->accept(&dumper);
 
-#if 1
-        auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
-        Sandbox *sandbox = new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
+        {
+            Generator generator;
+            auto sandbox = generator.makeSandbox();
+            generator.copyCodeToSandbox(&elf, module, sandbox);
 
-        std::cout << "\n=== Copying code into sandbox ===\n";
-        for(auto f : functionList) {
-            auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
-            std::cout << "ALLOC " << slot.getAddress() << " for " << f->getName() << "\n";
-            f->getPosition()->set(slot.getAddress());
-        }
-        for(auto f : functionList) {
-            char *output = reinterpret_cast<char *>(f->getAddress());
-            std::cout << "writing out " << f->getName() << "\n";
-            for(auto b : f->getChildren()->getIterable()->iterable()) {
-                for(auto i : b->getChildren()->getIterable()->iterable()) {
-                    //f->writeTo(sandbox);
-                    i->getSemantic()->writeTo(output);
-                    output += i->getSemantic()->getSize();
-                }
-            }
-        }
-        sandbox->finalize();
+            LOG(1, "");
+            LOG(1, "=== After copying code to new locations ===");
+            module->accept(&dumper);
 
-        std::cout << "\n=== After generating new positions ===\n";
-        module->accept(&dumper);
-#if 1
-        for(auto f : functionList) {
-            if(f->getName() == "main") {
-                std::cout << "main is at " << std::hex << f->getAddress() << "\n";
-                int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
-
-                int argc = 1;
-                char *argv[] = {(char *)"/dev/null", NULL};
-                mainp(argc, argv);
-            }
+            generator.jumpToSandbox(sandbox, module);
         }
-#endif
-#endif
     }
     catch(const char *s) {
         std::cerr << "Error: " << s;

@@ -16,6 +16,7 @@
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "transform/sandbox.h"
+#include "transform/generator.h"
 #include "break/signals.h"
 #include "break/breakpoint.h"
 #include "log/registry.h"
@@ -28,7 +29,6 @@ extern "C" void _start2(void);
 
 void examineElf(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
-void generateCodeFor(ElfMap *elf, Module *module);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -164,77 +164,16 @@ void examineElf(ElfMap *elf) {
 
     module->accept(&dumper);
 
-    generateCodeFor(elf, module);
+    {
+        Generator generator;
+        auto sandbox = generator.makeSandbox();
+        generator.copyCodeToSandbox(elf, module, sandbox);
+
+        LOG(1, "");
+        LOG(1, "=== After copying code to new locations ===");
+        module->accept(&dumper);
+
+        generator.jumpToSandbox(sandbox, module);
+    }
 }
-
-#if 0
-void setBreakpointsInInterpreter(ElfMap *elf) {
-    SymbolList *symbolList = SymbolList::buildSymbolList(elf);
-
-    auto baseAddr = elf->getCopyBaseAddress();
-    ChunkList<Function> functionList;
-    for(auto sym : *symbolList) {
-        Function *function = Disassemble::function(sym, baseAddr, symbolList);
-        functionList.add(function);
-    }
-
-#if 0
-    Function *f = functionList.find("call_init.part.0");
-    if(f) {
-        BreakpointManager *bm = new BreakpointManager();
-        bm->set(f->getAddress() + elf->getBaseAddress());
-    }
-    else std::cout << "Unable to find ld.so function to set breakpoints!\n";
-#endif
-}
-#endif
-
-#if 1
-void generateCodeFor(ElfMap *elf, Module *module) {
-    auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
-    Sandbox *sandbox = new SandboxImpl<
-        MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
-
-    LOG(1, "");
-    LOG(1, "=== Copying code into sandbox ===");
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
-        auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
-        LOG(2, "ALLOC " << slot.getAddress() << " for " << f->getName());
-        f->getPosition()->set(slot.getAddress());
-
-        //sandbox->allocate(0x10000);  // skip some pages
-    }
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
-        char *output = reinterpret_cast<char *>(f->getAddress());
-        LOG(2, "writing out " << f->getName() << " at " << std::hex << f->getAddress());
-        for(auto b : f->getChildren()->getIterable()->iterable()) {
-            for(auto i : b->getChildren()->getIterable()->iterable()) {
-                //f->writeTo(sandbox);
-                i->getSemantic()->writeTo(output);
-                output += i->getSemantic()->getSize();
-            }
-        }
-    }
-    sandbox->finalize();
-
-    LOG(1, "");
-    LOG(1, "=== After copying code to new locations ===");
-    ChunkDumper dumper;
-    module->accept(&dumper);
-
-#if 1
-    // jump straight to main()
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
-        if(f->getName() == "main") {
-            std::cout << "main is at " << std::hex << f->getAddress() << "\n";
-            int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
-
-            int argc = 1;
-            char *argv[] = {(char *)"/dev/null", NULL};
-            mainp(argc, argv);
-        }
-    }
-#endif
-}
-#endif
 #endif
