@@ -21,24 +21,6 @@ public:
     address_t getAddress() const { return address; }
 };
 
-class AnyLengthSlot {
-private:
-    std::vector<uint8_t> buffer;
-public:
-    uint8_t *read() { return buffer.data(); }
-    bool append(uint8_t *data, size_t size);
-};
-
-class ReadOnlySlot {
-private:
-    uint8_t *address;
-public:
-    ReadOnlySlot(uint8_t *address) : address(address) {}
-
-    uint8_t *read() { return address; }
-    bool append(uint8_t *data, size_t size) { return false; }
-};
-
 class SandboxBacking {
 private:
     size_t size;

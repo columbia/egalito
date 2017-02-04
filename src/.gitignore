@@ -1,4 +1,7 @@
 *.o
 *.swp
 /depend
+/loader
+/egalito
+/regression/elfgen_test
 /regression/output/*

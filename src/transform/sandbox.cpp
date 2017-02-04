@@ -13,11 +13,6 @@ bool Slot::append(uint8_t *data, size_t size) {
     return true;
 }
 
-bool AnyLengthSlot::append(uint8_t *data, size_t size) {
-    buffer.insert(buffer.end(), data, data + size);
-    return true;
-}
-
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
     base = (address_t) mmap(0, size, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS

@@ -158,38 +158,6 @@ void examineElf(ElfMap *elf) {
             }
         }
     }
-#if 0
-    for(auto r : *relocList) {
-        if(!r->getSymbol()) continue;
-        Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
-        if(target) {
-            LOG(2, "FOUND RELOCATION from "
-                << r->getAddress() << " -> " << target->getName());
-
-            auto f = module->getChildren()->getSpatial()->findContaining(r->getAddress());
-            if(f) {
-                LOG(2, "    inside function " << f->getName());
-
-                auto b = f->getChildren()->getSpatial()->findContaining(r->getAddress());
-                if(b) {
-                    LOG(2, "    inside block " << b->getName());
-                    auto i = b->getChildren()->getSpatial()->findContaining(r->getAddress());
-                    if(i) {
-                        LOG(2, "    found instruction!!");
-                        if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
-                            LOG(2, "    (duplicate of control flow)");
-                        }
-                        else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-                            auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
-                            ri->setLink(new NormalLink(target));
-                            i->setSemantic(ri);
-                        }
-                    }
-                }
-            }
-        }
-    }
-#endif
 
     ResolveRelocs resolveRelocs(relocList);
     module->accept(&resolveRelocs);
