@@ -38,6 +38,9 @@ public:
     static Function *function(Symbol *symbol, address_t baseAddr,
         SymbolList *symbolList = 0);
     static cs_insn getInsn(std::string str, address_t address = 0);
+    static cs_insn getInsn(const std::vector<unsigned char> &str, address_t address = 0);
+    static Instruction *instruction(const std::vector<unsigned char> &bytes,
+        bool details = true, address_t address = 0);
 
     static void relocateInstruction(cs_insn *instr, address_t newAddress);
 };

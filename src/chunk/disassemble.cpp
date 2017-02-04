@@ -349,6 +349,116 @@ cs_insn Disassemble::getInsn(std::string str, address_t address) {
     return ret;
 }
 
+cs_insn Disassemble::getInsn(const std::vector<unsigned char> &str, address_t address) {
+    Handle handle(true);
+
+    cs_insn *insn;
+    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
+        address, 0, &insn) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    cs_insn ret = *insn;
+    cs_free(insn, 1);
+    return ret;
+}
+
+Instruction *Disassemble::instruction(
+    const std::vector<unsigned char> &bytes, bool details, address_t address) {
+
+    auto instr = new Instruction();
+    InstructionSemantic *semantic = nullptr;
+
+    Handle handle(true);
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
+        address, 0, &ins) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    cs_detail *detail = ins->detail;
+#ifdef ARCH_X86_64
+    cs_x86 *x = &detail->x86;
+#elif defined(ARCH_AARCH64)
+    cs_arm64 *x = &detail->arm64;
+#endif
+    if(x->op_count > 0) {
+        for(size_t p = 0; p < x->op_count; p ++) {
+#ifdef ARCH_X86_64
+            cs_x86_op *op = &x->operands[p];
+            if(op->type == X86_OP_IMM) {
+#elif defined(ARCH_AARCH64)
+            cs_arm64_op *op = &x->operands[p];
+            if(op->type == ARM64_OP_IMM) {
+#endif
+
+#ifdef ARCH_X86_64
+                if(ins->id == X86_INS_CALL) {
+                    unsigned long imm = op->imm;
+                    auto cfi = new ControlFlowInstruction(instr,
+                        std::string((char *)ins->bytes,
+                        ins->size - 4),
+                        ins->mnemonic,
+                        4);
+                    cfi->setLink(new UnresolvedLink(imm));
+                    semantic = cfi;
+                }
+                else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+
+                    // !!! should subtract op->size,
+                    // !!! can't right now due to bug in capstone
+                    size_t use = ins->size /* - op->size*/;
+                    unsigned long imm = op->imm;
+                    auto cfi = new ControlFlowInstruction(instr,
+                        std::string((char *)ins->bytes, use),
+                        ins->mnemonic,
+                        /*op->size*/ 0);
+                    cfi->setLink(new UnresolvedLink(imm));
+                    semantic = cfi;
+                }
+#elif defined(ARCH_AARCH64)
+                if(ins->id == ARM64_INS_BL) {
+                    unsigned long imm = op->imm;
+                    auto cfi = new ControlFlowInstruction(instr,
+                        std::string((char *)ins->bytes,
+                        ins->size - 4),
+                        ins->mnemonic,
+                        4);
+                    cfi->setLink(new UnresolvedLink(imm));
+                    semantic = cfi;
+                }
+                else if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
+                    size_t use = ins->size /* - op->size*/;
+                    unsigned long imm = op->imm;
+                    auto cfi = new ControlFlowInstruction(instr,
+                        std::string((char *)ins->bytes, use),
+                        ins->mnemonic,
+                        /*op->size*/ 0);
+                    cfi->setLink(new UnresolvedLink(imm));
+                    semantic = cfi;
+                }
+#endif
+            }
+        }
+    }
+
+    if(!semantic) {
+        if(details) {
+            semantic = new DisassembledInstruction(*ins);
+        }
+        else {
+            std::string raw;
+            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            semantic = new RawInstruction(raw);
+        }
+    }
+    instr->setSemantic(semantic);
+
+    return instr;
+}
+
 void Disassemble::relocateInstruction(cs_insn *instr, address_t newAddress) {
     instr->address = newAddress;
 }

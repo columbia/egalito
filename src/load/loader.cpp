@@ -15,6 +15,7 @@
 #include "chunk/dump.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
+#include "pass/stackxor.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
@@ -162,6 +163,10 @@ void examineElf(ElfMap *elf) {
     ResolveRelocs resolveRelocs(relocList);
     module->accept(&resolveRelocs);
 
+    module->accept(&dumper);
+
+    StackXOR stackXOR(0x28);
+    module->accept(&stackXOR);
     module->accept(&dumper);
 
     {
