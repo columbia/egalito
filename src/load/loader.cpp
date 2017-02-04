@@ -28,7 +28,7 @@ extern "C" void _start2(void);
 
 void examineElf(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
-void writeOutElf(ElfMap *elf, std::vector<Function> &functionList);
+void generateCodeFor(ElfMap *elf, Module *module);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -164,7 +164,7 @@ void examineElf(ElfMap *elf) {
 
     module->accept(&dumper);
 
-    //writeOutElf(elf, functionList);
+    generateCodeFor(elf, module);
 }
 
 #if 0
@@ -189,39 +189,52 @@ void setBreakpointsInInterpreter(ElfMap *elf) {
 }
 #endif
 
-#if 0
-void writeOutElf(ElfMap *elf, std::vector<Function> &functionList) {
+#if 1
+void generateCodeFor(ElfMap *elf, Module *module) {
     auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
     Sandbox *sandbox = new SandboxImpl<
         MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 
     LOG(1, "");
     LOG(1, "=== Copying code into sandbox ===");
-    for(auto f : functionList) {
-        auto slot = sandbox->allocate(f->getSize());
+    for(auto f : module->getChildren()->getIterable()->iterable()) {
+        auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
         LOG(2, "ALLOC " << slot.getAddress() << " for " << f->getName());
-        f->setAddress(slot.getAddress());
-        //f->assignTo(new Slot(slot));
+        f->getPosition()->set(slot.getAddress());
 
-        sandbox->allocate(0x10000);  // skip some pages
+        //sandbox->allocate(0x10000);  // skip some pages
     }
-    for(auto f : functionList) {
+    for(auto f : module->getChildren()->getIterable()->iterable()) {
+        char *output = reinterpret_cast<char *>(f->getAddress());
         LOG(2, "writing out " << f->getName() << " at " << std::hex << f->getAddress());
-        f->writeTo(sandbox);
+        for(auto b : f->getChildren()->getIterable()->iterable()) {
+            for(auto i : b->getChildren()->getIterable()->iterable()) {
+                //f->writeTo(sandbox);
+                i->getSemantic()->writeTo(output);
+                output += i->getSemantic()->getSize();
+            }
+        }
     }
     sandbox->finalize();
 
-    for(auto f : functionList) {
-        LOG(2, "---[" << f->getName() << "]--- at " << std::hex << f->getAddress());
+    LOG(1, "");
+    LOG(1, "=== After copying code to new locations ===");
+    ChunkDumper dumper;
+    module->accept(&dumper);
+
 #if 1
-        for(auto bb : *f) {
-            for(auto instr : *bb) {
-                LOG0(3, "    ");
-                IF_LOG(3) instr->dump();
-            }
+    // jump straight to main()
+    for(auto f : module->getChildren()->getIterable()->iterable()) {
+        if(f->getName() == "main") {
+            std::cout << "main is at " << std::hex << f->getAddress() << "\n";
+            int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
+
+            int argc = 1;
+            char *argv[] = {(char *)"/dev/null", NULL};
+            mainp(argc, argv);
         }
-#endif
     }
+#endif
 }
 #endif
 #endif

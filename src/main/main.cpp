@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <algorithm>  // for std::max
 #include <cstdio>
 #include <cstring>
 #include "main.h"
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]) {
 
         ChunkDumper dumper;
 
-        {
+        if(0) {
 #ifdef ARCH_X86_64
             auto bb = functionList[3]->getChildren()->getIterable()->get(1);
             Instruction *cc = new Instruction(new DisassembledInstruction(Disassemble::getInsn("\xcc")));
@@ -85,61 +86,31 @@ int main(int argc, char *argv[]) {
         std::cout << "\n=== After code modifications ===\n";
         module->accept(&dumper);
 
-#if 0
-        for(auto f : functionList) {
-            for(auto bb : *f) {
-                for(auto instr : *bb) {
-                    if(instr->hasLink()) {
-                        auto old = instr->getLink();
-
-                        auto sym = symbolList->find(old->getTargetAddress());
-                        if(!sym) continue;
-
-                        Function *target = 0;
-                        for(auto f2 : functionList) {
-                            if(f2->getName() == sym->getName()) {
-                                target = f2;
-                                break;
-                            }
-                        }
-                        if(!target) continue;
-
-                        std::cout << "FOUND REFERENCE from " << f->getName() << " -> " << target->getName() << std::endl;
-
-                        instr->makeLink(
-                            old->getSource()->getOffset(),
-                            new RelativePosition(target, 0));
-                    }
-                }
-            }
-        }
-
+#if 1
         auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
         Sandbox *sandbox = new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 
         std::cout << "\n=== Copying code into sandbox ===\n";
         for(auto f : functionList) {
-            auto slot = sandbox->allocate(f->getSize());
+            auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
             std::cout << "ALLOC " << slot.getAddress() << " for " << f->getName() << "\n";
-            f->setAddress(slot.getAddress());
-            //f->assignTo(new Slot(slot));
+            f->getPosition()->set(slot.getAddress());
         }
         for(auto f : functionList) {
+            char *output = reinterpret_cast<char *>(f->getAddress());
             std::cout << "writing out " << f->getName() << "\n";
-            f->writeTo(sandbox);
-        }
-        sandbox->finalize();
-
-        for(auto f : functionList) {
-            std::cout << "---[" << f->getName() << "]---\n";
-            for(auto bb : *f) {
-                for(auto instr : *bb) {
-                    std::cout << "    ";
-                    instr->dump();
+            for(auto b : f->getChildren()->getIterable()->iterable()) {
+                for(auto i : b->getChildren()->getIterable()->iterable()) {
+                    //f->writeTo(sandbox);
+                    i->getSemantic()->writeTo(output);
+                    output += i->getSemantic()->getSize();
                 }
             }
         }
+        sandbox->finalize();
 
+        std::cout << "\n=== After generating new positions ===\n";
+        module->accept(&dumper);
 #if 1
         for(auto f : functionList) {
             if(f->getName() == "main") {
