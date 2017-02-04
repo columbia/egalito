@@ -148,7 +148,7 @@ void examineElf(ElfMap *elf) {
         LOG(2, "inner search returns instr " << inner);
         if(auto i = dynamic_cast<Instruction *>(inner)) {
             LOG(2, "    found instruction!!");
-            if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+            if(dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
                 LOG(2, "    (duplicate of control flow)");
             }
             else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {

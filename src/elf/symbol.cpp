@@ -213,7 +213,7 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
             address_t address = sym->st_value;
             size_t size = sym->st_size;
             const char *name = elfmap->getDynstrtab() + sym->st_name;
-            auto index = sym->st_shndx;
+            //auto index = sym->st_shndx;
 
             Symbol *symbol = new Symbol{address, size, name};
             CLOG0(1, "dynamic symbol #%d, index %d, [%s]\n",

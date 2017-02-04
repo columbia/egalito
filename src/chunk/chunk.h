@@ -30,7 +30,7 @@ public:
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
-    virtual ChunkList *getChildren() = 0;
+    virtual ChunkList *getChildren() const = 0;
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
     virtual size_t getSize() const = 0;
@@ -58,7 +58,7 @@ public:
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
-    virtual ChunkList *getChildren() { return nullptr; }
+    virtual ChunkList *getChildren() const { return nullptr; }
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
     virtual size_t getSize() const { return 0; }
@@ -73,9 +73,9 @@ public:
 template <typename ChunkType, typename ChildType>
 class ChildListDecorator : public ChunkType {
 private:
-    ChunkListImpl<ChildType> childList;
+    mutable ChunkListImpl<ChildType> childList;
 public:
-    virtual ChunkListImpl<ChildType> *getChildren() { return &childList; }
+    virtual ChunkListImpl<ChildType> *getChildren() const { return &childList; }
 };
 
 template <typename ChunkType>
