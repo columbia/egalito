@@ -11,8 +11,9 @@
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "chunk/disassemble.h"
-#include "chunk/resolve.h"
+#include "chunk/find.h"
 #include "chunk/dump.h"
+#include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "transform/sandbox.h"
 #include "break/signals.h"
@@ -127,15 +128,37 @@ void examineElf(ElfMap *elf) {
         functionList.push_back(function);
     }
 
-    ChunkResolver resolver(functionList);
+    ResolveCalls resolver;
     module->accept(&resolver);
 
     ChunkDumper dumper;
     module->accept(&dumper);
 
+    module->getChildren()->createNamed();
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-    module->getChildren()->setNamed(new NamedChunkList<Function>());
-    module->getChildren()->setSpatial(new SpatialChunkList<Function>());
+    for(auto r : *relocList) {
+        if(!r->getSymbol()) continue;
+
+        Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
+        if(!target) continue;
+        LOG(2, "FOUND RELOCATION from "
+            << r->getAddress() << " -> " << target->getName());
+
+        Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
+        LOG(2, "inner search returns instr " << inner);
+        if(auto i = dynamic_cast<Instruction *>(inner)) {
+            LOG(2, "    found instruction!!");
+            if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+                LOG(2, "    (duplicate of control flow)");
+            }
+            else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
+                auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
+                ri->setLink(new NormalLink(target));
+                i->setSemantic(ri);
+            }
+        }
+    }
+#if 0
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
         Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
@@ -147,11 +170,9 @@ void examineElf(ElfMap *elf) {
             if(f) {
                 LOG(2, "    inside function " << f->getName());
 
-                f->getChildren()->setSpatial(new SpatialChunkList<Block>());
                 auto b = f->getChildren()->getSpatial()->findContaining(r->getAddress());
                 if(b) {
                     LOG(2, "    inside block " << b->getName());
-                    b->getChildren()->setSpatial(new SpatialChunkList<Instruction>());
                     auto i = b->getChildren()->getSpatial()->findContaining(r->getAddress());
                     if(i) {
                         LOG(2, "    found instruction!!");
@@ -168,6 +189,7 @@ void examineElf(ElfMap *elf) {
             }
         }
     }
+#endif
 
     ResolveRelocs resolveRelocs(relocList);
     module->accept(&resolveRelocs);

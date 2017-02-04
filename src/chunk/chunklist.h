@@ -36,11 +36,13 @@ public:
 
     virtual void add(ChildType *child);
     virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
-    virtual SpatialChunkList<ChildType> *getSpatial() { return spatial; }
-    virtual NamedChunkList<ChildType> *getNamed() { return named; }
+    virtual SpatialChunkList<ChildType> *getSpatial() { if(!spatial) createSpatial(); return spatial; }
+    virtual NamedChunkList<ChildType> *getNamed() { if(!named) createNamed(); return named; }
 
-    void setSpatial(SpatialChunkList<ChildType> *s) { spatial = s; for(auto c : iterable.iterable()) { spatial->add(c); } }
-    void setNamed(NamedChunkList<ChildType> *n) { named = n; for(auto c : iterable.iterable()) { named->add(c); } }
+    void createSpatial();
+    void createNamed();
+    void clearSpatial() { delete spatial; spatial = nullptr; }
+    void clearNamed() { delete named; named = nullptr; }
 };
 
 template <typename ChildType>
@@ -48,6 +50,18 @@ void ChunkListImpl<ChildType>::add(ChildType *child) {
     iterable.add(child);
     if(spatial) spatial->add(child);
     if(named) named->add(child);
+}
+
+template <typename ChildType>
+void ChunkListImpl<ChildType>::createSpatial() {
+    spatial = new SpatialChunkList<ChildType>();
+    for(auto c : iterable.iterable()) spatial->add(c);
+}
+
+template <typename ChildType>
+void ChunkListImpl<ChildType>::createNamed() {
+    named = new NamedChunkList<ChildType>();
+    for(auto c : iterable.iterable()) named->add(c);
 }
 
 template <typename ChildType>

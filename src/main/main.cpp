@@ -8,7 +8,7 @@
 #include "chunk/chunk.h"
 #include "chunk/disassemble.h"
 #include "chunk/dump.h"
-#include "chunk/resolve.h"
+#include "pass/resolvecalls.h"
 #include "transform/sandbox.h"
 #include "log/registry.h"
 
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
             functionList.push_back(function);
         }
 
-        ChunkResolver resolver(functionList);
+        ResolveCalls resolver;
         module->accept(&resolver);
 
         ChunkDumper dumper;

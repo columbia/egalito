@@ -21,6 +21,7 @@ void ResolveRelocs::visit(Instruction *instruction) {
                         << " to GOT " << got_location
                         << " i.e. [" << found->getSymbolName() << "]");
                     v->setLink(new PLTLink(address, found));
+                    delete link;
                 }
             }
         }
