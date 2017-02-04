@@ -13,8 +13,8 @@ public:
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
 private:
-    void addInstructions(Function *chunk);
-    void insertAt(Block *block, int index, Instruction *instruction);
+    void addInstructions(Block *block, size_t index);
+    void insertAt(Block *block, size_t index, Instruction *instruction);
 };
 
 #endif

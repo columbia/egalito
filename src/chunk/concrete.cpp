@@ -15,12 +15,14 @@ std::string Module::getName() const {
 
 std::string Block::getName() const {
     std::ostringstream stream;
-    if(getParent() && getParent()->getName() != "???") {
-        stream << getParent()->getName() << "/";
+    if(getParent()) {
+        if(getParent()->getName() != "???") {
+            stream << getParent()->getName() << "/";
+        }
+
+        stream << "bb+" << (getAddress() - getParent()->getAddress());
     }
-    if(auto p = dynamic_cast<RelativePosition *>(getPosition())) {
-        stream << "bb+" << p->getOffset();
-    }
+    else stream << "bb-anonymous";
     return stream.str();
 }
 

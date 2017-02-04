@@ -314,8 +314,10 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
             block->setParent(function);
             function->addToSize(block->getSize());
 
+            Block *oldBlock = block;
             block = new Block();
-            block->setPosition(new RelativePosition(block, function->getSize()));
+            //block->setPosition(new RelativePosition(block, function->getSize()));
+            block->setPosition(new SubsequentPosition(oldBlock));
         }
     }
 

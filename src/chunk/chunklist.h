@@ -81,7 +81,17 @@ public:
     void insertAt(size_t index, ChildType *child)
         { childList.insert(childList.begin() + index, child); }
     size_t getCount() const { return childList.size(); }
+    size_t indexOf(ChildType *child);
 };
+
+template <typename ChildType>
+size_t IterableChunkList<ChildType>::indexOf(ChildType *child) {
+    for(size_t i = 0; i < childList.size(); i ++) {
+        if(child == childList[i]) return i;
+    }
+
+    return static_cast<size_t>(-1);
+}
 
 template <typename ChildType>
 class SpatialChunkList {
