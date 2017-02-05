@@ -10,9 +10,9 @@
 #include "elf/auxv.h"
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
-#include "chunk/disassemble.h"
 #include "chunk/find.h"
 #include "chunk/dump.h"
+#include "disasm/disassemble.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
@@ -23,8 +23,6 @@
 #include "break/breakpoint.h"
 #include "log/registry.h"
 #include "log/log.h"
-
-#include <elf.h>
 
 extern address_t entry;
 extern "C" void _start2(void);

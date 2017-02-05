@@ -1,10 +1,4 @@
-#include <iostream>  // for debugging
-#include <sstream>
-#include <cstring>  // for memcpy
-#include <cassert>
 #include "chunk.h"
-#include "disassemble.h"
-#include "transform/sandbox.h"
 #include "log/log.h"
 
 void ChunkImpl::setSize(size_t newSize) {

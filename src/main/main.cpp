@@ -3,12 +3,12 @@
 #include <algorithm>  // for std::max
 #include <cstdio>
 #include <cstring>
-#include "main.h"
+
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
-#include "chunk/disassemble.h"
 #include "chunk/dump.h"
+#include "disasm/disassemble.h"
 #include "pass/resolvecalls.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"

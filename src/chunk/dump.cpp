@@ -1,7 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdio>
-#include "disassemble.h"
+#include "disasm/dump.h"
 #include "elf/reloc.h"  // for dumping PLTLink
 #include "dump.h"
 
@@ -65,9 +65,9 @@ void ChunkDumper::visit(Instruction *instruction) {
             else name << "(JUMP " << p->getMnemonic() << ")";
 
             std::string bytes = instruction->getSemantic()->getData();
-            std::string bytes2 = Disassemble::formatBytes(bytes.c_str(), bytes.size());
+            std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
-            Disassemble::printInstructionRaw(instruction->getAddress(),
+            DisasmDump::printInstructionRaw(instruction->getAddress(),
                 pos,
                 name.str().c_str(),
                 link ? link->getTargetAddress() : 0,
@@ -82,7 +82,7 @@ void ChunkDumper::visit(Instruction *instruction) {
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
-            Disassemble::printInstruction(ins, pos, target->getName().c_str());
+            DisasmDump::printInstruction(ins, pos, target->getName().c_str());
             return;
         }
     }
@@ -90,5 +90,5 @@ void ChunkDumper::visit(Instruction *instruction) {
     // !!! we shouldn't need to modify the addr inside a dump function
     // !!! this is just to keep the cs_insn up-to-date
     ins->address = instruction->getAddress();
-    Disassemble::printInstruction(ins, pos, target);
+    DisasmDump::printInstruction(ins, pos, target);
 }

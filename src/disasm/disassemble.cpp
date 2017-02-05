@@ -3,6 +3,7 @@
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include "disassemble.h"
+#include "dump.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/instruction.h"
@@ -28,73 +29,6 @@ Disassemble::Handle::Handle(bool detailed) {
 Disassemble::Handle::~Handle() {
     cs_close(&handle);
 }
-
-std::string Disassemble::formatBytes(const char *bytes, size_t size) {
-    IF_LOG(10) {
-        char buffer[16*3 + 1];
-        size_t pos = 0;
-        for(size_t i = 0; i < size; i ++) {
-            pos += sprintf(buffer + pos, "%02x ", (unsigned)bytes[i] & 0xff);
-        }
-        return std::string(buffer);
-    }
-
-    return std::string();
-}
-
-void Disassemble::printInstruction(cs_insn *instr, int offset,
-    const char *name) {
-
-    // show disassembly of each instruction
-    std::string rawDisasm = formatBytes(
-        reinterpret_cast<const char *>(instr->bytes), instr->size);
-
-    printInstructionRaw(instr->address, offset, instr->mnemonic,
-        instr->op_str, name, rawDisasm);
-}
-
-void Disassemble::printInstructionRaw(unsigned long address, int offset,
-    const char *opcode, unsigned long target, const char *name,
-    const std::string &rawDisasm) {
-
-    char targetString[64];
-    sprintf(targetString, "0x%lx", target);
-
-    printInstructionRaw(address, offset, opcode, targetString, name, rawDisasm);
-}
-
-#define APPEND(...) \
-    pos += std::snprintf(buffer + pos, sizeof buffer - pos, __VA_ARGS__)
-void Disassemble::printInstructionRaw(unsigned long address, int offset,
-    const char *opcode, const char *args, const char *name,
-    const std::string &rawDisasm) {
-
-    char buffer[1024];
-    size_t pos = 0;
-
-    IF_LOG(10) {
-        const int displaySize = 10 * 3;
-        APPEND("%-*s ", displaySize, rawDisasm.size() ? rawDisasm.c_str() : "---");
-    }
-
-    APPEND("0x%08lx", address);
-
-    if(offset != INT_MIN) {
-        APPEND(" <+%3d>: ", offset);
-    }
-    else {
-        APPEND(":        ");
-    }
-
-    APPEND(" %-12s %-20s", opcode, args);
-
-    if(name) {
-        APPEND("<%s>", name);
-    }
-
-    std::printf("%s\n", buffer);
-}
-#undef APPEND
 
 void Disassemble::debug(const uint8_t *code, size_t length,
     address_t realAddress, SymbolList *symbolList) {
@@ -132,7 +66,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
         }
 #endif
 
-        IF_LOG(3) printInstruction(&insn[j], INT_MIN, name);
+        IF_LOG(3) DisasmDump::printInstruction(&insn[j], INT_MIN, name);
     }
 
     cs_free(insn, count);
@@ -156,8 +90,6 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
-        auto instr = new Instruction();
-        InstructionSemantic *semantic = nullptr;
 
 #ifdef ARCH_X86_64
         // check if this instruction ends the current basic block
@@ -192,107 +124,9 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
         //exception generation instructions don't require split
 #endif
 
-        cs_detail *detail = ins->detail;
-#ifdef ARCH_X86_64
-        cs_x86 *x = &detail->x86;
-#elif defined(ARCH_AARCH64)
-        cs_arm64 *x = &detail->arm64;
-#endif
-        if(x->op_count > 0) {
-            for(size_t p = 0; p < x->op_count; p ++) {
-#ifdef ARCH_X86_64
-                cs_x86_op *op = &x->operands[p];
-                if(op->type == X86_OP_IMM) {
-#elif defined(ARCH_AARCH64)
-                cs_arm64_op *op = &x->operands[p];
-                if(op->type == ARM64_OP_IMM) {
-#endif
-                    //CLOG0(3, "    immediate operand in ");
-                    //IF_LOG(3) printInstruction(ins);
+        // Create Instruction from cs_insn
+        auto instr = Disassemble::instruction(ins, handle, true);
 
-#ifdef ARCH_X86_64
-                    if(ins->id == X86_INS_CALL) {
-                        unsigned long imm = op->imm;
-                        auto cfi = new ControlFlowInstruction(instr,
-                            std::string((char *)ins->bytes,
-                            ins->size - 4),
-                            ins->mnemonic,
-                            4);
-                        cfi->setLink(new UnresolvedLink(imm));
-                        semantic = cfi;
-                    }
-                    else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-
-#if 0
-                        if(op->size <= ins->size) {
-                            unsigned long imm = op->imm;
-                            auto cfi = new ControlFlowInstruction(instr,
-                                std::string((char *)ins->bytes,
-                                ins->size - op->size),
-                                ins->mnemonic,
-                                op->size);
-                            cfi->setLink(new UnresolvedLink(imm));
-                            semantic = cfi;
-                        }
-                        else {
-                            std::cout << "total size " << ins->size
-                                << ", op size " << (int)op->size << std::endl;
-                            printInstruction(ins, "BUG", 0);
-                        }
-#else
-                        // !!! should subtract op->size,
-                        // !!! can't right now due to bug in capstone
-                        size_t use = ins->size /* - op->size*/;
-                        unsigned long imm = op->imm;
-                        auto cfi = new ControlFlowInstruction(instr,
-                            std::string((char *)ins->bytes, use),
-                            ins->mnemonic,
-                            /*op->size*/ 0);
-                        cfi->setLink(new UnresolvedLink(imm));
-                        semantic = cfi;
-#endif
-                    }
-#elif defined(ARCH_AARCH64)
-                    if(ins->id == ARM64_INS_BL) {
-                        unsigned long imm = op->imm;
-                        auto cfi = new ControlFlowInstruction(instr,
-                            std::string((char *)ins->bytes,
-                            ins->size - 4),
-                            ins->mnemonic,
-                            4);
-                        cfi->setLink(new UnresolvedLink(imm));
-                        semantic = cfi;
-                    }
-                    else if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
-                        size_t use = ins->size /* - op->size*/;
-                        unsigned long imm = op->imm;
-                        auto cfi = new ControlFlowInstruction(instr,
-                            std::string((char *)ins->bytes, use),
-                            ins->mnemonic,
-                            /*op->size*/ 0);
-                        cfi->setLink(new UnresolvedLink(imm));
-                        semantic = cfi;
-                    }
-#endif
-                }
-            }
-        }
-
-        if(!semantic) {
-#if 1
-            semantic = new DisassembledInstruction(*ins);
-#else
-            if(split) {
-                semantic = new DisassembledInstruction(*ins);
-            }
-            else {
-                std::string raw;
-                raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
-                semantic = new RawInstruction(raw);
-            }
-#endif
-        }
-        instr->setSemantic(semantic);
         //instr->setPosition(new RelativePosition(instr, block->getSize()));
         //instr->setPosition(new SubsequentPosition(instr, block->getSize()));
         if(block->getChildren()->getIterable()->getCount() > 0) {
@@ -370,9 +204,6 @@ cs_insn Disassemble::getInsn(const std::vector<unsigned char> &str, address_t ad
 Instruction *Disassemble::instruction(
     const std::vector<unsigned char> &bytes, bool details, address_t address) {
 
-    auto instr = new Instruction();
-    InstructionSemantic *semantic = nullptr;
-
     Handle handle(true);
     cs_insn *ins;
     if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
@@ -380,6 +211,13 @@ Instruction *Disassemble::instruction(
 
         throw "Invalid instruction opcode string provided\n";
     }
+
+    return instruction(ins, handle, details);
+}
+
+Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details) {
+    auto instr = new Instruction();
+    InstructionSemantic *semantic = nullptr;
 
     cs_detail *detail = ins->detail;
 #ifdef ARCH_X86_64
@@ -409,7 +247,6 @@ Instruction *Disassemble::instruction(
                     semantic = cfi;
                 }
                 else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-
                     // !!! should subtract op->size,
                     // !!! can't right now due to bug in capstone
                     size_t use = ins->size /* - op->size*/;

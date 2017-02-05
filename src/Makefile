@@ -34,8 +34,8 @@ ENDFILES = `gcc --print-file-name=crtend.o` $(GLIBCDIR)/crtn.o
 
 BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
+DISASM_SOURCES      = $(wildcard disasm/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
-TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 LOAD_SOURCES        = $(wildcard load/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
@@ -45,8 +45,9 @@ endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
+TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 
-SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES) $(PASS_SOURCES)
+SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES)
 TYPICAL_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES:.s=.o)))
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))

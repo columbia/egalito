@@ -1,5 +1,5 @@
 #include "stackxor.h"
-#include "chunk/disassemble.h"
+#include "disasm/disassemble.h"
 
 void StackXOR::visit(Function *function) {
     addInstructions(function->getChildren()->getIterable()->get(0), 0);
