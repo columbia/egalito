@@ -43,7 +43,7 @@ void Generator::jumpToSandbox(Sandbox *sandbox, Module *module) {
     auto f = module->getChildren()->getNamed()->find("main");
     if(!f) return;
 
-    LOG(1, "main is at " << std::hex << f->getAddress());
+    LOG(1, "jumping to main at " << std::hex << f->getAddress());
     int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
 
     int argc = 1;

@@ -41,6 +41,7 @@ Chunk *ChunkFind::findImpl(RootType *root, address_t target,
         return findImpl(child, target, compositeContains, instructionContains);
     }
 
+    if(!root->getPosition()) return nullptr;
     if(compositeContains) {
         return (root->getRange().contains(target) ? root : nullptr);
     }

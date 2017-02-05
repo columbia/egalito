@@ -27,22 +27,9 @@ int main(int argc, char *argv[]) {
         ElfMap elf(argv[1]);
         SymbolList *symbolList = SymbolList::buildSymbolList(&elf);
 
-        auto baseAddr = elf.getCopyBaseAddress();
-#if 0
-        std::cout << "\n=== Initial code disassembly ===\n";
-
-        for(auto sym : *symbolList) {
-            std::cout << "---[" << sym->getName() << "]---\n";
-            auto addr = sym->getAddress();
-            std::cout << "addr " << std::hex << addr
-                << " -> " << std::hex << addr + baseAddr << "\n";
-            Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
-                symbolList);
-        }
-#endif
-
         std::cout << "\n=== Creating internal data structures ===\n";
 
+        auto baseAddr = elf.getCopyBaseAddress();
         Module *module = new Module();
         std::vector<Function *> functionList;
         for(auto sym : *symbolList) {

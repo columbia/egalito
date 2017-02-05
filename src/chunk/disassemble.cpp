@@ -94,6 +94,7 @@ void Disassemble::printInstructionRaw(unsigned long address, int offset,
 
     std::printf("%s\n", buffer);
 }
+#undef APPEND
 
 void Disassemble::debug(const uint8_t *code, size_t length,
     address_t realAddress, SymbolList *symbolList) {

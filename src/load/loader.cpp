@@ -15,6 +15,7 @@
 #include "chunk/dump.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
+#include "pass/funcptrs.h"
 #include "pass/stackxor.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
@@ -103,30 +104,14 @@ void examineElf(ElfMap *elf) {
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
     SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
 
-    auto baseAddr = elf->getCopyBaseAddress();
-#if 0
-    LOG(1, "");
-    LOG(1, "=== Initial code disassembly ===");
-
-    for(auto sym : *symbolList) {
-        LOG(2, "---[" << sym->getName() << "]---");
-        auto addr = sym->getAddress();
-        LOG(2, "addr " << std::hex << addr
-            << " -> " << std::hex << addr + baseAddr);
-        Disassemble::debug((uint8_t *)(addr + baseAddr), sym->getSize(), addr,
-            symbolList);
-    }
-#endif
-
     LOG(1, "");
     LOG(1, "=== Creating internal data structures ===");
 
+    auto baseAddr = elf->getCopyBaseAddress();
     Module *module = new Module();
-    std::vector<Function *> functionList;
     for(auto sym : *symbolList) {
         Function *function = Disassemble::function(sym, baseAddr, symbolList);
         module->getChildren()->add(function);
-        functionList.push_back(function);
     }
 
     ResolveCalls resolver;
@@ -135,32 +120,12 @@ void examineElf(ElfMap *elf) {
     ChunkDumper dumper;
     module->accept(&dumper);
 
-    module->getChildren()->createNamed();
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-    for(auto r : *relocList) {
-        if(!r->getSymbol()) continue;
 
-        Function *target = module->getChildren()->getNamed()->find(r->getSymbol()->getName());
-        if(!target) continue;
-        LOG(2, "FOUND RELOCATION from "
-            << r->getAddress() << " -> " << target->getName());
+    FuncptrsPass funcptrsPass(relocList);
+    module->accept(&funcptrsPass);
 
-        Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
-        LOG(2, "inner search returns instr " << inner);
-        if(auto i = dynamic_cast<Instruction *>(inner)) {
-            LOG(2, "    found instruction!!");
-            if(dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
-                LOG(2, "    (duplicate of control flow)");
-            }
-            else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-                auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
-                ri->setLink(new NormalLink(target));
-                i->setSemantic(ri);
-            }
-        }
-    }
-
-    ResolveRelocs resolveRelocs(relocList);
+    ResolveRelocs resolveRelocs(relocList);  // PLT detection
     module->accept(&resolveRelocs);
 
     module->accept(&dumper);
