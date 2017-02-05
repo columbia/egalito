@@ -46,7 +46,6 @@ int main(int argc, char *argv[]) {
 
     Signals::registerHandlers();
 
-#if 1
     try {
         ElfMap *elf = new ElfMap(argv[1]);
         ElfMap *interpreter = nullptr;
@@ -92,7 +91,6 @@ int main(int argc, char *argv[]) {
         if(*s && s[std::strlen(s) - 1] != '\n') std::cerr << '\n';
         return 1;
     }
-#endif
 
     return 0;
 }

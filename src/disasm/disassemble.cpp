@@ -56,7 +56,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 #elif defined(ARCH_AARCH64)
         if(symbolList && insn[j].id == ARM64_INS_BL) {
             cs_arm64_op *op = &insn[j].detail->arm64.operands[0];
-            if (op->type == ARM64_OP_IMM) {
+            if(op->type == ARM64_OP_IMM) {
                 unsigned long imm = op->imm;
                 auto sym = symbolList->find(imm);
                 if(sym) {
@@ -171,21 +171,6 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
     return function;
 }
 
-cs_insn Disassemble::getInsn(std::string str, address_t address) {
-    Handle handle(true);
-
-    cs_insn *insn;
-    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
-        address, 0, &insn) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
-
-    cs_insn ret = *insn;
-    cs_free(insn, 1);
-    return ret;
-}
-
 cs_insn Disassemble::getInsn(const std::vector<unsigned char> &str, address_t address) {
     Handle handle(true);
 
@@ -297,8 +282,4 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     instr->setSemantic(semantic);
 
     return instr;
-}
-
-void Disassemble::relocateInstruction(cs_insn *instr, address_t newAddress) {
-    instr->address = newAddress;
 }

@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         if(0) {
 #ifdef ARCH_X86_64
             auto bb = functionList[3]->getChildren()->getIterable()->get(1);
-            Instruction *cc = new Instruction(new DisassembledInstruction(Disassemble::getInsn("\xcc")));
+            Instruction *cc = new Instruction(new DisassembledInstruction(Disassemble::getInsn({0xcc})));
             //cc->setPosition(new RelativePosition(cc, 0));
             cc->setPosition(new SubsequentPosition(bb->getChildren()->getIterable()->get(0)));
             bb->getChildren()->getIterable()->insertAt(1, cc);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             auto bb = func->getChildren()->getIterable()->get(1);
-            Instruction *brk = new Instruction(new DisassembledInstruction(Disassemble::getInsn("\x20\x20\x20\xd4"))); //dummy imm. needed for string
+            Instruction *brk = new Instruction(new DisassembledInstruction(Disassemble::getInsn({0x20, 0x20, 0x20, 0xd4}))); //dummy imm. needed for string
             brk->setPosition(new SubsequentPosition(bb->getChildren()->getIterable()->get(0)));
             bb->getChildren()->getIterable()->insertAt(1, brk);
             bb->getChildren()->getIterable()->get(2)->setPosition(

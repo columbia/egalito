@@ -15,7 +15,6 @@ void ChunkDumper::visit(Function *function) {
 }
 
 void ChunkDumper::visit(Block *block) {
-    //std::cout << ".block:\n";
     std::cout << block->getName() << ":\n";
     recurse(block);
 }
