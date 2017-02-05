@@ -5,6 +5,7 @@
 #include "usage.h"
 #include "segmap.h"
 #include "elf/elfmap.h"
+#include "elf/elfdynamic.h"
 #include "elf/symbol.h"
 #include "elf/reloc.h"
 #include "elf/auxv.h"
@@ -52,6 +53,9 @@ int main(int argc, char *argv[]) {
         if(elf->hasInterpreter()) {
             interpreter = new ElfMap(elf->getInterpreter());
         }
+
+        ElfDynamic dynamic;
+        dynamic.parse(elf);
 
         // set base addresses and map PT_LOAD sections into memory
         const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
