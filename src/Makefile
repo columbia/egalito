@@ -25,6 +25,8 @@ endif
 
 ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
 	GLIBCDIR = /usr/lib/x86_64-linux-gnu
+else ifneq (,$(wildcard /usr/lib/aarch64-linux-gnu))
+	GLIBCDIR = /usr/lib/aarch64-linux-gnu
 else ifneq (,$(wildcard /usr/lib64))
 	GLIBCDIR = /usr/lib64
 endif

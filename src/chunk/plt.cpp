@@ -54,7 +54,47 @@ void PLTSection::parse(ElfMap *elf) {
         }
     }
 #else
-    #error "Not yet implemented, PLT detection for ARM"
+    static const size_t ENTRY_SIZE = 16;
+
+    /* example format
+        0000000000400420 <puts@plt>:
+        400420:       90000090        adrp    x16, 410000 <__FRAME_END__+0xf9c8>
+        400424:       f9443611        ldr     x17, [x16,#2152]
+        400428:       9121a210        add     x16, x16, #0x868
+        40042c:       d61f0220        br      x17
+    */
+
+    // note: we skip the first PLT entry, which is 2x the size of others
+    for(size_t i = 2 * ENTRY_SIZE; i < header->sh_size; i += ENTRY_SIZE) {
+        auto entry = section + i;
+
+        LOG(1, "CONSIDER PLT entry at " << entry);
+        LOG(1, "1st instr is " << (int)*reinterpret_cast<const unsigned int *>(entry));
+        LOG(1, "2nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*1));
+        LOG(1, "3nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*2));
+        LOG(1, "4th instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*3));
+
+#if 0
+        if((*reinterpret_cast<const unsigned char *>(entry) & 0x9f) == 0x90) {
+            address_t pltAddress = header->sh_addr + i;
+            unsigned int bytes = *reinterpret_cast<const unsigned int *>(entry);
+            address_t value = ((bytes >> 8) & ((1 << 19) - 1))  // bits 5-24
+                | ((bytes >> 1) & ((1 << 2) - 1));  // bits 29-31
+            value <<= 12;
+            LOG(1, "VALUE might be " << value);
+            address_t value = *reinterpret_cast<const unsigned int *>(entry + 2)
+                + (pltAddress + 2+4);  // target is RIP-relative
+            LOG(1, "PLT value would be " << value);
+            Reloc *r = registry->find(value);
+            if(r) {
+                LOG(1, "Found PLT entry at " << pltAddress << " -> ["
+                    << r->getSymbol()->getName() << "]");
+                entryMap[pltAddress] = new PLTEntry(
+                    pltAddress, r->getSymbol());
+            }
+        }
+#endif
+    }
 #endif
 }
 
