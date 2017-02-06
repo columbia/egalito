@@ -3,7 +3,12 @@
 #include "log/log.h"
 
 std::string PLTEntry::getName() const {
-    return getTargetSymbol()->getName() + std::string("@plt");
+    if(getTargetSymbol()) {
+        return getTargetSymbol()->getName() + std::string("@plt");
+    }
+    else {
+        return "???@plt";
+    }
 }
 
 void PLTSection::parse(ElfMap *elf) {
@@ -12,7 +17,9 @@ void PLTSection::parse(ElfMap *elf) {
 
     PLTRegistry *registry = new PLTRegistry();
     for(auto r : *relocList) {
-        if(r->getType() == R_X86_64_JUMP_SLOT) {
+        if(r->getType() == R_X86_64_JUMP_SLOT
+            || r->getType() == R_AARCH64_JUMP_SLOT) {
+
             LOG(1, "PLT entry at " << r->getAddress());
             registry->add(r->getAddress(), r);
         }
@@ -74,26 +81,29 @@ void PLTSection::parse(ElfMap *elf) {
         LOG(1, "3nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*2));
         LOG(1, "4th instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*3));
 
-#if 0
         if((*reinterpret_cast<const unsigned char *>(entry) & 0x9f) == 0x90) {
             address_t pltAddress = header->sh_addr + i;
             unsigned int bytes = *reinterpret_cast<const unsigned int *>(entry);
-            address_t value = ((bytes >> 8) & ((1 << 19) - 1))  // bits 5-24
-                | ((bytes >> 1) & ((1 << 2) - 1));  // bits 29-31
+
+            address_t value = ((bytes & 0x60000000) >> 29)  // 2 low-order bits
+                | ((bytes & 0xffffe0) >> (5-2));  // 19 high-order bits
             value <<= 12;
+            value += (pltAddress + 4) & ~0xfff;  // skip to end of instruction
+
+            unsigned int bytes2 = *reinterpret_cast<const unsigned int *>(entry + 4);
+
+            address_t value2 = ((bytes2 & 0x3ffc00) >> 10) << ((bytes2 & 0xc0000000) >> 30);
+            value += value2;
+
             LOG(1, "VALUE might be " << value);
-            address_t value = *reinterpret_cast<const unsigned int *>(entry + 2)
-                + (pltAddress + 2+4);  // target is RIP-relative
-            LOG(1, "PLT value would be " << value);
             Reloc *r = registry->find(value);
             if(r) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
-                    << r->getSymbol()->getName() << "]");
+                    << r->getSymbolName() << "]");
                 entryMap[pltAddress] = new PLTEntry(
                     pltAddress, r->getSymbol());
             }
         }
-#endif
     }
 #endif
 }
