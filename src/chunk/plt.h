@@ -8,19 +8,31 @@
 class Chunk;
 class Symbol;
 
-/*class PLT {
+class PLTEntry {
 private:
     address_t entry;
     Chunk *target;
     Symbol *targetSymbol;
 public:
-    PLT(address_t entry, Symbol *targetSymbol)
+    PLTEntry(address_t entry, Symbol *targetSymbol)
         : entry(entry), target(nullptr), targetSymbol(targetSymbol) {}
 
     address_t getAddress() const { return entry; }
     Chunk *getTarget() const { return target; }
     Symbol *getTargetSymbol() const { return targetSymbol; }
-};*/
+    std::string getName() const;
+};
+
+class PLTSection {
+private:
+    RelocList *relocList;
+    std::map<address_t, PLTEntry *> entryMap;
+public:
+    PLTSection(RelocList *relocList) : relocList(relocList) {}
+    void parse(ElfMap *elf);
+
+    PLTEntry *find(address_t address);
+};
 
 class PLTRegistry {
 private:

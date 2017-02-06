@@ -21,7 +21,7 @@ void ElfDynamic::parse(ElfMap *elf) {
         if(type == DT_NEEDED) {
             auto library = strtab + value;
             LOG(1, "    depends on shared library [" << library << "]");
-            sharedLibraryList.push_back(library);
+            libraryList.push_back(library);
         }
         else if(type == DT_RPATH) {
             this->rpath = strtab + value;
@@ -119,12 +119,14 @@ void ElfDynamic::resolveLibraries() {
 
     parseLdConfig("/etc/ld.so.conf", searchPath);
 
-    for(auto &library : sharedLibraryList) {
+    for(auto &library : libraryList) {
         if(library[0] == '/') {
             LOG(1, "    library at [" << library << "]");
+            processLibrary(library, library.substr(library.rfind('/') + 1));
             continue;
         }
 
+        bool found = false;
         for(auto path : searchPath) {
             LOG(2, "        search [" << path << "]");
             std::string fullPath = path + "/" + library;
@@ -132,8 +134,17 @@ void ElfDynamic::resolveLibraries() {
             if(file.is_open() && isValidElf(file)) {
                 file.close();
                 LOG(1, "    library at [" << fullPath << "]");
+                processLibrary(fullPath, library);
+                found = true;
                 break;
             }
         }
+        if(!found) {
+            LOG(0, "WARNING: can't find shared library [" << library << "] in search path");
+        }
     }
+}
+
+void ElfDynamic::processLibrary(const std::string &fullPath, const std::string &filename) {
+    LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
 }

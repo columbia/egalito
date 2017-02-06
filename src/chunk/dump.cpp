@@ -2,7 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include "disasm/dump.h"
-#include "elf/reloc.h"  // for dumping PLTLink
+#include "chunk/plt.h"  // for dumping PLTLink
 #include "dump.h"
 
 void ChunkDumper::visit(Module *module) {
@@ -51,7 +51,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 }
             }
             else if(auto v = dynamic_cast<PLTLink *>(link)) {
-                targetName << "PLT::" << v->getReloc()->getSymbolName();
+                targetName << v->getPLTEntry()->getName();
             }
             else targetName << "[unresolved]";
 

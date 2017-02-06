@@ -11,6 +11,7 @@
 #include "elf/auxv.h"
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
+#include "chunk/plt.h"
 #include "chunk/find.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
@@ -121,11 +122,13 @@ void examineElf(ElfMap *elf) {
     module->accept(&dumper);
 
     RelocList *relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+    PLTSection pltSection(relocList);
+    pltSection.parse(elf);
 
     FuncptrsPass funcptrsPass(relocList);
     module->accept(&funcptrsPass);
 
-    ResolveRelocs resolveRelocs(relocList);  // PLT detection
+    ResolveRelocs resolveRelocs(&pltSection);
     module->accept(&resolveRelocs);
 
     module->accept(&dumper);

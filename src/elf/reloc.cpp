@@ -66,9 +66,15 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
             Elf64_Rela *r = &data[i];
             Symbol *sym = currentSymbolList->get(ELF64_R_SYM(r->r_info));
 
+            address_t address = r->r_offset;
+            auto type = ELF64_R_TYPE(r->r_info);
+            if(type != R_X86_64_JUMP_SLOT) {
+                address += elf->getBaseAddress();
+            }
+
             Reloc *reloc = new Reloc(
-                elf->getBaseAddress() + r->r_offset,    // address
-                ELF64_R_TYPE(r->r_info),                // type
+                address,                                // address
+                type,                                   // type
                 ELF64_R_SYM(r->r_info),                 // symbol index
                 sym,
                 r->r_addend                             // addend

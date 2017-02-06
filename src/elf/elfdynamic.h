@@ -4,12 +4,14 @@
 #include <iosfwd>
 #include <vector>
 #include <string>
+#include "sharedlib.h"
 
 class ElfMap;
 
 class ElfDynamic {
 private:
-    std::vector<std::string> sharedLibraryList;
+    std::vector<std::string> libraryList;
+    std::vector<SharedLib *> sharedLibList;
     const char *rpath;
 public:
     ElfDynamic() : rpath(nullptr) {}
@@ -20,6 +22,7 @@ private:
     bool isValidElf(std::ifstream &file);
     void parseLdConfig(std::string filename,
         std::vector<std::string> &searchPath);
+    void processLibrary(const std::string &fullPath, const std::string &filename);
 };
 
 #endif

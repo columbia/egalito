@@ -25,16 +25,16 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
-class Reloc;
+class PLTEntry;
 class PLTLink : public Link {
 private:
     address_t originalAddress;
-    Reloc *reloc;
+    PLTEntry *pltEntry;
 public:
-    PLTLink(address_t originalAddress, Reloc *reloc)
-        : originalAddress(originalAddress), reloc(reloc) {}
+    PLTLink(address_t originalAddress, PLTEntry *pltEntry)
+        : originalAddress(originalAddress), pltEntry(pltEntry) {}
 
-    Reloc *getReloc() const { return reloc; }
+    PLTEntry *getPLTEntry() const { return pltEntry; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const { return originalAddress; }
 };

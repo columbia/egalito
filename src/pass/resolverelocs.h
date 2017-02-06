@@ -7,14 +7,11 @@
 
 class ResolveRelocs : public ChunkPass {
 private:
-    RelocList *relocList;
+    PLTSection *pltSection;
     PLTRegistry pltRegistry;
 public:
-    ResolveRelocs(RelocList *relocList)
-        : relocList(relocList) { buildRegistry(); }
+    ResolveRelocs(PLTSection *pltSection) : pltSection(pltSection) {}
     virtual void visit(Instruction *instruction);
-private:
-    void buildRegistry();
 };
 
 #endif
