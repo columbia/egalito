@@ -5,6 +5,7 @@ CXX = g++
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 #OPT_FLAGS       = -g -O2
 OPT_FLAGS       = -g -O0
+DEPFLAGS	= -MT '$@ $(@:.o=.d)' -MMD -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = -lcapstone -Wl,-q
@@ -65,21 +66,17 @@ LOADER = loader
 all: $(TARGET) $(LOADER)
 
 # Dependencies
--include depend
-depend: $(ALL_SOURCES) $(shell find -name '*.h')
-	@echo '# generating dependencies'
-	-@$(RM) depend
-	@bash -c 'for file in $(filter %.cpp,$(ALL_SOURCES)); do \
-		$(CXX) $(CXXFLAGS) -MM -MT $${file/.cpp/.o} $$file >> depend ; \
-	done'
+-include $(addsuffix .d,$(basename $(ALL_SOURCES)))
 
 # Rules
 %.o: %.s
 	$(CC) -fPIC -c $^ -o $@
+%.o: %.S
+	$(CC) -fPIC $(DEPFLAGS) -c $^ -o $@
 %.o: %.c
-	$(CC) $(CFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Special files
 load/usage.o: load/usage.cpp
