@@ -1,10 +1,12 @@
 #include <iostream>
 #include <sstream>
-#include "elfmap.h"
+
 #include <elf.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#include "elfmap.h"
 
 ElfMap::ElfMap(pid_t pid) {
     std::ostringstream stream;

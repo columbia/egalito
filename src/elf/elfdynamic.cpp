@@ -147,4 +147,25 @@ void ElfDynamic::resolveLibraries() {
 
 void ElfDynamic::processLibrary(const std::string &fullPath, const std::string &filename) {
     LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
+
+    ElfMap elf(fullPath.c_str());
+    auto buildIdHeader = static_cast<Elf64_Shdr *>(elf.findSectionHeader(".note.gnu.build-id"));
+    if(buildIdHeader) {
+        auto section = reinterpret_cast<address_t>(elf.findSection(".note.gnu.build-id"));
+        auto note = reinterpret_cast<Elf64_Nhdr *>(section);
+        auto sectionEnd = reinterpret_cast<Elf64_Nhdr *>(section + buildIdHeader->sh_size);
+        while(note < sectionEnd) {
+            if(note->n_type == NT_GNU_BUILD_ID) {
+                LOG0(2, "        build ID: ");
+                const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
+                for(size_t i = 0; i < note->n_descsz; i ++) {
+                    LOG0(2, std::hex << ((int)p[i] & 0xff));
+                }
+                LOG(2, "");
+            }
+
+            size_t align = ~((1 << buildIdHeader->sh_addralign) - 1);
+            note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
+        }
+    }
 }
