@@ -5,7 +5,7 @@ CXX = g++
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 #OPT_FLAGS       = -g -O2
 OPT_FLAGS       = -g -O0
-DEPFLAGS	= -MT '$@ $(@:.o=.d)' -MMD -MP
+DEPFLAGS        = -MT '$@ $(@:.o=.d)' -MMD -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = -lcapstone -Wl,-q
@@ -66,7 +66,8 @@ LOADER = loader
 all: $(TARGET) $(LOADER)
 
 # Dependencies
--include $(addsuffix .d,$(basename $(ALL_SOURCES)))
+DEPEND_FILES = $(addsuffix .d,$(basename $(ALL_SOURCES)))
+-include $(DEPEND_FILES)
 
 # Rules
 %.o: %.s
@@ -102,4 +103,4 @@ $(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS)
 # Other targets
 .PHONY: clean
 clean:
-	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS)
+	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(DEPEND_FILES)
