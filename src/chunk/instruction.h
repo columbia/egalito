@@ -165,4 +165,9 @@ private:
     diff_t calculateDisplacement();
 };
 
+class ReturnInstruction : public DisassembledInstruction {
+public:
+    ReturnInstruction(const DisassembledStorage &storage) : DisassembledInstruction(storage) {}
+};
+
 #endif

@@ -245,6 +245,11 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
             }
         }
     }
+#if defined(ARCH_AARCH64)
+    else if(ins->id == ARM64_INS_RET) {
+        semantic = new ReturnInstruction(*ins);
+    }
+#endif
 
     if(!semantic) {
         if(details) {
