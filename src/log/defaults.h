@@ -14,6 +14,7 @@
 #define D_regression    9
 #define D_pass          9
 #define D_disasm        9
+#define D_conductor     9
 
 // Custom groups
 #define D_reloc         9

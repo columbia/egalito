@@ -102,7 +102,7 @@ void ElfGen::generate() {
     Section strtab(".strtab");
     std::vector<char> strtabData = {'\0'};
     Section symtab(".symtab");
-    ElfChunkList<Function> *chunkList = elfSpace->getChunkList();
+    auto chunkList = elfSpace->getModule()->getChildren();
     size_t strtabIndex = 1;
     for(auto chunk : chunkList->genericIterable()) {
         auto name = chunk->getName();

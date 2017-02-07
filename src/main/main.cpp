@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
         Module *module = new Module();
         std::vector<Function *> functionList;
         for(auto sym : *symbolList) {
-            Function *function = Disassemble::function(sym, baseAddr, symbolList);
+            Function *function = Disassemble::function(sym, baseAddr);
             module->getChildren()->add(function);
             functionList.push_back(function);
         }

@@ -72,9 +72,16 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-Function *Disassemble::function(Symbol *symbol, address_t baseAddr,
-    SymbolList *symbolList) {
+Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
+    Module *module = new Module();
+    for(auto sym : *symbolList) {
+        Function *function = Disassemble::function(sym, baseAddr);
+        module->getChildren()->add(function);
+    }
+    return module;
+}
 
+Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     address_t readAddress = baseAddr + symbol->getAddress();
     address_t trueAddress = symbol->getAddress();
     Handle handle(true);

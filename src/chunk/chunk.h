@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <vector>
 #include <memory>  // for std::shared_ptr
-#include <capstone/capstone.h>  // for cs_insn
 #include "elf/symbol.h"
 #include "observer.h"  // for EventObserverRegistry
 #include "position.h"  // for Position, ComputedSize

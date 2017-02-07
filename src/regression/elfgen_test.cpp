@@ -2,13 +2,13 @@
 #include <iomanip>
 #include <cstring>
 
-#include "elf/elfbuilder.h"
-#include "elf/elfspace.h"
+#include "elfgenmanager.h"
 #include "elf/elfmap.h"
+#include "elf/elfspace.h"
+#include "conductor/elfbuilder.h"
 #include "transform/sandbox.h"
 #include "log/registry.h"
 #include "log/log.h"
-
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -20,22 +20,20 @@ int main(int argc, char *argv[]) {
     }
 
     try {
-        ElfSpace *space = new ElfSpace();
-        ElfBuilder *elfBuilder = new ElfBuilder(space);
-
         ElfMap *elf = new ElfMap(argv[1]);
-        elfBuilder->setElfMap(elf);
 
-        elfBuilder->buildSymbolList();
-        elfBuilder->buildChunkList();
-        elfBuilder->buildRelocList();
+        ElfBuilder builder;
+        builder.parseElf(elf);
+        builder.buildDataStructures();
+        ElfSpace *space = builder.getElfSpace();
+
+        ElfGenManager manager(space);
 
         auto backing = ElfBacking(space, "gen");
-        Sandbox *sandbox = new SandboxImpl<ElfBacking, WatermarkAllocator<ElfBacking> >(backing);
-        elfBuilder->setSandbox(sandbox);
-        elfBuilder->copyCodeToSandbox();
+        manager.setSandbox(new SandboxImpl<ElfBacking, WatermarkAllocator<ElfBacking> >(backing));
 
-        elfBuilder->getSandBox()->finalize();
+        manager.copyCodeToSandbox();
+        manager.getSandbox()->finalize();
 
     }
     catch(const char *s) {

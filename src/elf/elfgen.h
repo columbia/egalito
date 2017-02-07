@@ -1,5 +1,6 @@
 #ifndef EGALITO_ELF_ELFGEN_H
 #define EGALITO_ELF_ELFGEN_H
+
 #include <iosfwd>
 #include "transform/sandbox.h"
 #include "elfspace.h"

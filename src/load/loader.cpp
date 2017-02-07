@@ -5,24 +5,14 @@
 #include "usage.h"
 #include "segmap.h"
 #include "elf/elfmap.h"
-#include "elf/elfdynamic.h"
-#include "elf/symbol.h"
-#include "elf/reloc.h"
 #include "elf/auxv.h"
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
-#include "chunk/plt.h"
-#include "chunk/find.h"
 #include "chunk/dump.h"
-#include "disasm/disassemble.h"
-#include "pass/resolvecalls.h"
-#include "pass/resolverelocs.h"
-#include "pass/funcptrs.h"
-#include "pass/stackxor.h"
+#include "conductor/elfbuilder.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
-#include "break/breakpoint.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -54,9 +44,6 @@ int main(int argc, char *argv[]) {
         if(elf->hasInterpreter()) {
             interpreter = new ElfMap(elf->getInterpreter());
         }
-
-        ElfDynamic dynamic;
-        dynamic.parse(elf);
 
         // set base addresses and map PT_LOAD sections into memory
         const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
@@ -100,42 +87,13 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-#if 1
 void examineElf(ElfMap *elf) {
-    SymbolList *symbolList = SymbolList::buildSymbolList(elf);
-    SymbolList *dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
+    ElfBuilder builder;
+    builder.parseElf(elf);
+    builder.findDependencies();
+    builder.buildDataStructures();
 
-    LOG(1, "");
-    LOG(1, "=== Creating internal data structures ===");
-
-    auto baseAddr = elf->getCopyBaseAddress();
-    Module *module = new Module();
-    for(auto sym : *symbolList) {
-        Function *function = Disassemble::function(sym, baseAddr, symbolList);
-        module->getChildren()->add(function);
-    }
-
-    ResolveCalls resolver;
-    module->accept(&resolver);
-
-    ChunkDumper dumper;
-    module->accept(&dumper);
-
-    RelocList *relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-    PLTSection pltSection(relocList);
-    pltSection.parse(elf);
-
-    FuncptrsPass funcptrsPass(relocList);
-    module->accept(&funcptrsPass);
-
-    ResolveRelocs resolveRelocs(&pltSection);
-    module->accept(&resolveRelocs);
-
-    module->accept(&dumper);
-
-    StackXOR stackXOR(0x28);
-    module->accept(&stackXOR);
-    module->accept(&dumper);
+    auto module = builder.getElfSpace()->getModule();
 
     {
         Generator generator;
@@ -144,9 +102,9 @@ void examineElf(ElfMap *elf) {
 
         LOG(1, "");
         LOG(1, "=== After copying code to new locations ===");
+        ChunkDumper dumper;
         module->accept(&dumper);
 
         generator.jumpToSandbox(sandbox, module);
     }
 }
-#endif

@@ -1,29 +1,50 @@
 #ifndef EGALITO_ELF_ELFSPACE_H
 #define EGALITO_ELF_ELFSPACE_H
-#include "elfmap.h"
-#include "chunk/concrete.h"
-#include "chunk/chunklist.h"
-#include "reloc.h"
+
 #include "symbol.h"
+#include "reloc.h"
+#include "chunk/plt.h"
+#include "chunk/concrete.h"  // for Module
+
+class ElfMap;
+
+/** This is an internal class that stores all the information we collect
+    about an ELF file, lists and maps etc. The more public ones are accessible
+    from ElfSpace.
+*/
+class ElfData {
+private:
+    SymbolList *symbolList;
+    RelocList *relocList;
+    PLTSection *pltSection;
+public:
+    ElfData() : symbolList(nullptr), relocList(nullptr), pltSection(nullptr) {}
+
+    void setSymbolList(SymbolList *list) { this->symbolList = list; }
+    void setRelocList(RelocList *list) { this->relocList = list; }
+    void setPLTSection(PLTSection *plt) { this->pltSection = plt; }
+
+    SymbolList *getSymbolList() const { return symbolList; }
+    RelocList *getRelocList() const { return relocList; }
+    PLTSection *getPLTSection() const { return pltSection; }
+};
 
 class ElfSpace {
 private:
     ElfMap *elfMap;
-    ElfChunkList<Function> *chunkList; // Replace with code tree?
-    SymbolList *symbolList;
-    RelocList *relocList;
+    ElfData data;
+    Module *module;
 public:
-    ElfSpace()
-      : elfMap(nullptr), chunkList(nullptr), symbolList(nullptr) {}
-public:
+    ElfSpace(ElfMap *elfMap) : elfMap(elfMap), module(nullptr) {}
+
     ElfMap *getElfMap() const { return elfMap; }
-    ElfChunkList<Function> *getChunkList() const { return chunkList; }
-    SymbolList *getSymbolList() const { return symbolList; }
-    RelocList *getRelocList() const { return relocList; }
-public:
-    void setElfMap(ElfMap *map) { elfMap = map; }
-    void setChunkList(ElfChunkList<Function> *list) { chunkList = list; }
-    void setSymbolList(SymbolList *list) { symbolList = list; }
-    void setRelocList(RelocList *list) {relocList = list;}
+    ElfData *getData() { return &data; }
+    Module *getModule() const { return module; }
+    void setModule(Module *module) { this->module = module; }
+
+    SymbolList *getSymbolList() const { return data.getSymbolList(); }
+    RelocList *getRelocList() const { return data.getRelocList(); }
+    PLTSection *getPLTSection() const { return data.getPLTSection(); }
 };
+
 #endif
