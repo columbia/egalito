@@ -94,7 +94,7 @@ void PLTSection::parse(ElfMap *elf) {
             address_t value = ((bytes & 0x60000000) >> 29)  // 2 low-order bits
                 | ((bytes & 0xffffe0) >> (5-2));  // 19 high-order bits
             value <<= 12;
-            value += (pltAddress + 4) & ~0xfff;  // skip to end of instruction
+            value += (pltAddress) & ~0xfff;  // mask least 12 bits
 
             unsigned int bytes2 = *reinterpret_cast<const unsigned int *>(entry + 4);
 
