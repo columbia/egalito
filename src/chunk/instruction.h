@@ -140,6 +140,7 @@ typedef SemanticImpl<RawByteStorage> RawInstruction;
 typedef SemanticImpl<DisassembledStorage> DisassembledInstruction;
 typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
 
+#ifdef ARCH_X86_64
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
@@ -164,6 +165,34 @@ public:
 private:
     diff_t calculateDisplacement();
 };
+#elif defined(ARCH_AARCH64)
+class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
+private:
+    Instruction *source;
+    std::string mnemonic;
+    const uint32_t displacementMask = ~(0xFC000000u);
+    const uint32_t opcode = 0x94000000u;
+    const size_t instructionSize = 4;
+public:
+    ControlFlowInstruction(Instruction *source, std::string mnemonic)
+        : source(source), mnemonic(mnemonic) {}
+
+    virtual size_t getSize() const { return instructionSize; }
+    virtual void setSize(size_t value)
+        { throw "Size is constant for AARCH64!"; }
+
+    virtual void writeTo(char *target);
+    virtual void writeTo(std::string &target);
+    virtual std::string getData();
+
+    virtual cs_insn *getCapstone() { return nullptr; }
+
+    Instruction *getSource() const { return source; }
+    std::string getMnemonic() const { return mnemonic; }
+private:
+    diff_t calculateDisplacement();
+};
+#endif
 
 class ReturnInstruction : public DisassembledInstruction {
 public:

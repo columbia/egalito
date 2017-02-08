@@ -30,6 +30,7 @@ std::string DisassembledStorage::getData() {
     return std::move(data);
 }
 
+#ifdef ARCH_X86_64
 void ControlFlowInstruction::setSize(size_t value) {
     diff_t disp = value - opcode.size();
     assert(disp >= 0);
@@ -79,4 +80,25 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 
     return disp;
 }
+#elif defined(ARCH_AARCH64)
+void ControlFlowInstruction::writeTo(char *target) {
+    uint32_t imm = calculateDisplacement() / 4;
+    //target should be 4-byte aligned and unaligned access is allowed anyway
+    *reinterpret_cast<uint32_t *>(target) = opcode | (imm & displacementMask);
+}
+void ControlFlowInstruction::writeTo(std::string &target) {
+    uint32_t ins = opcode | ((calculateDisplacement() / 4) & displacementMask);
+    target.append(reinterpret_cast<const char *>(&ins), instructionSize);
+}
+std::string ControlFlowInstruction::getData() {
+    std::string data;
+    writeTo(data);
+    return data;
+}
 
+diff_t ControlFlowInstruction::calculateDisplacement() {
+    address_t dest = getLink()->getTargetAddress();
+    diff_t disp = dest - getSource()->getAddress();
+    return disp;
+}
+#endif

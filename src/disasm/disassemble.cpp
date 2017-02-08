@@ -221,23 +221,10 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
                     semantic = cfi;
                 }
 #elif defined(ARCH_AARCH64)
-                if(ins->id == ARM64_INS_BL) {
+                if((ins->id == ARM64_INS_BL)
+                   || (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP))) {
                     unsigned long imm = op->imm;
-                    auto cfi = new ControlFlowInstruction(instr,
-                        std::string((char *)ins->bytes,
-                        ins->size - 4),
-                        ins->mnemonic,
-                        4);
-                    cfi->setLink(new UnresolvedLink(imm));
-                    semantic = cfi;
-                }
-                else if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
-                    size_t use = ins->size /* - op->size*/;
-                    unsigned long imm = op->imm;
-                    auto cfi = new ControlFlowInstruction(instr,
-                        std::string((char *)ins->bytes, use),
-                        ins->mnemonic,
-                        /*op->size*/ 0);
+                    auto cfi = new ControlFlowInstruction(instr, ins->mnemonic);
                     cfi->setLink(new UnresolvedLink(imm));
                     semantic = cfi;
                 }
