@@ -1,9 +1,8 @@
 # Makefile for egalito
 
-CC  = gcc-5
-CXX = g++-5
-GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I. -pg
-#OPT_FLAGS       = -g -O2
+CC  = gcc
+CXX = g++
+GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 OPT_FLAGS       = -g -O2
 DEPFLAGS        = -MT '$@ $(@:.o=.d)' -MMD -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)

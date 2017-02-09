@@ -48,3 +48,8 @@ void LibraryList::add(SharedLib *library) {
     libraryMap[library->getFullPath()] = library;
     libraryList.push_back(library);
 }
+
+SharedLib *LibraryList::get(const std::string &name) {
+    auto it = libraryMap.find(name);
+    return (it != libraryMap.end() ? (*it).second : nullptr);
+}
