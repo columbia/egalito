@@ -4,12 +4,13 @@
 
 #include "usage.h"
 #include "segmap.h"
-#include "elf/elfmap.h"
 #include "elf/auxv.h"
+#include "elf/elfmap.h"
+#include "elf/elfspace.h"
+#include "conductor/conductor.h"
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "chunk/dump.h"
-#include "conductor/elfbuilder.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
@@ -19,7 +20,7 @@
 extern address_t entry;
 extern "C" void _start2(void);
 
-void examineElf(ElfMap *elf);
+void runEgalito(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
 
 int main(int argc, char *argv[]) {
@@ -56,7 +57,7 @@ int main(int argc, char *argv[]) {
             SegMap::mapSegments(*interpreter, interpreter->getBaseAddress());
         }
 
-        examineElf(elf);
+        runEgalito(elf);
         if(interpreter) {
             //examineElf(interpreter);
             //setBreakpointsInInterpreter(interpreter);
@@ -87,13 +88,11 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void examineElf(ElfMap *elf) {
-    ElfBuilder builder;
-    builder.parseElf(elf);
-    builder.findDependencies();
-    builder.buildDataStructures();
+void runEgalito(ElfMap *elf) {
+    Conductor conductor;
+    conductor.parseRecursive(elf);
 
-    auto module = builder.getElfSpace()->getModule();
+    auto module = conductor.getMainSpace()->getModule();
 
     {
         Generator generator;

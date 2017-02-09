@@ -21,7 +21,7 @@ void ElfDynamic::parse(ElfMap *elf) {
         if(type == DT_NEEDED) {
             auto library = strtab + value;
             LOG(1, "    depends on shared library [" << library << "]");
-            libraryList.push_back(library);
+            dependencyList.push_back(library);
         }
         else if(type == DT_RPATH) {
             this->rpath = strtab + value;
@@ -119,7 +119,7 @@ void ElfDynamic::resolveLibraries() {
 
     parseLdConfig("/etc/ld.so.conf", searchPath);
 
-    for(auto &library : libraryList) {
+    for(auto &library : dependencyList) {
         if(library[0] == '/') {
             LOG(1, "    library at [" << library << "]");
             processLibrary(library, library.substr(library.rfind('/') + 1));
@@ -146,12 +146,19 @@ void ElfDynamic::resolveLibraries() {
 }
 
 void ElfDynamic::processLibrary(const std::string &fullPath, const std::string &filename) {
+
+    if(libraryList->contains(fullPath)) return;
+    if(filename == "ld-linux-x86-64.so.2") {
+        LOG(2, "    skipping processing of ld.so for now");
+        return;
+    }
+
     LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
 
-    ElfMap elf(fullPath.c_str());
-    auto buildIdHeader = static_cast<Elf64_Shdr *>(elf.findSectionHeader(".note.gnu.build-id"));
+    ElfMap *elf = new ElfMap(fullPath.c_str());
+    auto buildIdHeader = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".note.gnu.build-id"));
     if(buildIdHeader) {
-        auto section = reinterpret_cast<address_t>(elf.findSection(".note.gnu.build-id"));
+        auto section = reinterpret_cast<address_t>(elf->findSection(".note.gnu.build-id"));
         auto note = reinterpret_cast<Elf64_Nhdr *>(section);
         auto sectionEnd = reinterpret_cast<Elf64_Nhdr *>(section + buildIdHeader->sh_size);
         while(note < sectionEnd) {
@@ -168,4 +175,9 @@ void ElfDynamic::processLibrary(const std::string &fullPath, const std::string &
             note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
         }
     }
+
+    auto library = new SharedLib(fullPath, filename, elf);
+    libraryList->add(library);
+
+    LOG(2, "    added new library [" << filename << "]");
 }

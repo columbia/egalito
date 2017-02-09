@@ -7,14 +7,16 @@
 #include "sharedlib.h"
 
 class ElfMap;
+class LibraryList;
 
 class ElfDynamic {
 private:
-    std::vector<std::string> libraryList;
-    std::vector<SharedLib *> sharedLibList;
+    std::vector<std::string> dependencyList;
     const char *rpath;
+    LibraryList *libraryList;
 public:
-    ElfDynamic() : rpath(nullptr) {}
+    ElfDynamic(LibraryList *libraryList)
+        : rpath(nullptr), libraryList(libraryList) {}
     void parse(ElfMap *elf);
     void resolveLibraries();
 private:

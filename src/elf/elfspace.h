@@ -5,46 +5,52 @@
 #include "reloc.h"
 #include "chunk/plt.h"
 #include "chunk/concrete.h"  // for Module
+#include "util/iter.h"
 
 class ElfMap;
+class SharedLib;
+class LibraryList;
 
-/** This is an internal class that stores all the information we collect
-    about an ELF file, lists and maps etc. The more public ones are accessible
-    from ElfSpace.
-*/
-class ElfData {
+class ElfSpace {
+private:
+    ElfMap *elf;
+    SharedLib *library;
+    Module *module;
 private:
     SymbolList *symbolList;
+    SymbolList *dynamicSymbolList;
     RelocList *relocList;
     PLTSection *pltSection;
 public:
-    ElfData() : symbolList(nullptr), relocList(nullptr), pltSection(nullptr) {}
+    ElfSpace(ElfMap *elf, SharedLib *library);
 
-    void setSymbolList(SymbolList *list) { this->symbolList = list; }
-    void setRelocList(RelocList *list) { this->relocList = list; }
-    void setPLTSection(PLTSection *plt) { this->pltSection = plt; }
+    void findDependencies(LibraryList *libraryList);
+    void buildDataStructures(bool hasRelocs = true);
+
+    ElfMap *getElfMap() const { return elf; }
+    SharedLib *getLibrary() const { return library; }
+    Module *getModule() const { return module; }
+    void setModule(Module *module) { this->module = module; }
+
+    std::string getName() const;
 
     SymbolList *getSymbolList() const { return symbolList; }
     RelocList *getRelocList() const { return relocList; }
     PLTSection *getPLTSection() const { return pltSection; }
 };
 
-class ElfSpace {
+class ElfSpaceList {
 private:
-    ElfMap *elfMap;
-    ElfData data;
-    Module *module;
+    ElfSpace *main;
+    std::vector<ElfSpace *> spaceList;
 public:
-    ElfSpace(ElfMap *elfMap) : elfMap(elfMap), module(nullptr) {}
+    ElfSpaceList() : main(nullptr) {}
 
-    ElfMap *getElfMap() const { return elfMap; }
-    ElfData *getData() { return &data; }
-    Module *getModule() const { return module; }
-    void setModule(Module *module) { this->module = module; }
+    void add(ElfSpace *space, bool isMain = false);
 
-    SymbolList *getSymbolList() const { return data.getSymbolList(); }
-    RelocList *getRelocList() const { return data.getRelocList(); }
-    PLTSection *getPLTSection() const { return data.getPLTSection(); }
+    ConcreteIterable<std::vector<ElfSpace *>> iterable()
+        { return ConcreteIterable<std::vector<ElfSpace *>>(spaceList); }
+    ElfSpace *getMain() const { return main; }
 };
 
 #endif

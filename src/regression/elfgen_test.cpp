@@ -21,11 +21,8 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
-
-        ElfBuilder builder;
-        builder.parseElf(elf);
-        builder.buildDataStructures();
-        ElfSpace *space = builder.getElfSpace();
+        ElfSpace *space = new ElfSpace(elf);
+        space->buildDataStructures();
 
         ElfGenManager manager(space);
 
