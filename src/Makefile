@@ -1,10 +1,10 @@
 # Makefile for egalito
 
-CC  = gcc
-CXX = g++
-GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
+CC  = gcc-5
+CXX = g++-5
+GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I. -pg
 #OPT_FLAGS       = -g -O2
-OPT_FLAGS       = -g -O0
+OPT_FLAGS       = -g -O2
 DEPFLAGS        = -MT '$@ $(@:.o=.d)' -MMD -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
@@ -89,7 +89,7 @@ load/usage.o: load/usage.cpp
 $(TARGET): $(TARGET_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
-	$(CXX) -static -o $@ \
+	$(CXX) -static -o $@ -pg \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 

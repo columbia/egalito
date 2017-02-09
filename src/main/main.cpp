@@ -6,6 +6,7 @@
 
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
+#include "conductor/conductor.h"
 #include "chunk/chunk.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
@@ -25,24 +26,15 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap elf(argv[1]);
-        SymbolList *symbolList = SymbolList::buildSymbolList(&elf);
+        Conductor conductor;
+        //conductor.parse(&elf, nullptr);
+        conductor.parseRecursive(&elf);
 
-        std::cout << "\n=== Creating internal data structures ===\n";
-
-        auto baseAddr = elf.getCopyBaseAddress();
-        Module *module = new Module();
-        std::vector<Function *> functionList;
-        for(auto sym : *symbolList) {
-            Function *function = Disassemble::function(sym, baseAddr);
-            module->getChildren()->add(function);
-            functionList.push_back(function);
-        }
-
-        ResolveCalls resolver;
-        module->accept(&resolver);
+        auto module = conductor.getMainSpace()->getModule();
 
         ChunkDumper dumper;
 
+#if 0
         if(0) {
 #ifdef ARCH_X86_64
             auto bb = functionList[3]->getChildren()->getIterable()->get(1);
@@ -71,11 +63,12 @@ int main(int argc, char *argv[]) {
 #endif
         }
         functionList[functionList.size() - 2]->getPosition()->set(0xf00d1000);
+#endif
 
         std::cout << "\n=== After code modifications ===\n";
         module->accept(&dumper);
 
-        {
+        if(0) {
             Generator generator;
             auto sandbox = generator.makeSandbox();
             generator.copyCodeToSandbox(&elf, module, sandbox);
