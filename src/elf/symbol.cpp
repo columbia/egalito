@@ -1,9 +1,11 @@
 #include <algorithm>  // for std::sort
 #include <cstdio>
+#include <sstream>
 #include <string.h>
 #include <elf.h>
 #include "symbol.h"
 #include "elfmap.h"
+#include "sharedlib.h"
 #include "log/log.h"
 
 bool SymbolList::add(Symbol *symbol, size_t index) {
@@ -41,6 +43,25 @@ Symbol *SymbolList::find(address_t address) {
     else {
         return nullptr;
     }
+}
+
+SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
+    ElfMap *elfMap = library->getElfMap();
+    Elf64_Shdr *s = (Elf64_Shdr *)elfMap->findSectionHeader(".symtab");
+    if(s && s->sh_type == SHT_SYMTAB) {
+        return buildSymbolList(elfMap);
+    }
+    else {
+        auto altFile = library->getAlternativeSymbolFile();
+        if(altFile.size() > 0) {
+            // we intentionally do not free this symbolFile; it
+            // needs to stay mapped into memory so strings remain valid
+            ElfMap *symbolFile = new ElfMap(altFile.c_str());
+            return buildSymbolList(symbolFile);
+        }
+    }
+
+    return nullptr;
 }
 
 SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {

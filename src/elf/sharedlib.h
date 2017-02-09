@@ -16,6 +16,8 @@ public:
     SharedLib(const std::string &fullPath, const std::string &filename, ElfMap *elfMap)
         : fullPath(fullPath), filename(filename), elfMap(elfMap) {}
 
+    std::string getAlternativeSymbolFile() const;
+
     std::string getFullPath() const { return fullPath; }
     std::string getShortName() const { return filename; }
     ElfMap *getElfMap() const { return elfMap; }

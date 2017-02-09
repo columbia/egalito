@@ -7,6 +7,7 @@
 #include "types.h"
 
 class ElfMap;
+class SharedLib;
 
 class Symbol {
 private:
@@ -43,6 +44,7 @@ public:
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }
 
+    static SymbolList *buildSymbolList(SharedLib *library);
     static SymbolList *buildSymbolList(ElfMap *elfmap);
     static SymbolList *buildDynamicSymbolList(ElfMap *elfmap);
 private:

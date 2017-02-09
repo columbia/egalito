@@ -1,4 +1,45 @@
+#include <elf.h>
+#include <sstream>
+#include "elfmap.h"
 #include "sharedlib.h"
+#include "types.h"
+
+std::string SharedLib::getAlternativeSymbolFile() const {
+    auto buildIdHeader = static_cast<Elf64_Shdr *>(elfMap->findSectionHeader(".note.gnu.build-id"));
+    if(buildIdHeader) {
+        auto section = reinterpret_cast<address_t>(elfMap->findSection(".note.gnu.build-id"));
+        auto note = reinterpret_cast<Elf64_Nhdr *>(section);
+        auto sectionEnd = reinterpret_cast<Elf64_Nhdr *>(section + buildIdHeader->sh_size);
+        while(note < sectionEnd) {
+            if(note->n_type == NT_GNU_BUILD_ID) {
+                const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
+
+                std::ostringstream symbolFile;
+                symbolFile << "/usr/lib/debug/.build-id/";
+
+                for(size_t i = 0; i < note->n_descsz; i ++) {
+                    symbolFile << std::hex << ((int)p[i] & 0xff);
+                    if(i == 0) symbolFile << "/";
+                }
+                symbolFile << ".debug";
+#if 0
+                LOG0(3, "        build ID: ");
+                for(size_t i = 0; i < note->n_descsz; i ++) {
+                    LOG0(3, std::hex << ((int)p[i] & 0xff));
+                }
+                LOG(3, "");
+
+                LOG(3, symbolFile.str());
+#endif
+                return symbolFile.str();
+            }
+
+            size_t align = ~((1 << buildIdHeader->sh_addralign) - 1);
+            note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
+        }
+    }
+    return "";
+}
 
 void LibraryList::add(SharedLib *library) {
     auto it = libraryMap.find(library->getFullPath());

@@ -25,7 +25,12 @@ void ElfSpace::findDependencies(LibraryList *libraryList) {
 void ElfSpace::buildDataStructures(bool hasRelocs) {
     LOG(1, "Building elf data structures for [" << getName() << "]");
 
-    this->symbolList = SymbolList::buildSymbolList(elf);
+    if(library) {
+        this->symbolList = SymbolList::buildSymbolList(library);
+    }
+    else {
+        this->symbolList = SymbolList::buildSymbolList(elf);
+    }
     this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
 
     LOG(1, "");

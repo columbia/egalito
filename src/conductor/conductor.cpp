@@ -19,6 +19,6 @@ void Conductor::parseRecursive(ElfMap *elf) {
 void Conductor::parse(ElfMap *elf, SharedLib *library) {
     ElfSpace *space = new ElfSpace(elf, library);
     space->findDependencies(libraryList);
-    if(library == nullptr) space->buildDataStructures();
+    space->buildDataStructures();
     spaceList->add(space, library == nullptr);
 }
