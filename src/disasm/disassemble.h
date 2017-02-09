@@ -11,7 +11,7 @@ class Symbol;
 class SymbolList;
 
 class Disassemble {
-private:
+public:
     class Handle {
     private:
         csh handle;
@@ -32,6 +32,8 @@ public:
         bool details = true, address_t address = 0);
     static Instruction *instruction(cs_insn *ins, Handle &handle,
         bool details = true);
+
+    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
 };
 
 #endif

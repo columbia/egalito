@@ -98,38 +98,8 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
 
-#ifdef ARCH_X86_64
         // check if this instruction ends the current basic block
-        bool split = false;
-        if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            split = true;
-        }
-        else if(cs_insn_group(handle.raw(), ins, X86_GRP_CALL)) {
-            split = true;
-        }
-        else if(cs_insn_group(handle.raw(), ins, X86_GRP_RET)) {
-            split = true;
-        }
-        else if(cs_insn_group(handle.raw(), ins, X86_GRP_INT)) {
-        }
-        else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
-        }
-#elif defined(ARCH_AARCH64)
-        bool split = false;
-        if (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
-            split = true;
-        }
-        else if(ins->id == ARM64_INS_BL) {
-            split = true;
-        }
-        else if(ins->id == ARM64_INS_BLR) {
-            split = true;
-        }
-        else if(ins->id == ARM64_INS_RET) {
-            split = true;
-        }
-        //exception generation instructions don't require split
-#endif
+        bool split = shouldSplitBlockAt(ins, handle);
 
         // Create Instruction from cs_insn
         auto instr = Disassemble::instruction(ins, handle, true);
@@ -211,11 +181,10 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
-    cs_detail *detail = ins->detail;
 #ifdef ARCH_X86_64
-    cs_x86 *x = &detail->x86;
+    cs_x86 *x = &ins->detail->x86;
 #elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &detail->arm64;
+    cs_arm64 *x = &ins->detail->arm64;
 #endif
     if(x->op_count > 0) {
         for(size_t p = 0; p < x->op_count; p ++) {
@@ -289,4 +258,38 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     instr->setSemantic(semantic);
 
     return instr;
+}
+
+bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
+    bool split = false;
+#ifdef ARCH_X86_64
+    if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+        split = true;
+    }
+    else if(cs_insn_group(handle.raw(), ins, X86_GRP_CALL)) {
+        split = true;
+    }
+    else if(cs_insn_group(handle.raw(), ins, X86_GRP_RET)) {
+        split = true;
+    }
+    /*else if(cs_insn_group(handle.raw(), ins, X86_GRP_INT)) {
+    }
+    else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
+    }*/
+#elif defined(ARCH_AARCH64)
+    if (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
+        split = true;
+    }
+    else if(ins->id == ARM64_INS_BL) {
+        split = true;
+    }
+    else if(ins->id == ARM64_INS_BLR) {
+        split = true;
+    }
+    else if(ins->id == ARM64_INS_RET) {
+        split = true;
+    }
+    //exception generation instructions don't require split
+#endif
+    return split;
 }

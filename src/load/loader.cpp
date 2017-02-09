@@ -95,7 +95,7 @@ void runEgalito(ElfMap *elf) {
     auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
     if(libc) {
         ChunkDumper dumper;
-        libc->getElfSpace()->getModule()->accept(&dumper);
+        //libc->getElfSpace()->getModule()->accept(&dumper);
     }
 
     auto module = conductor.getMainSpace()->getModule();

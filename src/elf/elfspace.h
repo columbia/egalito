@@ -25,6 +25,7 @@ public:
     ElfSpace(ElfMap *elf, SharedLib *library);
 
     void findDependencies(LibraryList *libraryList);
+    void inferSymbols();
     void buildDataStructures(bool hasRelocs = true);
 
     ElfMap *getElfMap() const { return elf; }

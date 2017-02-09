@@ -4,6 +4,7 @@
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
+#include "disasm/piecewise.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
@@ -20,6 +21,18 @@ ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
 void ElfSpace::findDependencies(LibraryList *libraryList) {
     ElfDynamic dynamic(libraryList);
     dynamic.parse(elf);
+}
+
+void ElfSpace::inferSymbols() {
+    auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".text"));
+    auto section = reinterpret_cast<address_t>(elf->findSection(".text"));
+
+    auto baseAddr = section;
+    auto realAddr = elf->getBaseAddress() + header->sh_addr;
+    auto size = header->sh_size;
+
+    PiecewiseDisassemble pd;
+    pd.linearPass(baseAddr, size, realAddr);
 }
 
 void ElfSpace::buildDataStructures(bool hasRelocs) {
