@@ -5,7 +5,7 @@
 #include "elfgenmanager.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
-#include "conductor/elfbuilder.h"
+#include "conductor/conductor.h"
 #include "transform/sandbox.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
-        ElfSpace *space = new ElfSpace(elf);
+        ElfSpace *space = new ElfSpace(elf, nullptr);
         space->buildDataStructures();
 
         ElfGenManager manager(space);

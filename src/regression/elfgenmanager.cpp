@@ -1,7 +1,7 @@
 #include <iostream>
 #include "disasm/disassemble.h"
-#include "elfbuilder.h"
-#include "conductor/elfbuilder.h"
+#include "elfgenmanager.h"
+#include "conductor/conductor.h"
 #include "log/log.h"
 
 class ChunkWriter : public ChunkVisitor {
@@ -25,8 +25,8 @@ public:
     }
 };
 
-void ElfBuilder::copyCodeToSandbox() {
-    ElfChunkList<Function> *chunkList = elfSpace->getModule()->getChildren();
+void ElfGenManager::copyCodeToSandbox() {
+    auto chunkList = elfSpace->getModule()->getChildren();
     if(!sandbox || !chunkList) throw "Sandbox, elfspace, or chunklist not set";
 
     for(auto chunk : chunkList->genericIterable()) {

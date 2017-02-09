@@ -95,11 +95,11 @@ $(LOADER): $(LOADER_OBJECTS)
 
 # Tests
 REGRESSION_SOURCES = $(wildcard regression/*.cpp)
-REGRESSION_TESTS = $(REGRESSION_SOURCES:.cpp=)
+REGRESSION_TESTS = $(filter-out regression/elfgenmanager,$(REGRESSION_SOURCES:.cpp=))
 .PHONY: rtest
 rtest: $(REGRESSION_TESTS)
 
-$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS)
+$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) regression/elfgenmanager.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets

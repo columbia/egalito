@@ -141,7 +141,4 @@ ChunkType *NamedChunkList<ChunkType>::find(const std::string &name) {
     return (it != nameMap.end() ? (*it).second : nullptr);
 }
 
-template <typename ChildType>
-class ElfChunkList : public ChunkListImpl<ChildType> {};
-
 #endif
