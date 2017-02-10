@@ -5,7 +5,30 @@
 #include "elf/symbol.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
+#include "pass/resolvecalls.h"
 #include "log/log.h"
+
+UnionFind::UnionFind(size_t count) {
+    for(size_t i = 0; i < count; i ++) {
+        parent.push_back(i);
+    }
+}
+
+void UnionFind::join(size_t one, size_t two) {
+    auto oneParent = get(one);
+    auto twoParent = get(two);
+
+    if(oneParent < twoParent) parent[twoParent] = oneParent;
+    if(oneParent > twoParent) parent[oneParent] = twoParent;
+}
+
+size_t UnionFind::get(size_t where) {
+    size_t i = where;
+    while(parent[i] != i) {
+        i = parent[i];
+    }
+    return i;
+}
 
 void PiecewiseDisassemble::linearPass(address_t readAddress, size_t codeLength,
     address_t trueAddress) {
@@ -35,8 +58,10 @@ void PiecewiseDisassemble::linearPass(address_t readAddress, size_t codeLength,
         }
     }
 
+    soup = new BlockSoup();
     Block *block = new Block();
     block->setPosition(new AbsolutePosition(trueAddress));
+    soup->setPosition(new AbsolutePosition(trueAddress));
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
@@ -64,7 +89,9 @@ void PiecewiseDisassemble::linearPass(address_t readAddress, size_t codeLength,
         instr->setParent(block);
         block->addToSize(instr->getSize());
         if(split) {
-            blockList.push_back(block);
+            soup->getChildren()->add(block);
+            block->setParent(soup);
+            soup->addToSize(block->getSize());
 
             Block *oldBlock = block;
             block = new Block();
@@ -72,21 +99,102 @@ void PiecewiseDisassemble::linearPass(address_t readAddress, size_t codeLength,
         }
     }
 
-    blockList.push_back(block);
-
     if(block->getSize() == 0) {
         delete block;
     }
     else {
         LOG0(1, "excess instructions at end of disassembly... "
             "adding basic block\n");
-        blockList.push_back(block);
+        soup->getChildren()->add(block);
+        block->setParent(soup);
+        soup->addToSize(block->getSize());
     }
 
     cs_free(insn, count);
 
-    for(auto block : blockList) {
-        ChunkDumper dumper;
-        block->accept(&dumper);
+    ResolveCalls resolveCalls;
+    soup->accept(&resolveCalls);
+
+    UnionFind unionFind(soup->getChildren()->getIterable()->getCount());
+    size_t index = 0;
+    size_t children = soup->getChildren()->getIterable()->getCount();
+    for(auto block : soup->getChildren()->getIterable()->iterable()) {
+        auto i = block->getChildren()->getIterable()->getLast();
+        auto link = i->getSemantic()->getLink();
+        if(auto cf = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+            if(cf->getMnemonic() != "jmp") {
+                if(index + 1 < children) {
+                    unionFind.join(index, index + 1);
+                    LOG(1, "join " << std::dec << index << "," << index+1 << " because fall-through to " << std::hex << (block->getAddress() + block->getSize()));
+                }
+            }
+            if(cf->getMnemonic() != "callq" && link) {
+                auto target = soup->getChildren()->getSpatial()->findContaining(
+                    link->getTargetAddress());
+                if(target) {
+                    size_t targetIndex = soup->getChildren()->getIterable()->indexOf(target);
+
+                    unionFind.join(index, targetIndex);
+                    LOG(1, "join " << std::dec << index << "," << targetIndex << " because jump at " << std::hex << block->getAddress());
+                }
+            }
+        }
+        else if(i->getSemantic()->getData() == "\xc3") {
+            // return, don't join
+        }
+        else {
+            if(index + 1 < children) {
+                unionFind.join(index, index + 1);
+                LOG(1, "join " << std::dec << index << "," << index+1 << " because normal instruction preceding " << std::hex << (block->getAddress() + block->getSize()));
+            }
+        }
+
+        for(size_t i = 0; i < unionFind.getCount(); i ++) {
+            if(unionFind.get(i) != i) continue;
+            size_t z = 0;
+            for(size_t j = 0; j < unionFind.getCount(); j ++) {
+                if(unionFind.get(j) == i) z ++;
+            }
+            if(z < 2) continue;
+            LOG0(1, "[" << std::dec << i);
+            for(size_t j = 0; j < unionFind.getCount(); j ++) {
+                if(i == j) continue;
+                if(unionFind.get(j) == i) LOG0(1, " " << std::dec << j);
+            }
+            LOG0(1, "]   ");
+        }
+        LOG(1, "");
+        index ++;
     }
+
+    auto list = soup->getChildren()->getIterable();
+    // from representative element (lowest) to total size
+    std::map<size_t, size_t> rep;
+    std::map<size_t, size_t> mergeCount;
+    for(size_t i = 0; i < unionFind.getCount(); i ++) {
+        auto parent = unionFind.get(i);
+        if(i == parent) {
+            rep[i] = list->get(i)->getSize();
+            mergeCount[i] = 1;
+        }
+        else {
+            auto first = list->get(parent);
+            auto here = list->get(i);
+            auto end = (here->getAddress() - first->getAddress())
+                + here->getSize();
+            if(rep[parent] < end) rep[parent] = end;
+
+            mergeCount[parent] ++;
+        }
+    }
+
+    LOG(1, "here are the piecewise functions:");
+    for(auto p : rep) {
+        LOG(1, std::hex << list->get(p.first)->getAddress()
+            << " " << std::dec << p.second
+            << " (count " << mergeCount[p.first] << ")");
+    }
+
+    ChunkDumper dumper;
+    soup->accept(&dumper);
 }

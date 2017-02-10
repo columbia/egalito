@@ -90,7 +90,8 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
-    conductor.parseRecursive(elf);
+    //conductor.parseRecursive(elf);
+    conductor.parse(elf);
 
     auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
     if(libc) {

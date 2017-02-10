@@ -12,7 +12,7 @@ public:
     Conductor();
 
     void parseRecursive(ElfMap *elf);
-    void parse(ElfMap *elf, SharedLib *library);
+    void parse(ElfMap *elf, SharedLib *library = nullptr);
 
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
     LibraryList *getLibraryList() const { return libraryList; }

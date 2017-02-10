@@ -18,6 +18,7 @@ public:
     virtual void visit(CodePage *codePage) {}
     virtual void visit(Module *module) { recurse(module); }
     virtual void visit(Function *function) { recurse(function); }
+    virtual void visit(BlockSoup *soup) { recurse(soup); }
     virtual void visit(Block *block) { recurse(block); }
     virtual void visit(Instruction *instruction) = 0;
 };

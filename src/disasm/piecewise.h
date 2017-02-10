@@ -5,11 +5,23 @@
 #include "chunk/chunk.h"
 
 class SymbolList;
-class Block;
+class BlockSoup;
+
+class UnionFind {
+private:
+    std::vector<size_t> parent;
+public:
+    UnionFind(size_t count);
+
+    void join(size_t one, size_t two);
+    size_t get(size_t where);
+
+    size_t getCount() const { return parent.size(); }
+};
 
 class PiecewiseDisassemble {
 private:
-    std::vector<Block *> blockList;
+    BlockSoup *soup;
 public:
     void linearPass(address_t readAddress, size_t codeLength,
         address_t trueAddress);

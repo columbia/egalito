@@ -14,6 +14,11 @@ void ChunkDumper::visit(Function *function) {
     recurse(function);
 }
 
+void ChunkDumper::visit(BlockSoup *soup) {
+    std::cout << "block soup\n";
+    recurse(soup);
+}
+
 void ChunkDumper::visit(Block *block) {
     std::cout << block->getName() << ":\n";
     recurse(block);

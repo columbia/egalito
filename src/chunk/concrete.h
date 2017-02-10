@@ -9,6 +9,7 @@ class Program;
 class CodePage;
 class Module;
 class Function;
+class BlockSoup;
 class Block;
 class Instruction;
 
@@ -19,6 +20,7 @@ public:
     virtual void visit(CodePage *codePage) = 0;
     virtual void visit(Module *function) = 0;
     virtual void visit(Function *function) = 0;
+    virtual void visit(BlockSoup *soup) = 0;
     virtual void visit(Block *block) = 0;
     virtual void visit(Instruction *instruction) = 0;
 };
@@ -28,6 +30,7 @@ public:
     virtual void visit(CodePage *codePage) {}
     virtual void visit(Module *block) {}
     virtual void visit(Function *function) {}
+    virtual void visit(BlockSoup *soup) {}
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
 };
@@ -60,6 +63,10 @@ public:
     Symbol *getSymbol() const { return symbol; }
     std::string getName() const { return symbol->getName(); }
 
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
+};
+class BlockSoup : public CompositeChunkImpl<Block> {
+public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 class Block : public CompositeChunkImpl<Instruction> {

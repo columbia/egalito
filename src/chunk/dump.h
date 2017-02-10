@@ -17,6 +17,7 @@ public:
     virtual void visit(CodePage *codePage) {}
     virtual void visit(Module *module);
     virtual void visit(Function *function);
+    virtual void visit(BlockSoup *soup);
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
 };

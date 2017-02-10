@@ -24,14 +24,22 @@ void ResolveCalls::visit(Instruction *instruction) {
 
     Chunk *found = nullptr;
     // Common case for call instructions: point at another function
-    if(!found) {
+    if(!found && functionList) {
         found = functionList->find(link->getTargetAddress());
     }
     // Common case for jumps: internal jump elsewhere within function
     if(!found) {
         auto enclosing = instruction->getParent()->getParent();
-        auto func = dynamic_cast<Function *>(enclosing);
-        found = ChunkFind().findInnermostAt(func, link->getTargetAddress());
+        if(auto func = dynamic_cast<Function *>(enclosing)) {
+            found = ChunkFind().findInnermostAt(func, link->getTargetAddress());
+        }
+    }
+    // Piecewise block soup, jumping to some other block
+    if(!found) {
+        auto enclosing = instruction->getParent()->getParent();
+        if(auto soup = dynamic_cast<BlockSoup *>(enclosing)) {
+            found = ChunkFind().findInnermostAt(soup, link->getTargetAddress());
+        }
     }
 
     if(found) {
