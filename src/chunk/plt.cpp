@@ -103,7 +103,7 @@ void PLTSection::parse(ElfMap *elf) {
 
             LOG(1, "VALUE might be " << value);
             Reloc *r = registry->find(value);
-            if(r) {
+            if(r && r->getSymbol()) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
                 entryMap[pltAddress] = new PLTEntry(
@@ -146,7 +146,7 @@ void PLTSection::parsePLTGOT(ElfMap *elf) {
                 + (pltAddress + 2+4);  // target is RIP-relative
             LOG(1, "PLT.GOT value would be " << value);
             Reloc *r = newRegistry->find(value);
-            if(r) {
+            if(r && r->getSymbol()) {
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
                 entryMap[pltAddress] = new PLTEntry(

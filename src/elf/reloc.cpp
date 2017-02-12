@@ -70,7 +70,7 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
 
             address_t address = r->r_offset;
             auto type = ELF64_R_TYPE(r->r_info);
-            address += elf->getBaseAddress();
+            //address += elf->getBaseAddress();
 
             if(!sym && type == R_X86_64_IRELATIVE) {
                 sym = currentSymbolList->find(r->r_addend);
