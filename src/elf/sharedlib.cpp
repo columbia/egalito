@@ -1,10 +1,13 @@
 #include <elf.h>
+#include <stdlib.h>  // for realpath() [ARM]
+#include <limits.h>  // for PATH_MAX [ARM]
 #include <sstream>
 #include "elfmap.h"
 #include "sharedlib.h"
 #include "types.h"
 
 std::string SharedLib::getAlternativeSymbolFile() const {
+#ifdef ARCH_X86_64
     auto buildIdHeader = static_cast<Elf64_Shdr *>(elfMap->findSectionHeader(".note.gnu.build-id"));
     if(buildIdHeader) {
         auto section = reinterpret_cast<address_t>(elfMap->findSection(".note.gnu.build-id"));
@@ -22,6 +25,7 @@ std::string SharedLib::getAlternativeSymbolFile() const {
                     if(i == 0) symbolFile << "/";
                 }
                 symbolFile << ".debug";
+
 #if 0
                 LOG0(3, "        build ID: ");
                 for(size_t i = 0; i < note->n_descsz; i ++) {
@@ -38,6 +42,15 @@ std::string SharedLib::getAlternativeSymbolFile() const {
             note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
         }
     }
+#elif defined(ARCH_AARCH64)
+    std::ostringstream symbolFile;
+    symbolFile << "/usr/lib/debug";
+    char realPath[PATH_MAX];
+    if(realpath(fullPath.c_str(), realPath)) {
+        symbolFile << realPath;
+        return symbolFile.str();
+    }
+#endif
     return "";
 }
 

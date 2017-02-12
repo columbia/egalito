@@ -36,6 +36,7 @@ void ElfMap::setup() {
 }
 
 void ElfMap::parseElf(const char *filename) {
+    printf("try to open [%s]\n", filename);
     fd = open(filename, O_RDONLY, 0);
     if(fd < 0) throw "can't open executable image\n";
 

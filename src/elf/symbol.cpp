@@ -60,10 +60,16 @@ SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
     else {
         auto altFile = library->getAlternativeSymbolFile();
         if(altFile.size() > 0) {
-            // we intentionally do not free this symbolFile; it
-            // needs to stay mapped into memory so strings remain valid
-            ElfMap *symbolFile = new ElfMap(altFile.c_str());
-            return buildSymbolList(symbolFile);
+            try {
+                // we intentionally do not free this symbolFile; it
+                // needs to stay mapped into memory so strings remain valid
+                ElfMap *symbolFile = new ElfMap(altFile.c_str());
+                return buildSymbolList(symbolFile);
+            }
+            catch(const char *s) {
+                // the debug symbol file does not exist
+                return nullptr;
+            }
         }
     }
 

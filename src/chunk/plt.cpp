@@ -58,7 +58,7 @@ void PLTSection::parse(ElfMap *elf) {
                 + (pltAddress + 2+4);  // target is RIP-relative
             LOG(1, "PLT value would be " << value);
             Reloc *r = registry->find(value);
-            if(r) {
+            if(r && r->getSymbol()) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
                 entryMap[pltAddress] = new PLTEntry(
@@ -87,7 +87,7 @@ void PLTSection::parse(ElfMap *elf) {
         LOG(1, "3nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*2));
         LOG(1, "4th instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*3));
 
-        if((*reinterpret_cast<const unsigned char *>(entry) & 0x9f) == 0x90) {
+        if((*reinterpret_cast<const unsigned char *>(entry+3) & 0x9f) == 0x90) {
             address_t pltAddress = header->sh_addr + i;
             unsigned int bytes = *reinterpret_cast<const unsigned int *>(entry);
 
@@ -119,6 +119,7 @@ void PLTSection::parse(ElfMap *elf) {
 void PLTSection::parsePLTGOT(ElfMap *elf) {
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt.got"));
     auto section = reinterpret_cast<address_t>(elf->findSection(".plt.got"));
+    if(!header || !section) return;  // no .plt.got section
 
     PLTRegistry *newRegistry = new PLTRegistry();
     for(auto r : *relocList) {
