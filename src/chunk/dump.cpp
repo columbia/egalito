@@ -4,18 +4,19 @@
 #include "disasm/dump.h"
 #include "chunk/plt.h"  // for dumping PLTLink
 #include "dump.h"
+#include "log/log.h"
 
 void ChunkDumper::visit(Module *module) {
     recurse(module);
 }
 
 void ChunkDumper::visit(Function *function) {
-    std::cout << "---[" << function->getName() << "]---\n";
+    LOG(4, "---[" << function->getName() << "]---");
     recurse(function);
 }
 
 void ChunkDumper::visit(Block *block) {
-    std::cout << block->getName() << ":\n";
+    LOG(4, block->getName() << ":");
     recurse(block);
 }
 
@@ -33,7 +34,7 @@ void ChunkDumper::visit(Instruction *instruction) {
         }
     }
 
-    std::printf("    ");
+    CLOG0(4, "    ");
 
     if(!ins) {
         if(auto p = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
@@ -73,7 +74,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 targetName.str().c_str(),
                 bytes2.c_str());
         }
-        else std::printf("...unknown...\n");
+        else LOG(4, "...unknown...");
         return;
     }
 

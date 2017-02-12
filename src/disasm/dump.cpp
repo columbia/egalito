@@ -17,6 +17,8 @@ std::string DisasmDump::formatBytes(const char *bytes, size_t size) {
 void DisasmDump::printInstruction(cs_insn *instr, int offset,
     const char *name) {
 
+    IF_LOG(9) {} else return;
+
     // show disassembly of each instruction
     std::string rawDisasm = formatBytes(
         reinterpret_cast<const char *>(instr->bytes), instr->size);
@@ -29,6 +31,8 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, unsigned long target, const char *name,
     const std::string &rawDisasm) {
 
+    IF_LOG(9) {} else return;
+
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
 
@@ -40,6 +44,8 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, const char *args, const char *name,
     const std::string &rawDisasm) {
+
+    IF_LOG(9) {} else return;
 
     char buffer[1024];
     size_t pos = 0;

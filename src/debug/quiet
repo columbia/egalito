@@ -1,4 +1,13 @@
-!log
+!chunk
+!break
 !elf
 !load
-!chunk
+!transform
+!log
+!main
+!regression
+!pass
+!disasm
+!conductor
+
+!reloc
