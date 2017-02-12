@@ -40,6 +40,20 @@ void ResolveCalls::visit(Instruction *instruction) {
         found = ChunkFind().findInnermostAt(func, targetAddress);
 #endif
     }
+    // Uncommon case for jumps: external jump to another function
+    // This can be for tail recursion or for overlapping functions (no_cancel)
+    if(!found) {
+        auto enclosing = instruction->getParent()->getParent()->getParent();
+        auto module = dynamic_cast<Module *>(enclosing);
+
+        // !!! right now, spatial search in a Module doesn't work...
+        //found = ChunkFind().findInnermostAt(module, targetAddress);
+        for(auto f : module->getChildren()->getIterable()->iterable()) {
+            found = ChunkFind().findInnermostAt(f, targetAddress);
+            // we could use a different Link type for external jumps
+            if(found) break;
+        }
+    }
 
     if(found) {
         LOG(1, "FOUND [" << found->getName() << "]");

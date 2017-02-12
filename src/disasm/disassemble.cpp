@@ -77,6 +77,7 @@ Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
     for(auto sym : *symbolList) {
         Function *function = Disassemble::function(sym, baseAddr);
         module->getChildren()->add(function);
+        function->setParent(module);
     }
     return module;
 }
