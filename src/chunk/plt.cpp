@@ -23,6 +23,12 @@ void PLTSection::parse(ElfMap *elf) {
             LOG(1, "PLT entry at " << r->getAddress());
             registry->add(r->getAddress(), r);
         }
+        else if(r->getType() == R_X86_64_IRELATIVE
+            || r->getType() == R_AARCH64_IRELATIVE) {
+
+            LOG(1, "ifunc PLT entry at " << r->getAddress());
+            registry->add(r->getAddress(), r);
+        }
     }
 
 #ifdef ARCH_X86_64
@@ -106,6 +112,48 @@ void PLTSection::parse(ElfMap *elf) {
         }
     }
 #endif
+
+    parsePLTGOT(elf);
+}
+
+void PLTSection::parsePLTGOT(ElfMap *elf) {
+    auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt.got"));
+    auto section = reinterpret_cast<address_t>(elf->findSection(".plt.got"));
+
+    PLTRegistry *newRegistry = new PLTRegistry();
+    for(auto r : *relocList) {
+        if(r->getType() == R_X86_64_GLOB_DAT) {
+            LOG(1, "PLT.GOT data at " << r->getAddress());
+            newRegistry->add(r->getAddress(), r);
+        }
+    }
+
+    static const size_t ENTRY_SIZE = 8;
+
+    /* example format
+        0x00007ffff7a5b900:  ff 25 3a 85 37 00       jmpq   *0x37853a(%rip)
+        0x00007ffff7a5b906:  66 90   xchg   %ax,%ax
+    */
+
+    for(size_t i = 0; i < header->sh_size; i += ENTRY_SIZE) {
+        auto entry = section + i;
+
+        LOG(1, "CONSIDER PLT.GOT entry at " << entry);
+
+        if(*reinterpret_cast<const unsigned short *>(entry) == 0x25ff) {
+            address_t pltAddress = header->sh_addr + i;
+            address_t value = *reinterpret_cast<const unsigned int *>(entry + 2)
+                + (pltAddress + 2+4);  // target is RIP-relative
+            LOG(1, "PLT.GOT value would be " << value);
+            Reloc *r = newRegistry->find(value);
+            if(r) {
+                LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
+                    << r->getSymbol()->getName() << "]");
+                entryMap[pltAddress] = new PLTEntry(
+                    pltAddress, r->getSymbol());
+            }
+        }
+    }
 }
 
 PLTEntry *PLTSection::find(address_t address) {

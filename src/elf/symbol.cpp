@@ -9,8 +9,9 @@
 #include "log/log.h"
 
 bool SymbolList::add(Symbol *symbol, size_t index) {
-    auto it = symbolMap.find(symbol->getName());
-    if(it != symbolMap.end()) return false;
+    // Can't check just by name since it may not be unique
+    //auto it = symbolMap.find(symbol->getName());
+    //if(it != symbolMap.end()) return false;
 
     symbolList.push_back(symbol);
     if(indexMap.size() <= index) indexMap.resize(index + 1);
@@ -18,6 +19,11 @@ bool SymbolList::add(Symbol *symbol, size_t index) {
     symbolMap[symbol->getName()] = symbol;
     spaceMap[symbol->getAddress()] = symbol;
     return true;
+}
+
+void SymbolList::addAlias(Symbol *symbol, size_t otherIndex) {
+    if(indexMap.size() <= otherIndex) indexMap.resize(otherIndex + 1);
+    indexMap[otherIndex] = symbol;
 }
 
 Symbol *SymbolList::get(size_t index) {
@@ -171,6 +177,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             if(prev != seen.end()) {
                 if((*prev).second->getSize() == size) {
                     (*prev).second->addAlias(name);
+                    list->addAlias((*prev).second, j);  // not required?
                 }
                 else {
                     CLOG0(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
@@ -180,8 +187,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             else {
                 Symbol *symbol = new Symbol{address, size, name};
                 CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
-                    (int)list->symbolList.size(), address,
-                    size, name);
+                    (int)j, address, size, name);
                 list->add(symbol, (size_t)j);
             }
         }

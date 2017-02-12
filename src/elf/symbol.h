@@ -37,9 +37,11 @@ private:
     std::map<address_t, Symbol *> spaceMap;
 public:
     bool add(Symbol *symbol, size_t index);
+    void addAlias(Symbol *symbol, size_t otherIndex);
     Symbol *get(size_t index);
     Symbol *find(const char *name);
     Symbol *find(address_t address);
+    size_t getCount() const { return symbolList.size(); }
 
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }

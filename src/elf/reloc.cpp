@@ -54,7 +54,9 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
         LOG(1, "reloc section [" << name << ']');
 
         SymbolList *currentSymbolList = symbolList;
-        if(std::strcmp(name, ".rela.plt") == 0) {
+        if(std::strcmp(name, ".rela.plt") == 0
+            || std::strcmp(name, ".rela.dyn") == 0) {
+
             currentSymbolList = dynamicSymbolList;
         }
 
@@ -68,8 +70,12 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
 
             address_t address = r->r_offset;
             auto type = ELF64_R_TYPE(r->r_info);
-            if(type != R_X86_64_JUMP_SLOT) {
-                address += elf->getBaseAddress();
+            address += elf->getBaseAddress();
+
+            if(!sym && type == R_X86_64_IRELATIVE) {
+                sym = currentSymbolList->find(r->r_addend);
+                LOG(3, "        IRELATIVE reloc refers to 0x" << std::hex << r->r_addend
+                    << " [" << (sym ? sym->getName() : "???") << "]");
             }
 
             Reloc *reloc = new Reloc(
