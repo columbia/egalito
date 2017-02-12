@@ -49,6 +49,7 @@ LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
+INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
 
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES) \
     $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES)
@@ -57,14 +58,17 @@ TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
 LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(patsubst %.S,%.o,$(LOADER_SOURCES:.s=.o))))
-ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES)
+ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
+ITEST_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(ITEST_SOURCES:.s=.o)))
+ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES) $(ITEST_SOURCES)
 
 TARGET = egalito
 LOADER = loader
+ITEST = itest
 
 # Default target
 .PHONY: all
-all: $(TARGET) $(LOADER)
+all: $(TARGET) $(LOADER) $(ITEST)
 
 # Dependencies
 DEPEND_FILES = $(addsuffix .d,$(basename $(ALL_SOURCES)))
@@ -91,6 +95,8 @@ $(LOADER): $(LOADER_OBJECTS)
 	$(CXX) -static -o $@ -pg \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+$(ITEST): $(ITEST_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Tests
 REGRESSION_SOURCES = $(wildcard regression/*.cpp)
