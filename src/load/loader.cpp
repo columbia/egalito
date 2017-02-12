@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <cstdio>  // for std::fflush
 
 #include "usage.h"
 #include "segmap.h"
@@ -76,6 +77,8 @@ int main(int argc, char *argv[]) {
         adjustAuxiliaryVector(argv, elf, interpreter);
 
         // jump to the interpreter/target program (never returns)
+        std::cout.flush();
+        std::fflush(stdout);
         _start2();
     }
     catch(const char *s) {

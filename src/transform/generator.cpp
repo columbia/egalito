@@ -1,4 +1,6 @@
+#include <iostream>  // for std::cout.flush()
 #include <iomanip>
+#include <cstdio>  // for std::fflush
 #include "generator.h"
 #include "log/log.h"
 
@@ -48,5 +50,8 @@ void Generator::jumpToSandbox(Sandbox *sandbox, Module *module) {
 
     int argc = 1;
     char *argv[] = {(char *)"/dev/null", NULL};
+
+    std::cout.flush();
+    std::fflush(stdout);
     mainp(argc, argv);
 }
