@@ -25,6 +25,18 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class OffsetLink : public Link {
+private:
+    ChunkRef target;
+    size_t offset;
+public:
+    OffsetLink(ChunkRef target, size_t offset)
+        : target(target), offset(offset) {}
+
+    virtual ChunkRef getTarget() const { return target; }
+    virtual address_t getTargetAddress() const;
+};
+
 class PLTEntry;
 class PLTLink : public Link {
 private:
