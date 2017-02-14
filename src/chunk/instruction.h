@@ -3,6 +3,7 @@
 
 #include <string>
 #include <capstone/capstone.h>  // for cs_insn
+#include "register.h"
 #include "types.h"
 
 class Instruction;
@@ -163,6 +164,26 @@ public:
     std::string getMnemonic() const { return mnemonic; }
 private:
     diff_t calculateDisplacement();
+};
+
+class ReturnInstruction : public SemanticImpl<DisassembledStorage> {
+public:
+    ReturnInstruction(const cs_insn &insn)
+        : SemanticImpl<DisassembledStorage>(insn) {}
+};
+
+class IndirectJumpInstruction : public SemanticImpl<DisassembledStorage> {
+private:
+    Register reg;
+    std::string mnemonic;
+public:
+    IndirectJumpInstruction(const cs_insn &insn, Register reg,
+        const std::string &mnemonic)
+        : SemanticImpl<DisassembledStorage>(insn), reg(reg),
+        mnemonic(mnemonic) {}
+
+    std::string getMnemonic() const { return mnemonic; }
+    register_t getRegister() const { return reg; }
 };
 
 #endif

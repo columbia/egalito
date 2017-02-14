@@ -70,7 +70,7 @@ void ControlFlowGraph::construct(Block *block) {
             }
         }
     }
-    else if(i->getSemantic()->getData() == "\xc3") {
+    else if(dynamic_cast<ReturnInstruction *>(i->getSemantic())) {
         // return instruction, no intra-function links
     }
     else {

@@ -243,7 +243,30 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
                 }
 #endif
             }
+#ifdef ARCH_X86_64
+            else if(op->type == X86_OP_REG) {
+                if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+                    semantic = new IndirectJumpInstruction(
+                        *ins, op->reg, ins->mnemonic);
+                }
+            }
+#elif defined(ARCH_AARCH64)
+            else if(op->type == ARM64_OP_IMM) {
+                #error "not yet implemented"
+            }
+#endif
         }
+    }
+    else {
+#ifdef ARCH_X86_64
+        if(ins->id == X86_INS_RET) {
+            semantic = new ReturnInstruction(*ins);
+        }
+#elif defined(ARCH_AARCH64)
+        if(ins->id == ARM64_INS_RET) {
+            semantic = new ReturnInstruction(*ins);
+        }
+#endif
     }
 
     if(!semantic) {
