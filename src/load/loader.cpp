@@ -15,6 +15,7 @@
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
+#include "analysis/controlflow.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -93,6 +94,7 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
+    //conductor.parseRecursive(elf);
     conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
@@ -105,15 +107,21 @@ void runEgalito(ElfMap *elf) {
     ChunkDumper dumper;
     module->accept(&dumper);
 
+    auto f = module->getChildren()->getNamed()->find("main");
+    if(f) {
+        ControlFlowGraph cfg(f);
+        cfg.dump();
+    }
+
     {
         Generator generator;
         auto sandbox = generator.makeSandbox();
         generator.copyCodeToSandbox(elf, module, sandbox);
 
-        LOG(1, "");
+        /*LOG(1, "");
         LOG(1, "=== After copying code to new locations ===");
         ChunkDumper dumper;
-        module->accept(&dumper);
+        module->accept(&dumper);*/
 
         generator.jumpToSandbox(sandbox, module);
     }
