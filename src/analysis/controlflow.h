@@ -34,6 +34,8 @@ public:
         { return ConcreteIterable<ListType>(links); }
     ConcreteIterable<ListType> backwardLinks()
         { return ConcreteIterable<ListType>(reverseLinks); }
+
+    std::string getDescription();
 };
 
 class ControlFlowGraph {
@@ -42,6 +44,12 @@ private:
     std::map<Block *, ControlFlowNode::id_t> blockMapping;
 public:
     ControlFlowGraph(Function *function);
+
+    ControlFlowNode *get(ControlFlowNode::id_t id)
+        { return &graph[id]; }
+    ControlFlowNode *get(Block *block)
+        { return &graph[blockMapping[block]]; }
+    size_t getCount() const { return graph.size(); }
 
     void dump();
 private:

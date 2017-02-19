@@ -16,6 +16,7 @@
 #include "transform/generator.h"
 #include "break/signals.h"
 #include "analysis/controlflow.h"
+#include "analysis/jumptable.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -111,6 +112,9 @@ void runEgalito(ElfMap *elf) {
     if(f) {
         ControlFlowGraph cfg(f);
         cfg.dump();
+
+        JumpTableSearch jt;
+        jt.search(f);
     }
 
     {

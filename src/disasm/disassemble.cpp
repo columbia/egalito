@@ -145,7 +145,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         function->addToSize(block->getSize());
     }
 
-    cs_free(insn, count);
+    //cs_free(insn, count);
     return function;
 }
 

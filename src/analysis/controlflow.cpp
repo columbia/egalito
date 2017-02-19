@@ -1,24 +1,15 @@
+#include <sstream>
 #include <iomanip>
 #include "controlflow.h"
 #include "chunk/concrete.h"
 #include "pass/chunkpass.h"
 #include "log/log.h"
 
-class GraphConstruction : public ChunkPass {
-private:
-    std::map<Block *, int> blockMap;
-    int blockCount;
-public:
-    GraphConstruction() : blockCount(0) {}
-    void visit(Block *block);
-    void visit(Instruction *instruction);
-};
-
-void GraphConstruction::visit(Block *block) {
-    
-}
-
-void GraphConstruction::visit(Instruction *instruction) {
+std::string ControlFlowNode::getDescription() {
+    std::ostringstream stream;
+    stream << "node " << getID()
+        << " (" << getBlock()->getName() << ")";
+    return stream.str();
 }
 
 ControlFlowGraph::ControlFlowGraph(Function *function) {
@@ -94,8 +85,7 @@ void ControlFlowGraph::construct(Block *block) {
 void ControlFlowGraph::dump() {
     LOG(1, "Control flow graph:");
     for(auto node : graph) {
-        LOG(1, "    node " << node.getID()
-            << " (" << node.getBlock()->getName() << ")");
+        LOG(1, "    " << node.getDescription());
         LOG0(1, "        forward edges:");
         for(auto link : node.forwardLinks()) {
             LOG0(1, " " << link.first << " ("
