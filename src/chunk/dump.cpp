@@ -82,6 +82,7 @@ void ChunkDumper::visit(Instruction *instruction) {
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
+            ins->address = instruction->getAddress();
             DisasmDump::printInstruction(ins, pos, target->getName().c_str());
             return;
         }
