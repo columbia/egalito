@@ -5,6 +5,10 @@
 #include "pass/chunkpass.h"
 #include "log/registry.h"
 
+#ifndef LIBC_PATH
+#define LIBC_PATH   "/lib/x86_64-linux-gnu/libc.so.6"
+#endif
+
 class _Pass : public ChunkPass {
 private:
     int unresolved, total;
@@ -39,13 +43,7 @@ void LibcResolve::run() {
         Conductor conductor;
         conductor.parseRecursive(&elf);
 
-        auto libc = conductor.getLibraryList()->get(
-#ifdef ARCH_X86_64
-            "/lib/x86_64-linux-gnu/libc.so.6"
-#elif defined(ARCH_AARCH64)
-            "/lib/aarch64-linux-gnu/libc.so.6"
-#endif
-        );
+        auto libc = conductor.getLibraryList()->get(LIBC_PATH);
         if(!libc) {
             std::cout << "TEST FAILED: can't locate libc.so in depends\n";
             return;

@@ -2,7 +2,8 @@
 
 CC = gcc
 
-CFLAGS	=
+CFLAGS	= -fPIE -pie
+STATIC_CFLAGS =
 
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
@@ -21,7 +22,7 @@ all: $(TARGETS)
 hello: hello.c
 	$(CC) $(CFLAGS) $^ -o $@
 hello-static: hello.c
-	$(CC) $(CFLAGS) $^ -o $@ -static
+	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
 helloq: hello.c
 	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
 hi0: hi0.c hi0-s.S
@@ -30,7 +31,7 @@ hi0-q: hi0.c hi0-s.S
 	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
 
 hi0-static: hi0.c hi0-s.S
-	$(CC) $(CFLAGS) $^ -o $@ -static
+	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
 
 .PHONY: clean
 clean:

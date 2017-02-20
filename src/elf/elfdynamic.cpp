@@ -118,6 +118,10 @@ void ElfDynamic::resolveLibraries() {
     }
 
     parseLdConfig("/etc/ld.so.conf", searchPath);
+    searchPath.push_back("/lib");
+    searchPath.push_back("/usr/lib");
+    searchPath.push_back("/lib64");
+    searchPath.push_back("/usr/lib64");
 
     for(auto &library : dependencyList) {
         if(library[0] == '/') {

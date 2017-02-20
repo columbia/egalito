@@ -87,6 +87,8 @@ DEPEND_FILES = $(addsuffix .d,$(basename $(ALL_SOURCES)))
 # Special files
 load/usage.o: load/usage.cpp
 	$(CXX) $(CXXFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+integration/libc_resolve.o: integration/libc_resolve.cpp
+	$(CXX) $(CXXFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
