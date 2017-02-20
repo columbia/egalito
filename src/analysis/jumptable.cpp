@@ -1,3 +1,5 @@
+#include <sstream>
+#include <iomanip>  // for std::setw
 #include <utility>
 #include <capstone/capstone.h>
 #include "jumptable.h"
@@ -12,6 +14,7 @@ private:
     ControlFlowNode *node;
     Instruction *instruction;
     std::vector<bool> regs;
+    std::vector<SearchState *> parents;
 public:
     SearchState() : node(nullptr), instruction(nullptr) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
@@ -28,25 +31,33 @@ public:
     const std::vector<bool> &getRegs() const { return regs; }
     void addReg(int reg) { regs[reg] = true; }
     void removeReg(int reg) { regs[reg] = false; }
+    bool getReg(int reg) { return regs[reg]; }
+
+    void addParent(SearchState *parent) { parents.push_back(parent); }
+    const std::vector<SearchState *> &getParents() const { return parents; }
 };
 
 class SearchHelper {
 private:
     Disassemble::Handle handle;
+private:
     ControlFlowGraph *cfg;
-    std::vector<bool> visited;
-    std::vector<SearchState> stateList;
-    std::vector<SearchState> transitionList;
-    SearchState state;
+    std::vector<bool> visited;  // indexed by ControlFlowNode ID
+    std::vector<SearchState *> stateList;  // history of states
+    std::vector<SearchState *> transitionList;  // new states (BFS)
+    SearchState *currentState;  // current, not in stateList or transitionList
 public:
     SearchHelper(ControlFlowGraph *cfg)
-        : handle(true), cfg(cfg), visited(cfg->getCount()) {}
+        : handle(true), cfg(cfg), visited(cfg->getCount()),
+        currentState(nullptr) {}
     void init(Instruction *i);
 
     void run();
+    void secondPass();
 private:
     void visitInstruction(Instruction *i);
     const char *printReg(int reg);
+    void printRegs(SearchState *state, bool withNewline = true);
 };
 
 void SearchHelper::init(Instruction *i) {
@@ -55,17 +66,17 @@ void SearchHelper::init(Instruction *i) {
     auto node = cfg->get(block);
     LOG(1, "search for jump table at " << i->getName());
 
-    SearchState startState(node, i);
-    startState.addReg(j->getRegister());
+    SearchState *startState = new SearchState(node, i);
+    startState->addReg(j->getRegister());
     transitionList.push_back(startState);
 }
 
 void SearchHelper::run() {
     while(transitionList.size() > 0) {
-        this->state = transitionList.front();
+        this->currentState = transitionList.front();
         transitionList.erase(transitionList.begin());
-        auto node = state.getNode();
-        Instruction *instruction = state.getInstruction();
+        auto node = currentState->getNode();
+        Instruction *instruction = currentState->getInstruction();
 
         if(visited[node->getID()]) continue;
         visited[node->getID()] = true;
@@ -79,8 +90,14 @@ void SearchHelper::run() {
             ChunkDumper dumper;
             dumper.visit(i);
 
+            currentState->setInstruction(i);
+
             visitInstruction(i);
-            stateList.push_back(state);
+            stateList.push_back(currentState);
+
+            if(index > 0) {
+                currentState = new SearchState(*currentState);
+            }
         }
 
         // find all nodes that link to this one, keep searching there
@@ -92,10 +109,11 @@ void SearchHelper::run() {
                     = newNode->getBlock()->getChildren()->getSpatial()->find(
                         newNode->getBlock()->getAddress() + offset);
                 LOG(1, "    start at offset " << offset << " -> " << newStart);
-                SearchState newState = state;
-                newState.setNode(newNode);
-                newState.setInstruction(newStart);
+                SearchState *newState = new SearchState(*currentState);
+                newState->setNode(newNode);
+                newState->setInstruction(newStart);
                 transitionList.push_back(newState);
+                currentState->addParent(newState);
             }
         }
     }
@@ -126,11 +144,64 @@ void SearchHelper::visitInstruction(Instruction *i) {
         if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
             LOG(1, "        explicit reg ref "
                 << printReg(op->reg));
+            //currentState->addReg(op->reg);
         }
     }
 
+
+    static bool knownInstruction[X86_INS_ENDING] = {};
+    knownInstruction[X86_INS_ADD] = true;
+    knownInstruction[X86_INS_LEA] = true;
+    knownInstruction[X86_INS_MOVSXD] = true;
+
+    if(knownInstruction[capstone->id]) {
+        if(x->op_count == 2
+            && x->operands[0].type == X86_OP_REG
+            && x->operands[1].type == X86_OP_REG) {
+
+            auto source = x->operands[0].reg;
+            auto target = x->operands[1].reg;
+
+            if(currentState->getReg(target)) {
+                currentState->addReg(source);
+                currentState->addReg(target);
+            }
+        }
+        if(x->op_count == 2
+            && x->operands[0].type == X86_OP_MEM
+            && x->operands[1].type == X86_OP_REG) {
+
+            auto mem = &x->operands[0].mem;
+            auto out = x->operands[1].reg;
+
+            if(currentState->getReg(out)) {
+                currentState->removeReg(out);
+                if(mem->base != X86_REG_INVALID) {
+                    currentState->addReg(mem->base);
+                }
+                if(mem->index != X86_REG_INVALID) {
+                    currentState->addReg(mem->index);
+                }
+            }
+        }
+    }
+
+    currentState->removeReg(X86_REG_RIP);  // never care about this
+
+#if 0
     switch(capstone->id) {
     case X86_INS_ADD:
+        if(x->operands[0].type == X86_OP_REG
+            && x->operands[1].type == X86_OP_REG) {
+
+            auto source = x->operands[0].reg;
+            auto target = x->operands[1].reg;
+
+            if(currentState->getReg(target)) {
+                currentState->addReg(source);
+                currentState->addReg(target);
+            }
+        }
         LOG(1, "        add found");
         break;
     case X86_INS_LEA:
@@ -138,7 +209,7 @@ void SearchHelper::visitInstruction(Instruction *i) {
             && x->operands[1].type == X86_OP_REG) {
 
             auto mem = &x->operands[0].mem;
-            auto out = &x->operands[1].reg;
+            auto out = x->operands[1].reg;
 
             if(mem->base != X86_REG_INVALID
                 && mem->index != X86_REG_INVALID) {
@@ -155,16 +226,60 @@ void SearchHelper::visitInstruction(Instruction *i) {
         LOG(1, "        lea found");
         break;
     case X86_INS_MOVSXD:
+        if(x->operands[0].type == X86_OP_MEM
+            && x->operands[1].type == X86_OP_REG) {
+
+            auto mem = &x->operands[0].mem;
+            auto out = x->operands[1].reg;
+
+            currentState->addReg(out);
+        }
+
         LOG(1, "        movslq found");
         break;
     default:
-        LOG(1, "        got intr id " << capstone->id);
+        LOG(1, "        got instr id " << capstone->id);
         break;
+    }
+#endif
+}
+
+void SearchHelper::secondPass() {
+    LOG(1, "second pass iteration");
+    for(auto it = stateList.rbegin(); it != stateList.rend(); ++it) {
+        auto state = (*it);
+        auto instruction = state->getInstruction();
+
+        printRegs(state, false);
+
+        ChunkDumper dumper;
+        dumper.visit(instruction);
     }
 }
 
 const char *SearchHelper::printReg(int reg) {
     return cs_reg_name(handle.raw(), reg);
+}
+
+void SearchHelper::printRegs(SearchState *state, bool withNewline) {
+    std::ostringstream output;
+    output << "[";
+
+    bool firstReg = true;
+    const auto &regs = state->getRegs();
+    for(size_t r = 0; r < regs.size(); r ++) {
+        if(!regs[r]) continue;
+
+        if(!firstReg) output << " ";
+        firstReg = false;
+        output << printReg(r);
+    }
+    output << "]";
+
+    LOG0(1, "    regs " << std::left << std::setw(30)
+        << output.str());
+
+    if(withNewline) LOG(1, "");
 }
 
 void JumpTableSearch::search(Module *module) {
@@ -182,6 +297,7 @@ void JumpTableSearch::search(Function *function) {
             SearchHelper helper(&cfg);
             helper.init(i);
             helper.run();
+            helper.secondPass();
         }
     }
 }
