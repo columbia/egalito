@@ -51,6 +51,7 @@ private:
     address_t address;
 public:
     TreeNodeAddress(address_t address) : address(address) {}
+    address_t getValue() const { return address; }
     virtual void print(const TreePrinter &p) const
         { p.stream() << "0x" << std::hex << address; }
 };
@@ -63,6 +64,16 @@ public:
     int getRegister() const { return reg; }
     virtual void print(const TreePrinter &p) const
         { Disassemble::Handle h(true); p.stream() << "%" << cs_reg_name(h.raw(), reg); }
+};
+class TreeNodeRegisterRIP : public TreeNodeRegister {
+private:
+    address_t value;
+public:
+    TreeNodeRegisterRIP(address_t value)
+        : TreeNodeRegister(X86_REG_RIP), value(value) {}
+    address_t getValue() const { return value; }
+    virtual void print(const TreePrinter &p) const
+        { p.stream() << "%rip=0x" << std::hex << value; }
 };
 
 class TreeNodeUnary : public TreeNode {
@@ -137,6 +148,36 @@ public:
     TreeNodeMultiplication(TreeNode *left, TreeNode *right)
         : TreeNodeBinary(left, right, "*") {}
 };
+
+class TreeNodeMultipleParents : public TreeNode {
+private:
+    std::vector<TreeNode *> parentList;
+public:
+    void addParent(TreeNode *parent) { parentList.push_back(parent); }
+
+    const std::vector<TreeNode *> &getParents() const { return parentList; }
+    virtual void print(const TreePrinter &p) const;
+};
+void TreeNodeMultipleParents::print(const TreePrinter &p) const {
+    if(p.shouldSplit()) {
+        p.stream() << "(MULTIPLE\n";
+        for(size_t i = 0; i < parentList.size(); i ++) {
+            p.indent();
+            if(i) p.stream() << "| ";
+            parentList[i]->print(p.nest());
+            if(i + 1 < parentList.size()) p.stream() << "\n";
+        }
+        p.stream() << ")";
+    }
+    else {
+        p.stream() << "(MULTIPLE ";
+        for(size_t i = 0; i < parentList.size(); i ++) {
+            if(i) p.stream() << " | ";
+            parentList[i]->print(p.nest());
+        }
+        p.stream () << ")";
+    }
+}
 
 class TreeCapture {
 private:
@@ -509,6 +550,11 @@ TreeNode *SearchHelper::makeMemTree(SearchState *state, x86_op_mem *mem) {
 }
 
 TreeNode *SearchHelper::getParentRegTree(SearchState *state, int reg) {
+    if(reg == X86_REG_RIP) {
+        auto i = state->getInstruction();
+        return new TreeNodeRegisterRIP(i->getAddress() + i->getSize());
+    }
+
     const auto &parents = state->getParents();
     if(parents.size() == 0) {
         return new TreeNodeRegister(reg);
@@ -519,8 +565,13 @@ TreeNode *SearchHelper::getParentRegTree(SearchState *state, int reg) {
         return tree;
     }
     else {
-        LOG(1, "    NOT YET IMPLEMENTED -- getParentRegTree with multiple parents");
-        return parents.front()->getRegTree(reg);
+        auto tree = new TreeNodeMultipleParents();
+        for(auto p : parents) {
+            auto t = p->getRegTree(reg);
+            if(!t) t = new TreeNodeRegister(reg);
+            tree->addParent(t);
+        }
+        return tree;
     }
 }
 
@@ -630,8 +681,12 @@ void SearchHelper::matchJumpTable(SearchState *state) {
         LOG(1, "FOUND JUMP TABLE BY PATTERN MATCHING!!!");
 
         LOG0(1, "address of jump table: ");
+        auto node = dynamic_cast<TreeNodeAddition *>(capture.get(0));
+        auto left = dynamic_cast<TreeNodeAddress *>(node->getLeft());
+        auto right = dynamic_cast<TreeNodeRegisterRIP *>(node->getRight());
         capture.get(0)->print(TreePrinter(1, 0));
-        LOG(1, "");
+        LOG(1, "  => 0x" << std::hex << left->getValue() + right->getValue());
+
         LOG0(1, "indexing expression:   ");
         capture.get(1)->print(TreePrinter(1, 0));
         LOG(1, "");
