@@ -3,9 +3,6 @@
 
 #include "chunk/concrete.h"
 
-class ControlFlowGraph;
-class IndirectJumpInstruction;
-
 class JumpTableSearch {
 public:
     void search(Module *module);
