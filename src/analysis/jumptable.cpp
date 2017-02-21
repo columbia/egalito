@@ -41,6 +41,7 @@ private:
     unsigned long value;
 public:
     TreeNodeConstant(unsigned long value) : value(value) {}
+    unsigned long getValue() const { return value; }
     virtual void print(const TreePrinter &p) const
         { p.stream() << value; }
 };
@@ -59,6 +60,7 @@ private:
     Register reg;
 public:
     TreeNodeRegister(int reg) : reg(Register(reg)) {}
+    int getRegister() const { return reg; }
     virtual void print(const TreePrinter &p) const
         { Disassemble::Handle h(true); p.stream() << "%" << cs_reg_name(h.raw(), reg); }
 };
@@ -70,6 +72,7 @@ private:
 public:
     TreeNodeUnary(TreeNode *node, const char *name)
         : node(node), name(name) {}
+    TreeNode *getChild() const { return node; }
     virtual void print(const TreePrinter &p) const;
 };
 
@@ -99,7 +102,7 @@ public:
     TreeNodeBinary(TreeNode *left, TreeNode *right, const char *op)
         : left(left), right(right), op(op) {}
     TreeNode *getLeft() const { return left; }
-    TreeNode *getRight() const { return left; }
+    TreeNode *getRight() const { return right; }
     const char *getOperator() const { return op; }
 
     virtual void print(const TreePrinter &p) const;
@@ -135,19 +138,86 @@ public:
         : TreeNodeBinary(left, right, "*") {}
 };
 
-#if 0
-template <typename SpecificType>
-class TreePatternSpecificType {
+class TreeCapture {
+private:
+    std::vector<TreeNode *> captureList;
 public:
-    bool matches(TreeNode *node) const
-        { return dynamic_cast<SpecificType *>(node) != nullptr; }
+    void add(TreeNode *node) { captureList.push_back(node); }
+    TreeNode *get(int index) const { return captureList[index]; }
 };
 
 class TreePatternAny {
 public:
-    bool matches(TreeNode *node) const { return true; }
+    static bool matches(TreeNode *node, TreeCapture &capture)
+        { return true; }
 };
-#endif
+
+template <typename Type>
+class TreePatternTerminal {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture)
+        { return dynamic_cast<Type *>(node) != nullptr; }
+};
+
+template <typename Type, typename SubType>
+class TreePatternUnary {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type, typename SubType>
+bool TreePatternUnary<Type, SubType>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    auto b = dynamic_cast<Type *>(node);
+    return b != nullptr
+        && SubType::matches(b->getChild(), capture);
+}
+
+template <typename Type, typename LeftType, typename RightType>
+class TreePatternBinary {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type, typename LeftType, typename RightType>
+bool TreePatternBinary<Type, LeftType, RightType>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    auto b = dynamic_cast<Type *>(node);
+    return b != nullptr
+        && LeftType::matches(b->getLeft(), capture)
+        && RightType::matches(b->getRight(), capture);
+}
+
+template <typename Type = TreePatternAny>
+class TreePatternCapture {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type>
+bool TreePatternCapture<Type>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    capture.add(node);
+    return Type::matches(node, capture);
+}
+
+template <int Wanted>
+class TreePatternRegisterIs {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture) {
+        auto v = dynamic_cast<TreeNodeRegister *>(node);
+        return v && v->getRegister() == Wanted;
+    }
+};
+
+template <unsigned long Wanted>
+class TreePatternConstantIs {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture) {
+        auto v = dynamic_cast<TreeNodeConstant *>(node);
+        return v && v->getValue() == Wanted;
+    }
+};
 
 class SearchState {
 private:
@@ -212,6 +282,7 @@ private:
     TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
     TreeNode *getParentRegTree(SearchState *state, int reg);
     void handleKnownInstruction(SearchState *state);
+    void matchJumpTable(SearchState *state);
 };
 
 void SearchHelper::init(Instruction *i) {
@@ -358,6 +429,8 @@ void SearchHelper::secondPass() {
         handleKnownInstruction(state);
         copyParentRegTrees(state);
         printRegTrees(state);
+
+        matchJumpTable(state);
     }
 }
 
@@ -399,32 +472,12 @@ void SearchHelper::printRegTrees(SearchState *state) {
 }
 
 void SearchHelper::copyParentRegTrees(SearchState *state) {
-    const auto &parents = state->getParents();
-    if(parents.size() == 0) {
-        const auto &regs = state->getRegs();
-        for(size_t r = 0; r < regs.size(); r ++) {
-            if(regs[r] && !state->getRegTree(r)) {
-                LOG(1, "    set reg tree");
-                state->setRegTree(r, new TreeNodeRegister(r));
-            }
+    const auto &regs = state->getRegs();
+    for(size_t r = 0; r < regs.size(); r ++) {
+        if(regs[r] && !state->getRegTree(r)) {
+            // didn't compute this register yet, copy from parent(s)
+            state->setRegTree(r, getParentRegTree(state, r));
         }
-    }
-    else if(parents.size() == 1) {
-        auto parent = parents.front();
-        const auto &regs = state->getRegs();
-        for(size_t r = 0; r < regs.size(); r ++) {
-            if(!regs[r]) continue;
-
-            // see if this tree was already set by handleKnownInstruction
-            if(state->getRegTree(r)) continue;
-
-            auto tree = parent->getRegTree(r);
-            if(!tree) tree = new TreeNodeRegister(r);
-            state->setRegTree(r, tree);
-        }
-    }
-    else {
-        LOG(1, "    multiple parents not yet implemented!");
     }
 }
 
@@ -544,6 +597,44 @@ void SearchHelper::handleKnownInstruction(SearchState *state) {
     default:
         LOG(1, "        got instr id " << capstone->id);
         break;
+    }
+}
+
+void SearchHelper::matchJumpTable(SearchState *state) {
+    auto s = state->getInstruction()->getSemantic();
+    auto v = dynamic_cast<IndirectJumpInstruction *>(s);
+    if(!v) return;
+
+    // get final tree for pattern matching
+    auto tree = state->getRegTree(v->getRegister());
+
+    typedef TreePatternRegisterIs<X86_REG_RIP> TreePatternRIP;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternTerminal<TreeNodeAddress>,
+        TreePatternRIP
+    > TreePatternLEA;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternLEA,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternCapture<TreePatternLEA>,
+            TreePatternBinary<TreeNodeMultiplication,
+                TreePatternCapture<TreePatternAny>,
+                TreePatternConstantIs<4>>
+        >
+    > Form1;
+
+    TreeCapture capture;
+    if(Form1::matches(tree, capture)) {
+        LOG(1, "FOUND JUMP TABLE BY PATTERN MATCHING!!!");
+
+        LOG0(1, "address of jump table: ");
+        capture.get(0)->print(TreePrinter(1, 0));
+        LOG(1, "");
+        LOG0(1, "indexing expression:   ");
+        capture.get(1)->print(TreePrinter(1, 0));
+        LOG(1, "");
     }
 }
 
