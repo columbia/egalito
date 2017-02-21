@@ -1,5 +1,8 @@
+#include <iostream>
 #include <sstream>
-#include <iomanip>  // for std::setw
+#include <string>
+#include <map>
+#include <iomanip>  // for std::setw, std::hex
 #include <utility>
 #include <capstone/capstone.h>
 #include "jumptable.h"
@@ -7,7 +10,144 @@
 #include "chunk/instruction.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
+
+#include "types.h"
 #include "log/log.h"
+
+class SearchState;
+
+class TreePrinter {
+private:
+    int _indent;
+    int _splits;
+public:
+    TreePrinter(int _indent = 1, int _splits = 2)
+        : _indent(_indent), _splits(_splits) {}
+
+    TreePrinter nest() const { return TreePrinter(_indent + 1, _splits - 1); }
+    std::ostream &stream() const { return std::cout; }
+    void indent() const { stream() << std::string(4*_indent, ' '); }
+    bool shouldSplit() const { return _splits > 0; }
+};
+
+class TreeNode {
+public:
+    virtual ~TreeNode() {}
+    virtual void print(const TreePrinter &p) const = 0;
+};
+
+class TreeNodeConstant : public TreeNode {
+private:
+    unsigned long value;
+public:
+    TreeNodeConstant(unsigned long value) : value(value) {}
+    virtual void print(const TreePrinter &p) const
+        { p.stream() << value; }
+};
+
+class TreeNodeAddress : public TreeNode {
+private:
+    address_t address;
+public:
+    TreeNodeAddress(address_t address) : address(address) {}
+    virtual void print(const TreePrinter &p) const
+        { p.stream() << "0x" << std::hex << address; }
+};
+
+class TreeNodeRegister : public TreeNode {
+private:
+    Register reg;
+public:
+    TreeNodeRegister(int reg) : reg(Register(reg)) {}
+    virtual void print(const TreePrinter &p) const
+        { Disassemble::Handle h(true); p.stream() << "%" << cs_reg_name(h.raw(), reg); }
+};
+
+class TreeNodeUnary : public TreeNode {
+private:
+    TreeNode *node;
+    const char *name;
+public:
+    TreeNodeUnary(TreeNode *node, const char *name)
+        : node(node), name(name) {}
+    virtual void print(const TreePrinter &p) const;
+};
+
+void TreeNodeUnary::print(const TreePrinter &p) const {
+    p.stream() << "(" << name << " ";
+    node->print(p);
+    p.stream() << ")";
+}
+
+class TreeNodeDereference : public TreeNodeUnary {
+public:
+    TreeNodeDereference(TreeNode *node)
+        : TreeNodeUnary(node, "deref") {}
+};
+class TreeNodeJump : public TreeNodeUnary {
+public:
+    TreeNodeJump(TreeNode *node)
+        : TreeNodeUnary(node, "jump") {}
+};
+
+class TreeNodeBinary : public TreeNode {
+private:
+    TreeNode *left;
+    TreeNode *right;
+    const char *op;
+public:
+    TreeNodeBinary(TreeNode *left, TreeNode *right, const char *op)
+        : left(left), right(right), op(op) {}
+    TreeNode *getLeft() const { return left; }
+    TreeNode *getRight() const { return left; }
+    const char *getOperator() const { return op; }
+
+    virtual void print(const TreePrinter &p) const;
+};
+
+void TreeNodeBinary::print(const TreePrinter &p) const {
+    if(p.shouldSplit()) {
+        p.stream() << "(" << op << "\n";
+        p.indent();
+        left->print(p.nest());
+        p.stream() << "\n";
+        p.indent();
+        right->print(p.nest());
+        p.stream() << ")";
+    }
+    else {
+        p.stream() << "(" << op << " ";
+        left->print(p);
+        p.stream() << " ";
+        right->print(p);
+        p.stream () << ")";
+    }
+}
+
+class TreeNodeAddition : public TreeNodeBinary {
+public:
+    TreeNodeAddition(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "+") {}
+};
+class TreeNodeMultiplication : public TreeNodeBinary {
+public:
+    TreeNodeMultiplication(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "*") {}
+};
+
+#if 0
+template <typename SpecificType>
+class TreePatternSpecificType {
+public:
+    bool matches(TreeNode *node) const
+        { return dynamic_cast<SpecificType *>(node) != nullptr; }
+};
+
+class TreePatternAny {
+public:
+    bool matches(TreeNode *node) const { return true; }
+};
+#endif
 
 class SearchState {
 private:
@@ -15,6 +155,7 @@ private:
     Instruction *instruction;
     std::vector<bool> regs;
     std::vector<SearchState *> parents;
+    std::map<int, TreeNode *> regTree;
 public:
     SearchState() : node(nullptr), instruction(nullptr) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
@@ -35,7 +176,15 @@ public:
 
     void addParent(SearchState *parent) { parents.push_back(parent); }
     const std::vector<SearchState *> &getParents() const { return parents; }
+
+    TreeNode *getRegTree(int reg);
+    void setRegTree(int reg, TreeNode *tree) { regTree[reg] = tree; }
 };
+
+TreeNode *SearchState::getRegTree(int reg) {
+    auto it = regTree.find(reg);
+    return (it != regTree.end() ? (*it).second : nullptr);
+}
 
 class SearchHelper {
 private:
@@ -58,6 +207,11 @@ private:
     void visitInstruction(Instruction *i);
     const char *printReg(int reg);
     void printRegs(SearchState *state, bool withNewline = true);
+    void printRegTrees(SearchState *state);
+    void copyParentRegTrees(SearchState *state);
+    TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
+    TreeNode *getParentRegTree(SearchState *state, int reg);
+    void handleKnownInstruction(SearchState *state);
 };
 
 void SearchHelper::init(Instruction *i) {
@@ -96,7 +250,9 @@ void SearchHelper::run() {
             stateList.push_back(currentState);
 
             if(index > 0) {
-                currentState = new SearchState(*currentState);
+                auto newState = new SearchState(*currentState);
+                currentState->addParent(newState);
+                currentState = newState;
             }
         }
 
@@ -187,61 +343,6 @@ void SearchHelper::visitInstruction(Instruction *i) {
     }
 
     currentState->removeReg(X86_REG_RIP);  // never care about this
-
-#if 0
-    switch(capstone->id) {
-    case X86_INS_ADD:
-        if(x->operands[0].type == X86_OP_REG
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
-
-            if(currentState->getReg(target)) {
-                currentState->addReg(source);
-                currentState->addReg(target);
-            }
-        }
-        LOG(1, "        add found");
-        break;
-    case X86_INS_LEA:
-        if(x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            if(mem->base != X86_REG_INVALID
-                && mem->index != X86_REG_INVALID) {
-                LOG(1, "        lea found from " << mem->disp << "("
-                    << printReg(mem->base)
-                    << "," << printReg(mem->index)
-                    << "," << mem->scale << ")");
-            }
-            else if(mem->base != X86_REG_INVALID) {
-                LOG(1, "        lea found from " << mem->disp << "("
-                    << printReg(mem->base) << ")");
-            }
-        }
-        LOG(1, "        lea found");
-        break;
-    case X86_INS_MOVSXD:
-        if(x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            currentState->addReg(out);
-        }
-
-        LOG(1, "        movslq found");
-        break;
-    default:
-        LOG(1, "        got instr id " << capstone->id);
-        break;
-    }
-#endif
 }
 
 void SearchHelper::secondPass() {
@@ -251,9 +352,12 @@ void SearchHelper::secondPass() {
         auto instruction = state->getInstruction();
 
         printRegs(state, false);
-
         ChunkDumper dumper;
         dumper.visit(instruction);
+
+        handleKnownInstruction(state);
+        copyParentRegTrees(state);
+        printRegTrees(state);
     }
 }
 
@@ -280,6 +384,167 @@ void SearchHelper::printRegs(SearchState *state, bool withNewline) {
         << output.str());
 
     if(withNewline) LOG(1, "");
+}
+
+void SearchHelper::printRegTrees(SearchState *state) {
+    const auto &regs = state->getRegs();
+    for(size_t r = 0; r < regs.size(); r ++) {
+        auto tree = state->getRegTree(r);
+        if(!tree) continue;
+
+        std::cout << "        REG " << printReg(r) << ": ";
+        tree->print(TreePrinter(3, 1));
+        std::cout << "\n";
+    }
+}
+
+void SearchHelper::copyParentRegTrees(SearchState *state) {
+    const auto &parents = state->getParents();
+    if(parents.size() == 0) {
+        const auto &regs = state->getRegs();
+        for(size_t r = 0; r < regs.size(); r ++) {
+            if(regs[r] && !state->getRegTree(r)) {
+                LOG(1, "    set reg tree");
+                state->setRegTree(r, new TreeNodeRegister(r));
+            }
+        }
+    }
+    else if(parents.size() == 1) {
+        auto parent = parents.front();
+        const auto &regs = state->getRegs();
+        for(size_t r = 0; r < regs.size(); r ++) {
+            if(!regs[r]) continue;
+
+            // see if this tree was already set by handleKnownInstruction
+            if(state->getRegTree(r)) continue;
+
+            auto tree = parent->getRegTree(r);
+            if(!tree) tree = new TreeNodeRegister(r);
+            state->setRegTree(r, tree);
+        }
+    }
+    else {
+        LOG(1, "    multiple parents not yet implemented!");
+    }
+}
+
+TreeNode *SearchHelper::makeMemTree(SearchState *state, x86_op_mem *mem) {
+    TreeNode *tree = nullptr;
+    if(mem->index != X86_REG_INVALID) {
+        tree = getParentRegTree(state, mem->index);
+        if(mem->scale != 1) {
+            tree = new TreeNodeMultiplication(
+                tree,
+                new TreeNodeConstant(mem->scale));
+        }
+    }
+
+    TreeNode *baseTree = getParentRegTree(state, mem->base);
+    if(tree) {
+        tree = new TreeNodeAddition(baseTree, tree);
+    }
+    else if(mem->base != X86_REG_INVALID) {
+        tree = baseTree;
+    }
+
+    if(mem->disp) {
+        tree = new TreeNodeAddition(
+            new TreeNodeAddress(mem->disp), tree);
+    }
+
+    return tree;
+}
+
+TreeNode *SearchHelper::getParentRegTree(SearchState *state, int reg) {
+    const auto &parents = state->getParents();
+    if(parents.size() == 0) {
+        return new TreeNodeRegister(reg);
+    }
+    else if(parents.size() == 1) {
+        auto tree = parents.front()->getRegTree(reg);
+        if(!tree) tree = new TreeNodeRegister(reg);
+        return tree;
+    }
+    else {
+        LOG(1, "    NOT YET IMPLEMENTED -- getParentRegTree with multiple parents");
+        return parents.front()->getRegTree(reg);
+    }
+}
+
+void SearchHelper::handleKnownInstruction(SearchState *state) {
+    auto capstone = state->getInstruction()->getSemantic()->getCapstone();
+    if(!capstone) return;
+
+    static bool knownInstruction[X86_INS_ENDING] = {};
+    knownInstruction[X86_INS_ADD] = true;
+    knownInstruction[X86_INS_LEA] = true;
+    knownInstruction[X86_INS_MOVSXD] = true;
+
+    enum {
+        MODE_UNKNOWN,
+        MODE_REG_REG,
+        MODE_MEM_REG,
+    } mode = MODE_UNKNOWN;
+
+#ifdef ARCH_X86_64
+    cs_x86 *x = &capstone->detail->x86;
+#elif defined(ARCH_AARCH64)
+    cs_arm64 *x = &capstone->detail->arm64;
+#endif
+    if(knownInstruction[capstone->id]) {
+        if(x->op_count == 2
+            && x->operands[0].type == X86_OP_REG
+            && x->operands[1].type == X86_OP_REG) {
+
+            mode = MODE_REG_REG;
+        }
+        if(x->op_count == 2
+            && x->operands[0].type == X86_OP_MEM
+            && x->operands[1].type == X86_OP_REG) {
+
+            mode = MODE_MEM_REG;
+        }
+    }
+
+    switch(capstone->id) {
+    case X86_INS_ADD:
+        if(mode == MODE_REG_REG) {
+            auto source = x->operands[0].reg;
+            auto target = x->operands[1].reg;
+
+            state->setRegTree(target, new TreeNodeAddition(
+                getParentRegTree(state, source),
+                getParentRegTree(state, target)));
+        }
+        LOG(1, "        add found");
+        break;
+    case X86_INS_LEA:
+        if(mode == MODE_MEM_REG) {
+            auto mem = &x->operands[0].mem;
+            auto out = x->operands[1].reg;
+
+            auto tree = makeMemTree(state, mem);
+            state->setRegTree(out, tree);
+        }
+        LOG(1, "        lea found");
+        break;
+    case X86_INS_MOVSXD:
+        if(x->operands[0].type == X86_OP_MEM
+            && x->operands[1].type == X86_OP_REG) {
+
+            auto mem = &x->operands[0].mem;
+            auto out = x->operands[1].reg;
+
+            auto tree = makeMemTree(state, mem);
+            state->setRegTree(out, tree);
+        }
+
+        LOG(1, "        movslq found");
+        break;
+    default:
+        LOG(1, "        got instr id " << capstone->id);
+        break;
+    }
 }
 
 void JumpTableSearch::search(Module *module) {
