@@ -40,4 +40,35 @@ public:
     void setRegTree(int reg, TreeNode *tree);
 };
 
+class SlicingUtilities {
+public:
+    const char *printReg(int reg);
+    void printRegs(SearchState *state, bool withNewline = true);
+    void printRegTrees(SearchState *state);
+    void copyParentRegTrees(SearchState *state);
+    TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
+    TreeNode *getParentRegTree(SearchState *state, int reg);
+};
+
+class SlicingSearch {
+private:
+    ControlFlowGraph *cfg;
+    std::vector<SearchState *> stateList;  // history of states
+public:
+    SlicingSearch(ControlFlowGraph *cfg) : cfg(cfg) {}
+
+    /** Run search beginning at this instruction. */
+    void sliceAt(Instruction *i);
+
+    SearchState *getInitialState() const { return stateList.front(); }
+private:
+    void buildStatePass(SearchState *startState);
+    void buildRegTreePass();
+
+    void debugPrintRegAccesses(Instruction *i);
+    bool isKnownInstruction(unsigned id);
+    void buildStateFor(SearchState *state);
+    void buildRegTreesFor(SearchState *state);
+};
+
 #endif

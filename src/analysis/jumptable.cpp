@@ -1,14 +1,7 @@
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <iomanip>  // for std::setw, std::hex
-#include <utility>
 #include <capstone/capstone.h>
 #include "jumptable.h"
 #include "controlflow.h"
 #include "chunk/instruction.h"
-#include "chunk/dump.h"
-#include "disasm/disassemble.h"
 #include "slicing.h"
 #include "slicingtree.h"
 #include "slicingmatch.h"
@@ -16,363 +9,29 @@
 #include "types.h"
 #include "log/log.h"
 
-class SearchHelper {
-private:
-    Disassemble::Handle handle;
-private:
-    ControlFlowGraph *cfg;
-    std::vector<bool> visited;  // indexed by ControlFlowNode ID
-    std::vector<SearchState *> stateList;  // history of states
-    std::vector<SearchState *> transitionList;  // new states (BFS)
-    SearchState *currentState;  // current, not in stateList or transitionList
-public:
-    SearchHelper(ControlFlowGraph *cfg)
-        : handle(true), cfg(cfg), visited(cfg->getCount()),
-        currentState(nullptr) {}
-    void init(Instruction *i);
-
-    void run();
-    void secondPass();
-private:
-    void visitInstruction(Instruction *i);
-    const char *printReg(int reg);
-    void printRegs(SearchState *state, bool withNewline = true);
-    void printRegTrees(SearchState *state);
-    void copyParentRegTrees(SearchState *state);
-    TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
-    TreeNode *getParentRegTree(SearchState *state, int reg);
-    void handleKnownInstruction(SearchState *state);
-    void matchJumpTable(SearchState *state);
-};
-
-void SearchHelper::init(Instruction *i) {
-    auto j = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic());
-    auto block = dynamic_cast<Block *>(i->getParent());
-    auto node = cfg->get(block);
-    LOG(1, "search for jump table at " << i->getName());
-
-    SearchState *startState = new SearchState(node, i);
-    startState->addReg(j->getRegister());
-    transitionList.push_back(startState);
+void JumpTableSearch::search(Module *module) {
+    for(auto f : module->getChildren()->getIterable()->iterable()) {
+        search(f);
+    }
 }
 
-void SearchHelper::run() {
-    while(transitionList.size() > 0) {
-        this->currentState = transitionList.front();
-        transitionList.erase(transitionList.begin());
-        auto node = currentState->getNode();
-        Instruction *instruction = currentState->getInstruction();
+void JumpTableSearch::search(Function *function) {
+    ControlFlowGraph cfg(function);
 
-        if(visited[node->getID()]) continue;
-        visited[node->getID()] = true;
+    for(auto b : function->getChildren()->getIterable()->iterable()) {
+        auto i = b->getChildren()->getIterable()->getLast();
+        if(dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
+            SlicingSearch search(&cfg);
+            search.sliceAt(i);
 
-        LOG(1, "visit " << node->getDescription());
-
-        // visit all prior instructions in this node in backwards order
-        auto insList = node->getBlock()->getChildren()->getIterable();
-        for(int index = insList->indexOf(instruction); index >= 0; index --) {
-            Instruction *i = insList->get(index);
-            ChunkDumper dumper;
-            dumper.visit(i);
-
-            currentState->setInstruction(i);
-
-            visitInstruction(i);
-            stateList.push_back(currentState);
-
-            if(index > 0) {
-                auto newState = new SearchState(*currentState);
-                currentState->addParent(newState);
-                currentState = newState;
-            }
-        }
-
-        // find all nodes that link to this one, keep searching there
-        for(auto link : node->backwardLinks()) {
-            auto newNode = cfg->get(link.first);
-            if(!visited[newNode->getID()]) {
-                auto offset = link.second;
-                Instruction *newStart
-                    = newNode->getBlock()->getChildren()->getSpatial()->find(
-                        newNode->getBlock()->getAddress() + offset);
-                LOG(1, "    start at offset " << offset << " -> " << newStart);
-                SearchState *newState = new SearchState(*currentState);
-                newState->setNode(newNode);
-                newState->setInstruction(newStart);
-                transitionList.push_back(newState);
-                currentState->addParent(newState);
-            }
+            matchJumpTable(search.getInitialState());
         }
     }
 }
 
-void SearchHelper::visitInstruction(Instruction *i) {
-    auto capstone = i->getSemantic()->getCapstone();
-    if(!capstone) return;
-    auto detail = capstone->detail;
-    if(!detail) return;
-
-    for(size_t r = 0; r < detail->regs_read_count; r ++) {
-        LOG(1, "        implicit reg read "
-            << printReg(detail->regs_read[r]));
-    }
-    for(size_t r = 0; r < detail->regs_write_count; r ++) {
-        LOG(1, "        implicit reg write "
-            << printReg(detail->regs_write[r]));
-    }
-
-#ifdef ARCH_X86_64
-    cs_x86 *x = &capstone->detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &capstone->detail->arm64;
-#endif
-    for(size_t p = 0; p < x->op_count; p ++) {
-        auto op = &x->operands[p];  // cs_x86_op*, cs_arm64_op*
-        if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
-            LOG(1, "        explicit reg ref "
-                << printReg(op->reg));
-            //currentState->addReg(op->reg);
-        }
-    }
-
-
-    static bool knownInstruction[X86_INS_ENDING] = {};
-    knownInstruction[X86_INS_ADD] = true;
-    knownInstruction[X86_INS_LEA] = true;
-    knownInstruction[X86_INS_MOVSXD] = true;
-
-    if(knownInstruction[capstone->id]) {
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_REG
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
-
-            if(currentState->getReg(target)) {
-                currentState->addReg(source);
-                currentState->addReg(target);
-            }
-        }
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            if(currentState->getReg(out)) {
-                currentState->removeReg(out);
-                if(mem->base != X86_REG_INVALID) {
-                    currentState->addReg(mem->base);
-                }
-                if(mem->index != X86_REG_INVALID) {
-                    currentState->addReg(mem->index);
-                }
-            }
-        }
-    }
-
-    currentState->removeReg(X86_REG_RIP);  // never care about this
-}
-
-void SearchHelper::secondPass() {
-    LOG(1, "second pass iteration");
-    for(auto it = stateList.rbegin(); it != stateList.rend(); ++it) {
-        auto state = (*it);
-        auto instruction = state->getInstruction();
-
-        printRegs(state, false);
-        ChunkDumper dumper;
-        dumper.visit(instruction);
-
-        handleKnownInstruction(state);
-        copyParentRegTrees(state);
-        printRegTrees(state);
-
-        matchJumpTable(state);
-    }
-}
-
-const char *SearchHelper::printReg(int reg) {
-    return cs_reg_name(handle.raw(), reg);
-}
-
-void SearchHelper::printRegs(SearchState *state, bool withNewline) {
-    std::ostringstream output;
-    output << "[";
-
-    bool firstReg = true;
-    const auto &regs = state->getRegs();
-    for(size_t r = 0; r < regs.size(); r ++) {
-        if(!regs[r]) continue;
-
-        if(!firstReg) output << " ";
-        firstReg = false;
-        output << printReg(r);
-    }
-    output << "]";
-
-    LOG0(1, "    regs " << std::left << std::setw(30)
-        << output.str());
-
-    if(withNewline) LOG(1, "");
-}
-
-void SearchHelper::printRegTrees(SearchState *state) {
-    const auto &regs = state->getRegs();
-    for(size_t r = 0; r < regs.size(); r ++) {
-        auto tree = state->getRegTree(r);
-        if(!tree) continue;
-
-        std::cout << "        REG " << printReg(r) << ": ";
-        tree->print(TreePrinter(3, 1));
-        std::cout << "\n";
-    }
-}
-
-void SearchHelper::copyParentRegTrees(SearchState *state) {
-    const auto &regs = state->getRegs();
-    for(size_t r = 0; r < regs.size(); r ++) {
-        if(regs[r] && !state->getRegTree(r)) {
-            // didn't compute this register yet, copy from parent(s)
-            state->setRegTree(r, getParentRegTree(state, r));
-        }
-    }
-}
-
-TreeNode *SearchHelper::makeMemTree(SearchState *state, x86_op_mem *mem) {
-    TreeNode *tree = nullptr;
-    if(mem->index != X86_REG_INVALID) {
-        tree = getParentRegTree(state, mem->index);
-        if(mem->scale != 1) {
-            tree = new TreeNodeMultiplication(
-                tree,
-                new TreeNodeConstant(mem->scale));
-        }
-    }
-
-    TreeNode *baseTree = getParentRegTree(state, mem->base);
-    if(tree) {
-        tree = new TreeNodeAddition(baseTree, tree);
-    }
-    else if(mem->base != X86_REG_INVALID) {
-        tree = baseTree;
-    }
-
-    if(mem->disp) {
-        tree = new TreeNodeAddition(
-            new TreeNodeAddress(mem->disp), tree);
-    }
-
-    return tree;
-}
-
-TreeNode *SearchHelper::getParentRegTree(SearchState *state, int reg) {
-    if(reg == X86_REG_RIP) {
-        auto i = state->getInstruction();
-        return new TreeNodeRegisterRIP(i->getAddress() + i->getSize());
-    }
-
-    const auto &parents = state->getParents();
-    if(parents.size() == 0) {
-        return new TreeNodeRegister(reg);
-    }
-    else if(parents.size() == 1) {
-        auto tree = parents.front()->getRegTree(reg);
-        if(!tree) tree = new TreeNodeRegister(reg);
-        return tree;
-    }
-    else {
-        auto tree = new TreeNodeMultipleParents();
-        for(auto p : parents) {
-            auto t = p->getRegTree(reg);
-            if(!t) t = new TreeNodeRegister(reg);
-            tree->addParent(t);
-        }
-        return tree;
-    }
-}
-
-void SearchHelper::handleKnownInstruction(SearchState *state) {
-    auto capstone = state->getInstruction()->getSemantic()->getCapstone();
-    if(!capstone) return;
-
-    static bool knownInstruction[X86_INS_ENDING] = {};
-    knownInstruction[X86_INS_ADD] = true;
-    knownInstruction[X86_INS_LEA] = true;
-    knownInstruction[X86_INS_MOVSXD] = true;
-
-    enum {
-        MODE_UNKNOWN,
-        MODE_REG_REG,
-        MODE_MEM_REG,
-    } mode = MODE_UNKNOWN;
-
-#ifdef ARCH_X86_64
-    cs_x86 *x = &capstone->detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &capstone->detail->arm64;
-#endif
-    if(knownInstruction[capstone->id]) {
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_REG
-            && x->operands[1].type == X86_OP_REG) {
-
-            mode = MODE_REG_REG;
-        }
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
-            mode = MODE_MEM_REG;
-        }
-    }
-
-    switch(capstone->id) {
-    case X86_INS_ADD:
-        if(mode == MODE_REG_REG) {
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
-
-            state->setRegTree(target, new TreeNodeAddition(
-                getParentRegTree(state, source),
-                getParentRegTree(state, target)));
-        }
-        LOG(1, "        add found");
-        break;
-    case X86_INS_LEA:
-        if(mode == MODE_MEM_REG) {
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            auto tree = makeMemTree(state, mem);
-            state->setRegTree(out, tree);
-        }
-        LOG(1, "        lea found");
-        break;
-    case X86_INS_MOVSXD:
-        if(x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            auto tree = makeMemTree(state, mem);
-            state->setRegTree(out, tree);
-        }
-
-        LOG(1, "        movslq found");
-        break;
-    default:
-        LOG(1, "        got instr id " << capstone->id);
-        break;
-    }
-}
-
-void SearchHelper::matchJumpTable(SearchState *state) {
-    auto s = state->getInstruction()->getSemantic();
-    auto v = dynamic_cast<IndirectJumpInstruction *>(s);
+void JumpTableSearch::matchJumpTable(SearchState *state) {
+    auto i = state->getInstruction();
+    auto v = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic());
     if(!v) return;
 
     // get final tree for pattern matching
@@ -409,25 +68,5 @@ void SearchHelper::matchJumpTable(SearchState *state) {
         LOG0(1, "indexing expression:   ");
         capture.get(1)->print(TreePrinter(1, 0));
         LOG(1, "");
-    }
-}
-
-void JumpTableSearch::search(Module *module) {
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
-        search(f);
-    }
-}
-
-void JumpTableSearch::search(Function *function) {
-    ControlFlowGraph cfg(function);
-
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
-        auto i = b->getChildren()->getIterable()->getLast();
-        if(dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
-            SearchHelper helper(&cfg);
-            helper.init(i);
-            helper.run();
-            helper.secondPass();
-        }
     }
 }
