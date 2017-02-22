@@ -24,15 +24,19 @@ void JumpTableSearch::search(Function *function) {
             SlicingSearch search(&cfg);
             search.sliceAt(i);
 
-            matchJumpTable(search.getInitialState());
+            if(matchJumpTable(search.getInitialState())
+                && matchJumpTableBounds(&search)) {
+
+                LOG(1, "FOUND JUMP TABLE BY PATTERN MATCHING!!!");
+            }
         }
     }
 }
 
-void JumpTableSearch::matchJumpTable(SearchState *state) {
+bool JumpTableSearch::matchJumpTable(SearchState *state) {
     auto i = state->getInstruction();
     auto v = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic());
-    if(!v) return;
+    if(!v) return false;
 
     // get final tree for pattern matching
     auto tree = state->getRegTree(v->getRegister());
@@ -56,17 +60,37 @@ void JumpTableSearch::matchJumpTable(SearchState *state) {
 
     TreeCapture capture;
     if(Form1::matches(tree, capture)) {
-        LOG(1, "FOUND JUMP TABLE BY PATTERN MATCHING!!!");
+        LOG(1, "found jump table jump:");
 
-        LOG0(1, "address of jump table: ");
+        LOG0(1, "    address of jump table: ");
         auto node = dynamic_cast<TreeNodeAddition *>(capture.get(0));
         auto left = dynamic_cast<TreeNodeAddress *>(node->getLeft());
         auto right = dynamic_cast<TreeNodeRegisterRIP *>(node->getRight());
         capture.get(0)->print(TreePrinter(1, 0));
         LOG(1, "  => 0x" << std::hex << left->getValue() + right->getValue());
 
-        LOG0(1, "indexing expression:   ");
+        LOG0(1, "    indexing expression:   ");
         capture.get(1)->print(TreePrinter(1, 0));
         LOG(1, "");
+
+        this->indexExpr = capture.get(1);
+
+        return true;
     }
+
+    return false;
+}
+
+bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search) {
+    return boundsHelper(search, search->getInitialState());
+}
+
+bool JumpTableSearch::boundsHelper(SlicingSearch *search, SearchState *state) {
+    auto v = dynamic_cast<ControlFlowInstruction *>(
+        state->getInstruction()->getSemantic());
+    if(v) {
+        
+    }
+
+    return false;
 }

@@ -61,6 +61,8 @@ public:
     void sliceAt(Instruction *i);
 
     SearchState *getInitialState() const { return stateList.front(); }
+    const std::vector<SearchState *> &getStateList() const
+        { return stateList; }
 private:
     void buildStatePass(SearchState *startState);
     void buildRegTreePass();
@@ -69,6 +71,7 @@ private:
     bool isKnownInstruction(unsigned id);
     void buildStateFor(SearchState *state);
     void buildRegTreesFor(SearchState *state);
+    void detectJumpRegTrees(SearchState *state);
 };
 
 #endif

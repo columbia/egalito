@@ -54,6 +54,25 @@ void TreeNodeBinary::print(const TreePrinter &p) const {
     }
 }
 
+void TreeNodeComparison::print(const TreePrinter &p) const {
+    if(p.shouldSplit()) {
+        p.stream() << "(compare\n";
+        p.indent();
+        left->print(p.nest());
+        p.stream() << "\n";
+        p.indent();
+        right->print(p.nest());
+        p.stream() << ")";
+    }
+    else {
+        p.stream() << "(compare ";
+        left->print(p);
+        p.stream() << " ";
+        right->print(p);
+        p.stream () << ")";
+    }
+}
+
 void TreeNodeMultipleParents::print(const TreePrinter &p) const {
     if(p.shouldSplit()) {
         p.stream() << "(MULTIPLE\n";

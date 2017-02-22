@@ -95,15 +95,15 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
-    conductor.parseRecursive(elf);
-    //conductor.parse(elf, nullptr);
+    //conductor.parseRecursive(elf);
+    conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
     if(false && libc) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
-    if(libc) {
+    if(false && libc) {
         auto named = libc->getElfSpace()->getModule()->getChildren()->getNamed();
         auto ff = named->find("parse_expression");
         //auto ff = named->find("trecurse");

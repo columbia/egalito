@@ -92,20 +92,24 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state, x86_op_mem *mem) {
 
 TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
     if(reg == X86_REG_RIP) {
+        // evaluate the instruction pointer in-place
         auto i = state->getInstruction();
         return new TreeNodeRegisterRIP(i->getAddress() + i->getSize());
     }
 
     const auto &parents = state->getParents();
     if(parents.size() == 0) {
+        // no parents, the register value must have originated here
         return new TreeNodeRegister(reg);
     }
     else if(parents.size() == 1) {
+        // common case: exactly one parent, use its register tree
         auto tree = parents.front()->getRegTree(reg);
-        if(!tree) tree = new TreeNodeRegister(reg);
+        if(!tree) tree = new TreeNodeRegister(reg);  // parent doesn't have this
         return tree;
     }
     else {
+        // unusual case: multiple parents, combine with branching node
         auto tree = new TreeNodeMultipleParents();
         for(auto p : parents) {
             auto t = p->getRegTree(reg);
@@ -199,7 +203,7 @@ void SlicingSearch::buildRegTreePass() {
         dumper.visit(instruction);
 
         buildRegTreesFor(state);
-        u.copyParentRegTrees(state);
+        u.copyParentRegTrees(state);  // inherit interesting regs from parent
         u.printRegTrees(state);
     }
 }
@@ -239,49 +243,74 @@ bool SlicingSearch::isKnownInstruction(unsigned id) {
     known[X86_INS_ADD] = true;
     known[X86_INS_LEA] = true;
     known[X86_INS_MOVSXD] = true;
+    known[X86_INS_CMP] = true;
 
     return id < sizeof(known)/sizeof(*known) && known[id];
 }
 
 void SlicingSearch::buildStateFor(SearchState *state) {
-    auto capstone = state->getInstruction()->getSemantic()->getCapstone();
-    if(!capstone || !capstone->detail) return;
+    auto instruction = state->getInstruction();
+    auto capstone = instruction->getSemantic()->getCapstone();
 
+    debugPrintRegAccesses(state->getInstruction());
+
+    if(capstone && capstone->detail) {
 #ifdef ARCH_X86_64
-    cs_x86 *x = &capstone->detail->x86;
+        cs_x86 *x = &capstone->detail->x86;
 #elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &capstone->detail->arm64;
+        cs_arm64 *x = &capstone->detail->arm64;
 #endif
+        if(isKnownInstruction(capstone->id)) {
+            // instructions that are read-write and output a register:
+            if(x->op_count == 2
+                && x->operands[0].type == X86_OP_REG
+                && x->operands[1].type == X86_OP_REG) {
 
-    if(isKnownInstruction(capstone->id)) {
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_REG
-            && x->operands[1].type == X86_OP_REG) {
+                auto source = x->operands[0].reg;
+                auto target = x->operands[1].reg;
 
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
+                if(state->getReg(target)) {
+                    state->addReg(source);
+                    state->addReg(target);
+                }
+            }
+            if(x->op_count == 2
+                && x->operands[0].type == X86_OP_MEM
+                && x->operands[1].type == X86_OP_REG) {
 
-            if(state->getReg(target)) {
-                state->addReg(source);
-                state->addReg(target);
+                auto mem = &x->operands[0].mem;
+                auto out = x->operands[1].reg;
+
+                if(state->getReg(out)) {
+                    state->removeReg(out);
+                    if(mem->base != X86_REG_INVALID) {
+                        state->addReg(mem->base);
+                    }
+                    if(mem->index != X86_REG_INVALID) {
+                        state->addReg(mem->index);
+                    }
+                }
+            }
+            // instructions that are read-only (and just set flags):
+            if(capstone->id == X86_INS_CMP) {
+                for(unsigned op = 0; op < x->op_count; op ++) {
+                    if(x->operands[op].type == X86_OP_REG) {
+                        state->addReg(x->operands[op].reg);
+                    }
+                }
             }
         }
-        if(x->op_count == 2
-            && x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
 
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            if(state->getReg(out)) {
-                state->removeReg(out);
-                if(mem->base != X86_REG_INVALID) {
-                    state->addReg(mem->base);
-                }
-                if(mem->index != X86_REG_INVALID) {
-                    state->addReg(mem->index);
-                }
+        for(size_t r = 0; r < capstone->detail->regs_write_count; r ++) {
+            if(capstone->detail->regs_write[r] == X86_REG_EFLAGS) {
+                state->removeReg(X86_REG_EFLAGS);
             }
+        }
+    }
+    else if(auto v = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
+        if(v->getMnemonic() != "jmp") {
+            // conditional jump, so it depends on EFLAGS
+            state->addReg(X86_REG_EFLAGS);
         }
     }
 
@@ -290,7 +319,10 @@ void SlicingSearch::buildStateFor(SearchState *state) {
 
 void SlicingSearch::buildRegTreesFor(SearchState *state) {
     auto capstone = state->getInstruction()->getSemantic()->getCapstone();
-    if(!capstone || !capstone->detail) return;
+    if(!capstone || !capstone->detail) {
+        detectJumpRegTrees(state);
+        return;
+    }
 
     SlicingUtilities u;
 
@@ -298,6 +330,7 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
         MODE_UNKNOWN,
         MODE_REG_REG,
         MODE_MEM_REG,
+        MODE_IMM_REG,
     } mode = MODE_UNKNOWN;
 
 #ifdef ARCH_X86_64
@@ -317,6 +350,12 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
             && x->operands[1].type == X86_OP_REG) {
 
             mode = MODE_MEM_REG;
+        }
+        if(x->op_count == 2
+            && x->operands[0].type == X86_OP_IMM
+            && x->operands[1].type == X86_OP_REG) {
+
+            mode = MODE_IMM_REG;
         }
     }
 
@@ -343,9 +382,7 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
         LOG(1, "        lea found");
         break;
     case X86_INS_MOVSXD:
-        if(x->operands[0].type == X86_OP_MEM
-            && x->operands[1].type == X86_OP_REG) {
-
+        if(mode == MODE_MEM_REG) {
             auto mem = &x->operands[0].mem;
             auto out = x->operands[1].reg;
 
@@ -355,8 +392,34 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
 
         LOG(1, "        movslq found");
         break;
+    case X86_INS_CMP:
+        if(mode == MODE_IMM_REG) {
+            auto imm = x->operands[0].imm;
+            auto reg = x->operands[1].reg;
+
+            state->setRegTree(X86_REG_EFLAGS,
+                new TreeNodeComparison(
+                    new TreeNodeConstant(imm),
+                    u.getParentRegTree(state, reg)));
+        }
+        break;
     default:
         LOG(1, "        got instr id " << capstone->id);
         break;
+    }
+}
+
+void SlicingSearch::detectJumpRegTrees(SearchState *state) {
+    SlicingUtilities u;
+    auto semantic = state->getInstruction()->getSemantic();
+    if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
+        if(v->getMnemonic() != "jmp") {
+            LOG0(1, "    found a conditional jump, eflags is ");
+            //auto tree = state->getRegTree(X86_REG_EFLAGS);
+            auto tree = u.getParentRegTree(state, X86_REG_EFLAGS);
+            if(tree) tree->print(TreePrinter(2, 0));
+            else LOG0(1, "NULL");
+            LOG(1, "");
+        }
     }
 }

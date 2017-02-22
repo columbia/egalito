@@ -4,13 +4,19 @@
 #include "chunk/concrete.h"
 
 class SearchState;
+class SlicingSearch;
+class TreeNode;
 
 class JumpTableSearch {
+private:
+    TreeNode *indexExpr;
 public:
     void search(Module *module);
     void search(Function *function);
 private:
-    void matchJumpTable(SearchState *state);
+    bool matchJumpTable(SearchState *state);
+    bool matchJumpTableBounds(SlicingSearch *search);
+    bool boundsHelper(SlicingSearch *search, SearchState *state);
 };
 
 #endif

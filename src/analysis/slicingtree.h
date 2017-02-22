@@ -110,6 +110,19 @@ public:
         : TreeNodeBinary(left, right, "*") {}
 };
 
+class TreeNodeComparison : public TreeNode {
+private:
+    TreeNode *left;
+    TreeNode *right;
+public:
+    TreeNodeComparison(TreeNode *left, TreeNode *right)
+        : left(left), right(right) {}
+    TreeNode *getLeft() const { return left; }
+    TreeNode *getRight() const { return right; }
+
+    virtual void print(const TreePrinter &p) const;
+};
+
 class TreeNodeMultipleParents : public TreeNode {
 private:
     std::vector<TreeNode *> parentList;
