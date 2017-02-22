@@ -26,7 +26,6 @@ void ResolveCalls::visit(Instruction *instruction) {
     if(!dynamic_cast<ControlFlowInstruction *>(semantic)) {
         auto p = dynamic_cast<PCRelativeInstruction *>(semantic);
         if(!p) return;
-        LOG(1, "mode = " << p->getMode());
         if(!p->isControlFlowInstruction()) return;
     }
 #endif

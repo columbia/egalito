@@ -216,12 +216,6 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     }
 #endif
 
-#if defined(ARCH_AARCH64)
-    if(ins->id == ARM64_INS_RET) {
-        semantic = new ReturnInstruction(*ins);
-    }
-#endif
-
     if(!semantic) {
         if(details) {
             semantic = new DisassembledInstruction(*ins);

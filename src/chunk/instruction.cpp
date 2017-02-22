@@ -114,4 +114,17 @@ uint32_t PCRelativeInstruction::rebuild(void) {
     return fixedBytes | imm;
 }
 
+void PCRelativeInstruction::writeTo(char *target) {
+    *reinterpret_cast<uint32_t *>(target) = rebuild();
+}
+void PCRelativeInstruction::writeTo(std::string &target) {
+    uint32_t data = rebuild();
+    target.append(reinterpret_cast<const char *>(&data), instructionSize);
+}
+std::string PCRelativeInstruction::getData() {
+    std::string data;
+    writeTo(data);
+    return data;
+}
+
 #endif

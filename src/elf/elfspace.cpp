@@ -5,6 +5,7 @@
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
+#include "pass/findreturn.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
@@ -42,6 +43,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     PCRelativePass pcrelative(elf);
     module->accept(&pcrelative);
+
+    FindReturnPass finder;
+    module->accept(&finder);
 
     ResolveCalls resolver;
     module->accept(&resolver);

@@ -267,9 +267,9 @@ public:
     virtual void setSize(size_t value)
         { throw "Size is constant for AARCH64!"; }
 
-    virtual void writeTo(char *target) { *reinterpret_cast<uint32_t *>(target) = rebuild(); }
-    virtual void writeTo(std::string &target) { target.append(reinterpret_cast<const char *>(rebuild()), instructionSize); }
-    virtual std::string getData() { std::string data; writeTo(data); return data; }
+    virtual void writeTo(char *target);
+    virtual void writeTo(std::string &target);
+    virtual std::string getData();
 
     virtual cs_insn *getCapstone() { return nullptr; }
 
