@@ -4,6 +4,7 @@
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
+#include "pass/pcrelative.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
@@ -38,6 +39,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     auto baseAddr = elf->getCopyBaseAddress();
     this->module = Disassemble::module(baseAddr, symbolList);
+
+    PCRelativePass pcrelative(elf);
+    module->accept(&pcrelative);
 
     ResolveCalls resolver;
     module->accept(&resolver);

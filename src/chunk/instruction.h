@@ -201,7 +201,12 @@ public:
 };
 
 
-enum InstructionMode { AARCH64_Enc_ADRP, NUMBER_OF_MODES };
+enum InstructionMode {
+    AARCH64_Enc_ADRP,
+    AARCH64_Enc_B,
+    AARCH64_Enc_BCOND,
+    NUMBER_OF_MODES
+};
 
 typedef struct AARCH64_ImmInfo {
 #if 0
@@ -231,13 +236,29 @@ private:
 public:
     PCRelativeInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
         : source(source), mnemonic(mnemonic), mode(mode),
-          immInfo{{0x9000001F, [] (address_t dest, address_t src) {
-                                    diff_t disp = dest - (src & ~0xFFF);
-                                    uint32_t imm = disp >> 12;
-                                    return (((imm & 0x3) << 29)
-                                            | ((imm & 0x1FFFFC) << 3));
-                                }},}
-    {
+          immInfo {
+              /* ADRP */
+              {0x9000001F, [] (address_t dest, address_t src) {
+                                diff_t disp = dest - (src & ~0xFFF);
+                                uint32_t imm = disp >> 12;
+                                return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3));
+                            }
+              },
+              /* B */
+              {0xFC000000, [] (address_t dest, address_t src) {
+                                diff_t disp = dest - src;
+                                uint32_t imm = disp >> 2;
+                                return (imm & ~0xFC000000);
+                            }
+              },
+              /* B.COND */
+              {0xFF00001F, [] (address_t dest, address_t src) {
+                                diff_t disp = dest - src;
+                                uint32_t imm = disp >> 2;
+                                return ((imm << 5)& ~0xFF00001F);
+                            }
+              },
+          } {
             std::memcpy(&fixedBytes, bytes, instructionSize);
             fixedBytes &= immInfo[static_cast<int>(mode)].fixedMask;
         }
@@ -254,9 +275,10 @@ public:
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
+    bool isControlFlowInstruction() const { return (mode >= AARCH64_Enc_B); }
+    int getMode() const { return mode; }
 
     uint32_t rebuild(void);
-    //diff_t calculateDisplacement();
 };
 #endif
 

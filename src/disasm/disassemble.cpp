@@ -221,8 +221,7 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
                     semantic = cfi;
                 }
 #elif defined(ARCH_AARCH64)
-                if((ins->id == ARM64_INS_BL)
-                   || (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP))) {
+                if((ins->id == ARM64_INS_BL)) {
                     unsigned long imm = op->imm;
                     auto cfi = new ControlFlowInstruction(instr, ins->mnemonic);
                     cfi->setLink(new UnresolvedLink(imm));

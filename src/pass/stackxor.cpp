@@ -15,7 +15,7 @@ void StackXOR::visit(Instruction *instruction) {
 #ifdef ARCH_X86_64
     if(bytes == "\xc3") {
 #elif defined(ARCH_AARCH64)
-    if (dynamic_cast<ReturnInstruction *>(instruction->getSemantic())) {
+    if(dynamic_cast<ReturnInstruction *>(instruction->getSemantic())) {
 #endif
         auto parent = dynamic_cast<Block *>(instruction->getParent());
 

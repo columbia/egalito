@@ -106,6 +106,11 @@ uint32_t PCRelativeInstruction::rebuild(void) {
     address_t dest = getLink()->getTargetAddress();
     uint32_t (*makeImm)(address_t, address_t) = immInfo[mode].makeImm;
     uint32_t imm = makeImm(dest, getSource()->getAddress());
+#if 0
+    LOG(1, "dest: " << dest);
+    LOG(1, "fixedBytes: " << fixedBytes);
+    LOG(1, "imm: " << imm);
+#endif
     return fixedBytes | imm;
 }
 

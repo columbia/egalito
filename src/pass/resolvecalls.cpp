@@ -20,7 +20,16 @@ void ResolveCalls::visit(Instruction *instruction) {
     auto targetAddress = link->getTargetAddress();
 
     // We are only resolving ControlFlowInstruction targets
+#ifdef ARCH_X86_64
     if(!dynamic_cast<ControlFlowInstruction *>(semantic)) return;
+#elif defined ARCH_AARCH64
+    if(!dynamic_cast<ControlFlowInstruction *>(semantic)) {
+        auto p = dynamic_cast<PCRelativeInstruction *>(semantic);
+        if(!p) return;
+        LOG(1, "mode = " << p->getMode());
+        if(!p->isControlFlowInstruction()) return;
+    }
+#endif
 
     LOG0(1, "Looking up target 0x" << std::hex << targetAddress << " -> ");
 

@@ -12,7 +12,7 @@
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "chunk/dump.h"
-#include "pass/pcrdata.h"
+#include "pass/pcrelative.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
@@ -105,16 +105,6 @@ void runEgalito(ElfMap *elf) {
     auto module = conductor.getMainSpace()->getModule();
     ChunkDumper dumper;
     module->accept(&dumper);
-
-    {
-        LOG(1, "");
-        PCRDataPass datapass;
-        module->accept(&datapass);
-
-        ChunkDumper dumper;
-        module->accept(&dumper);
-    }
-
 
     {
         Generator generator;
