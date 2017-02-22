@@ -12,12 +12,8 @@ void PCRelativePass::visit(Instruction *instruction) {
     cs_insn *cs = instruction->getSemantic()->getCapstone();
 #if defined(ARCH_X86_64)
 #elif defined(ARCH_AARCH64)
-    if(!cs) {
-        LOG(1, "no cs (should be BL): " << instruction->getName());
-        return;
-    }
+    cs_arm64 *x = &cs->detail->arm64;
     if(cs->id == ARM64_INS_ADRP) { //ADRP <Xd>, <label>
-        cs_arm64 *x = &cs->detail->arm64;
         cs_arm64_op *op = &x->operands[1];
         int64_t imm = op->imm;
 
@@ -34,7 +30,6 @@ void PCRelativePass::visit(Instruction *instruction) {
         delete oldSemantic;
     }
     else if(cs->id == ARM64_INS_B) { //B or B.COND <label>
-        cs_arm64 *x = &cs->detail->arm64;
         cs_arm64_op *op = &x->operands[0];
         int64_t imm = op->imm;
 
@@ -43,18 +38,30 @@ void PCRelativePass::visit(Instruction *instruction) {
         InstructionMode m;
         if(cs->bytes[3] == 0x54) {
             m = AARCH64_Enc_BCOND;
-            LOG(1, "BCOND to: +" << imm);
+            //LOG(1, "BCOND to: +" << imm);
         } else {
             m = AARCH64_Enc_B;
-            LOG(1, "B to: +" << imm);
+            //LOG(1, "B to: +" << imm);
         }
         auto i = new PCRelativeInstruction(instruction,
                                            cs->mnemonic,
                                            m,
                                            cs->bytes);
         //handled by resolvecalls or resolvereolcs pass if to a function
-        i->setLink(new UnresolvedLink(op->imm));
-        LOG(1, "B or B.COND target: " << i->getLink()->getTargetAddress());
+        i->setLink(new UnresolvedLink(imm));
+        //LOG(1, "B or B.COND target: " << i->getLink()->getTargetAddress());
+
+        instruction->setSemantic(i);
+        delete oldSemantic;
+    }
+    else if(cs->id == ARM64_INS_BL) { //BL <label>
+        cs_arm64_op *op = &x->operands[0];
+        int64_t imm = op->imm;
+
+        auto oldSemantic = instruction->getSemantic();
+
+        auto i = new ControlFlowInstruction(instruction, cs->mnemonic);
+        i->setLink(new UnresolvedLink(imm));
 
         instruction->setSemantic(i);
         delete oldSemantic;

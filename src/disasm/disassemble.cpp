@@ -184,20 +184,11 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
 
 #ifdef ARCH_X86_64
     cs_x86 *x = &ins->detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &ins->detail->arm64;
-#endif
     if(x->op_count > 0) {
         for(size_t p = 0; p < x->op_count; p ++) {
-#ifdef ARCH_X86_64
             cs_x86_op *op = &x->operands[p];
             if(op->type == X86_OP_IMM) {
-#elif defined(ARCH_AARCH64)
-            cs_arm64_op *op = &x->operands[p];
-            if(op->type == ARM64_OP_IMM) {
-#endif
 
-#ifdef ARCH_X86_64
                 if(ins->id == X86_INS_CALL) {
                     unsigned long imm = op->imm;
                     auto cfi = new ControlFlowInstruction(instr,
@@ -220,19 +211,13 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
                     cfi->setLink(new UnresolvedLink(imm));
                     semantic = cfi;
                 }
-#elif defined(ARCH_AARCH64)
-                if((ins->id == ARM64_INS_BL)) {
-                    unsigned long imm = op->imm;
-                    auto cfi = new ControlFlowInstruction(instr, ins->mnemonic);
-                    cfi->setLink(new UnresolvedLink(imm));
-                    semantic = cfi;
-                }
-#endif
             }
         }
     }
+#endif
+
 #if defined(ARCH_AARCH64)
-    else if(ins->id == ARM64_INS_RET) {
+    if(ins->id == ARM64_INS_RET) {
         semantic = new ReturnInstruction(*ins);
     }
 #endif
