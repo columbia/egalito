@@ -22,11 +22,26 @@ public:
         if(dynamic_cast<PLTLink *>(link)) {
             total ++;
         }
+        else if(dynamic_cast<DataOffsetLink *>(link)) {
+            total ++;
+        }
         else if(link->getTarget()) {
             total ++;
         }
         else {
             unresolved ++, total ++;
+#if 0
+            std::cout << "unresolved link at "
+                << std::hex << instruction->getAddress()
+                << " in "
+                << instruction->getParent()->getParent()->getName()
+                << '\n';
+            if(dynamic_cast<UnresolvedLink *>(link)) {
+                std::cout << "unresolve link!\n";
+                std::cout << "target: " << link->getTargetAddress() << '\n';
+            }
+            exit(1);
+#endif
         }
     }
 

@@ -80,26 +80,31 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 
     return disp;
 }
+
 #elif defined(ARCH_AARCH64)
+uint32_t ControlFlowInstruction::rebuild(void) {
+    address_t dest = getLink()->getTargetAddress();
+    uint32_t (*makeImm)(address_t, address_t) = immInfo[mode].makeImm;
+    uint32_t imm = makeImm(dest, getSource()->getAddress());
+#if 0
+    LOG(1, "dest: " << dest);
+    LOG(1, "fixedBytes: " << fixedBytes);
+    LOG(1, "imm: " << imm);
+#endif
+    return fixedBytes | imm;
+}
+
 void ControlFlowInstruction::writeTo(char *target) {
-    uint32_t imm = calculateDisplacement() / 4;
-    //target should be 4-byte aligned and unaligned access is allowed anyway
-    *reinterpret_cast<uint32_t *>(target) = opcode | (imm & displacementMask);
+    *reinterpret_cast<uint32_t *>(target) = rebuild();
 }
 void ControlFlowInstruction::writeTo(std::string &target) {
-    uint32_t ins = opcode | ((calculateDisplacement() / 4) & displacementMask);
-    target.append(reinterpret_cast<const char *>(&ins), instructionSize);
+    uint32_t data = rebuild();
+    target.append(reinterpret_cast<const char *>(&data), instructionSize);
 }
 std::string ControlFlowInstruction::getData() {
     std::string data;
     writeTo(data);
     return data;
-}
-
-diff_t ControlFlowInstruction::calculateDisplacement() {
-    address_t dest = getLink()->getTargetAddress();
-    diff_t disp = dest - getSource()->getAddress();
-    return disp;
 }
 
 uint32_t PCRelativeInstruction::rebuild(void) {
