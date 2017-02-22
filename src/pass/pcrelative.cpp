@@ -21,6 +21,8 @@ void PCRelativePass::visit(Instruction *instruction) {
         cs_arm64_op *op = &x->operands[1];
         int64_t imm = op->imm;
 
+        auto oldSemantic = instruction->getSemantic();
+
         auto i = new PCRelativeInstruction(instruction,
                                            cs->mnemonic,
                                            AARCH64_Enc_ADRP,
@@ -29,11 +31,14 @@ void PCRelativePass::visit(Instruction *instruction) {
         //LOG(1, "adrp target: " << i->getLink()->getTargetAddress());
 
         instruction->setSemantic(i);
+        delete oldSemantic;
     }
     else if(cs->id == ARM64_INS_B) { //B or B.COND <label>
         cs_arm64 *x = &cs->detail->arm64;
         cs_arm64_op *op = &x->operands[0];
         int64_t imm = op->imm;
+
+        auto oldSemantic = instruction->getSemantic();
 
         InstructionMode m;
         if(cs->bytes[3] == 0x54) {
@@ -52,6 +57,7 @@ void PCRelativePass::visit(Instruction *instruction) {
         LOG(1, "B or B.COND target: " << i->getLink()->getTargetAddress());
 
         instruction->setSemantic(i);
+        delete oldSemantic;
     }
 
     //the subsequent 'add' must also be handled once data layout is
