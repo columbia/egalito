@@ -101,4 +101,12 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
     diff_t disp = dest - getSource()->getAddress();
     return disp;
 }
+
+uint32_t PCRelativeInstruction::rebuild(void) {
+    address_t dest = getLink()->getTargetAddress();
+    uint32_t (*makeImm)(address_t, address_t) = immInfo[mode].makeImm;
+    uint32_t imm = makeImm(dest, getSource()->getAddress());
+    return fixedBytes | imm;
+}
+
 #endif

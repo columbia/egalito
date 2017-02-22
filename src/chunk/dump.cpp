@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include "disasm/dump.h"
+#include "disasm/disassemble.h"
 #include "chunk/plt.h"  // for dumping PLTLink
 #include "dump.h"
 #include "log/log.h"
@@ -73,6 +74,17 @@ void ChunkDumper::visit(Instruction *instruction) {
                 link ? link->getTargetAddress() : 0,
                 targetName.str().c_str(),
                 bytes2.c_str());
+        }
+        else if (auto p = dynamic_cast<PCRelativeInstruction *>(instruction->getSemantic())) {
+            uint32_t b = p->rebuild();
+
+            cs_insn ins = Disassemble::getInsn({static_cast<unsigned char>(b & 0xFF),
+                                                 static_cast<unsigned char>((b>> 8) & 0xFF),
+                                                 static_cast<unsigned char>((b>>16) & 0xFF),
+                                                 static_cast<unsigned char>((b>>24) & 0xFF)
+                                                 },
+                                                 instruction->getAddress());
+            DisasmDump::printInstruction(&ins, pos, nullptr);
         }
         else LOG(4, "...unknown...");
         return;

@@ -51,6 +51,16 @@ public:
     virtual address_t getTargetAddress() const { return originalAddress; }
 };
 
+class DataOffsetLink : public Link {
+private:
+    address_t target;
+public:
+    DataOffsetLink(address_t target) : target(target) {}
+
+    virtual ChunkRef getTarget() const { return nullptr; }
+    address_t getTargetAddress() const { return target; }
+};
+
 class UnresolvedLink : public Link {
 private:
     address_t target;

@@ -1,6 +1,7 @@
 #ifndef EGALITO_CHUNK_INSTRUCTION_H
 #define EGALITO_CHUNK_INSTRUCTION_H
 
+#include <cstring>
 #include <string>
 #include <capstone/capstone.h>  // for cs_insn
 #include "types.h"
@@ -165,6 +166,7 @@ public:
 private:
     diff_t calculateDisplacement();
 };
+typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 #elif defined(ARCH_AARCH64)
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
@@ -192,11 +194,70 @@ public:
 private:
     diff_t calculateDisplacement();
 };
-#endif
 
 class ReturnInstruction : public DisassembledInstruction {
 public:
     ReturnInstruction(const DisassembledStorage &storage) : DisassembledInstruction(storage) {}
 };
+
+
+enum InstructionMode { AARCH64_Enc_ADRP, NUMBER_OF_MODES };
+
+typedef struct AARCH64_ImmInfo {
+#if 0
+    uint32_t immMask1;
+    uint32_t immMask2;
+    size_t   immLShift1;
+    size_t   immRShift1;
+    size_t   immLShift2;
+    size_t   immRShift2;
+    size_t   dispShift;
+#else
+    uint32_t fixedMask;
+    uint32_t (*makeImm)(address_t, address_t);
+#endif
+}AARCH64_ImmInfo_t;
+
+
+class PCRelativeInstruction : public LinkDecorator<InstructionSemantic> {
+private:
+    Instruction *source;
+    std::string mnemonic;
+    int mode;
+    uint32_t fixedBytes;
+    const size_t instructionSize = 4;
+    AARCH64_ImmInfo_t immInfo[NUMBER_OF_MODES];
+
+public:
+    PCRelativeInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
+        : source(source), mnemonic(mnemonic), mode(mode),
+          immInfo{{0x9000001F, [] (address_t dest, address_t src) {
+                                    diff_t disp = dest - (src & ~0xFFF);
+                                    uint32_t imm = disp >> 12;
+                                    return (((imm & 0x3) << 29)
+                                            | ((imm & 0x1FFFFC) << 3));
+                                }},}
+    {
+            std::memcpy(&fixedBytes, bytes, instructionSize);
+            fixedBytes &= immInfo[static_cast<int>(mode)].fixedMask;
+        }
+
+    virtual size_t getSize() const { return instructionSize; }
+    virtual void setSize(size_t value)
+        { throw "Size is constant for AARCH64!"; }
+
+    virtual void writeTo(char *target) { *reinterpret_cast<uint32_t *>(target) = rebuild(); }
+    virtual void writeTo(std::string &target) { target.append(reinterpret_cast<const char *>(rebuild()), instructionSize); }
+    virtual std::string getData() { std::string data; writeTo(data); return data; }
+
+    virtual cs_insn *getCapstone() { return nullptr; }
+
+    Instruction *getSource() const { return source; }
+    std::string getMnemonic() const { return mnemonic; }
+
+    uint32_t rebuild(void);
+    //diff_t calculateDisplacement();
+};
+#endif
 
 #endif
