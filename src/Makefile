@@ -112,4 +112,4 @@ $(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) regression/elfgenmanager.o
 # Other targets
 .PHONY: clean
 clean:
-	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(DEPEND_FILES)
+	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(ITEST_OBJECTS) $(DEPEND_FILES)

@@ -75,6 +75,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 targetName.str().c_str(),
                 bytes2.c_str());
         }
+#ifdef ARCH_AARCH64
         else if (auto p = dynamic_cast<PCRelativeInstruction *>(instruction->getSemantic())) {
             uint32_t b = p->rebuild();
 
@@ -86,6 +87,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                                                  instruction->getAddress());
             DisasmDump::printInstruction(&ins, pos, nullptr);
         }
+#endif
         else LOG(4, "...unknown...");
         return;
     }
