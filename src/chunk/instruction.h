@@ -193,8 +193,7 @@ typedef struct AARCH64_ImInfo_t {
 
 extern const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
 
-
-class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
+class InstructionRebuilder : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
     std::string mnemonic;
@@ -202,7 +201,7 @@ private:
     const size_t instructionSize = 4;
     const AARCH64_ImInfo_t *imInfo;
 public:
-    ControlFlowInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
+    InstructionRebuilder(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
         : source(source),
           mnemonic(mnemonic),
           imInfo(&AARCH64_ImInfo[static_cast<int>(mode)]) {
@@ -225,42 +224,20 @@ public:
 
     int getMode() const { return imInfo - AARCH64_ImInfo; }
 
-    uint32_t rebuild(void);
+    virtual uint32_t rebuild(void);
 };
 
-class PCRelativeInstruction : public LinkDecorator<InstructionSemantic> {
-private:
-    Instruction *source;
-    std::string mnemonic;
-    uint32_t fixedBytes;
-    const size_t instructionSize = 4;
-    const AARCH64_ImInfo_t *imInfo;
+// exist for the sake of dynamic_cast<>; don't typdef
+class ControlFlowInstruction : public InstructionRebuilder {
+public:
+    ControlFlowInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
+        : InstructionRebuilder(source, mnemonic, mode, bytes) {}
+};
 
+class PCRelativeInstruction : public InstructionRebuilder {
 public:
     PCRelativeInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
-        : source(source),
-          mnemonic(mnemonic),
-          imInfo(&AARCH64_ImInfo[static_cast<int>(mode)]) {
-            std::memcpy(&fixedBytes, bytes, instructionSize);
-            fixedBytes &= AARCH64_ImInfo[static_cast<int>(mode)].fixedMask;
-        }
-
-    virtual size_t getSize() const { return instructionSize; }
-    virtual void setSize(size_t value)
-        { throw "Size is constant for AARCH64!"; }
-
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData();
-
-    virtual cs_insn *getCapstone() { return nullptr; }
-
-    Instruction *getSource() const { return source; }
-    std::string getMnemonic() const { return mnemonic; }
-
-    int getMode() const { return imInfo - AARCH64_ImInfo; }
-
-    uint32_t rebuild(void);
+        : InstructionRebuilder(source, mnemonic, mode, bytes) {}
 };
 
 class ReturnInstruction : public DisassembledInstruction {

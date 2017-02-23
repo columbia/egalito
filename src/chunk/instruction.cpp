@@ -82,58 +82,6 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 }
 
 #elif defined(ARCH_AARCH64)
-uint32_t ControlFlowInstruction::rebuild(void) {
-    address_t dest = getLink()->getTargetAddress();
-    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
-#if 0
-    LOG(1, "mode: " << getMode());
-    LOG(1, "dest: " << dest);
-    LOG(1, "fixedBytes: " << fixedBytes);
-    LOG(1, "imm: " << imm);
-    LOG(1, "result: " << (fixedBytes | imm));
-#endif
-    return fixedBytes | imm;
-}
-
-void ControlFlowInstruction::writeTo(char *target) {
-    *reinterpret_cast<uint32_t *>(target) = rebuild();
-}
-void ControlFlowInstruction::writeTo(std::string &target) {
-    uint32_t data = rebuild();
-    target.append(reinterpret_cast<const char *>(&data), instructionSize);
-}
-std::string ControlFlowInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return data;
-}
-
-uint32_t PCRelativeInstruction::rebuild(void) {
-    address_t dest = getLink()->getTargetAddress();
-    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
-#if 0
-    LOG(1, "mode: " << getMode());
-    LOG(1, "dest: " << dest);
-    LOG(1, "fixedBytes: " << fixedBytes);
-    LOG(1, "imm: " << imm);
-    LOG(1, "result: " << (fixedBytes | imm));
-#endif
-    return fixedBytes | imm;
-}
-
-void PCRelativeInstruction::writeTo(char *target) {
-    *reinterpret_cast<uint32_t *>(target) = rebuild();
-}
-void PCRelativeInstruction::writeTo(std::string &target) {
-    uint32_t data = rebuild();
-    target.append(reinterpret_cast<const char *>(&data), instructionSize);
-}
-std::string PCRelativeInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return data;
-}
-
 const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
       /* ADRP */
       {0x9000001F, [] (address_t dest, address_t src) {
@@ -165,5 +113,30 @@ const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
       },
 };
 
+uint32_t InstructionRebuilder::rebuild(void) {
+    address_t dest = getLink()->getTargetAddress();
+    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
+#if 0
+    LOG(1, "mode: " << getMode());
+    LOG(1, "dest: " << dest);
+    LOG(1, "fixedBytes: " << fixedBytes);
+    LOG(1, "imm: " << imm);
+    LOG(1, "result: " << (fixedBytes | imm));
+#endif
+    return fixedBytes | imm;
+}
+
+void InstructionRebuilder::writeTo(char *target) {
+    *reinterpret_cast<uint32_t *>(target) = rebuild();
+}
+void InstructionRebuilder::writeTo(std::string &target) {
+    uint32_t data = rebuild();
+    target.append(reinterpret_cast<const char *>(&data), instructionSize);
+}
+std::string InstructionRebuilder::getData() {
+    std::string data;
+    writeTo(data);
+    return data;
+}
 
 #endif
