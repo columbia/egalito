@@ -12,7 +12,6 @@
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "chunk/dump.h"
-#include "pass/pcrelative.h"
 #include "transform/sandbox.h"
 #include "transform/generator.h"
 #include "break/signals.h"
