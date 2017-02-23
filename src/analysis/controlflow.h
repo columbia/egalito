@@ -3,11 +3,24 @@
 
 #include <vector>
 #include <map>
-#include <utility>
 #include "util/iter.h"
 
 class Function;
 class Block;
+
+class ControlFlowLink {
+private:
+    id_t id;
+    int offset;
+    bool followJump;
+public:
+    ControlFlowLink(id_t id, int offset = 0, bool followJump = true)
+        : id(id), offset(offset), followJump(followJump) {}
+
+    id_t getID() const { return id; }
+    int getOffset() const { return offset; }
+    bool getFollowJump() const { return followJump; }
+};
 
 class ControlFlowNode {
 public:
@@ -16,7 +29,7 @@ private:
     id_t id;
     Block *block;
 private:
-    typedef std::vector<std::pair<id_t, int>> ListType;
+    typedef std::vector<ControlFlowLink> ListType;
     ListType links;
     ListType reverseLinks;
 public:
@@ -25,10 +38,10 @@ public:
     id_t getID() const { return id; }
     Block *getBlock() const { return block; }
 
-    void addLink(id_t other, int offset = 0)
-        { links.push_back(std::make_pair(other, offset)); }
-    void addReverseLink(id_t other, int offset = 0)
-        { reverseLinks.push_back(std::make_pair(other, offset)); }
+    void addLink(const ControlFlowLink &link)
+        { links.push_back(link); }
+    void addReverseLink(const ControlFlowLink &rlink)
+        { reverseLinks.push_back(rlink); }
 
     ConcreteIterable<ListType> forwardLinks()
         { return ConcreteIterable<ListType>(links); }

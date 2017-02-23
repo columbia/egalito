@@ -135,15 +135,19 @@ void SlicingSearch::sliceAt(Instruction *i) {
 
 void SlicingSearch::buildStatePass(SearchState *startState) {
     // We perform a breadth-first search through parent CFG nodes
+    // and generate this->stateList.
     std::vector<bool> visited(cfg->getCount());  // indexed by node ID
-    std::vector<SearchState *> transitionList;  // new states (BFS)
-    SearchState *currentState = nullptr;  // not in stateList or transitionList
-    // generating this->stateList
+    // This stores transitions to new states (basic blocks):
+    std::vector<SearchState *> transitionList;
 
     transitionList.push_back(startState);
 
+    // NOTE: we only visit each parent CFG node once, even though there
+    // may be multiple paths to it, e.g. by taking a jump or not. This means
+    // detecting certain cases like conditional-jumping into the next block
+    // may result in invalid bounds calculations.
     while(transitionList.size() > 0) {
-        currentState = transitionList.front();
+        SearchState *currentState = transitionList.front();
         transitionList.erase(transitionList.begin());  // inefficient
         auto node = currentState->getNode();
         Instruction *instruction = currentState->getInstruction();
@@ -174,9 +178,9 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 
         // find all nodes that link to this one, keep searching there
         for(auto link : node->backwardLinks()) {
-            auto newNode = cfg->get(link.first);
+            auto newNode = cfg->get(link.getID());
             if(!visited[newNode->getID()]) {
-                auto offset = link.second;
+                auto offset = link.getOffset();
                 Instruction *newStart
                     = newNode->getBlock()->getChildren()->getSpatial()->find(
                         newNode->getBlock()->getAddress() + offset);
@@ -184,6 +188,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                 SearchState *newState = new SearchState(*currentState);
                 newState->setNode(newNode);
                 newState->setInstruction(newStart);
+                newState->setJumpTaken(link.getFollowJump());
                 transitionList.push_back(newState);
                 currentState->addParent(newState);
             }
@@ -243,6 +248,7 @@ bool SlicingSearch::isKnownInstruction(unsigned id) {
     known[X86_INS_ADD] = true;
     known[X86_INS_LEA] = true;
     known[X86_INS_MOVSXD] = true;
+    known[X86_INS_MOVZX] = true;
     known[X86_INS_CMP] = true;
 
     return id < sizeof(known)/sizeof(*known) && known[id];
@@ -271,7 +277,10 @@ void SlicingSearch::buildStateFor(SearchState *state) {
 
                 if(state->getReg(target)) {
                     state->addReg(source);
-                    state->addReg(target);
+
+                    if(capstone->id == X86_INS_MOVZX) {
+                        state->removeReg(target);
+                    }
                 }
             }
             if(x->op_count == 2
@@ -392,6 +401,20 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
 
         LOG(1, "        movslq found");
         break;
+    case X86_INS_MOVZX:
+        if(mode == MODE_REG_REG) {
+            auto source = x->operands[0].reg;
+            auto target = x->operands[1].reg;
+
+            if(target >= X86_REG_EAX && target <= X86_REG_EDX) {
+                target = x86_reg(int(target) + (X86_REG_RAX - X86_REG_EAX));
+            }
+
+            state->setRegTree(target,
+                u.getParentRegTree(state, source));
+        }
+        LOG(1, "        movzx found");
+        break;
     case X86_INS_CMP:
         if(mode == MODE_IMM_REG) {
             auto imm = x->operands[0].imm;
@@ -413,13 +436,17 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state) {
     SlicingUtilities u;
     auto semantic = state->getInstruction()->getSemantic();
     if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
-        if(v->getMnemonic() != "jmp") {
+        if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
             LOG0(1, "    found a conditional jump, eflags is ");
             //auto tree = state->getRegTree(X86_REG_EFLAGS);
             auto tree = u.getParentRegTree(state, X86_REG_EFLAGS);
             if(tree) tree->print(TreePrinter(2, 0));
             else LOG0(1, "NULL");
             LOG(1, "");
+
+            state->setRegTree(X86_REG_EFLAGS, tree);
+
+            conditions.push_back(state);
         }
     }
 }

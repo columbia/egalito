@@ -95,24 +95,26 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
-    //conductor.parseRecursive(elf);
-    conductor.parse(elf, nullptr);
+    conductor.parseRecursive(elf);
+    //conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
     if(false && libc) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
-    if(false && libc) {
+    if(libc) {
         auto named = libc->getElfSpace()->getModule()->getChildren()->getNamed();
-        auto ff = named->find("parse_expression");
-        //auto ff = named->find("trecurse");
-        if(ff) {
-            ControlFlowGraph cfg(ff);
-            cfg.dump();
+        const char *funcs[] = {"parse_expression", "trecurse"};
+        for(size_t i = 0; i < sizeof(funcs)/sizeof(*funcs); i ++) {
+            auto ff = named->find(funcs[i]);
+            if(ff) {
+                ControlFlowGraph cfg(ff);
+                cfg.dump();
 
-            JumpTableSearch jt;
-            jt.search(ff);
+                JumpTableSearch jt;
+                jt.search(ff);
+            }
         }
     }
 

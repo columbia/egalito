@@ -45,9 +45,10 @@ void ControlFlowGraph::construct(Block *block) {
             auto target = link->getTarget();
             if(auto v = dynamic_cast<Block *>(&*target)) {
                 auto other = blockMapping[v];
-                graph[id].addLink(other);
-                graph[other].addReverseLink(id,
-                    i->getAddress() - i->getParent()->getAddress());
+                graph[id].addLink(ControlFlowLink(other));
+                graph[other].addReverseLink(
+                    ControlFlowLink(id,
+                        i->getAddress() - i->getParent()->getAddress()));
             }
             else if(auto v = dynamic_cast<Instruction *>(&*target)) {
                 // Currently, Blocks can have jumps incoming to the middle
@@ -55,9 +56,10 @@ void ControlFlowGraph::construct(Block *block) {
                 auto parent = dynamic_cast<Block *>(v->getParent());
                 auto parentID = blockMapping[parent];
                 auto offset = link->getTargetAddress() - parent->getAddress();
-                graph[id].addLink(parentID, offset);
-                graph[parentID].addReverseLink(id,
-                    i->getAddress() - i->getParent()->getAddress());
+                graph[id].addLink(ControlFlowLink(parentID, offset));
+                graph[parentID].addReverseLink(
+                    ControlFlowLink(id,
+                        i->getAddress() - i->getParent()->getAddress()));
             }
         }
     }
@@ -75,9 +77,11 @@ void ControlFlowGraph::construct(Block *block) {
         auto index = list->indexOf(block);
         if(index + 1 < list->getCount()) {
             auto other = blockMapping[list->get(index + 1)];
-            graph[id].addLink(other);
-            graph[other].addReverseLink(id,
-                i->getAddress() - i->getParent()->getAddress());
+            graph[id].addLink(ControlFlowLink(other, 0, false));
+            graph[other].addReverseLink(
+                ControlFlowLink(id,
+                    i->getAddress() - i->getParent()->getAddress(),
+                    false));
         }
     }
 }
@@ -88,16 +92,16 @@ void ControlFlowGraph::dump() {
         LOG(1, "    " << node.getDescription());
         LOG0(1, "        forward edges:");
         for(auto link : node.forwardLinks()) {
-            LOG0(1, " " << link.first << " ("
-                << graph[link.first].getBlock()->getName()
-                << ") + " << std::dec << link.second << ";");
+            LOG0(1, " " << link.getID() << " ("
+                << graph[link.getID()].getBlock()->getName()
+                << ") + " << std::dec << link.getOffset() << ";");
         }
         LOG(1, "");
         LOG0(1, "        backward edges:");
         for(auto link : node.backwardLinks()) {
-            LOG0(1, " " << link.first << " ("
-                << graph[link.first].getBlock()->getName()
-                << ") + " << std::dec << link.second << ";");
+            LOG0(1, " " << link.getID() << " ("
+                << graph[link.getID()].getBlock()->getName()
+                << ") + " << std::dec << link.getOffset() << ";");
         }
         LOG(1, "");
     }

@@ -82,14 +82,68 @@ bool JumpTableSearch::matchJumpTable(SearchState *state) {
 }
 
 bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search) {
-    return boundsHelper(search, search->getInitialState());
-}
+    for(auto state : search->getConditionList()) {
+        auto tree = state->getRegTree(X86_REG_EFLAGS);
+        auto condition = dynamic_cast<TreeNodeComparison *>(tree);
+        if(!condition) continue;
 
-bool JumpTableSearch::boundsHelper(SlicingSearch *search, SearchState *state) {
-    auto v = dynamic_cast<ControlFlowInstruction *>(
-        state->getInstruction()->getSemantic());
-    if(v) {
-        
+        auto leftGeneric = condition->getLeft();
+        auto rightGeneric = condition->getRight();
+        auto left = dynamic_cast<TreeNodeConstant *>(condition->getLeft());
+        auto right = dynamic_cast<TreeNodeConstant *>(condition->getRight());
+        if(!left && !right) continue;
+
+        enum Operator {
+            OP_LT = 1,
+            OP_LE = 2,
+            OP_NE = 4,
+            OP_EQ = 10-OP_NE,
+            OP_GE = 10-OP_LT,
+            OP_GT = 10-OP_LE
+        } op;
+        const char *opString[] = {0, "<", "<=", 0, "!=", 0, "==", 0, ">=", ">"};
+
+        auto semantic = state->getInstruction()->getSemantic();
+        auto v = dynamic_cast<ControlFlowInstruction *>(semantic);
+        if(!v) continue;
+        std::string mnemonic = v->getMnemonic();
+        if(mnemonic == "ja") op = OP_GT;
+        else if(mnemonic == "jb") op = OP_LT;
+        else if(mnemonic == "jne") op = OP_NE;
+        else if(mnemonic == "je") op = OP_EQ;
+        else {
+            LOG(1, "what is " << mnemonic << "?");
+            throw "unimplemented mnemonic in jump table slicing";
+        }
+
+        if(!state->getJumpTaken()) {
+            op = Operator(10-int(op));
+        }
+
+        // we want the bounded value
+        op = Operator(10-int(op));
+
+        if(left && !right) {
+            auto t = left;
+            left = right;
+            right = t;
+            auto tt = leftGeneric;
+            leftGeneric = rightGeneric;
+            rightGeneric = tt;
+
+            op = Operator(10-int(op));
+        }
+
+        unsigned long bound = right->getValue();
+        LOG0(1, "comparison of ");
+        leftGeneric->print(TreePrinter(2, 0));
+        LOG(1, " is " << opString[op] << " " << std::dec << bound);
+
+        if(leftGeneric == indexExpr && (op == OP_LE || op == OP_LT)) {
+            LOG0(1, "BOUNDS CHECK FOUND! ");
+            indexExpr->print(TreePrinter(2, 0));
+            LOG(1, " is " << opString[op] << " " << std::dec << bound);
+        }
     }
 
     return false;

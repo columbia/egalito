@@ -16,7 +16,6 @@ public:
 private:
     bool matchJumpTable(SearchState *state);
     bool matchJumpTableBounds(SlicingSearch *search);
-    bool boundsHelper(SlicingSearch *search, SearchState *state);
 };
 
 #endif

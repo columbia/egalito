@@ -15,12 +15,13 @@ private:
     std::vector<bool> regs;
     std::vector<SearchState *> parents;
     std::map<int, TreeNode *> regTree;
+    bool jumpTaken;
 public:
-    SearchState() : node(nullptr), instruction(nullptr) {}
+    SearchState() : node(nullptr), instruction(nullptr), jumpTaken(false) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
-        : node(node), instruction(instruction), regs(X86_REG_ENDING) {}
+        : node(node), instruction(instruction), regs(X86_REG_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
-        : node(other.node), instruction(other.instruction), regs(other.regs) {}
+        : node(other.node), instruction(other.instruction), regs(other.regs), jumpTaken(other.jumpTaken) {}
 
     ControlFlowNode *getNode() const { return node; }
     Instruction *getInstruction() const { return instruction; }
@@ -38,6 +39,9 @@ public:
 
     TreeNode *getRegTree(int reg);
     void setRegTree(int reg, TreeNode *tree);
+
+    void setJumpTaken(bool to) { jumpTaken = to; }
+    bool getJumpTaken() const { return jumpTaken; }
 };
 
 class SlicingUtilities {
@@ -54,6 +58,7 @@ class SlicingSearch {
 private:
     ControlFlowGraph *cfg;
     std::vector<SearchState *> stateList;  // history of states
+    std::vector<SearchState *> conditions;  // conditional jumps
 public:
     SlicingSearch(ControlFlowGraph *cfg) : cfg(cfg) {}
 
@@ -61,8 +66,8 @@ public:
     void sliceAt(Instruction *i);
 
     SearchState *getInitialState() const { return stateList.front(); }
-    const std::vector<SearchState *> &getStateList() const
-        { return stateList; }
+    const std::vector<SearchState *> &getConditionList() const
+        { return conditions; }
 private:
     void buildStatePass(SearchState *startState);
     void buildRegTreePass();
