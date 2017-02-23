@@ -168,19 +168,15 @@ private:
 };
 typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 #elif defined(ARCH_AARCH64)
-enum CFInstructionMode {
-    AARCH64_BL = 0,
-    AARCH64_B,
-    AARCH64_BCOND,
-    NUMBER_OF_CFI_MODES
-};
-
 enum InstructionMode {
-    AARCH64_ADRP = 0,
-    NUMBER_OF_MODES
+    AARCH64_IM_ADRP = 0,
+    AARCH64_IM_BL,
+    AARCH64_IM_B,
+    AARCH64_IM_BCOND,
+    AARCH64_IM_MAX
 };
 
-typedef struct AARCH64_ImmInfo {
+typedef struct AARCH64_ImInfo_t {
 #if 0
     uint32_t immMask1;
     uint32_t immMask2;
@@ -193,45 +189,25 @@ typedef struct AARCH64_ImmInfo {
     uint32_t fixedMask;
     uint32_t (*makeImm)(address_t, address_t);
 #endif
-}AARCH64_ImmInfo_t;
+}AARCH64_ImInfo_t;
+
+extern const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
 
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
     std::string mnemonic;
-    int mode;
     uint32_t fixedBytes;
     const size_t instructionSize = 4;
-    AARCH64_ImmInfo_t immInfo[NUMBER_OF_CFI_MODES];
+    const AARCH64_ImInfo_t *imInfo;
 public:
-    ControlFlowInstruction(Instruction *source, std::string mnemonic, CFInstructionMode mode, uint8_t *bytes)
-        : source(source), mnemonic(mnemonic), mode(mode),
-          immInfo {
-              /* BL */
-              {0xFC000000, [] (address_t dest, address_t src) {
-                                diff_t disp = dest - src;
-                                uint32_t imm = disp >> 2;
-                                return (imm & ~0xFC000000);
-                            }
-              },
-              /* B (same as BL; but keep it separate for debugging purpose) */
-              {0xFC000000, [] (address_t dest, address_t src) {
-                                diff_t disp = dest - src;
-                                uint32_t imm = disp >> 2;
-                                return (imm & ~0xFC000000);
-                            }
-              },
-              /* B.COND */
-              {0xFF00001F, [] (address_t dest, address_t src) {
-                                diff_t disp = dest - src;
-                                uint32_t imm = disp >> 2;
-                                return ((imm << 5)& ~0xFF00001F);
-                            }
-              },
-          } {
+    ControlFlowInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
+        : source(source),
+          mnemonic(mnemonic),
+          imInfo(&AARCH64_ImInfo[static_cast<int>(mode)]) {
             std::memcpy(&fixedBytes, bytes, instructionSize);
-            fixedBytes &= immInfo[static_cast<int>(mode)].fixedMask;
+            fixedBytes &= AARCH64_ImInfo[static_cast<int>(mode)].fixedMask;
         }
 
     virtual size_t getSize() const { return instructionSize; }
@@ -247,7 +223,7 @@ public:
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
 
-    int getMode() const { return mode; }
+    int getMode() const { return imInfo - AARCH64_ImInfo; }
 
     uint32_t rebuild(void);
 };
@@ -256,25 +232,17 @@ class PCRelativeInstruction : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
     std::string mnemonic;
-    int mode;
     uint32_t fixedBytes;
     const size_t instructionSize = 4;
-    AARCH64_ImmInfo_t immInfo[NUMBER_OF_MODES];
+    const AARCH64_ImInfo_t *imInfo;
 
 public:
     PCRelativeInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
-        : source(source), mnemonic(mnemonic), mode(mode),
-          immInfo {
-              /* ADRP */
-              {0x9000001F, [] (address_t dest, address_t src) {
-                                diff_t disp = dest - (src & ~0xFFF);
-                                uint32_t imm = disp >> 12;
-                                return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3));
-                            }
-              },
-          } {
+        : source(source),
+          mnemonic(mnemonic),
+          imInfo(&AARCH64_ImInfo[static_cast<int>(mode)]) {
             std::memcpy(&fixedBytes, bytes, instructionSize);
-            fixedBytes &= immInfo[static_cast<int>(mode)].fixedMask;
+            fixedBytes &= AARCH64_ImInfo[static_cast<int>(mode)].fixedMask;
         }
 
     virtual size_t getSize() const { return instructionSize; }
@@ -290,7 +258,7 @@ public:
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
 
-    int getMode() const { return mode; }
+    int getMode() const { return imInfo - AARCH64_ImInfo; }
 
     uint32_t rebuild(void);
 };

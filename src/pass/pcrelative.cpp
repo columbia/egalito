@@ -21,7 +21,7 @@ void PCRelativePass::visit(Instruction *instruction) {
 
         auto i = new PCRelativeInstruction(instruction,
                                            cs->mnemonic,
-                                           AARCH64_ADRP,
+                                           AARCH64_IM_ADRP,
                                            cs->bytes);
         i->setLink(new DataOffsetLink(((elf->getBaseAddress() + cs->address) & ~0xfff) + imm));
         //LOG(1, "adrp target: " << i->getLink()->getTargetAddress());
@@ -35,12 +35,12 @@ void PCRelativePass::visit(Instruction *instruction) {
 
         auto oldSemantic = instruction->getSemantic();
 
-        CFInstructionMode m;
+        InstructionMode m;
         if(cs->bytes[3] == 0x54) {
-            m = AARCH64_BCOND;
+            m = AARCH64_IM_BCOND;
             //LOG(1, "BCOND to: +" << imm);
         } else {
-            m = AARCH64_B;
+            m = AARCH64_IM_B;
             //LOG(1, "B to: +" << imm);
         }
         auto i = new ControlFlowInstruction(instruction,
@@ -62,7 +62,7 @@ void PCRelativePass::visit(Instruction *instruction) {
 
         auto i = new ControlFlowInstruction(instruction,
                                             cs->mnemonic,
-                                            AARCH64_BL,
+                                            AARCH64_IM_BL,
                                             cs->bytes);
         i->setLink(new UnresolvedLink(imm));
 

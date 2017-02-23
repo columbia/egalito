@@ -84,12 +84,13 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 #elif defined(ARCH_AARCH64)
 uint32_t ControlFlowInstruction::rebuild(void) {
     address_t dest = getLink()->getTargetAddress();
-    uint32_t (*makeImm)(address_t, address_t) = immInfo[mode].makeImm;
-    uint32_t imm = makeImm(dest, getSource()->getAddress());
+    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
 #if 0
+    LOG(1, "mode: " << getMode());
     LOG(1, "dest: " << dest);
     LOG(1, "fixedBytes: " << fixedBytes);
     LOG(1, "imm: " << imm);
+    LOG(1, "result: " << (fixedBytes | imm));
 #endif
     return fixedBytes | imm;
 }
@@ -109,12 +110,13 @@ std::string ControlFlowInstruction::getData() {
 
 uint32_t PCRelativeInstruction::rebuild(void) {
     address_t dest = getLink()->getTargetAddress();
-    uint32_t (*makeImm)(address_t, address_t) = immInfo[mode].makeImm;
-    uint32_t imm = makeImm(dest, getSource()->getAddress());
+    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
 #if 0
+    LOG(1, "mode: " << getMode());
     LOG(1, "dest: " << dest);
     LOG(1, "fixedBytes: " << fixedBytes);
     LOG(1, "imm: " << imm);
+    LOG(1, "result: " << (fixedBytes | imm));
 #endif
     return fixedBytes | imm;
 }
@@ -131,5 +133,37 @@ std::string PCRelativeInstruction::getData() {
     writeTo(data);
     return data;
 }
+
+const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
+      /* ADRP */
+      {0x9000001F, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - (src & ~0xFFF);
+                        uint32_t imm = disp >> 12;
+                        return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3));
+                    }
+      },
+      /* BL */
+      {0xFC000000, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - src;
+                        uint32_t imm = disp >> 2;
+                        return (imm & ~0xFC000000);
+                    }
+      },
+      /* B (same as BL; but keep it separate for debugging purpose) */
+      {0xFC000000, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - src;
+                        uint32_t imm = disp >> 2;
+                        return (imm & ~0xFC000000);
+                    }
+      },
+      /* B.COND */
+      {0xFF00001F, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - src;
+                        uint32_t imm = disp >> 2;
+                        return ((imm << 5)& ~0xFF00001F);
+                    }
+      },
+};
+
 
 #endif
