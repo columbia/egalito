@@ -10,6 +10,7 @@
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
 #include "pass/stackxor.h"
+#include "pass/relocheck.h"
 #include "log/log.h"
 
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
@@ -69,6 +70,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //module->accept(&stackXOR);
 
     //module->accept(&dumper);
+
+    ReloCheckPass checker(relocList);
+    module->accept(&checker);
 }
 
 std::string ElfSpace::getName() const {
