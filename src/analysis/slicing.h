@@ -76,7 +76,8 @@ private:
     bool isKnownInstruction(unsigned id);
     void buildStateFor(SearchState *state);
     void buildRegTreesFor(SearchState *state);
-    void detectJumpRegTrees(SearchState *state);
+    void detectInstruction(SearchState *state, bool makeTrees);
+    void detectJumpRegTrees(SearchState *state, bool makeTrees);
 };
 
 #endif
