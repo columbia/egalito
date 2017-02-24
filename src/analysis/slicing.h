@@ -8,26 +8,32 @@
 
 class TreeNode;
 
+class SlicingInstructionState;
+
 class SearchState {
 private:
     ControlFlowNode *node;
     Instruction *instruction;
+    SlicingInstructionState *iState;
     std::vector<bool> regs;
     std::vector<SearchState *> parents;
     std::map<int, TreeNode *> regTree;
     bool jumpTaken;
 public:
-    SearchState() : node(nullptr), instruction(nullptr), jumpTaken(false) {}
+    SearchState() : node(nullptr), instruction(nullptr), iState(nullptr), jumpTaken(false) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
-        : node(node), instruction(instruction), regs(X86_REG_ENDING), jumpTaken(false) {}
+        : node(node), instruction(instruction), iState(nullptr), regs(X86_REG_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
-        : node(other.node), instruction(other.instruction), regs(other.regs), jumpTaken(other.jumpTaken) {}
+        : node(other.node), instruction(other.instruction), iState(nullptr), regs(other.regs), jumpTaken(other.jumpTaken) {}
 
     ControlFlowNode *getNode() const { return node; }
     Instruction *getInstruction() const { return instruction; }
+    SlicingInstructionState *getIState() const { return iState; }
     void setNode(ControlFlowNode *node) { this->node = node; }
     void setInstruction(Instruction *instruction)
         { this->instruction = instruction; }
+    void setIState(SlicingInstructionState *iState)
+        { this->iState = iState; }
 
     const std::vector<bool> &getRegs() const { return regs; }
     void addReg(int reg) { regs[reg] = true; }
@@ -73,11 +79,10 @@ private:
     void buildRegTreePass();
 
     void debugPrintRegAccesses(Instruction *i);
-    bool isKnownInstruction(unsigned id);
     void buildStateFor(SearchState *state);
     void buildRegTreesFor(SearchState *state);
-    void detectInstruction(SearchState *state, bool makeTrees);
-    void detectJumpRegTrees(SearchState *state, bool makeTrees);
+    void detectInstruction(SearchState *state, bool firstPass);
+    void detectJumpRegTrees(SearchState *state, bool firstPass);
 };
 
 #endif

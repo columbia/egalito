@@ -105,7 +105,10 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
     else if(parents.size() == 1) {
         // common case: exactly one parent, use its register tree
         auto tree = parents.front()->getRegTree(reg);
-        if(!tree) tree = new TreeNodeRegister(reg);  // parent doesn't have this
+        if(!tree) {
+            // This should only happen the first time a reg is used.
+            tree = new TreeNodeRegister(reg);  // parent doesn't have this
+        }
         return tree;
     }
     else {
@@ -165,6 +168,15 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
             dumper.visit(i);
 
             currentState->setInstruction(i);
+
+            bool stillSearching = false;
+            for(auto r : currentState->getRegs()) {
+                if(r) {
+                    stillSearching = true;
+                    break;
+                }
+            }
+            if(!stillSearching) continue;
 
             buildStateFor(currentState);
             stateList.push_back(currentState);
@@ -243,7 +255,7 @@ void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
     }
 }
 
-class SlicingInstructionHelper {
+class SlicingInstructionState {
 public:
     enum Mode {
         MODE_UNKNOWN,
@@ -251,49 +263,160 @@ public:
         MODE_MEM_REG,
         MODE_IMM_REG,
     };
+private:
+    SearchState *state;
+    Mode mode;
+    union arg1_t {
+        x86_reg reg;
+        x86_op_mem *mem;
+        unsigned long imm;
+    } a1;
+    union arg2_t {
+        x86_reg reg;
+    } a2;
 public:
-    static Mode getMode(cs_insn *capstone);
+    SlicingInstructionState(SearchState *state, cs_insn *capstone)
+        : state(state) { determineMode(capstone); }
+
+    arg1_t *get1() { return &a1; }
+    arg2_t *get2() { return &a2; }
+    Mode getMode() const { return mode; }
+
+    void defaultDetectRegReg(bool overwriteTarget);
+    void defaultDetectMemReg(bool overwriteTarget);
+    void defaultDetectImmReg(bool overwriteTarget);
+private:
+    void determineMode(cs_insn *capstone);
+    bool convertRegisterSize(x86_reg &reg);
 };
 
-SlicingInstructionHelper::Mode
-    SlicingInstructionHelper::getMode(cs_insn *capstone) {
-
+void SlicingInstructionState::determineMode(cs_insn *capstone) {
+    mode = MODE_UNKNOWN;
 #ifdef ARCH_X86_64
     cs_x86 *x = &capstone->detail->x86;
 #elif defined(ARCH_AARCH64)
     cs_arm64 *x = &capstone->detail->arm64;
 #endif
-    Mode mode = MODE_UNKNOWN;
     if(x->op_count == 2
         && x->operands[0].type == X86_OP_REG
         && x->operands[1].type == X86_OP_REG) {
 
         mode = MODE_REG_REG;
+        a1.reg = x->operands[0].reg;
+        a2.reg = x->operands[1].reg;
     }
     if(x->op_count == 2
         && x->operands[0].type == X86_OP_MEM
         && x->operands[1].type == X86_OP_REG) {
 
         mode = MODE_MEM_REG;
+        a1.mem = &x->operands[0].mem;
+        a2.reg = x->operands[1].reg;
     }
     if(x->op_count == 2
         && x->operands[0].type == X86_OP_IMM
         && x->operands[1].type == X86_OP_REG) {
 
         mode = MODE_IMM_REG;
+        a1.imm = x->operands[0].imm;
+        a2.reg = x->operands[1].reg;
     }
-    return mode;
 }
 
-bool SlicingSearch::isKnownInstruction(unsigned id) {
-    static bool known[X86_INS_ENDING] = {};
-    known[X86_INS_ADD] = true;
-    known[X86_INS_LEA] = true;
-    known[X86_INS_MOVSXD] = true;
-    known[X86_INS_MOVZX] = true;
-    known[X86_INS_CMP] = true;
+bool SlicingInstructionState::convertRegisterSize(x86_reg &reg) {
+    if(state->getReg(reg)) {
+        return false;  // We are already looking for this exact register
+    }
 
-    return id < sizeof(known)/sizeof(*known) && known[id];
+    x86_reg promotion[][4] = {
+        // ignoring AH etc for now
+        {X86_REG_AL, X86_REG_AX, X86_REG_EAX, X86_REG_RAX},
+        {X86_REG_BL, X86_REG_BX, X86_REG_EBX, X86_REG_RBX},
+        {X86_REG_CL, X86_REG_CX, X86_REG_ECX, X86_REG_RCX},
+        {X86_REG_DL, X86_REG_DX, X86_REG_EDX, X86_REG_RDX},
+        {X86_REG_SI, X86_REG_ESI, X86_REG_RSI},  // 0 == X86_REG_INVALID
+        {X86_REG_DI, X86_REG_EDI, X86_REG_RDI},
+        {X86_REG_BP, X86_REG_EBP, X86_REG_RBP},
+        {X86_REG_SP, X86_REG_EBP, X86_REG_RBP},
+        {X86_REG_R8B, X86_REG_R8W, X86_REG_R8D, X86_REG_R8},
+        {X86_REG_R9B, X86_REG_R9W, X86_REG_R9D, X86_REG_R9},
+        {X86_REG_R10B, X86_REG_R10W, X86_REG_R10D, X86_REG_R10},
+        {X86_REG_R11B, X86_REG_R11W, X86_REG_R11D, X86_REG_R11},
+        {X86_REG_R12B, X86_REG_R12W, X86_REG_R12D, X86_REG_R12},
+        {X86_REG_R13B, X86_REG_R13W, X86_REG_R13D, X86_REG_R13},
+        {X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
+        {X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15}
+    };
+
+    for(size_t i = 0; i < sizeof(promotion)/sizeof(*promotion); i ++) {
+        for(size_t j = 0; j < sizeof(*promotion)/sizeof(**promotion); j ++) {
+            if(promotion[i][j] == reg) {
+                for(j ++; j < sizeof(*promotion)/sizeof(**promotion); j ++) {
+                    if(!promotion[i][j]) break;
+
+                    if(state->getReg(promotion[i][j])) {
+                        reg = promotion[i][j];
+                        return true;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+#if 0
+    // try promoting registers rax, rbp, rbx, rcx, rdi, rdx
+    if(r >= X86_REG_AX && r <= X86_REG_DX) {
+        r += (X86_REG_EAX - X86_REG_AX);
+        if(state->getReg(r)) {
+            reg = x86_reg(r);
+            return true;
+        }
+    }
+#endif
+
+    return false;
+}
+
+void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
+    convertRegisterSize(a2.reg);
+    auto source = a1.reg;
+    auto target = a2.reg;
+
+    if(state->getReg(target)) {
+        state->addReg(source);
+        if(overwriteTarget) {
+            state->removeReg(target);
+        }
+    }
+}
+void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
+    convertRegisterSize(a2.reg);
+    auto mem = a1.mem;
+    auto reg = a2.reg;
+
+    if(state->getReg(reg)) {
+        if(overwriteTarget) {
+            state->removeReg(reg);
+        }
+        if(mem->base != X86_REG_INVALID) {
+            state->addReg(mem->base);
+        }
+        if(mem->index != X86_REG_INVALID) {
+            state->addReg(mem->index);
+        }
+    }
+}
+void SlicingInstructionState::defaultDetectImmReg(bool overwriteTarget) {
+    convertRegisterSize(a2.reg);
+    //auto imm = a1.imm;
+    auto reg = a2.reg;
+
+    if(state->getReg(reg)) {
+        if(overwriteTarget) {
+            state->removeReg(reg);
+        }
+    }
 }
 
 void SlicingSearch::buildStateFor(SearchState *state) {
@@ -301,7 +424,7 @@ void SlicingSearch::buildStateFor(SearchState *state) {
 
     debugPrintRegAccesses(state->getInstruction());
 
-    detectInstruction(state, false);
+    detectInstruction(state, true);
 
     if(capstone && capstone->detail) {
         // if any instruction overwrites EFLAGS, remove from reg set
@@ -316,38 +439,38 @@ void SlicingSearch::buildStateFor(SearchState *state) {
 }
 
 void SlicingSearch::buildRegTreesFor(SearchState *state) {
-    detectInstruction(state, true);
+    detectInstruction(state, false);
 }
 
-void SlicingSearch::detectInstruction(SearchState *state, bool makeTrees) {
+void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
     auto capstone = state->getInstruction()->getSemantic()->getCapstone();
     if(!capstone || !capstone->detail) {
-        detectJumpRegTrees(state, makeTrees);
+        detectJumpRegTrees(state, firstPass);
         return;
     }
 
     SlicingUtilities u;
 
-#ifdef ARCH_X86_64
-    cs_x86 *x = &capstone->detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &capstone->detail->arm64;
-#endif
-    auto mode = SlicingInstructionHelper::getMode(capstone);
+    SlicingInstructionState *iState;
+    if(firstPass) {
+        iState = new SlicingInstructionState(state, capstone);
+        state->setIState(iState);
+    }
+    else {
+        iState = state->getIState();
+    }
+    auto mode = iState->getMode();
 
     switch(capstone->id) {
     case X86_INS_ADD:
-        if(mode == SlicingInstructionHelper::MODE_REG_REG) {
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
-
-            if(!makeTrees) {
-                if(state->getReg(target)) {
-                    state->addReg(source);
-                    // leave target in the reg set
-                }
+        if(mode == SlicingInstructionState::MODE_REG_REG) {
+            if(firstPass) {
+                iState->defaultDetectRegReg(false);
             }
             else {
+                auto source = iState->get1()->reg;
+                auto target = iState->get2()->reg;
+
                 state->setRegTree(target, new TreeNodeAddition(
                     u.getParentRegTree(state, source),
                     u.getParentRegTree(state, target)));
@@ -356,95 +479,57 @@ void SlicingSearch::detectInstruction(SearchState *state, bool makeTrees) {
         LOG(1, "        add found");
         break;
     case X86_INS_LEA:
-        if(mode == SlicingInstructionHelper::MODE_MEM_REG) {
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            if(!makeTrees) {
-                if(state->getReg(out)) {
-                    state->removeReg(out);
-                    if(mem->base != X86_REG_INVALID) {
-                        state->addReg(mem->base);
-                    }
-                    if(mem->index != X86_REG_INVALID) {
-                        state->addReg(mem->index);
-                    }
-                }
+        if(mode == SlicingInstructionState::MODE_MEM_REG) {
+            if(firstPass) {
+                iState->defaultDetectMemReg(true);
             }
             else {
+                auto mem = iState->get1()->mem;
+                auto reg = iState->get2()->reg;
+
                 auto tree = u.makeMemTree(state, mem);
-                state->setRegTree(out, tree);
+                state->setRegTree(reg, tree);
             }
         }
         LOG(1, "        lea found");
         break;
     case X86_INS_MOVSXD:
-        if(mode == SlicingInstructionHelper::MODE_MEM_REG) {
-            auto mem = &x->operands[0].mem;
-            auto out = x->operands[1].reg;
-
-            if(!makeTrees) {
-                if(state->getReg(out)) {
-                    state->removeReg(out);
-                    if(mem->base != X86_REG_INVALID) {
-                        state->addReg(mem->base);
-                    }
-                    if(mem->index != X86_REG_INVALID) {
-                        state->addReg(mem->index);
-                    }
-                }
+        if(mode == SlicingInstructionState::MODE_MEM_REG) {
+            if(firstPass) {
+                iState->defaultDetectMemReg(true);
             }
             else {
+                auto mem = iState->get1()->mem;
+                auto reg = iState->get2()->reg;
+
                 auto tree = u.makeMemTree(state, mem);
-                state->setRegTree(out, tree);
+                state->setRegTree(reg, tree);
             }
         }
 
         LOG(1, "        movslq found");
         break;
     case X86_INS_MOVZX:
-        if(mode == SlicingInstructionHelper::MODE_REG_REG) {
-            auto source = x->operands[0].reg;
-            auto target = x->operands[1].reg;
-
-            if(target >= X86_REG_EAX && target <= X86_REG_EDX) {
-                target = x86_reg(int(target) + (X86_REG_RAX - X86_REG_EAX));
-            }
-
-            if(!makeTrees) {
-                if(state->getReg(target)) {
-                    state->addReg(source);
-                    state->removeReg(target);
-                }
+        if(mode == SlicingInstructionState::MODE_REG_REG) {
+            if(firstPass) {
+                iState->defaultDetectRegReg(true);
             }
             else {
+                auto source = iState->get1()->reg;
+                auto target = iState->get2()->reg;
+
                 state->setRegTree(target,
                     u.getParentRegTree(state, source));
             }
         }
-        else if(mode == SlicingInstructionHelper::MODE_MEM_REG) {
-            auto mem = &x->operands[0].mem;
-            auto target = x->operands[1].reg;
-
-            if(target == X86_REG_R10D) {
-                LOG(1, "RESETTING, get is " << state->getReg(X86_REG_R10B));
-                if(1 || state->getReg(X86_REG_R10B)) {
-                    target = X86_REG_R10B;  // !!!
-                }
-            }
-
-            if(!makeTrees) {
-                if(state->getReg(target)) {
-                    state->removeReg(target);
-                    if(mem->base != X86_REG_INVALID) {
-                        state->addReg(mem->base);
-                    }
-                    if(mem->index != X86_REG_INVALID) {
-                        state->addReg(mem->index);
-                    }
-                }
+        else if(mode == SlicingInstructionState::MODE_MEM_REG) {
+            if(firstPass) {
+                iState->defaultDetectMemReg(true);
             }
             else {
+                auto mem = iState->get1()->mem;
+                auto target = iState->get2()->reg;
+
                 auto tree = u.makeMemTree(state, mem);
                 state->setRegTree(target, tree);
             }
@@ -452,23 +537,13 @@ void SlicingSearch::detectInstruction(SearchState *state, bool makeTrees) {
         LOG(1, "        movzx found");
         break;
     case X86_INS_CMP:
-        if(mode == SlicingInstructionHelper::MODE_IMM_REG) {
-            auto imm = x->operands[0].imm;
-            auto reg = x->operands[1].reg;
+        if(mode == SlicingInstructionState::MODE_IMM_REG) {
+            auto imm = iState->get1()->imm;
+            auto reg = iState->get2()->reg;
 
-            if(reg >= X86_REG_EAX && reg <= X86_REG_EDX) {
-                int reg2 = x86_reg(int(reg) + (X86_REG_RAX - X86_REG_EAX));
-                if(state->getReg(reg2)) {
-                    reg = x86_reg(reg2);
-                }
-            }
-
-            if(!makeTrees) {
-                for(unsigned op = 0; op < x->op_count; op ++) {
-                    if(x->operands[op].type == X86_OP_REG) {
-                        state->addReg(x->operands[op].reg);
-                    }
-                }
+            if(firstPass) {
+                iState->defaultDetectImmReg(false);
+                state->addReg(reg);
             }
             else {
                 state->setRegTree(X86_REG_EFLAGS,
@@ -484,12 +559,12 @@ void SlicingSearch::detectInstruction(SearchState *state, bool makeTrees) {
     }
 }
 
-void SlicingSearch::detectJumpRegTrees(SearchState *state, bool makeTrees) {
+void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
     SlicingUtilities u;
     auto semantic = state->getInstruction()->getSemantic();
     if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
         if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
-            if(!makeTrees) {
+            if(firstPass) {
                 state->addReg(X86_REG_EFLAGS);
             }
             else {
