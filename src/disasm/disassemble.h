@@ -11,7 +11,7 @@ class Symbol;
 class SymbolList;
 
 class Disassemble {
-private:
+public:
     class Handle {
     private:
         csh handle;

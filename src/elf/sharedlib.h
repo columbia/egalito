@@ -40,6 +40,7 @@ public:
     size_t getCount() const { return libraryList.size(); }
     SharedLib *get(size_t i) { return libraryList[i]; }
     SharedLib *get(const std::string &name);
+    SharedLib *getLibc();  // for testing
 };
 
 #endif

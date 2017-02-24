@@ -66,3 +66,13 @@ SharedLib *LibraryList::get(const std::string &name) {
     auto it = libraryMap.find(name);
     return (it != libraryMap.end() ? (*it).second : nullptr);
 }
+
+SharedLib *LibraryList::getLibc() {
+    return get(
+#ifdef ARCH_X86_64
+        "/lib/x86_64-linux-gnu/libc.so.6"
+#elif defined(ARCH_AARCH64)
+        "/lib/aarch64-linux-gnu/libc.so.6"
+#endif
+        );
+}

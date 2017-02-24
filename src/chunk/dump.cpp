@@ -105,6 +105,19 @@ void ChunkDumper::visit(Instruction *instruction) {
         }
     }
 
+    if(auto p = dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
+        std::ostringstream name;
+        name << "(JUMP* " << p->getMnemonic() << ")";
+
+        std::string bytes = instruction->getSemantic()->getData();
+        std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
+
+        DisasmDump::printInstructionRaw(instruction->getAddress(),
+            pos, name.str().c_str(),
+            p->getCapstone()->op_str, nullptr, bytes2.c_str());
+        return;
+    }
+
     // !!! we shouldn't need to modify the addr inside a dump function
     // !!! this is just to keep the cs_insn up-to-date
     ins->address = instruction->getAddress();

@@ -182,7 +182,6 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
-#ifdef ARCH_X86_64
     cs_x86 *x = &ins->detail->x86;
     if(x->op_count > 0) {
         for(size_t p = 0; p < x->op_count; p ++) {
@@ -212,9 +211,28 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
                     semantic = cfi;
                 }
             }
+#ifdef ARCH_X86_64
+            else if(op->type == X86_OP_REG) {
+                if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+                    semantic = new IndirectJumpInstruction(
+                        *ins, op->reg, ins->mnemonic);
+                }
+            }
+#elif defined(ARCH_AARCH64)
+            else if(op->type == ARM64_OP_IMM) {
+                #error "not yet implemented"
+            }
+#endif
         }
     }
+    else {
+#ifdef ARCH_X86_64
+        if(ins->id == X86_INS_RET) {
+            semantic = new ReturnInstruction(*ins);
+        }
+#elif defined(ARCH_AARCH64)
 #endif
+    }
 
     if(!semantic) {
         if(details) {

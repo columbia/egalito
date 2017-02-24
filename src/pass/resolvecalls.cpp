@@ -22,7 +22,7 @@ void ResolveCalls::visit(Instruction *instruction) {
     // We are only resolving ControlFlowInstruction targets
     if(!dynamic_cast<ControlFlowInstruction *>(semantic)) return;
 
-    LOG0(1, "Looking up target 0x" << std::hex << targetAddress << " -> ");
+    LOG0(10, "Looking up target 0x" << std::hex << targetAddress << " -> ");
 
     Chunk *found = nullptr;
     // Common case for call instructions: point at another function
@@ -56,7 +56,7 @@ void ResolveCalls::visit(Instruction *instruction) {
     }
 
     if(found) {
-        LOG(1, "FOUND [" << found->getName() << "]");
+        LOG(10, "FOUND [" << found->getName() << "]");
 #ifdef ARCH_X86_64
         auto offset = targetAddress - found->getAddress();
         if(offset == 0) {
@@ -81,6 +81,6 @@ void ResolveCalls::visit(Instruction *instruction) {
         delete link;
     }
     else {
-        LOG(1, "NOT FOUND!");
+        LOG(10, "NOT FOUND!");
     }
 }
