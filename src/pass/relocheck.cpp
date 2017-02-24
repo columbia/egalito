@@ -52,4 +52,7 @@ void ReloCheckPass::checkSemantic(Reloc *r, Module *module) {
             LOG(1, i->getName() << "is still a normal DisassembledInstruction :(");
         }
     }
+    else {
+        LOG(1, "address (0x" << r->getAddress() << ") points to a local symbol or data");
+    }
 }

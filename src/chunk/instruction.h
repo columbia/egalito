@@ -5,7 +5,6 @@
 #include <string>
 #include <capstone/capstone.h>  // for cs_insn
 #include "types.h"
-#include "log/log.h"
 
 class Instruction;
 class Link;

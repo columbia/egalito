@@ -104,7 +104,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 #ifdef ARCH_X86_64
                 size = 42; // no really! :)
 #elif defined(ARCH_AARCH64)
-                size = 44; // this does not include embedded following literals
+                size = 56; // this does not include embedded following literals
 #endif
             }
 
