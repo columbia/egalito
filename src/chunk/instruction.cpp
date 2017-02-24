@@ -84,46 +84,51 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 #elif defined(ARCH_AARCH64)
 const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
       /* ADRP */
-      {0x9000001F, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - (src & ~0xFFF);
-                        uint32_t imm = disp >> 12;
-                        return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3));
-                    }
-      },
+      {0x9000001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - (src & ~0xFFF);
+           uint32_t imm = disp >> 12;
+           return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3)); },
+       1},
       /* ADDIMM (in combination with ADRP) */
-      {0xFFC003FF, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - src;
-                        uint32_t imm = disp << 10;
-                        return (imm & ~0xFFC003FF);
-                    }
+      {0xFFC003FF,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest & ~0xFFF;
+           uint32_t imm = disp << 10;
+           return (imm & ~0xFFC003FF); },
+       3
       },
       /* LDR (immediate: unsigned offset) */
-      {0xFFE003FF, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - src;
-                        uint32_t imm = (disp >> 3) << 10;
-                        return (imm & ~0xFFE003FF);
-                    }
+      {0xFFE003FF,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = (disp >> 3) << 10;
+           return (imm & ~0xFFE003FF); },
+       3
       },
-      /* BL */
-      {0xFC000000, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - src;
-                        uint32_t imm = disp >> 2;
-                        return (imm & ~0xFC000000);
-                    }
+      /* BL <label> */
+      {0xFC000000,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return (imm & ~0xFC000000); },
+       0
       },
-      /* B (same as BL; but keep it separate for debugging purpose) */
-      {0xFC000000, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - src;
-                        uint32_t imm = disp >> 2;
-                        return (imm & ~0xFC000000);
-                    }
+      /* B <label> (same as BL; keep it separate for debugging purpose) */
+      {0xFC000000,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return (imm & ~0xFC000000); },
+       0
       },
-      /* B.COND */
-      {0xFF00001F, [] (address_t dest, address_t src) {
-                        diff_t disp = dest - src;
-                        uint32_t imm = disp >> 2;
-                        return ((imm << 5)& ~0xFF00001F);
-                    }
+      /* B.COND <label> */
+      {0xFF00001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return ((imm << 5)& ~0xFF00001F); },
+       0
       },
 };
 

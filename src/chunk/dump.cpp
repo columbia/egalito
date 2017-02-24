@@ -85,7 +85,10 @@ void ChunkDumper::visit(Instruction *instruction) {
                                                  static_cast<unsigned char>((b>>24) & 0xFF)
                                                  },
                                                  instruction->getAddress());
-            DisasmDump::printInstruction(&ins, pos, nullptr);
+            auto link = p->getLink();
+            auto target = link ? link->getTarget() : nullptr;
+            auto name = target ? target->getName().c_str() : nullptr;
+            DisasmDump::printInstruction(&ins, pos, name);
         }
 #endif
         else LOG(4, "...unknown...");

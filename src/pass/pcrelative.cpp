@@ -34,31 +34,9 @@ void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
             if(v->getLink()) return;
 
             auto cs = v->getCapstone();
-            cs_arm64 *x = &cs->detail->arm64;
-            int64_t imm;
+            auto pcri = new PCRelativeInstruction(i, *cs);
+            address_t offset = (cs->address & ~0xfff) + pcri->getOriginalOffset();
 
-            InstructionMode m;
-            if(cs->id == ARM64_INS_ADRP) {
-                m = AARCH64_IM_ADRP;
-                imm = x->operands[1].imm;
-            }
-            else if(cs->id == ARM64_INS_ADD) {
-                m = AARCH64_IM_ADDIMM;
-                imm = x->operands[3].imm;
-            }
-            else if(cs->id == ARM64_INS_LDR) {
-                m = AARCH64_IM_LDR;
-                imm = x->operands[3].imm;
-            }
-            else {
-                throw "not yet implemented";
-            }
-            auto pcri = new PCRelativeInstruction(i,
-                                                  cs->mnemonic,
-                                                  m,
-                                                  cs->bytes);
-
-            address_t offset = (cs->address & ~0xfff) + imm;
             pcri->setLink(new DataOffsetLink(elf->getBaseAddress() + offset));
             LOG(1, cs->mnemonic << " target: " << pcri->getLink()->getTargetAddress());
 

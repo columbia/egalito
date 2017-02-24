@@ -5,6 +5,7 @@
 #include <string>
 #include <capstone/capstone.h>  // for cs_insn
 #include "types.h"
+#include "log/log.h"
 
 class Instruction;
 class Link;
@@ -139,9 +140,11 @@ public:
 
 typedef SemanticImpl<RawByteStorage> RawInstruction;
 typedef SemanticImpl<DisassembledStorage> DisassembledInstruction;
-typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
 
 #ifdef ARCH_X86_64
+typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
+typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
+
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
     Instruction *source;
@@ -166,7 +169,6 @@ public:
 private:
     diff_t calculateDisplacement();
 };
-typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 #elif defined(ARCH_AARCH64)
 enum InstructionMode {
     AARCH64_IM_ADRP = 0,
@@ -190,6 +192,7 @@ typedef struct AARCH64_ImInfo_t {
 #else
     uint32_t fixedMask;
     uint32_t (*makeImm)(address_t, address_t);
+    int immediateIndex;
 #endif
 }AARCH64_ImInfo_t;
 
@@ -200,15 +203,17 @@ private:
     Instruction *source;
     std::string mnemonic;
     uint32_t fixedBytes;
+    int64_t originalOffset;
     const size_t instructionSize = 4;
     const AARCH64_ImInfo_t *imInfo;
 public:
-    InstructionRebuilder(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
-        : source(source),
-          mnemonic(mnemonic),
-          imInfo(&AARCH64_ImInfo[static_cast<int>(mode)]) {
-            std::memcpy(&fixedBytes, bytes, instructionSize);
-            fixedBytes &= AARCH64_ImInfo[static_cast<int>(mode)].fixedMask;
+    InstructionRebuilder(Instruction *source, InstructionMode mode, const cs_insn &insn)
+        : source(source), mnemonic(insn.mnemonic), imInfo(&AARCH64_ImInfo[mode]) {
+            std::memcpy(&fixedBytes, insn.bytes, instructionSize);
+            fixedBytes &= AARCH64_ImInfo[mode].fixedMask;
+
+            cs_arm64 *x = &insn.detail->arm64;
+            originalOffset = x->operands[AARCH64_ImInfo[mode].immediateIndex].imm;
         }
 
     virtual size_t getSize() const { return instructionSize; }
@@ -225,23 +230,63 @@ public:
     std::string getMnemonic() const { return mnemonic; }
 
     int getMode() const { return imInfo - AARCH64_ImInfo; }
+    uint32_t getFixedBytes() const { return fixedBytes; }
+    uint32_t getOriginalOffset() const { return originalOffset; }
 
     virtual uint32_t rebuild(void);
 };
 
-// exist for the sake of dynamic_cast<>; don't typdef
 class ControlFlowInstruction : public InstructionRebuilder {
 public:
-    ControlFlowInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
-        : InstructionRebuilder(source, mnemonic, mode, bytes) {}
+    ControlFlowInstruction(Instruction *source, const cs_insn &insn)
+        : InstructionRebuilder(source, decodeMode(insn), insn) {}
+private:
+    static InstructionMode decodeMode(const cs_insn &insn) {
+        InstructionMode m;
+        if(insn.id == ARM64_INS_B) {
+            if(insn.bytes[3] == 0x54) {
+                m = AARCH64_IM_BCOND;
+            }
+            else {
+                m = AARCH64_IM_B;
+            }
+        }
+        else if(insn.id == ARM64_INS_BL) {
+            m = AARCH64_IM_BL;
+        }
+        else {
+            throw "ControlFlowInstruction: not yet implemented";
+        }
+        return m;
+    }
 };
 
 class PCRelativeInstruction : public InstructionRebuilder {
 public:
-    PCRelativeInstruction(Instruction *source, std::string mnemonic, InstructionMode mode, uint8_t *bytes)
-        : InstructionRebuilder(source, mnemonic, mode, bytes) {}
+    PCRelativeInstruction(Instruction *source, const cs_insn &insn)
+        : InstructionRebuilder(source, decodeMode(insn), insn) {}
+private:
+    static InstructionMode decodeMode(const cs_insn &insn) {
+        InstructionMode m;
+        if(insn.id == ARM64_INS_ADRP) {
+            m = AARCH64_IM_ADRP;
+        }
+        else if(insn.id == ARM64_INS_ADD) {
+            m = AARCH64_IM_ADDIMM;
+        }
+        else if(insn.id == ARM64_INS_LDR) {
+            m = AARCH64_IM_LDR;
+        }
+        else {
+            throw "PCRelativeInstruction: not yet implemented";
+        }
+        return m;
+    }
 };
 
+typedef PCRelativeInstruction RelocationInstruction;
+
+// exist for the sake of dynamic_cast<>; don't typedef
 class ReturnInstruction : public DisassembledInstruction {
 public:
     ReturnInstruction(const DisassembledStorage &storage) : DisassembledInstruction(storage) {}
