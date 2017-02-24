@@ -33,6 +33,9 @@ hi0-q: hi0.c hi0-s.S
 hi0-static: hi0.c hi0-s.S
 	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
 
+%-q: %.c
+	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
+
 .PHONY: clean
 clean:
 	-$(RM) $(TARGETS)
