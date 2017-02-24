@@ -29,44 +29,6 @@ public:
     virtual cs_insn *getCapstone() = 0;
 };
 
-#if 0
-class Storage {
-public:
-    virtual ~Storage() {}
-
-    virtual size_t getSize() const = 0;
-
-    virtual void writeTo(char *target) = 0;
-    virtual void writeTo(std::string &target) = 0;
-    virtual std::string getData() const = 0;
-};
-
-class RawByteStorage : public Storage {
-private:
-    std::string rawData;
-public:
-    RawByteStorage(const std::string &rawData) : rawData(rawData) {}
-
-    virtual size_t getSize() const { return rawData.size(); }
-
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData() const;
-};
-
-class DisassembledStorage : public Storage {
-private:
-    cs_insn insn;
-public:
-    DisassembledStorage(const cs_insn &insn) : insn(insn) {}
-
-    virtual size_t getSize() const { return insn.size; }
-
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData() const;
-};
-#else
 class RawByteStorage {
 private:
     std::string rawData;
@@ -81,7 +43,6 @@ public:
 
     cs_insn *getCapstone() { return nullptr; }
 };
-
 class DisassembledStorage {
 private:
     cs_insn insn;
@@ -96,7 +57,6 @@ public:
 
     cs_insn *getCapstone() { return &insn; }
 };
-#endif
 
 template <typename Storage>
 class SemanticImpl : public InstructionSemantic {

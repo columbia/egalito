@@ -335,7 +335,7 @@ bool SlicingInstructionState::convertRegisterSize(x86_reg &reg) {
         return false;  // We are already looking for this exact register
     }
 
-    x86_reg promotion[][4] = {
+    static const x86_reg promotion[][4] = {
         // ignoring AH etc for now
         {X86_REG_AL, X86_REG_AX, X86_REG_EAX, X86_REG_RAX},
         {X86_REG_BL, X86_REG_BX, X86_REG_EBX, X86_REG_RBX},
