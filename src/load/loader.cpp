@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
-    Signals::registerHandlers();
+    //Signals::registerHandlers();
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
@@ -98,23 +98,24 @@ void runEgalito(ElfMap *elf) {
     conductor.parseRecursive(elf);
     //conductor.parse(elf, nullptr);
 
-    auto libc = conductor.getLibraryList()->get("/lib/x86_64-linux-gnu/libc.so.6");
+    auto libc = conductor.getLibraryList()->getLibc();
     if(false && libc) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
     if(libc) {
-        auto named = libc->getElfSpace()->getModule()->getChildren()->getNamed();
-        const char *funcs[] = {"parse_expression", "trecurse"};
-        for(size_t i = 0; i < sizeof(funcs)/sizeof(*funcs); i ++) {
-            auto ff = named->find(funcs[i]);
-            if(ff) {
-                ControlFlowGraph cfg(ff);
-                cfg.dump();
+        auto module = libc->getElfSpace()->getModule();
+        auto f = module->getChildren()->getNamed()->find("printf_positional");
+        JumpTableSearch jt;
+        jt.search(module);
 
-                JumpTableSearch jt;
-                jt.search(ff);
-            }
+        auto tableList = jt.getTableList();
+        for(auto table : tableList) {
+            std::cout << "found jump table in ["
+                << table->getFunction()->getSymbol()->getName() << "] at "
+                << std::hex << table->getAddress() << " with "
+                << std::dec << table->getEntries()
+                << " entries.\n";
         }
     }
 
@@ -123,7 +124,7 @@ void runEgalito(ElfMap *elf) {
     module->accept(&dumper);
 
     auto f = module->getChildren()->getNamed()->find("main");
-    if(f) {
+    if(false && f) {
         ControlFlowGraph cfg(f);
         cfg.dump();
 

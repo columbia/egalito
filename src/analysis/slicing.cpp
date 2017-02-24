@@ -47,9 +47,9 @@ void SlicingUtilities::printRegTrees(SearchState *state) {
         auto tree = state->getRegTree(r);
         if(!tree) continue;
 
-        std::cout << "        REG " << printReg(r) << ": ";
-        tree->print(TreePrinter(3, 1));
-        std::cout << "\n";
+        LOG0(2, "        REG " << printReg(r) << ": ");
+        IF_LOG(2) tree->print(TreePrinter(3, 1));
+        LOG(2, "");
     }
 }
 
@@ -75,16 +75,23 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state, x86_op_mem *mem) {
     }
 
     TreeNode *baseTree = getParentRegTree(state, mem->base);
-    if(tree) {
-        tree = new TreeNodeAddition(baseTree, tree);
-    }
-    else if(mem->base != X86_REG_INVALID) {
-        tree = baseTree;
+    if(mem->base != X86_REG_INVALID) {
+        if(tree) {
+            tree = new TreeNodeAddition(baseTree, tree);
+        }
+        else {
+            tree = baseTree;
+        }
     }
 
     if(mem->disp) {
-        tree = new TreeNodeAddition(
-            new TreeNodeAddress(mem->disp), tree);
+        if(tree) {
+            tree = new TreeNodeAddition(
+                new TreeNodeAddress(mem->disp), tree);
+        }
+        else {
+            tree = new TreeNodeAddress(mem->disp);
+        }
     }
 
     return tree;
@@ -493,6 +500,33 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(1, "        lea found");
         break;
+    case X86_INS_MOV:
+        if(mode == SlicingInstructionState::MODE_REG_REG) {
+            if(firstPass) {
+                iState->defaultDetectRegReg(true);
+            }
+            else {
+                auto source = iState->get1()->reg;
+                auto target = iState->get2()->reg;
+
+                state->setRegTree(target,
+                    u.getParentRegTree(state, source));
+            }
+        }
+        else if(mode == SlicingInstructionState::MODE_MEM_REG) {
+            if(firstPass) {
+                iState->defaultDetectMemReg(true);
+            }
+            else {
+                auto mem = iState->get1()->mem;
+                auto reg = iState->get2()->reg;
+
+                auto tree = u.makeMemTree(state, mem);
+                state->setRegTree(reg, tree);
+            }
+        }
+        LOG(1, "        mov found");
+        break;
     case X86_INS_MOVSXD:
         if(mode == SlicingInstructionState::MODE_MEM_REG) {
             if(firstPass) {
@@ -571,7 +605,9 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
                 LOG0(1, "    found a conditional jump, eflags is ");
                 //auto tree = state->getRegTree(X86_REG_EFLAGS);
                 auto tree = u.getParentRegTree(state, X86_REG_EFLAGS);
-                if(tree) tree->print(TreePrinter(2, 0));
+                if(tree) {
+                    IF_LOG(1) tree->print(TreePrinter(2, 0));
+                }
                 else LOG0(1, "NULL");
                 LOG(1, "");
 

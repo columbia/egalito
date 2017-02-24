@@ -9,6 +9,11 @@
 #include "types.h"
 #include "log/log.h"
 
+long JumpTableDescriptor::getEntries() const {
+    if(!isBoundKnown()) return -1;
+    return bound + 1;
+}
+
 void JumpTableSearch::search(Module *module) {
     for(auto f : module->getChildren()->getIterable()->iterable()) {
         search(f);
@@ -24,16 +29,22 @@ void JumpTableSearch::search(Function *function) {
             SlicingSearch search(&cfg);
             search.sliceAt(i);
 
-            if(matchJumpTable(search.getInitialState())
-                && matchJumpTableBounds(&search)) {
+            JumpTableDescriptor descriptor(function, i);
+
+            if(matchJumpTable(search.getInitialState(), &descriptor)
+                && (matchJumpTableBounds(&search, &descriptor)
+                    || savePartialInfoTables)) {
 
                 LOG(1, "FOUND JUMP TABLE BY PATTERN MATCHING!!!");
+                tableList.push_back(new JumpTableDescriptor(descriptor));
             }
         }
     }
 }
 
-bool JumpTableSearch::matchJumpTable(SearchState *state) {
+bool JumpTableSearch::matchJumpTable(SearchState *state,
+    JumpTableDescriptor *d) {
+
     auto i = state->getInstruction();
     auto v = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic());
     if(!v) return false;
@@ -66,14 +77,17 @@ bool JumpTableSearch::matchJumpTable(SearchState *state) {
         auto node = dynamic_cast<TreeNodeAddition *>(capture.get(0));
         auto left = dynamic_cast<TreeNodeAddress *>(node->getLeft());
         auto right = dynamic_cast<TreeNodeRegisterRIP *>(node->getRight());
-        capture.get(0)->print(TreePrinter(1, 0));
+        IF_LOG(1) capture.get(0)->print(TreePrinter(1, 0));
         LOG(1, "  => 0x" << std::hex << left->getValue() + right->getValue());
 
         LOG0(1, "    indexing expression:   ");
-        capture.get(1)->print(TreePrinter(1, 0));
+        IF_LOG(1) capture.get(1)->print(TreePrinter(1, 0));
         LOG(1, "");
 
-        this->indexExpr = capture.get(1);
+        d->setAddress(left->getValue() + right->getValue());
+        d->setScale(4);
+        d->setIndexExpr(capture.get(1));
+        // indexRegister is not known right now.
 
         return true;
     }
@@ -81,7 +95,9 @@ bool JumpTableSearch::matchJumpTable(SearchState *state) {
     return false;
 }
 
-bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search) {
+bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
+    JumpTableDescriptor *d) {
+
     for(auto state : search->getConditionList()) {
         auto tree = state->getRegTree(X86_REG_EFLAGS);
         auto condition = dynamic_cast<TreeNodeComparison *>(tree);
@@ -108,11 +124,21 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search) {
         if(!v) continue;
         std::string mnemonic = v->getMnemonic();
         if(mnemonic == "ja") op = OP_GT;
+        else if(mnemonic == "jae") op = OP_GE;
         else if(mnemonic == "jb") op = OP_LT;
+        else if(mnemonic == "jbe") op = OP_LE;
         else if(mnemonic == "jne") op = OP_NE;
         else if(mnemonic == "je") op = OP_EQ;
+        else if(mnemonic == "jg") op = OP_GT;
+        else if(mnemonic == "jge") op = OP_GE;
+        else if(mnemonic == "jl") op = OP_LT;
+        else if(mnemonic == "jle") op = OP_LE;
+        else if(mnemonic == "js") {
+            return false;  // this doesn't seem useful...
+        }
         else {
             LOG(1, "what is " << mnemonic << "?");
+            std::cerr << "what is " << mnemonic << "?\n";
             throw "unimplemented mnemonic in jump table slicing";
         }
 
@@ -136,13 +162,20 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search) {
 
         unsigned long bound = right->getValue();
         LOG0(1, "comparison of ");
-        leftGeneric->print(TreePrinter(2, 0));
+        IF_LOG(1) leftGeneric->print(TreePrinter(2, 0));
         LOG(1, " is " << opString[op] << " " << std::dec << bound);
 
-        if(leftGeneric == indexExpr && (op == OP_LE || op == OP_LT)) {
+        if(leftGeneric == d->getIndexExpr()
+            && (op == OP_LE || op == OP_LT)) {
+
             LOG0(1, "BOUNDS CHECK FOUND! ");
-            indexExpr->print(TreePrinter(2, 0));
+            IF_LOG(1) d->getIndexExpr()->print(TreePrinter(2, 0));
             LOG(1, " is " << opString[op] << " " << std::dec << bound);
+
+            if(op == OP_LT) bound --;  // convert "<" to "<="
+            d->setBound(bound);
+
+            return true;
         }
     }
 
