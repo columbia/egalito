@@ -158,4 +158,40 @@ std::string InstructionRebuilder::getData() {
     return data;
 }
 
+InstructionMode ControlFlowInstruction::decodeMode(const cs_insn &insn) {
+    InstructionMode m;
+    if(insn.id == ARM64_INS_B) {
+        if(insn.bytes[3] == 0x54) {
+            m = AARCH64_IM_BCOND;
+        }
+        else {
+            m = AARCH64_IM_B;
+        }
+    }
+    else if(insn.id == ARM64_INS_BL) {
+        m = AARCH64_IM_BL;
+    }
+    else {
+        throw "ControlFlowInstruction: not yet implemented";
+    }
+    return m;
+}
+
+InstructionMode PCRelativeInstruction::decodeMode(const cs_insn &insn) {
+    InstructionMode m;
+    if(insn.id == ARM64_INS_ADRP) {
+        m = AARCH64_IM_ADRP;
+    }
+    else if(insn.id == ARM64_INS_ADD) {
+        m = AARCH64_IM_ADDIMM;
+    }
+    else if(insn.id == ARM64_INS_LDR) {
+        m = AARCH64_IM_LDR;
+    }
+    else {
+        throw "PCRelativeInstruction: not yet implemented";
+    }
+    return m;
+}
+
 #endif
