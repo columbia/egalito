@@ -5,6 +5,7 @@
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
+#include "pass/controlflow.h"
 #include "pass/findreturn.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
@@ -42,8 +43,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     auto baseAddr = elf->getCopyBaseAddress();
     this->module = Disassemble::module(baseAddr, symbolList);
 
-    PCRelativePass pcrelative(elf);
-    module->accept(&pcrelative);
+    ControlFlowPass controlflow(elf);
+    module->accept(&controlflow);
 
     FindReturnPass finder;
     module->accept(&finder);
@@ -63,6 +64,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     ResolveRelocs resolveRelocs(&pltSection);
     module->accept(&resolveRelocs);
+
+    PCRelativePass pcrelative(elf, relocList);
+    module->accept(&pcrelative);
 
     //module->accept(&dumper);
 

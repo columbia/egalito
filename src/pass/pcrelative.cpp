@@ -1,76 +1,71 @@
-#include <capstone/capstone.h>
+#include <elf.h>
 #include <capstone/arm64.h>
-#include "chunk/instruction.h"
 #include "pcrelative.h"
+#include "chunk/chunk.h"
+#include "chunk/concrete.h"
+#include "chunk/instruction.h"
+#include "chunk/find.h"
 #include "log/log.h"
 
 void PCRelativePass::visit(Module *module) {
-    recurse(module);
-}
-
-void PCRelativePass::visit(Instruction *instruction) {
-    cs_insn *cs = instruction->getSemantic()->getCapstone();
 #if defined(ARCH_X86_64)
 #elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &cs->detail->arm64;
-    if(cs->id == ARM64_INS_ADRP) { //ADRP <Xd>, <label>
-        cs_arm64_op *op = &x->operands[1];
-        int64_t imm = op->imm;
-
-        auto oldSemantic = instruction->getSemantic();
-
-        auto i = new PCRelativeInstruction(instruction,
-                                           cs->mnemonic,
-                                           AARCH64_IM_ADRP,
-                                           cs->bytes);
-        i->setLink(new DataOffsetLink(((elf->getBaseAddress() + cs->address) & ~0xfff) + imm));
-        //LOG(1, "adrp target: " << i->getLink()->getTargetAddress());
-
-        instruction->setSemantic(i);
-        delete oldSemantic;
-    }
-    else if(cs->id == ARM64_INS_B) { //B or B.COND <label>
-        cs_arm64_op *op = &x->operands[0];
-        int64_t imm = op->imm;
-
-        auto oldSemantic = instruction->getSemantic();
-
-        InstructionMode m;
-        if(cs->bytes[3] == 0x54) {
-            m = AARCH64_IM_BCOND;
-            //LOG(1, "BCOND to: +" << imm);
-        } else {
-            m = AARCH64_IM_B;
-            //LOG(1, "B to: +" << imm);
+    for(auto r : *relocList) {
+        auto t = r->getType();
+        if ((t == R_AARCH64_ADR_GOT_PAGE)
+            || (t == R_AARCH64_ADR_PREL_PG_HI21)
+            || (t == R_AARCH64_ADR_PREL_PG_HI21_NC)
+            || (t == R_AARCH64_ADR_PREL_LO21)
+            || (t == R_AARCH64_LD64_GOT_LO12_NC)) {
+            handlePCRelative(r, module);
         }
-        auto i = new ControlFlowInstruction(instruction,
-                                            cs->mnemonic,
-                                            m,
-                                            cs->bytes);
-        //handled by resolvecalls or resolvereolcs pass if to a function
-        i->setLink(new UnresolvedLink(imm));
-        //LOG(1, "B or B.COND target: " << i->getLink()->getTargetAddress());
-
-        instruction->setSemantic(i);
-        delete oldSemantic;
     }
-    else if(cs->id == ARM64_INS_BL) { //BL <label>
-        cs_arm64_op *op = &x->operands[0];
-        int64_t imm = op->imm;
-
-        auto oldSemantic = instruction->getSemantic();
-
-        auto i = new ControlFlowInstruction(instruction,
-                                            cs->mnemonic,
-                                            AARCH64_IM_BL,
-                                            cs->bytes);
-        i->setLink(new UnresolvedLink(imm));
-
-        instruction->setSemantic(i);
-        delete oldSemantic;
-    }
-
-    //the subsequent 'add' must also be handled once data layout is
-    //randomized
 #endif
 }
+
+void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
+#if defined(ARCH_X86_64)
+#elif defined(ARCH_AARCH64)
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
+    if(auto i = dynamic_cast<Instruction *>(inner)) {
+        if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
+            // dynamic_cast<> can't tell if it's DisassembledInstruction or
+            // RelocationInstruction
+            if(v->getLink()) return;
+
+            auto cs = v->getCapstone();
+            cs_arm64 *x = &cs->detail->arm64;
+            int64_t imm;
+
+            InstructionMode m;
+            if(cs->id == ARM64_INS_ADRP) {
+                m = AARCH64_IM_ADRP;
+                imm = x->operands[1].imm;
+            }
+            else if(cs->id == ARM64_INS_ADD) {
+                m = AARCH64_IM_ADDIMM;
+                imm = x->operands[3].imm;
+            }
+            else if(cs->id == ARM64_INS_LDR) {
+                m = AARCH64_IM_LDR;
+                imm = x->operands[3].imm;
+            }
+            else {
+                throw "not yet implemented";
+            }
+            auto pcri = new PCRelativeInstruction(i,
+                                                  cs->mnemonic,
+                                                  m,
+                                                  cs->bytes);
+
+            address_t offset = (cs->address & ~0xfff) + imm;
+            pcri->setLink(new DataOffsetLink(elf->getBaseAddress() + offset));
+            LOG(1, cs->mnemonic << " target: " << pcri->getLink()->getTargetAddress());
+
+            i->setSemantic(pcri);
+            delete v;
+        }
+    }
+#endif
+}
+

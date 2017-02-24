@@ -90,6 +90,20 @@ const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
                         return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3));
                     }
       },
+      /* ADDIMM (in combination with ADRP) */
+      {0xFFC003FF, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - src;
+                        uint32_t imm = disp << 10;
+                        return (imm & ~0xFFC003FF);
+                    }
+      },
+      /* LDR (immediate: unsigned offset) */
+      {0xFFE003FF, [] (address_t dest, address_t src) {
+                        diff_t disp = dest - src;
+                        uint32_t imm = (disp >> 3) << 10;
+                        return (imm & ~0xFFE003FF);
+                    }
+      },
       /* BL */
       {0xFC000000, [] (address_t dest, address_t src) {
                         diff_t disp = dest - src;

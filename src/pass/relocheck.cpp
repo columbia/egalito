@@ -9,21 +9,20 @@ void ReloCheckPass::visit(Module *module) {
     for(auto r : *relocList) {
 #ifdef ARCH_AARCH64
         if(0
-           || (r->getType() == R_AARCH64_LD_PREL_LO19)          //ld(literal)
-           || (r->getType() == R_AARCH64_ADR_PREL_LO21)         //adr -- not yet implemented
-           || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21)      //adrp
-           || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21_NC)   //adrp
-           || (r->getType() == R_AARCH64_ADR_GOT_PAGE)          //adrp for GOT
-           || (r->getType() == R_AARCH64_JUMP26)                //(usually) tail call
-           || (r->getType() == R_AARCH64_CALL26)                //bl
+           || (r->getType() == R_AARCH64_LD_PREL_LO19)          // ld(literal)
+           || (r->getType() == R_AARCH64_ADR_PREL_LO21)         // adr -- not yet implemented
+           || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21)      // adrp
+           || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21_NC)   // adrp
+           || (r->getType() == R_AARCH64_ADR_GOT_PAGE)          // adrp for GOT
+           || (r->getType() == R_AARCH64_JUMP26)                // (usually) tail call
+           || (r->getType() == R_AARCH64_CALL26)                // bl
+
+           || (r->getType() == R_AARCH64_ABS64)                 // function pointer data
            ) {
             checkSemantic(r, module);
         }
         else {
             if (1
-                //function pointers -- needs to be handled
-                && (r->getType() != R_AARCH64_ABS64)
-
                 //should be same unless data (inc. GOT) moves
                 && (r->getType() != R_AARCH64_ADD_ABS_LO12_NC)
                 && (r->getType() != R_AARCH64_LDST8_ABS_LO12_NC)

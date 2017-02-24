@@ -170,6 +170,8 @@ typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 #elif defined(ARCH_AARCH64)
 enum InstructionMode {
     AARCH64_IM_ADRP = 0,
+    AARCH64_IM_ADDIMM,
+    AARCH64_IM_LDR,
     AARCH64_IM_BL,
     AARCH64_IM_B,
     AARCH64_IM_BCOND,
