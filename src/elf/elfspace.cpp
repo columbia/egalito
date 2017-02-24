@@ -5,8 +5,6 @@
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
-#include "pass/controlflow.h"
-#include "pass/findreturn.h"
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
@@ -42,12 +40,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     auto baseAddr = elf->getCopyBaseAddress();
     this->module = Disassemble::module(baseAddr, symbolList);
-
-    ControlFlowPass controlflow(elf);
-    module->accept(&controlflow);
-
-    FindReturnPass finder;
-    module->accept(&finder);
 
     ResolveCalls resolver;
     module->accept(&resolver);

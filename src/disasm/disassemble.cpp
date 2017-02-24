@@ -4,6 +4,7 @@
 #include <capstone/arm64.h>
 #include "disassemble.h"
 #include "dump.h"
+#include "makesemantic.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/instruction.h"
@@ -182,57 +183,7 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
-    cs_x86 *x = &ins->detail->x86;
-    if(x->op_count > 0) {
-        for(size_t p = 0; p < x->op_count; p ++) {
-            cs_x86_op *op = &x->operands[p];
-            if(op->type == X86_OP_IMM) {
-
-                if(ins->id == X86_INS_CALL) {
-                    unsigned long imm = op->imm;
-                    auto cfi = new ControlFlowInstruction(instr,
-                        std::string((char *)ins->bytes,
-                        ins->size - 4),
-                        ins->mnemonic,
-                        4);
-                    cfi->setLink(new UnresolvedLink(imm));
-                    semantic = cfi;
-                }
-                else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-                    // !!! should subtract op->size,
-                    // !!! can't right now due to bug in capstone
-                    size_t use = ins->size /* - op->size*/;
-                    unsigned long imm = op->imm;
-                    auto cfi = new ControlFlowInstruction(instr,
-                        std::string((char *)ins->bytes, use),
-                        ins->mnemonic,
-                        /*op->size*/ 0);
-                    cfi->setLink(new UnresolvedLink(imm));
-                    semantic = cfi;
-                }
-            }
-#ifdef ARCH_X86_64
-            else if(op->type == X86_OP_REG) {
-                if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-                    semantic = new IndirectJumpInstruction(
-                        *ins, op->reg, ins->mnemonic);
-                }
-            }
-#elif defined(ARCH_AARCH64)
-            else if(op->type == ARM64_OP_IMM) {
-                #error "not yet implemented"
-            }
-#endif
-        }
-    }
-    else {
-#ifdef ARCH_X86_64
-        if(ins->id == X86_INS_RET) {
-            semantic = new ReturnInstruction(*ins);
-        }
-#elif defined(ARCH_AARCH64)
-#endif
-    }
+    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
 
     if(!semantic) {
         if(details) {

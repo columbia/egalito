@@ -103,7 +103,7 @@ void runEgalito(ElfMap *elf) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
-    if(libc) {
+    if(false && libc) {
         auto module = libc->getElfSpace()->getModule();
         auto f = module->getChildren()->getNamed()->find("printf_positional");
         JumpTableSearch jt;
@@ -124,7 +124,7 @@ void runEgalito(ElfMap *elf) {
     module->accept(&dumper);
 
     auto f = module->getChildren()->getNamed()->find("main");
-    if(false && f) {
+    if(f) {
         ControlFlowGraph cfg(f);
         cfg.dump();
 
