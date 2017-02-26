@@ -8,6 +8,7 @@
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/instruction.h"
+#include "chunk/mutator.h"
 #include "log/log.h"
 
 Disassemble::Handle::Handle(bool detailed) {
@@ -120,13 +121,9 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
             instr->setPosition(new RelativePosition(instr, 0));
         }
 
-        block->getChildren()->add(instr);
-        instr->setParent(block);
-        block->addToSize(instr->getSize());
+        ChunkMutator(block).append(instr);
         if(split) {
-            function->getChildren()->add(block);
-            block->setParent(function);
-            function->addToSize(block->getSize());
+            ChunkMutator(function).append(block);
 
             Block *oldBlock = block;
             block = new Block();

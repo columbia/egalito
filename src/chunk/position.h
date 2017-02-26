@@ -4,14 +4,22 @@
 #include "chunkref.h"
 #include "types.h"
 
+/** Represents the current address of a Chunk.
+*/
 class Position {
 public:
     virtual ~Position() {}
 
     virtual address_t get() const = 0;
     virtual void set(address_t value) = 0;
+
+    virtual void recalculate() {}
 };
 
+/** Stores an absolute address. Can be set later at runtime.
+
+    Normally used for top-level Chunks like Functions.
+*/
 class AbsolutePosition : public Position {
 private:
     address_t address;
@@ -22,11 +30,18 @@ public:
     virtual void set(address_t value) { this->address = value; }
 };
 
+/** Stores an offset (usually 0) relative to another Chunk's position.
+
+    The parent Chunk will be queried each time this Position is retrieved.
+    This lack of caching makes this class useful for Chunks which are moved
+    to new addresses frequently.
+*/
 class RelativePosition : public Position {
 private:
     ChunkRef object;
     address_t offset;
 public:
+    // object should be the main object, offset is relative to the parent
     RelativePosition(ChunkRef object, address_t offset = 0)
         : object(object), offset(offset) {}
 
@@ -37,46 +52,43 @@ public:
     void setOffset(address_t offset) { this->offset = offset; }
 };
 
+/** Represents a Chunk that immediately follows another.
+
+    Like a RelativePosition with offset 0.
+*/
 class SubsequentPosition : public Position {
 private:
-    ChunkRef following;
+    ChunkRef afterThis;
 public:
-    SubsequentPosition(ChunkRef following) : following(following) {}
+    SubsequentPosition(ChunkRef afterThis) : afterThis(afterThis) {}
 
     virtual address_t get() const;
     virtual void set(address_t value);
 };
 
-template <typename Type, int InvalidInitializer = -1>
-class ValueCache {
-public:
-    static const Type INVALID = static_cast<Type>(InvalidInitializer);
+/** Caches another Position type (useful for any computed type).
+
+    The cached value must be updated whenever the parent Chunk is moved to a
+    new address. These updates are done by ChunkMutator.
+*/
+template <typename PositionType>
+class CachedPositionDecorator : public PositionType {
 private:
-    Type cache;
+    address_t cache;
 public:
-    ValueCache() : cache(INVALID) {}
+    CachedPositionDecorator(ChunkRef object)
+        : PositionType(object) { recalculate(); }
 
-    Type get() const { return cache; }
-    void set(Type value) { cache = value; }
+    virtual address_t get() const { return cache; }
+    virtual void set(address_t value) { PositionType::set(value); }
 
-    void invalidate() { cache = INVALID; }
-    bool isValid() const { return cache != INVALID; }
+    virtual bool isCached() const { return true; }
+    virtual void recalculate()
+        { cache = PositionType::get(); }
 };
 
-class CachedRelativePosition : protected RelativePosition {
-private:
-    mutable ValueCache<address_t> cache;
-public:
-    CachedRelativePosition(ChunkRef object) : RelativePosition(object) {}
-
-    virtual address_t get() const;
-    virtual void set(address_t value);
-
-    using RelativePosition::getOffset;
-    void setOffset(address_t offset);
-
-    void invalidateCache() { cache.invalidate(); }
-};
+typedef CachedPositionDecorator<SubsequentPosition> CachedSubsequentPosition;
+typedef CachedPositionDecorator<RelativePosition> CachedRelativePosition;
 
 class ComputedSize {
 private:

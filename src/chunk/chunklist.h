@@ -19,6 +19,7 @@ class NamedChunkList;
 class ChunkList {
 public:
     virtual ~ChunkList() {}
+    virtual void genericAdd(Chunk *child) = 0;
     virtual Iterable<Chunk *> genericIterable() = 0;
 };
 
@@ -32,6 +33,8 @@ public:
     ChunkListImpl() : spatial(nullptr), named(nullptr) {}
     virtual ~ChunkListImpl() { delete spatial, delete named; }
 
+    virtual void genericAdd(Chunk *child)
+        { auto v = dynamic_cast<ChildType *>(child); if(v) add(v); }
     virtual Iterable<Chunk *> genericIterable() { return iterable.genericIterable(); }
 
     virtual void add(ChildType *child);

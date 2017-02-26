@@ -1,0 +1,12 @@
+Position designs.
+
+0). No caching. SubsequentPosition is very slow.
+
+1). get() function returns cached value; after moving a Chunk, need to
+    call recalculate() on all Chunks in the same Function. Cannot have
+    position dependencies other than "depends on previous child".
+
+2). Each position stores a generation, and any get() call checks this
+    generation against that of its dependencies. Can have arbitrary
+    acyclic dependencies. Takes more space to store generations.
+    Problem: checking dependencies walks the chunk tree backwards.

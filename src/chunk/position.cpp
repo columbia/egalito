@@ -17,29 +17,11 @@ void RelativePosition::set(address_t value) {
 }
 
 address_t SubsequentPosition::get() const {
-    return following->getPosition()->get() + following->getSize();
+    return afterThis->getPosition()->get() + afterThis->getSize();
 }
 
 void SubsequentPosition::set(address_t value) {
     throw "Can't set position of a SubsequentPosition";
-}
-
-address_t CachedRelativePosition::get() const {
-    if(cache.isValid()) return cache.get();
-
-    auto value = RelativePosition::get();
-    cache.set(value);
-    return value;
-}
-
-void CachedRelativePosition::set(address_t value) {
-    RelativePosition::set(value);
-    cache.set(value);
-}
-
-void CachedRelativePosition::setOffset(address_t offset) {
-    RelativePosition::setOffset(offset);
-    cache.invalidate();
 }
 
 void ComputedSize::adjustBy(diff_t add) {
