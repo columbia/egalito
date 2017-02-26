@@ -6,7 +6,8 @@
 #include <memory>  // for std::shared_ptr
 #include "elf/symbol.h"
 #include "observer.h"  // for EventObserverRegistry
-#include "position.h"  // for Position, ComputedSize
+#include "position.h"  // for Position
+#include "size.h"  // for ComputedSize, Range
 #include "link.h"  // for Link, XRefDatabase
 #include "types.h"
 

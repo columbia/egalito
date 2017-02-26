@@ -2,7 +2,7 @@
 #define EGALITO_CHUNK_ADDRESSRANGE_H
 
 #include <vector>
-#include "position.h"
+#include "size.h"
 #include "types.h"
 
 class Chunk;
