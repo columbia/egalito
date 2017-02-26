@@ -50,20 +50,19 @@ public:
 */
 class OffsetPosition : public Position {
 private:
-    ChunkRef object;
+    ChunkRef parent;
     address_t offset;
 public:
-    // object should be the main object, offset is relative to the parent
-    OffsetPosition(ChunkRef object, address_t offset = 0)
-        : object(object), offset(offset) {}
+    OffsetPosition(ChunkRef parent, address_t offset = 0)
+        : parent(parent), offset(offset) {}
 
     virtual address_t get() const;
     virtual void set(address_t value);
 
     address_t getOffset() const { return offset; }
-    void setOffset(address_t offset) { this->offset = offset; }
+    void setOffset(address_t offset);
 protected:
-    virtual Chunk *getDependency() const { return &*object; }
+    virtual Chunk *getDependency() const { return &*parent; }
 };
 
 /** Represents a Chunk that immediately follows another.
@@ -201,9 +200,13 @@ private:
 public:
     PositionFactory(Mode mode) : mode(mode) {}
     Position *makeAbsolutePosition(address_t address);
-    Position *makePosition(Chunk *previous, Chunk *parent);
+    Position *makePosition(Chunk *previous, Chunk *parent, address_t offset);
     bool needsGenerationTracking() const;
     bool needsUpdatePasses() const;
+private:
+    template <typename PosType>
+    PosType *setOffset(PosType *pos, address_t offset)
+        { pos->setOffset(offset); return pos; }
 };
 
 class ComputedSize {

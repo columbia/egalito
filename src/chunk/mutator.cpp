@@ -3,8 +3,8 @@
 void ChunkMutator::append(Chunk *child) {
     chunk->getChildren()->genericAdd(child);
     child->setParent(chunk);
-    for(Chunk *p = chunk; p; p = p->getParent()) {
-        p->addToSize(child->getSize());
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        c->addToSize(child->getSize());
     }
 }
 

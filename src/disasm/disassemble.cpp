@@ -92,11 +92,19 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     size_t count = cs_disasm(handle.raw(),
         (const uint8_t *)readAddress, symbol->getSize(),
         trueAddress, 0, &insn);
+    PositionFactory positionFactory(
+        PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
+        //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
+        //PositionFactory::MODE_OFFSET);              // 5.89 s
+        //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
+        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~6.25 s
 
     Function *function = new Function(symbol);
-    function->setPosition(new AbsolutePosition(symbol->getAddress()));
+    function->setPosition(
+        positionFactory.makeAbsolutePosition(symbol->getAddress()));
     Block *block = new Block();
-    block->setPosition(new RelativePosition(block, function->getSize()));
+    block->setPosition(
+        positionFactory.makePosition(nullptr, function, 0));
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
@@ -107,19 +115,18 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         // Create Instruction from cs_insn
         auto instr = Disassemble::instruction(ins, handle, true);
 
-        //instr->setPosition(new RelativePosition(instr, block->getSize()));
-        //instr->setPosition(new SubsequentPosition(instr, block->getSize()));
+        Chunk *prevChunk = nullptr;
         if(block->getChildren()->getIterable()->getCount() > 0) {
-            instr->setPosition(new SubsequentPosition(
-                block->getChildren()->getIterable()->getLast()));
+            prevChunk = block->getChildren()->getIterable()->getLast();
         }
         else if(function->getChildren()->getIterable()->getCount() > 0) {
-            instr->setPosition(new SubsequentPosition(
-                function->getChildren()->getIterable()->getLast()));
+            prevChunk = function->getChildren()->getIterable()->getLast();
         }
         else {
-            instr->setPosition(new RelativePosition(instr, 0));
+            prevChunk = nullptr;
         }
+        instr->setPosition(
+            positionFactory.makePosition(prevChunk, block, block->getSize()));
 
         ChunkMutator(block).append(instr);
         if(split) {
@@ -127,8 +134,8 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
 
             Block *oldBlock = block;
             block = new Block();
-            //block->setPosition(new RelativePosition(block, function->getSize()));
-            block->setPosition(new SubsequentPosition(oldBlock));
+            block->setPosition(
+                positionFactory.makePosition(oldBlock, function, function->getSize()));
         }
     }
 

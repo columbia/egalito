@@ -95,8 +95,8 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
-    conductor.parseRecursive(elf);
-    //conductor.parse(elf, nullptr);
+    //conductor.parseRecursive(elf);
+    conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->getLibc();
     if(false && libc) {
@@ -137,10 +137,10 @@ void runEgalito(ElfMap *elf) {
         auto sandbox = generator.makeSandbox();
         generator.copyCodeToSandbox(elf, module, sandbox);
 
-        /*LOG(1, "");
+        LOG(1, "");
         LOG(1, "=== After copying code to new locations ===");
         ChunkDumper dumper;
-        module->accept(&dumper);*/
+        module->accept(&dumper);
 
         generator.jumpToSandbox(sandbox, module);
     }

@@ -1,5 +1,6 @@
 #include "stackxor.h"
 #include "disasm/disassemble.h"
+#include "chunk/mutator.h"
 
 void StackXOR::visit(Function *function) {
     addInstructions(function->getChildren()->getIterable()->get(0), 0);
@@ -12,11 +13,7 @@ void StackXOR::visit(Block *block) {
 
 void StackXOR::visit(Instruction *instruction) {
     std::string bytes = instruction->getSemantic()->getData();
-#ifdef ARCH_X86_64
-    if(bytes == "\xc3") {
-#elif defined(ARCH_AARCH64)
     if(dynamic_cast<ReturnInstruction *>(instruction->getSemantic())) {
-#endif
         auto parent = dynamic_cast<Block *>(instruction->getParent());
 
         addInstructions(parent,
@@ -52,20 +49,29 @@ void StackXOR::addInstructions(Block *block, size_t index) {
 }
 
 void StackXOR::insertAt(Block *block, size_t index, Instruction *instr) {
+    PositionFactory positionFactory(PositionFactory::MODE_DEBUGGING_NO_CACHE);
+
     auto list = block->getChildren()->getIterable();
     if(index == 0) {
-        instr->setPosition(new RelativePosition(instr, 0));
+        instr->setPosition(
+            positionFactory.makePosition(nullptr, block, 0));
     }
     else {
+        auto prev = list->get(index - 1);
         instr->setPosition(
-            new SubsequentPosition(list->get(index - 1)));
+            positionFactory.makePosition(prev, block,
+                prev->getPosition()->get() - block->getPosition()->get()));
 
     }
 
     if(index < block->getChildren()->getIterable()->getCount()) {
-        list->get(index)->setPosition(new SubsequentPosition(instr));
+        list->get(index)->setPosition(
+            positionFactory.makePosition(instr, block,
+                instr->getPosition()->get() - block->getPosition()->get()));
     }
 
+    // ChunkMutator doesn't support this yet
+    //ChunkMutator(block).insertAt(index, instr);
     list->insertAt(index, instr);
     instr->setParent(block);
     block->addToSize(instr->getSize());

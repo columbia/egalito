@@ -3,18 +3,20 @@
 #include <algorithm>  // for std::max
 #include "position.h"
 #include "chunk.h"
+#include "log/log.h"
 
 address_t OffsetPosition::get() const {
-    assert(object != nullptr);
-    assert(object->getParent() != nullptr);
-    return object->getParent()->getPosition()->get() + offset;
+    assert(parent != nullptr);
+    return parent->getPosition()->get() + offset;
 }
 
 void OffsetPosition::set(address_t value) {
-    assert(object != nullptr);
-    assert(object->getParent() != nullptr);
-    assert(value >= object->getParent()->getPosition()->get());
-    setOffset(value - object->getParent()->getPosition()->get());
+    assert(parent != nullptr);
+    setOffset(value - parent->getPosition()->get());
+}
+
+void OffsetPosition::setOffset(address_t offset) {
+    this->offset = offset;
 }
 
 address_t SubsequentPosition::get() const {
@@ -94,18 +96,29 @@ Position *PositionFactory::makeAbsolutePosition(address_t address) {
     }
 }
 
-Position *PositionFactory::makePosition(Chunk *previous, Chunk *parent) {
+Position *PositionFactory::makePosition(Chunk *previous, Chunk *parent,
+    address_t offset) {
+
+    if(!previous) {
+        // e.g. first block in function
+        return new OffsetPosition(parent, offset);
+    }
+
     switch(mode) {
     case MODE_GENERATION_OFFSET:
-        return new GenerationalOffsetPosition(parent);
+        return setOffset(new GenerationalOffsetPosition(parent), offset);
     case MODE_GENERATION_SUBSEQUENT:
         return new GenerationalSubsequentPosition(previous);
-    case MODE_CACHED_OFFSET:
-        return new CachedOffsetPosition(parent);
+    case MODE_CACHED_OFFSET: {
+        auto p = new CachedOffsetPosition(parent);
+        p->setOffset(offset);
+        p->recalculate();
+        return p;
+    }
     case MODE_CACHED_SUBSEQUENT:
         return new CachedSubsequentPosition(previous);
     case MODE_OFFSET:
-        return new OffsetPosition(parent);
+        return new OffsetPosition(parent, offset);
     case MODE_SUBSEQUENT:
         return new SubsequentPosition(previous);
     default:
