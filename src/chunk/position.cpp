@@ -102,6 +102,7 @@ Position *PositionFactory::makePosition(Chunk *previous, Chunk *parent,
     if(!previous) {
         // e.g. first block in function
         return new OffsetPosition(parent, offset);
+        //return new AbsolutePosition(0x1000);
     }
 
     switch(mode) {

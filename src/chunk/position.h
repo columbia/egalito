@@ -3,10 +3,14 @@
 
 #include "chunkref.h"
 #include "types.h"
+#include "log/log.h"
+
+class PositionDump;
 
 /** Represents the current address of a Chunk.
 */
 class Position {
+    friend class PositionDump;
 public:
     virtual ~Position() {}
 
@@ -49,6 +53,7 @@ public:
     to new addresses frequently.
 */
 class OffsetPosition : public Position {
+    friend class PositionDump;
 private:
     ChunkRef parent;
     address_t offset;
@@ -71,6 +76,7 @@ protected:
     Chunk immediately before this Chunk's parent, for instance.
 */
 class SubsequentPosition : public Position {
+    friend class PositionDump;
 private:
     ChunkRef afterThis;
 public:
@@ -90,7 +96,7 @@ protected:
 template <typename PositionType>
 class CachedPositionDecorator : public PositionType {
 private:
-    address_t cache;
+    mutable address_t cache;
 public:
     CachedPositionDecorator(ChunkRef object)
         : PositionType(object) { recalculate(); }
@@ -98,7 +104,7 @@ public:
     virtual address_t get() const { return cache; }
     virtual void set(address_t value) { PositionType::set(value); }
 
-    virtual void recalculate()
+    virtual void recalculate() const
         { cache = PositionType::get(); }
 };
 

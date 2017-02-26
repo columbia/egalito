@@ -93,8 +93,8 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         (const uint8_t *)readAddress, symbol->getSize(),
         trueAddress, 0, &insn);
     PositionFactory positionFactory(
-        PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
-        //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
+        //PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
+        PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
         //PositionFactory::MODE_OFFSET);              // 5.89 s
         //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
         //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~6.25 s

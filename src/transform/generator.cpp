@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <cstdio>  // for std::fflush
 #include "generator.h"
+#include "chunk/mutator.h"
 #include "log/log.h"
 
 Sandbox *Generator::makeSandbox() {
@@ -19,7 +20,8 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
-        f->getPosition()->set(slot.getAddress());
+        //f->getPosition()->set(slot.getAddress());
+        ChunkMutator(f, true).setPosition(slot.getAddress());
     }
 
     for(auto f : module->getChildren()->getIterable()->iterable()) {

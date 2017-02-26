@@ -14,15 +14,18 @@
 class ChunkMutator {
 private:
     Chunk *chunk;
+    bool needUpdates;
 public:
-    ChunkMutator(Chunk *chunk) : chunk(chunk) {}
-    //~ChunkMutator() { updatePositions(); }
+    ChunkMutator(Chunk *chunk, bool needUpdates = false)
+        : chunk(chunk), needUpdates(needUpdates) {}
+    ~ChunkMutator() { updatePositions(); }
 
     void append(Chunk *child);
+    void setPosition(address_t address);
 
-    //void updatePositions();
+    void updatePositions();
 private:
-    //void updatePositionHelper(Chunk *root);
+    void updatePositionHelper(Chunk *root);
 };
 
 #endif

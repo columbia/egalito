@@ -62,8 +62,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     //module->accept(&dumper);
 
-    StackXOR stackXOR(0x28);
-    module->accept(&stackXOR);
+    //StackXOR stackXOR(0x28);
+    //module->accept(&stackXOR);
 
     //module->accept(&dumper);
 
