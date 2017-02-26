@@ -27,11 +27,8 @@ void OffsetPosition::recalculate() {
         return;
     }
 
-#if 0
-    auto list = chunk->getParent()->getChildren()->getIterable();
-    size_t index = list->indexOf(chunk);
-    if(index > 0) {
-        auto prev = list->get(index - 1);
+    auto prev = chunk->getPreviousSibling();
+    if(prev) {
         auto parent = chunk->getParent();
         offset = (prev->getPosition()->get() - parent->getPosition()->get())
             + prev->getSize();
@@ -39,7 +36,6 @@ void OffsetPosition::recalculate() {
     else {
         offset = 0;
     }
-#endif
 }
 
 Chunk *OffsetPosition::getDependency() const {

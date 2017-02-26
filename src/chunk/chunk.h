@@ -30,7 +30,12 @@ public:
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
+    virtual Chunk *getPreviousSibling() const = 0;
+    virtual void setPreviousSibling(Chunk *p) = 0;
+    virtual Chunk *getNextSibling() const = 0;
+    virtual void setNextSibling(Chunk *n) = 0;
     virtual ChunkList *getChildren() const = 0;
+
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
     virtual size_t getSize() const = 0;
@@ -47,18 +52,23 @@ public:
 class ChunkImpl : public Chunk {
 private:
     EventObserverRegistry registry;
-    Chunk *parent;
+    Chunk *parent, *prev, *next;
     Position *position;
 public:
     ChunkImpl(Chunk *parent = nullptr, Position *position = nullptr)
-        : parent(parent), position(position) {}
+        : parent(parent), prev(nullptr), next(nullptr), position(position) {}
 
     virtual std::string getName() const { return "???"; }
     virtual EventObserverRegistry *getRegistry() { return &registry; }
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
+    virtual Chunk *getPreviousSibling() const { return prev; }
+    virtual void setPreviousSibling(Chunk *p) { prev = p; }
+    virtual Chunk *getNextSibling() const { return next; }
+    virtual void setNextSibling(Chunk *n) { next = n; }
     virtual ChunkList *getChildren() const { return nullptr; }
+
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
     virtual size_t getSize() const { return 0; }
@@ -68,6 +78,7 @@ public:
 
     virtual address_t getAddress() const;
     virtual Range getRange() const;
+
 };
 
 template <typename ChunkType, typename ChildType>

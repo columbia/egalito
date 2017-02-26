@@ -60,14 +60,9 @@ void StackXOR::insertAt(Block *block, size_t index, Instruction *instr) {
         auto prev = list->get(index - 1);
         instr->setPosition(
             positionFactory->makePosition(prev, instr,
-                prev->getPosition()->get() - block->getPosition()->get()));
-
-    }
-
-    if(index < block->getChildren()->getIterable()->getCount()) {
-        list->get(index)->setPosition(
-            positionFactory->makePosition(instr, list->get(index),
-                instr->getPosition()->get() - block->getPosition()->get()));
+                prev->getPosition()->get() - block->getPosition()->get() + prev->getSize()));
+        prev->setNextSibling(instr);
+        instr->setPreviousSibling(prev);
     }
 
     // ChunkMutator doesn't support this yet
@@ -75,4 +70,15 @@ void StackXOR::insertAt(Block *block, size_t index, Instruction *instr) {
     list->insertAt(index, instr);
     instr->setParent(block);
     block->addToSize(instr->getSize());
+
+    ChunkMutator(block).updatePositions();
+
+    if(index + 1 < block->getChildren()->getIterable()->getCount()) {
+        auto next = list->get(index + 1);
+        next->setPosition(
+            positionFactory->makePosition(instr, next,
+                instr->getPosition()->get() - block->getPosition()->get()));
+        next->setPreviousSibling(instr);
+        instr->setNextSibling(next);
+    }
 }

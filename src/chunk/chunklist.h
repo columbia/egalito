@@ -20,6 +20,7 @@ class ChunkList {
 public:
     virtual ~ChunkList() {}
     virtual void genericAdd(Chunk *child) = 0;
+    virtual Chunk *genericGetLast() = 0;
     virtual Iterable<Chunk *> genericIterable() = 0;
 };
 
@@ -35,6 +36,7 @@ public:
 
     virtual void genericAdd(Chunk *child)
         { auto v = dynamic_cast<ChildType *>(child); if(v) add(v); }
+    virtual Chunk *genericGetLast() { return iterable.getLast(); }
     virtual Iterable<Chunk *> genericIterable() { return iterable.genericIterable(); }
 
     virtual void add(ChildType *child);
@@ -80,7 +82,7 @@ public:
     void add(ChildType *child) { childList.push_back(child); }
 
     ChildType *get(size_t index) { return childList[index]; }
-    ChildType *getLast() { return childList[childList.size() - 1]; }
+    ChildType *getLast() { return childList.size() ? childList[childList.size() - 1] : nullptr; }
     void insertAt(size_t index, ChildType *child)
         { childList.insert(childList.begin() + index, child); }
     size_t getCount() const { return childList.size(); }

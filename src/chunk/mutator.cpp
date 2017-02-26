@@ -4,8 +4,18 @@
 #include "log/log.h"
 
 void ChunkMutator::append(Chunk *child) {
+    // set sibling pointers
+    auto prev = chunk->getChildren()->genericGetLast();
+    if(prev) {
+        child->setPreviousSibling(prev);
+        prev->setNextSibling(child);
+    }
+
+    // set children and parent pointers
     chunk->getChildren()->genericAdd(child);
     child->setParent(chunk);
+
+    // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {
         c->addToSize(child->getSize());
     }
