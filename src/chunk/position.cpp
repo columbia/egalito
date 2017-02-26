@@ -3,20 +3,46 @@
 #include <algorithm>  // for std::max
 #include "position.h"
 #include "chunk.h"
+#include "chunklist.h"  // for getChildren()
 #include "log/log.h"
 
 address_t OffsetPosition::get() const {
-    assert(parent != nullptr);
-    return parent->getPosition()->get() + offset;
+    assert(chunk != nullptr);
+    assert(chunk->getParent() != nullptr);
+    return chunk->getParent()->getPosition()->get() + offset;
 }
 
 void OffsetPosition::set(address_t value) {
-    assert(parent != nullptr);
-    setOffset(value - parent->getPosition()->get());
+    assert(chunk != nullptr);
+    assert(chunk->getParent() != nullptr);
+    setOffset(value - chunk->getParent()->getPosition()->get());
 }
 
 void OffsetPosition::setOffset(address_t offset) {
     this->offset = offset;
+}
+
+void OffsetPosition::recalculate() {
+    if(!chunk->getParent() || !chunk->getParent()->getChildren()) {
+        offset = 0;
+        return;
+    }
+
+    auto list = chunk->getParent()->getChildren()->getIterable();
+    size_t index = list->indexOf(chunk);
+    if(index > 0) {
+        auto prev = list->get(index - 1);
+        auto parent = chunk->getParent();
+        offset = (prev->getPosition()->get() - parent->getPosition()->get())
+            + prev->getSize();
+    }
+    else {
+        offset = 0;
+    }
+}
+
+Chunk *OffsetPosition::getDependency() const {
+    return chunk->getParent();
 }
 
 address_t SubsequentPosition::get() const {
@@ -35,7 +61,8 @@ template class GenerationalPositionDecorator<
 template <typename PositionType>
 address_t GenerationalPositionDecorator<PositionType>::get() const {
     if(authority && getGeneration() != getAuthorityGeneration()) {
-        recalculate();
+        const_cast<GenerationalPositionDecorator<PositionType> *>(this)
+            ->recalculate();
         setGeneration(getAuthorityGeneration());
     }
     return cache;
@@ -82,10 +109,12 @@ int GenerationalPositionDecorator<PositionType>
 }
 
 template <typename PositionType>
-void GenerationalPositionDecorator<PositionType>::recalculate() const {
+void GenerationalPositionDecorator<PositionType>::recalculate() {
     PositionType::recalculate();
     cache = PositionType::get();
 }
+
+PositionFactory *PositionFactory::instance;
 
 Position *PositionFactory::makeAbsolutePosition(address_t address) {
     if(needsGenerationTracking()) {
@@ -96,22 +125,22 @@ Position *PositionFactory::makeAbsolutePosition(address_t address) {
     }
 }
 
-Position *PositionFactory::makePosition(Chunk *previous, Chunk *parent,
+Position *PositionFactory::makePosition(Chunk *previous, Chunk *chunk,
     address_t offset) {
 
     if(!previous) {
         // e.g. first block in function
-        return new OffsetPosition(parent, offset);
+        return new OffsetPosition(chunk, offset);
         //return new AbsolutePosition(0x1000);
     }
 
     switch(mode) {
     case MODE_GENERATION_OFFSET:
-        return setOffset(new GenerationalOffsetPosition(parent), offset);
+        return setOffset(new GenerationalOffsetPosition(chunk), offset);
     case MODE_GENERATION_SUBSEQUENT:
         return new GenerationalSubsequentPosition(previous);
     case MODE_CACHED_OFFSET: {
-        auto p = new CachedOffsetPosition(parent);
+        auto p = new CachedOffsetPosition(chunk);
         p->setOffset(offset);
         p->recalculate();
         return p;
@@ -119,7 +148,7 @@ Position *PositionFactory::makePosition(Chunk *previous, Chunk *parent,
     case MODE_CACHED_SUBSEQUENT:
         return new CachedSubsequentPosition(previous);
     case MODE_OFFSET:
-        return new OffsetPosition(parent, offset);
+        return new OffsetPosition(chunk, offset);
     case MODE_SUBSEQUENT:
         return new SubsequentPosition(previous);
     default:
@@ -134,5 +163,6 @@ bool PositionFactory::needsGenerationTracking() const {
 
 bool PositionFactory::needsUpdatePasses() const {
     return mode == MODE_CACHED_OFFSET
-        || mode != MODE_CACHED_SUBSEQUENT;
+        || mode == MODE_CACHED_SUBSEQUENT
+        || mode == MODE_OFFSET;
 }

@@ -16,7 +16,7 @@ void ChunkMutator::setPosition(address_t address) {
 }
 
 void ChunkMutator::updatePositions() {
-    if(!needUpdates) return;
+    if(!PositionFactory::getInstance()->needsUpdatePasses()) return;
 
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {

@@ -49,24 +49,24 @@ void StackXOR::addInstructions(Block *block, size_t index) {
 }
 
 void StackXOR::insertAt(Block *block, size_t index, Instruction *instr) {
-    PositionFactory positionFactory(PositionFactory::MODE_DEBUGGING_NO_CACHE);
+    PositionFactory *positionFactory = PositionFactory::getInstance();
 
     auto list = block->getChildren()->getIterable();
     if(index == 0) {
         instr->setPosition(
-            positionFactory.makePosition(nullptr, block, 0));
+            positionFactory->makePosition(nullptr, instr, 0));
     }
     else {
         auto prev = list->get(index - 1);
         instr->setPosition(
-            positionFactory.makePosition(prev, block,
+            positionFactory->makePosition(prev, instr,
                 prev->getPosition()->get() - block->getPosition()->get()));
 
     }
 
     if(index < block->getChildren()->getIterable()->getCount()) {
         list->get(index)->setPosition(
-            positionFactory.makePosition(instr, block,
+            positionFactory->makePosition(instr, list->get(index),
                 instr->getPosition()->get() - block->getPosition()->get()));
     }
 

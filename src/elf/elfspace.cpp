@@ -39,6 +39,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     LOG(1, "=== Creating internal data structures ===");
 
     auto baseAddr = elf->getCopyBaseAddress();
+    Disassemble::init();
     this->module = Disassemble::module(baseAddr, symbolList);
 
     ResolveCalls resolver;
@@ -62,8 +63,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     //module->accept(&dumper);
 
-    //StackXOR stackXOR(0x28);
-    //module->accept(&stackXOR);
+    StackXOR stackXOR(0x28);
+    module->accept(&stackXOR);
 
     //module->accept(&dumper);
 

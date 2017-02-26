@@ -25,6 +25,7 @@ public:
     static void debug(const uint8_t *code, size_t length,
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
+    static void init();
     static Module *module(address_t baseAddr, SymbolList *symbolList);
     static Function *function(Symbol *symbol, address_t baseAddr);
     static cs_insn getInsn(const std::vector<unsigned char> &str, address_t address = 0);

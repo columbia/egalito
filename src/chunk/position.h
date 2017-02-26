@@ -20,7 +20,7 @@ public:
     virtual Chunk *findAuthority() const { return nullptr; }
     virtual void updateAuthority() {}
 
-    virtual void recalculate() const {}
+    virtual void recalculate() {}
     virtual int getGeneration() const { return 0; }
     virtual void setGeneration(int gen) const {}
     virtual void incrementGeneration() const {}
@@ -54,19 +54,22 @@ public:
 class OffsetPosition : public Position {
     friend class PositionDump;
 private:
-    ChunkRef parent;
+    ChunkRef chunk;
     address_t offset;
 public:
-    OffsetPosition(ChunkRef parent, address_t offset = 0)
-        : parent(parent), offset(offset) {}
+    // pass original Chunk here, even though offset is relative to parent
+    OffsetPosition(ChunkRef chunk, address_t offset = 0)
+        : chunk(chunk), offset(offset) {}
 
     virtual address_t get() const;
     virtual void set(address_t value);
 
+    virtual void recalculate();
+
     address_t getOffset() const { return offset; }
     void setOffset(address_t offset);
 protected:
-    virtual Chunk *getDependency() const { return &*parent; }
+    virtual Chunk *getDependency() const;
 };
 
 /** Represents a Chunk that immediately follows another.
@@ -103,8 +106,8 @@ public:
     virtual address_t get() const { return cache; }
     virtual void set(address_t value) { PositionType::set(value); }
 
-    virtual void recalculate() const
-        { cache = PositionType::get(); }
+    virtual void recalculate()
+        { PositionType::recalculate(); cache = PositionType::get(); }
 };
 
 typedef CachedPositionDecorator<SubsequentPosition> CachedSubsequentPosition;
@@ -164,7 +167,7 @@ public:
     virtual address_t get() const;
     virtual void set(address_t value);
 
-    virtual void recalculate() const;
+    virtual void recalculate();
 
     virtual bool isAuthority() const { return false; }
     virtual Chunk *findAuthority() const;
@@ -186,6 +189,11 @@ typedef GenerationalPositionDecorator<
         GenerationalOffsetPosition;
 
 class PositionFactory {
+private:
+    static PositionFactory *instance;
+public:
+    static PositionFactory *getInstance() { return instance; }
+    static void setInstance(PositionFactory *factory) { instance = factory; }
 public:
     enum Mode {
         MODE_GENERATION_OFFSET,
@@ -205,7 +213,7 @@ private:
 public:
     PositionFactory(Mode mode) : mode(mode) {}
     Position *makeAbsolutePosition(address_t address);
-    Position *makePosition(Chunk *previous, Chunk *parent, address_t offset);
+    Position *makePosition(Chunk *previous, Chunk *chunk, address_t offset);
     bool needsGenerationTracking() const;
     bool needsUpdatePasses() const;
 private:

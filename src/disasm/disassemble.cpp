@@ -32,6 +32,16 @@ Disassemble::Handle::~Handle() {
     cs_close(&handle);
 }
 
+void Disassemble::init() {
+    PositionFactory *positionFactory = new PositionFactory(
+        //PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
+        //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
+        PositionFactory::MODE_OFFSET);              // 5.89 s
+        //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
+        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~6.25 s
+    PositionFactory::setInstance(positionFactory);
+}
+
 void Disassemble::debug(const uint8_t *code, size_t length,
     address_t realAddress, SymbolList *symbolList) {
 
@@ -92,19 +102,14 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     size_t count = cs_disasm(handle.raw(),
         (const uint8_t *)readAddress, symbol->getSize(),
         trueAddress, 0, &insn);
-    PositionFactory positionFactory(
-        //PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
-        PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
-        //PositionFactory::MODE_OFFSET);              // 5.89 s
-        //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
-        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~6.25 s
+    PositionFactory *positionFactory = PositionFactory::getInstance();
 
     Function *function = new Function(symbol);
     function->setPosition(
-        positionFactory.makeAbsolutePosition(symbol->getAddress()));
+        positionFactory->makeAbsolutePosition(symbol->getAddress()));
     Block *block = new Block();
     block->setPosition(
-        positionFactory.makePosition(nullptr, function, 0));
+        positionFactory->makePosition(nullptr, block, 0));
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
@@ -126,7 +131,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
             prevChunk = nullptr;
         }
         instr->setPosition(
-            positionFactory.makePosition(prevChunk, block, block->getSize()));
+            positionFactory->makePosition(prevChunk, instr, block->getSize()));
 
         ChunkMutator(block).append(instr);
         if(split) {
@@ -135,7 +140,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
             Block *oldBlock = block;
             block = new Block();
             block->setPosition(
-                positionFactory.makePosition(oldBlock, function, function->getSize()));
+                positionFactory->makePosition(oldBlock, block, function->getSize()));
         }
     }
 

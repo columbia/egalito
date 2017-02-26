@@ -21,7 +21,7 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
         //f->getPosition()->set(slot.getAddress());
-        ChunkMutator(f, true).setPosition(slot.getAddress());
+        ChunkMutator(f).setPosition(slot.getAddress());
     }
 
     for(auto f : module->getChildren()->getIterable()->iterable()) {
