@@ -16,13 +16,13 @@ private:
     Chunk *chunk;
 public:
     ChunkMutator(Chunk *chunk) : chunk(chunk) {}
-    ~ChunkMutator() { updatePositions(); }
+    //~ChunkMutator() { updatePositions(); }
 
     void append(Chunk *child);
 
-    void updatePositions();
+    //void updatePositions();
 private:
-    void updatePositionHelper(Chunk *root);
+    //void updatePositionHelper(Chunk *root);
 };
 
 #endif

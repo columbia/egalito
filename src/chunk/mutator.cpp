@@ -8,6 +8,7 @@ void ChunkMutator::append(Chunk *child) {
     }
 }
 
+#if 0
 void ChunkMutator::updatePositions() {
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
@@ -25,4 +26,4 @@ void ChunkMutator::updatePositionHelper(Chunk *root) {
 
     root->getPosition()->recalculate();
 }
-
+#endif

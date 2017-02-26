@@ -13,7 +13,16 @@ public:
     virtual address_t get() const = 0;
     virtual void set(address_t value) = 0;
 
-    virtual void recalculate() {}
+    virtual bool isAuthority() const { return false; }
+    virtual Chunk *findAuthority() const { return nullptr; }
+    virtual void updateAuthority() {}
+
+    virtual void recalculate() const {}
+    virtual int getGeneration() const { return 0; }
+    virtual void setGeneration(int gen) const {}
+    virtual void incrementGeneration() const {}
+protected:
+    virtual Chunk *getDependency() const { return nullptr; }
 };
 
 /** Stores an absolute address. Can be set later at runtime.
@@ -27,22 +36,25 @@ public:
     AbsolutePosition(address_t address) : address(address) {}
 
     virtual address_t get() const { return address; }
-    virtual void set(address_t value) { this->address = value; }
+    virtual void set(address_t value)
+        { this->address = value; setGeneration(getGeneration() + 1); }
+
+    virtual bool isAuthority() const { return true; }
 };
 
-/** Stores an offset (usually 0) relative to another Chunk's position.
+/** Stores an offset relative to another Chunk's position.
 
     The parent Chunk will be queried each time this Position is retrieved.
     This lack of caching makes this class useful for Chunks which are moved
     to new addresses frequently.
 */
-class RelativePosition : public Position {
+class OffsetPosition : public Position {
 private:
     ChunkRef object;
     address_t offset;
 public:
     // object should be the main object, offset is relative to the parent
-    RelativePosition(ChunkRef object, address_t offset = 0)
+    OffsetPosition(ChunkRef object, address_t offset = 0)
         : object(object), offset(offset) {}
 
     virtual address_t get() const;
@@ -50,11 +62,14 @@ public:
 
     address_t getOffset() const { return offset; }
     void setOffset(address_t offset) { this->offset = offset; }
+protected:
+    virtual Chunk *getDependency() const { return &*object; }
 };
 
 /** Represents a Chunk that immediately follows another.
 
-    Like a RelativePosition with offset 0.
+    The afterThis Chunk can be the immediately prior sibling, or the
+    Chunk immediately before this Chunk's parent, for instance.
 */
 class SubsequentPosition : public Position {
 private:
@@ -64,6 +79,8 @@ public:
 
     virtual address_t get() const;
     virtual void set(address_t value);
+protected:
+    virtual Chunk *getDependency() const { return &*afterThis; }
 };
 
 /** Caches another Position type (useful for any computed type).
@@ -82,13 +99,112 @@ public:
     virtual address_t get() const { return cache; }
     virtual void set(address_t value) { PositionType::set(value); }
 
-    virtual bool isCached() const { return true; }
     virtual void recalculate()
         { cache = PositionType::get(); }
 };
 
 typedef CachedPositionDecorator<SubsequentPosition> CachedSubsequentPosition;
-typedef CachedPositionDecorator<RelativePosition> CachedRelativePosition;
+typedef CachedPositionDecorator<OffsetPosition> CachedOffsetPosition;
+
+/** Decorator to allow generation tracking of any Position.
+*/
+template <typename PositionType>
+class TrackedPositionDecorator : public PositionType {
+private:
+    mutable int generation;
+public:
+    TrackedPositionDecorator(ChunkRef chunk, int generation = 0)
+        : PositionType(chunk), generation(generation) {}
+    virtual int getGeneration() const { return generation; }
+    virtual void setGeneration(int gen) const { generation = gen; }
+    virtual void incrementGeneration() const { generation ++; }
+};
+
+// specialize for AbsolutePosition to add different constructor
+template <>
+class TrackedPositionDecorator<AbsolutePosition> : public AbsolutePosition {
+private:
+    mutable int generation;
+public:
+    TrackedPositionDecorator(address_t address, int generation = 0)
+        : AbsolutePosition(address), generation(generation) {}
+    virtual int getGeneration() const { return generation; }
+    virtual void setGeneration(int gen) const { generation = gen; }
+    virtual void incrementGeneration() const { generation ++; }
+};
+
+/** Tracks updates to positions with a generation counter.
+
+    Each instance of this class stores an authority node and a generation.
+    If the local generation does not match the authority's generation, then
+    this position may need to be changed due to updates elsewhere in the
+    Chunk hierarchy (and it will be recalculated). Any modification of this
+    Chunk's position or size will increment the authority's generation.
+
+    If the containing Chunk is inserted into another hierarchy or position
+    types are changed (from AbsolutePosition to something else, etc), then
+    the authority may be out-of-date and updateAuthority() must be called.
+    Note that the old authority will continue to be used unless its
+    generation has changed, so remove the Chunk from the old tree before
+    inserting it into the new one.
+*/
+template <typename PositionType>
+class GenerationalPositionDecorator : public PositionType {
+private:
+    ChunkRef authority;
+    mutable address_t cache;
+public:
+    GenerationalPositionDecorator(ChunkRef chunk)
+        : PositionType(chunk) { updateAuthority(); recalculate(); }
+
+    virtual address_t get() const;
+    virtual void set(address_t value);
+
+    virtual void recalculate() const;
+
+    virtual bool isAuthority() const { return false; }
+    virtual Chunk *findAuthority() const;
+    virtual void updateAuthority() { authority = findAuthority(); }
+
+    using PositionType::getGeneration;
+    using PositionType::setGeneration;
+protected:
+    using PositionType::getDependency;
+private:
+    int getAuthorityGeneration() const;
+};
+
+typedef GenerationalPositionDecorator<
+    TrackedPositionDecorator<SubsequentPosition>>
+        GenerationalSubsequentPosition;
+typedef GenerationalPositionDecorator<
+    TrackedPositionDecorator<OffsetPosition>>
+        GenerationalOffsetPosition;
+
+class PositionFactory {
+public:
+    enum Mode {
+        MODE_GENERATION_OFFSET,
+        MODE_GENERATION_SUBSEQUENT,
+        MODE_CACHED_OFFSET,
+        MODE_CACHED_SUBSEQUENT,
+        MODE_OFFSET,
+        MODE_SUBSEQUENT,
+
+        MODE_FAST_UPDATES = MODE_GENERATION_OFFSET,
+        MODE_FAST_RETRIEVAL = MODE_CACHED_OFFSET,
+        MODE_LOWER_MEMORY = MODE_CACHED_SUBSEQUENT,
+        MODE_DEBUGGING_NO_CACHE = MODE_SUBSEQUENT
+    };
+private:
+    Mode mode;
+public:
+    PositionFactory(Mode mode) : mode(mode) {}
+    Position *makeAbsolutePosition(address_t address);
+    Position *makePosition(Chunk *previous, Chunk *parent);
+    bool needsGenerationTracking() const;
+    bool needsUpdatePasses() const;
+};
 
 class ComputedSize {
 private:
