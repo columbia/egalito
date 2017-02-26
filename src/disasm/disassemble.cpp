@@ -135,7 +135,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
 
         ChunkMutator(block).append(instr);
         if(split) {
-            ChunkMutator(function).append(block);
+            ChunkMutator(function, false).append(block);
 
             Block *oldBlock = block;
             block = new Block();

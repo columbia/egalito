@@ -7,8 +7,7 @@
 #include "log/log.h"
 
 address_t OffsetPosition::get() const {
-    assert(chunk != nullptr);
-    assert(chunk->getParent() != nullptr);
+    if(chunk == nullptr || chunk->getParent() == nullptr) return 0;
     return chunk->getParent()->getPosition()->get() + offset;
 }
 
@@ -28,6 +27,7 @@ void OffsetPosition::recalculate() {
         return;
     }
 
+#if 0
     auto list = chunk->getParent()->getChildren()->getIterable();
     size_t index = list->indexOf(chunk);
     if(index > 0) {
@@ -39,6 +39,7 @@ void OffsetPosition::recalculate() {
     else {
         offset = 0;
     }
+#endif
 }
 
 Chunk *OffsetPosition::getDependency() const {

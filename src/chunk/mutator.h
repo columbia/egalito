@@ -14,8 +14,10 @@
 class ChunkMutator {
 private:
     Chunk *chunk;
+    bool allowUpdates;
 public:
-    ChunkMutator(Chunk *chunk) : chunk(chunk) {}
+    ChunkMutator(Chunk *chunk, bool allowUpdates = true)
+        : chunk(chunk), allowUpdates(allowUpdates) {}
     ~ChunkMutator() { updatePositions(); }
 
     void append(Chunk *child);
