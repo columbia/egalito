@@ -49,7 +49,7 @@ void LibcResolve::run() {
     GroupRegistry::getInstance()->muteAllSettings();
 
     try {
-        ElfMap elf(TESTDIR "/hi0");
+        ElfMap elf(TESTDIR "hi0");
 
         Conductor conductor;
         conductor.parseRecursive(&elf);

@@ -10,7 +10,7 @@ void JumpTableIntegration::run() {
     //GroupRegistry::getInstance()->applySetting("analysis", 9);
 
     try {
-        ElfMap elf(TESTDIR "/jumptable");
+        ElfMap elf(TESTDIR "jumptable");
 
         Conductor conductor;
         conductor.parse(&elf, nullptr);
@@ -32,7 +32,7 @@ void JumpTableIntegration::run2() {
     //GroupRegistry::getInstance()->applySetting("analysis", 9);
 
     try {
-        ElfMap elf(TESTDIR "/jumptable");
+        ElfMap elf(TESTDIR "jumptable");
 
         Conductor conductor;
         conductor.parseRecursive(&elf);
