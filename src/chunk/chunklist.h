@@ -110,6 +110,7 @@ public:
 
     ChildType *find(address_t address);
     ChildType *findContaining(address_t address);
+    std::vector<ChildType *> findAllContaining(address_t address);
 };
 
 template <typename ChildType>
@@ -126,6 +127,25 @@ ChildType *SpatialChunkList<ChildType>::findContaining(address_t address) {
     it --;
     auto c = (*it).second;
     return (c->getRange().contains(address) ? c : nullptr);
+}
+
+template <typename ChildType>
+std::vector<ChildType *> SpatialChunkList<ChildType>
+    ::findAllContaining(address_t address) {
+
+    std::vector<ChildType *> found;
+    auto it = spaceMap.upper_bound(address);
+    if(it == spaceMap.begin()) return std::move(found);
+
+    // This is a terrible hack to only look in a neighbourhood of 5 for
+    // overlapping entities. Should work since the typical case for this is
+    // to detect overlapping functions, which are 2: ORIG and ORIG_nocancel.
+    for(int i = 0; i < 5 && it != spaceMap.begin(); i ++) {
+        it --;
+        auto c = (*it).second;
+        if(c->getRange().contains(address)) found.push_back(c);
+    }
+    return std::move(found);
 }
 
 template <typename ChildType>

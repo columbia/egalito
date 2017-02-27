@@ -20,7 +20,7 @@ public:
         { return findImpl(root, target, true, true); }
 private:
     template <typename RootType>
-    Chunk *findImpl(RootType *root, address_t target,
+    inline Chunk *findImpl(RootType *root, address_t target,
         bool compositeContains, bool instructionContains);
 };
 
@@ -31,10 +31,6 @@ Chunk *ChunkFind::findImpl(Instruction *root, address_t target,
 template <typename RootType>
 Chunk *ChunkFind::findImpl(RootType *root, address_t target,
     bool compositeContains, bool instructionContains) {
-
-    if(!root->getChildren()->getSpatial()) {
-        root->getChildren()->createSpatial();
-    }
 
     auto child = root->getChildren()->getSpatial()->findContaining(target);
     if(child) {

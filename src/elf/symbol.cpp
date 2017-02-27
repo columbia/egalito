@@ -195,6 +195,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
                 CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
                     (int)j, address, size, name);
                 list->add(symbol, (size_t)j);
+                seen[address] = symbol;
             }
         }
 

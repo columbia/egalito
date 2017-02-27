@@ -122,6 +122,7 @@ private:
 public:
     TrackedPositionDecorator(ChunkRef chunk, int generation = 0)
         : PositionType(chunk), generation(generation) {}
+
     virtual int getGeneration() const { return generation; }
     virtual void setGeneration(int gen) const { generation = gen; }
     virtual void incrementGeneration() const { generation ++; }

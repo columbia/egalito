@@ -90,12 +90,12 @@ Chunk *GenerationalPositionDecorator<PositionType>::findAuthority() const {
         return &*authority;
     }
 
-    if(!getDependency()) {
-        throw "Trying to find authority of position with no dependency!";
+    if(getDependency()) {
+        auto a = getDependency()->getPosition()->findAuthority();
+        return a ? a : getDependency();
     }
 
-    auto a = getDependency()->getPosition()->findAuthority();
-    return a ? a : getDependency();
+    return nullptr;
 }
 
 template <typename PositionType>
@@ -127,8 +127,12 @@ Position *PositionFactory::makePosition(Chunk *previous, Chunk *chunk,
 
     if(!previous) {
         // e.g. first block in function
-        return new OffsetPosition(chunk, offset);
-        //return new AbsolutePosition(0x1000);
+        if(needsGenerationTracking()) {
+            return setOffset(new GenerationalOffsetPosition(chunk), offset);
+        }
+        else {
+            return new OffsetPosition(chunk, offset);
+        }
     }
 
     switch(mode) {

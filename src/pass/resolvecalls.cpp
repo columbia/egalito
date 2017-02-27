@@ -41,18 +41,33 @@ void ResolveCalls::visit(Instruction *instruction) {
 #endif
     }
     // Uncommon case for jumps: external jump to another function
-    // This can be for tail recursion or for overlapping functions (no_cancel)
+    // This can be for tail recursion or for overlapping functions (_nocancel)
     if(!found) {
         auto enclosing = instruction->getParent()->getParent()->getParent();
         auto module = dynamic_cast<Module *>(enclosing);
 
-        // !!! right now, spatial search in a Module doesn't work...
-        //found = ChunkFind().findInnermostAt(module, targetAddress);
-        for(auto f : module->getChildren()->getIterable()->iterable()) {
+#if 0
+        // Right now, spatial search in a Module doesn't work.
+        // It doesn't handle overlapping functions correctly.
+        found = ChunkFind().findInnermostAt(module, targetAddress);
+#elif 1
+        // Here's a hack, look at a few nearby functions in the list to
+        // resolve targets. Should really just use a data structure that
+        // supports overlaps.
+        std::vector<Function *> funcs;
+        funcs = module->getChildren()->getSpatial()->findAllContaining(targetAddress);
+        for(auto f : funcs) {
             found = ChunkFind().findInnermostAt(f, targetAddress);
             // we could use a different Link type for external jumps
             if(found) break;
         }
+#else
+        // Brute-force version, guaranteed to work.
+        for(auto f : module->getChildren()->getIterable()->iterable()) {
+            found = ChunkFind().findInnermostAt(f, targetAddress);
+            if(found) break;
+        }
+#endif
     }
 
     if(found) {

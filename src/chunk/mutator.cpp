@@ -19,6 +19,15 @@ void ChunkMutator::append(Chunk *child) {
     for(Chunk *c = chunk; c; c = c->getParent()) {
         c->addToSize(child->getSize());
     }
+
+    // update authority pointers in positions
+    if(PositionFactory::getInstance()->needsGenerationTracking()) {
+        //child->getPosition()->updateAuthority();
+        chunk->getPosition()->incrementGeneration();
+        chunk->getPosition()->incrementGeneration();
+        child->getPosition()->incrementGeneration();
+        updateAuthorityHelper(child);
+    }
 }
 
 void ChunkMutator::setPosition(address_t address) {
@@ -33,6 +42,16 @@ void ChunkMutator::updatePositions() {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
             updatePositionHelper(c);
             PositionDump().visit(c);
+        }
+    }
+}
+
+void ChunkMutator::updateAuthorityHelper(Chunk *root) {
+    root->getPosition()->updateAuthority();
+
+    if(root->getChildren()) {
+        for(auto child : root->getChildren()->genericIterable()) {
+            updateAuthorityHelper(child);
         }
     }
 }

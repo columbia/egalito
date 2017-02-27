@@ -25,6 +25,7 @@ public:
 
     void updatePositions();
 private:
+    void updateAuthorityHelper(Chunk *root);
     void updatePositionHelper(Chunk *root);
 };
 

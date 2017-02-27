@@ -38,7 +38,8 @@ void Disassemble::init() {
         //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
         PositionFactory::MODE_OFFSET);              // 5.89 s
         //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
-        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~6.25 s
+        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~7.50 s
+        //PositionFactory::MODE_GENERATION_OFFSET);
     PositionFactory::setInstance(positionFactory);
 }
 
@@ -150,9 +151,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     else {
         CLOG0(1, "fall-through function [%s]... "
             "adding basic block\n", symbol->getName());
-        function->getChildren()->add(block);
-        block->setParent(function);
-        function->addToSize(block->getSize());
+        ChunkMutator(function, false).append(block);
     }
 
     //cs_free(insn, count);
