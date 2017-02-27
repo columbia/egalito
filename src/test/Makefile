@@ -2,7 +2,7 @@
 
 CC = gcc
 
-CFLAGS	= -fPIE -pie
+CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS =
 
 P_ARCH := $(shell uname -m)
