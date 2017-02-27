@@ -10,6 +10,7 @@
 
 void ElfDynamic::parse(ElfMap *elf) {
     auto dynamic = static_cast<unsigned long *>(elf->findSection(".dynamic"));
+    if(!dynamic) return;  // statically linked
     auto strtab = elf->getDynstrtab();
 
     LOG(1, "examining dependencies for ELF file");

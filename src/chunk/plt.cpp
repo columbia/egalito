@@ -13,6 +13,7 @@ std::string PLTEntry::getName() const {
 
 void PLTSection::parse(ElfMap *elf) {
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt"));
+    if(!header) return;
     auto section = reinterpret_cast<address_t>(elf->findSection(".plt"));
 
     PLTRegistry *registry = new PLTRegistry();

@@ -228,7 +228,10 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
     std::map<address_t, Symbol *> seen;
 
     Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".dynsym");
-    if(!s || s->sh_type != SHT_DYNSYM) throw "No dynamic symtab in ELF\n";
+    if(!s || s->sh_type != SHT_DYNSYM) {
+        //throw "No dynamic symtab in ELF\n";
+        return list;
+    }
 
     Elf64_Sym *sym = (Elf64_Sym *)elfmap->findSection(".dynsym");
 
