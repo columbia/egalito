@@ -16,12 +16,16 @@ P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
 	CXXFLAGS += -DARCH_AARCH64
+	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
 	CXXFLAGS += -DARCH_X86_64
+	BUILDDIR = build_x86_64/
 else
 $(error Unsupported platform, we only handle aarch64 and x86_64)
 endif
+CFLAGS += '-DTESTDIR="test/$(BUILDDIR)"'
+CXXFLAGS += '-DTESTDIR="test/$(BUILDDIR)"'
 
 ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
 	GLIBCDIR = /usr/lib/x86_64-linux-gnu
@@ -52,44 +56,55 @@ MAIN_SOURCES        = $(wildcard main/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 
+exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
+obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
+dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
+
 SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES) \
     $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) $(ANALYSIS_SOURCES)
-TYPICAL_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES:.s=.o)))
+TYPICAL_OBJECTS = $(call obj-filename,$(SOURCES))
 TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
-TARGET_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TARGET_SOURCES:.s=.o)))
+TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
 LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
-LOADER_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(patsubst %.S,%.o,$(LOADER_SOURCES:.s=.o))))
+LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
 ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
-ITEST_OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(ITEST_SOURCES:.s=.o)))
-ALL_SOURCES = $(TARGET_SOURCES) $(LOADER_SOURCES) $(ITEST_SOURCES)
+ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
+ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(ITEST_SOURCES))
+ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
-TARGET = egalito
-LOADER = loader
-ITEST = itest
+BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
+
+TARGET = $(BUILDDIR)egalito
+LOADER = $(BUILDDIR)loader
+ITEST = $(BUILDDIR)itest
 
 # Default target
 .PHONY: all
 all: $(TARGET) $(LOADER) $(ITEST)
 
+$(ALL_OBJECTS): | $(BUILDTREE)
+$(BUILDTREE):
+	mkdir -p $@
+
 # Dependencies
-DEPEND_FILES = $(addsuffix .d,$(basename $(ALL_SOURCES)))
+DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
 
 # Rules
-%.o: %.s
-	$(CC) -fPIC -c $^ -o $@
-%.o: %.S
-	$(CC) -fPIC $(DEPFLAGS) -c $^ -o $@
-%.o: %.c
+$(BUILDDIR)%.o: %.s
+	$(CC) -fPIC -c $< -o $@
+$(BUILDDIR)%.o: %.S
+	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
+$(BUILDDIR)%.o: %.c
 	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-%.o: %.cpp
+$(BUILDDIR)%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Special files
-load/usage.o: load/usage.cpp
-	$(CXX) $(CXXFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
-integration/libc_resolve.o: integration/libc_resolve.cpp
-	$(CXX) $(CXXFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
+$(BUILDDIR)load/usage.o: load/usage.cpp
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+$(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
@@ -103,14 +118,19 @@ $(ITEST): $(ITEST_OBJECTS)
 
 # Tests
 REGRESSION_SOURCES = $(wildcard regression/*.cpp)
-REGRESSION_TESTS = $(filter-out regression/elfgenmanager,$(REGRESSION_SOURCES:.cpp=))
+REGRESSION_OBJECTS = $(call obj-filename,$(REGRESSION_SOURCES))
+REGRESSION_TESTS = $(call exe-filename,$(filter-out regression/elfgenmanager,$(REGRESSION_SOURCES:.cpp=)))
 .PHONY: rtest
 rtest: $(REGRESSION_TESTS)
 
-$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) regression/elfgenmanager.o
+$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) $(BUILDDIR)regression/elfgenmanager.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+
+$(REGRESSION_OBJECTS): | $(BUILDDIR)/regression
+$(BUILDDIR)/regression:
+	mkdir -p $@
 
 # Other targets
 .PHONY: clean
 clean:
-	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(ITEST_OBJECTS) $(DEPEND_FILES)
+	-rm -rf $(BUILDDIR)
