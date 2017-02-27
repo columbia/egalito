@@ -12,6 +12,12 @@ CLDFLAGS        = -lcapstone -Wl,-q
 #LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
 #LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
 
+ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
+    CFLAGS += -no-pie -pg
+    CXXFLAGS += -no-pie -pg
+    CLDFLAGS += -no-pie -pg
+endif
+
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
@@ -113,4 +119,4 @@ $(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) regression/elfgenmanager.o
 # Other targets
 .PHONY: clean
 clean:
-	-rm $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(ITEST_OBJECTS) $(DEPEND_FILES)
+	-rm $(sort $(TARGET) $(LOADER) $(TARGET_OBJECTS) $(LOADER_OBJECTS) $(ITEST_OBJECTS) $(DEPEND_FILES))
