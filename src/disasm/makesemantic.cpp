@@ -50,7 +50,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     if(ins->id == ARM64_INS_B || ins->id == ARM64_INS_BL) {
         auto i = new ControlFlowInstruction(instruction, *ins);
         i->setLink(new UnresolvedLink(i->getOriginalOffset()));
-        instruction->setSemantic(i);
+        semantic = i;
     }
 #endif
     else if(ins->id == PLAT_(INS_RET)) {
