@@ -41,7 +41,11 @@ void ControlFlowGraph::construct(Block *block) {
         }
 
         auto link = i->getSemantic()->getLink();
+#ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "callq" && link && link->getTarget()) {
+#elif defined(ARCH_AARCH64)
+        if(cfi->getMnemonic() != "bl" && link && link->getTarget()) {
+#endif
             auto target = link->getTarget();
             if(auto v = dynamic_cast<Block *>(&*target)) {
                 auto other = blockMapping[v];

@@ -69,7 +69,7 @@ void JumpTableIntegration::run2() {
 bool JumpTableIntegration::testFunction(Function *f, int expected) {
     JumpTableSearch jt;
     jt.search(f);
-    
+
     if((int)jt.getTableList().size() != expected) {
         std::cout << "TEST FAILED: function ["
             << f->getSymbol()->getName() << "]: expected " << expected

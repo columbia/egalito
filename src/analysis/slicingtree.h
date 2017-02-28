@@ -32,6 +32,7 @@ private:
 public:
     TreeNodeConstant(unsigned long value) : value(value) {}
     unsigned long getValue() const { return value; }
+    void setValue(unsigned long value) { this->value = value; }
     virtual void print(const TreePrinter &p) const;
 };
 
@@ -41,6 +42,7 @@ private:
 public:
     TreeNodeAddress(address_t address) : address(address) {}
     address_t getValue() const { return address; }
+    void setValue(address_t address) { this->address = address; }
     virtual void print(const TreePrinter &p) const;
 };
 
@@ -83,6 +85,26 @@ public:
     TreeNodeJump(TreeNode *node)
         : TreeNodeUnary(node, "jump") {}
 };
+class TreeNodeSignExtendByte : public TreeNodeUnary {
+public:
+    TreeNodeSignExtendByte(TreeNode *node)
+        : TreeNodeUnary(node, "sxtb") {}
+};
+class TreeNodeSignExtendHalfWord : public TreeNodeUnary {
+public:
+    TreeNodeSignExtendHalfWord(TreeNode *node)
+        : TreeNodeUnary(node, "sxtw") {}
+};
+class TreeNodeSignExtendWord : public TreeNodeUnary {
+public:
+    TreeNodeSignExtendWord(TreeNode *node)
+        : TreeNodeUnary(node, "sxtw") {}
+};
+class TreeNodeUnsignedExtendWord : public TreeNodeUnary {
+public:
+    TreeNodeUnsignedExtendWord(TreeNode *node)
+        : TreeNodeUnary(node, "uxtw") {}
+};
 
 class TreeNodeBinary : public TreeNode {
 private:
@@ -104,10 +126,20 @@ public:
     TreeNodeAddition(TreeNode *left, TreeNode *right)
         : TreeNodeBinary(left, right, "+") {}
 };
+class TreeNodeSubtraction : public TreeNodeBinary {
+public:
+    TreeNodeSubtraction(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "-") {}
+};
 class TreeNodeMultiplication : public TreeNodeBinary {
 public:
     TreeNodeMultiplication(TreeNode *left, TreeNode *right)
         : TreeNodeBinary(left, right, "*") {}
+};
+class TreeNodeLogicalShiftLeft : public TreeNodeBinary {
+public:
+    TreeNodeLogicalShiftLeft(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "<<") {}
 };
 
 class TreeNodeComparison : public TreeNode {
