@@ -6,6 +6,7 @@
 #include "concrete.h"
 #include "chunk.h"
 #include "link.h"
+#include "disasm/disassemble.h"
 #include "log/log.h"
 
 void RawByteStorage::writeTo(char *target) {
@@ -38,6 +39,16 @@ DisassembledStorage::DisassembledStorage(DisassembledStorage &&other) {
 
 DisassembledStorage::~DisassembledStorage() {
     delete detail;
+}
+
+DisassembledStorage &DisassembledStorage::operator = (
+    DisassembledStorage &&other) {
+
+    delete detail;
+    this->insn = other.insn;
+    this->detail = other.detail;
+    other.detail = nullptr;
+    return *this;
 }
 
 void DisassembledStorage::writeTo(char *target) {
@@ -217,3 +228,35 @@ InstructionMode PCRelativeInstruction::decodeMode(const cs_insn &insn) {
 }
 
 #endif
+
+void InferredInstruction::writeTo(char *target) {
+    cs_insn *insn = getCapstone();
+    unsigned int newDisp = getLink()->getTargetAddress()
+        - (instruction->getAddress() + getSize());
+    std::memcpy(target, insn->bytes, insn->size - 4);
+    std::memcpy(target + insn->size - 4, &newDisp, 4);
+}
+
+void InferredInstruction::writeTo(std::string &target) {
+    cs_insn *insn = getCapstone();
+    unsigned int newDisp = getLink()->getTargetAddress()
+        - (instruction->getAddress() + getSize());
+    target.append(reinterpret_cast<const char *>(insn->bytes), insn->size - 4);
+    target.append(reinterpret_cast<const char *>(&newDisp), 4);
+}
+
+std::string InferredInstruction::getData() {
+    std::string data;
+    writeTo(data);
+    return std::move(data);
+}
+
+void InferredInstruction::regenerateCapstone() {
+    // Recreate the internal capstone data structure.
+    // Useful for printing the instruction (ChunkDumper).
+    std::string data = getData();
+    std::vector<unsigned char> dataVector(data.begin(), data.end());
+    cs_insn ins = Disassemble::getInsn(dataVector, instruction->getAddress());
+    DisassembledStorage storage(ins);
+    setStorage(std::move(storage));
+}

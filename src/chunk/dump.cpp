@@ -105,6 +105,7 @@ void ChunkDumper::visit(Instruction *instruction) {
         }
     }
     if(auto r = dynamic_cast<InferredInstruction *>(instruction->getSemantic())) {
+        r->regenerateCapstone();
         auto link = r->getLink();
         unsigned long target = link->getTargetAddress();
         ins->address = instruction->getAddress();
@@ -121,7 +122,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
         DisasmDump::printInstructionRaw(instruction->getAddress(),
             pos, name.str().c_str(),
-            p->getCapstone()->op_str, nullptr, bytes2.c_str());
+            p->getCapstone()->op_str, nullptr, bytes2.c_str(), false);
         return;
     }
 

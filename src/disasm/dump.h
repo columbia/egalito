@@ -14,10 +14,12 @@ public:
         int offset = INT_MIN, unsigned long target = 0);
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, unsigned long target,
-        const char *name = 0, const std::string &rawDisasm = "");
+        const char *name = 0, const std::string &rawDisasm = "",
+        bool calculatedStyle = false);
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, const char *args,
-        const char *name, const std::string &rawDisasm);
+        const char *name, const std::string &rawDisasm,
+        bool calculatedStyle);
 };
 
 #endif

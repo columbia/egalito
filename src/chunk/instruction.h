@@ -61,6 +61,8 @@ public:
     DisassembledStorage(DisassembledStorage &&other);
     ~DisassembledStorage();
 
+    DisassembledStorage &operator = (DisassembledStorage &&other);
+
     size_t getSize() const { return insn.size; }
 
     void writeTo(char *target);
@@ -92,6 +94,8 @@ public:
     virtual std::string getData() { return storage.getData(); }
 
     virtual cs_insn *getCapstone() { return storage.getCapstone(); }
+protected:
+    void setStorage(Storage &&storage) { this->storage = std::move(storage); }
 };
 
 template <typename BaseType>
@@ -248,9 +252,18 @@ public:
 };
 
 class InferredInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
+private:
+    Instruction *instruction;
 public:
-    InferredInstruction(const cs_insn &insn)
-        : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn) {}
+    InferredInstruction(Instruction *i, const cs_insn &insn)
+        : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn),
+        instruction(i) {}
+
+    virtual void writeTo(char *target);
+    virtual void writeTo(std::string &target);
+    virtual std::string getData();
+
+    void regenerateCapstone();
 };
 
 #endif

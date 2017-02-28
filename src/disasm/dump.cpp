@@ -24,7 +24,7 @@ void DisasmDump::printInstruction(cs_insn *instr, int offset,
         reinterpret_cast<const char *>(instr->bytes), instr->size);
 
     printInstructionRaw(instr->address, offset, instr->mnemonic,
-        instr->op_str, name, rawDisasm);
+        instr->op_str, name, rawDisasm, false);
 }
 
 void DisasmDump::printInstructionCalculated(cs_insn *instr,
@@ -39,26 +39,27 @@ void DisasmDump::printInstructionCalculated(cs_insn *instr,
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
     printInstructionRaw(instr->address, offset, instr->mnemonic,
-        instr->op_str, targetString, rawDisasm);
+        instr->op_str, targetString, rawDisasm, true);
 }
 
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, unsigned long target, const char *name,
-    const std::string &rawDisasm) {
+    const std::string &rawDisasm, bool calculatedStyle) {
 
     IF_LOG(9) {} else return;
 
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
 
-    printInstructionRaw(address, offset, opcode, targetString, name, rawDisasm);
+    printInstructionRaw(address, offset, opcode, targetString, name, rawDisasm,
+        calculatedStyle);
 }
 
 #define APPEND(...) \
     pos += std::snprintf(buffer + pos, sizeof buffer - pos, __VA_ARGS__)
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, const char *args, const char *name,
-    const std::string &rawDisasm) {
+    const std::string &rawDisasm, bool calculatedStyle) {
 
     IF_LOG(9) {} else return;
 
@@ -79,10 +80,15 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
         APPEND(":        ");
     }
 
-    APPEND(" %-12s %-24s", opcode, args);
+    APPEND(" %-12s %-26s", opcode, args);
 
     if(name) {
-        APPEND("<%s>", name);
+        if(calculatedStyle) {
+            APPEND("# %s", name);
+        }
+        else {
+            APPEND("<%s>", name);
+        }
     }
 
     std::printf("%s\n", buffer);
