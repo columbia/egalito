@@ -52,6 +52,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
     // get final tree for pattern matching
     auto tree = state->getRegTree(v->getRegister());
 
+#ifdef ARCH_X86_64
     typedef TreePatternRegisterIs<X86_REG_RIP> TreePatternRIP;
 
     typedef TreePatternBinary<TreeNodeAddition,
@@ -68,11 +69,32 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
                 TreePatternConstantIs<4>>
         >
     > Form1;
+#elif defined(ARCH_AARCH64)
+    typedef TreePatternTerminal<TreeNodeAddress> TreePatternTargetBase;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodeAddress>>,
+        TreePatternCapture<TreePatternUnary<TreeNodeUnsignedExtendWord,
+            TreePatternAny>>
+    > TreePatternTableEntry;
+
+    typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
+        TreePatternUnary<TreeNodeSignExtendByte,
+            TreePatternUnary<TreeNodeDereference, TreePatternTableEntry>>,
+        TreePatternConstantIs<2>
+    > TreePatternTargetOffset;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+            TreePatternTargetBase,
+            TreePatternTargetOffset
+    > Form1;
+#endif
 
     TreeCapture capture;
     if(Form1::matches(tree, capture)) {
         LOG(1, "found jump table jump:");
 
+#ifdef ARCH_X86_64
         LOG0(1, "    address of jump table: ");
         auto node = dynamic_cast<TreeNodeAddition *>(capture.get(0));
         auto left = dynamic_cast<TreeNodeAddress *>(node->getLeft());
@@ -88,7 +110,20 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         d->setScale(4);
         d->setIndexExpr(capture.get(1));
         // indexRegister is not known right now.
+#elif defined(ARCH_AARCH64)
+        LOG0(1, "    address of jump table: ");
+        IF_LOG(1) capture.get(0)->print(TreePrinter(1, 0));
+        LOG(1, "");
 
+        LOG0(1, "    indexing expression:   ");
+        IF_LOG(1) capture.get(1)->print(TreePrinter(1, 0));
+        LOG(1, "");
+
+        auto node = dynamic_cast<TreeNodeAddress *>(capture.get(0));
+        d->setAddress(node->getValue());
+        d->setScale(4);
+        d->setIndexExpr(capture.get(1));
+#endif
         return true;
     }
 
@@ -99,7 +134,11 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
     JumpTableDescriptor *d) {
 
     for(auto state : search->getConditionList()) {
+#ifdef ARCH_X86_64
         auto tree = state->getRegTree(X86_REG_EFLAGS);
+#elif defined(ARCH_AARCH64)
+        auto tree = state->getRegTree(ARM64_REG_NZCV);
+#endif
         auto condition = dynamic_cast<TreeNodeComparison *>(tree);
         if(!condition) continue;
 
@@ -123,6 +162,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         auto v = dynamic_cast<ControlFlowInstruction *>(semantic);
         if(!v) continue;
         std::string mnemonic = v->getMnemonic();
+#ifdef ARCH_X86_64
         if(mnemonic == "ja") op = OP_GT;
         else if(mnemonic == "jae") op = OP_GE;
         else if(mnemonic == "jb") op = OP_LT;
@@ -136,19 +176,16 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         else if(mnemonic == "js") {
             return false;  // this doesn't seem useful...
         }
+#elif defined(ARCH_AARCH64)
+        if(mnemonic == "b.ls") op = OP_LT;
+#endif
         else {
             LOG(1, "what is " << mnemonic << "?");
             std::cerr << "what is " << mnemonic << "?\n";
             throw "unimplemented mnemonic in jump table slicing";
         }
 
-        if(!state->getJumpTaken()) {
-            op = Operator(10-int(op));
-        }
-
-        // we want the bounded value
-        op = Operator(10-int(op));
-
+        auto taken = state->getJumpTaken();
         if(left && !right) {
             auto t = left;
             left = right;
@@ -158,6 +195,11 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
             rightGeneric = tt;
 
             op = Operator(10-int(op));
+            taken = !taken;
+        }
+
+        if(!taken) {
+            op = Operator(10-int(op));
         }
 
         unsigned long bound = right->getValue();
@@ -165,7 +207,14 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         IF_LOG(1) leftGeneric->print(TreePrinter(2, 0));
         LOG(1, " is " << opString[op] << " " << std::dec << bound);
 
-        if(leftGeneric == d->getIndexExpr()
+        auto indexExpr = d->getIndexExpr();
+#ifdef ARCH_AARCH64
+        if (auto p = dynamic_cast<TreeNodeUnsignedExtendWord *>(indexExpr)) {
+            indexExpr = p->getChild();
+        }
+#endif
+
+        if(leftGeneric == indexExpr
             && (op == OP_LE || op == OP_LT)) {
 
             LOG0(1, "BOUNDS CHECK FOUND! ");

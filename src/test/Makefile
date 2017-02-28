@@ -2,40 +2,61 @@
 
 CC = gcc
 
-CFLAGS	= -fPIE -pie
+CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS =
 
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
+	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
+	BUILDDIR = build_x86_64/
 else
 $(error Unsupported platform, we only handle aarch64 and x86_64)
 endif
 
-TARGETS = hello hello-static helloq hi0 hi0-q
+space =
+empty = $(space) $(space)
+TARGET_NAMES = hello hi0 jumptable fp
+TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
+TARGETS-q = $(addsuffix -q,$(TARGETS))
+TARGETS-static = $(addsuffix -static,$(TARGETS))
 
-.PHONY: all
-all: $(TARGETS)
+ALL_TARGETS = $(TARGETS)
+ALL_TARGETS += $(TARGETS-q)
+ALL_TARGETS += $(TARGETS-static)
 
-hello: hello.c
-	$(CC) $(CFLAGS) $^ -o $@
-hello-static: hello.c
+.PHONY: all targets targets-q targets-static
+
+all: $(ALL_TARGETS)
+
+$(ALL_TARGETS): | $(BUILDDIR)
+$(BUILDDIR):
+	mkdir -p $@
+
+targets: $(TARGETS)
+targets-q: $(TARGETS-q)
+targets-static: $(TARGETS-static)
+
+define dep_rule
+$$(BUILDDIR)$1: $2
+$$(BUILDDIR)$1-q: $2
+$$(BUILDDIR)$1-static: $2
+endef
+
+$(eval $(call dep_rule,hello,hello.c))
+$(eval $(call dep_rule,hi0,hi0.c hi0-s.S))
+$(eval $(call dep_rule,jumptable,jumptable.c))
+$(eval $(call dep_rule,fp,fp.c))
+
+$(BUILDDIR)%-static:
 	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
-helloq: hello.c
+$(BUILDDIR)%-q:
 	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
-hi0: hi0.c hi0-s.S
+$(BUILDDIR)%:
 	$(CC) $(CFLAGS) $^ -o $@
-hi0-q: hi0.c hi0-s.S
-	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
-
-hi0-static: hi0.c hi0-s.S
-	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
-
-%-q: %.c
-	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
 
 .PHONY: clean
 clean:
-	-$(RM) $(TARGETS)
+	-$(RM) -rf $(BUILDDIR)

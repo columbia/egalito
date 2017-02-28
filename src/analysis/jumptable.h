@@ -22,7 +22,7 @@ private:
 public:
     JumpTableDescriptor(Function *function, Instruction *instruction)
         : function(function), instruction(instruction),
-        address(0), indexExpr(nullptr), indexRegister(X86_REG_INVALID),
+        address(0), indexExpr(nullptr), indexRegister(INVALID_REGISTER),
         scale(1), bound(LONG_MAX) {}
 
     Function *getFunction() const { return function; }

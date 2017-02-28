@@ -5,10 +5,6 @@
 #include "pass/chunkpass.h"
 #include "log/registry.h"
 
-#ifndef LIBC_PATH
-#define LIBC_PATH   "/lib/x86_64-linux-gnu/libc.so.6"
-#endif
-
 class _Pass : public ChunkPass {
 private:
     int unresolved, total;
@@ -53,12 +49,12 @@ void LibcResolve::run() {
     GroupRegistry::getInstance()->muteAllSettings();
 
     try {
-        ElfMap elf("test/hi0");
+        ElfMap elf(TESTDIR "hi0");
 
         Conductor conductor;
         conductor.parseRecursive(&elf);
 
-        auto libc = conductor.getLibraryList()->get(LIBC_PATH);
+        auto libc = conductor.getLibraryList()->getLibc();
         if(!libc) {
             std::cout << "TEST FAILED: can't locate libc.so in depends\n";
             return;

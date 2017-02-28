@@ -22,7 +22,7 @@ private:
 public:
     SearchState() : node(nullptr), instruction(nullptr), iState(nullptr), jumpTaken(false) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
-        : node(node), instruction(instruction), iState(nullptr), regs(X86_REG_ENDING), jumpTaken(false) {}
+        : node(node), instruction(instruction), iState(nullptr), regs(REGISTER_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
         : node(other.node), instruction(other.instruction), iState(nullptr), regs(other.regs), jumpTaken(other.jumpTaken) {}
 
@@ -57,6 +57,11 @@ public:
     void printRegTrees(SearchState *state);
     void copyParentRegTrees(SearchState *state);
     TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
+    TreeNode *makeMemTree(SearchState *state,
+                          arm64_op_mem *mem,
+                          arm64_extender ext,
+                          arm64_shifter sft_type,
+                          unsigned int sft_value);
     TreeNode *getParentRegTree(SearchState *state, int reg);
 };
 

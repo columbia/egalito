@@ -10,7 +10,7 @@ void JumpTableIntegration::run() {
     //GroupRegistry::getInstance()->applySetting("analysis", 9);
 
     try {
-        ElfMap elf("test/jumptable");
+        ElfMap elf(TESTDIR "jumptable");
 
         Conductor conductor;
         conductor.parse(&elf, nullptr);
@@ -32,7 +32,7 @@ void JumpTableIntegration::run2() {
     //GroupRegistry::getInstance()->applySetting("analysis", 9);
 
     try {
-        ElfMap elf("test/jumptable");
+        ElfMap elf(TESTDIR "jumptable");
 
         Conductor conductor;
         conductor.parseRecursive(&elf);
@@ -69,7 +69,7 @@ void JumpTableIntegration::run2() {
 bool JumpTableIntegration::testFunction(Function *f, int expected) {
     JumpTableSearch jt;
     jt.search(f);
-    
+
     if((int)jt.getTableList().size() != expected) {
         std::cout << "TEST FAILED: function ["
             << f->getSymbol()->getName() << "]: expected " << expected

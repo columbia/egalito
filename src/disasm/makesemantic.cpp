@@ -47,10 +47,16 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         }
     }
 #elif defined(ARCH_AARCH64)
+    cs_arm64 *x = &ins->detail->arm64;
+    cs_arm64_op *op = &x->operands[0];
     if(ins->id == ARM64_INS_B || ins->id == ARM64_INS_BL) {
         auto i = new ControlFlowInstruction(instruction, *ins);
         i->setLink(new UnresolvedLink(i->getOriginalOffset()));
         semantic = i;
+    }
+    else if(ins->id == ARM64_INS_BR) {
+        semantic = new IndirectJumpInstruction(
+                *ins, static_cast<Register>(op->reg), ins->mnemonic);
     }
 #endif
     else if(ins->id == PLAT_(INS_RET)) {
