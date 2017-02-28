@@ -27,6 +27,21 @@ void DisasmDump::printInstruction(cs_insn *instr, int offset,
         instr->op_str, name, rawDisasm);
 }
 
+void DisasmDump::printInstructionCalculated(cs_insn *instr,
+    int offset, unsigned long target) {
+
+    IF_LOG(9) {} else return;
+
+    // show disassembly of each instruction
+    std::string rawDisasm = formatBytes(
+        reinterpret_cast<const char *>(instr->bytes), instr->size);
+
+    char targetString[64];
+    sprintf(targetString, "0x%lx", target);
+    printInstructionRaw(instr->address, offset, instr->mnemonic,
+        instr->op_str, targetString, rawDisasm);
+}
+
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     const char *opcode, unsigned long target, const char *name,
     const std::string &rawDisasm) {
@@ -64,7 +79,7 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
         APPEND(":        ");
     }
 
-    APPEND(" %-12s %-20s", opcode, args);
+    APPEND(" %-12s %-24s", opcode, args);
 
     if(name) {
         APPEND("<%s>", name);

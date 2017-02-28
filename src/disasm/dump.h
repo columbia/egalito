@@ -10,6 +10,8 @@ public:
     static std::string formatBytes(const char *bytes, size_t size);
     static void printInstruction(cs_insn *instr,
         int offset = INT_MIN, const char *name = 0);
+    static void printInstructionCalculated(cs_insn *instr,
+        int offset = INT_MIN, unsigned long target = 0);
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, unsigned long target,
         const char *name = 0, const std::string &rawDisasm = "");

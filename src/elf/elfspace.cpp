@@ -8,6 +8,7 @@
 #include "pass/resolvecalls.h"
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
+#include "pass/inferredptrs.h"
 #include "pass/stackxor.h"
 #include "pass/relocheck.h"
 #include "log/log.h"
@@ -57,6 +58,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     ResolveRelocs resolveRelocs(&pltSection);
     module->accept(&resolveRelocs);
+
+    InferredPtrsPass inferredPtrsPass(elf);
+    module->accept(&inferredPtrsPass);
 
     PCRelativePass pcrelative(elf, relocList);
     module->accept(&pcrelative);

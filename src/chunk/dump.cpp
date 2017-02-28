@@ -104,6 +104,13 @@ void ChunkDumper::visit(Instruction *instruction) {
             return;
         }
     }
+    if(auto r = dynamic_cast<InferredInstruction *>(instruction->getSemantic())) {
+        auto link = r->getLink();
+        unsigned long target = link->getTargetAddress();
+        ins->address = instruction->getAddress();
+        DisasmDump::printInstructionCalculated(ins, pos, target);
+        return;
+    }
 
     if(auto p = dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
         std::ostringstream name;

@@ -37,6 +37,7 @@ void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
             auto pcri = new PCRelativeInstruction(i, *cs);
             address_t offset = (cs->address & ~0xfff) + pcri->getOriginalOffset();
 
+            // note: this won't work unless PCRelativeInstruction has a LinkDecorator
             pcri->setLink(new DataOffsetLink(elf->getBaseAddress() + offset));
             //LOG(1, cs->mnemonic << " target: " << pcri->getLink()->getTargetAddress());
 

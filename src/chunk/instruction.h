@@ -247,4 +247,10 @@ public:
     register_t getRegister() const { return reg; }
 };
 
+class InferredInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
+public:
+    InferredInstruction(const cs_insn &insn)
+        : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn) {}
+};
+
 #endif

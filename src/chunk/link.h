@@ -7,14 +7,22 @@
 #include "util/iter.h"
 #include "types.h"
 
+/** Represents a reference from a Chunk that may need to be updated.
+
+    Some Links refer to a target Chunk, and the offset may change if either
+    the source or destination are moved. Others store a fixed target address,
+    which again involves some recomputation if the source Chunk moves.
+*/
 class Link {
 public:
     virtual ~Link() {}
 
+    /** Returns target as a Chunk, if possible. May return NULL. */
     virtual ChunkRef getTarget() const = 0;
     virtual address_t getTargetAddress() const = 0;
 };
 
+/** A reference to another Chunk. */
 class NormalLink : public Link {
 private:
     ChunkRef target;
@@ -25,6 +33,10 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+/** Stores a link to a target Chunk, offset a given number of bytes from
+    its start. This is used to target into an instruction that has a LOCK
+    prefix on x86_64, for example.
+*/
 class OffsetLink : public Link {
 private:
     ChunkRef target;
@@ -61,6 +73,8 @@ public:
     address_t getTargetAddress() const { return target; }
 };
 
+/** We know that this is a Link, but we're not sure what it points at yet.
+*/
 class UnresolvedLink : public Link {
 private:
     address_t target;
