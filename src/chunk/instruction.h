@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <string>
+#include <utility>  // for std::move
 #include <capstone/capstone.h>  // for cs_insn
 #include "register.h"
 #include "types.h"
@@ -43,11 +44,22 @@ public:
 
     cs_insn *getCapstone() { return nullptr; }
 };
+
+/** Stores a complete copy of the capstone data for an instruction.
+
+    This involves allocating memory for capstone details, so this class
+    has its copy constructor disabled and can only be moved.
+*/
 class DisassembledStorage {
 private:
     cs_insn insn;
+    cs_detail *detail;
+private:
+    DisassembledStorage(const DisassembledStorage &other);
 public:
-    DisassembledStorage(const cs_insn &insn) : insn(insn) {}
+    DisassembledStorage(const cs_insn &insn);
+    DisassembledStorage(DisassembledStorage &&other);
+    ~DisassembledStorage();
 
     size_t getSize() const { return insn.size; }
 
@@ -63,7 +75,7 @@ class SemanticImpl : public InstructionSemantic {
 private:
     Storage storage;
 public:
-    SemanticImpl(const Storage &storage) : storage(storage) {}
+    SemanticImpl(Storage &&storage) : storage(std::move(storage)) {}
 
     Storage &getStorage() { return storage; }
 
@@ -90,7 +102,7 @@ public:
     LinkDecorator() : link(nullptr) {}
 
     template <typename Storage>
-    LinkDecorator(const Storage &storage) : BaseType(storage) {}
+    LinkDecorator(Storage &&storage) : BaseType(std::move(storage)) {}
 
     virtual Link *getLink() const { return link; }
     virtual void setLink(Link *link) { this->link = link; }

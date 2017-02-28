@@ -7,6 +7,7 @@
 #include <fcntl.h>
 
 #include "elfmap.h"
+#include "log/log.h"
 
 ElfMap::ElfMap(pid_t pid) {
     std::ostringstream stream;
@@ -36,7 +37,7 @@ void ElfMap::setup() {
 }
 
 void ElfMap::parseElf(const char *filename) {
-    printf("try to open [%s]\n", filename);
+    CLOG(1, "creating ElfMap for file [%s]", filename);
     fd = open(filename, O_RDONLY, 0);
     if(fd < 0) throw "can't open executable image\n";
 

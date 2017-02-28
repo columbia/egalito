@@ -5,7 +5,6 @@
 #include <vector>
 #include <memory>  // for std::shared_ptr
 #include "elf/symbol.h"
-#include "observer.h"  // for EventObserverRegistry
 #include "position.h"  // for Position
 #include "size.h"  // for ComputedSize, Range
 #include "link.h"  // for Link, XRefDatabase
@@ -26,7 +25,6 @@ public:
     virtual ~Chunk() {}
 
     virtual std::string getName() const = 0;
-    virtual EventObserverRegistry *getRegistry() = 0;
 
     virtual Chunk *getParent() const = 0;
     virtual void setParent(Chunk *newParent) = 0;
@@ -51,7 +49,6 @@ public:
 
 class ChunkImpl : public Chunk {
 private:
-    EventObserverRegistry registry;
     Chunk *parent, *prev, *next;
     Position *position;
 public:
@@ -59,7 +56,6 @@ public:
         : parent(parent), prev(nullptr), next(nullptr), position(position) {}
 
     virtual std::string getName() const { return "???"; }
-    virtual EventObserverRegistry *getRegistry() { return &registry; }
 
     virtual Chunk *getParent() const { return parent; }
     virtual void setParent(Chunk *newParent) { parent = newParent; }
@@ -104,6 +100,7 @@ class CompositeChunkImpl : public ChildListDecorator<
     ComputedSizeDecorator<ChunkImpl>, ChildType> {
 };
 
+#if 0
 template <typename ChunkType>
 class XRefDecorator : public ChunkType {
 private:
@@ -114,6 +111,7 @@ public:
     virtual void handle(AddLinkEvent e)
         { database.add(XRef(e.getOrigin(), e.getLink())); ChunkType::handle(e); }
 };
+#endif
 
 #if 0
 class Chunk {

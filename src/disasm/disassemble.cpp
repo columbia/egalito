@@ -154,7 +154,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         ChunkMutator(function, false).append(block);
     }
 
-    //cs_free(insn, count);
+    cs_free(insn, count);
     return function;
 }
 

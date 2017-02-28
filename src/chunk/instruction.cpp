@@ -18,6 +18,28 @@ std::string RawByteStorage::getData() {
     return rawData;
 }
 
+DisassembledStorage::DisassembledStorage(const cs_insn &insn) {
+    this->insn = insn;
+    if(insn.detail) {
+        // Make a copy of capstone's internal data. This breaks the library
+        // abstraction a little bit. We assume nothing else is dynamically
+        // allocated within a cs_insn.
+        detail = new cs_detail(*insn.detail);
+        this->insn.detail = detail;
+    }
+    else detail = nullptr;
+}
+
+DisassembledStorage::DisassembledStorage(DisassembledStorage &&other) {
+    this->insn = other.insn;
+    this->detail = other.detail;
+    other.detail = nullptr;
+}
+
+DisassembledStorage::~DisassembledStorage() {
+    delete detail;
+}
+
 void DisassembledStorage::writeTo(char *target) {
     std::memcpy(target, insn.bytes, insn.size);
 }

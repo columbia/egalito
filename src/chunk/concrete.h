@@ -36,7 +36,7 @@ class Program : public ChunkImpl {
 public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
-class CodePage : public XRefDecorator<CompositeChunkImpl<Block>> {
+class CodePage : public CompositeChunkImpl<Block> {
 public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
