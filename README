@@ -1,9 +1,14 @@
-Egalito is a binary rewriting framework that focuses on being able to rewrite
-all code in a target program, including itself. This is important for
-implementing binary-level security schemes since the attacker can easily
-target the instrumentation framework if it is undefended.
+Egalito is a binary rewriting framework that combines static and dynamic
+techniques to handle any input binary. It leverages compiler metadata
+whenever possible to get accurate disassembly of code, and defers to runtime
+otherwise. Egalito is meant to be used to implement new security features.
 
-To test, run
-    $ cd src ; make
-    $ make -C test
-    $ ./loader test/hello
+Egalito also focuses on being able to rewrite all code in a target program,
+including itself. This is important for implementing binary-level security
+schemes since the attacker can easily target the instrumentation framework
+if it is undefended.
+
+To build, run "make" (the only dependency is libcapstone-dev). The src/
+directory contains "loader" which can run examples in from src/ex; the
+test/ directory contains several executables that run correctness tests.
+Documentation is in the doc/ directory.

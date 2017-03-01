@@ -5,6 +5,7 @@
 /loader
 /egalito
 /libegalito.a
+/example
 /ex
 /regression/elfgen_test
 /regression/output/*

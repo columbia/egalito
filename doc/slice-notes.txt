@@ -1,0 +1,74 @@
+visit node 1 (main/bb+13)
+    0x0000059d <+ 16>:  (JUMP* jmpq) *%rax
+        explicit reg ref rax
+        got instr id 266
+    0x0000059a <+ 13>:  addq         %rdx, %rax
+        implicit reg write rflags
+        explicit reg ref rdx
+        explicit reg ref rax
+        add found
+    0x00000596 <+  9>:  movslq       (%rdx, %rdi, 4), %rax
+        explicit reg ref rax
+        movslq found
+    0x00000594 <+  7>:  movl         %edi, %edi          
+        explicit reg ref edi
+        explicit reg ref edi
+        got instr id 442
+    0x0000058d <+  0>:  leaq         0x254(%rip), %rdx   
+        explicit reg ref rdx
+        lea found from 596(rip)
+        lea found
+    start at offset 7 -> 0x7a90870
+
+
+(jmp* (addq (mem 0x254(%rip)) (mem (%rdx,%rdi,4))))
+
+jmp *(0x254+(rip) + ((0x254+rip)+rdi*4))
+jmp *(0x7e8 + (0x7e8+rdi*4))
+
+(jmp
+    (add
+        (mem 0x254+rip)
+        (mem (mem 0x254+rip)+rdi*4)))
+
+
+
+visit node 0 (main/bb+0)
+    0x00000587 <+  7>:  (JUMP ja)    0x62a               <i/0x62a>
+    0x00000584 <+  4>:  cmpl         $0x24, %edi         
+        implicit reg write rflags
+        explicit reg ref edi
+        got instr id 93
+    0x00000580 <+  0>:  subq         $8, %rsp            
+        implicit reg write rflags
+        explicit reg ref rsp
+        got instr id 326
+
+
+%edi < 0x24
+
+jump eflags
+eflags = $0x24 < %edi
+
+
+
+
+
+119868 ptmalloc_init.part.5/bb+201:
+119869     0x0007beb9 <+  0>:  subq         $6, %rax
+119870     0x0007bebd <+  4>:  cmpq         $9, %rax
+119871     0x0007bec1 <+  8>:  (JUMP ja)    0x7be64             <i/0x7be64>
+119872 ptmalloc_init.part.5/bb+211:
+119873     0x0007bec3 <+  0>:  movslq       (%r14, %rax, 4), %rax
+119874     0x0007bec7 <+  4>:  addq         %r14, %rax
+119875     0x0007beca <+  7>:  jmpq         *%rax
+
+123284 handle_amd/bb+95:
+123285     0x00098eef <+  0>:  nop
+123286     0x00098ef0 <+  1>:  movl         %edx, %eax
+123287     0x00098ef2 <+  3>:  leaq         0xc42eb(%rip), %rsi
+123288     0x00098ef9 <+ 10>:  shrl         $0xc, %eax
+123289     0x00098efc <+ 13>:  andl         $0xf, %eax
+123290     0x00098eff <+ 16>:  movslq       (%rsi, %rax, 4), %rcx
+123291     0x00098f03 <+ 20>:  addq         %rsi, %rcx
+123292     0x00098f06 <+ 23>:  jmpq         *%rcx

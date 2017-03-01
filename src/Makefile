@@ -59,6 +59,7 @@ $(BUILDTREE):
 	@ln -sf $(BUILDDIR)egalito
 	@ln -sf $(BUILDDIR)loader
 	@ln -sf $(BUILDDIR)libegalito.a
+	@ln -sf ../test/example example
 	@ln -sf ../test/example/$(BUILDDIR) ex
 	@touch .symlinks
 
@@ -109,4 +110,4 @@ $(BUILDDIR)/regression:
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex
+	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example
