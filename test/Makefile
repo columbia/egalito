@@ -1,0 +1,61 @@
+# Makefile for egalito test code
+
+include ../env.mk
+
+CFLAGS += -I ../src/
+CXXFLAGS += -I ../src/
+CLDFLAGS += -L ../src/$(BUILDDIR) -legalito
+
+INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
+
+exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
+obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
+dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
+
+SOURCES = $(INTEGRATION_SOURCES)
+ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
+ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
+ALL_SOURCES = $(sort $(ITEST_SOURCES))
+ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
+
+BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
+
+ITEST = $(BUILDDIR)itest
+
+OUTPUTS = $(ITEST)
+
+# Default target
+.PHONY: all
+all: $(ITEST) .symlinks
+
+$(ALL_OBJECTS): | $(BUILDTREE)
+$(BUILDTREE):
+	@mkdir -p $@
+
+.symlinks: $(OUTPUTS)
+	@echo making symlinks...
+	@ln -sf $(BUILDDIR)itest
+	@touch .symlinks
+
+# Dependencies
+DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
+-include $(DEPEND_FILES)
+
+# Rules
+$(BUILDDIR)%.o: %.s
+	$(CC) -fPIC -c $< -o $@
+$(BUILDDIR)%.o: %.S
+	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
+$(BUILDDIR)%.o: %.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+
+# Programs and libraries
+$(ITEST): $(ITEST_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+
+# Other targets
+.PHONY: clean
+clean:
+	-rm -rf $(BUILDDIR) .symlinks

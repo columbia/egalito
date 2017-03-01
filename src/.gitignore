@@ -1,8 +1,12 @@
 *.o
 *.d
 *.swp
-/depend
+/.symlinks
 /loader
 /egalito
+/libegalito.a
+/ex
 /regression/elfgen_test
 /regression/output/*
+/build_x86_64
+/build_aarch64

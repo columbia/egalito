@@ -1,48 +1,6 @@
 # Makefile for egalito
 
-CC  = gcc
-CXX = g++
-GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
-OPT_FLAGS       = -g -O2
-DEPFLAGS        = -MT '$@ $(@:.o=.d)' -MMD -MP
-CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
-CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
-CLDFLAGS        = -lcapstone -Wl,-q
-#LDFLAGS         = -lcapstone -q
-#LDFLAGS2        = `gcc --print-file-name=libstdc++.a` `gcc --print-file-name=libgcc.a`
-#LDFLAGS2        = $(shell g++ -print-search-dirs 2>&1 | grep libraries | sed 's/libraries: =/:/; s/:/ -L/g') -lstdc++ --start-group -lgcc -lgcc_eh -lc --end-group
-
-ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
-    CFLAGS += -no-pie -pg
-    CXXFLAGS += -no-pie -pg
-    CLDFLAGS += -no-pie -pg
-endif
-
-P_ARCH := $(shell uname -m)
-ifeq (aarch64,$(P_ARCH))
-	CFLAGS += -DARCH_AARCH64
-	CXXFLAGS += -DARCH_AARCH64
-	BUILDDIR = build_aarch64/
-else ifeq (x86_64,$(P_ARCH))
-	CFLAGS += -DARCH_X86_64
-	CXXFLAGS += -DARCH_X86_64
-	BUILDDIR = build_x86_64/
-else
-$(error Unsupported platform, we only handle aarch64 and x86_64)
-endif
-CFLAGS += '-DTESTDIR="test/$(BUILDDIR)"'
-CXXFLAGS += '-DTESTDIR="test/$(BUILDDIR)"'
-
-ifneq (,$(wildcard /usr/lib/x86_64-linux-gnu))
-	GLIBCDIR = /usr/lib/x86_64-linux-gnu
-else ifneq (,$(wildcard /usr/lib/aarch64-linux-gnu))
-	GLIBCDIR = /usr/lib/aarch64-linux-gnu
-else ifneq (,$(wildcard /usr/lib64))
-	GLIBCDIR = /usr/lib64
-endif
-#STARTFILES = $(GLIBCDIR)/crt1.o $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbeginT.o`
-STARTFILES = $(GLIBCDIR)/crti.o `gcc --print-file-name=crtbegin.o`
-ENDFILES = `gcc --print-file-name=crtend.o` $(GLIBCDIR)/crtn.o
+include ../env.mk
 
 ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
 BREAK_SOURCES       = $(wildcard break/*.cpp)
@@ -66,14 +24,15 @@ exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
 dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
-SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) $(LOG_SOURCES) \
-    $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) $(ANALYSIS_SOURCES)
-TYPICAL_OBJECTS = $(call obj-filename,$(SOURCES))
-TARGET_SOURCES = $(SOURCES) $(MAIN_SOURCES)
+TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
+    $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
+    $(ANALYSIS_SOURCES)
+TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
+TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
-LOADER_SOURCES = $(SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
+LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
-ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
+ITEST_SOURCES = $(TYPICAL_SOURCES) $(INTEGRATION_SOURCES)
 ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
 ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(ITEST_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
@@ -82,15 +41,26 @@ BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
 TARGET = $(BUILDDIR)egalito
 LOADER = $(BUILDDIR)loader
-ITEST = $(BUILDDIR)itest
+LIBRARY = $(BUILDDIR)libegalito.a
+
+OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY)
+SYMLINKS = $(notdir $(OUTPUTS))
 
 # Default target
 .PHONY: all
-all: $(TARGET) $(LOADER) $(ITEST)
+all: $(OUTPUTS) .symlinks
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
-	mkdir -p $@
+	@mkdir -p $@
+
+.symlinks: $(OUTPUTS)
+	@echo making symlinks...
+	@ln -sf $(BUILDDIR)egalito
+	@ln -sf $(BUILDDIR)loader
+	@ln -sf $(BUILDDIR)libegalito.a
+	@ln -sf ../test/example/$(BUILDDIR) ex
+	@touch .symlinks
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -119,8 +89,8 @@ $(LOADER): $(LOADER_OBJECTS)
 	$(CXX) -static -o $@ -pg \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
-$(ITEST): $(ITEST_OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+$(LIBRARY): $(TYPICAL_OBJECTS)
+	$(AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
 
 # Tests
 REGRESSION_SOURCES = $(wildcard regression/*.cpp)
@@ -134,9 +104,9 @@ $(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) $(BUILDDIR)regression/elfgenmana
 
 $(REGRESSION_OBJECTS): | $(BUILDDIR)/regression
 $(BUILDDIR)/regression:
-	mkdir -p $@
+	@mkdir -p $@
 
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR)
+	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex
