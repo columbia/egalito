@@ -35,8 +35,13 @@ void ControlFlowGraph::construct(Block *block) {
     auto i = block->getChildren()->getIterable()->getLast();
     bool fallThrough = false;
     if(auto cfi = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+#ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "jmp") {
             // fall-through to next block
+#elif defined(ARCH_AARCH64)
+        if((cfi->getMnemonic() != "b")
+           && (cfi->getMnemonic().find("b.", 0) == std::string::npos)) {
+#endif
             fallThrough = true;
         }
 
