@@ -2,10 +2,12 @@
 
 include ../env.mk
 
-CFLAGS += -I ../src/
-CXXFLAGS += -I ../src/
-CLDFLAGS += -L ../src/$(BUILDDIR) -legalito
+CFLAGS      += -I ../src/
+CXXFLAGS    += -I ../src/
+CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito
 
+CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
+FRAMEWORK_SOURCES   = $(wildcard framework/*.cpp)
 INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
@@ -15,18 +17,21 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 SOURCES = $(INTEGRATION_SOURCES)
 ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
 ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
-ALL_SOURCES = $(sort $(ITEST_SOURCES))
+RUNNER_SOURCES = $(FRAMEWORK_SOURCES) $(CHUNK_SOURCES)
+RUNNER_OBJECTS = $(call obj-filename,$(RUNNER_SOURCES))
+ALL_SOURCES = $(sort $(ITEST_SOURCES) $(RUNNER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
 ITEST = $(BUILDDIR)itest
+RUNNER = $(BUILDDIR)runner
 
-OUTPUTS = $(ITEST)
+OUTPUTS = $(ITEST) $(RUNNER)
 
 # Default target
 .PHONY: all
-all: $(ITEST) .symlinks
+all: $(ITEST) $(RUNNER) .symlinks
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
@@ -35,6 +40,7 @@ $(BUILDTREE):
 .symlinks: $(OUTPUTS)
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)itest
+	@ln -sf $(BUILDDIR)runner
 	@touch .symlinks
 
 # Dependencies
@@ -54,8 +60,10 @@ $(BUILDDIR)%.o: %.cpp
 # Programs and libraries
 $(ITEST): $(ITEST_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+$(RUNNER): $(RUNNER_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks
+	-rm -rf $(BUILDDIR) .symlinks itest runner
