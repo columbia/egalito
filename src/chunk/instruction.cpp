@@ -163,6 +163,39 @@ const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
            return ((imm << 5)& ~0xFF00001F); },
        0
       },
+
+      /* CBZ <Xt>, <label> */
+      {0xFF00001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return ((imm << 5)& ~0xFF00001F); },
+       1
+      },
+      /* CBNZ <Xt>, <label> */
+      {0xFF00001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return ((imm << 5)& ~0xFF00001F); },
+       1
+      },
+      /* TBZ <Xt>, #<imm>, <label> */
+      {0xFFF8001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return ((imm << 5)& ~0xFFF8001F); },
+       2
+      },
+      /* TBNZ <Xt>, #<imm>, <label> */
+      {0xFFF8001F,
+       [] (address_t dest, address_t src) {
+           diff_t disp = dest - src;
+           uint32_t imm = disp >> 2;
+           return ((imm << 5)& ~0xFFF8001F); },
+       2
+      },
 };
 
 uint32_t InstructionRebuilder::rebuild(void) {
@@ -204,7 +237,20 @@ InstructionMode ControlFlowInstruction::decodeMode(const cs_insn &insn) {
     else if(insn.id == ARM64_INS_BL) {
         m = AARCH64_IM_BL;
     }
+    else if(insn.id == ARM64_INS_CBZ) {
+        m = AARCH64_IM_CBZ;
+    }
+    else if(insn.id == ARM64_INS_CBNZ) {
+        m = AARCH64_IM_CBNZ;
+    }
+    else if(insn.id == ARM64_INS_TBZ) {
+        m = AARCH64_IM_TBZ;
+    }
+    else if(insn.id == ARM64_INS_TBNZ) {
+        m = AARCH64_IM_TBNZ;
+    }
     else {
+        std::cerr << "mnemonic: " << insn.mnemonic << "\n";
         throw "ControlFlowInstruction: not yet implemented";
     }
     return m;

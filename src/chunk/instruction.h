@@ -153,6 +153,10 @@ enum InstructionMode {
     AARCH64_IM_BL,
     AARCH64_IM_B,
     AARCH64_IM_BCOND,
+    AARCH64_IM_CBZ,
+    AARCH64_IM_CBNZ,
+    AARCH64_IM_TBZ,
+    AARCH64_IM_TBNZ,
     AARCH64_IM_MAX
 };
 
