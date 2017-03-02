@@ -48,20 +48,27 @@ SYMLINKS = $(notdir $(OUTPUTS))
 
 # Default target
 .PHONY: all
-all: $(OUTPUTS) .symlinks
+all: $(OUTPUTS) symlinks
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
-.symlinks: $(OUTPUTS)
+symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)egalito
 	@ln -sf $(BUILDDIR)loader
 	@ln -sf $(BUILDDIR)libegalito.a
-	@ln -sf ../test/example example
-	@ln -sf ../test/example/$(BUILDDIR) ex
+	@rm -f example
+	@rm -f ex
+	@ln -s ../test/example example
+	@ln -s ../test/example/$(BUILDDIR) ex
+
+.symlinks:
 	@touch .symlinks
+
+.PHONY: relink
+relink: symlinks
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))

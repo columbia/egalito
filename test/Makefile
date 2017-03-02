@@ -32,10 +32,15 @@ $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
-.symlinks: $(OUTPUTS)
+symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)itest
+
+.symlinks:
 	@touch .symlinks
+
+.PHONY: relink
+relink: symlinks
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -58,4 +63,4 @@ $(ITEST): $(ITEST_OBJECTS)
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks
+	-rm -rf $(BUILDDIR) .symlinks itest
