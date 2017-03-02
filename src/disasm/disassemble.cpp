@@ -134,7 +134,7 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         instr->setPosition(
             positionFactory->makePosition(prevChunk, instr, block->getSize()));
 
-        ChunkMutator(block).append(instr);
+        ChunkMutator(block, false).append(instr);
         if(split) {
             ChunkMutator(function, false).append(block);
 
@@ -152,6 +152,10 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
         CLOG0(1, "fall-through function [%s]... "
             "adding basic block\n", symbol->getName());
         ChunkMutator(function, false).append(block);
+    }
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
     }
 
     cs_free(insn, count);
