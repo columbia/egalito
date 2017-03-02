@@ -72,15 +72,14 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
 #elif defined(ARCH_AARCH64)
     typedef TreePatternTerminal<TreeNodeAddress> TreePatternTargetBase;
 
+    // base address could have been saved on stack
     typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodeAddress>>,
-        TreePatternCapture<TreePatternUnary<TreeNodeUnsignedExtendWord,
-            TreePatternAny>>
+        TreePatternCapture<TreePatternAny>,
+        TreePatternCapture<TreePatternAny>
     > TreePatternTableEntry;
 
     typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
-        TreePatternUnary<TreeNodeSignExtendByte,
-            TreePatternUnary<TreeNodeDereference, TreePatternTableEntry>>,
+        TreePatternUnary<TreeNodeDereference, TreePatternTableEntry>,
         TreePatternConstantIs<2>
     > TreePatternTargetOffset;
 
@@ -111,18 +110,28 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         d->setIndexExpr(capture.get(1));
         // indexRegister is not known right now.
 #elif defined(ARCH_AARCH64)
+        TreeNode *tableAddress = capture.get(0);
         LOG0(1, "    address of jump table: ");
-        IF_LOG(1) capture.get(0)->print(TreePrinter(1, 0));
-        LOG(1, "");
+        IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
+        std::vector<address_t> baseAddresses = getTableAddresses(state,
+                                                                 tableAddress);
+        if(baseAddresses.size() > 1) {
+            LOG(1, "-- considering only the first table");
+        }
+        LOG(1, "  => 0x" << std::hex << baseAddresses.front());
 
+        TreeNode *indexExpr = capture.get(1);
+        if (auto p = dynamic_cast<TreeNodeLogicalShiftLeft *>(indexExpr)) {
+            indexExpr = p->getLeft();
+        }
         LOG0(1, "    indexing expression:   ");
-        IF_LOG(1) capture.get(1)->print(TreePrinter(1, 0));
+        IF_LOG(1) indexExpr->print(TreePrinter(1, 0));
         LOG(1, "");
 
-        auto node = dynamic_cast<TreeNodeAddress *>(capture.get(0));
-        d->setAddress(node->getValue());
+
+        d->setAddress(baseAddresses.front());
         d->setScale(4);
-        d->setIndexExpr(capture.get(1));
+        d->setIndexExpr(indexExpr);
 #endif
         return true;
     }
@@ -178,6 +187,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         }
 #elif defined(ARCH_AARCH64)
         if(mnemonic == "b.ls") op = OP_LT;
+        else if(mnemonic == "b.eq") op = OP_EQ;
 #endif
         else {
             LOG(1, "what is " << mnemonic << "?");
@@ -208,12 +218,6 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         LOG(1, " is " << opString[op] << " " << std::dec << bound);
 
         auto indexExpr = d->getIndexExpr();
-#ifdef ARCH_AARCH64
-        if (auto p = dynamic_cast<TreeNodeUnsignedExtendWord *>(indexExpr)) {
-            indexExpr = p->getChild();
-        }
-#endif
-
         if(leftGeneric == indexExpr
             && (op == OP_LE || op == OP_LT)) {
 
@@ -230,3 +234,57 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
 
     return false;
 }
+
+std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
+    TreeNode *tree) {
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>,
+            TreePatternCapture<TreePatternAny>
+        >
+    > TreePatternTableBase;
+    std::vector<address_t> baseAddresses;
+
+    if(auto a = dynamic_cast<TreeNodeAddress *>(tree)) {
+        baseAddresses.push_back(a->getValue());
+        return baseAddresses;
+    }
+
+    if(dynamic_cast<TreeNodeMultipleParents *>(tree)) {
+        throw "multiple tables used for one table jump?";
+        // needs to be handled recursively
+    }
+
+    TreeCapture cap1;
+    if(!TreePatternTableBase::matches(tree, cap1)) {
+        LOG(1, "doesn't match the table base pattern");
+    }
+    else {
+        TreeCapture cap2;
+        for(auto const &m : state->getMemTree()) {
+            if(auto base = dynamic_cast<TreeNodeAddress *>(m.second)) {
+                LOG0(1, "search for ");
+                IF_LOG(1) m.first->print(TreePrinter(2, 0));
+                LOG(1, "");
+                if(TreePatternTableBase::matches(m.first, cap2)) {
+                    LOG(1, "(matches table base pattern)");
+                    auto c1 = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
+                    auto c2 = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
+                    if(c1->getValue() == c2->getValue()) {
+                        address_t ba = c1->getValue() + base->getValue();
+                        LOG(1, "the best candidate: "
+                            << c1->getValue()
+                            << " + "
+                            << base->getValue()
+                            << " = " << ba);
+                        baseAddresses.push_back(ba);
+                    }
+                }
+            }
+        }
+    }
+
+    return baseAddresses;
+}
+

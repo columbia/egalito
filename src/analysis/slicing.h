@@ -12,12 +12,15 @@ class SlicingInstructionState;
 
 class SearchState {
 private:
+    typedef std::pair<TreeNode *, TreeNode *> memTreeType;
+
     ControlFlowNode *node;
     Instruction *instruction;
     SlicingInstructionState *iState;
     std::vector<bool> regs;
     std::vector<SearchState *> parents;
     std::map<int, TreeNode *> regTree;
+    std::vector<memTreeType> memTree;
     bool jumpTaken;
 public:
     SearchState() : node(nullptr), instruction(nullptr), iState(nullptr), jumpTaken(false) {}
@@ -46,6 +49,10 @@ public:
     TreeNode *getRegTree(int reg);
     void setRegTree(int reg, TreeNode *tree);
 
+    const std::vector<memTreeType> &getMemTree() const { return memTree; }
+    void addMemTree(TreeNode *memTree, TreeNode *regTree);
+    void setMemTree(std::vector<memTreeType> memTree) { this->memTree = memTree; }
+
     void setJumpTaken(bool to) { jumpTaken = to; }
     bool getJumpTaken() const { return jumpTaken; }
 };
@@ -55,7 +62,9 @@ public:
     const char *printReg(int reg);
     void printRegs(SearchState *state, bool withNewline = true);
     void printRegTrees(SearchState *state);
+    void printMemTrees(SearchState *state);
     void copyParentRegTrees(SearchState *state);
+    void copyParentMemTrees(SearchState *state);
     TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
     TreeNode *makeMemTree(SearchState *state,
                           arm64_op_mem *mem,

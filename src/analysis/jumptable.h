@@ -58,6 +58,7 @@ public:
 private:
     bool matchJumpTable(SearchState *state, JumpTableDescriptor *d);
     bool matchJumpTableBounds(SlicingSearch *search, JumpTableDescriptor *d);
+    std::vector<address_t> getTableAddresses(SearchState *state, TreeNode *tree);
 };
 
 #endif
