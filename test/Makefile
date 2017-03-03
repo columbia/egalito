@@ -31,7 +31,11 @@ OUTPUTS = $(ITEST) $(RUNNER)
 
 # Default target
 .PHONY: all
-all: $(ITEST) $(RUNNER) .symlinks
+all: test-all symlinks
+
+test-all: $(ITEST) $(RUNNER) | rebuild-src
+
+Makefile: rebuild-src
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
@@ -67,9 +71,9 @@ $(BUILDDIR)%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Programs and libraries
-$(ITEST): $(ITEST_OBJECTS)
+$(ITEST): $(ITEST_OBJECTS) ../src/libegalito.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
-$(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a | rebuild-src
+$(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
