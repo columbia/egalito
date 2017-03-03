@@ -41,7 +41,7 @@ void ChunkMutator::updatePositions() {
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
             updatePositionHelper(c);
-            PositionDump().visit(c);
+            //PositionDump().visit(c);
         }
     }
 }
