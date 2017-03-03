@@ -6,6 +6,7 @@ CFLAGS      += -I ../src/
 CXXFLAGS    += -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito
 
+ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 FRAMEWORK_SOURCES   = $(wildcard framework/*.cpp)
 INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
@@ -17,7 +18,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 SOURCES = $(INTEGRATION_SOURCES)
 ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
 ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
-RUNNER_SOURCES = $(FRAMEWORK_SOURCES) $(CHUNK_SOURCES)
+RUNNER_SOURCES = $(FRAMEWORK_SOURCES) $(CHUNK_SOURCES) $(ANALYSIS_SOURCES)
 RUNNER_OBJECTS = $(call obj-filename,$(RUNNER_SOURCES))
 ALL_SOURCES = $(sort $(ITEST_SOURCES) $(RUNNER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
