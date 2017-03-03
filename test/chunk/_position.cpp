@@ -23,7 +23,7 @@ public:
     }
 };
 
-TEST_CASE("position validation for simple main with default Position type") {
+TEST_CASE("position validation for simple main with default Position type", "[chunk][fast]") {
     GroupRegistry::getInstance()->muteAllSettings();
 
     delete PositionFactory::getInstance();
@@ -50,7 +50,7 @@ TEST_CASE("position validation for simple main with default Position type") {
     }
 }
 
-TEST_CASE("position validation for simple main over each Position type") {
+TEST_CASE("position validation for simple main over each Position type", "[chunk][normal]") {
     GroupRegistry::getInstance()->muteAllSettings();
 
     static const struct {

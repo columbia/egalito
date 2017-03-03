@@ -33,6 +33,8 @@ Disassemble::Handle::~Handle() {
 }
 
 void Disassemble::init() {
+    if(PositionFactory::getInstance()) return;
+
     PositionFactory *positionFactory = new PositionFactory(
         //PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
         //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s

@@ -43,6 +43,10 @@ $(BUILDTREE):
 	@ln -sf $(BUILDDIR)runner
 	@touch .symlinks
 
+.PHONY: rebuild-src
+rebuild-src:
+	$(MAKE) -C ../src
+
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
@@ -60,7 +64,7 @@ $(BUILDDIR)%.o: %.cpp
 # Programs and libraries
 $(ITEST): $(ITEST_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
-$(RUNNER): $(RUNNER_OBJECTS)
+$(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a | rebuild-src
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
