@@ -37,11 +37,16 @@ $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
-.symlinks: $(OUTPUTS)
+symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)itest
 	@ln -sf $(BUILDDIR)runner
+
+.symlinks:
 	@touch .symlinks
+
+.PHONY: relink
+relink: symlinks
 
 .PHONY: rebuild-src
 rebuild-src:

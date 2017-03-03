@@ -90,9 +90,18 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
     Module *module = new Module();
     for(auto sym : *symbolList) {
-        Function *function = Disassemble::function(sym, baseAddr);
-        module->getChildren()->add(function);
-        function->setParent(module);
+        if(true
+#if 0
+           || !strcmp(sym->getName(),"main")
+           || !strcmp(sym->getName(),"parse_expression")
+           || !strcmp(sym->getName(),"trecurse")
+#endif
+           ) {
+
+            Function *function = Disassemble::function(sym, baseAddr);
+            module->getChildren()->add(function);
+            function->setParent(module);
+        }
     }
     return module;
 }

@@ -81,7 +81,7 @@ bool JumpTableIntegration::testFunction(Function *f, int expected) {
     auto tableList = jt.getTableList();
     for(auto table : tableList) {
         std::cout << "found jump table in ["
-            << f->getSymbol()->getName() << "] at "
+            << f->getSymbol()->getName() << "] at 0x"
             << std::hex << table->getAddress() << " with "
             << std::dec << table->getEntries()
             << " entries.\n";

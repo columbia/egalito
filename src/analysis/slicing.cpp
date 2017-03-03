@@ -15,6 +15,10 @@ void SearchState::setRegTree(int reg, TreeNode *tree) {
     regTree[reg] = tree;
 }
 
+void SearchState::addMemTree(TreeNode *memTree, TreeNode *regTree) {
+    this->memTree.push_back(memTreeType(memTree, regTree));
+}
+
 const char *SlicingUtilities::printReg(int reg) {
     Disassemble::Handle handle(true);
     return cs_reg_name(handle.raw(), reg);
@@ -63,6 +67,17 @@ void SlicingUtilities::copyParentRegTrees(SearchState *state) {
     }
 }
 
+void SlicingUtilities::printMemTrees(SearchState *state) {
+    for(auto const &tree : state->getMemTree()) {
+        LOG0(2, "        MEM ");
+        IF_LOG(2) tree.first->print(TreePrinter(3,1));
+        LOG0(2, ": ");
+        IF_LOG(2) tree.second->print(TreePrinter(3, 1));
+        LOG(2, "");
+    }
+}
+
+
 TreeNode *SlicingUtilities::makeMemTree(SearchState *state, x86_op_mem *mem) {
     TreeNode *tree = nullptr;
     if(mem->index != X86_REG_INVALID) {
@@ -110,6 +125,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
     TreeNode *tree = nullptr;
     if(mem->index != ARM64_REG_INVALID) {
         tree = getParentRegTree(state, mem->index);
+#if 0
         if(ext != ARM64_EXT_INVALID) {
             if(ext == ARM64_EXT_UXTW) {
                 tree = new TreeNodeUnsignedExtendWord(tree);
@@ -118,6 +134,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
                 LOG(1, "unknown extender");
             }
         }
+#endif
         if(sft_type != ARM64_SFT_INVALID) {
             if(sft_type  == ARM64_SFT_LSL) {
                 tree = new TreeNodeLogicalShiftLeft(tree,
@@ -138,10 +155,10 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
     if(mem->disp) {
         if(tree) {
             tree = new TreeNodeAddition(
-                new TreeNodeAddress(mem->disp), tree);
+                new TreeNodeConstant(mem->disp), tree);
         }
         else {
-            tree = new TreeNodeAddress(mem->disp);
+            tree = new TreeNodeConstant(mem->disp);
         }
     }
 
@@ -158,14 +175,17 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
     const auto &parents = state->getParents();
     if(parents.size() == 0) {
         // no parents, the register value must have originated here
-        return new TreeNodeRegister(reg);
+        auto tree = new TreeNodeRegister(reg);
+        state->setRegTree(reg, tree);
+        return tree;
     }
     else if(parents.size() == 1) {
         // common case: exactly one parent, use its register tree
         auto tree = parents.front()->getRegTree(reg);
         if(!tree) {
             // This should only happen the first time a reg is used.
-            tree = new TreeNodeRegister(reg);  // parent doesn't have this
+            tree = new TreeNodeRegister(reg);   // parent doesn't have this
+            state->setRegTree(reg, tree);
         }
         return tree;
     }
@@ -177,7 +197,32 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
             if(!t) t = new TreeNodeRegister(reg);
             tree->addParent(t);
         }
+        state->setRegTree(reg, tree);
         return tree;
+    }
+}
+
+void SlicingUtilities::copyParentMemTrees(SearchState *state) {
+    const auto &parents = state->getParents();
+    if(parents.size() == 0) {
+    }
+    else if(parents.size() == 1) {
+        state->setMemTree(parents.front()->getMemTree());
+    }
+    else {
+        auto memTree = state->getMemTree();
+        size_t size = 0;
+        for(auto p : parents) {
+            size += p->getMemTree().size();
+        }
+        memTree.reserve(size);
+        for(auto p : parents) {
+            auto mt = p->getMemTree();
+            if(mt.size() > 0) {
+                memTree.insert(memTree.end(), mt.begin(), mt.end());
+            }
+        }
+        state->setMemTree(memTree);
     }
 }
 
@@ -277,9 +322,11 @@ void SlicingSearch::buildRegTreePass() {
         ChunkDumper dumper;
         dumper.visit(instruction);
 
+        u.copyParentMemTrees(state);
         buildRegTreesFor(state);
         u.copyParentRegTrees(state);  // inherit interesting regs from parent
         u.printRegTrees(state);
+        u.printMemTrees(state);
     }
 }
 
@@ -365,6 +412,7 @@ private:
             unsigned int value;
         } shift;
     } extimm_t;
+
     union arg1_t {
         arm64_reg reg;
         int64_t imm;
@@ -436,8 +484,6 @@ void SlicingInstructionState::determineMode(cs_insn *capstone) {
         a2.reg = x->operands[1].reg;
     }
 #elif defined(ARCH_AARCH64)
-    LOG(1, "count: " << int(x->op_count) << " type-1: " << x->operands[1].type);
-
     if(x->op_count == 2) {
         if(x->operands[0].type == ARM64_OP_REG
            && x->operands[1].type == ARM64_OP_REG) {
@@ -667,6 +713,7 @@ void SlicingInstructionState::defaultDetectRegImm(bool overwriteTarget) {
     auto reg = a1.reg;
 
     if(state->getReg(reg)) {
+        state->addReg(reg);
         if(overwriteTarget) {
             state->removeReg(reg);
         }
@@ -761,11 +808,18 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
 
 void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
     auto capstone = state->getInstruction()->getSemantic()->getCapstone();
+#ifdef ARCH_X86_64
     if(!capstone || !capstone->detail) {
+#elif defined(ARCH_AARCH64)
+    if(dynamic_cast<ControlFlowInstruction *>(
+        state->getInstruction()->getSemantic())) {
+
+#endif
         detectJumpRegTrees(state, firstPass);
         return;
     }
 
+    LOG(1, "@ " << std::hex << capstone->address);
     SlicingUtilities u;
 
     SlicingInstructionState *iState;
@@ -916,6 +970,11 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(1, "        mov found");
         break;
+#if 1
+    case ARM64_INS_MOVZ:
+        LOG(1, "        movz found -- ignored");
+        break;
+#endif
     case ARM64_INS_ADRP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
             if(firstPass) {
@@ -962,6 +1021,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto source2 = extreg->reg;
 
                 TreeNode *tree = u.getParentRegTree(state, source2);
+#if 0
                 if(extreg->ext != ARM64_EXT_INVALID) {
                     if(extreg->ext == ARM64_EXT_SXTW) {
                         tree = new TreeNodeSignExtendWord(tree);
@@ -976,6 +1036,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                         LOG(1, "unknown extender");
                     }
                 }
+#endif
                 if(extreg->shift.type != ARM64_SFT_INVALID) {
                     if(extreg->shift.type == ARM64_SFT_LSL) {
                         tree = new TreeNodeLogicalShiftLeft(tree,
@@ -1008,9 +1069,11 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto parent_source = u.getParentRegTree(state, source);
                 if(auto p = dynamic_cast<TreeNodeConstant *>(parent_source)) {
                     p->setValue(p->getValue() + extimm.imm);
+                    state->setRegTree(target, p);
                 }
                 else if(auto p = dynamic_cast<TreeNodeAddress *>(parent_source)) {
                     p->setValue(p->getValue() + extimm.imm);
+                    state->setRegTree(target, p);
                 }
                 else {
                     tree = new TreeNodeConstant(extimm.imm);
@@ -1046,6 +1109,29 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 
                 state->setRegTree(target, new TreeNodeSubtraction(
                     u.getParentRegTree(state, source),
+                    tree));
+            }
+        }
+        else if(mode == SlicingInstructionState::MODE_REG_REG_REG) {
+            if(firstPass) {
+                iState->defaultDetectRegRegReg(true);
+            }
+            else {
+                auto target = iState->get1()->reg;
+                auto source1 = iState->get2()->reg;
+                auto *extreg = &iState->get3()->extreg;
+                auto source2 = extreg->reg;
+
+                TreeNode *tree = u.getParentRegTree(state, source2);
+                if(extreg->shift.type != ARM64_SFT_INVALID) {
+                    if(extreg->shift.type == ARM64_SFT_LSL) {
+                        tree = new TreeNodeLogicalShiftLeft(tree,
+                            new TreeNodeConstant(extreg->shift.value));
+                    }
+                }
+
+                state->setRegTree(target, new TreeNodeSubtraction(
+                    u.getParentRegTree(state, source1),
                     tree));
             }
         }
@@ -1114,13 +1200,25 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
     case ARM64_INS_STR:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
             if(firstPass) {
-                iState->defaultDetectRegImm(false);
+                iState->defaultDetectRegMem(false);
+            }
+            else {
+                auto reg = iState->get1()->reg;
+                auto extmem = iState->get2()->extmem;
+
+                auto tree = u.makeMemTree(state, extmem.mem, extmem.ext,
+                                          extmem.shift.type, extmem.shift.value);
+
+                state->addMemTree(tree, u.getParentRegTree(state, reg));
             }
         }
         else {
             LOG(1, "unknown mode for str");
         }
         LOG(1, "        str found");
+        break;
+    case ARM64_INS_STRB:
+        LOG(1, "        strb found -- ignored");
         break;
     case ARM64_INS_CMP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -1141,20 +1239,16 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(1, "        cmp found");
         break;
-    case ARM64_INS_STP: //we probably don't need this -- no secondPass yet
-        if(mode == SlicingInstructionState::MODE_REG_REG_MEM) {
-            if(firstPass) {
-                iState->defaultDetectRegRegMem(true);
-            }
-        }
-        else {
-            LOG(1, "unknown mode for stp");
-        }
-        LOG(1, "        stp found");
+    case ARM64_INS_CCMP:
+        LOG(1, "        ccmp found -- HANDLER NOT YET IMPLEMENTED");
+        break;
+    case ARM64_INS_TST:
+        LOG(1, "        tst found -- HANDLER NOT YET IMPLEMENTED");
         break;
 #endif
     default:
-        LOG(1, "        got instr id " << capstone->id);
+        LOG(1, "        got instr id " << capstone->id
+            << "(" << capstone->mnemonic << ")");
         break;
     }
 }
@@ -1162,6 +1256,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
     SlicingUtilities u;
     auto semantic = state->getInstruction()->getSemantic();
+    LOG(1, "@ " << std::hex << state->getInstruction()->getAddress());
     if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
 #ifdef ARCH_X86_64
         if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
