@@ -146,57 +146,41 @@ private:
     diff_t calculateDisplacement();
 };
 #elif defined(ARCH_AARCH64)
-enum InstructionMode {
-    AARCH64_IM_ADRP = 0,
-    AARCH64_IM_ADDIMM,
-    AARCH64_IM_LDR,
-    AARCH64_IM_BL,
-    AARCH64_IM_B,
-    AARCH64_IM_BCOND,
-    AARCH64_IM_CBZ,
-    AARCH64_IM_CBNZ,
-    AARCH64_IM_TBZ,
-    AARCH64_IM_TBNZ,
-    AARCH64_IM_MAX
-};
-
-typedef struct AARCH64_ImInfo_t {
-#if 0
-    uint32_t immMask1;
-    uint32_t immMask2;
-    size_t   immLShift1;
-    size_t   immRShift1;
-    size_t   immLShift2;
-    size_t   immRShift2;
-    size_t   dispShift;
-#else
-    uint32_t fixedMask;
-    uint32_t (*makeImm)(address_t, address_t);
-    int immediateIndex;
-#endif
-}AARCH64_ImInfo_t;
-
-extern const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
-
 class InstructionRebuilder : public LinkDecorator<InstructionSemantic> {
+public:
+    enum Mode {
+        AARCH64_IM_ADRP = 0,
+        AARCH64_IM_ADDIMM,
+        AARCH64_IM_LDR,
+        AARCH64_IM_BL,
+        AARCH64_IM_B,
+        AARCH64_IM_BCOND,
+        AARCH64_IM_CBZ,
+        AARCH64_IM_CBNZ,
+        AARCH64_IM_TBZ,
+        AARCH64_IM_TBNZ,
+        AARCH64_IM_MAX
+    };
+
 private:
+    typedef struct AARCH64_modeInfo_t {
+        uint32_t fixedMask;
+        uint32_t (*makeImm)(address_t, address_t);
+        int immediateIndex;
+    }AARCH64_modeInfo_t;
+
+    const static AARCH64_modeInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
+
     Instruction *source;
     std::string mnemonic;
     uint32_t fixedBytes;
     int64_t originalOffset;
-    const size_t instructionSize = 4;
-    const AARCH64_ImInfo_t *imInfo;
+    const size_t size = 4;
+    const AARCH64_modeInfo_t *modeInfo;
 public:
-    InstructionRebuilder(Instruction *source, InstructionMode mode, const cs_insn &insn)
-        : source(source), mnemonic(insn.mnemonic), imInfo(&AARCH64_ImInfo[mode]) {
-            std::memcpy(&fixedBytes, insn.bytes, instructionSize);
-            fixedBytes &= AARCH64_ImInfo[mode].fixedMask;
+    InstructionRebuilder(Instruction *source, Mode mode, const cs_insn &insn);
 
-            cs_arm64 *x = &insn.detail->arm64;
-            originalOffset = x->operands[AARCH64_ImInfo[mode].immediateIndex].imm;
-        }
-
-    virtual size_t getSize() const { return instructionSize; }
+    virtual size_t getSize() const { return size; }
     virtual void setSize(size_t value)
         { throw "Size is constant for AARCH64!"; }
 
@@ -209,7 +193,7 @@ public:
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
 
-    int getMode() const { return imInfo - AARCH64_ImInfo; }
+    const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
     uint32_t getFixedBytes() const { return fixedBytes; }
     uint32_t getOriginalOffset() const { return originalOffset; }
 
@@ -219,17 +203,17 @@ public:
 class ControlFlowInstruction : public InstructionRebuilder {
 public:
     ControlFlowInstruction(Instruction *source, const cs_insn &insn)
-        : InstructionRebuilder(source, decodeMode(insn), insn) {}
+        : InstructionRebuilder(source, getMode(insn), insn) {}
 private:
-    static InstructionMode decodeMode(const cs_insn &insn);
+    InstructionRebuilder::Mode getMode(const cs_insn &insn);
 };
 
 class PCRelativeInstruction : public InstructionRebuilder {
 public:
     PCRelativeInstruction(Instruction *source, const cs_insn &insn)
-        : InstructionRebuilder(source, decodeMode(insn), insn) {}
+        : InstructionRebuilder(source, getMode(insn), insn) {}
 private:
-    static InstructionMode decodeMode(const cs_insn &insn);
+    InstructionRebuilder::Mode getMode(const cs_insn &insn);
 };
 
 typedef PCRelativeInstruction RelocationInstruction;

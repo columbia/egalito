@@ -115,7 +115,19 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 }
 
 #elif defined(ARCH_AARCH64)
-const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
+InstructionRebuilder::InstructionRebuilder(Instruction *source, Mode mode,
+    const cs_insn &insn)
+    : source(source), mnemonic(insn.mnemonic), modeInfo(&AARCH64_ImInfo[mode]) {
+
+    std::memcpy(&fixedBytes, insn.bytes, 4);
+    fixedBytes &= modeInfo->fixedMask;
+
+    cs_arm64 *x = &insn.detail->arm64;
+    originalOffset = x->operands[modeInfo->immediateIndex].imm;
+}
+
+const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImInfo[AARCH64_IM_MAX] = {
+
       /* ADRP */
       {0x9000001F,
        [] (address_t dest, address_t src) {
@@ -200,15 +212,14 @@ const AARCH64_ImInfo_t AARCH64_ImInfo[AARCH64_IM_MAX] = {
 
 uint32_t InstructionRebuilder::rebuild(void) {
     address_t dest = getLink()->getTargetAddress();
-    uint32_t imm = imInfo->makeImm(dest, getSource()->getAddress());
+    uint32_t imm = getModeInfo()->makeImm(dest, getSource()->getAddress());
 #if 0
-    LOG(1, "mode: " << getMode());
     LOG(1, "dest: " << dest);
-    LOG(1, "fixedBytes: " << fixedBytes);
+    LOG(1, "fixedBytes: " << getFixedBytes());
     LOG(1, "imm: " << imm);
-    LOG(1, "result: " << (fixedBytes | imm));
+    LOG(1, "result: " << (getFixedBytes() | imm));
 #endif
-    return fixedBytes | imm;
+    return getFixedBytes() | imm;
 }
 
 void InstructionRebuilder::writeTo(char *target) {
@@ -216,7 +227,7 @@ void InstructionRebuilder::writeTo(char *target) {
 }
 void InstructionRebuilder::writeTo(std::string &target) {
     uint32_t data = rebuild();
-    target.append(reinterpret_cast<const char *>(&data), instructionSize);
+    target.append(reinterpret_cast<const char *>(&data), getSize());
 }
 std::string InstructionRebuilder::getData() {
     std::string data;
@@ -224,8 +235,8 @@ std::string InstructionRebuilder::getData() {
     return data;
 }
 
-InstructionMode ControlFlowInstruction::decodeMode(const cs_insn &insn) {
-    InstructionMode m;
+InstructionRebuilder::Mode ControlFlowInstruction::getMode(const cs_insn &insn) {
+    InstructionRebuilder::Mode m;
     if(insn.id == ARM64_INS_B) {
         if(insn.bytes[3] == 0x54) {
             m = AARCH64_IM_BCOND;
@@ -256,8 +267,8 @@ InstructionMode ControlFlowInstruction::decodeMode(const cs_insn &insn) {
     return m;
 }
 
-InstructionMode PCRelativeInstruction::decodeMode(const cs_insn &insn) {
-    InstructionMode m;
+InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
+    InstructionRebuilder::Mode m;
     if(insn.id == ARM64_INS_ADRP) {
         m = AARCH64_IM_ADRP;
     }
