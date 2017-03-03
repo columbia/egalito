@@ -7,7 +7,6 @@
 
 void FuncptrsPass::visit(Module *module) {
     auto children = module->getChildren();
-    if(!children->getNamed()) children->createNamed();
 
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;

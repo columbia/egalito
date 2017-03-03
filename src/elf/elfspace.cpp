@@ -3,6 +3,7 @@
 #include "elfdynamic.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
+#include "chunk/aliasmap.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
 #include "pass/resolvecalls.h"
@@ -11,12 +12,13 @@
 #include "pass/inferredptrs.h"
 #include "pass/stackxor.h"
 #include "pass/relocheck.h"
+#include "pass/relocdata.h"
 #include "log/log.h"
 
-ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
-    : elf(elf), library(library), module(nullptr),
+ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library, Conductor *conductor)
+    : elf(elf), library(library), module(nullptr), conductor(conductor),
     symbolList(nullptr), dynamicSymbolList(nullptr), relocList(nullptr),
-    pltSection(nullptr) {
+    pltSection(nullptr), aliasMap(nullptr) {
 
 }
 
@@ -74,6 +76,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     ReloCheckPass checker(relocList);
     module->accept(&checker);
+
+    aliasMap = new FunctionAliasMap(module);
 }
 
 std::string ElfSpace::getName() const {

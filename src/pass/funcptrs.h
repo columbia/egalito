@@ -6,6 +6,7 @@
 
 class Module;
 
+/** Find function pointers that are referred to by relocations. */
 class FuncptrsPass : public ChunkPass {
 private:
     RelocList *relocList;

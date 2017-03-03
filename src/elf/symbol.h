@@ -23,6 +23,8 @@ public:
     const char *getName() const { return names[0]; }
 
     void addAlias(const char *name) { names.push_back(name); }
+
+    const std::vector<const char *> &getAliases() const { return names; }
 };
 
 class SymbolList {

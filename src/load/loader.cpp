@@ -95,8 +95,8 @@ int main(int argc, char *argv[]) {
 
 void runEgalito(ElfMap *elf) {
     Conductor conductor;
-    //conductor.parseRecursive(elf);
-    conductor.parse(elf, nullptr);
+    conductor.parseRecursive(elf);
+    //conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->getLibc();
     if(false && libc) {
@@ -131,6 +131,22 @@ void runEgalito(ElfMap *elf) {
         JumpTableSearch jt;
         jt.search(f);
     }
+
+    // map shared libraries into memory
+    {
+        int i = 0;
+        for(auto lib : *conductor.getLibraryList()) {
+            auto libElfMap = lib->getElfMap();
+            if(!libElfMap->isSharedLibrary()) continue;
+
+            const address_t baseAddress = 0xa0000000 + i*0x1000000;
+            libElfMap->setBaseAddress(baseAddress);
+            SegMap::mapSegments(*libElfMap, libElfMap->getBaseAddress());
+            i ++;
+        }
+    }
+
+    conductor.fixDataSections();
 
     {
         Generator generator;
