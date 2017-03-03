@@ -24,16 +24,32 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 && op->mem.scale == 1) {
 
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
-                target += elf->getBaseAddress();
                 auto inferred = new InferredInstruction(instruction, *ins);
-                inferred->setLink(new DataOffsetLink(target));
-                instruction->setSemantic(inferred);
-                delete v;
 
-                LOG(8, "inferred instruction at " << instruction->getAddress()
-                    << " -> " << target << ":");
-                ChunkDumper d;
-                instruction->accept(&d);
+
+                auto functionList = module->getChildren()->getSpatial();
+                auto found = functionList->find(target);
+                if(found) {
+                    inferred->setLink(new NormalLink(found));
+                    instruction->setSemantic(inferred);
+                    delete v;
+
+                    LOG(8, "inferred function pointer at " << instruction->getAddress()
+                        << " -> " << target << ":");
+                    ChunkDumper d;
+                    instruction->accept(&d);
+                }
+                else {
+                    target += elf->getBaseAddress();
+
+                    inferred->setLink(new DataOffsetLink(target));
+                    instruction->setSemantic(inferred);
+                    delete v;
+                    LOG(8, "inferred data pointer at " << instruction->getAddress()
+                        << " -> " << target << ":");
+                    ChunkDumper d;
+                    instruction->accept(&d);
+                }
                 return;
             }
         }

@@ -142,6 +142,6 @@ void runEgalito(ElfMap *elf) {
         ChunkDumper dumper;
         module->accept(&dumper);
 
-        generator.jumpToSandbox(sandbox, module);
+        generator.jumpToSandbox(sandbox, module, "_start");
     }
 }

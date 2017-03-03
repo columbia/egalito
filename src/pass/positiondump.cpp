@@ -6,7 +6,7 @@ void PositionDump::visit(Chunk *chunk, int indent) {
 
     LOG0(1, chunk->getName() << " has ");
     auto pos = chunk->getPosition();
-    if(auto v = dynamic_cast<AbsolutePosition *>(pos)) {
+    if(dynamic_cast<AbsolutePosition *>(pos)) {
         LOG(1, "AbsolutePosition " << pos->get());
     }
     else if(auto v = dynamic_cast<OffsetPosition *>(pos)) {

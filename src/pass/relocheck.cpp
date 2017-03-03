@@ -6,8 +6,8 @@
 #include "log/log.h"
 
 void ReloCheckPass::visit(Module *module) {
-    for(auto r : *relocList) {
 #ifdef ARCH_AARCH64
+    for(auto r : *relocList) {
         if(0
            || (r->getType() == R_AARCH64_LD_PREL_LO19)          // ld(literal)
            || (r->getType() == R_AARCH64_ADR_PREL_LO21)         // adr -- not yet implemented
@@ -41,8 +41,8 @@ void ReloCheckPass::visit(Module *module) {
                     << " at 0x" << std::hex << r->getAddress());
             }
         }
-#endif
     }
+#endif
 }
 
 void ReloCheckPass::checkSemantic(Reloc *r, Module *module) {

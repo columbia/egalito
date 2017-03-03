@@ -27,11 +27,7 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
             << r->getAddress() << " targets [" << target->getName() << "]");
 
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-#ifdef ARCH_X86_64
-            auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
-#elif defined(ARCH_AARCH64)
             auto ri = new RelocationInstruction(i, *v->getCapstone());
-#endif
             ri->setLink(new NormalLink(target));
             i->setSemantic(ri);
             LOG(2, " -> CREATED LINK for funcptr");

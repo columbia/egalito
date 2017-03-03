@@ -95,7 +95,9 @@ void ChunkDumper::visit(Instruction *instruction) {
         return;
     }
 
-    if(auto r = dynamic_cast<RelocationInstruction *>(instruction->getSemantic())) {
+    // this handles RelocationInstruction, InferredInstruction
+    if(auto r = dynamic_cast<LinkedInstruction *>(instruction->getSemantic())) {
+        r->regenerateCapstone();
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
@@ -103,14 +105,11 @@ void ChunkDumper::visit(Instruction *instruction) {
             DisasmDump::printInstruction(ins, pos, target->getName().c_str());
             return;
         }
-    }
-    if(auto r = dynamic_cast<InferredInstruction *>(instruction->getSemantic())) {
-        r->regenerateCapstone();
-        auto link = r->getLink();
-        unsigned long target = link->getTargetAddress();
-        ins->address = instruction->getAddress();
-        DisasmDump::printInstructionCalculated(ins, pos, target);
-        return;
+        else {
+            unsigned long targetAddress = link->getTargetAddress();
+            ins->address = instruction->getAddress();
+            DisasmDump::printInstructionCalculated(ins, pos, targetAddress);
+        }
     }
 
     if(auto p = dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {

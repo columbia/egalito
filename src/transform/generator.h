@@ -8,7 +8,8 @@ public:
     Sandbox *makeSandbox();
     void copyCodeToSandbox(ElfMap *elf, Module *module,
         Sandbox *sandbox);
-    void jumpToSandbox(Sandbox *sandbox, Module *module);
+    void jumpToSandbox(Sandbox *sandbox, Module *module,
+        const char *function = "main");
 };
 
 #endif

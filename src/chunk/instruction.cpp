@@ -286,7 +286,7 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
 
 #endif
 
-void InferredInstruction::writeTo(char *target) {
+void LinkedInstruction::writeTo(char *target) {
     cs_insn *insn = getCapstone();
     unsigned int newDisp = getLink()->getTargetAddress()
         - (instruction->getAddress() + getSize());
@@ -294,7 +294,7 @@ void InferredInstruction::writeTo(char *target) {
     std::memcpy(target + insn->size - 4, &newDisp, 4);
 }
 
-void InferredInstruction::writeTo(std::string &target) {
+void LinkedInstruction::writeTo(std::string &target) {
     cs_insn *insn = getCapstone();
     unsigned int newDisp = getLink()->getTargetAddress()
         - (instruction->getAddress() + getSize());
@@ -302,13 +302,13 @@ void InferredInstruction::writeTo(std::string &target) {
     target.append(reinterpret_cast<const char *>(&newDisp), 4);
 }
 
-std::string InferredInstruction::getData() {
+std::string LinkedInstruction::getData() {
     std::string data;
     writeTo(data);
     return std::move(data);
 }
 
-void InferredInstruction::regenerateCapstone() {
+void LinkedInstruction::regenerateCapstone() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).
     std::string data = getData();

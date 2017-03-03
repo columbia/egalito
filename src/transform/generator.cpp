@@ -38,16 +38,19 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
     sandbox->finalize();
 }
 
-void Generator::jumpToSandbox(Sandbox *sandbox, Module *module) {
+void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
+    const char *function) {
+
     // jump straight to main()
     if(!module->getChildren()->getNamed()) {
         module->getChildren()->createNamed();
     }
 
-    auto f = module->getChildren()->getNamed()->find("main");
+    auto f = module->getChildren()->getNamed()->find(function);
     if(!f) return;
 
-    LOG(1, "jumping to main at " << std::hex << f->getAddress());
+    LOG(1, "jumping to [" << function << "] at 0x"
+        << std::hex << f->getAddress());
     int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
 
     int argc = 1;

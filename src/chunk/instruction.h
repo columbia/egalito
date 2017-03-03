@@ -118,7 +118,6 @@ typedef SemanticImpl<RawByteStorage> RawInstruction;
 typedef SemanticImpl<DisassembledStorage> DisassembledInstruction;
 
 #ifdef ARCH_X86_64
-typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
 typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
@@ -239,11 +238,11 @@ public:
     register_t getRegister() const { return reg; }
 };
 
-class InferredInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
+class LinkedInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
 private:
     Instruction *instruction;
 public:
-    InferredInstruction(Instruction *i, const cs_insn &insn)
+    LinkedInstruction(Instruction *i, const cs_insn &insn)
         : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn),
         instruction(i) {}
 
@@ -252,6 +251,22 @@ public:
     virtual std::string getData();
 
     void regenerateCapstone();
+};
+
+#ifdef ARCH_X86_64
+class RelocationInstruction : public LinkedInstruction {
+public:
+    RelocationInstruction(Instruction *i, const cs_insn &insn)
+        : LinkedInstruction(i, insn) {}
+};
+#endif
+
+class InferredInstruction : public LinkedInstruction {
+private:
+    Instruction *instruction;
+public:
+    InferredInstruction(Instruction *i, const cs_insn &insn)
+        : LinkedInstruction(i, insn) {}
 };
 
 #endif
