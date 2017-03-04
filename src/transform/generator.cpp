@@ -41,11 +41,6 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
     const char *function) {
 
-    // jump straight to main()
-    if(!module->getChildren()->getNamed()) {
-        module->getChildren()->createNamed();
-    }
-
     auto f = module->getChildren()->getNamed()->find(function);
     if(!f) return;
 
@@ -59,4 +54,6 @@ void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
     std::cout.flush();
     std::fflush(stdout);
     mainp(argc, argv);
+
+    LOG(1, "RETURNED from target");
 }

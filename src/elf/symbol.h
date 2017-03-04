@@ -4,6 +4,7 @@
 #include <cstddef>  // for size_t
 #include <map>
 #include <vector>
+#include <string>
 #include "types.h"
 
 class ElfMap;
@@ -44,6 +45,7 @@ public:
 
     void setSize(size_t size) { this->size = size; }
     void setAliasFor(Symbol *aliasFor) { this->aliasFor = aliasFor; }
+    void setType(SymbolType type) { this->symbolType = type; }
 
     void addAlias(Symbol *alias) { aliasList.push_back(alias); }
 
@@ -59,7 +61,7 @@ private:
     ListType sortedSymbolList;
     typedef std::vector<Symbol *> IndexMapType;
     IndexMapType indexMap;
-    typedef std::map<const char *, Symbol *> MapType;
+    typedef std::map<std::string, Symbol *> MapType;
     MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
 public:

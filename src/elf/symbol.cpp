@@ -21,7 +21,9 @@ bool SymbolList::add(Symbol *symbol, size_t index) {
     symbolList.push_back(symbol);
     if(indexMap.size() <= index) indexMap.resize(index + 1);
     indexMap[index] = symbol;
-    symbolMap[symbol->getName()] = symbol;
+    if(symbolMap.find(symbol->getName()) == symbolMap.end()) {
+        symbolMap[symbol->getName()] = symbol;
+    }
     spaceMap[symbol->getAddress()] = symbol;
     return true;
 }
@@ -95,9 +97,10 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 #elif defined(ARCH_AARCH64)
         s->setSize(56);  // this does not include embedded following literals
 #endif
+        s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
     }
 
-    if(auto s = findSizeZero(list, "_init")) {
+    if(auto s = list->find("_init")) {
         auto init = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(".init"));
         if(init) s->setSize(init->sh_size);
     }
@@ -117,10 +120,6 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             }
         }
         else {
-            /*Symbol *symbol = new Symbol(address, size, name);
-            CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
-                (int)j, address, size, name);
-            list->add(symbol, (size_t)j);*/
             seen[sym->getAddress()] = sym;
         }
     }

@@ -103,13 +103,13 @@ void ChunkDumper::visit(Instruction *instruction) {
         if(target) {
             ins->address = instruction->getAddress();
             DisasmDump::printInstruction(ins, pos, target->getName().c_str());
-            return;
         }
         else {
             unsigned long targetAddress = link->getTargetAddress();
             ins->address = instruction->getAddress();
             DisasmDump::printInstructionCalculated(ins, pos, targetAddress);
         }
+        return;
     }
 
     if(auto p = dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
