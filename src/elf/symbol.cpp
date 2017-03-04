@@ -8,6 +8,11 @@
 #include "sharedlib.h"
 #include "log/log.h"
 
+bool Symbol::isFunction() const {
+    return (symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC)
+        && size > 0 && index > 0 && !aliasFor;
+}
+
 bool SymbolList::add(Symbol *symbol, size_t index) {
     // Can't check just by name since it may not be unique
     //auto it = symbolMap.find(symbol->getName());
@@ -76,187 +81,103 @@ SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
     return nullptr;
 }
 
+Symbol *SymbolList::findSizeZero(SymbolList *list, const char *sym) {
+    auto s = list->find(sym);
+    return (s && s->getSize() == 0 ? s : nullptr);
+}
+
 SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
-    SymbolList *list = new SymbolList();
-    std::map<address_t, Symbol *> seen;
+    auto list = buildAnySymbolList(elfmap, ".symtab", SHT_SYMTAB);
 
-    Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".symtab");
-    if(!s || s->sh_type != SHT_SYMTAB) throw "No symtab in ELF\n";
-
-    Elf64_Sym *sym = (Elf64_Sym *)elfmap->findSection(".symtab");
-
-    // look through symbols for ones of type FUNC and GLOBAL
-    int symcount = s->sh_size / s->sh_entsize;
-    for(int j = 0; j < symcount; j ++, sym ++) {
-        // sym->st_shndx will be 0 for load-time relocations
-        if((ELF64_ST_TYPE(sym->st_info) == STT_FUNC
-                || ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)  // strcmp etc
-            && (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL
-                || ELF64_ST_BIND(sym->st_info) == STB_LOCAL
-                || ELF64_ST_BIND(sym->st_info) == STB_WEAK)
-            && sym->st_shndx > 0) {
-
-            address_t address = sym->st_value;
-            size_t size = sym->st_size;
-            const char *name = elfmap->getStrtab() + sym->st_name;
-#if 1 // Get entry point
-            if(!strcmp(name, "_start") && !sym->st_size) {
+    if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
-                size = 42; // no really! :)
+        s->setSize(42);  // no really! :)
 #elif defined(ARCH_AARCH64)
-                size = 56; // this does not include embedded following literals
-#endif
-            }
-
-            if(!strcmp(name, "_init") && !sym->st_size) {
-                Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".init");
-                if(s) size = s->sh_size;
-            }
-#endif
-            //auto index = sym->st_shndx;
-#if 0
-            symbol.is_ifunc = (ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC);
-            symbol.is_private = (ELF64_ST_BIND(sym->st_info) == STB_LOCAL);
-
-            /* --- libgcc/auto-generated cases --- */
-
-            if(!strcmp(symbol.name, "_start") && !symbol.size) {
-                symbol.size = 42;  // no really! :)
-            }
-            if(!strcmp(symbol.name, "_init") && !symbol.size) {
-                //symbol.size = 26;//14;
-                symbol.size = get_elf_init_size(elf);
-                printf("FIX symbol _init size to 0x%lx\n", symbol.size);
-            }
-            if(!strcmp(symbol.name, "__do_global_dtors_aux") && !symbol.size) {
-                symbol.size = 50;  // size from bzip2
-                VERIFY_BYTES(0, 2, 0xc3f3ul);
-            }
-            if(!strcmp(symbol.name, "deregister_tm_clones") && !symbol.size) {
-                symbol.size = 54;  // size from libpthread on Linux 4.3
-                VERIFY_BYTES(-9, 2, 0xe0fful);
-            }
-            if(!strcmp(symbol.name, "register_tm_clones") && !symbol.size) {
-                symbol.size = 70;  // size from libpthread on Linux 4.3
-                VERIFY_BYTES(-9, 2, 0xe2fful);
-            }
-            if(!strcmp(symbol.name, "frame_dummy") && !symbol.size) {
-                symbol.size = 53;  // size from bzip2
-                VERIFY_BYTES(0, 8, 0xe900000000801f0ful);
-            }
-
-            /* --- ld.so cases --- */
-
-            // uses direct reference to GOT (upper 32 bits)
-            if(!strcmp(symbol.name, "__tls_get_addr")) continue;
-
-            /* --- libc cases --- */
-
-            if(!strcmp(symbol.name, "__strcasecmp_ssse3")) {
-                symbol.size += 8502;  // size of __strcasecmp_l_ssse3
-            }
-            if(!strcmp(symbol.name, "__strncasecmp_ssse3")) {
-                symbol.size += 9542;  // size of __strncasecmp_l_ssse3
-            }
-
-            /* --- libm cases --- */
-
-            // can't parse FMA4 instructions
-            size_t len = strlen(symbol.name);
-            if(len > 5 && !strcmp(symbol.name + len - 5, "_fma4")) continue;
-            //if(len > 4 && !strcmp(symbol.name + len - 4, "_avx")) continue;
-            if((symbol.address & 0x55000) == 0x55000
-                && (!strcmp(symbol.name, "bsloww")
-                || !strcmp(symbol.name, "csloww")
-                || !strcmp(symbol.name, "bsloww1")
-                || !strcmp(symbol.name, "bsloww2")
-                || !strcmp(symbol.name, "csloww1"))) {
-
-                continue;
-            }
-#endif
-            // don't try to figure out the size when it is zero
-            if(size == 0) continue;
-
-
-            auto prev = seen.find(address);
-            if(prev != seen.end()) {
-                if((*prev).second->getSize() == size) {
-                    (*prev).second->addAlias(name);
-                    list->addAlias((*prev).second, j);  // not required?
-                }
-                else {
-                    CLOG0(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
-                        address, name);
-                }
-            }
-            else {
-                Symbol *symbol = new Symbol{address, size, name};
-                CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
-                    (int)j, address, size, name);
-                list->add(symbol, (size_t)j);
-                seen[address] = symbol;
-            }
-        }
-
-#if 0
-        if((ELF64_ST_TYPE(sym->st_info) == STT_OBJECT
-            && (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL
-                || ELF64_ST_BIND(sym->st_info) == STB_LOCAL
-                || ELF64_ST_BIND(sym->st_info) == STB_WEAK))) {
-
-            symbol_t object;
-            object.address = sym->st_value;
-            object.size = sym->st_size;
-            object.name = elf->strtab + sym->st_name;
-            object.index = sym->st_shndx;
-            object.is_ifunc = 0;
-            object.is_private = (ELF64_ST_BIND(sym->st_info) == STB_LOCAL);
-            object.chunk = NULL;
-
-            VECTOR_PUSH(symbol_t, object_list, object);
-        }
+        s->setSize(56);  // this does not include embedded following literals
 #endif
     }
 
-    list->sortSymbols();
+    if(auto s = findSizeZero(list, "_init")) {
+        auto init = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(".init"));
+        if(init) s->setSize(init->sh_size);
+    }
+
+    std::map<address_t, Symbol *> seen;
+    for(auto sym : *list) {
+        auto prev = seen.find(sym->getAddress());
+        if(prev != seen.end()) {
+            auto prevSym = (*prev).second;
+            if(prevSym->getSize() == sym->getSize()) {
+                sym->setAliasFor(prevSym);
+                prevSym->addAlias(sym);
+            }
+            else {
+                CLOG0(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
+                    sym->getAddress(), sym->getName());
+            }
+        }
+        else {
+            /*Symbol *symbol = new Symbol(address, size, name);
+            CLOG0(1, "symbol #%d, address 0x%08lx, size %-8ld [%s]\n",
+                (int)j, address, size, name);
+            list->add(symbol, (size_t)j);*/
+            seen[sym->getAddress()] = sym;
+        }
+    }
 
     return list;
 }
 
 SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
-    SymbolList *list = new SymbolList();
-    std::map<address_t, Symbol *> seen;
+    return buildAnySymbolList(elfmap, ".dynsym", SHT_DYNSYM);
+}
 
-    Elf64_Shdr *s = (Elf64_Shdr *)elfmap->findSectionHeader(".dynsym");
-    if(!s || s->sh_type != SHT_DYNSYM) {
-        //throw "No dynamic symtab in ELF\n";
+SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
+    const char *sectionName, unsigned sectionType) {
+
+    SymbolList *list = new SymbolList();
+
+    auto s = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(sectionName));
+    if(!s || s->sh_type != sectionType) {
+        LOG(1, "Warning: no symbol table " << sectionName << " in ELF file");
         return list;
     }
 
-    Elf64_Sym *sym = (Elf64_Sym *)elfmap->findSection(".dynsym");
+    const char *strtab = (sectionType == SHT_DYNSYM
+        ? elfmap->getDynstrtab() : elfmap->getStrtab());
 
-    // look through symbols for ones of type FUNC and GLOBAL
+    auto sym = static_cast<Elf64_Sym *>(elfmap->findSection(sectionName));
+
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
-        // sym->st_shndx will be 0 for load-time relocations
-        if((ELF64_ST_TYPE(sym->st_info) == STT_FUNC
-                || ELF64_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)  // strcmp etc
-            && (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL
-                || ELF64_ST_BIND(sym->st_info) == STB_LOCAL
-                || ELF64_ST_BIND(sym->st_info) == STB_WEAK)
-            /*&& sym->st_shndx > 0*/) {
-
-            address_t address = sym->st_value;
-            size_t size = sym->st_size;
-            const char *name = elfmap->getDynstrtab() + sym->st_name;
-            //auto index = sym->st_shndx;
-
-            Symbol *symbol = new Symbol{address, size, name};
-            CLOG0(1, "dynamic symbol #%d, index %d, [%s]\n",
-                (int)list->symbolList.size(), j, name);
-            list->add(symbol, (size_t)j);
+        Symbol::SymbolType type;
+        switch(ELF64_ST_TYPE(sym->st_info)) {
+        case STT_FUNC:      type = Symbol::TYPE_FUNC; break;
+        case STT_GNU_IFUNC: type = Symbol::TYPE_IFUNC; break;
+        case STT_OBJECT:    type = Symbol::TYPE_OBJECT; break;
+        case STT_NOTYPE:    type = Symbol::TYPE_UNKNOWN; break;
+        default: continue;
         }
+
+        Symbol::BindingType bind;
+        switch(ELF64_ST_BIND(sym->st_info)) {
+        case STB_LOCAL:     bind = Symbol::BIND_LOCAL; break;
+        case STB_GLOBAL:    bind = Symbol::BIND_GLOBAL; break;
+        case STB_WEAK:      bind = Symbol::BIND_WEAK; break;
+        default: continue;
+        }
+
+        address_t address = sym->st_value;
+        size_t size = sym->st_size;
+        const char *name = strtab + sym->st_name;
+
+        // sym->st_shndx will be 0 for load-time relocations in dynsym
+        auto index = sym->st_shndx;
+
+        Symbol *symbol = new Symbol(address, size, name, type, bind, index);
+        CLOG0(1, "%s symbol #%d, index %d, [%s]\n", sectionName,
+            (int)list->symbolList.size(), j, name);
+        list->add(symbol, (size_t)j);
     }
 
     list->sortSymbols();

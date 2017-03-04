@@ -26,21 +26,17 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
 }
 
 void Conductor::fixDataSections() {
-#if 0
     for(auto library : *libraryList) {
-        auto elfSpace = library->getElfSpace();
-        RelocDataPass relocData(
-            elfSpace->getElfMap(),
-            elfSpace->getRelocList(),
-            this);
-        elfSpace->getModule()->accept(&relocData);
+        fixDataSection(library->getElfSpace());
     }
-#else
-    auto mainSpace = spaceList->getMain();
+
+    fixDataSection(spaceList->getMain());
+}
+
+void Conductor::fixDataSection(ElfSpace *elfSpace) {
     RelocDataPass relocData(
-        mainSpace->getElfMap(),
-        mainSpace->getRelocList(),
+        elfSpace->getElfMap(),
+        elfSpace->getRelocList(),
         this);
-    mainSpace->getModule()->accept(&relocData);
-#endif
+    elfSpace->getModule()->accept(&relocData);
 }

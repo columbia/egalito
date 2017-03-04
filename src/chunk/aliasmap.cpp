@@ -4,7 +4,8 @@
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
     for(auto func : module->getChildren()->getIterable()->iterable()) {
-        for(auto alias : func->getSymbol()->getAliases()) {
+        for(auto aliasSym : func->getSymbol()->getAliases()) {
+            auto alias = aliasSym->getName();
             LOG(1, alias << " is an alias for " << func->getName());
             aliasMap[alias] = func;
         }

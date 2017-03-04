@@ -15,6 +15,7 @@ public:
     void parse(ElfMap *elf, SharedLib *library);
 
     void fixDataSections();
+    void fixDataSection(ElfSpace *elfSpace);
 
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
     LibraryList *getLibraryList() const { return libraryList; }

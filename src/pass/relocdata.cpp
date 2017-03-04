@@ -49,6 +49,9 @@ void RelocDataPass::visit(Module *module) {
                 << dest);
             *(unsigned long *)update = dest;
         }
+        else {
+            LOG(1, "NOT fixing because type is " << r->getType());
+        }
 #endif
     }
 }
