@@ -11,19 +11,20 @@ Sandbox *Generator::makeSandbox() {
         WatermarkAllocator<MemoryBacking>>(backing);
 }
 
-void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
-    Sandbox *sandbox) {
-
-    LOG(1, "Copying code into sandbox");
+void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     for(auto f : module->getChildren()->getIterable()->iterable()) {
-        auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
+        //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
+        auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
         //f->getPosition()->set(slot.getAddress());
         ChunkMutator(f).setPosition(slot.getAddress());
     }
+}
 
+void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
+    LOG(1, "Copying code into sandbox");
     for(auto f : module->getChildren()->getIterable()->iterable()) {
         char *output = reinterpret_cast<char *>(f->getAddress());
         LOG(2, "    writing out [" << f->getName() << "] at 0x" << std::hex << f->getAddress());
@@ -34,8 +35,6 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
             }
         }
     }
-
-    sandbox->finalize();
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

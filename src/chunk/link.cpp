@@ -9,3 +9,7 @@ address_t NormalLink::getTargetAddress() const {
 address_t OffsetLink::getTargetAddress() const {
     return target->getAddress() + offset;
 }
+
+address_t DataOffsetLink::getTargetAddress() const {
+    return elf->getBaseAddress() + target;
+}

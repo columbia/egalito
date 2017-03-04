@@ -37,6 +37,8 @@ public:
         : elf(elf), relocList(relocList), conductor(conductor) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
+private:
+    void fixRelocation(Reloc *r, Function *target, FindAnywhere &found);
 };
 
 #endif

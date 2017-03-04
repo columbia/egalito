@@ -100,7 +100,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
     }
 
-    if(auto s = list->find("_init")) {
+    if(auto s = findSizeZero(list, "_init")) {
         auto init = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(".init"));
         if(init) s->setSize(init->sh_size);
     }

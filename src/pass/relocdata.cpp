@@ -12,9 +12,11 @@ Function *FindAnywhere::findAnywhere(const char *target) {
         auto elfSpace = library->getElfSpace();
         if(!elfSpace) continue;
         auto module = elfSpace->getModule();
-        //auto found = module->getChildren()->getNamed()->find(target);
 
-        auto found = elfSpace->getAliasMap()->find(target);
+        auto found = module->getChildren()->getNamed()->find(target);
+        if(!found) {
+            found = elfSpace->getAliasMap()->find(target);
+        }
 
         if(found) {
             this->elfSpace = elfSpace;
@@ -22,36 +24,47 @@ Function *FindAnywhere::findAnywhere(const char *target) {
         }
     }
 
+    LOG(1, "    could not find " << target << " ANYWHERE");
     return nullptr;
 }
 
 void RelocDataPass::visit(Module *module) {
-    //auto children = module->getChildren();
-
     for(auto r : *relocList) {
-        if(!r->getSymbol()) continue;
+        if(!r->getSymbol() || !*r->getSymbol()->getName()) continue;
 
         LOG(1, "trying to fix " << r->getSymbol()->getName());
 
-        //Function *target = children->getNamed()->find(r->getSymbol()->getName());
         FindAnywhere found(conductor);
         auto target = found.findAnywhere(r->getSymbol()->getName());
         if(!target) continue;
 
         LOG(1, "FOUND ANYWHERE " << r->getSymbol()->getName());
 
-#ifdef ARCH_X86_64
-        if(r->getType() == R_X86_64_GLOB_DAT) {
-            address_t update = elf->getBaseAddress() + r->getAddress();
-            address_t dest = found.getElfSpace()->getElfMap()->getBaseAddress()
-                + target->getAddress();
-            LOG(1, "fix address " << update << " to point at "
-                << dest);
-            *(unsigned long *)update = dest;
-        }
-        else {
-            LOG(1, "NOT fixing because type is " << r->getType());
-        }
-#endif
+        fixRelocation(r, target, found);
     }
+}
+
+void RelocDataPass::fixRelocation(Reloc *r, Function *target,
+    FindAnywhere &found) {
+
+#ifdef ARCH_X86_64
+    if(r->getType() == R_X86_64_GLOB_DAT) {
+        address_t update = elf->getBaseAddress() + r->getAddress();
+        address_t dest = found.getElfSpace()->getElfMap()->getBaseAddress()
+            + target->getAddress();
+        LOG(1, "fix address " << update << " to point at "
+            << dest);
+        *(unsigned long *)update = dest;
+    }
+    else if(r->getType() == R_X86_64_JUMP_SLOT) {
+        address_t update = elf->getBaseAddress() + r->getAddress();
+        address_t dest = target->getAddress();
+        LOG(1, "fix address " << update << " to point at "
+            << dest);
+        *(unsigned long *)update = dest;
+    }
+    else {
+        LOG(1, "NOT fixing because type is " << r->getType());
+    }
+#endif
 }

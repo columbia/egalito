@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
         }
 
         // find entry point
-        if(interpreter) {
+        if(false && interpreter) {
             entry = interpreter->getEntryPoint() + interpreterAddress;
         }
         else {
@@ -132,7 +132,7 @@ void runEgalito(ElfMap *elf) {
         jt.search(f);
     }
 
-    // map shared libraries into memory
+    // map all data sections into memory
     {
         int i = 0;
         for(auto lib : *conductor.getLibraryList()) {
@@ -146,18 +146,33 @@ void runEgalito(ElfMap *elf) {
         }
     }
 
-    conductor.fixDataSections();
-
     {
         Generator generator;
         auto sandbox = generator.makeSandbox();
-        generator.copyCodeToSandbox(elf, module, sandbox);
+
+        // 1. assign new addresses to all code
+        generator.pickAddressesInSandbox(module, sandbox);
+        for(auto lib : *conductor.getLibraryList()) {
+            generator.pickAddressesInSandbox(
+                lib->getElfSpace()->getModule(), sandbox);
+        }
+        // 2. copy code to the new addresses
+        generator.copyCodeToSandbox(module, sandbox);
+        for(auto lib : *conductor.getLibraryList()) {
+            generator.copyCodeToSandbox(
+                lib->getElfSpace()->getModule(), sandbox);
+        }
+        // 3. make code executable
+        sandbox->finalize();
+
+        // resolve all relocations in data sections
+        conductor.fixDataSections();
 
         LOG(1, "");
         LOG(1, "=== After copying code to new locations ===");
         ChunkDumper dumper;
         module->accept(&dumper);
 
-        generator.jumpToSandbox(sandbox, module, "_start");
+        //generator.jumpToSandbox(sandbox, module, "_start");
     }
 }

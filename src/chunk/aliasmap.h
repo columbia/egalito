@@ -7,6 +7,10 @@
 class Function;
 class Module;
 
+/** Allows functions to be looked up by their alias names.
+
+    Note: a function's main name is not registered in this data structure.
+*/
 class FunctionAliasMap {
 private:
     std::map<std::string, Function *> aliasMap;

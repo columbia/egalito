@@ -42,9 +42,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
 #endif
                 }
                 else {
-                    target += elf->getBaseAddress();
-
-                    inferred->setLink(new DataOffsetLink(target));
+                    inferred->setLink(new DataOffsetLink(elf, target));
                     instruction->setSemantic(inferred);
                     delete v;
 #if 0
