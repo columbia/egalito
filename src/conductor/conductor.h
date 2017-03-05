@@ -17,6 +17,8 @@ public:
     void fixDataSections();
     void fixDataSection(ElfSpace *elfSpace);
 
+    void writeDebugElf(const char *filename, const char *suffix = "$new");
+
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
     LibraryList *getLibraryList() const { return libraryList; }
 };

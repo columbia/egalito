@@ -11,3 +11,4 @@
 /regression/output/*
 /build_x86_64
 /build_aarch64
+/symbols.elf

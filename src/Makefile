@@ -117,4 +117,4 @@ $(BUILDDIR)/regression:
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example
+	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf

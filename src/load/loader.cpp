@@ -180,6 +180,8 @@ address_t runEgalito(ElfMap *elf) {
 
         //generator.jumpToSandbox(sandbox, module, "_start");
 
+        conductor.writeDebugElf("symbols.elf");
+
         return conductor.getMainSpace()->getModule()
             ->getChildren()->getNamed()->find("_start")->getAddress();
     }
