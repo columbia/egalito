@@ -9,6 +9,13 @@
 #include "log/log.h"
 
 bool Symbol::isFunction() const {
+#if 0
+    LOG(1, "function check for [" << name << "]: type="
+        << symbolType
+        << ", size=" << size
+        << ", index=" << index
+        << ", aliasFor=" << (aliasFor ? aliasFor->getName() : "n/a"));
+#endif
     return (symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC)
         && size > 0 && index > 0 && !aliasFor;
 }
@@ -105,6 +112,23 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         if(init) s->setSize(init->sh_size);
     }
 
+    // for musl only
+    if(auto s = list->find("__memcpy_fwd")) {
+        s->setType(Symbol::TYPE_FUNC);
+    }
+    /*if(auto s = list->find("__cp_begin")) {
+        s->setType(Symbol::TYPE_FUNC);
+    }*/
+
+    for(auto sym : *list) {
+        if(sym->getSize() == 0) {
+            size_t estimate = list->estimateSizeOf(sym);
+            LOG(1, "estimate size of symbol ["
+                << sym->getName() << "] to be " << std::dec << estimate);
+            sym->setSize(estimate);
+        }
+    }
+
     std::map<address_t, Symbol *> seen;
     for(auto sym : *list) {
         auto prev = seen.find(sym->getAddress());
@@ -182,6 +206,16 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     list->sortSymbols();
 
     return list;
+}
+
+size_t SymbolList::estimateSizeOf(Symbol *symbol) {
+    auto it = spaceMap.upper_bound(symbol->getAddress());
+    if(it != spaceMap.end()) {
+        Symbol *other = (*it).second;
+        return other->getAddress() - symbol->getAddress();
+    }
+
+    return 0;
 }
 
 void SymbolList::sortSymbols() {

@@ -71,6 +71,8 @@ SharedLib *LibraryList::get(const std::string &name) {
 #define LIBC_PATH   "/lib/x86_64-linux-gnu/libc.so.6"
 #endif
 
+#define LIBC_PATH   "/home/dwk/project/egalito/egalito/test/example/musl/lib/libc.so"
+
 SharedLib *LibraryList::getLibc() {
     return get(LIBC_PATH);
 }

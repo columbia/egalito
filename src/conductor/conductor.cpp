@@ -36,6 +36,7 @@ void Conductor::fixDataSections() {
 void Conductor::fixDataSection(ElfSpace *elfSpace) {
     RelocDataPass relocData(
         elfSpace->getElfMap(),
+        elfSpace,
         elfSpace->getRelocList(),
         this);
     elfSpace->getModule()->accept(&relocData);

@@ -5,6 +5,7 @@
 
 #include "usage.h"
 #include "segmap.h"
+#include "emulator.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
@@ -23,7 +24,7 @@
 extern address_t entry;
 extern "C" void _start2(void);
 
-void runEgalito(ElfMap *elf);
+address_t runEgalito(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
 
 int main(int argc, char *argv[]) {
@@ -41,6 +42,8 @@ int main(int argc, char *argv[]) {
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     //Signals::registerHandlers();
+
+    LoaderEmulator::getInstance().useArgv(argv);
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
@@ -60,18 +63,20 @@ int main(int argc, char *argv[]) {
             SegMap::mapSegments(*interpreter, interpreter->getBaseAddress());
         }
 
-        runEgalito(elf);
+        entry = runEgalito(elf);
         if(interpreter) {
             //examineElf(interpreter);
             //setBreakpointsInInterpreter(interpreter);
         }
 
         // find entry point
-        if(false && interpreter) {
-            entry = interpreter->getEntryPoint() + interpreterAddress;
-        }
-        else {
-            entry = elf->getEntryPoint() + baseAddress;
+        if(!entry) {
+            if(interpreter) {
+                entry = interpreter->getEntryPoint() + interpreterAddress;
+            }
+            else {
+                entry = elf->getEntryPoint() + baseAddress;
+            }
         }
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
@@ -93,13 +98,13 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void runEgalito(ElfMap *elf) {
+address_t runEgalito(ElfMap *elf) {
     Conductor conductor;
     conductor.parseRecursive(elf);
     //conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->getLibc();
-    if(false && libc) {
+    if(libc) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
@@ -174,5 +179,10 @@ void runEgalito(ElfMap *elf) {
         module->accept(&dumper);
 
         //generator.jumpToSandbox(sandbox, module, "_start");
+
+        return conductor.getMainSpace()->getModule()
+            ->getChildren()->getNamed()->find("_start")->getAddress();
     }
+
+    return 0;
 }

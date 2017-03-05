@@ -3,68 +3,115 @@
 #include "elf/reloc.h"
 #include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
+#include "load/emulator.h"
 #include "log/log.h"
+
+Function *FindAnywhere::findInside(Module *module, const char *target) {
+    auto found = module->getChildren()->getNamed()->find(target);
+    if(!found) {
+        found = elfSpace->getAliasMap()->find(target);
+    }
+    return found;
+}
 
 Function *FindAnywhere::findAnywhere(const char *target) {
     if(!conductor) return nullptr;
 
+    elfSpace = conductor->getMainSpace();
+    found = findInside(elfSpace->getModule(), target);
+    if(found) return found;
+
     for(auto library : *conductor->getLibraryList()) {
-        auto elfSpace = library->getElfSpace();
-        if(!elfSpace) continue;
-        auto module = elfSpace->getModule();
-
-        auto found = module->getChildren()->getNamed()->find(target);
-        if(!found) {
-            found = elfSpace->getAliasMap()->find(target);
-        }
-
-        if(found) {
-            this->elfSpace = elfSpace;
-            return found;
-        }
+        elfSpace = library->getElfSpace();
+        found = findInside(elfSpace->getModule(), target);
+        if(found) return found;
     }
 
     LOG(1, "    could not find " << target << " ANYWHERE");
     return nullptr;
 }
 
+address_t FindAnywhere::getRealAddress() {
+    return elfSpace->getElfMap()->getBaseAddress()
+        + found->getAddress();
+}
+
 void RelocDataPass::visit(Module *module) {
+    this->module = module;
     for(auto r : *relocList) {
-        if(!r->getSymbol() || !*r->getSymbol()->getName()) continue;
-
-        LOG(1, "trying to fix " << r->getSymbol()->getName());
-
-        FindAnywhere found(conductor);
-        auto target = found.findAnywhere(r->getSymbol()->getName());
-        if(!target) continue;
-
-        LOG(1, "FOUND ANYWHERE " << r->getSymbol()->getName());
-
-        fixRelocation(r, target, found);
+        fixRelocation(r);
     }
 }
 
-void RelocDataPass::fixRelocation(Reloc *r, Function *target,
-    FindAnywhere &found) {
+bool RelocDataPass::resolveFunction(const char *name, address_t *address) {
+    FindAnywhere found(conductor, elfSpace);
+    Function *target = found.findInside(module, name);
+    if(target) {
+        *address = target->getAddress();
+        return true;
+    }
+
+    target = found.findAnywhere(name);
+    if(target) {
+        *address = target->getAddress();
+        return true;
+    }
+
+    if(auto a = LoaderEmulator::getInstance().findSymbol(name)) {
+        *address = a;
+        return true;
+    }
+    return false;
+}
+
+bool RelocDataPass::resolveLocalDataRef(const char *name,
+    address_t *address) {
+
+    Symbol *symbol = elfSpace->getSymbolList()->find(name);
+    if(!symbol) return false;
+
+    if(symbol->getType() == Symbol::TYPE_FUNC
+        || symbol->getType() == Symbol::TYPE_IFUNC) {
+
+        FindAnywhere found(conductor, elfSpace);
+        Function *f = found.findInside(module, name);
+        if(f) {
+            *address = found.getRealAddress();
+            return true;
+        }
+        return false;
+    }
+
+    // otherwise, must be a data object, address unchanged
+    *address = elf->getBaseAddress()
+        + symbol->getAddress();
+    return true;
+}
+
+void RelocDataPass::fixRelocation(Reloc *r) {
+    if(!r->getSymbol() || !*r->getSymbol()->getName()) return;
+    auto name = r->getSymbol()->getName();
+
+    LOG(1, "trying to fix " << name);
 
 #ifdef ARCH_X86_64
+    address_t update = elf->getBaseAddress() + r->getAddress();
+    address_t dest = 0;
+    bool found = false;
+
     if(r->getType() == R_X86_64_GLOB_DAT) {
-        address_t update = elf->getBaseAddress() + r->getAddress();
-        address_t dest = found.getElfSpace()->getElfMap()->getBaseAddress()
-            + target->getAddress();
-        LOG(1, "fix address " << update << " to point at "
-            << dest);
-        *(unsigned long *)update = dest;
+        found = resolveLocalDataRef(name, &dest);
     }
     else if(r->getType() == R_X86_64_JUMP_SLOT) {
-        address_t update = elf->getBaseAddress() + r->getAddress();
-        address_t dest = target->getAddress();
-        LOG(1, "fix address " << update << " to point at "
-            << dest);
-        *(unsigned long *)update = dest;
+        found = resolveFunction(name, &dest);
     }
     else {
         LOG(1, "NOT fixing because type is " << r->getType());
+    }
+
+    if(found) {
+        LOG(1, "fix address " << update << " to point at " << dest);
+        *(unsigned long *)update = dest;
     }
 #endif
 }

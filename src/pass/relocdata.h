@@ -12,13 +12,17 @@ class FindAnywhere {
 private:
     Conductor *conductor;
     ElfSpace *elfSpace;
+    Function *found;
 public:
-    FindAnywhere(Conductor *conductor)
-        : conductor(conductor), elfSpace(nullptr) {}
+    FindAnywhere(Conductor *conductor, ElfSpace *elfSpace)
+        : conductor(conductor), elfSpace(elfSpace), found(nullptr) {}
 
     Function *findAnywhere(const char *target);
+    Function *findInside(Module *module, const char *target);
 
     ElfSpace *getElfSpace() const { return elfSpace; }
+
+    address_t getRealAddress();
 };
 
 /** Fixes relocations in the data section prior to running code.
@@ -29,16 +33,21 @@ public:
 class RelocDataPass : public ChunkPass {
 private:
     ElfMap *elf;
+    ElfSpace *elfSpace;
     RelocList *relocList;
     Conductor *conductor;
+    Module *module;
 public:
-    RelocDataPass(ElfMap *elf, RelocList *relocList,
+    RelocDataPass(ElfMap *elf, ElfSpace *elfSpace, RelocList *relocList,
         Conductor *conductor)
-        : elf(elf), relocList(relocList), conductor(conductor) {}
+        : elf(elf), elfSpace(elfSpace), relocList(relocList),
+        conductor(conductor) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    void fixRelocation(Reloc *r, Function *target, FindAnywhere &found);
+    bool resolveFunction(const char *name, address_t *address);
+    bool resolveLocalDataRef(const char *name, address_t *address);
+    void fixRelocation(Reloc *r);
 };
 
 #endif

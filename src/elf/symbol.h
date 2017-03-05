@@ -41,6 +41,7 @@ public:
     address_t getAddress() const { return address; }
     size_t getSize() const { return size; }
     const char *getName() const { return name; }
+    SymbolType getType() const { return symbolType; }
     Symbol *getAliasFor() const { return aliasFor; }
 
     void setSize(size_t size) { this->size = size; }
@@ -74,6 +75,8 @@ public:
 
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }
+
+    size_t estimateSizeOf(Symbol *symbol);
 
     static SymbolList *buildSymbolList(SharedLib *library);
     static SymbolList *buildSymbolList(ElfMap *elfmap);
