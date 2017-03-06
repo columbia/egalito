@@ -65,7 +65,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 #endif
             else {
                 name << "(JUMP " << p->getMnemonic() << ")";
-                name << " [opcode size " << p->getOpcode().length() << ", dispSize " << p->getDisplacementSize() << "] ";
+                //name << " [opcode size " << p->getOpcode().length() << ", dispSize " << p->getDisplacementSize() << "] ";
             }
 
             std::string bytes = instruction->getSemantic()->getData();
