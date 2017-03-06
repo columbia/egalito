@@ -63,7 +63,10 @@ void ChunkDumper::visit(Instruction *instruction) {
 #elif defined(ARCH_AARCH64)
             if(p->getMnemonic() == "bl") name << "(CALL)";
 #endif
-            else name << "(JUMP " << p->getMnemonic() << ")";
+            else {
+                name << "(JUMP " << p->getMnemonic() << ")";
+                name << " [opcode size " << p->getOpcode().length() << ", dispSize " << p->getDisplacementSize() << "] ";
+            }
 
             std::string bytes = instruction->getSemantic()->getData();
             std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());

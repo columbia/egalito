@@ -141,6 +141,8 @@ public:
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
+    std::string getOpcode() const { return opcode; }
+    int getDisplacementSize() const { return displacementSize; }
 private:
     diff_t calculateDisplacement();
 };
@@ -251,6 +253,10 @@ public:
     virtual std::string getData();
 
     void regenerateCapstone();
+protected:
+    Instruction *getInstruction() const { return instruction; }
+    int getDispSize();
+    virtual unsigned calculateDisplacement();
 };
 
 #ifdef ARCH_X86_64
@@ -267,6 +273,14 @@ private:
 public:
     InferredInstruction(Instruction *i, const cs_insn &insn)
         : LinkedInstruction(i, insn) {}
+};
+
+class AbsoluteLinkedInstruction : public LinkedInstruction {
+public:
+    AbsoluteLinkedInstruction(Instruction *i, const cs_insn &insn)
+        : LinkedInstruction(i, insn) {}
+protected:
+    virtual unsigned calculateDisplacement();
 };
 
 #endif

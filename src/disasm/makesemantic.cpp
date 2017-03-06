@@ -30,12 +30,12 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             semantic = cfi;
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            size_t use = ins->size /* - op->size*/;
+            auto dispSize = determineDisplacementSize(ins);
+            size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
             auto cfi = new ControlFlowInstruction(instruction,
                 std::string((char *)ins->bytes, use),
-                ins->mnemonic,
-                /*op->size*/ 0);
+                ins->mnemonic, dispSize);
             cfi->setLink(new UnresolvedLink(imm));
             semantic = cfi;
         }
@@ -66,4 +66,31 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
 
     return semantic;
+}
+
+int MakeSemantic::determineDisplacementSize(cs_insn *ins) {
+#ifdef ARCH_X86_64
+    switch(ins->size) {
+    case 2: return 1;
+    case 3: return 1;
+    case 5: return 4;
+    case 6: return 4;
+    case 7: return 4;
+    default: return 0;
+    }
+#else
+    return 0;
+#endif
+}
+
+bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
+#ifdef ARCH_X86_64
+    auto op = &ins->detail->x86.operands[opIndex];
+    return (op->type == X86_OP_MEM
+        && op->mem.base == X86_REG_RIP
+        && op->mem.index == X86_REG_INVALID
+        && op->mem.scale == 1);
+#else
+    return false;
+#endif
 }

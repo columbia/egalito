@@ -28,7 +28,9 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
 
 void Conductor::fixDataSections() {
     for(auto library : *libraryList) {
-        fixDataSection(library->getElfSpace());
+        if(library->getElfSpace()) {
+            fixDataSection(library->getElfSpace());
+        }
     }
 
     fixDataSection(spaceList->getMain());
@@ -52,6 +54,7 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
     }
 
     for(auto library : *libraryList) {
+        if(!library->getElfSpace()) continue;
         auto module = library->getElfSpace()->getModule();
         for(auto func : module->getChildren()->getIterable()->iterable()) {
             debugElf.add(func, suffix);

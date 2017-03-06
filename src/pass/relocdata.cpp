@@ -23,8 +23,10 @@ Function *FindAnywhere::findAnywhere(const char *target) {
 
     for(auto library : *conductor->getLibraryList()) {
         elfSpace = library->getElfSpace();
-        found = findInside(elfSpace->getModule(), target);
-        if(found) return found;
+        if(elfSpace) {
+            found = findInside(elfSpace->getModule(), target);
+            if(found) return found;
+        }
     }
 
     LOG(1, "    could not find " << target << " ANYWHERE");
@@ -89,10 +91,12 @@ bool RelocDataPass::resolveLocalDataRef(const char *name,
 }
 
 void RelocDataPass::fixRelocation(Reloc *r) {
-    if(!r->getSymbol() || !*r->getSymbol()->getName()) return;
-    auto name = r->getSymbol()->getName();
+    const char *name = 0;
+    if(r->getSymbol() && *r->getSymbol()->getName()) {
+        name = r->getSymbol()->getName();
+    }
 
-    LOG(1, "trying to fix " << name);
+    LOG(1, "trying to fix " << (name ? name : "???"));
 
 #ifdef ARCH_X86_64
     address_t update = elf->getBaseAddress() + r->getAddress();
@@ -100,10 +104,14 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     bool found = false;
 
     if(r->getType() == R_X86_64_GLOB_DAT) {
-        found = resolveLocalDataRef(name, &dest);
+        if(name) found = resolveLocalDataRef(name, &dest);
     }
     else if(r->getType() == R_X86_64_JUMP_SLOT) {
-        found = resolveFunction(name, &dest);
+        if(name) found = resolveFunction(name, &dest);
+    }
+    else if(r->getType() == R_X86_64_RELATIVE) {
+        found = true;
+        dest = elf->getBaseAddress() + r->getAddend();
     }
     else {
         LOG(1, "NOT fixing because type is " << r->getType());

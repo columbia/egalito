@@ -104,7 +104,7 @@ address_t runEgalito(ElfMap *elf) {
     //conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->getLibc();
-    if(libc) {
+    if(false && libc) {
         ChunkDumper dumper;
         libc->getElfSpace()->getModule()->accept(&dumper);
     }
@@ -158,12 +158,14 @@ address_t runEgalito(ElfMap *elf) {
         // 1. assign new addresses to all code
         generator.pickAddressesInSandbox(module, sandbox);
         for(auto lib : *conductor.getLibraryList()) {
+            if(!lib->getElfSpace()) continue;
             generator.pickAddressesInSandbox(
                 lib->getElfSpace()->getModule(), sandbox);
         }
         // 2. copy code to the new addresses
         generator.copyCodeToSandbox(module, sandbox);
         for(auto lib : *conductor.getLibraryList()) {
+            if(!lib->getElfSpace()) continue;
             generator.copyCodeToSandbox(
                 lib->getElfSpace()->getModule(), sandbox);
         }
@@ -177,6 +179,11 @@ address_t runEgalito(ElfMap *elf) {
         LOG(1, "=== After copying code to new locations ===");
         ChunkDumper dumper;
         module->accept(&dumper);
+
+        if(false && libc) {
+            ChunkDumper dumper;
+            libc->getElfSpace()->getModule()->accept(&dumper);
+        }
 
         //generator.jumpToSandbox(sandbox, module, "_start");
 
