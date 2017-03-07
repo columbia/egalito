@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "chunklist.h"
+#include "cursor.h"
 
 /** Class to add/remove children in the Chunk hierarchy.
 
@@ -19,6 +20,8 @@ public:
     ChunkMutator(Chunk *chunk, bool allowUpdates = true)
         : chunk(chunk), allowUpdates(allowUpdates) {}
     ~ChunkMutator() { updatePositions(); }
+
+    void makePositionFor(Chunk *child);
 
     /** Adds a child Chunk at the beginning of the children. */
     void prepend(Chunk *child);
@@ -47,6 +50,9 @@ private:
     void updateSizesAndAuthorities(Chunk *child);
     void updateAuthorityHelper(Chunk *root);
     void updatePositionHelper(Chunk *root);
+    void setPreviousSibling(Chunk *c, Chunk *prev);
+    void setNextSibling(Chunk *c, Chunk *next);
+    void fixOffsets();
 };
 
 #endif

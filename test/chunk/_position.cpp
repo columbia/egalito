@@ -1,10 +1,22 @@
 #include "framework/include.h"
 #include "framework/StreamAsString.h"
 #include "chunk/position.h"
+#include "chunk/instruction.h"
 #include "chunk/mutator.h"
+#include "chunk/dump.h"
+#include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
+
+static Instruction *makeBreakInstr() {
+#ifdef ARCH_X86_64
+    std::vector<unsigned char> bytes = {0xcc};  // hlt
+#else
+    #error "not ported to ARM yet"
+#endif
+    return Disassemble::instruction(bytes, true, 0);
+}
 
 class CheckAddressIntegrity : public ChunkPass {
 private:
@@ -88,6 +100,24 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
 
             SECTION("position validation after setting address to 0x4000000") {
                 ChunkMutator(func).setPosition(0x4000000);
+
+                CheckAddressIntegrity pass;
+                func->accept(&pass);
+            }
+
+            SECTION("position validation after inserting instruction") {
+                auto breakInstr = makeBreakInstr();
+                auto firstBlock = func->getChildren()->getIterable()->get(0);
+                auto firstInstr = firstBlock->getChildren()->getIterable()->get(0);
+
+                PositionFactory *positionFactory = PositionFactory::getInstance();
+                breakInstr->setPosition(positionFactory->makePosition(
+                    firstInstr, breakInstr, firstInstr->getSize()));
+
+                ChunkMutator(firstBlock).insertAfter(firstInstr, breakInstr);
+
+                ChunkDumper dumper;
+                func->accept(&dumper);
 
                 CheckAddressIntegrity pass;
                 func->accept(&pass);

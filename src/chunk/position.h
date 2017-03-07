@@ -86,6 +86,7 @@ public:
 
     virtual address_t get() const;
     virtual void set(address_t value);
+    void setAfterThis(ChunkRef afterThis) { this->afterThis = afterThis; }
 protected:
     virtual Chunk *getDependency() const { return &*afterThis; }
 };

@@ -1,7 +1,23 @@
 #include <iomanip>
 #include "mutator.h"
+#include "position.h"
 #include "pass/positiondump.h"
 #include "log/log.h"
+
+void ChunkMutator::makePositionFor(Chunk *child) {
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    Position *pos = nullptr;
+    ChunkCursor cursor(chunk, child);
+    ChunkCursor prev = cursor;
+    if(prev.prev()) {
+        pos = positionFactory->makePosition(
+            prev.get(), child, prev.get()->getAddress() - chunk->getAddress());
+    }
+    else {
+        pos = positionFactory->makePosition(chunk, child, 0);
+    }
+    child->setPosition(pos);
+}
 
 void ChunkMutator::prepend(Chunk *child) {
     if(chunk->getChildren()->genericGetSize() == 0) {
@@ -28,15 +44,16 @@ void ChunkMutator::append(Chunk *child) {
     chunk->getChildren()->genericAdd(child);
     child->setParent(chunk);
 
+    if(!child->getPosition()) makePositionFor(child);
     updateSizesAndAuthorities(child);
 }
 
 void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
     // set sibling pointers
-    newChunk->setPreviousSibling(insertPoint);
+    setPreviousSibling(newChunk, insertPoint);
     if(insertPoint) {
-        newChunk->setNextSibling(insertPoint->getNextSibling());
-        insertPoint->setNextSibling(newChunk);
+        setNextSibling(newChunk, insertPoint->getNextSibling());
+        setNextSibling(insertPoint, newChunk);
     }
     else {
         newChunk->setNextSibling(nullptr);
@@ -48,6 +65,7 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
     list->genericInsertAt(index, newChunk);
     newChunk->setParent(chunk);
 
+    if(!newChunk->getPosition()) makePositionFor(newChunk);
     updateSizesAndAuthorities(newChunk);
 }
 
@@ -68,6 +86,7 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
     list->genericInsertAt(index, newChunk);
     newChunk->setParent(chunk);
 
+    if(!newChunk->getPosition()) makePositionFor(newChunk);
     updateSizesAndAuthorities(newChunk);
 }
 
@@ -122,5 +141,38 @@ void ChunkMutator::updatePositionHelper(Chunk *root) {
         for(auto child : root->getChildren()->genericIterable()) {
             updatePositionHelper(child);
         }
+    }
+}
+
+void ChunkMutator::setPreviousSibling(Chunk *c, Chunk *prev) {
+    c->setPreviousSibling(prev);
+    if(auto v = dynamic_cast<SubsequentPosition *>(c->getPosition())) {
+        v->setAfterThis(prev);
+    }
+    else {
+        fixOffsets();
+    }
+}
+
+void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
+    c->setNextSibling(next);
+    if(auto v = dynamic_cast<SubsequentPosition *>(next->getPosition())) {
+        v->setAfterThis(c);
+    }
+    else {
+        fixOffsets();
+    }
+}
+
+void ChunkMutator::fixOffsets() {
+    address_t offset = 0;
+    for(auto other : chunk->getChildren()->genericIterable()) {
+        if(auto p = dynamic_cast<OffsetPosition *>(other->getPosition())) {
+            p->setOffset(offset);
+            if(PositionFactory::getInstance()->needsGenerationTracking()) {
+                p->incrementGeneration();
+            }
+        }
+        offset += other->getSize();
     }
 }
