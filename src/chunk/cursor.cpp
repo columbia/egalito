@@ -1,0 +1,57 @@
+#include <cassert>
+#include "cursor.h"
+#include "chunk.h"
+#include "chunklist.h"
+
+ChunkCursor::ChunkCursor(Chunk *parent, size_t index)
+    : list(parent->getChildren()), index(index) {
+
+}
+
+ChunkCursor::ChunkCursor(Chunk *chunk) {
+    assert(chunk != nullptr);
+    list = chunk->getParent()->getChildren();
+    assert(list != nullptr);
+    index = list->genericIndexOf(chunk);
+}
+
+ChunkCursor::ChunkCursor(Chunk *parent, Chunk *chunk)
+    : list(parent->getChildren()) {
+
+    assert(list != nullptr);
+    index = list->genericIndexOf(chunk);
+    assert(index != static_cast<size_t>(-1));
+}
+
+Chunk *ChunkCursor::get() const {
+    return (index < list->genericGetSize()
+        ? list->genericGetAt(index) : nullptr);
+}
+
+bool ChunkCursor::prev() {
+    if(index > 0) {
+        index --;
+        return true;
+    }
+    return false;
+}
+
+bool ChunkCursor::next() {
+    if(!isEnd()) {
+        index ++;
+        return true;
+    }
+    return false;
+}
+
+bool ChunkCursor::isEnd() const {
+    return (index >= list->genericGetSize());
+}
+
+ChunkCursor ChunkCursor::makeBegin(Chunk *parent) {
+    return ChunkCursor(parent, static_cast<size_t>(0));
+}
+ChunkCursor ChunkCursor::makeEnd(Chunk *parent) {
+    return ChunkCursor(parent,
+        parent->getChildren()->genericGetSize());
+}
