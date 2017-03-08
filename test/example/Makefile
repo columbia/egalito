@@ -18,7 +18,7 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 jumptable fp
+TARGET_NAMES = hello hi0 jumptable fp stack
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-static = $(addsuffix -static,$(TARGETS))
@@ -49,6 +49,7 @@ $(eval $(call dep_rule,hello,hello.c))
 $(eval $(call dep_rule,hi0,hi0.c hi0-s.S))
 $(eval $(call dep_rule,jumptable,jumptable.c))
 $(eval $(call dep_rule,fp,fp.c))
+$(eval $(call dep_rule,stack,stack.c))
 
 $(BUILDDIR)%-static:
 	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
