@@ -36,7 +36,7 @@ all: test-all symlinks
 
 test-all: $(ITEST) $(RUNNER) | rebuild-src
 
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(findstring clean,$(MAKECMDGOALS)),)
 Makefile: rebuild-src
 endif
 
@@ -80,6 +80,10 @@ $(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
-.PHONY: clean
+.PHONY: clean realclean
 clean:
+	-rm -f .symlinks itest runner
+	-find $(BUILDDIR) -name framework -prune -o -type f -exec rm {} \;
+
+realclean:
 	-rm -rf $(BUILDDIR) .symlinks itest runner

@@ -11,8 +11,11 @@ static Instruction *makeWithImmediate(unsigned char imm) {
 #ifdef ARCH_X86_64
     // add imm, %eax
     std::vector<unsigned char> bytes = {0x83, 0xc0, imm};
-#else
-    #error "not ported to ARM yet"
+#elif defined(ARCH_AARCH64)
+    // add X0, X0, #imm
+    unsigned char imm1 = (imm << 2) & 0xFF;
+    unsigned char imm2 = (imm >> 6) & 0xFF;
+    std::vector<unsigned char> bytes = {0x00, imm1, imm2, 0x91};
 #endif
 
     return Disassemble::instruction(bytes, true, 0);
@@ -30,7 +33,13 @@ static void ensureValues(Block *block, const std::vector<unsigned char> &values)
     size_t index = 0;
     for(auto ins : block->getChildren()->getIterable()->iterable()) {
         CAPTURE(ins->getName());  // debug info, print instr name
+#ifdef ARCH_X86_64
         CHECK(ins->getSemantic()->getData()[2] == values[index]);
+#elif defined(ARCH_AARCH64)
+        unsigned char imm = ((ins->getSemantic()->getData()[1] >> 2)
+            | (ins->getSemantic()->getData()[2] << 6)) & 0xFF;
+        CHECK(imm == values[index]);
+#endif
         index ++;
     }
 }

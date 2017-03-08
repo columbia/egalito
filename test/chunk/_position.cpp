@@ -13,7 +13,7 @@ static Instruction *makeBreakInstr() {
 #ifdef ARCH_X86_64
     std::vector<unsigned char> bytes = {0xcc};  // hlt
 #else
-    #error "not ported to ARM yet"
+    std::vector<unsigned char> bytes = {0x00, 0x00, 0x40, 0xd4}; //hlt #0
 #endif
     return Disassemble::instruction(bytes, true, 0);
 }
