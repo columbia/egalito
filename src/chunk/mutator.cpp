@@ -1,3 +1,4 @@
+#include <algorithm>  // for std::max
 #include <iomanip>
 #include "mutator.h"
 #include "position.h"
@@ -52,7 +53,9 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
     // set sibling pointers
     setPreviousSibling(newChunk, insertPoint);
     if(insertPoint) {
-        setNextSibling(newChunk, insertPoint->getNextSibling());
+        auto next = insertPoint->getNextSibling();
+        if(next) setPreviousSibling(next, newChunk);
+        setNextSibling(newChunk, next);
         setNextSibling(insertPoint, newChunk);
     }
     else {
@@ -76,8 +79,10 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
     }
 
     // set sibling pointers
+    auto prev = insertPoint->getPreviousSibling();
+    if(prev) prev->setNextSibling(newChunk);
     newChunk->setNextSibling(insertPoint);
-    newChunk->setPreviousSibling(insertPoint->getPreviousSibling());
+    newChunk->setPreviousSibling(prev);
     insertPoint->setNextSibling(newChunk);
 
     // set children and parent pointers
@@ -101,12 +106,36 @@ void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {
     }
 
     // update authority pointers in positions
+    updateGenerationCounts(child);
+}
+
+void ChunkMutator::updateGenerationCounts(Chunk *child) {
+    if(!child) child = chunk;
     if(PositionFactory::getInstance()->needsGenerationTracking()) {
+#if 1
+        int gen = 0;
+        for(Chunk *c = child; c; c = c->getParent()) {
+            gen = std::max(gen, c->getPosition()->getGeneration());
+            if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
+                break;
+            }
+        }
+        gen ++;
+        int i = 0;
+        for(Chunk *c = child; c; c = c->getParent()) {
+            c->getPosition()->setGeneration(gen + i);
+            if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
+                break;
+            }
+            i ++;
+        }
+#else
         //child->getPosition()->updateAuthority();
         chunk->getPosition()->incrementGeneration();
-        chunk->getPosition()->incrementGeneration();
+        //chunk->getPosition()->incrementGeneration();
         child->getPosition()->incrementGeneration();
-        updateAuthorityHelper(child);
+#endif
+        updateAuthorityHelper(child, gen);
     }
 }
 
@@ -122,12 +151,13 @@ void ChunkMutator::updatePositions() {
     }
 }
 
-void ChunkMutator::updateAuthorityHelper(Chunk *root) {
+void ChunkMutator::updateAuthorityHelper(Chunk *root, int gen) {
     root->getPosition()->updateAuthority();
+    root->getPosition()->setGeneration(gen);
 
     if(root->getChildren()) {
         for(auto child : root->getChildren()->genericIterable()) {
-            updateAuthorityHelper(child);
+            updateAuthorityHelper(child, gen);
         }
     }
 }
@@ -146,33 +176,16 @@ void ChunkMutator::updatePositionHelper(Chunk *root) {
 
 void ChunkMutator::setPreviousSibling(Chunk *c, Chunk *prev) {
     c->setPreviousSibling(prev);
+    if(!prev) return;
     if(auto v = dynamic_cast<SubsequentPosition *>(c->getPosition())) {
         v->setAfterThis(prev);
-    }
-    else {
-        fixOffsets();
     }
 }
 
 void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
     c->setNextSibling(next);
+    if(!next) return;
     if(auto v = dynamic_cast<SubsequentPosition *>(next->getPosition())) {
         v->setAfterThis(c);
-    }
-    else {
-        fixOffsets();
-    }
-}
-
-void ChunkMutator::fixOffsets() {
-    address_t offset = 0;
-    for(auto other : chunk->getChildren()->genericIterable()) {
-        if(auto p = dynamic_cast<OffsetPosition *>(other->getPosition())) {
-            p->setOffset(offset);
-            if(PositionFactory::getInstance()->needsGenerationTracking()) {
-                p->incrementGeneration();
-            }
-        }
-        offset += other->getSize();
     }
 }

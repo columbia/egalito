@@ -3,7 +3,6 @@
 #include "chunk/position.h"
 #include "chunk/instruction.h"
 #include "chunk/mutator.h"
-#include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
 #include "conductor/conductor.h"
@@ -32,6 +31,46 @@ public:
     void visit(Instruction *instruction) {
         CHECK(computed == instruction->getAddress());
         computed += instruction->getSize();
+    }
+};
+
+#define NONE static_cast<size_t>(-1)
+
+// Makes sure next, prev, and parent pointers are correct.
+// This is a very thorough test but it involves a lot of assertions.
+class CheckPrevNextIntegrity : public ChunkPass {
+private:
+    Function *function;
+    Block *block;
+public:
+    void visit(Function *function) {
+        this->function = function;
+        recurse(function);
+    }
+    void visit(Block *block) {
+        CHECK(block->getParent() == function);
+        this->block = block;
+        recurse(block);
+    }
+
+    void visit(Instruction *instruction) {
+        CAPTURE(instruction->getName());
+
+        CHECK(instruction->getParent() == block);
+        auto here = block->getChildren()->getIterable()->indexOf(instruction);
+        REQUIRE(here != NONE);
+        auto prev = static_cast<Instruction *>(instruction->getPreviousSibling());
+        auto next = static_cast<Instruction *>(instruction->getNextSibling());
+
+        auto prevIndex = NONE;
+        auto nextIndex = NONE;
+        if(prev) prevIndex = block->getChildren()->getIterable()->indexOf(prev);
+        if(next) nextIndex = block->getChildren()->getIterable()->indexOf(next);
+
+        if(!prev) CHECK(prevIndex == NONE);
+        else CHECK(prevIndex + 1 == here);
+        if(!next) CHECK(nextIndex == NONE);
+        else CHECK(here + 1 == nextIndex);
     }
 };
 
@@ -96,6 +135,8 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
             SECTION("position validation immediately after disassembly") {
                 CheckAddressIntegrity pass;
                 func->accept(&pass);
+                //CheckPrevNextIntegrity pass2;
+                //func->accept(&pass2);
             }
 
             SECTION("position validation after setting address to 0x4000000") {
@@ -105,7 +146,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
                 func->accept(&pass);
             }
 
-            SECTION("position validation after inserting instruction") {
+            SECTION("position validation after calling insertAfter()") {
                 auto breakInstr = makeBreakInstr();
                 auto firstBlock = func->getChildren()->getIterable()->get(0);
                 auto firstInstr = firstBlock->getChildren()->getIterable()->get(0);
@@ -116,11 +157,10 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
 
                 ChunkMutator(firstBlock).insertAfter(firstInstr, breakInstr);
 
-                ChunkDumper dumper;
-                func->accept(&dumper);
-
                 CheckAddressIntegrity pass;
                 func->accept(&pass);
+                CheckPrevNextIntegrity pass2;
+                func->accept(&pass2);
             }
         }
     }

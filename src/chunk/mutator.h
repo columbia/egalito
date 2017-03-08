@@ -48,11 +48,11 @@ public:
     void updatePositions();
 private:
     void updateSizesAndAuthorities(Chunk *child);
-    void updateAuthorityHelper(Chunk *root);
+    void updateGenerationCounts(Chunk *child = nullptr);
+    void updateAuthorityHelper(Chunk *root, int gen);
     void updatePositionHelper(Chunk *root);
     void setPreviousSibling(Chunk *c, Chunk *prev);
     void setNextSibling(Chunk *c, Chunk *next);
-    void fixOffsets();
 };
 
 #endif
