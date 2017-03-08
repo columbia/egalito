@@ -218,6 +218,7 @@ public:
     Position *makePosition(Chunk *previous, Chunk *chunk, address_t offset);
     bool needsGenerationTracking() const;
     bool needsUpdatePasses() const;
+    bool needsSpecialCaseFirst() const;
 private:
     template <typename PosType>
     PosType *setOffset(PosType *pos, address_t offset)

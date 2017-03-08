@@ -3,6 +3,7 @@
 #include "chunk/position.h"
 #include "chunk/instruction.h"
 #include "chunk/mutator.h"
+#include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
 #include "conductor/conductor.h"
@@ -43,12 +44,13 @@ private:
     Function *function;
     Block *block;
 public:
+    CheckPrevNextIntegrity() : function(nullptr), block(nullptr) {}
     void visit(Function *function) {
         this->function = function;
         recurse(function);
     }
     void visit(Block *block) {
-        CHECK(block->getParent() == function);
+        if(function) CHECK(block->getParent() == function);
         this->block = block;
         recurse(block);
     }
@@ -61,6 +63,10 @@ public:
         REQUIRE(here != NONE);
         auto prev = static_cast<Instruction *>(instruction->getPreviousSibling());
         auto next = static_cast<Instruction *>(instruction->getNextSibling());
+
+        auto count = block->getChildren()->getIterable()->getCount();
+        if(here > 0) CHECK(prev != nullptr);
+        if(here + 1 < count) CHECK(next != nullptr);
 
         auto prevIndex = NONE;
         auto nextIndex = NONE;
@@ -134,9 +140,9 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
 
             SECTION("position validation immediately after disassembly") {
                 CheckAddressIntegrity pass;
-                func->accept(&pass);
-                //CheckPrevNextIntegrity pass2;
-                //func->accept(&pass2);
+                func->accept(&pass);  // check that positions sum up correctly
+                CheckPrevNextIntegrity pass2;
+                func->accept(&pass2);  // check integrity of prev/next/parent pointers
             }
 
             SECTION("position validation after setting address to 0x4000000") {
@@ -146,14 +152,17 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
                 func->accept(&pass);
             }
 
-            SECTION("position validation after calling insertAfter()") {
-                auto breakInstr = makeBreakInstr();
-                auto firstBlock = func->getChildren()->getIterable()->get(0);
-                auto firstInstr = firstBlock->getChildren()->getIterable()->get(0);
+            auto breakInstr = makeBreakInstr();
+            auto firstBlock = func->getChildren()->getIterable()->get(0);
+            auto firstInstr = firstBlock->getChildren()->getIterable()->get(0);
+            auto secondInstr = firstBlock->getChildren()->getIterable()->get(1);
+            //GroupRegistry::getInstance()->applySetting("disasm", 9);
+            //GroupRegistry::getInstance()->applySetting("chunk", 9);
 
-                PositionFactory *positionFactory = PositionFactory::getInstance();
+            SECTION("position validation after calling insertAfter()") {
+                /*PositionFactory *positionFactory = PositionFactory::getInstance();
                 breakInstr->setPosition(positionFactory->makePosition(
-                    firstInstr, breakInstr, firstInstr->getSize()));
+                    firstInstr, breakInstr, firstInstr->getSize()));*/
 
                 ChunkMutator(firstBlock).insertAfter(firstInstr, breakInstr);
 
@@ -161,6 +170,38 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
                 func->accept(&pass);
                 CheckPrevNextIntegrity pass2;
                 func->accept(&pass2);
+            }
+
+            SECTION("position validation after calling insertBefore()") {
+                //ChunkDumper dump;
+                //func->accept(&dump);
+
+                ChunkMutator(firstBlock).insertBefore(secondInstr, breakInstr);
+
+                //func->accept(&dump);
+
+                CheckAddressIntegrity pass;
+                func->accept(&pass);
+                CheckPrevNextIntegrity pass2;
+                firstBlock->accept(&pass2);
+            }
+
+            SECTION("position validation after calling insertBefore() the first") {
+                ChunkMutator(firstBlock).insertBefore(firstInstr, breakInstr);
+
+                CheckAddressIntegrity pass;
+                func->accept(&pass);
+                CheckPrevNextIntegrity pass2;
+                firstBlock->accept(&pass2);
+            }
+
+            auto secondBlock = func->getChildren()->getIterable()->get(1);
+
+            SECTION("position validation after calling prepend() in second block") {
+                ChunkMutator(secondBlock).prepend(breakInstr);
+
+                CheckAddressIntegrity pass;
+                func->accept(&pass);
             }
         }
     }

@@ -167,3 +167,9 @@ bool PositionFactory::needsUpdatePasses() const {
         || mode == MODE_CACHED_SUBSEQUENT
         || mode == MODE_OFFSET;
 }
+
+bool PositionFactory::needsSpecialCaseFirst() const {
+    return mode == MODE_SUBSEQUENT
+        || mode == MODE_CACHED_SUBSEQUENT
+        || mode == MODE_GENERATION_SUBSEQUENT;
+}
