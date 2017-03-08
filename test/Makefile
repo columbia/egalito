@@ -36,7 +36,9 @@ all: test-all symlinks
 
 test-all: $(ITEST) $(RUNNER) | rebuild-src
 
+ifneq ($(MAKECMDGOALS),clean)
 Makefile: rebuild-src
+endif
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
