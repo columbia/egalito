@@ -92,9 +92,11 @@ void StackExtendPass::visit(Function *function) {
     extendStack(function, &frame);
     shrinkStack(function, &frame);
 
+#if 0
     LOG(1, "modified:");
     ChunkDumper dumper;
     function->accept(&dumper);
+#endif
 }
 
 bool StackExtendPass::shouldApply(Function *function) {
@@ -135,29 +137,11 @@ size_t StackExtendPass::getFrameSize(Function *function) {
             else if(cs->id == ARM64_INS_STP
                     && x->operands[2].type == ARM64_OP_MEM
                     && x->writeback) {
-                return x->operands[2].mem.disp;
+                return -(x->operands[2].mem.disp);
             }
         }
     }
     return 0;
-#if 0
-    auto firstI = firstB->getChildren()->getIterable()->get(0);
-    if(auto cs = firstI->getSemantic()->getCapstone()) {
-        cs_arm64 *x = &cs->detail->arm64;
-        if(cs->id == ARM64_INS_SUB) {
-            return x->operands[2].imm;
-        }
-        else if(cs->id == ARM64_INS_STP) {
-            return -(x->operands[2].mem.disp);
-        }
-        else {
-            return 0;
-        }
-    }
-    else {
-        return 0;
-    }
-#endif
 }
 
 class AARCH64InstructionBinary {
