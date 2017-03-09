@@ -39,8 +39,7 @@ void ControlFlowGraph::construct(Block *block) {
         if(cfi->getMnemonic() != "jmp") {
             // fall-through to next block
 #elif defined(ARCH_AARCH64)
-        if((cfi->getMnemonic() != "b")
-           && (cfi->getMnemonic().find("b.", 0) == std::string::npos)) {
+        if(cfi->getMnemonic() != "b") {
 #endif
             fallThrough = true;
         }
