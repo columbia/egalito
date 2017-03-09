@@ -188,6 +188,11 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
 #elif defined(ARCH_AARCH64)
         if(mnemonic == "b.ls") op = OP_LT;
         else if(mnemonic == "b.eq") op = OP_EQ;
+        else if(mnemonic == "b.le") op = OP_LE;
+        else if(mnemonic == "b.ne") op = OP_NE;
+        else if(mnemonic == "cbz") {
+            return false;   // not handled
+        }
 #endif
         else {
             LOG(1, "what is " << mnemonic << "?");
