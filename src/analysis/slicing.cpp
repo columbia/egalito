@@ -571,7 +571,7 @@ bool SlicingInstructionState::convertRegisterSize(Register &reg) {
         {X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15}
     };
 #elif defined(ARCH_AARCH64)
-    Register promotion[][2] = {
+    static const Register promotion[][2] = {
         {ARM64_REG_W0,  ARM64_REG_X0},
         {ARM64_REG_W1,  ARM64_REG_X1},
         {ARM64_REG_W2,  ARM64_REG_X2},
