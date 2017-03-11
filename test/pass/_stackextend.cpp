@@ -102,3 +102,23 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
 #endif
 }
 
+#if 0
+TEST_CASE("extend stack frames in libc", "[pass][full][aarch64]") {
+    ElfMap elf(TESTDIR "stack");
+
+    Conductor conductor;
+    conductor.parseRecursive(&elf);
+
+    auto libc = conductor.getLibraryList()->getLibc();
+    INFO("looking for libc.so in depends...");
+    REQUIRE(libc != nullptr);
+
+    // expects glibc
+    auto module = libc->getElfSpace()->getModule();
+    auto f = module->getChildren()->getNamed()->find("__offtime");
+    REQUIRE(f != nullptr);
+
+    StackExtendPass extender(0x10);
+    f->accept(&extender);
+}
+#endif
