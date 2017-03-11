@@ -76,19 +76,24 @@ void ChunkDumper::visit(Instruction *instruction) {
                 bytes2.c_str());
         }
 #ifdef ARCH_AARCH64
-        else if (auto p = dynamic_cast<PCRelativeInstruction *>(instruction->getSemantic())) {
+        else if(auto p = dynamic_cast<PCRelativeInstruction *>(instruction->getSemantic())) {
             uint32_t b = p->rebuild();
 
-            cs_insn ins = Disassemble::getInsn({static_cast<unsigned char>(b & 0xFF),
-                                                 static_cast<unsigned char>((b>> 8) & 0xFF),
-                                                 static_cast<unsigned char>((b>>16) & 0xFF),
-                                                 static_cast<unsigned char>((b>>24) & 0xFF)
+            cs_insn instr = Disassemble::getInsn({static_cast<unsigned char>(b & 0xFF),
+                                                  static_cast<unsigned char>((b>> 8) & 0xFF),
+                                                  static_cast<unsigned char>((b>>16) & 0xFF),
+                                                  static_cast<unsigned char>((b>>24) & 0xFF)
                                                  },
                                                  instruction->getAddress());
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
             auto name = target ? target->getName().c_str() : nullptr;
-            DisasmDump::printInstruction(&ins, pos, name);
+            DisasmDump::printInstruction(&instr, pos, name);
+        }
+        else if(auto p = dynamic_cast<RawInstruction *>(instruction->getSemantic())) {
+            std::vector<unsigned char> v(p->getData().begin(), p->getData().end());
+            cs_insn instr = Disassemble::getInsn(v, instruction->getAddress());
+            DisasmDump::printInstruction(&instr, pos, nullptr);
         }
 #endif
         else LOG(4, "...unknown...");
