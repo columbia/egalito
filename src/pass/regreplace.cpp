@@ -96,20 +96,20 @@ void RegReplacePass::replace(Block *block, FrameType *frame,
     unsigned int baseRegEnc = baseReg == ARM64_REG_X29 ? 29 :31;
     unsigned int dualRegEnc = dualReg - ARM64_REG_X0;
 
-    auto bin_str0 = AARCH64InstructionBinary(0xF9000400
-        | 0 << 12 | baseRegEnc << 5 | dualRegEnc);
+    auto bin_str0 = AARCH64InstructionBinary(0xF9000000
+        | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
     auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
 
-    auto bin_str8 = AARCH64InstructionBinary(0xF9000400
-        | 8 << 12 | baseRegEnc << 5 | dualRegEnc);
+    auto bin_str8 = AARCH64InstructionBinary(0xF9000000
+        | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
     auto instr_strOther = Disassemble::instruction(bin_str8.getVector());
 
-    auto bin_ldr0 = AARCH64InstructionBinary(0xF9400400
-        | 0 << 12 | baseRegEnc << 5 | dualRegEnc);
+    auto bin_ldr0 = AARCH64InstructionBinary(0xF9400000
+        | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
     auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
 
-    auto bin_ldr8 = AARCH64InstructionBinary(0xF9400400
-        | 8 << 12 | baseRegEnc << 5 | dualRegEnc);
+    auto bin_ldr8 = AARCH64InstructionBinary(0xF9400000
+        | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
     auto instr_ldrOther = Disassemble::instruction(bin_ldr8.getVector());
 
     InstructionCoder coder;
