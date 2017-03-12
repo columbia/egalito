@@ -3,6 +3,7 @@
 #include "chunk/mutator.h"
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 void RegReplacePass::useStack(Function *function, FrameType *frame) {
     RegisterUsage regUsage(function, ARM64_REG_X18);
 
@@ -58,8 +59,9 @@ void RegReplacePass::replace(Block *block, FrameType *frame,
         end = xInstructionList.back();
     }
 
-    // not necessary until we do more optimization based on CFG and
-    // non-presence of a jumptable
+    // not necessary until we do more optimization using information
+    // regarding CFG: e.g. no backward links to inside the region or no
+    // jumptable
     std::vector<Instruction *> dualInstructionList;
     for(auto ins : block->getChildren()->getIterable()->iterable()) {
         if(!inRegion) {
@@ -418,12 +420,4 @@ void InstructionCoder::makeDPIReg_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-#if 0
-void RegReplacePass::overrideRegister(cs_arm64 *x, Register dualReg) {
-    for(int i = 0; i < x->op_count; ++i) {
-        if(x->operands[i].reg == regX) {
-            x->operands[i].reg = dualReg;
-        }
-    }
-}
 #endif

@@ -1,8 +1,10 @@
-#include <bitset>
+#include <vector>
+#include <utility>
 #include "chunkpass.h"
 #include "stackextend.h"
 #include "chunk/register.h"
 
+#ifdef ARCH_AARCH64
 class RegReplacePass : public StackExtendPass {
 private:
     Register regX;
@@ -48,4 +50,5 @@ private:
     void makeLDST_RegPositionList();
     void makeDPIReg_RegPositionList();
 };
+#endif
 

@@ -6,6 +6,7 @@
 
 #if 0
 TEST_CASE("replace x18 in libc", "[pass][full][aarch64]") {
+#ifdef ARCH_AARCH64
     ElfMap elf(TESTDIR "stack");
 
     Conductor conductor;
@@ -22,6 +23,7 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64]") {
 
     RegReplacePass replacer(static_cast<Register>(ARM64_REG_X18), 0x10);
     f->accept(&replacer);
+#endif
 }
 #endif
 

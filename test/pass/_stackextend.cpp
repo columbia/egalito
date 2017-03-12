@@ -104,6 +104,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
 
 #if 0
 TEST_CASE("extend stack frames in libc", "[pass][full][aarch64]") {
+#ifdef ARCH_AARCH64
     ElfMap elf(TESTDIR "stack");
 
     Conductor conductor;
@@ -120,5 +121,6 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64]") {
 
     StackExtendPass extender(0x10);
     f->accept(&extender);
+#endif
 }
 #endif

@@ -1,5 +1,5 @@
-#include <set>
 #include <algorithm>
+#include <string>
 #include "stackextend.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
@@ -10,6 +10,7 @@
 #include "log/log.h"
 #include "chunk/dump.h"
 
+#ifdef ARCH_AARCH64
 void StackExtendPass::visit(Module *module) {
     if(extendSize >= 4096) {
         LOG(1, "can't extend over 4096");
@@ -405,5 +406,5 @@ Register RegisterUsage::getDualRegister(Block *block) {
 
     return dualReg;
 }
-
+#endif
 

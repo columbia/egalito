@@ -9,6 +9,7 @@
 #include "chunk/register.h"
 #include "elf/reloc.h"
 
+#ifdef ARCH_AARCH64
 class FrameType {
 private:
     size_t baseSize;    // local varible + callee-saved regs
@@ -89,5 +90,6 @@ public:
              static_cast<unsigned char>(bin >> 24 & 0xff)}) {}
     std::vector<unsigned char> getVector() { return v; }
 };
+#endif
 
 #endif
