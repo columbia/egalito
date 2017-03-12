@@ -98,19 +98,15 @@ void RegReplacePass::replace(Block *block, FrameType *frame,
 
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
         | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
-    auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
 
     auto bin_str8 = AARCH64InstructionBinary(0xF9000000
         | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
-    auto instr_strOther = Disassemble::instruction(bin_str8.getVector());
 
     auto bin_ldr0 = AARCH64InstructionBinary(0xF9400000
         | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
-    auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
 
     auto bin_ldr8 = AARCH64InstructionBinary(0xF9400000
         | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
-    auto instr_ldrOther = Disassemble::instruction(bin_ldr8.getVector());
 
     InstructionCoder coder;
     for(auto ins : xInstructionList) {
@@ -118,19 +114,23 @@ void RegReplacePass::replace(Block *block, FrameType *frame,
         coder.decode(cs->bytes, cs->size);
 
         // p1. store the original value of dualReg
+        auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
         ChunkMutator(block).insertBefore(ins, instr_strOrg);
 
         // p2. load the other value of dualReg (only if it will be dereferenced)
         if(coder.isReading(regX)) {
-            ChunkMutator(block).insertBefore(ins, instr_ldrOther);
+            auto instr_ldrAlt = Disassemble::instruction(bin_ldr8.getVector());
+            ChunkMutator(block).insertBefore(ins, instr_ldrAlt);
         }
 
         // e2. load the original value of dualReg
+        auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
         ChunkMutator(block).insertAfter(ins, instr_ldrOrg);
 
         // e1. store the other value of dualReg (only if it was written)
         if(coder.isWriting(regX)) {
-            ChunkMutator(block).insertAfter(ins, instr_strOther);
+            auto instr_strAlt = Disassemble::instruction(bin_str8.getVector());
+            ChunkMutator(block).insertAfter(ins, instr_strAlt);
         }
 
         // actually replace register(s)
