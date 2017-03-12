@@ -1,3 +1,5 @@
+# This is a plugin for gdb to reconstruct C struct definitions.
+# To use, run gdb -x reconstruct.py
 import gdb
 
 class ReconstructCommand(gdb.Command):
@@ -44,17 +46,17 @@ class ReconstructCCommand(ReconstructCommand):
     def output(self, name, position, size, fieldType, substitutions):
         code = fieldType.strip_typedefs().code
 
-        declType = ["char", "[" + str(size) + "]", None]
+        declType = ["char", "[" + str(size) + "]", None, ""]
         if(substitutions):
             if(code == gdb.TYPE_CODE_PTR):
-                declType = ["void *", "", "%p"]
+                declType = ["void *", "", "0x%lx", "(void *)"]
             elif(code == gdb.TYPE_CODE_INT):
-                if(size == 1): declType = ["unsigned char", "", "char(%d)"]
-                elif(size == 2): declType = ["unsigned short", "", "0x%x"]
-                elif(size == 4): declType = ["unsigned int", "", "0x%x"]
-                elif(size == 8): declType = ["unsigned long", "", "0x%lx"]
+                if(size == 1): declType = ["unsigned char", "", "(unsigned char)%d", ""]
+                elif(size == 2): declType = ["unsigned short", "", "0x%x", ""]
+                elif(size == 4): declType = ["unsigned int", "", "0x%x", ""]
+                elif(size == 8): declType = ["unsigned long", "", "0x%lx", ""]
             elif(code == gdb.TYPE_CODE_BOOL):
-                declType = ["unsigned char", "", "bool(%d)"]
+                declType = ["unsigned char", "", "(bool)%d", ""]
 
         self.output_statement(declType, name, position, size, fieldType)
 
@@ -120,7 +122,7 @@ class ReconstructAssignCommand(ReconstructCCommand):
 
     def output_statement(self, declType, name, position, size, fieldType):
         if(declType[2] == None):
-            print('    printf("    char _data' + str(self.dataCount) + '[] = {\\n        ");')
+            print('    printf("    unsigned char _data' + str(self.dataCount) + '[] = {\\n        ");')
             print('    for(int i = 0; i < ' + str(size) + '; i ++) {')
             print('        if((i + 1) % 10 == 0) printf("\\n        ");')
             print('        printf("0x%02x, ", s->' + name + '[i] & 0xff);')
@@ -130,7 +132,7 @@ class ReconstructAssignCommand(ReconstructCCommand):
             self.dataCount += 1
             return
 
-        string = '    s->%-30s = ' + declType[2].replace('%', '%%') + ';  // %s'
+        string = '    s->%-30s = ' + declType[3] + declType[2].replace('%', '%%') + ';  // %s'
         string = '    printf("' + string + '\\n", s->%s);'
         print(string % (name, fieldType, name))
 

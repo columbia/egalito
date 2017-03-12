@@ -1,14 +1,24 @@
 #include <cassert>
+#include <cstring>  // for memcpy in generated code
 #include "emulator.h"
 
 namespace Emulation {
-    #include "dep/rtld.h"
+    #include "dep/rtld/rtld.h"
 
-    struct rtld_global _rtld_global;
-    struct rtld_global_ro _rtld_global_ro;
+    struct my_rtld_global _rtld_global;
+    struct my_rtld_global_ro _rtld_global_ro;
     char **_dl_argv;
     int _dl_starting_up = 1;
     void *not_yet_implemented = 0;
+
+    static void init_rtld_global(struct my_rtld_global *s) {
+        using std::memcpy;
+        #include "dep/rtld/rtld_data1.c"
+    }
+    static void init_rtld_global_ro(struct my_rtld_global_ro *s) {
+        using std::memcpy;
+        #include "dep/rtld/rtld_data2.c"
+    }
 }
 
 void LoaderEmulator::useArgv(char **argv) {
@@ -19,6 +29,9 @@ void LoaderEmulator::useArgv(char **argv) {
     addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
     addSymbol("_dl_find_dso_for_object", Emulation::not_yet_implemented);
     addSymbol("__tls_get_addr", Emulation::not_yet_implemented);
+
+    Emulation::init_rtld_global(&Emulation::_rtld_global);
+    Emulation::init_rtld_global_ro(&Emulation::_rtld_global_ro);
 
     addSymbol("_rtld_global", &Emulation::_rtld_global);
     addSymbol("_rtld_global_ro", &Emulation::_rtld_global_ro);
