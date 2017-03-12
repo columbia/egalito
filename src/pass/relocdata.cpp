@@ -7,7 +7,7 @@
 #include "log/log.h"
 
 Function *FindAnywhere::findInside(Module *module, const char *target) {
-    auto found = module->getChildren()->getNamed()->find(target);
+    found = module->getChildren()->getNamed()->find(target);
     if(!found) {
         found = elfSpace->getAliasMap()->find(target);
     }

@@ -48,7 +48,7 @@ SYMLINKS = $(notdir $(OUTPUTS))
 
 # Default target
 .PHONY: all
-all: $(OUTPUTS) symlinks
+all: gencode $(OUTPUTS) symlinks
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
@@ -69,6 +69,9 @@ symlinks: $(OUTPUTS) .symlinks
 
 .PHONY: relink
 relink: symlinks
+
+gencode:
+	$(MAKE) -C dep/rtld
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -118,3 +121,4 @@ $(BUILDDIR)/regression:
 .PHONY: clean
 clean:
 	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf
+	-$(MAKE) -C dep/rtld clean
