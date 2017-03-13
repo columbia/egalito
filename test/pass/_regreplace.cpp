@@ -4,8 +4,7 @@
 #include "conductor/conductor.h"
 #include "log/registry.h"
 
-#if 0
-TEST_CASE("replace x18 in libc", "[pass][full][aarch64]") {
+TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
 #ifdef ARCH_AARCH64
     ElfMap elf(TESTDIR "stack");
 
@@ -25,5 +24,4 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64]") {
     f->accept(&replacer);
 #endif
 }
-#endif
 

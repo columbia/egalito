@@ -102,8 +102,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
 #endif
 }
 
-#if 0
-TEST_CASE("extend stack frames in libc", "[pass][full][aarch64]") {
+TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
 #ifdef ARCH_AARCH64
     ElfMap elf(TESTDIR "stack");
 
@@ -123,4 +122,3 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64]") {
     f->accept(&extender);
 #endif
 }
-#endif
