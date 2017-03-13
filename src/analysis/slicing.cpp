@@ -166,11 +166,13 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
 }
 
 TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
+#ifdef ARCH_X86_64
     if(reg == X86_REG_RIP) {
         // evaluate the instruction pointer in-place
         auto i = state->getInstruction();
         return new TreeNodeRegisterRIP(i->getAddress() + i->getSize());
     }
+#endif
 
     const auto &parents = state->getParents();
     if(parents.size() == 0) {
@@ -649,6 +651,16 @@ void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
         }
     }
 #elif defined(ARCH_AARCH64)
+    convertRegisterSize(a1.reg);
+    auto target = a1.reg;
+    auto source = a2.reg;
+
+    if(state->getReg(target)) {
+        state->addReg(source);
+        if(overwriteTarget) {
+            state->removeReg(target);
+        }
+    }
 #endif
 }
 void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
@@ -669,6 +681,7 @@ void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
         }
     }
 #elif defined(ARCH_AARCH64)
+    throw "not implemented";
 #endif
 }
 void SlicingInstructionState::defaultDetectImmReg(bool overwriteTarget) {
@@ -683,6 +696,7 @@ void SlicingInstructionState::defaultDetectImmReg(bool overwriteTarget) {
         }
     }
 #elif defined(ARCH_AARCH64)
+    throw "not implemented";
 #endif
 }
 // if we use getTargetReg(), getSourceReg1(), getSourceReg2(), ...
@@ -1233,6 +1247,20 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                         u.getParentRegTree(state, reg),
                         new TreeNodeConstant(imm)));
             }
+        }
+        else if(mode == SlicingInstructionState::MODE_REG_REG) {
+            if(firstPass) {
+                iState->defaultDetectRegReg(false);
+            }
+            else {
+                auto reg1 = iState->get1()->reg;
+                auto reg2 = iState->get2()->reg;
+                state->setRegTree(ARM64_REG_NZCV,
+                    new TreeNodeComparison(
+                        u.getParentRegTree(state, reg1),
+                        u.getParentRegTree(state, reg2)));
+            }
+
         }
         else {
             LOG(1, "unknown mode for cmp");
