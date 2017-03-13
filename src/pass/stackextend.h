@@ -39,45 +39,11 @@ public:
     virtual void visit(Instruction *instruction) {}
 private:
     bool shouldApply(Function *function);
-    //change these names
-    void extendStack(Function *function, FrameType *frame);
+    void addExtendStack(Function *function, FrameType *frame);
+    void addShrinkStack(Function *function, FrameType *frame);
     virtual void useStack(Function *function, FrameType *frame) {};
-    void shrinkStack(Function *function, FrameType *frame);
 };
 
-class RegisterUsage {
-private:
-    Function *function;
-    Register regX;
-    ControlFlowGraph cfg;
-
-    std::map<Block *, std::vector<Instruction *>> UsageList;
-
-    std::set<Register> incompatibleList;
-
-    std::set<Block *> singleBlockList;
-    std::set<Block *> rootBlockList;
-    std::set<Block *> leafBlockList;
-
-    bool categorized;
-
-public:
-    RegisterUsage(Function *function, Register x);
-    const std::map<Block *, std::vector<Instruction *>> getUsage() const {
-        return UsageList; }
-    const std::set<Block *> getSingleBlockList() {
-        if (!categorized) { categorizeBlocks(); } return singleBlockList; }
-    const std::set<Block *> getRootBlockList() {
-        if (!categorized) { categorizeBlocks(); } return rootBlockList; }
-    const std::set<Block *> getLeafBlockList() {
-        if (!categorized) { categorizeBlocks(); } return leafBlockList; }
-    // in the extreme case, this has to be considered per instruction.
-    Register getDualRegister(Block *block);
-    std::vector<Instruction *> getInstructionList(Block *block) {
-        return UsageList[block]; }
-private:
-    void categorizeBlocks();
-};
 
 class AARCH64InstructionBinary {
 private:

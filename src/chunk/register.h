@@ -26,4 +26,49 @@ typedef
     #define REGISTER_ENDING     ARM64_REG_ENDING
 #endif
 
+#ifdef ARCH_AARCH64
+class AARCH64GPRegister {
+public:
+    enum ID {
+        INVALID = -1,
+        R0 = 0, R1, R2, R3, R4, R5, R6, R7,
+        R8,  R9,  R10, R11, R12, R13, R14, R15,
+        R16, R17, R18, R19, R20, R21, R22, R23,
+        R24, R25, R26, R27, R28, R29, R30, R31,
+
+        REGISTER_NUMBER,
+
+        SP = R31
+    };
+
+private:
+    int _id;
+public:
+    AARCH64GPRegister(int id, bool physical)
+        : _id(id) { if(!physical) _id = convertToPhysical(id); }
+    int id() const { return _id; }
+    unsigned int encoding() const { return static_cast<unsigned int>(_id); }
+private:
+    int convertToPhysical(int id);
+};
+
+inline AARCH64GPRegister::ID& operator++(AARCH64GPRegister::ID &orig) {
+    orig = static_cast<AARCH64GPRegister::ID>(orig + 1);
+    if(orig > AARCH64GPRegister::REGISTER_NUMBER) throw "can't ++R31";
+    return orig;
+}
+
+template <typename RegisterType>
+class PhysicalRegister {
+private:
+    RegisterType reg;
+public:
+    PhysicalRegister(int id, bool physical) : reg(id, physical) {}
+    int id() const { return reg.id(); }
+    unsigned int encoding() const { return reg.encoding(); }
+    inline bool operator==(const PhysicalRegister& rhs) {
+        return id() == rhs.id(); }
+};
+#endif
+
 #endif

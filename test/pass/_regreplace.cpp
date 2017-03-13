@@ -21,7 +21,7 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64]") {
     auto f = module->getChildren()->getNamed()->find("__offtime");
     REQUIRE(f != nullptr);
 
-    RegReplacePass replacer(static_cast<Register>(ARM64_REG_X18), 0x10);
+    AARCH64RegReplacePass replacer(AARCH64GPRegister::R18, 0x10);
     f->accept(&replacer);
 #endif
 }

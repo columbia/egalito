@@ -1,18 +1,14 @@
+#include <numeric>
 #include "regreplace.h"
 #include "disasm/disassemble.h"
 #include "chunk/mutator.h"
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
-void RegReplacePass::useStack(Function *function, FrameType *frame) {
-    RegisterUsage regUsage(function, ARM64_REG_X18);
+void AARCH64RegReplacePass::useStack(
+    Function *function, FrameType *frame) {
 
-    for(auto u : regUsage.getUsage()) {
-        LOG(1, "in node " << u.first->getName());
-        for(auto ins : u.second) {
-            LOG(1, "x18 used in instruction " << ins->getName());
-        }
-    }
+    AARCH64RegisterUsage regUsage(function, AARCH64GPRegister::R18);
 
     for(auto block : regUsage.getSingleBlockList()) {
         replaceSingle(block, frame, &regUsage);
@@ -28,89 +24,65 @@ void RegReplacePass::useStack(Function *function, FrameType *frame) {
     ChunkMutator(function).updatePositions();
 }
 
-void RegReplacePass::replace(Block *block, FrameType *frame,
-    RegisterUsage *regUsage, bool skipHead, bool skipTail) {
+void AARCH64RegReplacePass::replaceRoot(Block *block, FrameType *frame,
+    RegisterUsage<AARCH64GPRegister> *regUsage) {
 
-    Register baseReg = frame->getSetBPInstr() ? ARM64_REG_X29 : ARM64_REG_SP;
-    Register dualReg = regUsage->getDualRegister(block);
+    replace(block, frame, regUsage, true, false);
+}
 
-    LOG(1, "dualReg for " << block->getName()
-        << " is X" << (dualReg - ARM64_REG_X0));
-    if(dualReg == INVALID_REGISTER) {
+void AARCH64RegReplacePass::replaceLeaf(Block *block, FrameType *frame,
+    RegisterUsage<AARCH64GPRegister> *regUsage) {
+
+    replace(block, frame, regUsage, false, true);
+}
+
+void AARCH64RegReplacePass::replaceSingle(Block *block, FrameType *frame,
+    RegisterUsage<AARCH64GPRegister> *regUsage) {
+
+    replace(block, frame, regUsage, true, true);
+}
+
+void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
+    RegisterUsage<AARCH64GPRegister> *regUsage, bool skipHead, bool skipTail) {
+
+    PhysicalRegister<AARCH64GPRegister> baseReg(
+        frame->getSetBPInstr() ? AARCH64GPRegister::R29 : AARCH64GPRegister::SP,
+        true);
+    PhysicalRegister<AARCH64GPRegister> dualReg(
+        regUsage->getDualableID(block), true);
+
+    if(dualReg.id() == AARCH64GPRegister::INVALID) {
         throw "no register found to serve dual role";
     }
 
-    LOG(1, "baseReg for accesing save-area is "
-        << (baseReg == ARM64_REG_X29 ? "X29" : "SP"));
+    LOG(1, "baseReg for accesing save-area is X" << baseReg.id());
+    LOG(1, "dualReg for " << block->getName() << " is X" << dualReg.id());
 
     auto xInstructionList = regUsage->getInstructionList(block);
 
-    LOG(1, "skipHead : " << skipHead << " skipTail : " << skipTail);
-    Instruction *begin(nullptr), *end(nullptr);
-    bool inRegion;
-    if(skipHead) {
-        inRegion = false;
-        begin = xInstructionList.front();
-    }
-    else {
-        inRegion = true;
-    }
-    if(skipTail) {
-        end = xInstructionList.back();
-    }
-
-    // not necessary until we do more optimization using information
-    // regarding CFG: e.g. no backward links to inside the region or no
-    // jumptable
-    std::vector<Instruction *> dualInstructionList;
-    for(auto ins : block->getChildren()->getIterable()->iterable()) {
-        if(!inRegion) {
-            if(ins == begin) {
-                inRegion = true;
-            }
-        }
-        if(!inRegion) continue;
-
-        if(ins == end) {
-            //inRegion = false;
-            break;
-        }
-        if(auto cs = ins->getSemantic()->getCapstone()) {
-            cs_arm64 *x = &cs->detail->arm64;
-            for(int i = 0; i < x->op_count; ++i) {
-                if(x->operands[i].type == ARM64_OP_REG
-                   && x->operands[i].reg == dualReg) {
-
-                    dualInstructionList.push_back(ins);
-                    break;
-                }
-            }
-        }
-    }
-
+    //LOG(1, "skipHead : " << skipHead << " skipTail : " << skipTail);
+#if 0
     for(auto ins : xInstructionList) {
         LOG(1, "regX is used in " << ins->getName());
     }
-    for(auto ins : dualInstructionList) {
-        LOG(1, "dualReg is used in " << ins->getName());
-    }
+#endif
 
-    unsigned int baseRegEnc = baseReg == ARM64_REG_X29 ? 29 :31;
-    unsigned int dualRegEnc = dualReg - ARM64_REG_X0;
+    // maybe we could optimize litte more when there is no backward links
+    // to inside the region or no jumptable at all
 
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
-        | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
+        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
     auto bin_str8 = AARCH64InstructionBinary(0xF9000000
-        | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
+        | 8/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
     auto bin_ldr0 = AARCH64InstructionBinary(0xF9400000
-        | 0/8 << 10 | baseRegEnc << 5 | dualRegEnc);
+        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
     auto bin_ldr8 = AARCH64InstructionBinary(0xF9400000
-        | 8/8 << 10 | baseRegEnc << 5 | dualRegEnc);
+        | 8/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
-    InstructionCoder coder;
+    AARCH64InstructionCoder coder;
     for(auto ins : xInstructionList) {
         auto cs = ins->getSemantic()->getCapstone();
         coder.decode(cs->bytes, cs->size);
@@ -146,13 +118,13 @@ void RegReplacePass::replace(Block *block, FrameType *frame,
     }
 }
 
-void InstructionCoder::decode(uint8_t *bytes, size_t size) {
+void AARCH64InstructionCoder::decode(uint8_t *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bin = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
     cached = false;
 }
 
-void InstructionCoder::encode(uint8_t *bytes, size_t size) {
+void AARCH64InstructionCoder::encode(uint8_t *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bytes[0] = bin >>  0 & 0xFF;
     bytes[1] = bin >>  8 & 0xFF;
@@ -160,22 +132,26 @@ void InstructionCoder::encode(uint8_t *bytes, size_t size) {
     bytes[3] = bin >> 24 & 0xFF;
 }
 
-bool InstructionCoder::isReading(Register reg) {
+bool AARCH64InstructionCoder::isReading(
+    PhysicalRegister<AARCH64GPRegister>& reg) {
+
     auto list = getRegPositionList();
     for(auto rpos : list.first) {
-        auto rr = bin >> rpos & regMask;
-        if(rr == static_cast<unsigned int>(reg - ARM64_REG_X0)) {
+        uint32_t rr = bin >> rpos & regMask;
+        if(rr == reg.encoding()) {
             return true;
         }
     }
     return false;
 }
 
-bool InstructionCoder::isWriting(Register reg) {
+bool AARCH64InstructionCoder::isWriting(
+    PhysicalRegister<AARCH64GPRegister>& reg) {
+
     auto list = getRegPositionList();
     for(auto wpos : list.second) {
-        auto wr = bin >> wpos & regMask;
-        if(wr == static_cast<unsigned int>(reg - ARM64_REG_X0)) {
+        uint32_t wr = bin >> wpos & regMask;
+        if(wr == reg.encoding()) {
             return true;
         }
     }
@@ -183,25 +159,26 @@ bool InstructionCoder::isWriting(Register reg) {
 }
 
 
-void InstructionCoder::replaceRegister(Register oldName, Register newName) {
-    //LOG(1, "renaming " << std::dec << (oldName - ARM64_REG_X0)
-        //<< " to " << std::dec << (newName - ARM64_REG_X0));
+void AARCH64InstructionCoder::replaceRegister(
+    PhysicalRegister<AARCH64GPRegister>& oldReg,
+    PhysicalRegister<AARCH64GPRegister>& newReg) {
+
     //LOG(1, "original bin = " << std::hex << bin);
 
     auto list = getRegPositionList();
     for(auto rpos : list.first) {
         auto rr = bin >> rpos & regMask;
-        if(rr == static_cast<unsigned int>(oldName - ARM64_REG_X0)) {
+        if(rr == oldReg.encoding()) {
             //LOG(1, "rpos = " << std::dec << rpos);
-            bin = (bin & ~(regMask << rpos)) | ((newName - ARM64_REG_X0) << rpos);
+            bin = (bin & ~(regMask << rpos)) | (newReg.encoding() << rpos);
         }
     }
 
     for(auto wpos : list.second) {
         auto wr = bin >> wpos & regMask;
-        if(wr == static_cast<unsigned int>(oldName - ARM64_REG_X0)) {
+        if(wr == oldReg.encoding()) {
             //LOG(1, "wpos = " << std::dec << wpos);
-            bin = (bin & ~(regMask << wpos)) | ((newName - ARM64_REG_X0) << wpos);
+            bin = (bin & ~(regMask << wpos)) | (newReg.encoding() << wpos);
         }
     }
     cached = false;
@@ -209,7 +186,7 @@ void InstructionCoder::replaceRegister(Register oldName, Register newName) {
     //LOG(1, "new bin = " << std::hex << bin);
 }
 
-InstructionCoder::RegPositionsList InstructionCoder::getRegPositionList() {
+AARCH64InstructionCoder::RegPositionsList AARCH64InstructionCoder::getRegPositionList() {
     if(!cached) {
         //C4.1
         auto op0 = bin >> 25 & 0xF;
@@ -228,7 +205,7 @@ InstructionCoder::RegPositionsList InstructionCoder::getRegPositionList() {
     return list;
 }
 
-void InstructionCoder::makeDPImm_RegPositionList() {
+void AARCH64InstructionCoder::makeDPImm_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -255,7 +232,7 @@ void InstructionCoder::makeDPImm_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void InstructionCoder::makeBranch_RegPositionList() {
+void AARCH64InstructionCoder::makeBranch_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -290,7 +267,7 @@ void InstructionCoder::makeBranch_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void InstructionCoder::makeLDST_RegPositionList() {
+void AARCH64InstructionCoder::makeLDST_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -374,7 +351,7 @@ void InstructionCoder::makeLDST_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void InstructionCoder::makeDPIReg_RegPositionList() {
+void AARCH64InstructionCoder::makeDPIReg_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -420,4 +397,200 @@ void InstructionCoder::makeDPIReg_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
+std::set<Block *> AARCH64RegisterUsage::getSingleBlockList() {
+    if(!cached) {
+        makeUsageList();
+        cached = true;
+    }
+    return singleBlockList;
+}
+
+std::set<Block *> AARCH64RegisterUsage::getRootBlockList() {
+    if(!cached) {
+        makeUsageList();
+        cached = true;
+    }
+    return rootBlockList;
+}
+
+std::set<Block *> AARCH64RegisterUsage::getLeafBlockList() {
+    if(!cached) {
+        makeUsageList();
+        cached = true;
+    }
+    return leafBlockList;
+}
+
+void AARCH64RegisterUsage::makeUsageList() {
+    for(auto b : function->getChildren()->getIterable()->iterable()) {
+        std::vector<Instruction *> instructionList;
+        for(auto ins : b->getChildren()->getIterable()->iterable()) {
+            if(auto cs = ins->getSemantic()->getCapstone()) {
+                cs_arm64 *x = &cs->detail->arm64;
+                for(int i = 0; i < x->op_count; ++i) {
+                    if(x->operands[i].type == ARM64_OP_REG
+                       && (AARCH64GPRegister(x->operands[i].reg, false).id()
+                            == AARCH64GPRegister::R18)) {
+
+                        instructionList.push_back(ins);
+                        break;
+                    }
+                }
+            }
+        }
+        if(instructionList.size() > 0) {
+            UsageList[b] = instructionList;
+        }
+    }
+
+#if 1
+    for(auto u : UsageList) {
+        LOG(1, "in node " << u.first->getName());
+        for(auto ins : u.second) {
+            LOG(1, "x18 used in instruction " << ins->getName());
+        }
+    }
+#endif
+
+    categorizeBlocks();
+}
+
+void AARCH64RegisterUsage::categorizeBlocks() {
+    ControlFlowGraph cfg(function);
+    cfg.dump();
+
+    for(auto u : UsageList) {
+        auto block = u.first;
+        auto node = cfg.get(block);
+        bool isLeaf = true;
+        for(auto link : node->forwardLinks()) {
+            auto nextNode = cfg.get(link.getID());
+            if(nextNode != node
+               && UsageList.find(nextNode->getBlock()) != UsageList.end()) {
+                isLeaf = false;
+                break;
+            }
+        }
+        if(isLeaf) {
+            leafBlockList.insert(block);
+        }
+
+        bool isRoot = true;
+        for(auto link : node->backwardLinks()) {
+            auto prevNode = cfg.get(link.getID());
+            if(prevNode != node
+               && UsageList.find(prevNode->getBlock()) != UsageList.end()) {
+                isRoot = false;
+                break;
+            }
+        }
+        if(isRoot) {
+            rootBlockList.insert(block);
+        }
+    }
+
+    std::set_intersection(rootBlockList.begin(), rootBlockList.end(),
+                          leafBlockList.begin(), leafBlockList.end(),
+                          std::inserter(singleBlockList, singleBlockList.end()));
+
+    for(auto b : singleBlockList) {
+        rootBlockList.erase(b);
+        leafBlockList.erase(b);
+    }
+}
+
+
+typename AARCH64GPRegister::ID AARCH64RegisterUsage::getDualableID(
+    Block *block) {
+
+    std::set<int> unusable;
+    int use_count[AARCH64GPRegister::REGISTER_NUMBER];
+    for(size_t i = 0; i < AARCH64GPRegister::REGISTER_NUMBER; ++i) {
+        use_count[i] = 0;
+    }
+
+    Instruction *begin(nullptr), *end(nullptr);
+    bool inRegion;
+    auto sbl = getSingleBlockList();
+    if(sbl.find(block) == sbl.end()) {
+        inRegion = true;
+    }
+    else {
+        inRegion = false;
+        auto ul = getUsageList();
+        begin = ul[block].front();
+        end = ul[block].back();
+    }
+
+    for (auto ins : block->getChildren()->getIterable()->iterable()) {
+        if(!inRegion) {
+            if(ins == begin) {
+                inRegion = true;
+            }
+        }
+        if(!inRegion) continue;
+
+        if(ins == end) {
+            //inRegion = false;
+            break;
+        }
+
+        if(auto cs = ins->getSemantic()->getCapstone()) {
+            cs_arm64 *x = &cs->detail->arm64;
+            for(int i = 0; i < x->op_count; ++i) {
+                std::vector<int> regOperands;
+                bool withX = false;
+                if(x->operands[i].type == ARM64_OP_REG) {
+                    int id = PhysicalRegister<AARCH64GPRegister>(
+                        x->operands[i].reg, false).id();
+
+                    if(id == AARCH64GPRegister::INVALID) continue;
+                    if(id == regX.id()) {
+                        withX = true;
+                    }
+                    regOperands.push_back(id);
+                }
+
+                if(withX) {
+                    for(auto rid : regOperands) {
+                        unusable.insert(rid);
+                    }
+                }
+                else {
+                    for(auto rid : regOperands) {
+                        use_count[rid] += 1;
+                    }
+                }
+            }
+        }
+    }
+
+
+    std::vector<AARCH64GPRegister::ID> idx(sizeof(use_count)/sizeof(*use_count));
+    std::iota(idx.begin(), idx.end(), AARCH64GPRegister::R0);
+    std::sort(idx.begin(), idx.end(),
+        [&use_count](size_t i1, size_t i2) {
+            return use_count[i1] < use_count[i2]; });
+
+    AARCH64GPRegister::ID dualID = AARCH64GPRegister::INVALID;
+    LOG(1, "register usage:");
+    for(auto i : idx) {
+        LOG(1, "R" << i << " : " << use_count[i]);
+        if(unusable.find(i) != unusable.end()) {
+            LOG(1, " -> unusable");
+        }
+        else {
+            if(dualSafe(i)) {
+                dualID = i;
+                break;
+            }
+        }
+    }
+
+    return dualID;
+}
+
+bool AARCH64RegisterUsage::dualSafe(AARCH64GPRegister::ID id) {
+    return (AARCH64GPRegister::R16 <= id && id <= AARCH64GPRegister::R28);
+}
 #endif
