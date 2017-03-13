@@ -115,7 +115,11 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
         std::vector<address_t> baseAddresses = getTableAddresses(state,
                                                                  tableAddress);
-        if(baseAddresses.size() > 1) {
+        if(baseAddresses.size() == 0) {
+            LOG(1, "couldn't parse the table address");
+            return false;
+        }
+        else if(baseAddresses.size() > 1) {
             LOG(1, "-- considering only the first table");
         }
         LOG(1, "  => 0x" << std::hex << baseAddresses.front());
@@ -189,9 +193,14 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         if(mnemonic == "b.ls") op = OP_LT;
         else if(mnemonic == "b.eq") op = OP_EQ;
         else if(mnemonic == "b.le") op = OP_LE;
+        else if(mnemonic == "b.lt") op = OP_LT;
         else if(mnemonic == "b.ne") op = OP_NE;
-        else if(mnemonic == "cbz") {
-            return false;   // not handled
+        else if(mnemonic == "b.hi") op = OP_GE;
+        else if(mnemonic == "b.gt") op = OP_GT;
+        else if(mnemonic == "cbz") op = OP_EQ;
+        else if(mnemonic == "cbnz") op = OP_NE;
+        else if(mnemonic == "tbz" || mnemonic == "tbnz") {
+            return false;   // needs more complicated analysis
         }
 #endif
         else {
@@ -256,9 +265,12 @@ std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
         return baseAddresses;
     }
 
-    if(dynamic_cast<TreeNodeMultipleParents *>(tree)) {
-        throw "multiple tables used for one table jump?";
-        // needs to be handled recursively
+    if(auto mult = dynamic_cast<TreeNodeMultipleParents *>(tree)) {
+        for(auto n : mult->getParents()) {
+            auto res = getTableAddresses(state, n);
+            baseAddresses.insert(baseAddresses.end(), res.begin(), res.end());
+        }
+        return baseAddresses;
     }
 
     TreeCapture cap1;
