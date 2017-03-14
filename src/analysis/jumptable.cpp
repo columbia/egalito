@@ -200,7 +200,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         else if(mnemonic == "cbz") op = OP_EQ;
         else if(mnemonic == "cbnz") op = OP_NE;
         else if(mnemonic == "tbz" || mnemonic == "tbnz") {
-            return false;   // needs more complicated analysis
+            continue;   // needs more complicated analysis
         }
 #endif
         else {
@@ -243,6 +243,23 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
             d->setBound(bound);
 
             return true;
+        }
+        else {
+            // In theory, we should interpret TreeNodeMultipleParents, but
+            // in practice this seems to handle the AARCH64 case very well
+            if(auto mult = dynamic_cast<TreeNodeMultipleParents *>(indexExpr)) {
+                for(auto sub: mult->getParents()) {
+                    if(leftGeneric == sub
+                       && (op == OP_LE || op == OP_LT)) {
+                        LOG0(1, "BOUNDS CHECK (MIGHT BE) FOUND! ");
+
+                        if(op == OP_LT) bound --;  // convert "<" to "<="
+                        d->setBound(bound);
+
+                        return true;
+                    }
+                }
+            }
         }
     }
 
