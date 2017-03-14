@@ -194,6 +194,15 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         size_t size = sym->st_size;
         const char *name = strtab + sym->st_name;
 
+        auto specialVersion = strstr(name, "@@GLIBC");
+        if(specialVersion) {
+            size_t len = specialVersion - name;
+            char *newName = new char[len];
+            memcpy(newName, name, len);
+            newName[len] = 0;
+            name = newName;
+        }
+
         // sym->st_shndx will be 0 for load-time relocations in dynsym
         auto index = sym->st_shndx;
 

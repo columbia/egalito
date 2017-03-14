@@ -20,7 +20,7 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
 #endif
         }
 
-#if 0
+#if 1
         auto name = sym->getName();
         auto specialVersion = strstr(name, "@@GLIBC");
         if(specialVersion) {

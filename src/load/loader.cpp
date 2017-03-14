@@ -124,6 +124,13 @@ address_t runEgalito(ElfMap *elf) {
         }
     }
 
+    if(libc) {
+        auto module = libc->getElfSpace()->getModule();
+        auto f = module->getChildren()->getNamed()->find("_IO_puts");
+        ChunkDumper dumper;
+        f->accept(&dumper);
+    }
+
     auto module = conductor.getMainSpace()->getModule();
     ChunkDumper dumper;
     module->accept(&dumper);
