@@ -8,7 +8,9 @@ namespace Emulation {
     struct my_rtld_global _rtld_global;
     struct my_rtld_global_ro _rtld_global_ro;
     char **_dl_argv;
-    int _dl_starting_up = 1;
+    char *__progname_full;      // for musl
+    char **__environ;           // for libc, musl
+    int _dl_starting_up = 0;//1;
     void *not_yet_implemented = 0;
 
     static void init_rtld_global(struct my_rtld_global *s) {
@@ -24,7 +26,16 @@ namespace Emulation {
 void LoaderEmulator::useArgv(char **argv) {
     Emulation::_dl_argv = argv;
     addSymbol("_dl_argv", Emulation::_dl_argv);
-    addSymbol("_dl_starting_up", &Emulation::_dl_starting_up);
+    Emulation::__progname_full = argv[0];
+    addSymbol("__progname_full", Emulation::__progname_full);
+
+    char **environ = argv;
+    while(*environ) environ ++;
+    environ ++;
+    Emulation::__environ = environ;
+    addSymbol("__environ", Emulation::__environ);
+
+    addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
 
     addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
     addSymbol("_dl_find_dso_for_object", Emulation::not_yet_implemented);
@@ -49,4 +60,8 @@ address_t LoaderEmulator::findSymbol(const std::string &symbol) {
 
 void LoaderEmulator::addSymbol(const std::string &symbol, const void *address) {
     symbolMap[symbol] = reinterpret_cast<address_t>(address);
+}
+
+void LoaderEmulator::addSymbol(const std::string &symbol, address_t address) {
+    symbolMap[symbol] = address;
 }

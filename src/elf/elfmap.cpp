@@ -85,6 +85,7 @@ void ElfMap::makeSectionMap() {
         //std::cout << "section [" << name << "]\n";
 
         sectionMap[name] = static_cast<void *>(s);
+        LOG(1, "found section [" << name << "] in elf file");
     }
 
     this->strtab = static_cast<const char *>(findSection(".strtab"));

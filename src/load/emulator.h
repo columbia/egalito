@@ -21,6 +21,7 @@ private:
     LoaderEmulator();
 
     void addSymbol(const std::string &symbol, const void *address);
+    void addSymbol(const std::string &symbol, address_t address);
 };
 
 #endif

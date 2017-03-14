@@ -1,5 +1,6 @@
 #include "link.h"
 #include "chunk.h"
+#include "plt.h"
 #include "elf/reloc.h"
 
 address_t NormalLink::getTargetAddress() const {
@@ -8,6 +9,10 @@ address_t NormalLink::getTargetAddress() const {
 
 address_t OffsetLink::getTargetAddress() const {
     return target->getAddress() + offset;
+}
+
+address_t PLTLink::getTargetAddress() const {
+    return pltEntry->getSourceElf()->getBaseAddress() + originalAddress;
 }
 
 address_t DataOffsetLink::getTargetAddress() const {

@@ -62,7 +62,7 @@ public:
 
     PLTEntry *getPLTEntry() const { return pltEntry; }
     virtual ChunkRef getTarget() const { return nullptr; }
-    virtual address_t getTargetAddress() const { return originalAddress; }
+    virtual address_t getTargetAddress() const;
 };
 
 class DataOffsetLink : public Link {

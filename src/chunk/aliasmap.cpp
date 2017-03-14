@@ -4,11 +4,31 @@
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
     for(auto func : module->getChildren()->getIterable()->iterable()) {
-        for(auto aliasSym : func->getSymbol()->getAliases()) {
+        auto sym = func->getSymbol();
+        for(auto aliasSym : sym->getAliases()) {
             auto alias = aliasSym->getName();
             //LOG(1, alias << " is an alias for " << func->getName());
             aliasMap[alias] = func;
+
+#if 1
+            auto specialVersion = strstr(alias, "@@GLIBC");
+            if(specialVersion) {
+                std::string splice(alias, specialVersion - alias);
+                aliasMap[splice] = func;
+                LOG(1, "alias [" << splice << "] to [" << alias << "]");
+            }
+#endif
         }
+
+#if 0
+        auto name = sym->getName();
+        auto specialVersion = strstr(name, "@@GLIBC");
+        if(specialVersion) {
+            std::string splice(name, specialVersion - name);
+            aliasMap[splice] = func;
+            LOG(1, "alias [" << splice << "] to [" << name << "]");
+        }
+#endif
     }
 }
 

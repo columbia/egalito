@@ -34,8 +34,9 @@ Function *FindAnywhere::findAnywhere(const char *target) {
 }
 
 address_t FindAnywhere::getRealAddress() {
-    return elfSpace->getElfMap()->getBaseAddress()
-        + found->getAddress();
+    /*return elfSpace->getElfMap()->getBaseAddress()
+        + found->getAddress();*/
+    return found->getAddress();
 }
 
 void RelocDataPass::visit(Module *module) {
@@ -69,25 +70,38 @@ bool RelocDataPass::resolveFunction(const char *name, address_t *address) {
 bool RelocDataPass::resolveLocalDataRef(const char *name,
     address_t *address) {
 
+#if 0
     Symbol *symbol = elfSpace->getSymbolList()->find(name);
-    if(!symbol) return false;
+    if(symbol) {
+        if(symbol->getType() == Symbol::TYPE_FUNC
+            || symbol->getType() == Symbol::TYPE_IFUNC) {
 
-    if(symbol->getType() == Symbol::TYPE_FUNC
-        || symbol->getType() == Symbol::TYPE_IFUNC) {
-
-        FindAnywhere found(conductor, elfSpace);
-        Function *f = found.findInside(module, name);
-        if(f) {
-            *address = found.getRealAddress();
+            FindAnywhere found(conductor, elfSpace);
+            Function *f = found.findInside(module, name);
+            if(f) {
+                *address = found.getRealAddress();
+                return true;
+            }
+        }
+        else {
+            // otherwise, must be a data object, address unchanged
+            *address = elf->getBaseAddress()
+                + symbol->getAddress();
             return true;
         }
-        return false;
     }
 
-    // otherwise, must be a data object, address unchanged
-    *address = elf->getBaseAddress()
-        + symbol->getAddress();
-    return true;
+    FindAnywhere found(conductor, elfSpace);
+    Function *f = found.findAnywhere(name);
+    if(f) {
+        *address = found.getRealAddress();
+        return true;
+    }
+
+    return false;
+#endif
+
+    return resolveFunction(name, address);
 }
 
 void RelocDataPass::fixRelocation(Reloc *r) {
@@ -97,6 +111,10 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
 
     LOG(1, "trying to fix " << (name ? name : "???"));
+
+    if(name && !strcmp(name, "__libc_start_main")) {
+        LOG(1, "DEBUG");
+    }
 
 #ifdef ARCH_X86_64
     address_t update = elf->getBaseAddress() + r->getAddress();
@@ -110,6 +128,10 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         if(name) found = resolveFunction(name, &dest);
     }
     else if(r->getType() == R_X86_64_RELATIVE) {
+        found = true;
+        dest = elf->getBaseAddress() + r->getAddend();
+    }
+    else if(r->getType() == R_X86_64_64) {
         found = true;
         dest = elf->getBaseAddress() + r->getAddend();
     }
