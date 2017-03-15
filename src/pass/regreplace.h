@@ -8,13 +8,13 @@
 template<typename RegisterType>
 class RegisterUsage {
 public:
-    virtual std::set<Block *> getSingleBlockList();
-    virtual std::set<Block *> getRootBlockList();
-    virtual std::set<Block *> getLeafBlockList();
-    virtual std::vector<Instruction *> getInstructionList(Block *block);
+    virtual std::set<Block *> getSingleBlockList() = 0;
+    virtual std::set<Block *> getRootBlockList() = 0;
+    virtual std::set<Block *> getLeafBlockList() = 0;
+    virtual std::vector<Instruction *> getInstructionList(Block *block) = 0;
 
     // in the extreme case, this has to be considered per instruction.
-    virtual typename RegisterType::ID getDualableID(Block *block);
+    virtual typename RegisterType::ID getDualableID(Block *block) = 0;
 };
 
 template <typename RegisterType>
@@ -22,7 +22,7 @@ class RegReplacePass : public StackExtendPass {
 public:
     RegReplacePass(typename RegisterType::ID id, size_t saveSize)
         : StackExtendPass(saveSize) {}
-    virtual void useStack(Function *function, FrameType *frame);
+    virtual void useStack(Function *function, FrameType *frame) {}
 
 private:
     virtual void replaceRoot(Block *block, FrameType *frame,
@@ -36,12 +36,14 @@ private:
 template <typename RegisterType>
 class InstructionCoder {
 public:
-    virtual void decode(uint8_t *bytes, size_t size);
-    virtual void encode(uint8_t *bytes, size_t size);
-    virtual bool isReading(PhysicalRegister<RegisterType> &reg);
-    virtual bool isWriting(PhysicalRegister<RegisterType> &reg);
+    virtual void decode(uint8_t *bytes, size_t size) {}
+    virtual void encode(uint8_t *bytes, size_t size) {}
+    virtual bool isReading(PhysicalRegister<RegisterType> &reg) {
+        return false; }
+    virtual bool isWriting(PhysicalRegister<RegisterType> &reg) {
+        return false; }
     virtual void replaceRegister(PhysicalRegister<RegisterType>& oldReg,
-                                 PhysicalRegister<RegisterType>& newReg);
+                                 PhysicalRegister<RegisterType>& newReg) {}
 };
 
 
