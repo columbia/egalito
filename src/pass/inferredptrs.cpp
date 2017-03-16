@@ -31,7 +31,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                     instruction->setSemantic(inferred);
                     delete v;
 
-#if 1
+#if 0
                     LOG(8, "inferred function pointer at " << instruction->getAddress()
                         << " -> " << target << ":");
                     ChunkDumper d;
@@ -42,7 +42,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                     inferred->setLink(new DataOffsetLink(elf, target));
                     instruction->setSemantic(inferred);
                     //delete v;
-#if 1
+#if 0
                     LOG(8, "inferred data pointer at " << instruction->getAddress()
                         << " -> " << target << ":");
                     ChunkDumper d;

@@ -8,6 +8,7 @@ class ElfMap;
 class ElfSpace;
 class Conductor;
 
+#if 0
 class FindAnywhere {
 private:
     Conductor *conductor;
@@ -24,6 +25,7 @@ public:
 
     address_t getRealAddress();
 };
+#endif
 
 /** Fixes relocations in the data section prior to running code.
 
@@ -45,9 +47,11 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    bool resolveFunction(const char *name, address_t *address);
-    bool resolveGen2(const char *name, address_t *address);
-    bool resolveGen2Helper(const char *name, address_t *address,
+    /** Tries to resolve the address that the named entity lives at.
+        On success, sets address and returns true. On failure, returns false.
+    */
+    bool resolveName(const char *name, address_t *address);
+    bool resolveNameHelper(const char *name, address_t *address,
         ElfSpace *space);
     void fixRelocation(Reloc *r);
 };

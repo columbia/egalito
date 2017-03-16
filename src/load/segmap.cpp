@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cstring>
+#include <cstring>  // for std::memset
 
 #include <sys/mman.h>
 #include <elf.h>
