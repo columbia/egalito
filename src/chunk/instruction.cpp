@@ -301,7 +301,7 @@ void LinkedInstruction::writeTo(char *target) {
     cs_insn *insn = getCapstone();
     auto dispSize = getDispSize();
     unsigned int newDisp = calculateDisplacement();
-    int dispOffset = MakeSemantic::getDispOffset(insn);
+    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
     int i = 0;
     std::memcpy(target + i, insn->bytes + i, dispOffset);
     i += dispOffset;
@@ -315,7 +315,7 @@ void LinkedInstruction::writeTo(std::string &target) {
     cs_insn *insn = getCapstone();
     auto dispSize = getDispSize();
     unsigned int newDisp = calculateDisplacement();
-    int dispOffset = MakeSemantic::getDispOffset(insn);
+    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
     target.append(reinterpret_cast<const char *>(insn->bytes),
         dispOffset);
     target.append(reinterpret_cast<const char *>(&newDisp), dispSize);

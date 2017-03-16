@@ -243,10 +243,11 @@ public:
 class LinkedInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
 private:
     Instruction *instruction;
+    int opIndex;
 public:
-    LinkedInstruction(Instruction *i, const cs_insn &insn)
+    LinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
         : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn),
-        instruction(i) {}
+        instruction(i), opIndex(opIndex) {}
 
     virtual void writeTo(char *target);
     virtual void writeTo(std::string &target);
@@ -262,8 +263,8 @@ protected:
 #ifdef ARCH_X86_64
 class RelocationInstruction : public LinkedInstruction {
 public:
-    RelocationInstruction(Instruction *i, const cs_insn &insn)
-        : LinkedInstruction(i, insn) {}
+    RelocationInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
 };
 #endif
 
@@ -271,14 +272,14 @@ class InferredInstruction : public LinkedInstruction {
 private:
     Instruction *instruction;
 public:
-    InferredInstruction(Instruction *i, const cs_insn &insn)
-        : LinkedInstruction(i, insn) {}
+    InferredInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
 };
 
 class AbsoluteLinkedInstruction : public LinkedInstruction {
 public:
-    AbsoluteLinkedInstruction(Instruction *i, const cs_insn &insn)
-        : LinkedInstruction(i, insn) {}
+    AbsoluteLinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
 protected:
     virtual unsigned calculateDisplacement();
 };

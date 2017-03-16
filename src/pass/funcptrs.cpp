@@ -30,14 +30,14 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
 #ifdef ARCH_X86_64
             for(int op = 0; op < v->getCapstone()->detail->x86.op_count; op ++) {
                 if(MakeSemantic::isRIPRelative(v->getCapstone(), op)) {
-                    auto ri = new RelocationInstruction(i, *v->getCapstone());
+                    auto ri = new RelocationInstruction(i, *v->getCapstone(), op);
                     ri->setLink(new NormalLink(target));
                     i->setSemantic(ri);
                     LOG(2, " -> CREATED LINK for funcptr");
                     return;
                 }
             }
-            auto ri = new AbsoluteLinkedInstruction(i, *v->getCapstone());
+            auto ri = new AbsoluteLinkedInstruction(i, *v->getCapstone(), 0);
             ri->setLink(new NormalLink(target));
             i->setSemantic(ri);
             LOG(2, " -> CREATED ABSOLUTE LINK for funcptr");

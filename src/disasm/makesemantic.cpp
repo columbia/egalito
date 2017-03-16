@@ -99,21 +99,6 @@ bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
 #endif
 }
 
-int MakeSemantic::getDispOffset(cs_insn *ins) {
-#ifdef ARCH_X86_64
-    cs_x86 *x = &ins->detail->x86;
-    for(size_t i = 0; i < x->op_count; i ++) {
-        cs_x86_op *op = &x->operands[i];
-        if(MakeSemantic::isRIPRelative(ins, i)) {
-            return getDispOffset(ins, i);
-        }
-    }
-    return 0;
-#else
-    throw "getDispOffset is only meaningful on x86";
-#endif
-}
-
 int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
 #ifdef ARCH_X86_64
     auto op = &ins->detail->x86.operands[opIndex];
@@ -123,6 +108,22 @@ int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
         
         while(offset > 0) {
             unsigned long disp = op->mem.disp;
+            // !!! this probably only works for 32-bit displacements
+            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
+                &disp, dispSize) == 0) {
+
+                break;
+            }
+            offset --;
+        }
+        return offset;
+    }
+    else if(op->type == X86_OP_IMM) {
+        int dispSize = determineDisplacementSize(ins);
+        int offset = ins->size - dispSize;
+        
+        while(offset > 0) {
+            unsigned long disp = op->imm;
             // !!! this probably only works for 32-bit displacements
             if(std::memcmp(static_cast<void *>(ins->bytes + offset),
                 &disp, dispSize) == 0) {

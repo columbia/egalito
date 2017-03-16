@@ -21,7 +21,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
             cs_x86_op *op = &x->operands[i];
             if(MakeSemantic::isRIPRelative(ins, i)) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
-                auto inferred = new InferredInstruction(instruction, *ins);
+                auto inferred = new InferredInstruction(instruction, *ins, i);
 
 
                 auto functionList = module->getChildren()->getSpatial();
@@ -55,7 +55,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->imm;
                 auto functionList = module->getChildren()->getSpatial();
                 auto inferred = new AbsoluteLinkedInstruction(
-                    instruction, *ins);
+                    instruction, *ins, i);
                 auto found = functionList->find(target);
                 if(found) {
                     inferred->setLink(new NormalLink(found));

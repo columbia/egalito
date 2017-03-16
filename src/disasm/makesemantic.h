@@ -13,7 +13,6 @@ public:
 
     static bool isRIPRelative(cs_insn *ins, int opIndex);
     static int determineDisplacementSize(cs_insn *ins);
-    static int getDispOffset(cs_insn *ins);
     static int getDispOffset(cs_insn *ins, int opIndex);
 };
 
