@@ -194,10 +194,13 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         size_t size = sym->st_size;
         const char *name = strtab + sym->st_name;
 
+        // Symbol versioning: some functions have @@GLIBC.* appended to the
+        // name (exported functions?), others only have one '@'.
         auto specialVersion = strstr(name, "@@GLIBC");
+        if(!specialVersion) specialVersion = strstr(name, "@GLIBC");
         if(specialVersion) {
             size_t len = specialVersion - name;
-            char *newName = new char[len];
+            char *newName = new char[len + 1];
             memcpy(newName, name, len);
             newName[len] = 0;
             name = newName;

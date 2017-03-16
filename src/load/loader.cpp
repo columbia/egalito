@@ -126,7 +126,7 @@ address_t runEgalito(ElfMap *elf) {
 
     if(libc) {
         auto module = libc->getElfSpace()->getModule();
-        auto f = module->getChildren()->getNamed()->find("_IO_puts");
+        auto f = module->getChildren()->getNamed()->find("ptmalloc_init.part.5");
         ChunkDumper dumper;
         f->accept(&dumper);
     }

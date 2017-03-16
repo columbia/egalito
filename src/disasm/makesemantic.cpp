@@ -76,6 +76,10 @@ int MakeSemantic::determineDisplacementSize(cs_insn *ins) {
     case 5: return 4;
     case 6: return 4;
     case 7: return 4;
+    case 8: return 4;  // never actually observed
+    case 9: return 4;  // never actually observed
+    case 10: return 4;
+    case 11: return 4;
     default: return 0;
     }
 #else
@@ -92,5 +96,45 @@ bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
         && op->mem.scale == 1);
 #else
     return false;
+#endif
+}
+
+int MakeSemantic::getDispOffset(cs_insn *ins) {
+#ifdef ARCH_X86_64
+    cs_x86 *x = &ins->detail->x86;
+    for(size_t i = 0; i < x->op_count; i ++) {
+        cs_x86_op *op = &x->operands[i];
+        if(MakeSemantic::isRIPRelative(ins, i)) {
+            return getDispOffset(ins, i);
+        }
+    }
+    return 0;
+#else
+    throw "getDispOffset is only meaningful on x86";
+#endif
+}
+
+int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
+#ifdef ARCH_X86_64
+    auto op = &ins->detail->x86.operands[opIndex];
+    if(op->type == X86_OP_MEM) {
+        int dispSize = determineDisplacementSize(ins);
+        int offset = ins->size - dispSize;
+        
+        while(offset > 0) {
+            unsigned long disp = op->mem.disp;
+            // !!! this probably only works for 32-bit displacements
+            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
+                &disp, dispSize) == 0) {
+
+                break;
+            }
+            offset --;
+        }
+        return offset;
+    }
+    return 0;
+#else
+    throw "getDispOffset is only meaningful on x86";
 #endif
 }

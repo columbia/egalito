@@ -46,7 +46,6 @@ public:
     virtual void visit(Instruction *instruction) {}
 private:
     bool resolveFunction(const char *name, address_t *address);
-    bool resolveLocalDataRef(const char *name, address_t *address);
     bool resolveGen2(const char *name, address_t *address);
     bool resolveGen2Helper(const char *name, address_t *address,
         ElfSpace *space);
