@@ -42,6 +42,7 @@ public:
     size_t getSize() const { return size; }
     const char *getName() const { return name; }
     SymbolType getType() const { return symbolType; }
+    BindingType getBind() const { return bindingType; }
     Symbol *getAliasFor() const { return aliasFor; }
 
     void setSize(size_t size) { this->size = size; }
@@ -53,6 +54,11 @@ public:
     const std::vector<Symbol *> &getAliases() const { return aliasList; }
 
     bool isFunction() const;
+public:
+    static unsigned char typeFromInternalToElf(SymbolType type);
+    static SymbolType typeFromElfToInternal(unsigned char type);
+    static unsigned char bindFromInternalToElf(BindingType bind);
+    static BindingType bindFromElfToInternal(unsigned char bind);
 };
 
 class SymbolList {

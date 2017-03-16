@@ -4,6 +4,8 @@
 #include "transform/sandbox.h"
 #include "elf/elfspace.h"
 
+class Generator;
+
 class ElfGenManager {
 private:
     ElfSpace *elfSpace;
@@ -12,7 +14,7 @@ public:
     ElfGenManager(ElfSpace *elfSpace)
         : elfSpace(elfSpace), sandbox(nullptr) {}
 public:
-    void copyCodeToSandbox();
+    void copyCodeToSandbox(Generator *generator);
 
     void setSandbox(Sandbox *box) { sandbox = box; }
     Sandbox *getSandbox() const { return sandbox; }

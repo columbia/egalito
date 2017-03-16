@@ -173,22 +173,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
 
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
-        Symbol::SymbolType type;
-        switch(ELF64_ST_TYPE(sym->st_info)) {
-        case STT_FUNC:      type = Symbol::TYPE_FUNC; break;
-        case STT_GNU_IFUNC: type = Symbol::TYPE_IFUNC; break;
-        case STT_OBJECT:    type = Symbol::TYPE_OBJECT; break;
-        case STT_NOTYPE:    type = Symbol::TYPE_UNKNOWN; break;
-        default: continue;
-        }
-
-        Symbol::BindingType bind;
-        switch(ELF64_ST_BIND(sym->st_info)) {
-        case STB_LOCAL:     bind = Symbol::BIND_LOCAL; break;
-        case STB_GLOBAL:    bind = Symbol::BIND_GLOBAL; break;
-        case STB_WEAK:      bind = Symbol::BIND_WEAK; break;
-        default: continue;
-        }
+        auto type = Symbol::typeFromElfToInternal(sym->st_info);
+        auto bind = Symbol::bindFromElfToInternal(sym->st_info);
 
         address_t address = sym->st_value;
         size_t size = sym->st_size;
@@ -236,4 +222,38 @@ void SymbolList::sortSymbols() {
         [](Symbol *a, Symbol *b) {
             return a->getAddress() < b->getAddress();
         });
+}
+
+unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
+    switch(type) {
+    case Symbol::TYPE_FUNC:   return STT_FUNC;
+    case Symbol::TYPE_IFUNC:  return STT_GNU_IFUNC;
+    case Symbol::TYPE_OBJECT: return STT_OBJECT;
+    default:                  return STT_NOTYPE;
+    }
+}
+
+Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
+    switch(ELF64_ST_TYPE(type)) {
+    case STT_FUNC:     return Symbol::TYPE_FUNC;
+    case STT_GNU_IFUNC:return Symbol::TYPE_IFUNC;
+    case STT_OBJECT:   return Symbol::TYPE_OBJECT;
+    default:           return Symbol::TYPE_UNKNOWN;
+    }
+}
+
+unsigned char Symbol::bindFromInternalToElf(BindingType bind) {
+    switch(bind) {
+    case Symbol::BIND_LOCAL:  return STB_LOCAL;
+    case Symbol::BIND_GLOBAL: return STB_GLOBAL;
+    default:                  return STB_WEAK;
+    }
+}
+
+Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
+    switch(ELF64_ST_BIND(type)) {
+    case STB_LOCAL:     return Symbol::BIND_LOCAL;
+    case STB_GLOBAL:    return Symbol::BIND_GLOBAL;
+    default:            return Symbol::BIND_WEAK;
+    }
 }

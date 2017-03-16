@@ -7,6 +7,7 @@
 #include "elf/elfspace.h"
 #include "conductor/conductor.h"
 #include "transform/sandbox.h"
+#include "transform/generator.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -29,7 +30,8 @@ int main(int argc, char *argv[]) {
         auto backing = ElfBacking(space, "gen");
         manager.setSandbox(new SandboxImpl<ElfBacking, WatermarkAllocator<ElfBacking> >(backing));
 
-        manager.copyCodeToSandbox();
+        Generator generator;
+        manager.copyCodeToSandbox(&generator);
         manager.getSandbox()->finalize();
 
     }
