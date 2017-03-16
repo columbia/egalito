@@ -1,7 +1,7 @@
 # Makefile to compute loader structures
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wno-format -Wno-int-conversion -Wno-unused-parameter -g \
+CFLAGS = -std=c99 -Wall -Wextra -Wno-format -Wno-int-conversion -Wno-unused-parameter -g \
     -DRTLD_GLOBAL_SIZE=$(RTLD_GLOBAL_SIZE) \
     -DRTLD_GLOBAL_RO_SIZE=$(RTLD_GLOBAL_RO_SIZE)
 

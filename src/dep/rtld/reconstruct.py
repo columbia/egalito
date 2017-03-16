@@ -9,7 +9,7 @@ class ReconstructCommand(gdb.Command):
         command = "reconstruct"
         if(subcommand != ""):
             command = command + " " + subcommand
-        super().__init__(command,
+        super(ReconstructCommand, self).__init__(command,
             gdb.COMMAND_DATA,
             gdb.COMPLETE_NONE, True)
         self.init_run()
@@ -41,7 +41,7 @@ class ReconstructCCommand(ReconstructCommand):
     "Pretty-print information as a C structure"
 
     def __init__(self, subcommand = "c"):
-        super().__init__(subcommand)
+        super(ReconstructCCommand, self).__init__(subcommand)
 
     def output(self, name, position, size, fieldType, substitutions):
         code = fieldType.strip_typedefs().code
@@ -96,7 +96,7 @@ class ReconstructDumpCommand(ReconstructCCommand):
     "Generate code to dump data structure with printf"
 
     def __init__(self):
-        super().__init__("dump")
+        super(ReconstructDumpCommand, self).__init__("dump")
 
     def output_statement(self, declType, name, position, size, fieldType):
         if(declType[2] == None):
@@ -114,11 +114,11 @@ class ReconstructAssignCommand(ReconstructCCommand):
     "Generate code to assign all structure members to reference values"
 
     def __init__(self):
-        super().__init__("assign")
+        super(ReconstructAssignCommand, self).__init__("assign")
 
     def output(self, name, position, size, fieldType, substitutions):
         if(name.startswith("__pad")): return
-        super().output(name, position, size, fieldType, substitutions)
+        super(ReconstructAssignCommand, self).output(name, position, size, fieldType, substitutions)
 
     def output_statement(self, declType, name, position, size, fieldType):
         if(declType[2] == None):
@@ -138,7 +138,7 @@ class ReconstructAssignCommand(ReconstructCCommand):
 
     def init_run(self):
         self.dataCount = 1
-        super().init_run()
+        super(ReconstructAssignCommand, self).init_run()
 
     def initial_print(self, arg):
         pass
