@@ -3,11 +3,11 @@
 #include "chunk/concrete.h"
 #include "chunk/instruction.h"
 #include "chunk/find.h"
+#include "disasm/makesemantic.h"
 #include "log/log.h"
 
 void FuncptrsPass::visit(Module *module) {
     auto children = module->getChildren();
-    if(!children->getNamed()) children->createNamed();
 
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
@@ -28,13 +28,25 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
 
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
-            auto ri = new RelocationInstruction(DisassembledStorage(*v->getCapstone()));
-#elif defined(ARCH_AARCH64)
+            for(int op = 0; op < v->getCapstone()->detail->x86.op_count; op ++) {
+                if(MakeSemantic::isRIPRelative(v->getCapstone(), op)) {
+                    auto ri = new RelocationInstruction(i, *v->getCapstone(), op);
+                    ri->setLink(new NormalLink(target));
+                    i->setSemantic(ri);
+                    LOG(2, " -> CREATED LINK for funcptr");
+                    return;
+                }
+            }
+            auto ri = new AbsoluteLinkedInstruction(i, *v->getCapstone(), 0);
+            ri->setLink(new NormalLink(target));
+            i->setSemantic(ri);
+            LOG(2, " -> CREATED ABSOLUTE LINK for funcptr");
+#else
             auto ri = new RelocationInstruction(i, *v->getCapstone());
-#endif
             ri->setLink(new NormalLink(target));
             i->setSemantic(ri);
             LOG(2, " -> CREATED LINK for funcptr");
+#endif
         }
         else {
             // note: if it's a ControlFlowInstruction, we don't need to do

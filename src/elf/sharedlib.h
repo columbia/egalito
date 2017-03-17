@@ -28,8 +28,10 @@ public:
 };
 
 class LibraryList {
+protected:
+    typedef std::vector<SharedLib *> LibraryListType;
 private:
-    std::vector<SharedLib *> libraryList;
+    LibraryListType libraryList;
     std::map<std::string, SharedLib *> libraryMap;
 public:
     bool contains(const std::string &fullPath) const
@@ -41,6 +43,9 @@ public:
     SharedLib *get(size_t i) { return libraryList[i]; }
     SharedLib *get(const std::string &name);
     SharedLib *getLibc();  // for testing
+
+    LibraryListType::const_iterator begin() const { return libraryList.begin(); }
+    LibraryListType::const_iterator end() const { return libraryList.end(); }
 };
 
 #endif

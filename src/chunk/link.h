@@ -7,6 +7,8 @@
 #include "util/iter.h"
 #include "types.h"
 
+class ElfMap;
+
 /** Represents a reference from a Chunk that may need to be updated.
 
     Some Links refer to a target Chunk, and the offset may change if either
@@ -60,17 +62,19 @@ public:
 
     PLTEntry *getPLTEntry() const { return pltEntry; }
     virtual ChunkRef getTarget() const { return nullptr; }
-    virtual address_t getTargetAddress() const { return originalAddress; }
+    virtual address_t getTargetAddress() const;
 };
 
 class DataOffsetLink : public Link {
 private:
+    ElfMap *elf;
     address_t target;
 public:
-    DataOffsetLink(address_t target) : target(target) {}
+    DataOffsetLink(ElfMap *elf, address_t target)
+        : elf(elf), target(target) {}
 
     virtual ChunkRef getTarget() const { return nullptr; }
-    address_t getTargetAddress() const { return target; }
+    address_t getTargetAddress() const;
 };
 
 /** We know that this is a Link, but we're not sure what it points at yet.

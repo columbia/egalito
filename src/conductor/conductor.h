@@ -14,6 +14,11 @@ public:
     void parseRecursive(ElfMap *elf);
     void parse(ElfMap *elf, SharedLib *library);
 
+    void fixDataSections();
+    void fixDataSection(ElfSpace *elfSpace);
+
+    void writeDebugElf(const char *filename, const char *suffix = "$new");
+
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
     LibraryList *getLibraryList() const { return libraryList; }
 };

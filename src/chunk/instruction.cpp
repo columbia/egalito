@@ -7,6 +7,7 @@
 #include "chunk.h"
 #include "link.h"
 #include "disasm/disassemble.h"
+#include "disasm/makesemantic.h"  // for determineDisplacementSize
 #include "log/log.h"
 
 void RawByteStorage::writeTo(char *target) {
@@ -286,34 +287,62 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
 
 #endif
 
-void InferredInstruction::writeTo(char *target) {
-    cs_insn *insn = getCapstone();
-    unsigned int newDisp = getLink()->getTargetAddress()
-        - (instruction->getAddress() + getSize());
-    std::memcpy(target, insn->bytes, insn->size - 4);
-    std::memcpy(target + insn->size - 4, &newDisp, 4);
+int LinkedInstruction::getDispSize() {
+    return MakeSemantic::determineDisplacementSize(getCapstone());
 }
 
-void InferredInstruction::writeTo(std::string &target) {
-    cs_insn *insn = getCapstone();
+unsigned LinkedInstruction::calculateDisplacement() {
     unsigned int newDisp = getLink()->getTargetAddress()
         - (instruction->getAddress() + getSize());
-    target.append(reinterpret_cast<const char *>(insn->bytes), insn->size - 4);
-    target.append(reinterpret_cast<const char *>(&newDisp), 4);
+    return newDisp;
 }
 
-std::string InferredInstruction::getData() {
+void LinkedInstruction::writeTo(char *target) {
+    cs_insn *insn = getCapstone();
+    auto dispSize = getDispSize();
+    unsigned int newDisp = calculateDisplacement();
+    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
+    int i = 0;
+    std::memcpy(target + i, insn->bytes + i, dispOffset);
+    i += dispOffset;
+    std::memcpy(target + i, &newDisp, dispSize);
+    i += dispSize;
+    std::memcpy(target + i, insn->bytes + i,
+        insn->size - dispSize - dispOffset);
+}
+
+void LinkedInstruction::writeTo(std::string &target) {
+    cs_insn *insn = getCapstone();
+    auto dispSize = getDispSize();
+    unsigned int newDisp = calculateDisplacement();
+    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
+    target.append(reinterpret_cast<const char *>(insn->bytes),
+        dispOffset);
+    target.append(reinterpret_cast<const char *>(&newDisp), dispSize);
+    target.append(reinterpret_cast<const char *>(insn->bytes)
+        + dispOffset + dispSize,
+        insn->size - dispSize - dispOffset);
+}
+
+std::string LinkedInstruction::getData() {
     std::string data;
     writeTo(data);
     return std::move(data);
 }
 
-void InferredInstruction::regenerateCapstone() {
+void LinkedInstruction::regenerateCapstone() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).
     std::string data = getData();
-    std::vector<unsigned char> dataVector(data.begin(), data.end());
+    std::vector<unsigned char> dataVector;
+    for(size_t i = 0; i < data.length(); i ++) {
+        dataVector.push_back(data[i]);
+    }
     cs_insn ins = Disassemble::getInsn(dataVector, instruction->getAddress());
     DisassembledStorage storage(ins);
     setStorage(std::move(storage));
+}
+
+unsigned AbsoluteLinkedInstruction::calculateDisplacement() {
+    return getLink()->getTargetAddress();
 }

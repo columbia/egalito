@@ -63,7 +63,10 @@ void ChunkDumper::visit(Instruction *instruction) {
 #elif defined(ARCH_AARCH64)
             if(p->getMnemonic() == "bl") name << "(CALL)";
 #endif
-            else name << "(JUMP " << p->getMnemonic() << ")";
+            else {
+                name << "(JUMP " << p->getMnemonic() << ")";
+                //name << " [opcode size " << p->getOpcode().length() << ", dispSize " << p->getDisplacementSize() << "] ";
+            }
 
             std::string bytes = instruction->getSemantic()->getData();
             std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
@@ -100,21 +103,20 @@ void ChunkDumper::visit(Instruction *instruction) {
         return;
     }
 
-    if(auto r = dynamic_cast<RelocationInstruction *>(instruction->getSemantic())) {
+    // this handles RelocationInstruction, InferredInstruction
+    if(auto r = dynamic_cast<LinkedInstruction *>(instruction->getSemantic())) {
+        r->regenerateCapstone();
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
             ins->address = instruction->getAddress();
             DisasmDump::printInstruction(ins, pos, target->getName().c_str());
-            return;
         }
-    }
-    if(auto r = dynamic_cast<InferredInstruction *>(instruction->getSemantic())) {
-        r->regenerateCapstone();
-        auto link = r->getLink();
-        unsigned long target = link->getTargetAddress();
-        ins->address = instruction->getAddress();
-        DisasmDump::printInstructionCalculated(ins, pos, target);
+        else {
+            unsigned long targetAddress = link->getTargetAddress();
+            ins->address = instruction->getAddress();
+            DisasmDump::printInstructionCalculated(ins, pos, targetAddress);
+        }
         return;
     }
 

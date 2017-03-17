@@ -1,5 +1,6 @@
 #include "inferredptrs.h"
 #include "chunk/dump.h"
+#include "disasm/makesemantic.h"
 #include "log/log.h"
 
 void InferredPtrsPass::visit(Module *module) {
@@ -18,23 +19,52 @@ void InferredPtrsPass::visit(Instruction *instruction) {
         cs_x86 *x = &ins->detail->x86;
         for(size_t i = 0; i < x->op_count; i ++) {
             cs_x86_op *op = &x->operands[i];
-            if(op->type == X86_OP_MEM
-                && op->mem.base == X86_REG_RIP
-                && op->mem.index == X86_REG_INVALID
-                && op->mem.scale == 1) {
-
+            if(MakeSemantic::isRIPRelative(ins, i)) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
-                target += elf->getBaseAddress();
-                auto inferred = new InferredInstruction(instruction, *ins);
-                inferred->setLink(new DataOffsetLink(target));
-                instruction->setSemantic(inferred);
-                delete v;
+                auto inferred = new InferredInstruction(instruction, v->moveStorageFrom(), i);
 
-                LOG(8, "inferred instruction at " << instruction->getAddress()
-                    << " -> " << target << ":");
-                ChunkDumper d;
-                instruction->accept(&d);
+                auto functionList = module->getChildren()->getSpatial();
+                auto found = functionList->find(target);
+                if(found) {
+                    inferred->setLink(new NormalLink(found));
+                    instruction->setSemantic(inferred);
+                    delete v;
+
+#if 0
+                    LOG(8, "inferred function pointer at " << instruction->getAddress()
+                        << " -> " << target << ":");
+                    ChunkDumper d;
+                    instruction->accept(&d);
+#endif
+                }
+                else {
+                    inferred->setLink(new DataOffsetLink(elf, target));
+                    instruction->setSemantic(inferred);
+                    delete v;
+#if 0
+                    LOG(8, "inferred data pointer at " << instruction->getAddress()
+                        << " -> " << target << ":");
+                    ChunkDumper d;
+                    instruction->accept(&d);
+#endif
+                }
                 return;
+            }
+            else if(op->type == X86_OP_IMM) {
+                address_t target = (instruction->getAddress() + instruction->getSize()) + op->imm;
+                auto functionList = module->getChildren()->getSpatial();
+                auto found = functionList->find(target);
+                if(found) {
+                    auto inferred = new AbsoluteLinkedInstruction(
+                        instruction, v->moveStorageFrom(), i);
+                    inferred->setLink(new NormalLink(found));
+                    instruction->setSemantic(inferred);
+                    delete v;
+                    return;  // don't access v after we delete it
+                }
+                /*else {
+                    inferred->setLink(new DataOffsetLink(elf, target));
+                }*/
             }
         }
 #endif

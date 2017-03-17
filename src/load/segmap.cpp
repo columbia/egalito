@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>  // for std::memset
 
 #include <sys/mman.h>
 #include <elf.h>
@@ -33,21 +34,30 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
 
     size_t memsz_pages  = ROUND_UP(phdr->p_memsz + address_offset);
     size_t filesz_pages = ROUND_UP(phdr->p_filesz + address_offset);
+    size_t filesz_orig  = phdr->p_filesz + address_offset;
 
     address += baseAddress;  // relocate shared code by the given offset
 
     void *mem = 0;
     if(memsz_pages > filesz_pages) {
+        // first map the full pages including zero pages, unmap and remap
         mem = mmap((void *)address,
             memsz_pages,
             prot,
             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
             -1, 0);
+        if(mem == (void *)-1) throw "Out of memory?";
         munmap(mem, filesz_pages);
         mem = mmap(mem, filesz_pages, prot,
             MAP_PRIVATE | MAP_FIXED,
             elf.getFileDescriptor(),
             offset);
+        // the last page from the file might need zeroing, in case
+        // we mapped too much data in by rounding up to a page
+        if(filesz_orig != filesz_pages) {
+            std::memset(static_cast<char *>(mem) + filesz_orig,
+                0, filesz_pages - filesz_orig);
+        }
         if(mem == (void *)-1) throw "Out of memory?";
     }
     else {  // no extra zero pages

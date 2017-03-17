@@ -88,8 +88,16 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 }
 
 Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
+    auto mc = symbolList->find(0x53349);
+    if(mc) {
+        LOG(1, "HERE's memcpy, is it a function? " << mc->isFunction());
+    }
+
     Module *module = new Module();
     for(auto sym : *symbolList) {
+        // skip Symbols that we don't think represent functions
+        if(!sym->isFunction()) continue;
+
         if(true
 #if 0
            || !strcmp(sym->getName(),"main")

@@ -26,7 +26,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
     $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
-    $(ANALYSIS_SOURCES)
+    $(ANALYSIS_SOURCES) load/emulator.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
@@ -48,7 +48,7 @@ SYMLINKS = $(notdir $(OUTPUTS))
 
 # Default target
 .PHONY: all
-all: $(OUTPUTS) symlinks
+all: gencode $(OUTPUTS) symlinks
 
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
@@ -69,6 +69,9 @@ symlinks: $(OUTPUTS) .symlinks
 
 .PHONY: relink
 relink: symlinks
+
+gencode:
+	$(MAKE) -C dep/rtld
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -117,4 +120,5 @@ $(BUILDDIR)/regression:
 # Other targets
 .PHONY: clean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example
+	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf
+	-$(MAKE) -C dep/rtld clean

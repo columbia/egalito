@@ -2,6 +2,7 @@
 #include "disasm/disassemble.h"
 #include "elfgenmanager.h"
 #include "conductor/conductor.h"
+#include "transform/generator.h"
 #include "log/log.h"
 
 class ChunkWriter : public ChunkVisitor {
@@ -25,10 +26,11 @@ public:
     }
 };
 
-void ElfGenManager::copyCodeToSandbox() {
+void ElfGenManager::copyCodeToSandbox(Generator *generator) {
     auto chunkList = elfSpace->getModule()->getChildren();
     if(!sandbox || !chunkList) throw "Sandbox, elfspace, or chunklist not set";
 
+#if 0
     for(auto chunk : chunkList->genericIterable()) {
         auto slot = sandbox->allocate(chunk->getSize());
         chunk->getPosition()->set(slot.getAddress());
@@ -36,4 +38,8 @@ void ElfGenManager::copyCodeToSandbox() {
         chunk->accept(&writer);
         CLOG(1, "ElfBuilder writing [%s] to 0x%lx", chunk->getName().c_str(), slot.getAddress());
     }
+#else
+    generator->pickAddressesInSandbox(elfSpace->getModule(), sandbox);
+    generator->copyCodeToSandbox(elfSpace->getModule(), sandbox);
+#endif
 }

@@ -11,19 +11,20 @@ Sandbox *Generator::makeSandbox() {
         WatermarkAllocator<MemoryBacking>>(backing);
 }
 
-void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
-    Sandbox *sandbox) {
-
-    LOG(1, "Copying code into sandbox");
+void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     for(auto f : module->getChildren()->getIterable()->iterable()) {
-        auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
+        //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
+        auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
         //f->getPosition()->set(slot.getAddress());
         ChunkMutator(f).setPosition(slot.getAddress());
     }
+}
 
+void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
+    LOG(1, "Copying code into sandbox");
     for(auto f : module->getChildren()->getIterable()->iterable()) {
         char *output = reinterpret_cast<char *>(f->getAddress());
         LOG(2, "    writing out [" << f->getName() << "] at 0x" << std::hex << f->getAddress());
@@ -34,20 +35,16 @@ void Generator::copyCodeToSandbox(ElfMap *elf, Module *module,
             }
         }
     }
-
-    sandbox->finalize();
 }
 
-void Generator::jumpToSandbox(Sandbox *sandbox, Module *module) {
-    // jump straight to main()
-    if(!module->getChildren()->getNamed()) {
-        module->getChildren()->createNamed();
-    }
+void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
+    const char *function) {
 
-    auto f = module->getChildren()->getNamed()->find("main");
+    auto f = module->getChildren()->getNamed()->find(function);
     if(!f) return;
 
-    LOG(1, "jumping to main at " << std::hex << f->getAddress());
+    LOG(1, "jumping to [" << function << "] at 0x"
+        << std::hex << f->getAddress());
     int (*mainp)(int, char **) = (int (*)(int, char **))f->getAddress();
 
     int argc = 1;
@@ -56,4 +53,6 @@ void Generator::jumpToSandbox(Sandbox *sandbox, Module *module) {
     std::cout.flush();
     std::fflush(stdout);
     mainp(argc, argv);
+
+    LOG(1, "RETURNED from target");
 }

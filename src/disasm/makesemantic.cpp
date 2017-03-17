@@ -30,12 +30,12 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             semantic = cfi;
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            size_t use = ins->size /* - op->size*/;
+            auto dispSize = determineDisplacementSize(ins);
+            size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
             auto cfi = new ControlFlowInstruction(instruction,
                 std::string((char *)ins->bytes, use),
-                ins->mnemonic,
-                /*op->size*/ 0);
+                ins->mnemonic, dispSize);
             cfi->setLink(new UnresolvedLink(imm));
             semantic = cfi;
         }
@@ -66,4 +66,76 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
 
     return semantic;
+}
+
+int MakeSemantic::determineDisplacementSize(cs_insn *ins) {
+#ifdef ARCH_X86_64
+    switch(ins->size) {
+    case 2: return 1;
+    case 3: return 1;
+    case 5: return 4;
+    case 6: return 4;
+    case 7: return 4;
+    case 8: return 4;  // never actually observed
+    case 9: return 4;  // never actually observed
+    case 10: return 4;
+    case 11: return 4;
+    default: return 0;
+    }
+#else
+    return 0;
+#endif
+}
+
+bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
+#ifdef ARCH_X86_64
+    auto op = &ins->detail->x86.operands[opIndex];
+    return (op->type == X86_OP_MEM
+        && op->mem.base == X86_REG_RIP
+        && op->mem.index == X86_REG_INVALID
+        && op->mem.scale == 1);
+#else
+    return false;
+#endif
+}
+
+int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
+#ifdef ARCH_X86_64
+    auto op = &ins->detail->x86.operands[opIndex];
+    if(op->type == X86_OP_MEM) {
+        int dispSize = determineDisplacementSize(ins);
+        int offset = ins->size - dispSize;
+        
+        while(offset > 0) {
+            unsigned long disp = op->mem.disp;
+            // !!! this probably only works for 32-bit displacements
+            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
+                &disp, dispSize) == 0) {
+
+                break;
+            }
+            offset --;
+        }
+        return offset;
+    }
+    else if(op->type == X86_OP_IMM) {
+        int dispSize = determineDisplacementSize(ins);
+        int offset = ins->size - dispSize;
+        
+        while(offset > 0) {
+            unsigned long disp = op->imm;
+            // !!! this probably only works for 32-bit displacements
+            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
+                &disp, dispSize) == 0) {
+
+                break;
+            }
+            offset --;
+        }
+        return offset;
+    }
+    return 0;
+#else
+    throw "getDispOffset is only meaningful on x86";
+#endif
 }

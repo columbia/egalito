@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
         if(0) {
             Generator generator;
             auto sandbox = generator.makeSandbox();
-            generator.copyCodeToSandbox(&elf, module, sandbox);
+            generator.copyCodeToSandbox(module, sandbox);
 
             LOG(1, "");
             LOG(1, "=== After copying code to new locations ===");

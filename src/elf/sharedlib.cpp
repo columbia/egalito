@@ -72,7 +72,18 @@ SharedLib *LibraryList::get(const std::string &name) {
 #endif
 
 SharedLib *LibraryList::getLibc() {
-    return get(LIBC_PATH);
+    auto manual = get(LIBC_PATH);
+    if(manual) return manual;
+
+    for(auto lib : libraryList) {
+        if(lib->getShortName() == "libc.so"
+            || lib->getShortName() == "libc.so.6") {
+
+            return lib;
+        }
+    }
+
+    return nullptr;
 }
 #undef LIBC_PATH
 

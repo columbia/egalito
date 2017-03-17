@@ -56,6 +56,7 @@ private:
     cs_detail *detail;
 private:
     DisassembledStorage(const DisassembledStorage &other);
+    DisassembledStorage &operator = (DisassembledStorage &other);
 public:
     DisassembledStorage(const cs_insn &insn);
     DisassembledStorage(DisassembledStorage &&other);
@@ -80,6 +81,7 @@ public:
     SemanticImpl(Storage &&storage) : storage(std::move(storage)) {}
 
     Storage &getStorage() { return storage; }
+    Storage &&moveStorageFrom() { return std::move(storage); }
 
     virtual size_t getSize() const { return storage.getSize(); }
     virtual void setSize(size_t value)
@@ -118,7 +120,6 @@ typedef SemanticImpl<RawByteStorage> RawInstruction;
 typedef SemanticImpl<DisassembledStorage> DisassembledInstruction;
 
 #ifdef ARCH_X86_64
-typedef LinkDecorator<SemanticImpl<DisassembledStorage>> RelocationInstruction;
 typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
@@ -142,6 +143,8 @@ public:
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
+    std::string getOpcode() const { return opcode; }
+    int getDisplacementSize() const { return displacementSize; }
 private:
     diff_t calculateDisplacement();
 };
@@ -239,19 +242,57 @@ public:
     register_t getRegister() const { return reg; }
 };
 
-class InferredInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
+class LinkedInstruction : public LinkDecorator<SemanticImpl<DisassembledStorage>> {
 private:
     Instruction *instruction;
+    int opIndex;
 public:
-    InferredInstruction(Instruction *i, const cs_insn &insn)
+    LinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
         : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn),
-        instruction(i) {}
+        instruction(i), opIndex(opIndex) {}
+    LinkedInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
+        : LinkDecorator<SemanticImpl<DisassembledStorage>>(other),
+        instruction(i), opIndex(opIndex) {}
 
     virtual void writeTo(char *target);
     virtual void writeTo(std::string &target);
     virtual std::string getData();
 
     void regenerateCapstone();
+protected:
+    Instruction *getInstruction() const { return instruction; }
+    int getDispSize();
+    virtual unsigned calculateDisplacement();
+};
+
+#ifdef ARCH_X86_64
+class RelocationInstruction : public LinkedInstruction {
+public:
+    RelocationInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
+    RelocationInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
+        : LinkedInstruction(i, std::move(other), opIndex) {}
+};
+#endif
+
+class InferredInstruction : public LinkedInstruction {
+private:
+    Instruction *instruction;
+public:
+    InferredInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
+    InferredInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
+        : LinkedInstruction(i, std::move(other), opIndex) {}
+};
+
+class AbsoluteLinkedInstruction : public LinkedInstruction {
+public:
+    AbsoluteLinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
+        : LinkedInstruction(i, insn, opIndex) {}
+    AbsoluteLinkedInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
+        : LinkedInstruction(i, std::move(other), opIndex) {}
+protected:
+    virtual unsigned calculateDisplacement();
 };
 
 #endif

@@ -1,0 +1,177 @@
+#include <cassert>
+#include "relocdata.h"
+#include "elf/elfmap.h"
+#include "elf/reloc.h"
+#include "chunk/aliasmap.h"
+#include "conductor/conductor.h"
+#include "load/emulator.h"
+#include "log/log.h"
+
+#if 0
+Function *FindAnywhere::findInside(Module *module, const char *target) {
+    found = module->getChildren()->getNamed()->find(target);
+    if(!found) {
+        found = elfSpace->getAliasMap()->find(target);
+    }
+    return found;
+}
+
+Function *FindAnywhere::findAnywhere(const char *target) {
+    if(!conductor) return nullptr;
+
+    elfSpace = conductor->getMainSpace();
+    found = findInside(elfSpace->getModule(), target);
+    if(found) return found;
+
+    for(auto library : *conductor->getLibraryList()) {
+        elfSpace = library->getElfSpace();
+        if(elfSpace) {
+            found = findInside(elfSpace->getModule(), target);
+            if(found) return found;
+        }
+    }
+
+    LOG(1, "    could not find " << target << " ANYWHERE");
+    return nullptr;
+}
+
+address_t FindAnywhere::getRealAddress() {
+    return found->getAddress();
+}
+#endif
+
+void RelocDataPass::visit(Module *module) {
+    this->module = module;
+    for(auto r : *relocList) {
+        fixRelocation(r);
+    }
+}
+
+bool RelocDataPass::resolveNameHelper(const char *name, address_t *address,
+    ElfSpace *space) {
+
+    assert(name != nullptr);
+
+    // First, check if this is a function we transformed;
+    // if so, we should use the new address.
+    auto f = space->getModule()->getChildren()->getNamed()->find(name);
+    if(f) {
+        LOG(1, "    ...found as function! at "
+            << std::hex << f->getAddress());
+        *address = f->getAddress();
+        return true;
+    }
+
+    // Also, check if this is an alias for a known function.
+    auto alias = space->getAliasMap()->find(name);
+    if(alias) {
+        LOG(1, "    ...found as alias! at "
+            << std::hex << alias->getAddress());
+        *address = alias->getAddress();
+        return true;
+    }
+
+    // Maybe this is normally supplied by the system loader and
+    // we're supplying it instead.
+    if(auto a = LoaderEmulator::getInstance().findSymbol(name)) {
+        LOG(1, "    ...found via emulation! at " << std::hex << a);
+        *address = a;
+        return true;
+    }
+
+    // Lastly, see if this is a data object; if so, use the original
+    // address (but add the new load address as a base address).
+    auto symbol = space->getSymbolList()->find(name);
+    if(symbol) {
+        if(symbol->getAddress() > 0
+            && symbol->getType() != Symbol::TYPE_FUNC
+            && symbol->getType() != Symbol::TYPE_IFUNC) {
+
+            // must be a data object, address unchanged
+            LOG(1, "    ...found as data ref! at "
+                << std::hex << symbol->getAddress());
+            *address = elf->getBaseAddress() + symbol->getAddress();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool RelocDataPass::resolveName(const char *name, address_t *address) {
+    if(name) {
+        //LOG(1, "SEARCH for " << name);
+
+        // first check the elfSpace we are resolving relocations for
+        if(resolveNameHelper(name, address, elfSpace)) return true;
+
+        for(auto library : *conductor->getLibraryList()) {
+            auto space = library->getElfSpace();
+            if(space && space != elfSpace) {
+                if(resolveNameHelper(name, address, space)) return true;
+            }
+        }
+
+        auto mainSpace = conductor->getMainSpace();
+        if(mainSpace != elfSpace) {
+            if(resolveNameHelper(name, address, mainSpace)) return true;
+        }
+    }
+
+    return false;
+}
+
+void RelocDataPass::fixRelocation(Reloc *r) {
+    const char *name = 0;
+    if(r->getSymbol() && *r->getSymbol()->getName()) {
+        name = r->getSymbol()->getName();
+    }
+    else {
+        // If the symbols are split into a separate file, the relocation
+        // may not know its name, but we can find it.
+        auto otherSym = elfSpace->getSymbolList()->find(r->getAddend());
+        if(otherSym) name = otherSym->getName();
+    }
+
+    LOG(1, "trying to fix " << (name ? name : "???")
+        << " reloc type " << std::dec << (int)r->getType());
+
+#ifdef ARCH_X86_64
+    address_t update = elf->getBaseAddress() + r->getAddress();
+    address_t dest = 0;
+    bool found = false;
+
+    if(r->getType() == R_X86_64_GLOB_DAT) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_X86_64_JUMP_SLOT) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_X86_64_64) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_X86_64_RELATIVE) {
+        found = resolveName(name, &dest);
+        if(!found) {
+            dest = elf->getBaseAddress() + r->getAddend();
+            found = true;
+        }
+    }
+    else if(r->getType() == R_X86_64_TPOFF64) {
+        // stores an index into the thread-local storage table at %fs
+        dest = r->getAddend();
+        found = true;
+    }
+    else {
+        LOG(1, "    NOT fixing because type is " << r->getType());
+    }
+
+    if(found) {
+        LOG(1, "    fix address " << std::hex << update
+            << " to point at " << dest);
+        *(unsigned long *)update = dest;
+    }
+#else
+    #error "Don't know how to resolve relocations on ARM"
+#endif
+}

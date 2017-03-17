@@ -5,6 +5,7 @@
 
 #include "usage.h"
 #include "segmap.h"
+#include "emulator.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
@@ -23,7 +24,7 @@
 extern address_t entry;
 extern "C" void _start2(void);
 
-void runEgalito(ElfMap *elf);
+address_t runEgalito(ElfMap *elf);
 void setBreakpointsInInterpreter(ElfMap *elf);
 
 int main(int argc, char *argv[]) {
@@ -41,6 +42,8 @@ int main(int argc, char *argv[]) {
     LOG(0, "loading ELF program [" << argv[1] << "]");
 
     //Signals::registerHandlers();
+
+    LoaderEmulator::getInstance().useArgv(argv);
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
@@ -60,18 +63,20 @@ int main(int argc, char *argv[]) {
             SegMap::mapSegments(*interpreter, interpreter->getBaseAddress());
         }
 
-        runEgalito(elf);
+        entry = runEgalito(elf);
         if(interpreter) {
             //examineElf(interpreter);
             //setBreakpointsInInterpreter(interpreter);
         }
 
         // find entry point
-        if(interpreter) {
-            entry = interpreter->getEntryPoint() + interpreterAddress;
-        }
-        else {
-            entry = elf->getEntryPoint() + baseAddress;
+        if(!entry) {
+            if(interpreter) {
+                entry = interpreter->getEntryPoint() + interpreterAddress;
+            }
+            else {
+                entry = elf->getEntryPoint() + baseAddress;
+            }
         }
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
@@ -93,10 +98,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void runEgalito(ElfMap *elf) {
+address_t runEgalito(ElfMap *elf) {
     Conductor conductor;
-    //conductor.parseRecursive(elf);
-    conductor.parse(elf, nullptr);
+    conductor.parseRecursive(elf);
+    //conductor.parse(elf, nullptr);
 
     auto libc = conductor.getLibraryList()->getLibc();
     if(false && libc) {
@@ -119,6 +124,13 @@ void runEgalito(ElfMap *elf) {
         }
     }
 
+    if(false && libc) {
+        auto module = libc->getElfSpace()->getModule();
+        auto f = module->getChildren()->getNamed()->find("ptmalloc_init.part.5");
+        ChunkDumper dumper;
+        f->accept(&dumper);
+    }
+
     auto module = conductor.getMainSpace()->getModule();
     ChunkDumper dumper;
     module->accept(&dumper);
@@ -132,16 +144,61 @@ void runEgalito(ElfMap *elf) {
         jt.search(f);
     }
 
+    // map all data sections into memory
+    {
+        int i = 0;
+        for(auto lib : *conductor.getLibraryList()) {
+            auto libElfMap = lib->getElfMap();
+            if(!libElfMap->isSharedLibrary()) continue;
+
+            const address_t baseAddress = 0xa0000000 + i*0x1000000;
+            libElfMap->setBaseAddress(baseAddress);
+            SegMap::mapSegments(*libElfMap, libElfMap->getBaseAddress());
+            i ++;
+        }
+    }
+
     {
         Generator generator;
         auto sandbox = generator.makeSandbox();
-        generator.copyCodeToSandbox(elf, module, sandbox);
+
+        // 1. assign new addresses to all code
+        generator.pickAddressesInSandbox(module, sandbox);
+        for(auto lib : *conductor.getLibraryList()) {
+            if(!lib->getElfSpace()) continue;
+            generator.pickAddressesInSandbox(
+                lib->getElfSpace()->getModule(), sandbox);
+        }
+        // 2. copy code to the new addresses
+        generator.copyCodeToSandbox(module, sandbox);
+        for(auto lib : *conductor.getLibraryList()) {
+            if(!lib->getElfSpace()) continue;
+            generator.copyCodeToSandbox(
+                lib->getElfSpace()->getModule(), sandbox);
+        }
+        // 3. make code executable
+        sandbox->finalize();
+
+        // resolve all relocations in data sections
+        conductor.fixDataSections();
 
         LOG(1, "");
         LOG(1, "=== After copying code to new locations ===");
         ChunkDumper dumper;
         module->accept(&dumper);
 
-        generator.jumpToSandbox(sandbox, module);
+        if(false && libc) {
+            ChunkDumper dumper;
+            libc->getElfSpace()->getModule()->accept(&dumper);
+        }
+
+        //generator.jumpToSandbox(sandbox, module, "_start");
+
+        conductor.writeDebugElf("symbols.elf");
+
+        return conductor.getMainSpace()->getModule()
+            ->getChildren()->getNamed()->find("_start")->getAddress();
     }
+
+    return 0;
 }

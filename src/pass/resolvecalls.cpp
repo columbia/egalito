@@ -88,6 +88,7 @@ void ResolveCalls::visit(Instruction *instruction) {
             else {
                 LOG(1, "WARNING: jumping into the middle of an instruction"
                     " in unknown manner!");
+                return;  // skip delete link
             }
         }
 #else
