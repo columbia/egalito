@@ -35,6 +35,8 @@ test: test.o
 	$(CC) $(CFLAGS) -o $@ $^ 
 reproduce: reproduce.o
 	$(CC) $(CFLAGS) -o $@ $^ 
+test.o: test.c rtld.h assign1.c assign2.c generate1.c generate2.c
+reproduce.o: reproduce.c rtld.h rtld_data1.c rtld_data2.c
 
 .PHONY: clean
 clean:

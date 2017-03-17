@@ -50,7 +50,7 @@ SYMLINKS = $(notdir $(OUTPUTS))
 .PHONY: all
 all: gencode $(OUTPUTS) symlinks
 
-$(ALL_OBJECTS): | $(BUILDTREE)
+$(ALL_OBJECTS): | gencode $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
