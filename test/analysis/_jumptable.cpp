@@ -120,12 +120,12 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
             partial.push_back(f);
         }
     }
+    CHECK(partial.size() == 0);
+
 #else
     std::vector<Function *> partial;
     partial.push_back(module->getChildren()->getNamed()->find("getifaddrs_internal"));
 #endif
-
-    CHECK(partial.size() == 0);
 
 #if 1
     GroupRegistry::getInstance()->applySetting("analysis", 9);
