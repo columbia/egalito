@@ -98,6 +98,31 @@ bool RelocDataPass::resolveNameHelper(const char *name, address_t *address,
     return false;
 }
 
+bool RelocDataPass::resolveObjectHelper(const char *name, address_t *address,
+    size_t *size, ElfSpace *space) {
+
+    assert(name != nullptr);
+
+    // Check if we have a data object.
+    auto symbol = space->getSymbolList()->find(name);
+    if(symbol) {
+        if(symbol->getAddress() > 0
+            && symbol->getType() != Symbol::TYPE_FUNC
+            && symbol->getType() != Symbol::TYPE_IFUNC) {
+
+            // we found it
+            LOG(1, "    ...found data object! at "
+                << std::hex << symbol->getAddress());
+            *address = space->getElfMap()->getBaseAddress()
+                + symbol->getAddress();
+            *size = symbol->getSize();
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool RelocDataPass::resolveName(const char *name, address_t *address) {
     if(name) {
         //LOG(1, "SEARCH for " << name);
@@ -120,6 +145,29 @@ bool RelocDataPass::resolveName(const char *name, address_t *address) {
 
     return false;
 }
+
+bool RelocDataPass::resolveObject(const char *name, address_t *address,
+    size_t *size) {
+
+    if(name) {
+        // note: we do not check elfSpace, we're looking for an external target
+
+        for(auto library : *conductor->getLibraryList()) {
+            auto space = library->getElfSpace();
+            if(space && space != elfSpace) {
+                if(resolveObjectHelper(name, address, size, space)) return true;
+            }
+        }
+
+        auto mainSpace = conductor->getMainSpace();
+        if(mainSpace != elfSpace) {
+            if(resolveObjectHelper(name, address, size, mainSpace)) return true;
+        }
+    }
+
+    return false;
+}
+
 
 void RelocDataPass::fixRelocation(Reloc *r) {
     const char *name = 0;
@@ -161,6 +209,18 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         // stores an index into the thread-local storage table at %fs
         dest = r->getAddend();
         found = true;
+    }
+    else if(r->getType() == R_X86_64_COPY) {
+        address_t other;
+        size_t otherSize;
+        found = resolveObject(name, &other, &otherSize);
+        if(found) {
+            size_t size = std::min(otherSize, r->getSymbol()->getSize());
+            LOG(1, "    doing memcpy from " << other
+                << " to " << update << " size " << size);
+            std::memcpy((void *)update, (void *)other, size);
+        }
+        found = false;
     }
     else {
         LOG(1, "    NOT fixing because type is " << r->getType());

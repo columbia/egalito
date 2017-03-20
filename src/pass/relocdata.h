@@ -47,12 +47,15 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
+    bool resolveNameHelper(const char *name, address_t *address,
+        ElfSpace *space);
+    bool resolveObjectHelper(const char *name, address_t *address,
+        size_t *size, ElfSpace *space);
     /** Tries to resolve the address that the named entity lives at.
         On success, sets address and returns true. On failure, returns false.
     */
     bool resolveName(const char *name, address_t *address);
-    bool resolveNameHelper(const char *name, address_t *address,
-        ElfSpace *space);
+    bool resolveObject(const char *name, address_t *address, size_t *size);
     void fixRelocation(Reloc *r);
 };
 
