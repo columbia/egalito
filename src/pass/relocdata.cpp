@@ -7,47 +7,52 @@
 #include "load/emulator.h"
 #include "log/log.h"
 
-#if 0
-Function *FindAnywhere::findInside(Module *module, const char *target) {
-    found = module->getChildren()->getNamed()->find(target);
-    if(!found) {
-        found = elfSpace->getAliasMap()->find(target);
-    }
-    return found;
-}
+bool FindAnywhere::resolveName(const char *name, address_t *address) {
+    if(name) {
+        //LOG(1, "SEARCH for " << name);
 
-Function *FindAnywhere::findAnywhere(const char *target) {
-    if(!conductor) return nullptr;
+        // first check the elfSpace we are resolving relocations for
+        if(resolveNameHelper(name, address, elfSpace)) return true;
 
-    elfSpace = conductor->getMainSpace();
-    found = findInside(elfSpace->getModule(), target);
-    if(found) return found;
+        for(auto library : *conductor->getLibraryList()) {
+            auto space = library->getElfSpace();
+            if(space && space != elfSpace) {
+                if(resolveNameHelper(name, address, space)) return true;
+            }
+        }
 
-    for(auto library : *conductor->getLibraryList()) {
-        elfSpace = library->getElfSpace();
-        if(elfSpace) {
-            found = findInside(elfSpace->getModule(), target);
-            if(found) return found;
+        auto mainSpace = conductor->getMainSpace();
+        if(mainSpace != elfSpace) {
+            if(resolveNameHelper(name, address, mainSpace)) return true;
         }
     }
 
-    LOG(1, "    could not find " << target << " ANYWHERE");
-    return nullptr;
+    return false;
 }
 
-address_t FindAnywhere::getRealAddress() {
-    return found->getAddress();
-}
-#endif
+bool FindAnywhere::resolveObject(const char *name, address_t *address,
+    size_t *size) {
 
-void RelocDataPass::visit(Module *module) {
-    this->module = module;
-    for(auto r : *relocList) {
-        fixRelocation(r);
+    if(name) {
+        // note: we do not check elfSpace, we're looking for an external target
+
+        for(auto library : *conductor->getLibraryList()) {
+            auto space = library->getElfSpace();
+            if(space && space != elfSpace) {
+                if(resolveObjectHelper(name, address, size, space)) return true;
+            }
+        }
+
+        auto mainSpace = conductor->getMainSpace();
+        if(mainSpace != elfSpace) {
+            if(resolveObjectHelper(name, address, size, mainSpace)) return true;
+        }
     }
+
+    return false;
 }
 
-bool RelocDataPass::resolveNameHelper(const char *name, address_t *address,
+bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     ElfSpace *space) {
 
     assert(name != nullptr);
@@ -90,7 +95,8 @@ bool RelocDataPass::resolveNameHelper(const char *name, address_t *address,
             // must be a data object, address unchanged
             LOG(1, "    ...found as data ref! at "
                 << std::hex << symbol->getAddress());
-            *address = elf->getBaseAddress() + symbol->getAddress();
+            *address = space->getElfMap()->getBaseAddress()
+                + symbol->getAddress();
             return true;
         }
     }
@@ -98,7 +104,7 @@ bool RelocDataPass::resolveNameHelper(const char *name, address_t *address,
     return false;
 }
 
-bool RelocDataPass::resolveObjectHelper(const char *name, address_t *address,
+bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     size_t *size, ElfSpace *space) {
 
     assert(name != nullptr);
@@ -123,51 +129,13 @@ bool RelocDataPass::resolveObjectHelper(const char *name, address_t *address,
     return false;
 }
 
-bool RelocDataPass::resolveName(const char *name, address_t *address) {
-    if(name) {
-        //LOG(1, "SEARCH for " << name);
 
-        // first check the elfSpace we are resolving relocations for
-        if(resolveNameHelper(name, address, elfSpace)) return true;
-
-        for(auto library : *conductor->getLibraryList()) {
-            auto space = library->getElfSpace();
-            if(space && space != elfSpace) {
-                if(resolveNameHelper(name, address, space)) return true;
-            }
-        }
-
-        auto mainSpace = conductor->getMainSpace();
-        if(mainSpace != elfSpace) {
-            if(resolveNameHelper(name, address, mainSpace)) return true;
-        }
+void RelocDataPass::visit(Module *module) {
+    this->module = module;
+    for(auto r : *relocList) {
+        fixRelocation(r);
     }
-
-    return false;
 }
-
-bool RelocDataPass::resolveObject(const char *name, address_t *address,
-    size_t *size) {
-
-    if(name) {
-        // note: we do not check elfSpace, we're looking for an external target
-
-        for(auto library : *conductor->getLibraryList()) {
-            auto space = library->getElfSpace();
-            if(space && space != elfSpace) {
-                if(resolveObjectHelper(name, address, size, space)) return true;
-            }
-        }
-
-        auto mainSpace = conductor->getMainSpace();
-        if(mainSpace != elfSpace) {
-            if(resolveObjectHelper(name, address, size, mainSpace)) return true;
-        }
-    }
-
-    return false;
-}
-
 
 void RelocDataPass::fixRelocation(Reloc *r) {
     const char *name = 0;
@@ -190,16 +158,16 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     bool found = false;
 
     if(r->getType() == R_X86_64_GLOB_DAT) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_X86_64_JUMP_SLOT) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_X86_64_64) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_X86_64_RELATIVE) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
         if(!found) {
             dest = elf->getBaseAddress() + r->getAddend();
             found = true;
@@ -213,7 +181,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_X86_64_COPY) {
         address_t other;
         size_t otherSize;
-        found = resolveObject(name, &other, &otherSize);
+        found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
         if(found) {
             size_t size = std::min(otherSize, r->getSymbol()->getSize());
             LOG(1, "    doing memcpy from " << other

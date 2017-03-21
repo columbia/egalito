@@ -8,7 +8,6 @@ class ElfMap;
 class ElfSpace;
 class Conductor;
 
-#if 0
 class FindAnywhere {
 private:
     Conductor *conductor;
@@ -16,16 +15,19 @@ private:
     Function *found;
 public:
     FindAnywhere(Conductor *conductor, ElfSpace *elfSpace)
-        : conductor(conductor), elfSpace(elfSpace), found(nullptr) {}
+        : conductor(conductor), elfSpace(elfSpace) {}
 
-    Function *findAnywhere(const char *target);
-    Function *findInside(Module *module, const char *target);
-
-    ElfSpace *getElfSpace() const { return elfSpace; }
-
-    address_t getRealAddress();
+    /** Tries to resolve the address that the named entity lives at.
+        On success, sets address and returns true. On failure, returns false.
+    */
+    bool resolveName(const char *name, address_t *address);
+    bool resolveObject(const char *name, address_t *address, size_t *size);
+private:
+    bool resolveNameHelper(const char *name, address_t *address,
+        ElfSpace *space);
+    bool resolveObjectHelper(const char *name, address_t *address,
+        size_t *size, ElfSpace *space);
 };
-#endif
 
 /** Fixes relocations in the data section prior to running code.
 
@@ -47,15 +49,6 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    bool resolveNameHelper(const char *name, address_t *address,
-        ElfSpace *space);
-    bool resolveObjectHelper(const char *name, address_t *address,
-        size_t *size, ElfSpace *space);
-    /** Tries to resolve the address that the named entity lives at.
-        On success, sets address and returns true. On failure, returns false.
-    */
-    bool resolveName(const char *name, address_t *address);
-    bool resolveObject(const char *name, address_t *address, size_t *size);
     void fixRelocation(Reloc *r);
 };
 
