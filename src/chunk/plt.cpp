@@ -108,7 +108,7 @@ void PLTSection::parse(ElfMap *elf) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
                 entryMap[pltAddress] = new PLTEntry(
-                    pltAddress, r->getSymbol());
+                    elf, pltAddress, r->getSymbol());
             }
         }
     }
