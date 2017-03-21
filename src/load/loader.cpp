@@ -47,41 +47,22 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
-        ElfMap *interpreter = nullptr;
-        if(elf->hasInterpreter()) {
-            interpreter = new ElfMap(elf->getInterpreter());
-        }
 
         // set base addresses and map PT_LOAD sections into memory
         const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
-        const address_t interpreterAddress = interpreter && interpreter->isSharedLibrary()
-            ? 0x7000000 : 0;
         elf->setBaseAddress(baseAddress);
         SegMap::mapSegments(*elf, elf->getBaseAddress());
-        if(interpreter) {
-            interpreter->setBaseAddress(interpreterAddress);
-            SegMap::mapSegments(*interpreter, interpreter->getBaseAddress());
-        }
 
         entry = runEgalito(elf);
-        if(interpreter) {
-            //examineElf(interpreter);
-            //setBreakpointsInInterpreter(interpreter);
-        }
 
         // find entry point
         if(!entry) {
-            if(interpreter) {
-                entry = interpreter->getEntryPoint() + interpreterAddress;
-            }
-            else {
-                entry = elf->getEntryPoint() + baseAddress;
-            }
+            entry = elf->getEntryPoint() + baseAddress;
         }
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
         // set up execution environment
-        adjustAuxiliaryVector(argv, elf, interpreter);
+        adjustAuxiliaryVector(argv, elf, nullptr);
 
         // jump to the interpreter/target program (never returns)
         std::cout.flush();
