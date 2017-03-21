@@ -124,7 +124,12 @@ InstructionRebuilder::InstructionRebuilder(Instruction *source, Mode mode,
     fixedBytes &= modeInfo->fixedMask;
 
     cs_arm64 *x = &insn.detail->arm64;
-    originalOffset = x->operands[modeInfo->immediateIndex].imm;
+    if(x->operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
+        originalOffset = x->operands[modeInfo->immediateIndex].imm;
+    }
+    else {  // mem for LDR x0, [x0,#4048]
+        originalOffset = x->operands[modeInfo->immediateIndex].mem.disp;
+    }
 }
 
 const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImInfo[AARCH64_IM_MAX] = {
@@ -142,7 +147,7 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
            diff_t disp = dest & ~0xFFF;
            uint32_t imm = disp << 10;
            return (imm & ~0xFFC003FF); },
-       3
+       2
       },
       /* LDR (immediate: unsigned offset) */
       {0xFFE003FF,
@@ -150,7 +155,7 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
            diff_t disp = dest - src;
            uint32_t imm = (disp >> 3) << 10;
            return (imm & ~0xFFE003FF); },
-       3
+       1
       },
       /* BL <label> */
       {0xFC000000,
