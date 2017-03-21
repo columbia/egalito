@@ -15,8 +15,9 @@ void PCRelativePass::visit(Module *module) {
         if ((t == R_AARCH64_ADR_GOT_PAGE)
             || (t == R_AARCH64_ADR_PREL_PG_HI21)
             || (t == R_AARCH64_ADR_PREL_PG_HI21_NC)
-            || (t == R_AARCH64_ADR_PREL_LO21)
-            || (t == R_AARCH64_LD64_GOT_LO12_NC)) {
+            /* || (t == R_AARCH64_ADR_PREL_LO21) */
+            /* || (t == R_AARCH64_LD64_GOT_LO12_NC) */
+            ) {
             handlePCRelative(r, module);
         }
     }
@@ -35,11 +36,12 @@ void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
 
             auto cs = v->getCapstone();
             auto pcri = new PCRelativeInstruction(i, *cs);
-            address_t offset = (cs->address & ~0xfff) + pcri->getOriginalOffset();
+            address_t offset = pcri->getOriginalOffset();
 
             // note: this won't work unless PCRelativeInstruction has a LinkDecorator
             pcri->setLink(new DataOffsetLink(elf, offset));
-            //LOG(1, cs->mnemonic << " target: " << pcri->getLink()->getTargetAddress());
+            //LOG(1, cs->mnemonic << "@" << std::hex << cs->address);
+            //LOG(1, " target: " << std::hex << pcri->getLink()->getTargetAddress());
 
             i->setSemantic(pcri);
             delete v;

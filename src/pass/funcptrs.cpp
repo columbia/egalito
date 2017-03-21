@@ -42,10 +42,13 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
             i->setSemantic(ri);
             LOG(2, " -> CREATED ABSOLUTE LINK for funcptr");
 #else
-            auto ri = new RelocationInstruction(i, *v->getCapstone());
-            ri->setLink(new NormalLink(target));
-            i->setSemantic(ri);
-            LOG(2, " -> CREATED LINK for funcptr");
+            if(r->getType() != R_AARCH64_ADR_GOT_PAGE
+               && r->getType() != R_AARCH64_LD64_GOT_LO12_NC) {
+                auto ri = new RelocationInstruction(i, *v->getCapstone());
+                ri->setLink(new NormalLink(target));
+                i->setSemantic(ri);
+                LOG(2, " -> CREATED LINK for funcptr");
+            }
 #endif
         }
         else {

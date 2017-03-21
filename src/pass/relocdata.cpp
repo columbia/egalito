@@ -172,6 +172,28 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         *(unsigned long *)update = dest;
     }
 #else
-    #error "Don't know how to resolve relocations on ARM"
+    address_t update = elf->getBaseAddress() + r->getAddress();
+    address_t dest = 0;
+    bool found = false;
+    if(r->getType() == R_AARCH64_GLOB_DAT) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_AARCH64_JUMP_SLOT) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_AARCH64_RELATIVE) {
+        found = resolveName(name, &dest);
+    }
+    else if(r->getType() == R_AARCH64_PREL32) {
+        LOG(1, "PREL32 isn't handled yet");
+    }
+    else {
+        //LOG(1, "    NOT fixing because type is " << r->getType());
+    }
+    if(found) {
+        LOG(1, "    fix address " << std::hex << update
+            << " to point at " << dest);
+        *(unsigned long *)update = dest;
+    }
 #endif
 }
