@@ -163,6 +163,19 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_X86_64_JUMP_SLOT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
+    else if(r->getType() == R_X86_64_PLT32) {
+        // don't update refs to original PLT entries in original code
+#if 0
+        if(FindAnywhere(conductor, elfSpace).resolveName(name, &dest)) {
+            LOG(1, "    fix address " << std::hex << update
+                << " to point at " << dest);
+            *(unsigned int *)update = dest;
+        }
+#endif
+    }
+    else if(r->getType() == R_X86_64_PC32) {
+        // don't update function pointers in original code
+    }
     else if(r->getType() == R_X86_64_64) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }

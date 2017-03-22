@@ -25,6 +25,9 @@ namespace Emulation {
     static int function_not_implemented(void) { return 0; }
 }
 
+class Conductor;
+extern Conductor *global_conductor;
+
 void LoaderEmulator::useArgv(char **argv) {
     Emulation::_dl_argv = argv;
     addSymbol("_dl_argv", Emulation::_dl_argv);
@@ -53,6 +56,8 @@ void LoaderEmulator::useArgv(char **argv) {
 
     addSymbol("_rtld_global", &Emulation::_rtld_global);
     addSymbol("_rtld_global_ro", &Emulation::_rtld_global_ro);
+
+    addSymbol("global_conductor", &global_conductor);
 }
 
 LoaderEmulator LoaderEmulator::instance;

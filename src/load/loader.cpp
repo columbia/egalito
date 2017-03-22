@@ -18,14 +18,14 @@
 #include "break/signals.h"
 #include "analysis/controlflow.h"
 #include "analysis/jumptable.h"
+#include "pass/logcalls.h"
 #include "log/registry.h"
 #include "log/log.h"
 
 extern address_t entry;
 extern "C" void _start2(void);
 
-address_t runEgalito(ElfMap *elf);
-void setBreakpointsInInterpreter(ElfMap *elf);
+address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -47,13 +47,18 @@ int main(int argc, char *argv[]) {
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);
+        ElfMap *egalito = new ElfMap("./libegalito.so");
 
         // set base addresses and map PT_LOAD sections into memory
         const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
         elf->setBaseAddress(baseAddress);
         SegMap::mapSegments(*elf, elf->getBaseAddress());
 
-        entry = runEgalito(elf);
+        const address_t egalitoBaseAddress = egalito->isSharedLibrary() ? 0x8000000l : 0;
+        egalito->setBaseAddress(egalitoBaseAddress);
+        SegMap::mapSegments(*egalito, egalito->getBaseAddress());
+
+        entry = runEgalito(elf, egalito);
 
         // find entry point
         if(!entry) {
@@ -79,10 +84,14 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-address_t runEgalito(ElfMap *elf) {
+address_t runEgalito(ElfMap *elf, ElfMap *egalito) {
     Conductor conductor;
     conductor.parseRecursive(elf);
     //conductor.parse(elf, nullptr);
+
+    auto egalitoLib = new SharedLib("(egalito)", "(egalito)", egalito);
+    conductor.getLibraryList()->add(egalitoLib);
+    conductor.parse(egalito, egalitoLib);
 
     auto libc = conductor.getLibraryList()->getLibc();
     if(false && libc) {
@@ -116,6 +125,7 @@ address_t runEgalito(ElfMap *elf) {
     ChunkDumper dumper;
     module->accept(&dumper);
 
+#if 0
     auto f = module->getChildren()->getNamed()->find("main");
     if(f) {
         ControlFlowGraph cfg(f);
@@ -124,6 +134,10 @@ address_t runEgalito(ElfMap *elf) {
         JumpTableSearch jt;
         jt.search(f);
     }
+#endif
+
+    LogCallsPass logCalls(&conductor);
+    module->accept(&logCalls);
 
     // map all data sections into memory
     {
