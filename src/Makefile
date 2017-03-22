@@ -19,6 +19,7 @@ LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
+CMINUS_SOURCES      = $(wildcard cminus/*.c)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -26,7 +27,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
     $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
-    $(ANALYSIS_SOURCES) load/emulator.cpp
+    $(ANALYSIS_SOURCES) $(CMINUS_SOURCES) load/emulator.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
@@ -42,8 +43,9 @@ BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 TARGET = $(BUILDDIR)egalito
 LOADER = $(BUILDDIR)loader
 LIBRARY = $(BUILDDIR)libegalito.a
+SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 
-OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY)
+OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY) $(SHARED_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 # Default target
@@ -59,6 +61,7 @@ symlinks: $(OUTPUTS) .symlinks
 	@ln -sf $(BUILDDIR)egalito
 	@ln -sf $(BUILDDIR)loader
 	@ln -sf $(BUILDDIR)libegalito.a
+	@ln -sf $(BUILDDIR)libegalito.so
 	@rm -f example
 	@rm -f ex
 	@ln -s ../test/example example
@@ -86,6 +89,10 @@ $(BUILDDIR)%.o: %.c
 	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.c
+	$(CC) -fPIC $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.cpp
+	$(CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Special files
 $(BUILDDIR)load/usage.o: load/usage.cpp
@@ -102,6 +109,8 @@ $(LOADER): $(LOADER_OBJECTS)
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
+$(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
+	$(CXX) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
 
 # Tests
 REGRESSION_SOURCES = $(wildcard regression/*.cpp)
