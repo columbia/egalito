@@ -37,4 +37,15 @@ public:
     static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
 };
 
+class AARCH64InstructionBinary {
+private:
+    std::vector<unsigned char> v;
+public:
+    AARCH64InstructionBinary(uint32_t bin)
+        : v({static_cast<unsigned char>(bin >> 0  & 0xff),
+             static_cast<unsigned char>(bin >> 8  & 0xff),
+             static_cast<unsigned char>(bin >> 16 & 0xff),
+             static_cast<unsigned char>(bin >> 24 & 0xff)}) {}
+    std::vector<unsigned char> getVector() { return v; }
+};
 #endif

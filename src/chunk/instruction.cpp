@@ -144,7 +144,7 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
       /* ADDIMM (in combination with ADRP) */
       {0xFFC003FF,
        [] (address_t dest, address_t src) {
-           diff_t disp = dest & ~0xFFF;
+           diff_t disp = dest & 0xFFF;
            uint32_t imm = disp << 10;
            return (imm & ~0xFFC003FF); },
        2
@@ -220,6 +220,8 @@ uint32_t InstructionRebuilder::rebuild(void) {
     address_t dest = getLink()->getTargetAddress();
     uint32_t imm = getModeInfo()->makeImm(dest, getSource()->getAddress());
 #if 0
+    LOG(1, "mode: " << getModeInfo() - AARCH64_ImInfo);
+    LOG(1, "src: " << getSource()->getAddress());
     LOG(1, "dest: " << dest);
     LOG(1, "fixedBytes: " << getFixedBytes());
     LOG(1, "imm: " << imm);
@@ -288,6 +290,11 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
         throw "PCRelativeInstruction: not yet implemented";
     }
     return m;
+}
+
+cs_insn InstructionRebuilder::generateCapstone() {
+    auto data = AARCH64InstructionBinary(rebuild());
+    return Disassemble::getInsn(data.getVector(), getSource()->getAddress());
 }
 
 #endif

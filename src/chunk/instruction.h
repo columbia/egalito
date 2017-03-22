@@ -180,6 +180,7 @@ private:
     int64_t originalOffset;
     const size_t size = 4;
     const AARCH64_modeInfo_t *modeInfo;
+
 public:
     InstructionRebuilder(Instruction *source, Mode mode, const cs_insn &insn);
 
@@ -201,6 +202,7 @@ public:
     uint32_t getOriginalOffset() const { return originalOffset; }
 
     virtual uint32_t rebuild(void);
+    cs_insn generateCapstone();
 };
 
 class ControlFlowInstruction : public InstructionRebuilder {
@@ -211,6 +213,9 @@ private:
     InstructionRebuilder::Mode getMode(const cs_insn &insn);
 };
 
+// This semantic is used for code pointers in .got section. An example case
+// is in _start for PIE. This semantics adjust the offset to .got and
+// another pass adjusts the actual data in .got.
 class PCRelativeInstruction : public InstructionRebuilder {
 public:
     PCRelativeInstruction(Instruction *source, const cs_insn &insn)

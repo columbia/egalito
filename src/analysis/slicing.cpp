@@ -833,6 +833,21 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         return;
     }
 
+#ifdef ARCH_AARCH64
+    cs_insn ins;
+    if(!capstone) {
+        if(auto ir = dynamic_cast<InstructionRebuilder *>(
+            state->getInstruction()->getSemantic())) {
+
+            ins = ir->generateCapstone();
+            capstone = &ins;
+        }
+        else {
+            throw "no capstone information!";
+        }
+    }
+#endif
+
     LOG(1, "@ " << std::hex << capstone->address);
     SlicingUtilities u;
 
