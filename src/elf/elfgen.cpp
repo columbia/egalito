@@ -126,7 +126,10 @@ void ElfGen::makeNewTextSegment() {
     size_t loadOffset = getNextFreeOffset();
     loadOffset += 0xfff - ((loadOffset + 0xfff) & 0xfff);
     Segment *loadTextSegment = new Segment(backing->getBase(), loadOffset);
-    loadTextSegment->add(new Section(".text", (const uint8_t *)backing->getBase(), backing->getSize()));
+    auto textSection = new Section(".text", (const uint8_t *)backing->getBase(), backing->getSize());
+    loadTextSegment->add(textSection);
+
+    addShdr(textSection, SHT_PROGBITS);
 
     // Interp
     auto elfMap = elfSpace->getElfMap();
@@ -143,7 +146,22 @@ void ElfGen::makeNewTextSegment() {
 void ElfGen::makeSymbolInfo() {
     // Symbol Table
     Section *symtab = new Section(".symtab");
-    std::vector<char> strtabData = {'\0'};
+
+    std::vector<char> strtabData;
+    size_t count = 0;
+    {  // add null symbol
+        strtabData.push_back('\0');
+        Elf64_Sym symbol;
+        symbol.st_name = 0;
+        symbol.st_info = 0;
+        symbol.st_other = STV_DEFAULT;
+        symbol.st_shndx = 0;
+        symbol.st_value = 0;
+        symbol.st_size = 0;
+        symtab->add(static_cast<void *>(&symbol), sizeof(symbol));
+        count ++;
+    }
+
     for(auto chunk : elfSpace->getModule()->getChildren()->genericIterable()) {
         auto func = dynamic_cast<Function *>(chunk);
         if(!func) continue;
@@ -155,8 +173,22 @@ void ElfGen::makeSymbolInfo() {
         strtabData.push_back('\0');
 
         // generate new Symbol from new address
-        Elf64_Sym sym = generateSymbol(func, index);
+        Elf64_Sym sym = generateSymbol(func, func->getSymbol(), index);
         symtab->add(static_cast<void *>(&sym), sizeof(sym));
+        count ++;
+
+        for(auto alias : func->getSymbol()->getAliases()) {
+            // add name to string table
+            auto name = std::string(alias->getName());
+            auto index = strtabData.size();
+            strtabData.insert(strtabData.end(), name.begin(), name.end());
+            strtabData.push_back('\0');
+
+            // generate new Symbol from new address
+            Elf64_Sym sym = generateSymbol(func, alias, index);
+            symtab->add(static_cast<void *>(&sym), sizeof(sym));
+            count ++;
+        }
     }
 
     Section *strtab = new Section(".strtab");
@@ -169,6 +201,7 @@ void ElfGen::makeSymbolInfo() {
 
     int strtab_id = addShdr(strtab, SHT_STRTAB);
     addShdr(symtab, SHT_SYMTAB, strtab_id);
+    shdrList[shdrList.size() - 1]->sh_info = count;
 }
 
 void ElfGen::makePhdrTable() {
@@ -191,11 +224,38 @@ void ElfGen::makePhdrTable() {
 
 void ElfGen::makeShdrTable() {
     // Allocate new space for the shdrs, and don't map them into memory.
+    // NOTE: shstrtab must be the last section in the ELF (to set e_shstrndx).
+    auto shstrtab = new Section(".shstrtab");
+    addShdr(shstrtab, SHT_STRTAB);
+
+    auto shstrtabSegment = new Segment(0, getNextFreeOffset());
+
+    for(size_t i = 0; i < visibleSections.size(); i ++) {
+        auto section = visibleSections[i];
+        auto shdr = shdrList[i];
+        shdr->sh_name = shstrtab->getSize();
+        LOG(1, "for " << section->getName() << ", sh_name is [" << shdr->sh_name << "]");
+        shstrtab->add(section->getName().c_str(),
+            section->getName().size() + 1);
+        /*std::string name = "NAME:[";
+        name.append(section->getName().c_str(), section->getName().size());
+        name += "]";
+        shstrtab->add(name.c_str(), name.size() + 1);*/
+    }
+    // modify sh string table location in file
+    shdrList[shdrList.size() - 1]->sh_size = shstrtab->getSize();
+    shdrList[shdrList.size() - 1]->sh_offset = shstrtabSegment->getFileOff();
+
+    shstrtabSegment->add(shstrtab);
+    addSegment(shstrtabSegment);
+
     this->shdrTableSegment = new Segment(0, getNextFreeOffset());
+
     Section *shdrTable = new Section(".shdr_table");
     for(auto shdr : shdrList) {
         shdrTable->add(shdr, sizeof(Elf64_Shdr));
     }
+
     shdrTableSegment->add(shdrTable);
     addSegment(shdrTableSegment);
 }
@@ -213,7 +273,7 @@ void ElfGen::updateEntryPoint() {
     header->e_phnum = phdrTableSegment->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
     header->e_shoff = shdrTableSegment->getFileOff();
     header->e_shnum = shdrTableSegment->getFirstSection()->getSize() / sizeof(Elf64_Shdr);
-    header->e_shstrndx = 2;
+    header->e_shstrndx = shdrList.size() - 1;  // assume .shstrtab is last
 }
 
 size_t ElfGen::getNextFreeOffset() {
@@ -225,12 +285,12 @@ size_t ElfGen::getNextFreeOffset() {
     return maxOffset;
 }
 
-Elf64_Sym ElfGen::generateSymbol(Function *func, size_t strtabIndex) {
-    Symbol *sym = func->getSymbol();
+Elf64_Sym ElfGen::generateSymbol(Function *func, Symbol *sym, size_t strtabIndex) {
     Elf64_Sym symbol;
     symbol.st_name = static_cast<Elf64_Word>(strtabIndex);
     symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
                                    Symbol::typeFromInternalToElf(sym->getType()));
+    symbol.st_other = STV_DEFAULT;
     symbol.st_shndx = 1; // getSectionIndex();
     symbol.st_value = func->getAddress();
     symbol.st_size = func->getSize();
@@ -266,5 +326,6 @@ int ElfGen::addShdr(Section *section, Elf64_Word type, int link) {
     entry->sh_link = link;
 
     shdrList.push_back(entry);
+    visibleSections.push_back(section);
     return static_cast<int>(shdrList.size() - 1);
 }

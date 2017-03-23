@@ -16,9 +16,9 @@ private:
         size_t size;
         size_t fileOffset;
     public:
-        Section(std::string name) : name(name), size(0) {}
+        Section(std::string name) : name(name), size(0), fileOffset(0) {}
         Section(std::string name, const void *data, size_t size)
-            : name(name), size(0) { add(data, size); }
+            : name(name), size(0), fileOffset(0) { add(data, size); }
         size_t getSize() const { return size; }
         size_t getFileOff() const { return fileOffset; }
         std::string getName() const { return name; }
@@ -63,6 +63,7 @@ private:
     std::vector<Segment *> segments;
     std::vector<Elf64_Phdr *> phdrList;
     std::vector<Elf64_Shdr *> shdrList;
+    std::vector<Section *> visibleSections;
 private:
     Segment *headerSegment;
     Segment *shdrTableSegment;
@@ -81,7 +82,7 @@ private:
     void makePhdrTable();
     void makeShdrTable();
     void updateEntryPoint();
-    Elf64_Sym generateSymbol(Function *func, size_t strtabIndex);
+    Elf64_Sym generateSymbol(Function *func, Symbol *sym, size_t strtabIndex);
     size_t getNextFreeOffset();
     int addShdr(Section *section, Elf64_Word type, int link = 0);
     void addSegment(Segment *segment);
