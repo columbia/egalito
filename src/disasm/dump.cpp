@@ -14,32 +14,30 @@ std::string DisasmDump::formatBytes(const char *bytes, size_t size) {
     return std::string();
 }
 
-void DisasmDump::printInstruction(cs_insn *instr, int offset,
+void DisasmDump::printInstruction(address_t address, Assembly *instr, int offset,
     const char *name) {
 
     IF_LOG(9) {} else return;
 
     // show disassembly of each instruction
-    std::string rawDisasm = formatBytes(
-        reinterpret_cast<const char *>(instr->bytes), instr->size);
+    std::string rawDisasm = formatBytes(instr->getBytes(), instr->getSize());
 
-    printInstructionRaw(instr->address, offset, instr->mnemonic,
-        instr->op_str, name, rawDisasm, false);
+    printInstructionRaw(address, offset, instr->getMnemonic(),
+        instr->getOpStr(), name, rawDisasm, false);
 }
 
-void DisasmDump::printInstructionCalculated(cs_insn *instr,
+void DisasmDump::printInstructionCalculated(address_t address, Assembly *instr,
     int offset, unsigned long target) {
 
     IF_LOG(9) {} else return;
 
     // show disassembly of each instruction
-    std::string rawDisasm = formatBytes(
-        reinterpret_cast<const char *>(instr->bytes), instr->size);
+    std::string rawDisasm = formatBytes(instr->getBytes(), instr->getSize());
 
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
-    printInstructionRaw(instr->address, offset, instr->mnemonic,
-        instr->op_str, targetString, rawDisasm, true);
+    printInstructionRaw(address, offset, instr->getMnemonic(),
+        instr->getOpStr(), targetString, rawDisasm, true);
 }
 
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,

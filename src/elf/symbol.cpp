@@ -183,6 +183,16 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         size_t size = sym->st_size;
         const char *name = strtab + sym->st_name;
 
+#ifdef ARCH_AARCH64
+        /* Skip section symbols: otherwise a function can be illegally
+         * considered an alias for an section symbol later.
+         * ELF for ARM has mapping symbols that start with a dollar sign.
+         * Mapping symbols tell inline transitions between code and data. */
+        if(name[0] == '\0' || name[0] == '$') {
+            continue;
+        }
+#endif
+
         // Symbol versioning: some functions have @@GLIBC.* appended to the
         // name (exported functions?), others only have one '@'.
         auto specialVersion = strstr(name, "@@GLIBC");

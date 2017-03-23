@@ -20,47 +20,29 @@ std::string RawByteStorage::getData() {
     return rawData;
 }
 
-DisassembledStorage::DisassembledStorage(const cs_insn &insn) {
-    this->insn = insn;
-    if(insn.detail) {
-        // Make a copy of capstone's internal data. This breaks the library
-        // abstraction a little bit. We assume nothing else is dynamically
-        // allocated within a cs_insn.
-        detail = new cs_detail(*insn.detail);
-        this->insn.detail = detail;
-    }
-    else detail = nullptr;
-}
-
 DisassembledStorage::DisassembledStorage(DisassembledStorage &&other) {
-    this->insn = other.insn;
-    this->detail = other.detail;
-    other.detail = nullptr;
+    this->assembly = other.assembly;
 }
 
 DisassembledStorage::~DisassembledStorage() {
-    delete detail;
 }
 
 DisassembledStorage &DisassembledStorage::operator = (
     DisassembledStorage &&other) {
 
-    delete detail;
-    this->insn = other.insn;
-    this->detail = other.detail;
-    other.detail = nullptr;
+    this->assembly = other.assembly;
     return *this;
 }
 
 void DisassembledStorage::writeTo(char *target) {
-    std::memcpy(target, insn.bytes, insn.size);
+    std::memcpy(target, assembly.getBytes(), assembly.getSize());
 }
 void DisassembledStorage::writeTo(std::string &target) {
-    target.append(reinterpret_cast<const char *>(insn.bytes), insn.size);
+    target.append(assembly.getBytes(), assembly.getSize());
 }
 std::string DisassembledStorage::getData() {
     std::string data;
-    data.assign(reinterpret_cast<const char *>(insn.bytes), insn.size);
+    data.assign(assembly.getBytes(), assembly.getSize());
     return std::move(data);
 }
 
@@ -117,14 +99,8 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 
 #elif defined(ARCH_AARCH64)
 InstructionRebuilder::InstructionRebuilder(Instruction *source, Mode mode,
-    const cs_insn &insn)
-    : source(source), mnemonic(insn.mnemonic), modeInfo(&AARCH64_ImInfo[mode]) {
-
-    std::memcpy(&fixedBytes, insn.bytes, 4);
-    fixedBytes &= modeInfo->fixedMask;
-
-    cs_arm64 *x = &insn.detail->arm64;
-    originalOffset = x->operands[modeInfo->immediateIndex].imm;
+    const Assembly &assembly)
+    : source(source), modeInfo(&AARCH64_ImInfo[mode]), assembly(assembly) {
 }
 
 const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImInfo[AARCH64_IM_MAX] = {
@@ -139,10 +115,10 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
       /* ADDIMM (in combination with ADRP) */
       {0xFFC003FF,
        [] (address_t dest, address_t src) {
-           diff_t disp = dest & ~0xFFF;
+           diff_t disp = dest & 0xFFF;
            uint32_t imm = disp << 10;
            return (imm & ~0xFFC003FF); },
-       3
+       2
       },
       /* LDR (immediate: unsigned offset) */
       {0xFFE003FF,
@@ -150,7 +126,7 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
            diff_t disp = dest - src;
            uint32_t imm = (disp >> 3) << 10;
            return (imm & ~0xFFE003FF); },
-       3
+       1
       },
       /* BL <label> */
       {0xFC000000,
@@ -212,15 +188,31 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
 };
 
 uint32_t InstructionRebuilder::rebuild(void) {
+    uint32_t fixedBytes;
+    std::memcpy(&fixedBytes, assembly.getBytes(), 4);
+    fixedBytes &= modeInfo->fixedMask;
+
     address_t dest = getLink()->getTargetAddress();
     uint32_t imm = getModeInfo()->makeImm(dest, getSource()->getAddress());
 #if 0
+    LOG(1, "mode: " << getModeInfo() - AARCH64_ImInfo);
+    LOG(1, "src: " << getSource()->getAddress());
     LOG(1, "dest: " << dest);
     LOG(1, "fixedBytes: " << getFixedBytes());
     LOG(1, "imm: " << imm);
     LOG(1, "result: " << (getFixedBytes() | imm));
 #endif
-    return getFixedBytes() | imm;
+    return fixedBytes | imm;
+}
+
+uint32_t InstructionRebuilder::getOriginalOffset() const {
+    auto operands = assembly.getAsmOperands()->getOperands();
+    if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
+        return operands[modeInfo->immediateIndex].imm;
+    }
+    else {  // mem for LDR x0, [x0,#4048]
+        return operands[modeInfo->immediateIndex].mem.disp;
+    }
 }
 
 void InstructionRebuilder::writeTo(char *target) {
@@ -236,47 +228,51 @@ std::string InstructionRebuilder::getData() {
     return data;
 }
 
-InstructionRebuilder::Mode ControlFlowInstruction::getMode(const cs_insn &insn) {
+InstructionRebuilder::Mode ControlFlowInstruction::getMode(
+    const Assembly &assembly) {
+
     InstructionRebuilder::Mode m;
-    if(insn.id == ARM64_INS_B) {
-        if(insn.bytes[3] == 0x54) {
+    if(assembly.getId() == ARM64_INS_B) {
+        if(assembly.getBytes()[3] == 0x54) {
             m = AARCH64_IM_BCOND;
         }
         else {
             m = AARCH64_IM_B;
         }
     }
-    else if(insn.id == ARM64_INS_BL) {
+    else if(assembly.getId() == ARM64_INS_BL) {
         m = AARCH64_IM_BL;
     }
-    else if(insn.id == ARM64_INS_CBZ) {
+    else if(assembly.getId() == ARM64_INS_CBZ) {
         m = AARCH64_IM_CBZ;
     }
-    else if(insn.id == ARM64_INS_CBNZ) {
+    else if(assembly.getId() == ARM64_INS_CBNZ) {
         m = AARCH64_IM_CBNZ;
     }
-    else if(insn.id == ARM64_INS_TBZ) {
+    else if(assembly.getId() == ARM64_INS_TBZ) {
         m = AARCH64_IM_TBZ;
     }
-    else if(insn.id == ARM64_INS_TBNZ) {
+    else if(assembly.getId() == ARM64_INS_TBNZ) {
         m = AARCH64_IM_TBNZ;
     }
     else {
-        std::cerr << "mnemonic: " << insn.mnemonic << "\n";
+        std::cerr << "mnemonic: " << assembly.getMnemonic() << "\n";
         throw "ControlFlowInstruction: not yet implemented";
     }
     return m;
 }
 
-InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
+InstructionRebuilder::Mode PCRelativeInstruction::getMode(
+    const Assembly &assembly) {
+
     InstructionRebuilder::Mode m;
-    if(insn.id == ARM64_INS_ADRP) {
+    if(assembly.getId() == ARM64_INS_ADRP) {
         m = AARCH64_IM_ADRP;
     }
-    else if(insn.id == ARM64_INS_ADD) {
+    else if(assembly.getId() == ARM64_INS_ADD) {
         m = AARCH64_IM_ADDIMM;
     }
-    else if(insn.id == ARM64_INS_LDR) {
+    else if(assembly.getId() == ARM64_INS_LDR) {
         m = AARCH64_IM_LDR;
     }
     else {
@@ -285,10 +281,20 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(const cs_insn &insn) {
     return m;
 }
 
+Assembly InstructionRebuilder::generateAssembly() {
+    auto data = AARCH64InstructionBinary(rebuild());
+    cs_insn insn = Disassemble::getInsn(data.getVector(), getSource()->getAddress());
+    return Assembly(insn);
+}
+
+Assembly *InstructionRebuilder::getAssembly() {
+    assembly = generateAssembly();
+    return &assembly;
+}
 #endif
 
 int LinkedInstruction::getDispSize() {
-    return MakeSemantic::determineDisplacementSize(getCapstone());
+    return MakeSemantic::determineDisplacementSize(getAssembly());
 }
 
 unsigned LinkedInstruction::calculateDisplacement() {
@@ -298,30 +304,30 @@ unsigned LinkedInstruction::calculateDisplacement() {
 }
 
 void LinkedInstruction::writeTo(char *target) {
-    cs_insn *insn = getCapstone();
+    Assembly *assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = calculateDisplacement();
-    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
+    int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
     int i = 0;
-    std::memcpy(target + i, insn->bytes + i, dispOffset);
+    std::memcpy(target + i, assembly->getBytes() + i, dispOffset);
     i += dispOffset;
     std::memcpy(target + i, &newDisp, dispSize);
     i += dispSize;
-    std::memcpy(target + i, insn->bytes + i,
-        insn->size - dispSize - dispOffset);
+    std::memcpy(target + i, assembly->getBytes() + i,
+        assembly->getSize() - dispSize - dispOffset);
 }
 
 void LinkedInstruction::writeTo(std::string &target) {
-    cs_insn *insn = getCapstone();
+    Assembly *assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = calculateDisplacement();
-    int dispOffset = MakeSemantic::getDispOffset(insn, opIndex);
-    target.append(reinterpret_cast<const char *>(insn->bytes),
+    int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
+    target.append(reinterpret_cast<const char *>(assembly->getBytes()),
         dispOffset);
     target.append(reinterpret_cast<const char *>(&newDisp), dispSize);
-    target.append(reinterpret_cast<const char *>(insn->bytes)
+    target.append(reinterpret_cast<const char *>(assembly->getBytes())
         + dispOffset + dispSize,
-        insn->size - dispSize - dispOffset);
+        assembly->getSize() - dispSize - dispOffset);
 }
 
 std::string LinkedInstruction::getData() {
@@ -330,7 +336,7 @@ std::string LinkedInstruction::getData() {
     return std::move(data);
 }
 
-void LinkedInstruction::regenerateCapstone() {
+void LinkedInstruction::regenerateAssembly() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).
     std::string data = getData();
@@ -339,7 +345,8 @@ void LinkedInstruction::regenerateCapstone() {
         dataVector.push_back(data[i]);
     }
     cs_insn ins = Disassemble::getInsn(dataVector, instruction->getAddress());
-    DisassembledStorage storage(ins);
+    Assembly assembly(ins);
+    DisassembledStorage storage(assembly);
     setStorage(std::move(storage));
 }
 

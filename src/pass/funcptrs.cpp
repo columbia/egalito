@@ -28,24 +28,30 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
 
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
-            for(int op = 0; op < v->getCapstone()->detail->x86.op_count; op ++) {
-                if(MakeSemantic::isRIPRelative(v->getCapstone(), op)) {
-                    auto ri = new RelocationInstruction(i, *v->getCapstone(), op);
+            for(size_t op = 0;
+                op < v->getAssembly()->getAsmOperands()->getOpCount();
+                op ++) {
+
+                if(MakeSemantic::isRIPRelative(v->getAssembly(), op)) {
+                    auto ri = new RelocationInstruction(i, *v->getAssembly(), op);
                     ri->setLink(new NormalLink(target));
                     i->setSemantic(ri);
                     LOG(2, " -> CREATED LINK for funcptr");
                     return;
                 }
             }
-            auto ri = new AbsoluteLinkedInstruction(i, *v->getCapstone(), 0);
+            auto ri = new AbsoluteLinkedInstruction(i, *v->getAssembly(), 0);
             ri->setLink(new NormalLink(target));
             i->setSemantic(ri);
             LOG(2, " -> CREATED ABSOLUTE LINK for funcptr");
 #else
-            auto ri = new RelocationInstruction(i, *v->getCapstone());
-            ri->setLink(new NormalLink(target));
-            i->setSemantic(ri);
-            LOG(2, " -> CREATED LINK for funcptr");
+            if(r->getType() != R_AARCH64_ADR_GOT_PAGE
+               && r->getType() != R_AARCH64_LD64_GOT_LO12_NC) {
+                auto ri = new RelocationInstruction(i, *v->getAssembly());
+                ri->setLink(new NormalLink(target));
+                i->setSemantic(ri);
+                LOG(2, " -> CREATED LINK for funcptr");
+            }
 #endif
         }
         else {

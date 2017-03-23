@@ -30,7 +30,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             semantic = cfi;
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            auto dispSize = determineDisplacementSize(ins);
+            Assembly assembly(*ins);
+            auto dispSize = determineDisplacementSize(&assembly);
             size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
             auto cfi = new ControlFlowInstruction(instruction,
@@ -68,9 +69,9 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
-int MakeSemantic::determineDisplacementSize(cs_insn *ins) {
+int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
 #ifdef ARCH_X86_64
-    switch(ins->size) {
+    switch(assembly->getSize()) {
     case 2: return 1;
     case 3: return 1;
     case 5: return 4;
@@ -87,9 +88,9 @@ int MakeSemantic::determineDisplacementSize(cs_insn *ins) {
 #endif
 }
 
-bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
+bool MakeSemantic::isRIPRelative(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
-    auto op = &ins->detail->x86.operands[opIndex];
+    auto op = &assembly->getAsmOperands()->getOperands()[opIndex];
     return (op->type == X86_OP_MEM
         && op->mem.base == X86_REG_RIP
         && op->mem.index == X86_REG_INVALID
@@ -99,18 +100,18 @@ bool MakeSemantic::isRIPRelative(cs_insn *ins, int opIndex) {
 #endif
 }
 
-int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
+int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
-    auto op = &ins->detail->x86.operands[opIndex];
+    auto op = &assembly->getAsmOperands()->getOperands()[opIndex];
     if(op->type == X86_OP_MEM) {
-        int dispSize = determineDisplacementSize(ins);
-        int offset = ins->size - dispSize;
-        
+        int dispSize = determineDisplacementSize(assembly);
+        int offset = assembly->getSize() - dispSize;
+
         while(offset > 0) {
             unsigned long disp = op->mem.disp;
             // !!! this probably only works for 32-bit displacements
-            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
-                &disp, dispSize) == 0) {
+            if(std::memcmp(reinterpret_cast<const void *>(
+                assembly->getBytes() + offset), &disp, dispSize) == 0) {
 
                 break;
             }
@@ -119,14 +120,14 @@ int MakeSemantic::getDispOffset(cs_insn *ins, int opIndex) {
         return offset;
     }
     else if(op->type == X86_OP_IMM) {
-        int dispSize = determineDisplacementSize(ins);
-        int offset = ins->size - dispSize;
-        
+        int dispSize = determineDisplacementSize(assembly);
+        int offset = assembly->getSize() - dispSize;
+
         while(offset > 0) {
             unsigned long disp = op->imm;
             // !!! this probably only works for 32-bit displacements
-            if(std::memcmp(static_cast<void *>(ins->bytes + offset),
-                &disp, dispSize) == 0) {
+            if(std::memcmp(reinterpret_cast<const void *>(
+                assembly->getBytes() + offset), &disp, dispSize) == 0) {
 
                 break;
             }

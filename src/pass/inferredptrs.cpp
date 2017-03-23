@@ -12,14 +12,14 @@ void InferredPtrsPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
         if(v->getLink()) return;
-        auto ins = v->getCapstone();
-        if(!ins) return;
+        auto assembly = v->getAssembly();
+        if(!assembly) return;
 
 #ifdef ARCH_X86_64
-        cs_x86 *x = &ins->detail->x86;
-        for(size_t i = 0; i < x->op_count; i ++) {
-            cs_x86_op *op = &x->operands[i];
-            if(MakeSemantic::isRIPRelative(ins, i)) {
+        auto asmOps = assembly->getAsmOperands();
+        for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
+            const cs_x86_op *op = &asmOps->getOperands()[i];
+            if(MakeSemantic::isRIPRelative(assembly, i)) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
                 auto inferred = new InferredInstruction(instruction, v->moveStorageFrom(), i);
 

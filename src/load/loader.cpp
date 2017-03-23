@@ -100,7 +100,7 @@ address_t runEgalito(ElfMap *elf, ElfMap *egalito) {
     }
     if(false && libc) {
         auto module = libc->getElfSpace()->getModule();
-        auto f = module->getChildren()->getNamed()->find("printf_positional");
+        //auto f = module->getChildren()->getNamed()->find("printf_positional");
         JumpTableSearch jt;
         jt.search(module);
 

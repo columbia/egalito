@@ -24,6 +24,7 @@ class TreeNode {
 public:
     virtual ~TreeNode() {}
     virtual void print(const TreePrinter &p) const = 0;
+    virtual bool canbe(TreeNode *) = 0;
 };
 
 class TreeNodeConstant : public TreeNode {
@@ -34,6 +35,10 @@ public:
     unsigned long getValue() const { return value; }
     void setValue(unsigned long value) { this->value = value; }
     virtual void print(const TreePrinter &p) const;
+    bool canbe(TreeNode *tree) {
+        auto t = dynamic_cast<TreeNodeConstant *>(tree);
+        return t && getValue() == t->getValue();
+    }
 };
 
 class TreeNodeAddress : public TreeNode {
@@ -44,6 +49,10 @@ public:
     address_t getValue() const { return address; }
     void setValue(address_t address) { this->address = address; }
     virtual void print(const TreePrinter &p) const;
+    bool canbe(TreeNode *tree) {
+        auto t = dynamic_cast<TreeNodeAddress *>(tree);
+        return t && getValue() == t->getValue();
+    }
 };
 
 class TreeNodeRegister : public TreeNode {
@@ -53,6 +62,10 @@ public:
     TreeNodeRegister(int reg) : reg(Register(reg)) {}
     int getRegister() const { return reg; }
     virtual void print(const TreePrinter &p) const;
+    bool canbe(TreeNode *tree) {
+        auto t = dynamic_cast<TreeNodeRegister *>(tree);
+        return t && getRegister() == t->getRegister();
+    }
 };
 class TreeNodeRegisterRIP : public TreeNodeRegister {
 private:
@@ -62,6 +75,10 @@ public:
         : TreeNodeRegister(X86_REG_RIP), value(value) {}
     address_t getValue() const { return value; }
     virtual void print(const TreePrinter &p) const;
+    bool canbe(TreeNode *tree) {
+        auto t = dynamic_cast<TreeNodeRegisterRIP *>(tree);
+        return t && getValue() == t->getValue();
+    }
 };
 
 class TreeNodeUnary : public TreeNode {
@@ -72,7 +89,9 @@ public:
     TreeNodeUnary(TreeNode *node, const char *name)
         : node(node), name(name) {}
     TreeNode *getChild() const { return node; }
+    const char *getName() const { return name; }
     virtual void print(const TreePrinter &p) const;
+    virtual bool canbe(TreeNode *tree);
 };
 
 class TreeNodeDereference : public TreeNodeUnary {
@@ -119,6 +138,7 @@ public:
     const char *getOperator() const { return op; }
 
     virtual void print(const TreePrinter &p) const;
+    virtual bool canbe(TreeNode *tree);
 };
 
 class TreeNodeAddition : public TreeNodeBinary {
@@ -153,6 +173,16 @@ public:
     TreeNode *getRight() const { return right; }
 
     virtual void print(const TreePrinter &p) const;
+    virtual bool canbe(TreeNode *tree) {
+        auto t = dynamic_cast<TreeNodeComparison *>(tree);
+        return t && (
+            (getLeft()->canbe(t->getLeft()) &&
+             getRight()->canbe(t->getRight()))
+             ||
+            (getRight()->canbe(t->getLeft()) &&
+              getLeft()->canbe(t->getRight())));
+
+    }
 };
 
 class TreeNodeMultipleParents : public TreeNode {
@@ -163,6 +193,7 @@ public:
 
     const std::vector<TreeNode *> &getParents() const { return parentList; }
     virtual void print(const TreePrinter &p) const;
+    virtual bool canbe(TreeNode *tree);
 };
 
 #endif

@@ -84,8 +84,10 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
 
     AARCH64InstructionCoder coder;
     for(auto ins : xInstructionList) {
-        auto cs = ins->getSemantic()->getCapstone();
-        coder.decode(cs->bytes, cs->size);
+        auto assembly = ins->getSemantic()->getAssembly();
+        if(!assembly) throw "Register replacement pass needs Assembly";
+
+        coder.decode(assembly->getBytes(), assembly->getSize());
 
         // p1. store the original value of dualReg
         auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
@@ -109,22 +111,22 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
 
         // actually replace register(s)
         coder.replaceRegister(regX, dualReg);
-        coder.encode(cs->bytes, cs->size);
-        auto s = ins->getSemantic();
-        std::string raw;
-        raw.assign(reinterpret_cast<char *>(cs->bytes), cs->size);
-        ins->setSemantic(new RawInstruction(raw));
-        delete s;
+        char data[assembly->getSize()];
+        coder.encode(data, assembly->getSize());
+        std::vector<unsigned char> dataVector(data, data + assembly->getSize());
+        cs_insn insn = Disassemble::getInsn(dataVector, ins->getAddress());
+        Assembly a(insn);
+        *assembly = a;
     }
 }
 
-void AARCH64InstructionCoder::decode(uint8_t *bytes, size_t size) {
+void AARCH64InstructionCoder::decode(const char *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bin = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
     cached = false;
 }
 
-void AARCH64InstructionCoder::encode(uint8_t *bytes, size_t size) {
+void AARCH64InstructionCoder::encode(char *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bytes[0] = bin >>  0 & 0xFF;
     bytes[1] = bin >>  8 & 0xFF;
@@ -425,11 +427,12 @@ void AARCH64RegisterUsage::makeUsageList() {
     for(auto b : function->getChildren()->getIterable()->iterable()) {
         std::vector<Instruction *> instructionList;
         for(auto ins : b->getChildren()->getIterable()->iterable()) {
-            if(auto cs = ins->getSemantic()->getCapstone()) {
-                cs_arm64 *x = &cs->detail->arm64;
-                for(int i = 0; i < x->op_count; ++i) {
-                    if(x->operands[i].type == ARM64_OP_REG
-                       && (AARCH64GPRegister(x->operands[i].reg, false).id()
+            if(auto assembly = ins->getSemantic()->getAssembly()) {
+                auto asmOps = assembly->getAsmOperands();
+                for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
+                    if(asmOps->getOperands()[i].type == ARM64_OP_REG
+                       && (AARCH64GPRegister(asmOps->getOperands()[i].reg,
+                                             false).id()
                             == AARCH64GPRegister::R18)) {
 
                         instructionList.push_back(ins);
@@ -535,14 +538,14 @@ typename AARCH64GPRegister::ID AARCH64RegisterUsage::getDualableID(
             break;
         }
 
-        if(auto cs = ins->getSemantic()->getCapstone()) {
-            cs_arm64 *x = &cs->detail->arm64;
-            for(int i = 0; i < x->op_count; ++i) {
+        if(auto assembly = ins->getSemantic()->getAssembly()) {
+            auto asmOps = assembly->getAsmOperands();
+            for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
                 std::vector<int> regOperands;
                 bool withX = false;
-                if(x->operands[i].type == ARM64_OP_REG) {
+                if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
                     int id = PhysicalRegister<AARCH64GPRegister>(
-                        x->operands[i].reg, false).id();
+                        asmOps->getOperands()[i].reg, false).id();
 
                     if(id == AARCH64GPRegister::INVALID) continue;
                     if(id == regX.id()) {
