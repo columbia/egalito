@@ -102,9 +102,6 @@ InstructionRebuilder::InstructionRebuilder(Instruction *source, Mode mode,
     const Assembly &assembly)
     : source(source), modeInfo(&AARCH64_ImInfo[mode]), assembly(assembly) {
 
-    std::memcpy(&fixedBytes, assembly.getBytes(), 4);
-    fixedBytes &= modeInfo->fixedMask;
-
     auto operands = assembly.getMachineAssembly()->getOperands();
     if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
         originalOffset = operands[modeInfo->immediateIndex].imm;
@@ -199,6 +196,10 @@ const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImI
 };
 
 uint32_t InstructionRebuilder::rebuild(void) {
+    uint32_t fixedBytes;
+    std::memcpy(&fixedBytes, assembly.getBytes(), 4);
+    fixedBytes &= modeInfo->fixedMask;
+
     address_t dest = getLink()->getTargetAddress();
     uint32_t imm = getModeInfo()->makeImm(dest, getSource()->getAddress());
 #if 0
@@ -209,7 +210,7 @@ uint32_t InstructionRebuilder::rebuild(void) {
     LOG(1, "imm: " << imm);
     LOG(1, "result: " << (getFixedBytes() | imm));
 #endif
-    return getFixedBytes() | imm;
+    return fixedBytes | imm;
 }
 
 void InstructionRebuilder::writeTo(char *target) {
