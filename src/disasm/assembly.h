@@ -43,7 +43,6 @@ public:
 class Assembly {
 private:
     unsigned int id;
-    size_t size;
     std::vector<uint8_t> bytes;
     std::string mnemonic;
     std::string operandString;
@@ -57,7 +56,7 @@ private:
 public:
     Assembly() {}
     Assembly(const cs_insn &insn)
-        : id(insn.id), size(insn.size),
+        : id(insn.id),
           bytes(insn.bytes, insn.bytes + insn.size),
           mnemonic(insn.mnemonic), operandString(insn.op_str),
           operands(insn),
@@ -66,7 +65,7 @@ public:
                      insn.detail->regs_write + insn.detail->regs_write_count) {}
 
     unsigned int getId() const { return id; }
-    size_t getSize() const { return size; }
+    size_t getSize() const { return bytes.size(); }
     const char *getBytes() const {
         return reinterpret_cast<const char *>(bytes.data()); }
     const char *getMnemonic() const { return mnemonic.c_str(); }

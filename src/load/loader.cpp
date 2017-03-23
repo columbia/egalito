@@ -136,11 +136,13 @@ address_t runEgalito(ElfMap *elf, ElfMap *egalito) {
     }
 #endif
 
+#if 0  // add call logging?
     LogCallsPass logCalls(&conductor);
     module->accept(&logCalls);
     if(libc) {
         libc->getElfSpace()->getModule()->accept(&logCalls);
     }
+#endif
 
     // map all data sections into memory
     {
