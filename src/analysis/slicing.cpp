@@ -349,9 +349,9 @@ void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
             << u.printReg(assembly->getImplicitRegsWrite()[r]));
     }
 
-    auto machAssembly = assembly->getMachineAssembly();
-    for(size_t p = 0; p < machAssembly->getOpCount(); p ++) {
-        auto op = &machAssembly->getOperands()[p];  // cs_x86_op*, cs_arm64_op*
+    auto asmOps = assembly->getAsmOperands();
+    for(size_t p = 0; p < asmOps->getOpCount(); p ++) {
+        auto op = &asmOps->getOperands()[p];  // cs_x86_op*, cs_arm64_op*
         if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
             LOG(1, "        explicit reg ref "
                 << u.printReg(op->reg));
@@ -452,90 +452,90 @@ private:
 
 void SlicingInstructionState::determineMode(Assembly *assembly) {
     mode = MODE_UNKNOWN;
-    auto machAssembly = assembly->getMachineAssembly();
+    auto asmOps = assembly->getAsmOperands();
 #ifdef ARCH_X86_64
-    if(machAssembly->getOpCount()== 2
-        && machAssembly->getOperands()[0].type == X86_OP_REG
-        && machAssembly->getOperands()[1].type == X86_OP_REG) {
+    if(asmOps->getOpCount()== 2
+        && asmOps->getOperands()[0].type == X86_OP_REG
+        && asmOps->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_REG_REG;
-        a1.reg = machAssembly->getOperands()[0].reg;
-        a2.reg = machAssembly->getOperands()[1].reg;
+        a1.reg = asmOps->getOperands()[0].reg;
+        a2.reg = asmOps->getOperands()[1].reg;
     }
-    if(machAssembly->getOpCount() == 2
-        && machAssembly->getOperands()[0].type == X86_OP_MEM
-        && machAssembly->getOperands()[1].type == X86_OP_REG) {
+    if(asmOps->getOpCount() == 2
+        && asmOps->getOperands()[0].type == X86_OP_MEM
+        && asmOps->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_MEM_REG;
-        a1.mem = &machAssembly->getOperands()[0].mem;
-        a2.reg = machAssembly->getOperands()[1].reg;
+        a1.mem = &asmOps->getOperands()[0].mem;
+        a2.reg = asmOps->getOperands()[1].reg;
     }
-    if(machAssembly->getOpCount() == 2
-        && machAssembly->getOperands()[0].type == X86_OP_IMM
-        && machAssembly->getOperands()[1].type == X86_OP_REG) {
+    if(asmOps->getOpCount() == 2
+        && asmOps->getOperands()[0].type == X86_OP_IMM
+        && asmOps->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_IMM_REG;
-        a1.imm = machAssembly->getOperands()[0].imm;
-        a2.reg = machAssembly->getOperands()[1].reg;
+        a1.imm = asmOps->getOperands()[0].imm;
+        a2.reg = asmOps->getOperands()[1].reg;
     }
 #elif defined(ARCH_AARCH64)
-    if(machAssembly->getOpCount() == 2) {
-        if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-           && machAssembly->getOperands()[1].type == ARM64_OP_REG) {
+    if(asmOps->getOpCount() == 2) {
+        if(asmOps->getOperands()[0].type == ARM64_OP_REG
+           && asmOps->getOperands()[1].type == ARM64_OP_REG) {
 
             mode = MODE_REG_REG;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
         }
-        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-           && machAssembly->getOperands()[1].type == ARM64_OP_IMM) {
+        else if(asmOps->getOperands()[0].type == ARM64_OP_REG
+           && asmOps->getOperands()[1].type == ARM64_OP_IMM) {
 
             mode = MODE_REG_IMM;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.imm = machAssembly->getOperands()[1].imm;
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.imm = asmOps->getOperands()[1].imm;
         }
-        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-           && machAssembly->getOperands()[1].type == ARM64_OP_MEM) {
+        else if(asmOps->getOperands()[0].type == ARM64_OP_REG
+           && asmOps->getOperands()[1].type == ARM64_OP_MEM) {
 
             mode = MODE_REG_MEM;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.extmem.mem = &machAssembly->getOperands()[1].mem;
-            a2.extmem.ext = machAssembly->getOperands()[1].ext;
-            a2.extmem.shift.type = machAssembly->getOperands()[1].shift.type;
-            a2.extmem.shift.value = machAssembly->getOperands()[1].shift.value;
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.extmem.mem = &asmOps->getOperands()[1].mem;
+            a2.extmem.ext = asmOps->getOperands()[1].ext;
+            a2.extmem.shift.type = asmOps->getOperands()[1].shift.type;
+            a2.extmem.shift.value = asmOps->getOperands()[1].shift.value;
         }
     }
-    else if(machAssembly->getOpCount() == 3) {
-        if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-           && machAssembly->getOperands()[1].type == ARM64_OP_REG
-           && machAssembly->getOperands()[2].type == ARM64_OP_REG) {
+    else if(asmOps->getOpCount() == 3) {
+        if(asmOps->getOperands()[0].type == ARM64_OP_REG
+           && asmOps->getOperands()[1].type == ARM64_OP_REG
+           && asmOps->getOperands()[2].type == ARM64_OP_REG) {
 
             mode = MODE_REG_REG_REG;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
             a3.extreg.reg = static_cast<arm64_reg>(
-                machAssembly->getOperands()[2].reg);
-            a3.extreg.ext = machAssembly->getOperands()[2].ext;
-            a3.extreg.shift.type = machAssembly->getOperands()[2].shift.type;
-            a3.extreg.shift.value = machAssembly->getOperands()[2].shift.value;
+                asmOps->getOperands()[2].reg);
+            a3.extreg.ext = asmOps->getOperands()[2].ext;
+            a3.extreg.shift.type = asmOps->getOperands()[2].shift.type;
+            a3.extreg.shift.value = asmOps->getOperands()[2].shift.value;
         }
-        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-                && machAssembly->getOperands()[1].type == ARM64_OP_REG
-                && machAssembly->getOperands()[2].type == ARM64_OP_IMM) {
+        else if(asmOps->getOperands()[0].type == ARM64_OP_REG
+                && asmOps->getOperands()[1].type == ARM64_OP_REG
+                && asmOps->getOperands()[2].type == ARM64_OP_IMM) {
             mode = MODE_REG_REG_IMM;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
-            a3.extimm.imm = machAssembly->getOperands()[2].imm;
-            a3.extimm.shift.type = machAssembly->getOperands()[2].shift.type;
-            a3.extimm.shift.value = machAssembly->getOperands()[2].shift.value;
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
+            a3.extimm.imm = asmOps->getOperands()[2].imm;
+            a3.extimm.shift.type = asmOps->getOperands()[2].shift.type;
+            a3.extimm.shift.value = asmOps->getOperands()[2].shift.value;
         }
-        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
-                && machAssembly->getOperands()[1].type == ARM64_OP_REG
-                && machAssembly->getOperands()[2].type == ARM64_OP_MEM) {
+        else if(asmOps->getOperands()[0].type == ARM64_OP_REG
+                && asmOps->getOperands()[1].type == ARM64_OP_REG
+                && asmOps->getOperands()[2].type == ARM64_OP_MEM) {
             mode = MODE_REG_REG_MEM;
-            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
-            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
-            a3.mem = &machAssembly->getOperands()[2].mem;
+            a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
+            a3.mem = &asmOps->getOperands()[2].mem;
         }
     }
 #endif

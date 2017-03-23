@@ -29,7 +29,7 @@ void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) 
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
             for(size_t op = 0;
-                op < v->getAssembly()->getMachineAssembly()->getOpCount();
+                op < v->getAssembly()->getAsmOperands()->getOpCount();
                 op ++) {
 
                 if(MakeSemantic::isRIPRelative(v->getAssembly(), op)) {

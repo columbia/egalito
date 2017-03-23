@@ -16,9 +16,9 @@ void InferredPtrsPass::visit(Instruction *instruction) {
         if(!assembly) return;
 
 #ifdef ARCH_X86_64
-        const MachineAssembly *masm = assembly->getMachineAssembly();
-        for(size_t i = 0; i < masm->getOpCount(); i ++) {
-            const cs_x86_op *op = &masm->getOperands()[i];
+        auto asmOps = assembly->getAsmOperands();
+        for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
+            const cs_x86_op *op = &asmOps->getOperands()[i];
             if(MakeSemantic::isRIPRelative(assembly, i)) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
                 auto inferred = new InferredInstruction(instruction, v->moveStorageFrom(), i);

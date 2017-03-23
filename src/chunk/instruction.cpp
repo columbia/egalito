@@ -206,7 +206,7 @@ uint32_t InstructionRebuilder::rebuild(void) {
 }
 
 uint32_t InstructionRebuilder::getOriginalOffset() const {
-    auto operands = assembly.getMachineAssembly()->getOperands();
+    auto operands = assembly.getAsmOperands()->getOperands();
     if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
         return operands[modeInfo->immediateIndex].imm;
     }

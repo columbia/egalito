@@ -428,10 +428,10 @@ void AARCH64RegisterUsage::makeUsageList() {
         std::vector<Instruction *> instructionList;
         for(auto ins : b->getChildren()->getIterable()->iterable()) {
             if(auto assembly = ins->getSemantic()->getAssembly()) {
-                auto machAssembly = assembly->getMachineAssembly();
-                for(size_t i = 0; i < machAssembly->getOpCount(); ++i) {
-                    if(machAssembly->getOperands()[i].type == ARM64_OP_REG
-                       && (AARCH64GPRegister(machAssembly->getOperands()[i].reg,
+                auto asmOps = assembly->getAsmOperands();
+                for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
+                    if(asmOps->getOperands()[i].type == ARM64_OP_REG
+                       && (AARCH64GPRegister(asmOps->getOperands()[i].reg,
                                              false).id()
                             == AARCH64GPRegister::R18)) {
 
@@ -539,13 +539,13 @@ typename AARCH64GPRegister::ID AARCH64RegisterUsage::getDualableID(
         }
 
         if(auto assembly = ins->getSemantic()->getAssembly()) {
-            auto machAssembly = assembly->getMachineAssembly();
-            for(size_t i = 0; i < machAssembly->getOpCount(); ++i) {
+            auto asmOps = assembly->getAsmOperands();
+            for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
                 std::vector<int> regOperands;
                 bool withX = false;
-                if(machAssembly->getOperands()[i].type == ARM64_OP_REG) {
+                if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
                     int id = PhysicalRegister<AARCH64GPRegister>(
-                        machAssembly->getOperands()[i].reg, false).id();
+                        asmOps->getOperands()[i].reg, false).id();
 
                     if(id == AARCH64GPRegister::INVALID) continue;
                     if(id == regX.id()) {

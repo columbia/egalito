@@ -43,8 +43,8 @@ bool StackExtendPass::shouldApply(Function *function) {
     for(auto b : function->getChildren()->getIterable()->iterable()) {
         for(auto i : b->getChildren()->getIterable()->iterable()) {
             if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getMachineAssembly()->getOperands();
-                if(assembly->getMachineAssembly()->getOpCount() >= 1
+                auto operands = assembly->getAsmOperands()->getOperands();
+                if(assembly->getAsmOperands()->getOpCount() >= 1
                    && operands[0].type == ARM64_OP_REG
                    && (operands[0].reg == ARM64_REG_X18
                        || operands[0].reg == ARM64_REG_W18)) {
@@ -126,7 +126,7 @@ FrameType::FrameType(Function *function)
         auto firstB = function->getChildren()->getIterable()->get(0);
         for(auto i : firstB->getChildren()->getIterable()->iterable()) {
             if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getMachineAssembly()->getOperands();
+                auto operands = assembly->getAsmOperands()->getOperands();
                 if(operands[0].type == ARM64_OP_REG
                    && operands[0].reg == ARM64_REG_X29
                    && operands[1].type == ARM64_OP_REG
@@ -170,7 +170,7 @@ FrameType::FrameType(Function *function)
         auto parent = dynamic_cast<Block *>(retInstr->getParent());
         for(auto i : parent->getChildren()->getIterable()->iterable()) {
             if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getMachineAssembly()->getOperands();
+                auto operands = assembly->getAsmOperands()->getOperands();
                 if(assembly->getId() == ARM64_INS_MOV
                    && operands[0].reg == ARM64_REG_SP
                    && operands[1].type == ARM64_OP_REG
@@ -187,8 +187,8 @@ size_t FrameType::getFrameSize(Function *function) {
     auto firstB = function->getChildren()->getIterable()->get(0);
     for(auto i : firstB->getChildren()->getIterable()->iterable()) {
         if(auto assembly = i->getSemantic()->getAssembly()) {
-            auto operands = assembly->getMachineAssembly()->getOperands();
-            auto writeback = assembly->getMachineAssembly()->getWriteback();
+            auto operands = assembly->getAsmOperands()->getOperands();
+            auto writeback = assembly->getAsmOperands()->getWriteback();
             if(assembly->getId() == ARM64_INS_SUB
                && operands[0].reg == ARM64_REG_SP) {
                 return operands[2].imm;  // doesn't handle shift and ext

@@ -90,7 +90,7 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
 
 bool MakeSemantic::isRIPRelative(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
-    auto op = &assembly->getMachineAssembly()->getOperands()[opIndex];
+    auto op = &assembly->getAsmOperands()->getOperands()[opIndex];
     return (op->type == X86_OP_MEM
         && op->mem.base == X86_REG_RIP
         && op->mem.index == X86_REG_INVALID
@@ -102,7 +102,7 @@ bool MakeSemantic::isRIPRelative(Assembly *assembly, int opIndex) {
 
 int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
-    auto op = &assembly->getMachineAssembly()->getOperands()[opIndex];
+    auto op = &assembly->getAsmOperands()->getOperands()[opIndex];
     if(op->type == X86_OP_MEM) {
         int dispSize = determineDisplacementSize(assembly);
         int offset = assembly->getSize() - dispSize;
