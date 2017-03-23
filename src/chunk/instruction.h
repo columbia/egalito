@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>  // for std::move
 #include <capstone/capstone.h>  // for cs_insn
+#include <disasm/assembly.h>
 #include "register.h"
 #include "types.h"
 
@@ -27,7 +28,7 @@ public:
     virtual void writeTo(std::string &target) = 0;
     virtual std::string getData() = 0;
 
-    virtual cs_insn *getCapstone() = 0;
+    virtual Assembly *getAssembly() = 0;
 };
 
 class RawByteStorage {
@@ -42,7 +43,7 @@ public:
     void writeTo(std::string &target);
     std::string getData();
 
-    cs_insn *getCapstone() { return nullptr; }
+    Assembly *getAssembly() { return nullptr; }
 };
 
 /** Stores a complete copy of the capstone data for an instruction.
@@ -52,25 +53,25 @@ public:
 */
 class DisassembledStorage {
 private:
-    cs_insn insn;
-    cs_detail *detail;
+    Assembly assembly;
 private:
     DisassembledStorage(const DisassembledStorage &other);
     DisassembledStorage &operator = (DisassembledStorage &other);
 public:
-    DisassembledStorage(const cs_insn &insn);
+    DisassembledStorage(const Assembly &assembly)
+        : assembly(assembly) {}
     DisassembledStorage(DisassembledStorage &&other);
     ~DisassembledStorage();
 
     DisassembledStorage &operator = (DisassembledStorage &&other);
 
-    size_t getSize() const { return insn.size; }
+    size_t getSize() const { return assembly.getSize(); }
 
     void writeTo(char *target);
     void writeTo(std::string &target);
     std::string getData();
 
-    cs_insn *getCapstone() { return &insn; }
+    Assembly *getAssembly() { return &assembly; }
 };
 
 template <typename Storage>
@@ -95,7 +96,7 @@ public:
     virtual void writeTo(std::string &target) { storage.writeTo(target); }
     virtual std::string getData() { return storage.getData(); }
 
-    virtual cs_insn *getCapstone() { return storage.getCapstone(); }
+    virtual Assembly *getAssembly() { return storage.getAssembly(); }
 protected:
     void setStorage(Storage &&storage) { this->storage = std::move(storage); }
 };
@@ -139,7 +140,7 @@ public:
     virtual void writeTo(std::string &target);
     virtual std::string getData();
 
-    virtual cs_insn *getCapstone() { return nullptr; }
+    virtual Assembly *getAssembly() { return nullptr; }
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
@@ -175,16 +176,16 @@ private:
     const static AARCH64_modeInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
 
     Instruction *source;
-    std::string mnemonic;
     uint32_t fixedBytes;
     int64_t originalOffset;
-    const size_t size = 4;
     const AARCH64_modeInfo_t *modeInfo;
+    Assembly assembly;
 
 public:
-    InstructionRebuilder(Instruction *source, Mode mode, const cs_insn &insn);
+    InstructionRebuilder(Instruction *source, Mode mode,
+                         const Assembly &assembly);
 
-    virtual size_t getSize() const { return size; }
+    virtual size_t getSize() const { return assembly.getSize(); }
     virtual void setSize(size_t value)
         { throw "Size is constant for AARCH64!"; }
 
@@ -192,10 +193,10 @@ public:
     virtual void writeTo(std::string &target);
     virtual std::string getData();
 
-    virtual cs_insn *getCapstone() { return nullptr; }
+    virtual Assembly *getAssembly();
 
     Instruction *getSource() const { return source; }
-    std::string getMnemonic() const { return mnemonic; }
+    std::string getMnemonic() const { return assembly.getMnemonic(); }
 
     const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
     uint32_t getFixedBytes() const { return fixedBytes; }
@@ -203,14 +204,15 @@ public:
 
     virtual uint32_t rebuild(void);
     cs_insn generateCapstone();
+    Assembly generateAssembly();
 };
 
 class ControlFlowInstruction : public InstructionRebuilder {
 public:
-    ControlFlowInstruction(Instruction *source, const cs_insn &insn)
-        : InstructionRebuilder(source, getMode(insn), insn) {}
+    ControlFlowInstruction(Instruction *source, const Assembly &assembly)
+        : InstructionRebuilder(source, getMode(assembly), assembly) {}
 private:
-    InstructionRebuilder::Mode getMode(const cs_insn &insn);
+    InstructionRebuilder::Mode getMode(const Assembly &assembly);
 };
 
 // This semantic is used for code pointers in .got section. An example case
@@ -218,10 +220,10 @@ private:
 // another pass adjusts the actual data in .got.
 class PCRelativeInstruction : public InstructionRebuilder {
 public:
-    PCRelativeInstruction(Instruction *source, const cs_insn &insn)
-        : InstructionRebuilder(source, getMode(insn), insn) {}
+    PCRelativeInstruction(Instruction *source, const Assembly &assembly)
+        : InstructionRebuilder(source, getMode(assembly), assembly) {}
 private:
-    InstructionRebuilder::Mode getMode(const cs_insn &insn);
+    InstructionRebuilder::Mode getMode(const Assembly &assembly);
 };
 
 typedef PCRelativeInstruction RelocationInstruction;
@@ -229,8 +231,8 @@ typedef PCRelativeInstruction RelocationInstruction;
 
 class ReturnInstruction : public SemanticImpl<DisassembledStorage> {
 public:
-    ReturnInstruction(const cs_insn &insn)
-        : SemanticImpl<DisassembledStorage>(insn) {}
+    ReturnInstruction(const Assembly &assembly)
+        : SemanticImpl<DisassembledStorage>(assembly) {}
 };
 
 class IndirectJumpInstruction : public SemanticImpl<DisassembledStorage> {
@@ -238,9 +240,9 @@ private:
     Register reg;
     std::string mnemonic;
 public:
-    IndirectJumpInstruction(const cs_insn &insn, Register reg,
+    IndirectJumpInstruction(const Assembly &assembly, Register reg,
         const std::string &mnemonic)
-        : SemanticImpl<DisassembledStorage>(insn), reg(reg),
+        : SemanticImpl<DisassembledStorage>(assembly), reg(reg),
         mnemonic(mnemonic) {}
 
     std::string getMnemonic() const { return mnemonic; }
@@ -252,8 +254,8 @@ private:
     Instruction *instruction;
     int opIndex;
 public:
-    LinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
-        : LinkDecorator<SemanticImpl<DisassembledStorage>>(insn),
+    LinkedInstruction(Instruction *i, const Assembly &assembly, int opIndex)
+        : LinkDecorator<SemanticImpl<DisassembledStorage>>(assembly),
         instruction(i), opIndex(opIndex) {}
     LinkedInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
         : LinkDecorator<SemanticImpl<DisassembledStorage>>(other),
@@ -273,8 +275,8 @@ protected:
 #ifdef ARCH_X86_64
 class RelocationInstruction : public LinkedInstruction {
 public:
-    RelocationInstruction(Instruction *i, const cs_insn &insn, int opIndex)
-        : LinkedInstruction(i, insn, opIndex) {}
+    RelocationInstruction(Instruction *i, const Assembly &assembly, int opIndex)
+        : LinkedInstruction(i, assembly, opIndex) {}
     RelocationInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
         : LinkedInstruction(i, std::move(other), opIndex) {}
 };
@@ -284,16 +286,16 @@ class InferredInstruction : public LinkedInstruction {
 private:
     Instruction *instruction;
 public:
-    InferredInstruction(Instruction *i, const cs_insn &insn, int opIndex)
-        : LinkedInstruction(i, insn, opIndex) {}
+    InferredInstruction(Instruction *i, const Assembly &assembly, int opIndex)
+        : LinkedInstruction(i, assembly, opIndex) {}
     InferredInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
         : LinkedInstruction(i, std::move(other), opIndex) {}
 };
 
 class AbsoluteLinkedInstruction : public LinkedInstruction {
 public:
-    AbsoluteLinkedInstruction(Instruction *i, const cs_insn &insn, int opIndex)
-        : LinkedInstruction(i, insn, opIndex) {}
+    AbsoluteLinkedInstruction(Instruction *i, const Assembly &assembly, int opIndex)
+        : LinkedInstruction(i, assembly, opIndex) {}
     AbsoluteLinkedInstruction(Instruction *i, DisassembledStorage &&other, int opIndex)
         : LinkedInstruction(i, std::move(other), opIndex) {}
 protected:

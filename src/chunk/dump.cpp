@@ -23,7 +23,7 @@ void ChunkDumper::visit(Block *block) {
 
 void ChunkDumper::visit(Instruction *instruction) {
     const char *target = nullptr;
-    cs_insn *ins = instruction->getSemantic()->getCapstone();
+    Assembly *assembly = instruction->getSemantic()->getAssembly();
 
     int pos = INT_MIN;
     auto parent = instruction->getParent();
@@ -37,7 +37,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
     CLOG0(4, "    ");
 
-    if(!ins) {
+    if(!assembly) {
         if(auto p = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
 
             auto link = p->getLink();
@@ -82,11 +82,11 @@ void ChunkDumper::visit(Instruction *instruction) {
         else if(auto p = dynamic_cast<PCRelativeInstruction *>(
             instruction->getSemantic())) {
 
-            cs_insn instr = p->generateCapstone();
+            Assembly assembly = p->generateAssembly();
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
             auto name = target ? target->getName().c_str() : nullptr;
-            DisasmDump::printInstruction(&instr, pos, name);
+            DisasmDump::printInstruction(&assembly, pos, name);
         }
         else if(auto p = dynamic_cast<RawInstruction *>(
             instruction->getSemantic())) {
@@ -94,7 +94,8 @@ void ChunkDumper::visit(Instruction *instruction) {
             std::vector<unsigned char> v(p->getData().begin(),
                                          p->getData().end());
             cs_insn instr = Disassemble::getInsn(v, instruction->getAddress());
-            DisasmDump::printInstruction(&instr, pos, nullptr);
+            Assembly assembly(instr);
+            DisasmDump::printInstruction(&assembly, pos, nullptr);
         }
 #endif
         else LOG(4, "...unknown...");
@@ -107,13 +108,13 @@ void ChunkDumper::visit(Instruction *instruction) {
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
-            ins->address = instruction->getAddress();
-            DisasmDump::printInstruction(ins, pos, target->getName().c_str());
+            assembly->setAddress(instruction->getAddress());
+            DisasmDump::printInstruction(assembly, pos, target->getName().c_str());
         }
         else {
             unsigned long targetAddress = link->getTargetAddress();
-            ins->address = instruction->getAddress();
-            DisasmDump::printInstructionCalculated(ins, pos, targetAddress);
+            assembly->setAddress(instruction->getAddress());
+            DisasmDump::printInstructionCalculated(assembly, pos, targetAddress);
         }
         return;
     }
@@ -127,12 +128,12 @@ void ChunkDumper::visit(Instruction *instruction) {
 
         DisasmDump::printInstructionRaw(instruction->getAddress(),
             pos, name.str().c_str(),
-            p->getCapstone()->op_str, nullptr, bytes2.c_str(), false);
+            p->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
         return;
     }
 
     // !!! we shouldn't need to modify the addr inside a dump function
     // !!! this is just to keep the cs_insn up-to-date
-    ins->address = instruction->getAddress();
-    DisasmDump::printInstruction(ins, pos, target);
+    assembly->setAddress(instruction->getAddress());
+    DisasmDump::printInstruction(assembly, pos, target);
 }

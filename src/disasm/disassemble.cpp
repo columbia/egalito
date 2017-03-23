@@ -81,7 +81,10 @@ void Disassemble::debug(const uint8_t *code, size_t length,
         }
 #endif
 
-        IF_LOG(3) DisasmDump::printInstruction(&insn[j], INT_MIN, name);
+        IF_LOG(3) {
+            Assembly assembly(insn[j]);
+            DisasmDump::printInstruction(&assembly, INT_MIN, name);
+        }
     }
 
     cs_free(insn, count);
@@ -218,7 +221,7 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
 
     if(!semantic) {
         if(details) {
-            semantic = new DisassembledInstruction(*ins);
+            semantic = new DisassembledInstruction(Assembly(*ins));
         }
         else {
             std::string raw;

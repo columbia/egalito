@@ -34,8 +34,7 @@ void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
             // RelocationInstruction
             if(v->getLink()) return;
 
-            auto cs = v->getCapstone();
-            auto pcri = new PCRelativeInstruction(i, *cs);
+            auto pcri = new PCRelativeInstruction(i, *v->getAssembly());
             address_t offset = pcri->getOriginalOffset();
 
             // note: this won't work unless PCRelativeInstruction has a LinkDecorator

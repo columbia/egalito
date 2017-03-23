@@ -78,7 +78,9 @@ void SlicingUtilities::printMemTrees(SearchState *state) {
 }
 
 
-TreeNode *SlicingUtilities::makeMemTree(SearchState *state, x86_op_mem *mem) {
+TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
+    const x86_op_mem *mem) {
+
     TreeNode *tree = nullptr;
     if(mem->index != X86_REG_INVALID) {
         tree = getParentRegTree(state, mem->index);
@@ -113,7 +115,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state, x86_op_mem *mem) {
 }
 
 TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
-                                        arm64_op_mem *mem,
+                                        const arm64_op_mem *mem,
                                         arm64_extender ext,
                                         arm64_shifter sft_type,
                                         unsigned int sft_value) {
@@ -333,28 +335,23 @@ void SlicingSearch::buildRegTreePass() {
 }
 
 void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
-    auto capstone = i->getSemantic()->getCapstone();
-    if(!capstone || !capstone->detail) return;
-    auto detail = capstone->detail;
+    auto assembly = i->getSemantic()->getAssembly();
+    if(!assembly) return;
 
     SlicingUtilities u;
 
-    for(size_t r = 0; r < detail->regs_read_count; r ++) {
+    for(size_t r = 0; r < assembly->getImplicitRegsReadCount(); r ++) {
         LOG(1, "        implicit reg read "
-            << u.printReg(detail->regs_read[r]));
+            << u.printReg(assembly->getImplicitRegsRead()[r]));
     }
-    for(size_t r = 0; r < detail->regs_write_count; r ++) {
+    for(size_t r = 0; r < assembly->getImplicitRegsWriteCount(); r ++) {
         LOG(1, "        implicit reg write "
-            << u.printReg(detail->regs_write[r]));
+            << u.printReg(assembly->getImplicitRegsWrite()[r]));
     }
 
-#ifdef ARCH_X86_64
-    cs_x86 *x = &detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &detail->arm64;
-#endif
-    for(size_t p = 0; p < x->op_count; p ++) {
-        auto op = &x->operands[p];  // cs_x86_op*, cs_arm64_op*
+    auto machAssembly = assembly->getMachineAssembly();
+    for(size_t p = 0; p < machAssembly->getOpCount(); p ++) {
+        auto op = &machAssembly->getOperands()[p];  // cs_x86_op*, cs_arm64_op*
         if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
             LOG(1, "        explicit reg ref "
                 << u.printReg(op->reg));
@@ -382,7 +379,7 @@ private:
 #ifdef ARCH_X86_64
     union arg1_t {
         x86_reg reg;
-        x86_op_mem *mem;
+        const x86_op_mem *mem;
         unsigned long imm;
     } a1;
     union arg2_t {
@@ -392,7 +389,7 @@ private:
     } a3;
 #elif defined(ARCH_AARCH64)
     typedef struct extmem {
-        arm64_op_mem *mem;
+        const arm64_op_mem *mem;
         arm64_extender ext;
         struct {
             arm64_shifter type;
@@ -427,12 +424,12 @@ private:
     union arg3_t {
         extreg_t extreg;
         extimm_t extimm;
-        arm64_op_mem *mem;
+        const arm64_op_mem *mem;
     } a3;
 #endif
 public:
-    SlicingInstructionState(SearchState *state, cs_insn *capstone)
-        : state(state) { determineMode(capstone); }
+    SlicingInstructionState(SearchState *state, Assembly *assembly)
+        : state(state) { determineMode(assembly); }
 
     arg1_t *get1() { return &a1; }
     arg2_t *get2() { return &a2; }
@@ -449,99 +446,96 @@ public:
     void defaultDetectRegRegImm(bool overwriteTarget);
     void defaultDetectRegRegMem(bool overwriteTarget);
 private:
-    void determineMode(cs_insn *capstone);
+    void determineMode(Assembly *assembly);
     bool convertRegisterSize(Register &reg);
 };
 
-void SlicingInstructionState::determineMode(cs_insn *capstone) {
+void SlicingInstructionState::determineMode(Assembly *assembly) {
     mode = MODE_UNKNOWN;
+    auto machAssembly = assembly->getMachineAssembly();
 #ifdef ARCH_X86_64
-    cs_x86 *x = &capstone->detail->x86;
-#elif defined(ARCH_AARCH64)
-    cs_arm64 *x = &capstone->detail->arm64;
-#endif
-#ifdef ARCH_X86_64
-    if(x->op_count == 2
-        && x->operands[0].type == X86_OP_REG
-        && x->operands[1].type == X86_OP_REG) {
+    if(machAssembly->getOpCount()== 2
+        && machAssembly->getOperands()[0].type == X86_OP_REG
+        && machAssembly->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_REG_REG;
-        a1.reg = x->operands[0].reg;
-        a2.reg = x->operands[1].reg;
+        a1.reg = machAssembly->getOperands()[0].reg;
+        a2.reg = machAssembly->getOperands()[1].reg;
     }
-    if(x->op_count == 2
-        && x->operands[0].type == X86_OP_MEM
-        && x->operands[1].type == X86_OP_REG) {
+    if(machAssembly->getOpCount() == 2
+        && machAssembly->getOperands()[0].type == X86_OP_MEM
+        && machAssembly->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_MEM_REG;
-        a1.mem = &x->operands[0].mem;
-        a2.reg = x->operands[1].reg;
+        a1.mem = &machAssembly->getOperands()[0].mem;
+        a2.reg = machAssembly->getOperands()[1].reg;
     }
-    if(x->op_count == 2
-        && x->operands[0].type == X86_OP_IMM
-        && x->operands[1].type == X86_OP_REG) {
+    if(machAssembly->getOpCount() == 2
+        && machAssembly->getOperands()[0].type == X86_OP_IMM
+        && machAssembly->getOperands()[1].type == X86_OP_REG) {
 
         mode = MODE_IMM_REG;
-        a1.imm = x->operands[0].imm;
-        a2.reg = x->operands[1].reg;
+        a1.imm = machAssembly->getOperands()[0].imm;
+        a2.reg = machAssembly->getOperands()[1].reg;
     }
 #elif defined(ARCH_AARCH64)
-    if(x->op_count == 2) {
-        if(x->operands[0].type == ARM64_OP_REG
-           && x->operands[1].type == ARM64_OP_REG) {
+    if(machAssembly->getOpCount() == 2) {
+        if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+           && machAssembly->getOperands()[1].type == ARM64_OP_REG) {
 
             mode = MODE_REG_REG;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.reg = static_cast<arm64_reg>(x->operands[1].reg);
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
         }
-        else if(x->operands[0].type == ARM64_OP_REG
-           && x->operands[1].type == ARM64_OP_IMM) {
+        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+           && machAssembly->getOperands()[1].type == ARM64_OP_IMM) {
 
             mode = MODE_REG_IMM;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.imm = x->operands[1].imm;
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.imm = machAssembly->getOperands()[1].imm;
         }
-        else if(x->operands[0].type == ARM64_OP_REG
-           && x->operands[1].type == ARM64_OP_MEM) {
+        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+           && machAssembly->getOperands()[1].type == ARM64_OP_MEM) {
 
             mode = MODE_REG_MEM;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.extmem.mem = &x->operands[1].mem;
-            a2.extmem.ext = x->operands[1].ext;
-            a2.extmem.shift.type = x->operands[1].shift.type;
-            a2.extmem.shift.value = x->operands[1].shift.value;
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.extmem.mem = &machAssembly->getOperands()[1].mem;
+            a2.extmem.ext = machAssembly->getOperands()[1].ext;
+            a2.extmem.shift.type = machAssembly->getOperands()[1].shift.type;
+            a2.extmem.shift.value = machAssembly->getOperands()[1].shift.value;
         }
     }
-    else if(x->op_count == 3) {
-        if(x->operands[0].type == ARM64_OP_REG
-           && x->operands[1].type == ARM64_OP_REG
-           && x->operands[2].type == ARM64_OP_REG) {
+    else if(machAssembly->getOpCount() == 3) {
+        if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+           && machAssembly->getOperands()[1].type == ARM64_OP_REG
+           && machAssembly->getOperands()[2].type == ARM64_OP_REG) {
 
             mode = MODE_REG_REG_REG;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.reg = static_cast<arm64_reg>(x->operands[1].reg);
-            a3.extreg.reg = static_cast<arm64_reg>(x->operands[2].reg);
-            a3.extreg.ext = x->operands[2].ext;
-            a3.extreg.shift.type = x->operands[2].shift.type;
-            a3.extreg.shift.value = x->operands[2].shift.value;
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
+            a3.extreg.reg = static_cast<arm64_reg>(
+                machAssembly->getOperands()[2].reg);
+            a3.extreg.ext = machAssembly->getOperands()[2].ext;
+            a3.extreg.shift.type = machAssembly->getOperands()[2].shift.type;
+            a3.extreg.shift.value = machAssembly->getOperands()[2].shift.value;
         }
-        else if(x->operands[0].type == ARM64_OP_REG
-                && x->operands[1].type == ARM64_OP_REG
-                && x->operands[2].type == ARM64_OP_IMM) {
+        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+                && machAssembly->getOperands()[1].type == ARM64_OP_REG
+                && machAssembly->getOperands()[2].type == ARM64_OP_IMM) {
             mode = MODE_REG_REG_IMM;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.reg = static_cast<arm64_reg>(x->operands[1].reg);
-            a3.extimm.imm = x->operands[2].imm;
-            a3.extimm.shift.type = x->operands[2].shift.type;
-            a3.extimm.shift.value = x->operands[2].shift.value;
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
+            a3.extimm.imm = machAssembly->getOperands()[2].imm;
+            a3.extimm.shift.type = machAssembly->getOperands()[2].shift.type;
+            a3.extimm.shift.value = machAssembly->getOperands()[2].shift.value;
         }
-        else if(x->operands[0].type == ARM64_OP_REG
-                && x->operands[1].type == ARM64_OP_REG
-                && x->operands[2].type == ARM64_OP_MEM) {
+        else if(machAssembly->getOperands()[0].type == ARM64_OP_REG
+                && machAssembly->getOperands()[1].type == ARM64_OP_REG
+                && machAssembly->getOperands()[2].type == ARM64_OP_MEM) {
             mode = MODE_REG_REG_MEM;
-            a1.reg = static_cast<arm64_reg>(x->operands[0].reg);
-            a2.reg = static_cast<arm64_reg>(x->operands[1].reg);
-            a3.mem = &x->operands[2].mem;
+            a1.reg = static_cast<arm64_reg>(machAssembly->getOperands()[0].reg);
+            a2.reg = static_cast<arm64_reg>(machAssembly->getOperands()[1].reg);
+            a3.mem = &machAssembly->getOperands()[2].mem;
         }
     }
 #endif
@@ -796,16 +790,16 @@ void SlicingInstructionState::defaultDetectRegRegMem(bool overwriteTarget) {
 }
 
 void SlicingSearch::buildStateFor(SearchState *state) {
-    auto capstone = state->getInstruction()->getSemantic()->getCapstone();
+    auto assembly = state->getInstruction()->getSemantic()->getAssembly();
 
     debugPrintRegAccesses(state->getInstruction());
 
     detectInstruction(state, true);
 
-    if(capstone && capstone->detail) {
+    if(assembly) {
         // if any instruction overwrites condition flags, remove from reg set
-        for(size_t r = 0; r < capstone->detail->regs_write_count; r ++) {
-            if(capstone->detail->regs_write[r] == CONDITION_REGISTER) {
+        for(size_t r = 0; r < assembly->getImplicitRegsWriteCount(); r ++) {
+            if(assembly->getImplicitRegsWrite()[r] == CONDITION_REGISTER) {
                 state->removeReg(CONDITION_REGISTER);
             }
         }
@@ -821,9 +815,9 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
 }
 
 void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
-    auto capstone = state->getInstruction()->getSemantic()->getCapstone();
+    auto assembly = state->getInstruction()->getSemantic()->getAssembly();
 #ifdef ARCH_X86_64
-    if(!capstone || !capstone->detail) {
+    if(!assembly) {
 #elif defined(ARCH_AARCH64)
     if(dynamic_cast<ControlFlowInstruction *>(
         state->getInstruction()->getSemantic())) {
@@ -833,27 +827,12 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         return;
     }
 
-#ifdef ARCH_AARCH64
-    cs_insn ins;
-    if(!capstone) {
-        if(auto ir = dynamic_cast<InstructionRebuilder *>(
-            state->getInstruction()->getSemantic())) {
-
-            ins = ir->generateCapstone();
-            capstone = &ins;
-        }
-        else {
-            throw "no capstone information!";
-        }
-    }
-#endif
-
-    LOG(1, "@ " << std::hex << capstone->address);
+    LOG(1, "@ " << std::hex << assembly->getAddress());
     SlicingUtilities u;
 
     SlicingInstructionState *iState;
     if(firstPass) {
-        iState = new SlicingInstructionState(state, capstone);
+        iState = new SlicingInstructionState(state, assembly);
         state->setIState(iState);
     }
     else {
@@ -861,7 +840,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
     }
     auto mode = iState->getMode();
 
-    switch(capstone->id) {
+    switch(assembly->getId()) {
 #ifdef ARCH_X86_64
     case X86_INS_ADD:
         if(mode == SlicingInstructionState::MODE_REG_REG) {
@@ -1290,8 +1269,8 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         break;
 #endif
     default:
-        LOG(1, "        got instr id " << capstone->id
-            << "(" << capstone->mnemonic << ")");
+        LOG(1, "        got instr id " << assembly->getId()
+            << "(" << assembly->getMnemonic() << ")");
         break;
     }
 }

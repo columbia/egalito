@@ -3,14 +3,14 @@
 
 #include <climits>
 #include <string>
-#include <capstone/capstone.h>
+#include <disasm/assembly.h>
 
 class DisasmDump {
 public:
     static std::string formatBytes(const char *bytes, size_t size);
-    static void printInstruction(cs_insn *instr,
+    static void printInstruction(Assembly *instr,
         int offset = INT_MIN, const char *name = 0);
-    static void printInstructionCalculated(cs_insn *instr,
+    static void printInstructionCalculated(Assembly *instr,
         int offset = INT_MIN, unsigned long target = 0);
     static void printInstructionRaw(unsigned long address,
         int offset, const char *opcode, unsigned long target,

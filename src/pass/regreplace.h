@@ -115,8 +115,8 @@ private:
 
 public:
     AARCH64InstructionCoder() : regMask(0x1F), cached(false) {}
-    virtual void decode(uint8_t *bytes, size_t size);
-    virtual void encode(uint8_t *bytes, size_t size);
+    virtual void decode(const char *bytes, size_t size);
+    virtual void encode(char *bytes, size_t size);
     virtual bool isReading(PhysicalRegister<AARCH64GPRegister> &reg);
     virtual bool isWriting(PhysicalRegister<AARCH64GPRegister> &reg);
     virtual void replaceRegister(PhysicalRegister<AARCH64GPRegister>& oldReg,

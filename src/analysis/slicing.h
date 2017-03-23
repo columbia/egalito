@@ -65,9 +65,9 @@ public:
     void printMemTrees(SearchState *state);
     void copyParentRegTrees(SearchState *state);
     void copyParentMemTrees(SearchState *state);
-    TreeNode *makeMemTree(SearchState *state, x86_op_mem *mem);
+    TreeNode *makeMemTree(SearchState *state, const x86_op_mem *mem);
     TreeNode *makeMemTree(SearchState *state,
-                          arm64_op_mem *mem,
+                          const arm64_op_mem *mem,
                           arm64_extender ext,
                           arm64_shifter sft_type,
                           unsigned int sft_value);
