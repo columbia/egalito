@@ -85,6 +85,8 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
     AARCH64InstructionCoder coder;
     for(auto ins : xInstructionList) {
         auto assembly = ins->getSemantic()->getAssembly();
+        if(!assembly) throw "Register replacement pass needs Assembly";
+
         coder.decode(assembly->getBytes(), assembly->getSize());
 
         // p1. store the original value of dualReg
@@ -111,11 +113,10 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
         coder.replaceRegister(regX, dualReg);
         char data[assembly->getSize()];
         coder.encode(data, assembly->getSize());
-        auto s = ins->getSemantic();
-        std::string raw;
-        raw.assign(data, assembly->getSize());
-        ins->setSemantic(new RawInstruction(raw));
-        delete s;
+        std::vector<unsigned char> dataVector(data, data + assembly->getSize());
+        cs_insn insn = Disassemble::getInsn(dataVector, ins->getAddress());
+        Assembly a(insn);
+        *assembly = a;
     }
 }
 

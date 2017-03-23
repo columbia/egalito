@@ -101,14 +101,6 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 InstructionRebuilder::InstructionRebuilder(Instruction *source, Mode mode,
     const Assembly &assembly)
     : source(source), modeInfo(&AARCH64_ImInfo[mode]), assembly(assembly) {
-
-    auto operands = assembly.getMachineAssembly()->getOperands();
-    if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
-        originalOffset = operands[modeInfo->immediateIndex].imm;
-    }
-    else {  // mem for LDR x0, [x0,#4048]
-        originalOffset = operands[modeInfo->immediateIndex].mem.disp;
-    }
 }
 
 const InstructionRebuilder::AARCH64_modeInfo_t InstructionRebuilder::AARCH64_ImInfo[AARCH64_IM_MAX] = {
@@ -211,6 +203,16 @@ uint32_t InstructionRebuilder::rebuild(void) {
     LOG(1, "result: " << (getFixedBytes() | imm));
 #endif
     return fixedBytes | imm;
+}
+
+uint32_t InstructionRebuilder::getOriginalOffset() const {
+    auto operands = assembly.getMachineAssembly()->getOperands();
+    if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
+        return operands[modeInfo->immediateIndex].imm;
+    }
+    else {  // mem for LDR x0, [x0,#4048]
+        return operands[modeInfo->immediateIndex].mem.disp;
+    }
 }
 
 void InstructionRebuilder::writeTo(char *target) {

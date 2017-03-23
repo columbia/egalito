@@ -176,7 +176,6 @@ private:
     const static AARCH64_modeInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
 
     Instruction *source;
-    int64_t originalOffset;
     const AARCH64_modeInfo_t *modeInfo;
     Assembly assembly;
 
@@ -198,7 +197,7 @@ public:
     std::string getMnemonic() const { return assembly.getMnemonic(); }
 
     const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
-    uint32_t getOriginalOffset() const { return originalOffset; }
+    uint32_t getOriginalOffset() const;
 
     virtual uint32_t rebuild(void);
 
