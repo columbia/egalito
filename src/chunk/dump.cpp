@@ -85,7 +85,8 @@ void ChunkDumper::visit(Instruction *instruction) {
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
             auto name = target ? target->getName().c_str() : nullptr;
-            DisasmDump::printInstruction(p->getAssembly(), pos, name);
+            DisasmDump::printInstruction(
+                instruction->getAddress(), p->getAssembly(), pos, name);
         }
         else if(auto p = dynamic_cast<RawInstruction *>(
             instruction->getSemantic())) {
@@ -94,7 +95,8 @@ void ChunkDumper::visit(Instruction *instruction) {
                                          p->getData().end());
             cs_insn instr = Disassemble::getInsn(v, instruction->getAddress());
             Assembly assembly(instr);
-            DisasmDump::printInstruction(&assembly, pos, nullptr);
+            DisasmDump::printInstruction(
+                instruction->getAddress(), &assembly, pos, nullptr);
         }
 #endif
         else LOG(4, "...unknown...");
@@ -107,13 +109,13 @@ void ChunkDumper::visit(Instruction *instruction) {
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
-            assembly->setAddress(instruction->getAddress());
-            DisasmDump::printInstruction(assembly, pos, target->getName().c_str());
+            DisasmDump::printInstruction(
+                instruction->getAddress(), assembly, pos, target->getName().c_str());
         }
         else {
             unsigned long targetAddress = link->getTargetAddress();
-            assembly->setAddress(instruction->getAddress());
-            DisasmDump::printInstructionCalculated(assembly, pos, targetAddress);
+            DisasmDump::printInstructionCalculated(
+                instruction->getAddress(), assembly, pos, targetAddress);
         }
         return;
     }
@@ -131,8 +133,5 @@ void ChunkDumper::visit(Instruction *instruction) {
         return;
     }
 
-    // !!! we shouldn't need to modify the addr inside a dump function
-    // !!! this is just to keep the cs_insn up-to-date
-    assembly->setAddress(instruction->getAddress());
-    DisasmDump::printInstruction(assembly, pos, target);
+    DisasmDump::printInstruction(instruction->getAddress(), assembly, pos, target);
 }

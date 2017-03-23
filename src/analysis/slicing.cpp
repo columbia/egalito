@@ -827,7 +827,6 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         return;
     }
 
-    LOG(1, "@ " << std::hex << assembly->getAddress());
     SlicingUtilities u;
 
     SlicingInstructionState *iState;

@@ -83,7 +83,8 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 
         IF_LOG(3) {
             Assembly assembly(insn[j]);
-            DisasmDump::printInstruction(&assembly, INT_MIN, name);
+            DisasmDump::printInstruction(
+                insn[j].address, &assembly, INT_MIN, name);
         }
     }
 
