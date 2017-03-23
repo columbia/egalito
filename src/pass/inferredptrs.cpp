@@ -51,13 +51,13 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 return;
             }
             else if(op->type == X86_OP_IMM) {
-                address_t target = (instruction->getAddress() + instruction->getSize()) + op->imm;
+                address_t target = op->imm;
                 auto functionList = module->getChildren()->getSpatial();
                 auto found = functionList->find(target);
                 if(found) {
                     auto inferred = new AbsoluteLinkedInstruction(
                         instruction, v->moveStorageFrom(), i);
-                    inferred->setLink(new NormalLink(found));
+                    inferred->setLink(new NormalLink(found));  // !!! ExternalNormalLink
                     instruction->setSemantic(inferred);
                     delete v;
                     return;  // don't access v after we delete it
