@@ -20,12 +20,12 @@ DebugElf::DebugElf() {
     strtable = (char *)mmap(NULL, 0x1000,
         PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
     strtable_size = 0x1000;
-    const char *strtable_seed = ".symtab\0.strtab\0.text";
+    const char *strtable_seed = "\0.symtab\0.strtab\0.text";
 
-    for(int i = 0; i < 22; i ++) {
+    for(int i = 0; i < 23; i ++) {
         strtable[i] = strtable_seed[i];
     }
-    strtable_used = 22;
+    strtable_used = 23;
 
     start = -1;
     end = 0;
@@ -134,7 +134,7 @@ void DebugElf::writeTo(int fd) {
     }
     write(fd, &shdr, sizeof(shdr));
 
-    shdr.sh_name = 0; // .symtab
+    shdr.sh_name = 1; // .symtab
     shdr.sh_type = SHT_SYMTAB;
     shdr.sh_flags = 0;
     shdr.sh_addr = 0;
@@ -146,7 +146,7 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_entsize = sizeof(Elf64_Sym);
     write(fd, &shdr, sizeof(shdr));
 
-    shdr.sh_name = 8; // .strtab
+    shdr.sh_name = 9; // .strtab
     shdr.sh_type = SHT_STRTAB;
     shdr.sh_offset += shdr.sh_size;
     shdr.sh_size = strtable_used;
@@ -154,7 +154,7 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_entsize = 0;
     write(fd, &shdr, sizeof(shdr));
 
-    shdr.sh_name = 16; // .text
+    shdr.sh_name = 17; // .text
     shdr.sh_type = SHT_NOBITS;
     shdr.sh_offset = 0;
 
