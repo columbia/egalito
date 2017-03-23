@@ -38,6 +38,9 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
 
     address += baseAddress;  // relocate shared code by the given offset
 
+    // sometimes, with -Wl,-q, the linker generates empty data LOAD sections
+    if(memsz_pages == 0) return;
+
     void *mem = 0;
     if(memsz_pages > filesz_pages) {
         // first map the full pages including zero pages, unmap and remap
@@ -60,7 +63,8 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
         }
         if(mem == (void *)-1) throw "Out of memory?";
     }
-    else {  // no extra zero pages
+    else {
+        // in this case there are no extra zero pages
         mem = mmap((void *)address,
             memsz_pages,
             prot,

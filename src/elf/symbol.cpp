@@ -131,6 +131,9 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
     std::map<address_t, Symbol *> seen;
     for(auto sym : *list) {
+        // don't alias SECTIONs with other types (e.g. first FUNC in .text)
+        if(sym->getType() == Symbol::TYPE_SECTION) continue;
+
         auto prev = seen.find(sym->getAddress());
         if(prev != seen.end()) {
             auto prevSym = (*prev).second;
@@ -226,10 +229,11 @@ void SymbolList::sortSymbols() {
 
 unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
     switch(type) {
-    case Symbol::TYPE_FUNC:   return STT_FUNC;
-    case Symbol::TYPE_IFUNC:  return STT_GNU_IFUNC;
-    case Symbol::TYPE_OBJECT: return STT_OBJECT;
-    default:                  return STT_NOTYPE;
+    case Symbol::TYPE_FUNC:     return STT_FUNC;
+    case Symbol::TYPE_IFUNC:    return STT_GNU_IFUNC;
+    case Symbol::TYPE_OBJECT:   return STT_OBJECT;
+    case Symbol::TYPE_SECTION:  return STT_SECTION;
+    default:                    return STT_NOTYPE;
     }
 }
 
@@ -238,6 +242,7 @@ Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
     case STT_FUNC:     return Symbol::TYPE_FUNC;
     case STT_GNU_IFUNC:return Symbol::TYPE_IFUNC;
     case STT_OBJECT:   return Symbol::TYPE_OBJECT;
+    case STT_SECTION:  return Symbol::TYPE_SECTION;
     default:           return Symbol::TYPE_UNKNOWN;
     }
 }

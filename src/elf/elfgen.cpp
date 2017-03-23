@@ -110,14 +110,16 @@ void ElfGen::makeOriginalSegments() {
     // Rodata
     auto loadRESegment = new Segment(rodata->p_vaddr, rodata->p_offset);
     loadRESegment->add(new Section(".old_re", elfMap->getMap(), rodata->p_memsz));
+    addSegment(loadRESegment, PT_LOAD, PF_R | PF_X, rodata->p_align);
 
     // Read Write data
-    auto loadRWSegment = new Segment(rwdata->p_vaddr, rwdata->p_offset);
-    char *loadRWVirtualAdress = elfMap->getCharmap() + loadRESegment->getFileOff();
-    loadRWSegment->add(new Section(".old_rw", static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz));
+    if(rwdata) {  // some executables may have no data to load!
+        auto loadRWSegment = new Segment(rwdata->p_vaddr, rwdata->p_offset);
+        char *loadRWVirtualAdress = elfMap->getCharmap() + loadRESegment->getFileOff();
+        loadRWSegment->add(new Section(".old_rw", static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz));
+        addSegment(loadRWSegment, PT_LOAD, PF_R | PF_W, rwdata->p_align);
+    }
 
-    addSegment(loadRESegment, PT_LOAD, PF_R | PF_X, rodata->p_align);
-    addSegment(loadRWSegment, PT_LOAD, PF_R | PF_W, rwdata->p_align);
     addSegment(headerSegment);  // overwrite part of loadRESegment
 }
 
@@ -265,8 +267,10 @@ void ElfGen::updateEntryPoint() {
     Elf64_Ehdr *header = headerSegment->getFirstSection()->castAs<Elf64_Ehdr>();
     address_t entry_pt = 0;
     for(auto chunk : elfSpace->getModule()->getChildren()->genericIterable()) {
-        if(!strcmp(chunk->getName().c_str(), "_start"))
-            entry_pt = chunk->getAddress();
+        if(!strcmp(chunk->getName().c_str(), "_start")) {
+            entry_pt = elfSpace->getElfMap()->getBaseAddress()
+                + chunk->getAddress();
+        }
     }
     header->e_entry = entry_pt;
     header->e_phoff = phdrTableSegment->getFileOff();

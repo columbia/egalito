@@ -16,6 +16,7 @@ public:
         TYPE_FUNC,
         TYPE_IFUNC,
         TYPE_OBJECT,
+        TYPE_SECTION,
         TYPE_UNKNOWN
     };
     enum BindingType {

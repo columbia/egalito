@@ -8,8 +8,10 @@ my_write:
     pop     %r11
     pop     %rcx
     retq
+.type my_write, @function
+.size my_write, .-my_write
 my_exit:
     mov     $60, %rax   # exit
     syscall
-.type my_write, @function
-.size my_write, .-my_write
+.type my_exit, @function
+.size my_exit, .-my_exit

@@ -3,7 +3,7 @@
 CC = gcc
 
 CFLAGS	= -fPIE -pie -O2
-STATIC_CFLAGS =
+STATIC_CFLAGS = -static
 
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
@@ -20,10 +20,10 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 jumptable fp stack
+TARGET_NAMES = hello hi0 hi5 jumptable fp stack
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
-TARGETS-static = $(addsuffix -static,$(TARGETS))
+TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 
 ALL_TARGETS = $(TARGETS)
 ALL_TARGETS += $(TARGETS-q)
@@ -49,16 +49,23 @@ endef
 
 $(eval $(call dep_rule,hello,hello.c))
 $(eval $(call dep_rule,hi0,hi0.c hi0-s.S))
+$(eval $(call dep_rule,hi5,hi5.c hi5-s.s))
 $(eval $(call dep_rule,jumptable,jumptable.c))
 $(eval $(call dep_rule,fp,fp.c))
 $(eval $(call dep_rule,stack,stack.c))
 
 $(BUILDDIR)%-static:
-	$(CC) $(STATIC_CFLAGS) $^ -o $@ -static
+	$(CC) $(STATIC_CFLAGS) $^ -o $@
 $(BUILDDIR)%-q:
 	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $^ -o $@
+$(BUILDDIR)hi5:
+	$(CC) $(CFLAGS) -nostdlib -ffreestanding $^ -o $@ -no-pie
+$(BUILDDIR)hi5-q:
+	$(CC) $(CFLAGS) -nostdlib -ffreestanding $^ -o $@ -Wl,-q -no-pie
+$(BUILDDIR)hi5-static:
+	$(CC) $(STATIC_CFLAGS) -nostdlib -ffreestanding $^ -o $@
 
 .PHONY: clean
 clean:
