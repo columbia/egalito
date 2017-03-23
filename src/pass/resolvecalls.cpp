@@ -25,9 +25,11 @@ void ResolveCalls::visit(Instruction *instruction) {
     LOG0(10, "Looking up target 0x" << std::hex << targetAddress << " -> ");
 
     Chunk *found = nullptr;
+    bool isExternal = false;
     // Common case for call instructions: point at another function
     if(!found) {
         found = functionList->find(targetAddress);
+        if(found) isExternal = true;
     }
     // Common case for jumps: internal jump elsewhere within function
     if(!found) {
@@ -68,6 +70,7 @@ void ResolveCalls::visit(Instruction *instruction) {
             if(found) break;
         }
 #endif
+        if(found) isExternal = true;
     }
 
     if(found) {
@@ -75,15 +78,25 @@ void ResolveCalls::visit(Instruction *instruction) {
 #ifdef ARCH_X86_64
         auto offset = targetAddress - found->getAddress();
         if(offset == 0) {
-            semantic->setLink(new NormalLink(found));
+            if(isExternal) {
+                semantic->setLink(new ExternalNormalLink(found));
+            }
+            else {
+                semantic->setLink(new NormalLink(found));
+            }
         }
         else {
             auto i = dynamic_cast<Instruction *>(found);
-            if(0 && i && offset == 1 && static_cast<unsigned char>(
+            if(i && offset == 1 && static_cast<unsigned char>(
                 i->getSemantic()->getData()[0]) == 0xf0) {
 
                 // jumping by skipping the "LOCK" prefix
-                semantic->setLink(new OffsetLink(found, 1));
+                if(isExternal) {
+                    semantic->setLink(new ExternalOffsetLink(found, 1));
+                }
+                else {
+                    semantic->setLink(new OffsetLink(found, 1));
+                }
             }
             else {
                 LOG(1, "WARNING: jumping into the middle of an instruction"
@@ -92,7 +105,12 @@ void ResolveCalls::visit(Instruction *instruction) {
             }
         }
 #else
-        semantic->setLink(new NormalLink(found));
+        if(isExternal) {
+            semantic->setLink(new ExternalNormalLink(found));
+        }
+        else {
+            semantic->setLink(new NormalLink(found));
+        }
 #endif
         delete link;
     }

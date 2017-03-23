@@ -51,6 +51,22 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+template <typename BaseType>
+class ExternalLinkDecorator : public BaseType {
+public:
+    ExternalLinkDecorator(ChunkRef target) : BaseType(target) {}
+};
+template <>
+class ExternalLinkDecorator<OffsetLink> : public OffsetLink {
+public:
+    ExternalLinkDecorator(ChunkRef target, size_t offset)
+        : OffsetLink(target, offset) {}
+};
+
+typedef ExternalLinkDecorator<NormalLink> ExternalNormalLink;
+typedef ExternalLinkDecorator<OffsetLink> ExternalOffsetLink;
+
+
 class PLTEntry;
 class PLTLink : public Link {
 private:
