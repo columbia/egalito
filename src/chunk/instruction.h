@@ -203,7 +203,8 @@ public:
     uint32_t getOriginalOffset() const { return originalOffset; }
 
     virtual uint32_t rebuild(void);
-    cs_insn generateCapstone();
+
+private:
     Assembly generateAssembly();
 };
 
@@ -265,7 +266,7 @@ public:
     virtual void writeTo(std::string &target);
     virtual std::string getData();
 
-    void regenerateCapstone();
+    void regenerateAssembly();
 protected:
     Instruction *getInstruction() const { return instruction; }
     int getDispSize();

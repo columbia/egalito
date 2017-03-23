@@ -278,11 +278,6 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(
     return m;
 }
 
-cs_insn InstructionRebuilder::generateCapstone() {
-    auto data = AARCH64InstructionBinary(rebuild());
-    return Disassemble::getInsn(data.getVector(), getSource()->getAddress());
-}
-
 Assembly InstructionRebuilder::generateAssembly() {
     auto data = AARCH64InstructionBinary(rebuild());
     cs_insn insn = Disassemble::getInsn(data.getVector(), getSource()->getAddress());
@@ -338,7 +333,7 @@ std::string LinkedInstruction::getData() {
     return std::move(data);
 }
 
-void LinkedInstruction::regenerateCapstone() {
+void LinkedInstruction::regenerateAssembly() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).
     std::string data = getData();
@@ -347,7 +342,8 @@ void LinkedInstruction::regenerateCapstone() {
         dataVector.push_back(data[i]);
     }
     cs_insn ins = Disassemble::getInsn(dataVector, instruction->getAddress());
-    DisassembledStorage storage(ins);
+    Assembly assembly(ins);
+    DisassembledStorage storage(assembly);
     setStorage(std::move(storage));
 }
 

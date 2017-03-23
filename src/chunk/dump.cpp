@@ -82,11 +82,10 @@ void ChunkDumper::visit(Instruction *instruction) {
         else if(auto p = dynamic_cast<PCRelativeInstruction *>(
             instruction->getSemantic())) {
 
-            Assembly assembly = p->generateAssembly();
             auto link = p->getLink();
             auto target = link ? link->getTarget() : nullptr;
             auto name = target ? target->getName().c_str() : nullptr;
-            DisasmDump::printInstruction(&assembly, pos, name);
+            DisasmDump::printInstruction(p->getAssembly(), pos, name);
         }
         else if(auto p = dynamic_cast<RawInstruction *>(
             instruction->getSemantic())) {
@@ -104,7 +103,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
     // this handles RelocationInstruction, InferredInstruction
     if(auto r = dynamic_cast<LinkedInstruction *>(instruction->getSemantic())) {
-        r->regenerateCapstone();
+        r->regenerateAssembly();
         auto link = r->getLink();
         auto target = link ? link->getTarget() : nullptr;
         if(target) {
