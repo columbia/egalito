@@ -8,9 +8,11 @@ STATIC_CFLAGS =
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
+	STATIC_CFLAGS += -DARCH_AARCH64
 	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
+	STATIC_CFLAGS += -DARCH_X86_64 -no-pie
 	BUILDDIR = build_x86_64/
 else
 $(error Unsupported platform, we only handle aarch64 and x86_64)
