@@ -15,6 +15,7 @@ std::ostream& operator<<(std::ostream &stream, ElfGen::Segment &rhs) {
 
 void ElfGen::Segment::add(ElfGen::Section *sec) {
     sec->setFileOff(fileOffset + size);
+    sec->setAddress(address + size);
     size += sec->getSize();
     sections.push_back(sec);
 }
@@ -57,6 +58,7 @@ Elf64_Shdr *ElfGen::Section::makeSectionHeader() const {
     Elf64_Shdr *entry = new Elf64_Shdr();
     entry->sh_offset = fileOffset;
     entry->sh_size = size;
+    entry->sh_addr = address;
     return entry;
 }
 
@@ -90,6 +92,7 @@ void ElfGen::generate() {
     makeSymbolInfo();
     if(elfSpace->getElfMap()->isDynamic()) {
         makeDynamicSymbolInfo();
+        makePLT();
     }
     makePhdrTable();
     makeShdrTable();
@@ -149,7 +152,12 @@ void ElfGen::makeNewTextSegment() {
     // Interp
     auto elfMap = elfSpace->getElfMap();
     if(elfMap->isDynamic()) {
-        loadTextSegment->add(new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter)));
+        Section *interpSection = new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter));
+        Segment *interpSegment = new Segment(loadTextSegment->getAddress() + loadTextSegment->getSize(), getNextFreeOffset());
+        interpSegment->add(interpSection);
+        loadTextSegment->add(interpSection);
+        addShdr(interpSection, SHT_PROGBITS);
+        addSegment(interpSegment, PT_INTERP, PF_R, 0x1);
     }
     addSegment(loadTextSegment, PT_LOAD, PF_R | PF_X, 0x1000);
 }
@@ -241,6 +249,22 @@ void ElfGen::makeDynamicSymbolInfo() {
 
     int dstrtab_id = addShdr(dstrtab, SHT_STRTAB);
     addShdr(dsymtab, SHT_DYNSYM, dstrtab_id);
+}
+
+void ElfGen::makePLT() {
+    auto elfMap = elfSpace->getElfMap();
+
+    Elf64_Shdr *pltShdr = new Elf64_Shdr();
+    memcpy(pltShdr, elfMap->findSectionHeader(".plt"), sizeof(Elf64_Shdr));
+    pltShdr->sh_name = data.getShdrListSize();
+    Section *pltSection = new Section(".plt");
+    data.addShdr(pltSection, pltShdr);
+
+    Elf64_Shdr *relaPltShdr = new Elf64_Shdr();
+    memcpy(relaPltShdr, elfMap->findSectionHeader(".rela.plt"), sizeof(Elf64_Shdr));
+    relaPltShdr->sh_name = data.getShdrListSize();
+    Section *relaPltSection = new Section(".rela.plt");
+    data.addShdr(relaPltSection, relaPltShdr);
 }
 
 void ElfGen::makePhdrTable() {

@@ -13,6 +13,7 @@ class ElfGen {
 private:
     class Section {
     private:
+        address_t address;
         std::string data;
         std::string name;
         size_t size;
@@ -21,10 +22,12 @@ private:
         Section(std::string name) : name(name), size(0), fileOffset(0) {}
         Section(std::string name, const void *data, size_t size)
             : name(name), size(0), fileOffset(0) { add(data, size); }
+        address_t getAddress() const { return address; }
         size_t getSize() const { return size; }
         size_t getFileOff() const { return fileOffset; }
         std::string getName() const { return name; }
         std::string getData() const { return data; }
+        void setAddress(address_t addr) { address = addr; }
         void setSize(size_t sz) { size = sz; }
         void setFileOff(size_t offset) { fileOffset = offset; }
         void add(const void *data, size_t size);
@@ -105,6 +108,7 @@ private:
     void makeNewTextSegment();
     void makeSymbolInfo();
     void makeDynamicSymbolInfo();
+    void makePLT();
     void makePhdrTable();
     void makeShdrTable();
     void updateEntryPoint();
