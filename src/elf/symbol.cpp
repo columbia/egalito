@@ -133,6 +133,10 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     for(auto sym : *list) {
         // don't alias SECTIONs with other types (e.g. first FUNC in .text)
         if(sym->getType() == Symbol::TYPE_SECTION) continue;
+#ifdef ARCH_AARCH64
+        // skip mapping symbols in AARCH64 ELF
+        if(sym->getName()[0] == '$') continue;
+#endif
 
         auto prev = seen.find(sym->getAddress());
         if(prev != seen.end()) {
@@ -182,16 +186,6 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         address_t address = sym->st_value;
         size_t size = sym->st_size;
         const char *name = strtab + sym->st_name;
-
-#ifdef ARCH_AARCH64
-        /* Skip section symbols: otherwise a function can be illegally
-         * considered an alias for an section symbol later.
-         * ELF for ARM has mapping symbols that start with a dollar sign.
-         * Mapping symbols tell inline transitions between code and data. */
-        if(name[0] == '\0' || name[0] == '$') {
-            continue;
-        }
-#endif
 
         // Symbol versioning: some functions have @@GLIBC.* appended to the
         // name (exported functions?), others only have one '@'.
