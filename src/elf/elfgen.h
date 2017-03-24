@@ -47,8 +47,7 @@ private:
     public:
         // Sometimes the first parameter will be ignored, because the Segment
         // won't be mapped into memory
-        Segment(address_t address, size_t fileOffset = 0)
-            : address(address), fileOffset(fileOffset), size(0) {}
+        Segment() : address(0), fileOffset(0), size(0) {}
         ~Segment() { for(auto s : sections) { delete s; } }
         address_t getAddress() const { return address; }
         size_t getFileOff() const { return fileOffset; }
@@ -56,7 +55,7 @@ private:
         Elf64_Phdr* makeProgramHeader(Elf64_Word p_type, Elf64_Word p_flags, Elf64_Xword p_align) const;
         std::vector<Section *> getSections() const { return sections; }
         Section *getFirstSection() const { return sections[0]; }
-        void setAddress(address_t addr) { address = addr; }
+        void setAddress(address_t addr);
         void setFileOff(size_t offset);
         void add(Section *sec);
     };
@@ -90,12 +89,13 @@ private:
     std::string filename;
     const char *interpreter;
     Metadata data;
-    std::vector<Section *> visibleSections;
 private:
-    Section *shstrtab;
+    Section *shdrTable;
+    // Placed in the order they show up in the file
     Segment *headerSegment;
-    Segment *shdrTableSegment;
+    Segment *visibleSegment;
     Segment *phdrTableSegment;
+    Segment *hiddenSegment;
 public:
     ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
         const char *interpreter = nullptr);
@@ -109,11 +109,13 @@ private:
     void makeSymbolInfo();
     void makeDynamicSymbolInfo();
     void makePLT();
+    void makeDynamic();
     void makePhdrTable();
     void makeShdrTable();
     void updateEntryPoint();
     Elf64_Sym generateSymbol(Function *func, Symbol *sym, size_t strtabIndex);
     size_t getNextFreeOffset();
+    address_t getNextFreeAddress(Segment *segment);
     int addShdr(Section *section, Elf64_Word type, int link = 0);
     void addSegment(Segment *segment);
     void addSegment(Segment *segment, Elf64_Word p_type, Elf64_Word p_flags, Elf64_Xword p_align);
