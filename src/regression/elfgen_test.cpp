@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
     if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
         return -2;
     }
+    GroupRegistry::getInstance()->dumpSettings();
 
     try {
         ElfMap *elf = new ElfMap(argv[1]);

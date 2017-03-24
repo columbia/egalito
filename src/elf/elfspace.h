@@ -39,6 +39,7 @@ public:
     std::string getName() const;
 
     SymbolList *getSymbolList() const { return symbolList; }
+    SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
     RelocList *getRelocList() const { return relocList; }
     PLTSection *getPLTSection() const { return pltSection; }
 

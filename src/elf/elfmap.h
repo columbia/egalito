@@ -61,6 +61,7 @@ public:
     size_t getEntryPoint() const;
     bool isExecutable() const;
     bool isSharedLibrary() const;
+    bool isDynamic() const { return hasInterpreter(); }
 
     char *getCharmap() { return static_cast<char *>(map); }
     void *getMap() { return map; }

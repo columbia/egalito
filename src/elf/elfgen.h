@@ -4,6 +4,7 @@
 #include <iosfwd>
 #include <vector>
 #include "transform/sandbox.h"
+#include "util/iter.h"
 #include "elfspace.h"
 #include "elf.h"
 
@@ -56,15 +57,37 @@ private:
         void add(Section *sec);
     };
 private:
+    class Metadata {
+    private:
+        typedef std::vector<Segment *> SegmentList;
+        typedef std::vector<Elf64_Phdr *> PhdrList;
+        typedef std::vector<Elf64_Shdr *> ShdrList;
+    private:
+        SegmentList segmentList;
+        PhdrList phdrList;
+        ShdrList shdrList;
+    public:
+        ConcreteIterable<SegmentList> getSegmentList() { return ConcreteIterable<SegmentList>(segmentList); }
+        ConcreteIterable<PhdrList> getPhdrList() { return ConcreteIterable<PhdrList>(phdrList); }
+        ConcreteIterable<ShdrList> getShdrList() { return ConcreteIterable<ShdrList>(shdrList); }
+        void addSegment(Segment *segment) { segmentList.push_back(segment); }
+        void addPhdr(Elf64_Phdr *phdr) { phdrList.push_back(phdr); }
+        void addShdr(Elf64_Shdr *shdr) { shdrList.push_back(shdr); }
+        size_t getSegmentListSize() const { return segmentList.size(); }
+        size_t getPhdrListSize() const { return phdrList.size(); }
+        size_t getShdrListSize() const { return shdrList.size(); }
+    public:
+        ~Metadata();
+    };
+private:
     ElfSpace *elfSpace;
     MemoryBacking *backing;
     std::string filename;
     const char *interpreter;
-    std::vector<Segment *> segments;
-    std::vector<Elf64_Phdr *> phdrList;
-    std::vector<Elf64_Shdr *> shdrList;
+    Metadata data;
     std::vector<Section *> visibleSections;
 private:
+    Section *shstrtab;
     Segment *headerSegment;
     Segment *shdrTableSegment;
     Segment *phdrTableSegment;
@@ -79,10 +102,12 @@ private:
     void makeOriginalSegments();
     void makeNewTextSegment();
     void makeSymbolInfo();
+    void makeDynamicSymbolInfo();
     void makePhdrTable();
     void makeShdrTable();
     void updateEntryPoint();
     Elf64_Sym generateSymbol(Function *func, Symbol *sym, size_t strtabIndex);
+    Elf64_Sym generateDynamicSymbol(Symbol *sym, size_t strtabIndex);
     size_t getNextFreeOffset();
     int addShdr(Section *section, Elf64_Word type, int link = 0);
     void addSegment(Segment *segment);
