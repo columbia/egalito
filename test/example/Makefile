@@ -5,6 +5,8 @@ CC = gcc
 CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS = -static
 
+ADDCFLAGS-hi5 = -nostdlib -ffreestanding
+
 P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
@@ -54,18 +56,14 @@ $(eval $(call dep_rule,jumptable,jumptable.c))
 $(eval $(call dep_rule,fp,fp.c))
 $(eval $(call dep_rule,stack,stack.c))
 
+addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
+
 $(BUILDDIR)%-static:
-	$(CC) $(STATIC_CFLAGS) $^ -o $@
+	$(CC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%-q:
-	$(CC) $(CFLAGS) $^ -o $@ -Wl,-q
+	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
 $(BUILDDIR)%:
-	$(CC) $(CFLAGS) $^ -o $@
-$(BUILDDIR)hi5:
-	$(CC) $(CFLAGS) -nostdlib -ffreestanding $^ -o $@ -no-pie
-$(BUILDDIR)hi5-q:
-	$(CC) $(CFLAGS) -nostdlib -ffreestanding $^ -o $@ -Wl,-q -no-pie
-$(BUILDDIR)hi5-static:
-	$(CC) $(STATIC_CFLAGS) -nostdlib -ffreestanding $^ -o $@
+	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 
 .PHONY: clean
 clean:
