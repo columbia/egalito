@@ -5,70 +5,106 @@
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
+// if we can find a register R not used within this function:
+//   if R is callee saved register:
+//     [CASE-1]
+//     1. save R in the prologue, and restore R in the epilogue
+//     2. substitute regX with R
+//   else if R is a caller saved or temporary register and this is a leaf:
+//     [CASE-2] -- not implemented
+//     1. substitute regX with R
+//     2. save and recover R before and after a call
+//   endif
+// else:
+//   [CASE-3]
+//   1. pick any callee saved register
+//   2. substitute regX with R for each instruction
+//   3. add extra code for the case the instruction is a branch
+// endif
+
 void AARCH64RegReplacePass::useStack(
     Function *function, FrameType *frame) {
 
     AARCH64RegisterUsage regUsage(function, AARCH64GPRegister::R18);
 
-    for(auto block : regUsage.getSingleBlockList()) {
-        replaceSingle(block, frame, &regUsage);
+    std::vector<int> count = regUsage.getAllUseCounts();
+    std::vector<bool> unusable = regUsage.getUnusableRegister();
+
+    AARCH64GPRegister::ID dualID;
+    for(dualID = AARCH64GPRegister::R_CALLEE_SAVED_BEGIN;
+        dualID <= AARCH64GPRegister::R_CALLEE_SAVED_END;
+        ++dualID) {
+
+        if(count[dualID] == 0 && !unusable[dualID]) {
+            break;
+        }
+    }
+    if(dualID <= AARCH64GPRegister::R_CALLEE_SAVED_END) {  // [CASE-1]
+        replacePerFunction(function, frame, &regUsage, dualID);
+    }
+    else {  // [CASE-3]
+        replacePerInstruction(frame, &regUsage, dualID);
     }
 
-    for(auto block : regUsage.getRootBlockList()) {
-        replaceRoot(block, frame, &regUsage);
-    }
-
-    for(auto block : regUsage.getLeafBlockList()) {
-        replaceLeaf(block, frame, &regUsage);
-    }
     ChunkMutator(function).updatePositions();
 }
 
-void AARCH64RegReplacePass::replaceRoot(Block *block, FrameType *frame,
-    RegisterUsage<AARCH64GPRegister> *regUsage) {
-
-    replace(block, frame, regUsage, true, false);
-}
-
-void AARCH64RegReplacePass::replaceLeaf(Block *block, FrameType *frame,
-    RegisterUsage<AARCH64GPRegister> *regUsage) {
-
-    replace(block, frame, regUsage, false, true);
-}
-
-void AARCH64RegReplacePass::replaceSingle(Block *block, FrameType *frame,
-    RegisterUsage<AARCH64GPRegister> *regUsage) {
-
-    replace(block, frame, regUsage, true, true);
-}
-
-void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
-    RegisterUsage<AARCH64GPRegister> *regUsage, bool skipHead, bool skipTail) {
+void AARCH64RegReplacePass::replacePerFunction(Function *function,
+    FrameType *frame, AARCH64RegisterUsage *regUsage,
+    AARCH64GPRegister::ID dualID) {
 
     PhysicalRegister<AARCH64GPRegister> baseReg(
         frame->getSetBPInstr() ? AARCH64GPRegister::R29 : AARCH64GPRegister::SP,
         true);
-    PhysicalRegister<AARCH64GPRegister> dualReg(
-        regUsage->getDualableID(block), true);
+    PhysicalRegister<AARCH64GPRegister> dualReg(dualID, true);
 
-    if(dualReg.id() == AARCH64GPRegister::INVALID) {
-        throw "no register found to serve dual role";
+    LOG(1, "dualID = " << dualID);
+
+    auto bin_str0 = AARCH64InstructionBinary(0xF9000000
+        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
+    auto bin_ldr0 = AARCH64InstructionBinary(0xF9400000
+        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
+
+    auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
+    auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
+
+    if(auto ins = frame->getSetBPInstr()) {
+        ChunkMutator(ins->getParent()).insertAfter(ins, instr_strOrg);
+    }
+    else {
+        auto firstB = function->getChildren()->getIterable()->get(0);
+        auto firstI = firstB->getChildren()->getIterable()->get(0);
+        ChunkMutator(firstB).insertAfter(firstI, instr_strOrg);
     }
 
-    LOG(1, "baseReg for accesing save-area is X" << baseReg.id());
-    LOG(1, "dualReg for " << block->getName() << " is X" << dualReg.id());
-
-    auto xInstructionList = regUsage->getInstructionList(block);
-
-    //LOG(1, "skipHead : " << skipHead << " skipTail : " << skipTail);
-#if 0
-    for(auto ins : xInstructionList) {
-        LOG(1, "regX is used in " << ins->getName());
+    for(auto ins : frame->getReturnInstrs()) {
+        ChunkMutator(ins->getParent()).insertBefore(ins, instr_ldrOrg);
     }
-#endif
 
-    // maybe we could optimize litte more when there is no backward links
-    // to inside the region or no jumptable at all
+    AARCH64InstructionRegCoder coder;
+    for(auto ins: regUsage->getInstructionList()) {
+        auto assembly = ins->getSemantic()->getAssembly();
+        if(!assembly) throw "Register replacement pass needs Assembly";
+
+        // actually replace register(s)
+        coder.decode(assembly->getBytes(), assembly->getSize());
+        coder.replaceRegister(regX, dualReg);
+        char data[assembly->getSize()];
+        coder.encode(data, assembly->getSize());
+        std::vector<unsigned char> dataVector(data, data + assembly->getSize());
+        cs_insn insn = Disassemble::getInsn(dataVector, ins->getAddress());
+        Assembly a(insn);
+        *assembly = a;
+    }
+}
+
+void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
+    AARCH64RegisterUsage *regUsage, AARCH64GPRegister::ID dualID) {
+
+    PhysicalRegister<AARCH64GPRegister> baseReg(
+        frame->getSetBPInstr() ? AARCH64GPRegister::R29 : AARCH64GPRegister::SP,
+        true);
+    PhysicalRegister<AARCH64GPRegister> dualReg(dualID, true);
 
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
         | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
@@ -82,31 +118,34 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
     auto bin_ldr8 = AARCH64InstructionBinary(0xF9400000
         | 8/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
-    AARCH64InstructionCoder coder;
-    for(auto ins : xInstructionList) {
+    AARCH64InstructionRegCoder coder;
+    for(auto ins : regUsage->getInstructionList()) {
         auto assembly = ins->getSemantic()->getAssembly();
         if(!assembly) throw "Register replacement pass needs Assembly";
+        if(assembly->getId() == ARM64_INS_BR) {
+            throw "this case is not handled yet";
+        }
 
         coder.decode(assembly->getBytes(), assembly->getSize());
 
         // p1. store the original value of dualReg
         auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
-        ChunkMutator(block).insertBefore(ins, instr_strOrg);
+        ChunkMutator(ins->getParent()).insertBefore(ins, instr_strOrg);
 
         // p2. load the other value of dualReg (only if it will be dereferenced)
         if(coder.isReading(regX)) {
             auto instr_ldrAlt = Disassemble::instruction(bin_ldr8.getVector());
-            ChunkMutator(block).insertBefore(ins, instr_ldrAlt);
+            ChunkMutator(ins->getParent()).insertBefore(ins, instr_ldrAlt);
         }
 
         // e2. load the original value of dualReg
         auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
-        ChunkMutator(block).insertAfter(ins, instr_ldrOrg);
+        ChunkMutator(ins->getParent()).insertAfter(ins, instr_ldrOrg);
 
         // e1. store the other value of dualReg (only if it was written)
         if(coder.isWriting(regX)) {
             auto instr_strAlt = Disassemble::instruction(bin_str8.getVector());
-            ChunkMutator(block).insertAfter(ins, instr_strAlt);
+            ChunkMutator(ins->getParent()).insertAfter(ins, instr_strAlt);
         }
 
         // actually replace register(s)
@@ -120,13 +159,13 @@ void AARCH64RegReplacePass::replace(Block *block, FrameType *frame,
     }
 }
 
-void AARCH64InstructionCoder::decode(const char *bytes, size_t size) {
+void AARCH64InstructionRegCoder::decode(const char *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bin = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
     cached = false;
 }
 
-void AARCH64InstructionCoder::encode(char *bytes, size_t size) {
+void AARCH64InstructionRegCoder::encode(char *bytes, size_t size) {
     if(size != 4) throw "non AARCH64 instruction?";
     bytes[0] = bin >>  0 & 0xFF;
     bytes[1] = bin >>  8 & 0xFF;
@@ -134,7 +173,7 @@ void AARCH64InstructionCoder::encode(char *bytes, size_t size) {
     bytes[3] = bin >> 24 & 0xFF;
 }
 
-bool AARCH64InstructionCoder::isReading(
+bool AARCH64InstructionRegCoder::isReading(
     PhysicalRegister<AARCH64GPRegister>& reg) {
 
     auto list = getRegPositionList();
@@ -147,7 +186,7 @@ bool AARCH64InstructionCoder::isReading(
     return false;
 }
 
-bool AARCH64InstructionCoder::isWriting(
+bool AARCH64InstructionRegCoder::isWriting(
     PhysicalRegister<AARCH64GPRegister>& reg) {
 
     auto list = getRegPositionList();
@@ -161,17 +200,14 @@ bool AARCH64InstructionCoder::isWriting(
 }
 
 
-void AARCH64InstructionCoder::replaceRegister(
+void AARCH64InstructionRegCoder::replaceRegister(
     PhysicalRegister<AARCH64GPRegister>& oldReg,
     PhysicalRegister<AARCH64GPRegister>& newReg) {
-
-    //LOG(1, "original bin = " << std::hex << bin);
 
     auto list = getRegPositionList();
     for(auto rpos : list.first) {
         auto rr = bin >> rpos & regMask;
         if(rr == oldReg.encoding()) {
-            //LOG(1, "rpos = " << std::dec << rpos);
             bin = (bin & ~(regMask << rpos)) | (newReg.encoding() << rpos);
         }
     }
@@ -179,16 +215,13 @@ void AARCH64InstructionCoder::replaceRegister(
     for(auto wpos : list.second) {
         auto wr = bin >> wpos & regMask;
         if(wr == oldReg.encoding()) {
-            //LOG(1, "wpos = " << std::dec << wpos);
             bin = (bin & ~(regMask << wpos)) | (newReg.encoding() << wpos);
         }
     }
     cached = false;
-
-    //LOG(1, "new bin = " << std::hex << bin);
 }
 
-AARCH64InstructionCoder::RegPositionsList AARCH64InstructionCoder::getRegPositionList() {
+AARCH64InstructionRegCoder::RegPositionsList AARCH64InstructionRegCoder::getRegPositionList() {
     if(!cached) {
         //C4.1
         auto op0 = bin >> 25 & 0xF;
@@ -207,7 +240,7 @@ AARCH64InstructionCoder::RegPositionsList AARCH64InstructionCoder::getRegPositio
     return list;
 }
 
-void AARCH64InstructionCoder::makeDPImm_RegPositionList() {
+void AARCH64InstructionRegCoder::makeDPImm_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -234,7 +267,7 @@ void AARCH64InstructionCoder::makeDPImm_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void AARCH64InstructionCoder::makeBranch_RegPositionList() {
+void AARCH64InstructionRegCoder::makeBranch_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -269,7 +302,7 @@ void AARCH64InstructionCoder::makeBranch_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void AARCH64InstructionCoder::makeLDST_RegPositionList() {
+void AARCH64InstructionRegCoder::makeLDST_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -353,7 +386,7 @@ void AARCH64InstructionCoder::makeLDST_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-void AARCH64InstructionCoder::makeDPIReg_RegPositionList() {
+void AARCH64InstructionRegCoder::makeDPIReg_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
@@ -399,145 +432,63 @@ void AARCH64InstructionCoder::makeDPIReg_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 
-std::set<Block *> AARCH64RegisterUsage::getSingleBlockList() {
-    if(!cached) {
-        makeUsageList();
-        cached = true;
-    }
-    return singleBlockList;
-}
+AARCH64RegisterUsage::AARCH64RegisterUsage(Function *function,
+                                           AARCH64GPRegister::ID id)
+    : function(function), regX(id, true) {
 
-std::set<Block *> AARCH64RegisterUsage::getRootBlockList() {
-    if(!cached) {
-        makeUsageList();
-        cached = true;
-    }
-    return rootBlockList;
-}
-
-std::set<Block *> AARCH64RegisterUsage::getLeafBlockList() {
-    if(!cached) {
-        makeUsageList();
-        cached = true;
-    }
-    return leafBlockList;
-}
-
-void AARCH64RegisterUsage::makeUsageList() {
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
-        std::vector<Instruction *> instructionList;
-        for(auto ins : b->getChildren()->getIterable()->iterable()) {
+    for(auto block : function->getChildren()->getIterable()->iterable()) {
+        for(auto ins : block->getChildren()->getIterable()->iterable()) {
             if(auto assembly = ins->getSemantic()->getAssembly()) {
                 auto asmOps = assembly->getAsmOperands();
                 for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
                     if(asmOps->getOperands()[i].type == ARM64_OP_REG
                        && (AARCH64GPRegister(asmOps->getOperands()[i].reg,
-                                             false).id()
-                            == AARCH64GPRegister::R18)) {
+                                             false).id() == id)) {
 
-                        instructionList.push_back(ins);
+                        xList.push_back(ins);
                         break;
                     }
                 }
             }
         }
-        if(instructionList.size() > 0) {
-            UsageList[b] = instructionList;
-        }
-    }
-
-#if 1
-    for(auto u : UsageList) {
-        LOG(1, "in node " << u.first->getName());
-        for(auto ins : u.second) {
-            LOG(1, "x18 used in instruction " << ins->getName());
-        }
-    }
-#endif
-
-    categorizeBlocks();
-}
-
-void AARCH64RegisterUsage::categorizeBlocks() {
-    ControlFlowGraph cfg(function);
-    cfg.dump();
-
-    for(auto u : UsageList) {
-        auto block = u.first;
-        auto node = cfg.get(block);
-        bool isLeaf = true;
-        for(auto link : node->forwardLinks()) {
-            auto nextNode = cfg.get(link.getID());
-            if(nextNode != node
-               && UsageList.find(nextNode->getBlock()) != UsageList.end()) {
-                isLeaf = false;
-                break;
-            }
-        }
-        if(isLeaf) {
-            leafBlockList.insert(block);
-        }
-
-        bool isRoot = true;
-        for(auto link : node->backwardLinks()) {
-            auto prevNode = cfg.get(link.getID());
-            if(prevNode != node
-               && UsageList.find(prevNode->getBlock()) != UsageList.end()) {
-                isRoot = false;
-                break;
-            }
-        }
-        if(isRoot) {
-            rootBlockList.insert(block);
-        }
-    }
-
-    std::set_intersection(rootBlockList.begin(), rootBlockList.end(),
-                          leafBlockList.begin(), leafBlockList.end(),
-                          std::inserter(singleBlockList, singleBlockList.end()));
-
-    for(auto b : singleBlockList) {
-        rootBlockList.erase(b);
-        leafBlockList.erase(b);
     }
 }
 
-
-typename AARCH64GPRegister::ID AARCH64RegisterUsage::getDualableID(
-    Block *block) {
-
-    std::set<int> unusable;
+std::vector<int> AARCH64RegisterUsage::getAllUseCounts() {
     int use_count[AARCH64GPRegister::REGISTER_NUMBER];
     for(size_t i = 0; i < AARCH64GPRegister::REGISTER_NUMBER; ++i) {
         use_count[i] = 0;
     }
 
-    Instruction *begin(nullptr), *end(nullptr);
-    bool inRegion;
-    auto sbl = getSingleBlockList();
-    if(sbl.find(block) == sbl.end()) {
-        inRegion = true;
-    }
-    else {
-        inRegion = false;
-        auto ul = getUsageList();
-        begin = ul[block].front();
-        end = ul[block].back();
-    }
+    for(auto block : function->getChildren()->getIterable()->iterable()) {
+        for(auto ins : block->getChildren()->getIterable()->iterable()) {
+            if(auto assembly = ins->getSemantic()->getAssembly()) {
+                auto asmOps = assembly->getAsmOperands();
+                for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
+                    if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
+                        int id = PhysicalRegister<AARCH64GPRegister>(
+                            asmOps->getOperands()[i].reg, false).id();
 
-    for (auto ins : block->getChildren()->getIterable()->iterable()) {
-        if(!inRegion) {
-            if(ins == begin) {
-                inRegion = true;
+                        if(id == AARCH64GPRegister::INVALID) continue;
+                        ++use_count[id];
+                    }
+                }
+            }
+            else {
+                throw "RegReplacePass needs Assembly!";
             }
         }
-        if(!inRegion) continue;
+    }
+    return std::vector<int>(use_count,
+                            use_count + AARCH64GPRegister::REGISTER_NUMBER);
+}
 
-        if(ins == end) {
-            //inRegion = false;
-            break;
-        }
-
+std::vector<bool> AARCH64RegisterUsage::getUnusableRegister() {
+    bool unusable[AARCH64GPRegister::REGISTER_NUMBER];
+    for(size_t i = 0; i < AARCH64GPRegister::REGISTER_NUMBER; ++i) {
+        unusable[i] = false;
+    }
+    for(auto ins : xList) {
         if(auto assembly = ins->getSemantic()->getAssembly()) {
             auto asmOps = assembly->getAsmOperands();
             for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
@@ -556,44 +507,15 @@ typename AARCH64GPRegister::ID AARCH64RegisterUsage::getDualableID(
 
                 if(withX) {
                     for(auto rid : regOperands) {
-                        unusable.insert(rid);
-                    }
-                }
-                else {
-                    for(auto rid : regOperands) {
-                        use_count[rid] += 1;
+                        unusable[rid] = true;
                     }
                 }
             }
         }
     }
 
-
-    std::vector<AARCH64GPRegister::ID> idx(sizeof(use_count)/sizeof(*use_count));
-    std::iota(idx.begin(), idx.end(), AARCH64GPRegister::R0);
-    std::sort(idx.begin(), idx.end(),
-        [&use_count](size_t i1, size_t i2) {
-            return use_count[i1] < use_count[i2]; });
-
-    AARCH64GPRegister::ID dualID = AARCH64GPRegister::INVALID;
-    LOG(1, "register usage:");
-    for(auto i : idx) {
-        LOG(1, "R" << i << " : " << use_count[i]);
-        if(unusable.find(i) != unusable.end()) {
-            LOG(1, " -> unusable");
-        }
-        else {
-            if(dualSafe(i)) {
-                dualID = i;
-                break;
-            }
-        }
-    }
-
-    return dualID;
+    return std::vector<bool>(unusable,
+                             unusable + AARCH64GPRegister::REGISTER_NUMBER);
 }
 
-bool AARCH64RegisterUsage::dualSafe(AARCH64GPRegister::ID id) {
-    return (AARCH64GPRegister::R16 <= id && id <= AARCH64GPRegister::R28);
-}
 #endif

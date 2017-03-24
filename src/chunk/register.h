@@ -38,7 +38,18 @@ public:
 
         REGISTER_NUMBER,
 
-        SP = R31
+        IP0 = R16,
+        IP1 = R17,
+        FP = R29,
+        LR = R30,
+        SP = R31,
+        R_CALLER_SAVED_BEGIN = R0,
+        R_CALLER_SAVED_END = R7,
+        R_CALLEE_SAVED_BEGIN = R19,
+        R_CALLEE_SAVED_END = R28,
+        // R8 is indirect result location register
+        R_TEMPORARY_BEGIN = R9,
+        R_TEMPORARY_END = R18
     };
 
 private:
