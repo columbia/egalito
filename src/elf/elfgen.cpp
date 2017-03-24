@@ -65,8 +65,10 @@ ElfGen::Metadata::~Metadata() {
         delete segment;
     for(auto phdr : phdrList)
         delete phdr;
-    for(auto shdr : shdrList)
-        delete shdr;
+    for(auto shdr : shdrList) {
+        delete shdr.first;
+        delete shdr.second;
+    }
 }
 
 ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
@@ -210,7 +212,7 @@ void ElfGen::makeSymbolInfo() {
 
     int strtab_id = addShdr(strtab, SHT_STRTAB);
     addShdr(symtab, SHT_SYMTAB, strtab_id);
-    shdrList[shdrList.size() - 1]->sh_info = count;
+    data.getLastShdr().second->sh_info = count; //HERE
 }
 
 void ElfGen::makeDynamicSymbolInfo() {
@@ -225,7 +227,7 @@ void ElfGen::makeDynamicSymbolInfo() {
         dstrtabData.push_back('\0');
 
         // generate new Symbol from new address
-        Elf64_Sym sym = generateDynamicSymbol(symbol, index);
+        Elf64_Sym sym = generateSymbol(nullptr, symbol, index);
         dsymtab->add(static_cast<void *>(&sym), sizeof(sym));
     }
 
@@ -267,9 +269,9 @@ void ElfGen::makeShdrTable() {
 
     auto shstrtabSegment = new Segment(0, getNextFreeOffset());
 
-    for(size_t i = 0; i < visibleSections.size(); i ++) {
-        auto section = visibleSections[i];
-        auto shdr = shdrList[i];
+    for(auto p : data.getShdrList()) {
+        auto section = p.first;
+        auto shdr = p.second;
         shdr->sh_name = shstrtab->getSize();
         LOG(1, "for " << section->getName() << ", sh_name is [" << shdr->sh_name << "]");
         shstrtab->add(section->getName().c_str(),
@@ -280,8 +282,8 @@ void ElfGen::makeShdrTable() {
         shstrtab->add(name.c_str(), name.size() + 1);*/
     }
     // modify sh string table location in file
-    shdrList[shdrList.size() - 1]->sh_size = shstrtab->getSize();
-    shdrList[shdrList.size() - 1]->sh_offset = shstrtabSegment->getFileOff();
+    data.getLastShdr().second->sh_size = shstrtab->getSize();
+    data.getLastShdr().second->sh_offset = shstrtabSegment->getFileOff();
 
     shstrtabSegment->add(shstrtab);
     addSegment(shstrtabSegment);
@@ -290,7 +292,7 @@ void ElfGen::makeShdrTable() {
 
     Section *shdrTable = new Section(".shdr_table");
     for(auto shdr : data.getShdrList()) {
-        shdrTable->add(shdr, sizeof(Elf64_Shdr));
+        shdrTable->add(shdr.second, sizeof(Elf64_Shdr));
     }
 
     shdrTableSegment->add(shdrTable);
@@ -312,7 +314,7 @@ void ElfGen::updateEntryPoint() {
     header->e_phnum = phdrTableSegment->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
     header->e_shoff = shdrTableSegment->getFileOff();
     header->e_shnum = shdrTableSegment->getFirstSection()->getSize() / sizeof(Elf64_Shdr);
-    header->e_shstrndx = shdrList.size() - 1;  // assume .shstrtab is last
+    header->e_shstrndx = data.getShdrListSize() - 1;  // assume .shstrtab is last
 }
 
 
@@ -331,19 +333,9 @@ Elf64_Sym ElfGen::generateSymbol(Function *func, Symbol *sym, size_t strtabIndex
     symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
                                    Symbol::typeFromInternalToElf(sym->getType()));
     symbol.st_other = STV_DEFAULT;
-    symbol.st_shndx = 1; // getSectionIndex();
-    symbol.st_value = func->getAddress();
-    symbol.st_size = func->getSize();
-    return std::move(symbol);
-}
-
-Elf64_Sym ElfGen::generateDynamicSymbol(Symbol *sym, size_t strtabIndex) {
-    Elf64_Sym symbol;
-    symbol.st_name = static_cast<Elf64_Word>(strtabIndex);
-    symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
-                                   Symbol::typeFromInternalToElf(sym->getType()));
-    symbol.st_shndx = 3; // getSectionIndex();
-    symbol.st_size = sym->getSize();
+    symbol.st_shndx = func ? 1 : 3;  // dynamic symbols have func==nullptr
+    symbol.st_value = func ? func->getAddress() : 0;
+    symbol.st_size = func ? func->getSize() : 0;
     return std::move(symbol);
 }
 
@@ -376,7 +368,6 @@ int ElfGen::addShdr(Section *section, Elf64_Word type, int link) {
     }
     entry->sh_link = link;
 
-    data.addShdr(entry);
-    visibleSections.push_back(section);
+    data.addShdr(section, entry);
     return static_cast<int>(data.getShdrListSize() - 1);
 }

@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <vector>
+#include <utility>
 #include "transform/sandbox.h"
 #include "util/iter.h"
 #include "elfspace.h"
@@ -61,7 +62,7 @@ private:
     private:
         typedef std::vector<Segment *> SegmentList;
         typedef std::vector<Elf64_Phdr *> PhdrList;
-        typedef std::vector<Elf64_Shdr *> ShdrList;
+        typedef std::vector<std::pair<Section *, Elf64_Shdr *>> ShdrList;
     private:
         SegmentList segmentList;
         PhdrList phdrList;
@@ -70,9 +71,10 @@ private:
         ConcreteIterable<SegmentList> getSegmentList() { return ConcreteIterable<SegmentList>(segmentList); }
         ConcreteIterable<PhdrList> getPhdrList() { return ConcreteIterable<PhdrList>(phdrList); }
         ConcreteIterable<ShdrList> getShdrList() { return ConcreteIterable<ShdrList>(shdrList); }
+        std::pair<Section *, Elf64_Shdr *> getLastShdr() { return shdrList.back(); }
         void addSegment(Segment *segment) { segmentList.push_back(segment); }
         void addPhdr(Elf64_Phdr *phdr) { phdrList.push_back(phdr); }
-        void addShdr(Elf64_Shdr *shdr) { shdrList.push_back(shdr); }
+        void addShdr(Section *section, Elf64_Shdr *shdr) { shdrList.push_back(std::make_pair(section, shdr)); }
         size_t getSegmentListSize() const { return segmentList.size(); }
         size_t getPhdrListSize() const { return phdrList.size(); }
         size_t getShdrListSize() const { return shdrList.size(); }
@@ -107,7 +109,6 @@ private:
     void makeShdrTable();
     void updateEntryPoint();
     Elf64_Sym generateSymbol(Function *func, Symbol *sym, size_t strtabIndex);
-    Elf64_Sym generateDynamicSymbol(Symbol *sym, size_t strtabIndex);
     size_t getNextFreeOffset();
     int addShdr(Section *section, Elf64_Word type, int link = 0);
     void addSegment(Segment *segment);
