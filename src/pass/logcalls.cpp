@@ -24,6 +24,7 @@ static void egalito_log_function_name(unsigned long address, const char *dir) {
 }
 
 extern "C" void egalito_log_function(void) {
+#ifdef ARCH_X86_64
     __asm__ (
         "push   %rax\n"
         "push   %rcx\n"
@@ -56,9 +57,11 @@ extern "C" void egalito_log_function(void) {
         "pop    %rcx\n"
         "pop    %rax\n"
     );
+#endif
 }
 
 extern "C" void egalito_log_function_ret(void) {
+#ifdef ARCH_X86_64
     __asm__ (
         "push   %rax\n"
         "push   %rcx\n"
@@ -91,6 +94,7 @@ extern "C" void egalito_log_function_ret(void) {
         "pop    %rcx\n"
         "pop    %rax\n"
     );
+#endif
 }
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
@@ -137,18 +141,22 @@ void LogCallsPass::visit(Instruction *instruction) {
 }
 
 void LogCallsPass::addEntryInstructionsAt(Block *block) {
+#ifdef ARCH_X86_64
     auto callIns = new Instruction();
     auto callSem = new ControlFlowInstruction(callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingBegin));
     callIns->setSemantic(callSem);
     ChunkMutator(block).prepend(callIns);
+#endif
 }
 
 void LogCallsPass::addExitInstructionsAt(Instruction *instruction) {
+#ifdef ARCH_X86_64
     auto callIns = new Instruction();
     auto callSem = new ControlFlowInstruction(callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingEnd));
     callIns->setSemantic(callSem);
     ChunkMutator(instruction->getParent())
         .insertBefore(instruction, callIns);
+#endif
 }

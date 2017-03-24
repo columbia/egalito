@@ -49,7 +49,7 @@ endef
 
 $(eval $(call dep_rule,hello,hello.c))
 $(eval $(call dep_rule,hi0,hi0.c hi0-s.S))
-$(eval $(call dep_rule,hi5,hi5.c hi5-s.s))
+$(eval $(call dep_rule,hi5,hi5.c hi5-s.S))
 $(eval $(call dep_rule,jumptable,jumptable.c))
 $(eval $(call dep_rule,fp,fp.c))
 $(eval $(call dep_rule,stack,stack.c))

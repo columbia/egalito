@@ -217,13 +217,13 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     address_t dest = 0;
     bool found = false;
     if(r->getType() == R_AARCH64_GLOB_DAT) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_AARCH64_JUMP_SLOT) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_AARCH64_RELATIVE) {
-        found = resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
     else if(r->getType() == R_AARCH64_PREL32) {
         LOG(1, "PREL32 isn't handled yet");
