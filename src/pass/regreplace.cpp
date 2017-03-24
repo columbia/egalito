@@ -26,9 +26,11 @@
 void AARCH64RegReplacePass::useStack(
     Function *function, FrameType *frame) {
 
+#if 0
     ChunkDumper dumper;
     LOG(1, "original:");
     function->accept(&dumper);
+#endif
 
     AARCH64RegisterUsage regUsage(function, AARCH64GPRegister::R18);
 
@@ -76,8 +78,10 @@ void AARCH64RegReplacePass::useStack(
 
     ChunkMutator(function).updatePositions();
 
+#if 0
     LOG(1, "modified:");
     function->accept(&dumper);
+#endif
 }
 
 void AARCH64RegReplacePass::replacePerFunction(Function *function,
