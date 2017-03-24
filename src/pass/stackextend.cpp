@@ -32,36 +32,11 @@ void StackExtendPass::visit(Function *function) {
     ChunkMutator(function).updatePositions();
     useStack(function, &frame);
 
-#if 1
+#if 0
     LOG(1, "modified:");
     ChunkDumper dumper;
     function->accept(&dumper);
 #endif
-}
-
-bool StackExtendPass::shouldApply(Function *function) {
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
-        for(auto i : b->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getAsmOperands()->getOperands();
-                if(assembly->getAsmOperands()->getOpCount() >= 1
-                   && operands[0].type == ARM64_OP_REG
-                   && (operands[0].reg == ARM64_REG_X18
-                       || operands[0].reg == ARM64_REG_W18)) {
-
-                    LOG(1, "x18 is modified in " << function->getName()
-                        << " at " << i->getName());
-
-                    LOG(1, "original:");
-                    ChunkDumper dumper;
-                    function->accept(&dumper);
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {

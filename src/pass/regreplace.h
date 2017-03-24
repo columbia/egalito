@@ -29,8 +29,6 @@ public:
         : StackExtendPass(saveSize),
           regX(PhysicalRegister<AARCH64GPRegister>(id, true)) {};
 
-    virtual void useStack(Function *function, FrameType *frame);
-
     virtual void replacePerFunction(Function *function,
                                     FrameType *frame,
                                     AARCH64RegisterUsage *regUsage,
@@ -38,6 +36,10 @@ public:
     virtual void replacePerInstruction(FrameType *frame,
                                        AARCH64RegisterUsage *regUsage,
                                        AARCH64GPRegister::ID dualID);
+private:
+    virtual bool shouldApply(Function *function);
+    virtual void useStack(Function *function, FrameType *frame);
+    std::vector<Instruction *> getCallingInstructions(Function *function);
 };
 
 class AARCH64InstructionRegCoder {

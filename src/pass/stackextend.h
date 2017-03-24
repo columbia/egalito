@@ -38,7 +38,7 @@ public:
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
 private:
-    bool shouldApply(Function *function);
+    virtual bool shouldApply(Function *function) { return true; }
     void addExtendStack(Function *function, FrameType *frame);
     void addShrinkStack(Function *function, FrameType *frame);
     virtual void useStack(Function *function, FrameType *frame) {};

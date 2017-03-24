@@ -2,6 +2,7 @@
 #include "regreplace.h"
 #include "disasm/disassemble.h"
 #include "chunk/mutator.h"
+#include "chunk/dump.h"
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
@@ -25,6 +26,10 @@
 void AARCH64RegReplacePass::useStack(
     Function *function, FrameType *frame) {
 
+    ChunkDumper dumper;
+    LOG(1, "original:");
+    function->accept(&dumper);
+
     AARCH64RegisterUsage regUsage(function, AARCH64GPRegister::R18);
 
     std::vector<int> count = regUsage.getAllUseCounts();
@@ -40,13 +45,39 @@ void AARCH64RegReplacePass::useStack(
         }
     }
     if(dualID <= AARCH64GPRegister::R_CALLEE_SAVED_END) {  // [CASE-1]
+        LOG(1, "CASE-1 " << function->getName());
         replacePerFunction(function, frame, &regUsage, dualID);
     }
     else {  // [CASE-3]
+        for(auto r = AARCH64GPRegister::R_CALLER_SAVED_BEGIN;
+            r <= AARCH64GPRegister::R_CALLER_SAVED_END;
+            ++r) {
+            if(count[dualID] == 0 && !unusable[dualID]) {
+                auto calls = getCallingInstructions(function);
+                if(calls.size() < regUsage.getInstructionList().size()) {
+                    // has to be sure about jump tables to implement CASE-2
+                    LOG(1, "potential case for CASE-2");
+                }
+                break;
+            }
+        }
+
+        LOG(1, "CASE-3 " << function->getName());
+        for(dualID = AARCH64GPRegister::R_CALLEE_SAVED_BEGIN;
+            dualID <= AARCH64GPRegister::R_CALLEE_SAVED_END;
+            ++dualID) {
+
+            if(!unusable[dualID]) {
+                break;
+            }
+        }
         replacePerInstruction(frame, &regUsage, dualID);
     }
 
     ChunkMutator(function).updatePositions();
+
+    LOG(1, "modified:");
+    function->accept(&dumper);
 }
 
 void AARCH64RegReplacePass::replacePerFunction(Function *function,
@@ -106,6 +137,8 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
         true);
     PhysicalRegister<AARCH64GPRegister> dualReg(dualID, true);
 
+    LOG(1, "dualID = " << dualID);
+
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
         | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
 
@@ -157,6 +190,45 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
         Assembly a(insn);
         *assembly = a;
     }
+}
+
+bool AARCH64RegReplacePass::shouldApply(Function *function) {
+    for(auto b : function->getChildren()->getIterable()->iterable()) {
+        for(auto i : b->getChildren()->getIterable()->iterable()) {
+            if(auto assembly = i->getSemantic()->getAssembly()) {
+                auto operands = assembly->getAsmOperands()->getOperands();
+                if(assembly->getAsmOperands()->getOpCount() >= 1
+                   && operands[0].type == ARM64_OP_REG
+                   && AARCH64GPRegister(operands[0].reg, false).id() == regX.id()) {
+
+                    LOG(1, "r18 is modified in " << function->getName()
+                        << " at " << i->getName());
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+std::vector<Instruction *> AARCH64RegReplacePass::getCallingInstructions(
+    Function *function) {
+
+    std::vector<Instruction *> instructions;
+    for(auto block : function->getChildren()->getIterable()->iterable()) {
+        for(auto ins : block->getChildren()->getIterable()->iterable()) {
+            if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
+                ins->getSemantic())) {
+
+                if(dynamic_cast<ExternalNormalLink *>(cfi->getLink())) {
+                    instructions.push_back(ins);
+                }
+            }
+        }
+    }
+
+    return instructions;
 }
 
 void AARCH64InstructionRegCoder::decode(const char *bytes, size_t size) {
@@ -491,9 +563,9 @@ std::vector<bool> AARCH64RegisterUsage::getUnusableRegister() {
     for(auto ins : xList) {
         if(auto assembly = ins->getSemantic()->getAssembly()) {
             auto asmOps = assembly->getAsmOperands();
+            bool withX = false;
+            std::vector<int> regOperands;
             for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
-                std::vector<int> regOperands;
-                bool withX = false;
                 if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
                     int id = PhysicalRegister<AARCH64GPRegister>(
                         asmOps->getOperands()[i].reg, false).id();
