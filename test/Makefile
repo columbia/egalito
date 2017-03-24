@@ -4,7 +4,7 @@ include ../env.mk
 
 CFLAGS      += -I ../src/
 CXXFLAGS    += -I ../src/
-CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito
+CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
 ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
