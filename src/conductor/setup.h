@@ -32,6 +32,7 @@ public:
     ElfMap *getElfMap() const { return elf; }
     ElfMap *getEgalitoElfMap() const { return egalito; }
     Conductor *getConductor() const { return conductor; }
+    Sandbox *getSandbox() const { return sandbox; }
 public:
     void dumpElfSpace(ElfSpace *space);
     void dumpFunction(const char *function, ElfSpace *space = nullptr);

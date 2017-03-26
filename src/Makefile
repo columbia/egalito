@@ -95,7 +95,9 @@ $(BUILDDIR)%.so: %.cpp
 	$(CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Special files
-$(BUILDDIR)load/usage.o: load/usage.cpp
+$(BUILDDIR)load/usage.o: load/usage.cpp load/usage.h
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+$(BUILDDIR)main/usage.o: main/usage.cpp main/usage.h
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
