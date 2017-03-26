@@ -6,50 +6,85 @@
 #include "instruction.h"
 
 class Program;
-class CodePage;
 class Module;
+class FunctionList;
+class BlockSoup;
+class PLTList;
 class Function;
 class Block;
 class Instruction;
+class PLTTrampoline;
 
 class ChunkVisitor {
 public:
     virtual ~ChunkVisitor() {}
     virtual void visit(Program *program) = 0;
-    virtual void visit(CodePage *codePage) = 0;
     virtual void visit(Module *function) = 0;
+    virtual void visit(FunctionList *functionList) = 0;
+    virtual void visit(BlockSoup *functionList) = 0;
+    virtual void visit(PLTList *functionList) = 0;
     virtual void visit(Function *function) = 0;
     virtual void visit(Block *block) = 0;
     virtual void visit(Instruction *instruction) = 0;
+    virtual void visit(PLTTrampoline *instruction) = 0;
 };
 class ChunkListener {
 public:
     virtual void visit(Program *program) {}
-    virtual void visit(CodePage *codePage) {}
-    virtual void visit(Module *block) {}
+    virtual void visit(Module *function) {}
+    virtual void visit(FunctionList *functionList) {}
+    virtual void visit(BlockSoup *functionList) {}
+    virtual void visit(PLTList *functionList) {}
     virtual void visit(Function *function) {}
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
+    virtual void visit(PLTTrampoline *instruction) {}
 };
 
 class Program : public ChunkImpl {
 public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
-class CodePage : public CompositeChunkImpl<Block> {
-public:
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
-class Function;
-class Module : public CompositeChunkImpl<Function> {
+class Module : public CompositeChunkImpl<Chunk> {
+private:
+    FunctionList *functionList;
+    BlockSoup *blockSoup;
+    PLTList *pltList;
 public:
     std::string getName() const;
+
+    FunctionList *getFunctionList() const { return functionList; }
+    BlockSoup *getBlockSoup() const { return blockSoup; }
+    PLTList *getPLTList() const { return pltList; }
+
+    void setFunctionList(FunctionList *list) { functionList = list; }
+    void setBlockSoup(BlockSoup *soup) { blockSoup = soup; }
+    void setPLTList(PLTList *list) { pltList = list; }
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
 
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
+class FunctionList : public CompositeChunkImpl<Function> {
+public:
+    virtual void setSize(size_t newSize) {}  // ignored
+    virtual void addToSize(diff_t add) {}  // ignored
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
+};
+class BlockSoup : public CompositeChunkImpl<Block> {
+public:
+    virtual void setSize(size_t newSize) {}  // ignored
+    virtual void addToSize(diff_t add) {}  // ignored
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
+};
+class PLTList : public CompositeChunkImpl<PLTTrampoline> {
+public:
+    virtual void setSize(size_t newSize) {}  // ignored
+    virtual void addToSize(diff_t add) {}  // ignored
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
+};
+
 class Symbol;
 class Function : public CompositeChunkImpl<Block> {
 private:
@@ -89,13 +124,9 @@ public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 
-class ChunkFactory {
+class PLTTrampoline : public ChunkImpl {
 public:
-    Program *makeProgram();
-    CodePage *makeCodePage();
-    Function *makeFunction(Symbol *symbol);
-    Block *makeBlock();
-    Instruction *makeInstruction(InstructionSemantic *semantic);
+
 };
 
 #endif

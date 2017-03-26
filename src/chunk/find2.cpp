@@ -1,12 +1,14 @@
 #include "find2.h"
 #include "concrete.h"
 #include "aliasmap.h"
+#include "chunkiter.h"
 #include "conductor/conductor.h"
 #include "elf/elfspace.h"
 
 Function *ChunkFind2::findFunctionHelper(const char *name, ElfSpace *space) {
     // Search for the function by name.
-    auto func = space->getModule()->getChildren()->getNamed()->find(name);
+    auto func = CIter::named(space->getModule()->getFunctionList())
+        ->find(name);
     if(func) return func;
 
     // Also, check if this is an alias for a known function.
@@ -19,7 +21,7 @@ Function *ChunkFind2::findFunctionHelper(const char *name, ElfSpace *space) {
 Function *ChunkFind2::findFunctionContainingHelper(address_t address,
     ElfSpace *space) {
 
-    auto f = space->getModule()->getChildren()->getSpatial()
+    auto f = CIter::spatial(space->getModule()->getFunctionList())
         ->findContaining(address);
     return f;
 }

@@ -3,6 +3,7 @@
 #include "chunk/position.h"
 #include "chunk/instruction.h"
 #include "chunk/mutator.h"
+#include "chunk/chunkiter.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
@@ -92,7 +93,7 @@ TEST_CASE("position validation for simple main with default Position type", "[ch
     conductor.parse(&elf, nullptr);
 
     auto module = conductor.getMainSpace()->getModule();
-    auto func = module->getChildren()->getNamed()->find("main");
+    auto func = CIter::named(module->getFunctionList())->find("main");
 
     SECTION("position validation immediately after disassembly") {
         CheckAddressIntegrity pass;
@@ -136,7 +137,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
             conductor.parse(&elf, nullptr);
 
             auto module = conductor.getMainSpace()->getModule();
-            auto func = module->getChildren()->getNamed()->find("main");
+            auto func = CIter::named(module->getFunctionList())->find("main");
 
             SECTION("position validation immediately after disassembly") {
                 CheckAddressIntegrity pass;

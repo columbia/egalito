@@ -1,27 +1,30 @@
 #include "funcptrs.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
+#include "chunk/chunkiter.h"
 #include "chunk/instruction.h"
 #include "chunk/find.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"
 
 void FuncptrsPass::visit(Module *module) {
-    auto children = module->getChildren();
-
+    auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
 
-        Function *target = children->getNamed()->find(r->getSymbol()->getName());
+        Function *target = CIter::findChild(functionList,
+            r->getSymbol()->getName());
         if(!target) continue;
 
         // we know r is inside this module, but we don't know where yet
-        handleRelocation(r, module, target);
+        handleRelocation(r, functionList, target);
     }
 }
 
-void FuncptrsPass::handleRelocation(Reloc *r, Module *module, Function *target) {
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
+void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
+    Function *target) {
+
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         LOG0(2, "reloc inside " << i->getName() << " at "
             << r->getAddress() << " targets [" << target->getName() << "]");

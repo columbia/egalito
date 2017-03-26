@@ -5,6 +5,7 @@
 #include "load/segmap.h"
 #include "chunk/dump.h"
 #include "chunk/find2.h"
+#include "chunk/chunkiter.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -112,8 +113,8 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 
 address_t ConductorSetup::getEntryPoint() {
 #if 1
-    return conductor->getMainSpace()->getModule()
-        ->getChildren()->getNamed()->find("_start")->getAddress();
+    return CIter::named(conductor->getMainSpace()->getModule()->getFunctionList())
+        ->find("_start")->getAddress();
 #else
     // this is the original entry point address
     return elf->getEntryPoint() + elf->getBaseAddress();

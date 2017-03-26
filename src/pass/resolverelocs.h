@@ -8,7 +8,6 @@
 class ResolveRelocs : public ChunkPass {
 private:
     PLTSection *pltSection;
-    PLTRegistry pltRegistry;
 public:
     ResolveRelocs(PLTSection *pltSection) : pltSection(pltSection) {}
     virtual void visit(Instruction *instruction);

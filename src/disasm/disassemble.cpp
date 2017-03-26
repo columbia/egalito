@@ -98,6 +98,11 @@ Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
     }
 
     Module *module = new Module();
+    FunctionList *functionList = new FunctionList();
+    module->getChildren()->add(functionList);
+    module->setFunctionList(functionList);
+    functionList->setParent(module);
+
     for(auto sym : *symbolList) {
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
@@ -111,8 +116,8 @@ Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
            ) {
 
             Function *function = Disassemble::function(sym, baseAddr);
-            module->getChildren()->add(function);
-            function->setParent(module);
+            functionList->getChildren()->add(function);
+            function->setParent(functionList);
         }
     }
     return module;

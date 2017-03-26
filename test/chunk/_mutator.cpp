@@ -2,6 +2,7 @@
 #include "framework/StreamAsString.h"
 #include "chunk/mutator.h"
 #include "chunk/instruction.h"
+#include "chunk/chunkiter.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
@@ -31,7 +32,7 @@ static Block *makeBlock() {
 
 static void ensureValues(Block *block, const std::vector<unsigned char> &values) {
     size_t index = 0;
-    for(auto ins : block->getChildren()->getIterable()->iterable()) {
+    for(auto ins : CIter::children(block)) {
         CAPTURE(ins->getName());  // debug info, print instr name
 #ifdef ARCH_X86_64
         CHECK(ins->getSemantic()->getData()[2] == values[index]);

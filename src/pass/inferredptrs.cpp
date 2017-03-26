@@ -1,4 +1,5 @@
 #include "inferredptrs.h"
+#include "chunk/chunkiter.h"
 #include "chunk/dump.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"
@@ -23,8 +24,8 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
                 auto inferred = new InferredInstruction(instruction, v->moveStorageFrom(), i);
 
-                auto functionList = module->getChildren()->getSpatial();
-                auto found = functionList->find(target);
+                auto found = CIter::spatial(module->getFunctionList())
+                    ->find(target);
                 if(found) {
                     inferred->setLink(new NormalLink(found));
                     instruction->setSemantic(inferred);
@@ -52,8 +53,8 @@ void InferredPtrsPass::visit(Instruction *instruction) {
             }
             else if(op->type == X86_OP_IMM) {
                 address_t target = op->imm;
-                auto functionList = module->getChildren()->getSpatial();
-                auto found = functionList->find(target);
+                auto found = CIter::spatial(module->getFunctionList())
+                    ->find(target);
                 if(found) {
                     auto inferred = new AbsoluteLinkedInstruction(
                         instruction, v->moveStorageFrom(), i);

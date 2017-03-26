@@ -2,6 +2,19 @@
 #include "elf/symbol.h"
 #include "log/log.h"
 
+class PLTRegistry {
+private:
+    typedef std::map<address_t, Reloc *> RegistryType;
+    RegistryType registry;
+public:
+    void add(address_t address, Reloc *r) { registry[address] = r; }
+    Reloc *find(address_t address);
+};
+Reloc *PLTRegistry::find(address_t address) {
+    auto it = registry.find(address);
+    return (it != registry.end() ? (*it).second : nullptr);
+}
+
 std::string PLTEntry::getName() const {
     if(getTargetSymbol()) {
         return getTargetSymbol()->getName() + std::string("@plt");
@@ -161,9 +174,4 @@ void PLTSection::parsePLTGOT(ElfMap *elf) {
 PLTEntry *PLTSection::find(address_t address) {
     auto it = entryMap.find(address);
     return (it != entryMap.end() ? (*it).second : nullptr);
-}
-
-Reloc *PLTRegistry::find(address_t address) {
-    auto it = registry.find(address);
-    return (it != registry.end() ? (*it).second : nullptr);
 }

@@ -27,8 +27,6 @@ public:
     std::string getName() const;
 };
 
-class PLTRegistry;
-
 class PLTSection {
 private:
     RelocList *relocList;
@@ -40,15 +38,6 @@ public:
     PLTEntry *find(address_t address);
 private:
     void parsePLTGOT(ElfMap *elf);
-};
-
-class PLTRegistry {
-private:
-    typedef std::map<address_t, Reloc *> RegistryType;
-    RegistryType registry;
-public:
-    void add(address_t address, Reloc *r) { registry[address] = r; }
-    Reloc *find(address_t address);
 };
 
 #endif

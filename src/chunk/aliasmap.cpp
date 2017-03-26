@@ -1,9 +1,10 @@
 #include "aliasmap.h"
 #include "concrete.h"
+#include "chunkiter.h"
 #include "log/log.h"
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
-    for(auto func : module->getChildren()->getIterable()->iterable()) {
+    for(auto func : CIter::functions(module)) {
         auto sym = func->getSymbol();
         for(auto aliasSym : sym->getAliases()) {
             auto alias = aliasSym->getName();

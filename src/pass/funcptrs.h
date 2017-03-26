@@ -15,7 +15,8 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    void handleRelocation(Reloc *r, Module *module, Function *target);
+    void handleRelocation(Reloc *r, FunctionList *functionList,
+        Function *target);
 };
 
 #endif

@@ -79,6 +79,8 @@ public:
 
 template <typename ChunkType, typename ChildType>
 class ChildListDecorator : public ChunkType {
+public:
+    typedef ChildType ChunkChildType;
 private:
     mutable ChunkListImpl<ChildType> childList;
 public:

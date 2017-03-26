@@ -5,7 +5,7 @@
 
 class ResolveCalls : public ChunkPass {
 private:
-    SpatialChunkList<Function> *functionList;
+    FunctionList *functionList;
 public:
     ResolveCalls() : functionList(nullptr) {}
     virtual void visit(Module *module);

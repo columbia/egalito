@@ -3,6 +3,7 @@
 #include <cstdio>  // for std::fflush
 #include "generator.h"
 #include "chunk/mutator.h"
+#include "chunk/chunkiter.h"
 #include "log/log.h"
 
 Sandbox *Generator::makeSandbox() {
@@ -12,7 +13,7 @@ Sandbox *Generator::makeSandbox() {
 }
 
 void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
+    for(auto f : CIter::functions(module)) {
         //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
         auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
@@ -25,11 +26,11 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
 
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
     LOG(1, "Copying code into sandbox");
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
+    for(auto f : CIter::functions(module)) {
         char *output = reinterpret_cast<char *>(f->getAddress());
         LOG(2, "    writing out [" << f->getName() << "] at 0x" << std::hex << f->getAddress());
-        for(auto b : f->getChildren()->getIterable()->iterable()) {
-            for(auto i : b->getChildren()->getIterable()->iterable()) {
+        for(auto b : CIter::children(f)) {
+            for(auto i : CIter::children(b)) {
                 i->getSemantic()->writeTo(output);
                 output += i->getSemantic()->getSize();
             }
@@ -40,7 +41,7 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
     const char *function) {
 
-    auto f = module->getChildren()->getNamed()->find(function);
+    auto f = CIter::named(module->getFunctionList())->find(function);
     if(!f) return;
 
     LOG(1, "jumping to [" << function << "] at 0x"

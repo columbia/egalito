@@ -10,6 +10,15 @@
 void ChunkDumper::visit(Module *module) {
     recurse(module);
 }
+void ChunkDumper::visit(FunctionList *functionList) {
+    recurse(functionList);
+}
+void ChunkDumper::visit(BlockSoup *blockSoup) {
+    recurse(blockSoup);
+}
+void ChunkDumper::visit(PLTList *pltList) {
+    recurse(pltList);
+}
 
 void ChunkDumper::visit(Function *function) {
     LOG(4, "---[" << function->getName() << "]---");
@@ -134,4 +143,8 @@ void ChunkDumper::visit(Instruction *instruction) {
     }
 
     DisasmDump::printInstruction(instruction->getAddress(), assembly, pos, target);
+}
+
+void ChunkDumper::visit(PLTTrampoline *trampoline) {
+    LOG(1, "NYI");
 }

@@ -3,6 +3,7 @@
 #include "elf/elfmap.h"
 #include "elf/reloc.h"
 #include "chunk/aliasmap.h"
+#include "chunk/chunkiter.h"
 #include "conductor/conductor.h"
 #include "load/emulator.h"
 #include "log/log.h"
@@ -59,7 +60,8 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
 
     // First, check if this is a function we transformed;
     // if so, we should use the new address.
-    auto f = space->getModule()->getChildren()->getNamed()->find(name);
+    auto f = CIter::named(space->getModule()->getFunctionList())
+        ->find(name);
     if(f) {
         LOG(1, "    ...found as function! at "
             << std::hex << f->getAddress());

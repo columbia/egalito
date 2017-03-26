@@ -2,6 +2,7 @@
 #include "jumptable.h"
 #include "controlflow.h"
 #include "chunk/instruction.h"
+#include "chunk/chunkiter.h"
 #include "slicing.h"
 #include "slicingtree.h"
 #include "slicingmatch.h"
@@ -15,7 +16,7 @@ long JumpTableDescriptor::getEntries() const {
 }
 
 void JumpTableSearch::search(Module *module) {
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
+    for(auto f : CIter::functions(module)) {
         search(f);
     }
 }
@@ -23,7 +24,7 @@ void JumpTableSearch::search(Module *module) {
 void JumpTableSearch::search(Function *function) {
     ControlFlowGraph cfg(function);
 
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
+    for(auto b : CIter::children(function)) {
         auto i = b->getChildren()->getIterable()->getLast();
         if(dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
             SlicingSearch search(&cfg);

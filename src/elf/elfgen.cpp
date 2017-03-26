@@ -5,6 +5,7 @@
 #include <elf.h>
 #include <sys/stat.h>  // for chmod
 #include "elfgen.h"
+#include "chunk/chunkiter.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -171,7 +172,7 @@ void ElfGen::makeNewTextSegment() {
     loadOffset += 0xfff - ((loadOffset + 0xfff) & 0xfff);
 #if 1  // split separate pages into their own LOAD sections
     std::set<address_t> pagesUsed;
-    for(auto func : elfSpace->getModule()->getChildren()->getIterable()->iterable()) {
+    for(auto func : CIter::functions(elfSpace->getModule())) {
         address_t start = func->getAddress() & ~0xfff;
         address_t end = ((func->getAddress() + func->getSize()) + 0xfff) & ~0xfff;
         for(address_t page = start; page < end; page += 0x1000) {
@@ -249,12 +250,9 @@ void ElfGen::makeSymbolInfo() {
         count ++;
     }
 
-    for(auto chunk : elfSpace->getModule()->getChildren()->genericIterable()) {
-        auto func = dynamic_cast<Function *>(chunk);
-        if(!func) continue;
-
+    for(auto func : CIter::functions(elfSpace->getModule())) {
         // add name to string table
-        auto name = chunk->getName();
+        auto name = func->getName();
         auto index = strtabData.size();
         strtabData.insert(strtabData.end(), name.begin(), name.end());
         strtabData.push_back('\0');
@@ -396,11 +394,11 @@ void ElfGen::updateEntryPoint() { // NEEDS TO BE UPDATED
     // Update entry point in existing segment
     Elf64_Ehdr *header = headerSegment->getFirstSection()->castAs<Elf64_Ehdr>();
     address_t entry_pt = 0;
-    for(auto chunk : elfSpace->getModule()->getChildren()->genericIterable()) {
-        if(!strcmp(chunk->getName().c_str(), "_start")) {
-            entry_pt = elfSpace->getElfMap()->getBaseAddress()
-                + chunk->getAddress();
-        }
+    if(auto start = CIter::named(elfSpace->getModule()->getFunctionList())
+        ->find("_start")) {
+
+        entry_pt = elfSpace->getElfMap()->getBaseAddress()
+            + start->getAddress();
     }
     header->e_entry = entry_pt;
     header->e_phoff = phdrTableSegment->getFileOff();

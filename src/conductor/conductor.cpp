@@ -1,4 +1,5 @@
 #include "conductor.h"
+#include "chunk/chunkiter.h"
 #include "elf/elfmap.h"
 #include "elf/debugelf.h"
 #include "pass/relocdata.h"
@@ -57,14 +58,14 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
     DebugElf debugElf;
 
     auto mainModule = getMainSpace()->getModule();
-    for(auto func : mainModule->getChildren()->getIterable()->iterable()) {
+    for(auto func : CIter::functions(mainModule)) {
         debugElf.add(func, suffix);
     }
 
     for(auto library : *libraryList) {
         if(!library->getElfSpace()) continue;
         auto module = library->getElfSpace()->getModule();
-        for(auto func : module->getChildren()->getIterable()->iterable()) {
+        for(auto func : CIter::functions(module)) {
             debugElf.add(func, suffix);
         }
     }

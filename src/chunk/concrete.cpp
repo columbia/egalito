@@ -2,10 +2,6 @@
 #include <iomanip>
 #include "concrete.h"
 
-Function *ChunkFactory::makeFunction(Symbol *symbol) {
-    return new Function(symbol);
-}
-
 std::string Module::getName() const {
     std::ostringstream stream;
     auto count = getChildren()->getIterable()->getCount();

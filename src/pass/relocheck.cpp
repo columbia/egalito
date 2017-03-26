@@ -19,7 +19,7 @@ void ReloCheckPass::visit(Module *module) {
 
            || (r->getType() == R_AARCH64_ABS64)                 // function pointer data
            ) {
-            checkSemantic(r, module);
+            checkSemantic(r, module->getFunctionList());
         }
         else {
             if (1
@@ -45,8 +45,8 @@ void ReloCheckPass::visit(Module *module) {
 #endif
 }
 
-void ReloCheckPass::checkSemantic(Reloc *r, Module *module) {
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
+void ReloCheckPass::checkSemantic(Reloc *r, FunctionList *list) {
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(list, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
             LOG(1, i->getName() << "is still a normal DisassembledInstruction :(");

@@ -1,14 +1,12 @@
 #include <iostream>
 #include "resolvecalls.h"
+#include "chunk/chunkiter.h"
 #include "chunk/find.h"
 #include "log/log.h"
 
 void ResolveCalls::visit(Module *module) {
-    if(!module->getChildren()->getSpatial()) {
-        module->getChildren()->createSpatial();
-    }
-    functionList = module->getChildren()->getSpatial();
-    recurse(module);
+    functionList = module->getFunctionList();
+    recurse(functionList);
 }
 
 void ResolveCalls::visit(Instruction *instruction) {
@@ -28,7 +26,7 @@ void ResolveCalls::visit(Instruction *instruction) {
     bool isExternal = false;
     // Common case for call instructions: point at another function
     if(!found) {
-        found = functionList->find(targetAddress);
+        found = functionList->getChildren()->getSpatial()->find(targetAddress);
         if(found) isExternal = true;
     }
     // Common case for jumps: internal jump elsewhere within function
@@ -46,10 +44,10 @@ void ResolveCalls::visit(Instruction *instruction) {
     // This can be for tail recursion or for overlapping functions (_nocancel)
     if(!found) {
         auto enclosing = instruction->getParent()->getParent()->getParent();
-        auto module = dynamic_cast<Module *>(enclosing);
+        auto otherFunctionList = dynamic_cast<FunctionList *>(enclosing);
 
 #if 0
-        // Right now, spatial search in a Module doesn't work.
+        // Right now, spatial search in a Module/FunctionList doesn't work.
         // It doesn't handle overlapping functions correctly.
         found = ChunkFind().findInnermostAt(module, targetAddress);
 #elif 1
@@ -57,7 +55,8 @@ void ResolveCalls::visit(Instruction *instruction) {
         // resolve targets. Should really just use a data structure that
         // supports overlaps.
         std::vector<Function *> funcs;
-        funcs = module->getChildren()->getSpatial()->findAllContaining(targetAddress);
+        funcs = CIter::spatial(otherFunctionList)
+            ->findAllContaining(targetAddress);
         for(auto f : funcs) {
             found = ChunkFind().findInnermostAt(f, targetAddress);
             // we could use a different Link type for external jumps
@@ -65,7 +64,7 @@ void ResolveCalls::visit(Instruction *instruction) {
         }
 #else
         // Brute-force version, guaranteed to work.
-        for(auto f : module->getChildren()->getIterable()->iterable()) {
+        for(auto f : CIter::functions(module)) {
             found = ChunkFind().findInnermostAt(f, targetAddress);
             if(found) break;
         }

@@ -14,7 +14,7 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    void checkSemantic(Reloc *r, Module *module);
+    void checkSemantic(Reloc *r, FunctionList *list);
 };
 
 #endif

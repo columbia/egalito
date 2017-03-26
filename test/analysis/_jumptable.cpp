@@ -1,6 +1,7 @@
 #include <sstream>
 #include "framework/include.h"
 #include "analysis/jumptable.h"
+#include "chunk/chunkiter.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
 
@@ -15,7 +16,7 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
     conductor.parse(&elf, nullptr);
 
     auto module = conductor.getMainSpace()->getModule();
-    auto f = module->getChildren()->getNamed()->find("main");
+    auto f = CIter::named(module->getFunctionList())->find("main");
 
     JumpTableSearch jt;
     jt.search(f);
@@ -68,7 +69,7 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
     };
     for(size_t i = 0; i < sizeof(testCase)/sizeof(*testCase); i ++) {
         auto name = testCase[i].name;
-        auto f = module->getChildren()->getNamed()->find(name);
+        auto f = CIter::named(module->getFunctionList())->find(name);
         if(f) {
             testFunction(f, testCase[i].expected);
         }
@@ -115,7 +116,7 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
     auto module = libc->getElfSpace()->getModule();
 #if 1
     std::vector<Function *> partial;
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
+    for(auto f : CIter::functions(module)) {
         if(missingBounds(f)) {
             partial.push_back(f);
         }
