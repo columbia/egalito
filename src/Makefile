@@ -114,20 +114,6 @@ $(LIBRARY): $(TYPICAL_OBJECTS)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
 	$(CXX) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
 
-# Tests
-REGRESSION_SOURCES = $(wildcard regression/*.cpp)
-REGRESSION_OBJECTS = $(call obj-filename,$(REGRESSION_SOURCES))
-REGRESSION_TESTS = $(call exe-filename,$(filter-out regression/elfgenmanager,$(REGRESSION_SOURCES:.cpp=)))
-.PHONY: rtest
-rtest: $(REGRESSION_TESTS)
-
-$(REGRESSION_TESTS): % : %.o $(TYPICAL_OBJECTS) $(BUILDDIR)regression/elfgenmanager.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
-
-$(REGRESSION_OBJECTS): | $(BUILDDIR)/regression
-$(BUILDDIR)/regression:
-	@mkdir -p $@
-
 # Other targets
 .PHONY: clean
 clean:
