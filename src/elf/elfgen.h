@@ -13,15 +13,16 @@ class ElfGen {
 private:
     class Section {
     private:
-        address_t address;
         std::string data;
         std::string name;
+        address_t address;
         size_t size;
         size_t fileOffset;
     public:
-        Section(std::string name) : name(name), size(0), fileOffset(0) {}
+        Section(std::string name)
+            : name(name), address(0), size(0), fileOffset(0) {}
         Section(std::string name, const void *data, size_t size)
-            : name(name), size(0), fileOffset(0) { add(data, size); }
+            : name(name), address(0), size(0), fileOffset(0) { add(data, size); }
         address_t getAddress() const { return address; }
         size_t getSize() const { return size; }
         size_t getFileOff() const { return fileOffset; }

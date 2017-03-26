@@ -1,6 +1,9 @@
+#include <set>
 #include <cstring>
 #include <fstream>
+#include <sstream>  // for generating section names
 #include <elf.h>
+#include <sys/stat.h>  // for chmod
 #include "elfgen.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -120,6 +123,8 @@ void ElfGen::generate() {
         fs << *segment;
     }
     fs.close();
+
+    chmod(filename.c_str(), 0755);
 }
 
 void ElfGen::makeOriginalSegments() {
@@ -164,12 +169,52 @@ void ElfGen::makeNewTextSegment() {
     // Text
     size_t loadOffset = getNextFreeOffset();
     loadOffset += 0xfff - ((loadOffset + 0xfff) & 0xfff);
+#if 1  // split separate pages into their own LOAD sections
+    std::set<address_t> pagesUsed;
+    for(auto func : elfSpace->getModule()->getChildren()->getIterable()->iterable()) {
+        address_t start = func->getAddress() & ~0xfff;
+        address_t end = ((func->getAddress() + func->getSize()) + 0xfff) & ~0xfff;
+        for(address_t page = start; page < end; page += 0x1000) {
+            LOG(1, "code uses page " << std::hex << page);
+            pagesUsed.insert(page);
+        }
+    }
+
+    std::set<address_t>::iterator i = pagesUsed.begin();
+    size_t totalSize = 0;
+    while(i != pagesUsed.end()) {
+        size_t size = 0;
+        std::set<address_t>::iterator j = i;
+        while(j != pagesUsed.end() && (*j) == (*i) + size) {
+            j++;
+            size += 0x1000;
+        }
+
+        LOG(1, "map " << std::hex << *i << " size " << size);
+
+        // intentionally leave visibleSegment set after last iteration
+        visibleSegment = new Segment();
+        visibleSegment->setAddress(backing->getBase() + totalSize);
+        visibleSegment->setFileOff(loadOffset + totalSize);
+        std::ostringstream sectionName;
+        sectionName << ".text.0x" << std::hex << *i;
+        auto textSection = new Section(sectionName.str().c_str(), (const uint8_t *)*i, size);
+        visibleSegment->add(textSection);
+        addShdr(textSection, SHT_PROGBITS);
+        addSegment(visibleSegment, PT_LOAD, PF_R | PF_X, 0x1000);
+
+        totalSize += size;
+        i = j;
+    }
+#else
     visibleSegment = new Segment();
     visibleSegment->setAddress(backing->getBase());
     visibleSegment->setFileOff(loadOffset);
     auto textSection = new Section(".text", (const uint8_t *)backing->getBase(), backing->getSize());
     visibleSegment->add(textSection);
     addShdr(textSection, SHT_PROGBITS);
+    addSegment(visibleSegment, PT_LOAD, PF_R | PF_X, 0x1000);
+#endif
 
     // Interp
     auto elfMap = elfSpace->getElfMap();
@@ -183,7 +228,6 @@ void ElfGen::makeNewTextSegment() {
         addShdr(interpSection, SHT_PROGBITS);
         addSegment(interpSegment, PT_INTERP, PF_R, 0x1);
     }
-    addSegment(visibleSegment, PT_LOAD, PF_R | PF_X, 0x1000);
 }
 
 void ElfGen::makeSymbolInfo() {
