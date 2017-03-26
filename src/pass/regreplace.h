@@ -42,31 +42,5 @@ private:
     std::vector<Instruction *> getCallingInstructions(Function *function);
 };
 
-class AARCH64InstructionRegCoder {
-private:
-    uint32_t bin;
-    const uint32_t regMask;
-    bool cached;
-
-    typedef std::vector<unsigned int> RegPositions;
-    typedef std::pair<RegPositions, RegPositions> RegPositionsList;
-    RegPositionsList list;
-
-public:
-    AARCH64InstructionRegCoder() : regMask(0x1F), cached(false) {}
-    virtual void decode(const char *bytes, size_t size);
-    virtual void encode(char *bytes, size_t size);
-    virtual bool isReading(PhysicalRegister<AARCH64GPRegister> &reg);
-    virtual bool isWriting(PhysicalRegister<AARCH64GPRegister> &reg);
-    virtual void replaceRegister(PhysicalRegister<AARCH64GPRegister>& oldReg,
-                                 PhysicalRegister<AARCH64GPRegister>& newReg);
-
-private:
-    RegPositionsList getRegPositionList();
-    void makeDPImm_RegPositionList();
-    void makeBranch_RegPositionList();
-    void makeLDST_RegPositionList();
-    void makeDPIReg_RegPositionList();
-};
 #endif
 
