@@ -5,8 +5,8 @@
 #include <string>
 #include <utility>  // for std::move
 #include <capstone/capstone.h>  // for cs_insn
-#include <disasm/assembly.h>
-#include "register.h"
+#include "disasm/assembly.h"
+#include "disasm/register.h"
 #include "types.h"
 
 class Instruction;

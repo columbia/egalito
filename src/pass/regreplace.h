@@ -2,7 +2,7 @@
 #include <utility>
 #include "chunkpass.h"
 #include "stackextend.h"
-#include "chunk/register.h"
+#include "disasm/register.h"
 
 #ifdef ARCH_AARCH64
 class AARCH64RegisterUsage {

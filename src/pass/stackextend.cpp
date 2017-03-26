@@ -5,7 +5,6 @@
 #include "chunk/concrete.h"
 #include "chunk/instruction.h"
 #include "chunk/mutator.h"
-#include "chunk/register.h"
 #include "disasm/disassemble.h"
 #include "log/log.h"
 #include "chunk/dump.h"

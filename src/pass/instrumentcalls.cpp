@@ -1,6 +1,6 @@
 #include "pass/instrumentcalls.h"
 #include "disasm/disassemble.h"
-#include "chunk/register.h"
+#include "disasm/register.h"
 #include "chunk/mutator.h"
 
 #ifdef ARCH_AARCH64

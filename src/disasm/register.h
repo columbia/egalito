@@ -1,5 +1,5 @@
-#ifndef EGALITO_CHUNK_REGISTER_H
-#define EGALITO_CHUNK_REGISTER_H
+#ifndef EGALITO_DISASM_REGISTER_H
+#define EGALITO_DISASM_REGISTER_H
 
 #include <capstone/capstone.h>
 #ifdef ARCH_X86_64

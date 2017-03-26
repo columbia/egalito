@@ -6,7 +6,6 @@
 #include <set>
 #include "chunkpass.h"
 #include "analysis/controlflow.h"
-#include "chunk/register.h"
 #include "elf/reloc.h"
 
 #ifdef ARCH_AARCH64

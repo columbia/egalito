@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <utility>
-#include "chunk/register.h"
+#include "register.h"
 
 #ifdef ARCH_AARCH64
 class AARCH64RegBits {
