@@ -60,9 +60,9 @@ void InstrumentCallsPass::addAdvice(
         ChunkMutator(block).insertAfter(point, ins_stp);
     }
     else {
-        ChunkMutator(block).insertBefore(point, ins_ldp);
-        ChunkMutator(block).insertBefore(point, ins_bl);
         ChunkMutator(block).insertBefore(point, ins_stp);
+        ChunkMutator(block).insertBefore(point, ins_bl);
+        ChunkMutator(block).insertBefore(point, ins_ldp);
     }
 }
 #endif
