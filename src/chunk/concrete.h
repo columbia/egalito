@@ -51,6 +51,8 @@ private:
     BlockSoup *blockSoup;
     PLTList *pltList;
 public:
+    Module() : functionList(nullptr), blockSoup(nullptr), pltList(nullptr) {}
+
     std::string getName() const;
 
     FunctionList *getFunctionList() const { return functionList; }
