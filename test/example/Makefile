@@ -22,7 +22,7 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 hi5 jumptable fp stack
+TARGET_NAMES = hello hi0 hi5 jumptable fp stack log
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
@@ -55,6 +55,7 @@ $(eval $(call dep_rule,hi5,hi5.c hi5-s.S))
 $(eval $(call dep_rule,jumptable,jumptable.c))
 $(eval $(call dep_rule,fp,fp.c))
 $(eval $(call dep_rule,stack,stack.c))
+$(eval $(call dep_rule,log,log.c))
 
 addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
 
