@@ -1,5 +1,4 @@
 #include "conductor.h"
-#include "chunk/chunkiter.h"
 #include "elf/elfmap.h"
 #include "elf/debugelf.h"
 #include "pass/relocdata.h"

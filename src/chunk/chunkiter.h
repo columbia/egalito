@@ -5,6 +5,9 @@
 #include "chunklist.h"
 
 // Note: this file is heavily dependent on internals of chunklist.h.
+#ifndef INCLUDE_FROM_CONCRETE_H
+    #error "Please do not include chunkiter.h directly. Include concrete.h."
+#endif
 
 template <typename BaseType>
 class CIterChildren {
@@ -19,12 +22,6 @@ public:
         { return base->getChildren()->getIterable()->iterable().begin(); }
     typename ChildListType::iterator end()
         { return base->getChildren()->getIterable()->iterable().end(); }
-};
-
-template <typename BaseType>
-class CIterGrandChildren {
-private:
-    typedef typename BaseType::ChunkChildType ChildType;
 };
 
 class CIterFunctions {

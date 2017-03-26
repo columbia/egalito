@@ -126,6 +126,9 @@ public:
 
 // PLTTrampoline defined in plt.h
 #include "plt.h"
+
+#define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"
+#undef INCLUDE_FROM_CONCRETE_H
 
 #endif

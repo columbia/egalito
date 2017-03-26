@@ -1,5 +1,4 @@
 #include "inferredptrs.h"
-#include "chunk/chunkiter.h"
 #include "chunk/dump.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"

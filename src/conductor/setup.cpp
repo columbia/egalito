@@ -5,7 +5,6 @@
 #include "load/segmap.h"
 #include "chunk/dump.h"
 #include "chunk/find2.h"
-#include "chunk/chunkiter.h"
 #include "log/registry.h"
 #include "log/log.h"
 

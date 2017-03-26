@@ -3,7 +3,6 @@
 #include <cstdio>  // for std::fflush
 #include "generator.h"
 #include "chunk/mutator.h"
-#include "chunk/chunkiter.h"
 #include "log/log.h"
 
 Sandbox *Generator::makeSandbox() {

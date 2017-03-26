@@ -1,6 +1,5 @@
 #include <iostream>
 #include "resolvecalls.h"
-#include "chunk/chunkiter.h"
 #include "chunk/find.h"
 #include "log/log.h"
 

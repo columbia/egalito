@@ -2,7 +2,6 @@
 #include "jumptable.h"
 #include "controlflow.h"
 #include "chunk/instruction.h"
-#include "chunk/chunkiter.h"
 #include "slicing.h"
 #include "slicingtree.h"
 #include "slicingmatch.h"

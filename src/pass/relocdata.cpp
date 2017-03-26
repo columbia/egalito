@@ -3,7 +3,6 @@
 #include "elf/elfmap.h"
 #include "elf/reloc.h"
 #include "chunk/aliasmap.h"
-#include "chunk/chunkiter.h"
 #include "conductor/conductor.h"
 #include "load/emulator.h"
 #include "log/log.h"

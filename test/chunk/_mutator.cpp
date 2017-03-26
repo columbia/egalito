@@ -2,7 +2,6 @@
 #include "framework/StreamAsString.h"
 #include "chunk/mutator.h"
 #include "chunk/instruction.h"
-#include "chunk/chunkiter.h"
 #include "chunk/dump.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"

@@ -5,7 +5,6 @@
 #include <elf.h>
 #include <sys/stat.h>  // for chmod
 #include "elfgen.h"
-#include "chunk/chunkiter.h"
 #include "log/registry.h"
 #include "log/log.h"
 

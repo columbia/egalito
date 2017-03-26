@@ -1,5 +1,4 @@
 #include "resolverelocs.h"
-#include "chunk/chunkiter.h"
 #include "chunk/instruction.h"
 #include "log/log.h"
 
