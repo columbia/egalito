@@ -8,16 +8,9 @@
 #include "emulator.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
-#include "elf/elfspace.h"
 #include "conductor/conductor.h"
-#include "chunk/chunk.h"
-#include "chunk/chunklist.h"
-#include "chunk/dump.h"
-#include "transform/sandbox.h"
-#include "transform/generator.h"
+#include "conductor/setup.h"
 #include "break/signals.h"
-#include "analysis/controlflow.h"
-#include "analysis/jumptable.h"
 #include "pass/logcalls.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -25,7 +18,8 @@
 extern address_t entry;
 extern "C" void _start2(void);
 
-address_t runEgalito(ElfMap *elf, ElfMap *egalito);
+static void mapSegments(ConductorSetup *setup);
+static void otherPasses(ConductorSetup *setup);
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
@@ -46,32 +40,28 @@ int main(int argc, char *argv[]) {
     LoaderEmulator::getInstance().useArgv(argv);
 
     try {
-        ElfMap *elf = new ElfMap(argv[1]);
-        ElfMap *egalito = new ElfMap("./libegalito.so");
+        ConductorSetup setup;
 
-        // set base addresses and map PT_LOAD sections into memory
-        const address_t baseAddress = elf->isSharedLibrary() ? 0x4000000 : 0;
-        elf->setBaseAddress(baseAddress);
-        SegMap::mapSegments(*elf, elf->getBaseAddress());
+        setup.parseElfFiles(argv[1], true, true);
+        mapSegments(&setup);
+        setup.makeLoaderSandbox();
+        otherPasses(&setup);
+        setup.moveCode();
 
-        const address_t egalitoBaseAddress = egalito->isSharedLibrary() ? 0x8000000l : 0;
-        egalito->setBaseAddress(egalitoBaseAddress);
-        SegMap::mapSegments(*egalito, egalito->getBaseAddress());
+        setup.getConductor()->fixDataSections();
+        setup.getConductor()->writeDebugElf("symbols.elf");
 
-        entry = runEgalito(elf, egalito);
+        entry = setup.getEntryPoint();
 
-        // find entry point
-        if(!entry) {
-            entry = elf->getEntryPoint() + baseAddress;
-        }
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
         // set up execution environment
-        adjustAuxiliaryVector(argv, elf, nullptr);
+        adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
 
-        // jump to the interpreter/target program (never returns)
         std::cout.flush();
         std::fflush(stdout);
+
+        // jump to the interpreter/target program (never returns)
         _start2();
     }
     catch(const char *s) {
@@ -84,121 +74,30 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-address_t runEgalito(ElfMap *elf, ElfMap *egalito) {
-    Conductor conductor;
-    conductor.parseRecursive(elf);
-    //conductor.parse(elf, nullptr);
+static void mapSegments(ConductorSetup *setup) {
+    auto elf = setup->getElfMap();
+    auto egalito = setup->getEgalitoElfMap();
 
-    auto egalitoLib = new SharedLib("(egalito)", "(egalito)", egalito);
-    conductor.getLibraryList()->add(egalitoLib);
-    conductor.parse(egalito, egalitoLib);
-
-    auto libc = conductor.getLibraryList()->getLibc();
-    if(false && libc) {
-        ChunkDumper dumper;
-        libc->getElfSpace()->getModule()->accept(&dumper);
+    // map PT_LOAD sections into memory
+    if(elf) {
+        SegMap::mapSegments(*elf, elf->getBaseAddress());
     }
-    if(false && libc) {
-        auto module = libc->getElfSpace()->getModule();
-        //auto f = module->getChildren()->getNamed()->find("printf_positional");
-        JumpTableSearch jt;
-        jt.search(module);
+    if(egalito) {
+        SegMap::mapSegments(*egalito, egalito->getBaseAddress());
+    }
 
-        auto tableList = jt.getTableList();
-        for(auto table : tableList) {
-            std::cout << "found jump table in ["
-                << table->getFunction()->getSymbol()->getName() << "] at "
-                << std::hex << table->getAddress() << " with "
-                << std::dec << table->getEntries()
-                << " entries.\n";
+    for(auto lib : *setup->getConductor()->getLibraryList()) {
+        auto map = lib->getElfMap();
+        if(map) {
+            SegMap::mapSegments(*map, map->getBaseAddress());
         }
     }
+}
 
-    if(false && libc) {
-        auto module = libc->getElfSpace()->getModule();
-        auto f = module->getChildren()->getNamed()->find("ptmalloc_init.part.5");
-        ChunkDumper dumper;
-        f->accept(&dumper);
-    }
-
-    auto module = conductor.getMainSpace()->getModule();
-    ChunkDumper dumper;
-    module->accept(&dumper);
-
-#if 0
-    auto f = module->getChildren()->getNamed()->find("main");
-    if(f) {
-        ControlFlowGraph cfg(f);
-        cfg.dump();
-
-        JumpTableSearch jt;
-        jt.search(f);
-    }
+static void otherPasses(ConductorSetup *setup) {
+#if 1  // add call logging?
+    LogCallsPass logCalls(setup->getConductor());
+    // false = do not add tracing to Egalito's own functions
+    setup->getConductor()->acceptInAllModules(&logCalls, false);
 #endif
-
-#if 0  // add call logging?
-    LogCallsPass logCalls(&conductor);
-    module->accept(&logCalls);
-    if(libc) {
-        libc->getElfSpace()->getModule()->accept(&logCalls);
-    }
-#endif
-
-    // map all data sections into memory
-    {
-        int i = 0;
-        for(auto lib : *conductor.getLibraryList()) {
-            auto libElfMap = lib->getElfMap();
-            if(!libElfMap->isSharedLibrary()) continue;
-
-            const address_t baseAddress = 0xa0000000 + i*0x1000000;
-            libElfMap->setBaseAddress(baseAddress);
-            SegMap::mapSegments(*libElfMap, libElfMap->getBaseAddress());
-            i ++;
-        }
-    }
-
-    {
-        Generator generator;
-        auto sandbox = generator.makeSandbox();
-
-        // 1. assign new addresses to all code
-        generator.pickAddressesInSandbox(module, sandbox);
-        for(auto lib : *conductor.getLibraryList()) {
-            if(!lib->getElfSpace()) continue;
-            generator.pickAddressesInSandbox(
-                lib->getElfSpace()->getModule(), sandbox);
-        }
-        // 2. copy code to the new addresses
-        generator.copyCodeToSandbox(module, sandbox);
-        for(auto lib : *conductor.getLibraryList()) {
-            if(!lib->getElfSpace()) continue;
-            generator.copyCodeToSandbox(
-                lib->getElfSpace()->getModule(), sandbox);
-        }
-        // 3. make code executable
-        sandbox->finalize();
-
-        // resolve all relocations in data sections
-        conductor.fixDataSections();
-
-        LOG(1, "");
-        LOG(1, "=== After copying code to new locations ===");
-        ChunkDumper dumper;
-        module->accept(&dumper);
-
-        if(false && libc) {
-            ChunkDumper dumper;
-            libc->getElfSpace()->getModule()->accept(&dumper);
-        }
-
-        //generator.jumpToSandbox(sandbox, module, "_start");
-
-        conductor.writeDebugElf("symbols.elf");
-
-        return conductor.getMainSpace()->getModule()
-            ->getChildren()->getNamed()->find("_start")->getAddress();
-    }
-
-    return 0;
 }

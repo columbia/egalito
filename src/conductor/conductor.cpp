@@ -26,6 +26,14 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
     spaceList->add(space, library == nullptr);
 }
 
+void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
+    ElfSpace *space = new ElfSpace(elf, library, this);
+    library->setElfSpace(space);
+    space->findDependencies(libraryList);
+    space->buildDataStructures();
+    spaceList->addEgalito(space);
+}
+
 void Conductor::fixDataSections() {
     for(auto library : *libraryList) {
         if(library->getElfSpace()) {
@@ -62,4 +70,18 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
     }
 
     debugElf.writeTo(filename);
+}
+
+void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
+    spaceList->getMain()->getModule()->accept(visitor);
+
+    for(auto library : *libraryList) {
+        auto space = library->getElfSpace();
+        if(!space) continue;
+        if(!inEgalito && space == spaceList->getEgalito()) continue;
+
+        if(library->getElfSpace()) {
+            library->getElfSpace()->getModule()->accept(visitor);
+        }
+    }
 }

@@ -113,8 +113,8 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
 }
 
 void LogCallsPass::visit(Function *function) {
-    if(function->getName() == "log_function") return;
-    if(function->getName() == "log_function_ret") return;
+    if(function->getName() == "egalito_log_function") return;
+    if(function->getName() == "egalito_log_function_ret") return;
     if(function->getName() == "__GI___libc_write") return;
 
     // bugs:

@@ -41,6 +41,10 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
     // sometimes, with -Wl,-q, the linker generates empty data LOAD sections
     if(memsz_pages == 0) return;
 
+    LOG(1, "mapping file offset " << std::hex << phdr->p_offset
+        << " (virtual address " << std::hex << phdr->p_vaddr
+        << ") at " << std::hex << address << " size " << memsz_pages);
+
     void *mem = 0;
     if(memsz_pages > filesz_pages) {
         // first map the full pages including zero pages, unmap and remap
@@ -73,8 +77,4 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
             offset);
         if(mem == (void *)-1) throw "Out of memory?";
     }
-
-    LOG(1, "mapped file offset " << std::hex << phdr->p_offset
-        << " (virtual address " << std::hex << phdr->p_vaddr << ")"
-        << " to " << std::hex << mem);
 }

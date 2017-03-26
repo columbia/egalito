@@ -49,15 +49,18 @@ public:
 class ElfSpaceList {
 private:
     ElfSpace *main;
+    ElfSpace *egalito;
     std::vector<ElfSpace *> spaceList;
 public:
     ElfSpaceList() : main(nullptr) {}
 
     void add(ElfSpace *space, bool isMain = false);
+    void addEgalito(ElfSpace *space);
 
     ConcreteIterable<std::vector<ElfSpace *>> iterable()
         { return ConcreteIterable<std::vector<ElfSpace *>>(spaceList); }
     ElfSpace *getMain() const { return main; }
+    ElfSpace *getEgalito() const { return egalito; }
 };
 
 #endif
