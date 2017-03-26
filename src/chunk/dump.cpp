@@ -62,7 +62,7 @@ void ChunkDumper::visit(Instruction *instruction) {
                 }
             }
             else if(auto v = dynamic_cast<PLTLink *>(link)) {
-                targetName << v->getPLTEntry()->getName();
+                targetName << v->getPLTTrampoline()->getName();
             }
             else targetName << "[unresolved]";
 

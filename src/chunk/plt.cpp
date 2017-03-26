@@ -15,7 +15,14 @@ Reloc *PLTRegistry::find(address_t address) {
     return (it != registry.end() ? (*it).second : nullptr);
 }
 
-std::string PLTEntry::getName() const {
+PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
+    Symbol *targetSymbol) : sourceElf(sourceElf), target(nullptr),
+    targetSymbol(targetSymbol) {
+    
+    setPosition(new AbsolutePosition(address));
+}
+
+std::string PLTTrampoline::getName() const {
     if(getTargetSymbol()) {
         return getTargetSymbol()->getName() + std::string("@plt");
     }
@@ -24,9 +31,19 @@ std::string PLTEntry::getName() const {
     }
 }
 
-void PLTSection::parse(ElfMap *elf) {
+bool PLTSection::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
+    auto pltList = PLTSection().parse(relocList, elf);
+    if(pltList) {
+        module->getChildren()->add(pltList);
+        module->setPLTList(pltList);
+        pltList->setParent(module);
+    }
+    return pltList != nullptr;
+}
+
+PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt"));
-    if(!header) return;
+    if(!header) return nullptr;
     auto section = reinterpret_cast<address_t>(elf->findSection(".plt"));
 
     PLTRegistry *registry = new PLTRegistry();
@@ -44,6 +61,8 @@ void PLTSection::parse(ElfMap *elf) {
             registry->add(r->getAddress(), r);
         }
     }
+
+    PLTList *pltList = new PLTList();
 
 #ifdef ARCH_X86_64
     static const size_t ENTRY_SIZE = 16;
@@ -75,8 +94,8 @@ void PLTSection::parse(ElfMap *elf) {
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
-                entryMap[pltAddress] = new PLTEntry(elf,
-                    pltAddress, r->getSymbol());
+                pltList->getChildren()->add(new PLTTrampoline(elf,
+                    pltAddress, r->getSymbol()));
             }
         }
     }
@@ -95,11 +114,13 @@ void PLTSection::parse(ElfMap *elf) {
     for(size_t i = 2 * ENTRY_SIZE; i < header->sh_size; i += ENTRY_SIZE) {
         auto entry = section + i;
 
+#if 0
         LOG(1, "CONSIDER PLT entry at " << entry);
         LOG(1, "1st instr is " << (int)*reinterpret_cast<const unsigned int *>(entry));
         LOG(1, "2nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*1));
         LOG(1, "3nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*2));
         LOG(1, "4th instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*3));
+#endif
 
         if((*reinterpret_cast<const unsigned char *>(entry+3) & 0x9f) == 0x90) {
             address_t pltAddress = header->sh_addr + i;
@@ -120,17 +141,20 @@ void PLTSection::parse(ElfMap *elf) {
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
-                entryMap[pltAddress] = new PLTEntry(
-                    elf, pltAddress, r->getSymbol());
+                pltList->getChildren()->add(new PLTTrampoline(
+                    elf, pltAddress, r->getSymbol()));
             }
         }
     }
 #endif
 
-    parsePLTGOT(elf);
+    parsePLTGOT(relocList, elf, pltList);
+    return pltList;
 }
 
-void PLTSection::parsePLTGOT(ElfMap *elf) {
+void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
+    PLTList *pltList) {
+
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt.got"));
     auto section = reinterpret_cast<address_t>(elf->findSection(".plt.got"));
     if(!header || !section) return;  // no .plt.got section
@@ -164,14 +188,9 @@ void PLTSection::parsePLTGOT(ElfMap *elf) {
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
-                entryMap[pltAddress] = new PLTEntry(elf,
-                    pltAddress, r->getSymbol());
+                pltList->getChildren()->add(new PLTTrampoline(elf,
+                    pltAddress, r->getSymbol()));
             }
         }
     }
-}
-
-PLTEntry *PLTSection::find(address_t address) {
-    auto it = entryMap.find(address);
-    return (it != entryMap.end() ? (*it).second : nullptr);
 }

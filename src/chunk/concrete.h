@@ -124,9 +124,8 @@ public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 
-class PLTTrampoline : public ChunkImpl {
-public:
-
-};
+// PLTTrampoline defined in plt.h
+#include "plt.h"
+#include "chunkiter.h"
 
 #endif

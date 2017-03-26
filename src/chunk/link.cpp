@@ -12,7 +12,7 @@ address_t OffsetLink::getTargetAddress() const {
 }
 
 address_t PLTLink::getTargetAddress() const {
-    return pltEntry->getSourceElf()->getBaseAddress() + originalAddress;
+    return pltTrampoline->getSourceElf()->getBaseAddress() + originalAddress;
 }
 
 address_t DataOffsetLink::getTargetAddress() const {

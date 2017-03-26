@@ -67,16 +67,16 @@ typedef ExternalLinkDecorator<NormalLink> ExternalNormalLink;
 typedef ExternalLinkDecorator<OffsetLink> ExternalOffsetLink;
 
 
-class PLTEntry;
+class PLTTrampoline;
 class PLTLink : public Link {
 private:
     address_t originalAddress;
-    PLTEntry *pltEntry;
+    PLTTrampoline *pltTrampoline;
 public:
-    PLTLink(address_t originalAddress, PLTEntry *pltEntry)
-        : originalAddress(originalAddress), pltEntry(pltEntry) {}
+    PLTLink(address_t originalAddress, PLTTrampoline *pltTrampoline)
+        : originalAddress(originalAddress), pltTrampoline(pltTrampoline) {}
 
-    PLTEntry *getPLTEntry() const { return pltEntry; }
+    PLTTrampoline *getPLTTrampoline() const { return pltTrampoline; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
 };

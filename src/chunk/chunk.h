@@ -74,7 +74,6 @@ public:
 
     virtual address_t getAddress() const;
     virtual Range getRange() const;
-
 };
 
 template <typename ChunkType, typename ChildType>

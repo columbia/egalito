@@ -2,42 +2,40 @@
 #define EGALITO_CHUNK_PLT_H
 
 #include <map>
-#include "types.h"
 #include "elf/reloc.h"
+#include "concrete.h"
+#include "types.h"
 
 class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTEntry {
+class PLTTrampoline : public ChunkImpl {
 private:
     ElfMap *sourceElf;
-    address_t entry;
     Chunk *target;
     Symbol *targetSymbol;
 public:
-    PLTEntry(ElfMap *sourceElf, address_t entry, Symbol *targetSymbol)
-        : sourceElf(sourceElf), entry(entry), target(nullptr),
-        targetSymbol(targetSymbol) {}
+    PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol);
 
-    address_t getAddress() const { return entry; }
+    std::string getName() const;
+
     ElfMap *getSourceElf() const { return sourceElf; }
     Chunk *getTarget() const { return target; }
     Symbol *getTargetSymbol() const { return targetSymbol; }
-    std::string getName() const;
+
+    void setTarget(Chunk *target) { this->target = target; }
+
+    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
 
 class PLTSection {
-private:
-    RelocList *relocList;
-    std::map<address_t, PLTEntry *> entryMap;
 public:
-    PLTSection(RelocList *relocList) : relocList(relocList) {}
-    void parse(ElfMap *elf);
-
-    PLTEntry *find(address_t address);
+    PLTList *parse(RelocList *relocList, ElfMap *elf);
+    static bool parsePLTList(ElfMap *elf, RelocList *relocList, Module *module);
 private:
-    void parsePLTGOT(ElfMap *elf);
+    void parsePLTGOT(RelocList *relocList, ElfMap *elf,
+        PLTList *pltList);
 };
 
 #endif

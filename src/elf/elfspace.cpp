@@ -52,13 +52,12 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //module->accept(&dumper);
 
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-    PLTSection pltSection(relocList);
-    pltSection.parse(elf);
+    PLTSection::parsePLTList(elf, relocList, module);
 
     FuncptrsPass funcptrsPass(relocList);
     module->accept(&funcptrsPass);
 
-    ResolveRelocs resolveRelocs(&pltSection);
+    ResolveRelocs resolveRelocs(module->getPLTList());
     module->accept(&resolveRelocs);
 
     PCRelativePass pcrelative(elf, relocList);
