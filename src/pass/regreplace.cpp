@@ -88,32 +88,26 @@ void AARCH64RegReplacePass::replacePerFunction(Function *function,
     FrameType *frame, AARCH64RegisterUsage *regUsage,
     AARCH64GPRegister::ID dualID) {
 
-    PhysicalRegister<AARCH64GPRegister> baseReg(
-        frame->getSetBPInstr() ? AARCH64GPRegister::R29 : AARCH64GPRegister::SP,
-        true);
+    PhysicalRegister<AARCH64GPRegister> rSP(AARCH64GPRegister::SP, true);
     PhysicalRegister<AARCH64GPRegister> dualReg(dualID, true);
 
     LOG(1, "dualID = " << dualID);
 
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
-        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
+        | 0/8 << 10 | rSP.encoding() << 5 | dualReg.encoding());
     auto bin_ldr0 = AARCH64InstructionBinary(0xF9400000
-        | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
+        | 0/8 << 10 | rSP.encoding() << 5 | dualReg.encoding());
 
     auto instr_strOrg = Disassemble::instruction(bin_str0.getVector());
     auto instr_ldrOrg = Disassemble::instruction(bin_ldr0.getVector());
 
-    if(auto ins = frame->getSetBPInstr()) {
-        ChunkMutator(ins->getParent()).insertAfter(ins, instr_strOrg);
-    }
-    else {
-        auto firstB = function->getChildren()->getIterable()->get(0);
-        auto firstI = firstB->getChildren()->getIterable()->get(0);
-        ChunkMutator(firstB).insertAfter(firstI, instr_strOrg);
-    }
+    auto firstB = function->getChildren()->getIterable()->get(0);
+    auto firstI = firstB->getChildren()->getIterable()->get(0);
+    ChunkMutator(firstB).insertAfter(firstI, instr_strOrg);
 
-    for(auto ins : frame->getReturnInstrs()) {
+    for(auto ins : frame->getEpilogueInstrs()) {
         ChunkMutator(ins->getParent()).insertBefore(ins, instr_ldrOrg);
+        frame->fixEpilogue(ins, instr_ldrOrg);
     }
 
     AARCH64InstructionRegCoder coder;
