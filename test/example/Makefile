@@ -25,15 +25,17 @@ empty = $(space) $(space)
 TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
+TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 LONE_TARGETS = hellocpp
 
 ALL_TARGETS = $(TARGETS)
 ALL_TARGETS += $(TARGETS-q)
+ALL_TARGETS += $(TARGETS-strip)
 ALL_TARGETS += $(TARGETS-static)
 ALL_TARGETS += $(LONE_TARGETS)
 
-.PHONY: all targets targets-q targets-static
+.PHONY: all targets targets-q targets-strip targets-static
 
 all: $(ALL_TARGETS)
 
@@ -43,11 +45,13 @@ $(BUILDDIR):
 
 targets: $(TARGETS)
 targets-q: $(TARGETS-q)
+targets-strip: $(TARGETS-strip)
 targets-static: $(TARGETS-static)
 
 define dep_rule
 $$(BUILDDIR)$1: $2
 $$(BUILDDIR)$1-q: $2
+$$(BUILDDIR)$1-strip: $2
 $$(BUILDDIR)$1-static: $2
 endef
 
@@ -65,6 +69,8 @@ addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
 
 $(BUILDDIR)%-static:
 	$(CC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
+$(BUILDDIR)%-strip:
+	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -s
 $(BUILDDIR)%-q:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
 $(BUILDDIR)%:
