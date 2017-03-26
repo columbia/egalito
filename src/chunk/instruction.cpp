@@ -198,9 +198,9 @@ uint32_t InstructionRebuilder::rebuild(void) {
     LOG(1, "mode: " << getModeInfo() - AARCH64_ImInfo);
     LOG(1, "src: " << getSource()->getAddress());
     LOG(1, "dest: " << dest);
-    LOG(1, "fixedBytes: " << getFixedBytes());
+    LOG(1, "fixedBytes: " << fixedBytes);
     LOG(1, "imm: " << imm);
-    LOG(1, "result: " << (getFixedBytes() | imm));
+    LOG(1, "result: " << (fixedBytes | imm));
 #endif
     return fixedBytes | imm;
 }

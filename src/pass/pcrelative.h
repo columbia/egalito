@@ -6,8 +6,9 @@
 
 class Module;
 
-// pick up any instruction that have PC-relative immediates
-// function pointer should be resolved before running this pass
+// For -q binaries,
+// pick up any instruction that have PC-relative data access.
+// Function pointers should be resolved before running this pass.
 class PCRelativePass : public ChunkPass {
 private:
     ElfMap *elf;
