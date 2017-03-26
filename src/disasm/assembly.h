@@ -60,6 +60,9 @@ public:
           bytes(insn.bytes, insn.bytes + insn.size),
           mnemonic(insn.mnemonic), operandString(insn.op_str),
           operands(insn),
+          regs_read_count(insn.detail->regs_read_count),
+          regs_read(insn.detail->regs_read,
+                     insn.detail->regs_read + insn.detail->regs_read_count),
           regs_write_count(insn.detail->regs_write_count),
           regs_write(insn.detail->regs_write,
                      insn.detail->regs_write + insn.detail->regs_write_count) {}

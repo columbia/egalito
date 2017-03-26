@@ -61,11 +61,11 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     ResolveRelocs resolveRelocs(&pltSection);
     module->accept(&resolveRelocs);
 
-    InferredPtrsPass inferredPtrsPass(elf);
-    module->accept(&inferredPtrsPass);
-
     PCRelativePass pcrelative(elf, relocList);
     module->accept(&pcrelative);
+
+    InferredPtrsPass inferredPtrsPass(elf);
+    module->accept(&inferredPtrsPass);
 
     //module->accept(&dumper);
 

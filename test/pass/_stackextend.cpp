@@ -81,24 +81,6 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + 4 + 4 + numberOfEpilogue(f) * 4);
     }
-
-    SECTION("frames not to be changed") {
-        auto f = module->getChildren()->getNamed()->find("func___");
-        CAPTURE(f->getSize() - funcsize[f]);
-        CHECK(f->getSize() == funcsize[f]);
-
-        f = module->getChildren()->getNamed()->find("funcB");
-        CAPTURE(f->getSize() - funcsize[f]);
-        CHECK(f->getSize() == funcsize[f]);
-
-        f = module->getChildren()->getNamed()->find("func3");
-        CAPTURE(f->getSize() - funcsize[f]);
-        CHECK(f->getSize() == funcsize[f]);
-
-        f = module->getChildren()->getNamed()->find("main");
-        CAPTURE(f->getSize() - funcsize[f]);
-        CHECK(f->getSize() == funcsize[f]);
-    }
 #endif
 }
 

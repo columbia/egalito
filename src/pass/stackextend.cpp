@@ -32,36 +32,11 @@ void StackExtendPass::visit(Function *function) {
     ChunkMutator(function).updatePositions();
     useStack(function, &frame);
 
-#if 1
+#if 0
     LOG(1, "modified:");
     ChunkDumper dumper;
     function->accept(&dumper);
 #endif
-}
-
-bool StackExtendPass::shouldApply(Function *function) {
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
-        for(auto i : b->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getAsmOperands()->getOperands();
-                if(assembly->getAsmOperands()->getOpCount() >= 1
-                   && operands[0].type == ARM64_OP_REG
-                   && (operands[0].reg == ARM64_REG_X18
-                       || operands[0].reg == ARM64_REG_W18)) {
-
-                    LOG(1, "x18 is modified in " << function->getName()
-                        << " at " << i->getName());
-
-                    LOG(1, "original:");
-                    ChunkDumper dumper;
-                    function->accept(&dumper);
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
@@ -78,6 +53,7 @@ void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
     if(auto ins = frame->getSetBPInstr()) {
         auto block = dynamic_cast<Block *>(ins->getParent());
         ChunkMutator(block).insertAfter(ins, instr_add);
+        frame->setSetBPInstr(instr_add);
     }
 }
 
@@ -90,31 +66,13 @@ void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
         ChunkMutator(block).insertBefore(ins, instr_sub);
     }
 
-    std::map<Instruction *, Instruction *>prevs;
-    for(auto ins : frame->getReturnInstrs()) {
+    for(auto ins : frame->getEpilogueInstrs()) {
         auto bin_add = AARCH64InstructionBinary(
             0x91000000 | extendSize << 10 | 31 << 5 | 31);
         auto block = dynamic_cast<Block *>(ins->getParent());
         auto instr_add = Disassemble::instruction(bin_add.getVector());
         ChunkMutator(block).insertBefore(ins, instr_add);
-        prevs[ins] = instr_add;
-    }
-
-    for(auto b : function->getChildren()->getIterable()->iterable()) {
-        for(auto i : b->getChildren()->getIterable()->iterable()) {
-            if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
-                i->getSemantic())) {
-
-                auto link = cfi->getLink();
-                for(auto ins : frame->getReturnInstrs()) {
-                    if(link->getTarget() == ins) {
-                        cfi->setLink(new NormalLink(prevs[ins]));
-                        delete link;
-                        break;
-                    }
-                }
-            }
-        }
+        frame->fixEpilogue(ins, instr_add);
     }
 }
 
@@ -124,21 +82,22 @@ FrameType::FrameType(Function *function)
 
     if(baseSize > 0) {
         auto firstB = function->getChildren()->getIterable()->get(0);
-        for(auto i : firstB->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = i->getSemantic()->getAssembly()) {
-                auto operands = assembly->getAsmOperands()->getOperands();
-                if(operands[0].type == ARM64_OP_REG
-                   && operands[0].reg == ARM64_REG_X29
-                   && operands[1].type == ARM64_OP_REG
-                   && operands[1].reg == ARM64_REG_SP) {
+        for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
+            if(auto assembly = ins->getSemantic()->getAssembly()) {
+                auto asmOps = assembly->getAsmOperands();
+                if(asmOps->getOpCount() >= 2
+                   && asmOps->getOperands()[0].type == ARM64_OP_REG
+                   && asmOps->getOperands()[0].reg == ARM64_REG_X29
+                   && asmOps->getOperands()[1].type == ARM64_OP_REG
+                   && asmOps->getOperands()[1].reg == ARM64_REG_SP) {
 
                     if(assembly->getId() == ARM64_INS_MOV) {
                         outArgSize = 0;
-                        setBPInstr = i;
+                        setBPInstr = ins;
                     }
                     else if(assembly->getId() == ARM64_INS_ADD) {
-                        outArgSize = operands[2].imm;
-                        setBPInstr = i;
+                        outArgSize = asmOps->getOperands()[2].imm;
+                        setBPInstr = ins;
                     }
                     break;
                 }
@@ -147,36 +106,51 @@ FrameType::FrameType(Function *function)
     }
 
     for(auto b : function->getChildren()->getIterable()->iterable()) {
-        for(auto i : b->getChildren()->getIterable()->iterable()) {
-            if(dynamic_cast<ReturnInstruction *>(i->getSemantic())) {
-                returnInstrs.push_back(i);
+        for(auto ins : b->getChildren()->getIterable()->iterable()) {
+            if(dynamic_cast<ReturnInstruction *>(ins->getSemantic())) {
+                epilogueInstrs.push_back(ins);
             }
             else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
-                i->getSemantic())) {
+                ins->getSemantic())) {
 
                 if(cfi->getMnemonic() == std::string("b")
                    || cfi->getMnemonic().find("b.", 0) != std::string::npos) {
 
                     auto link = dynamic_cast<NormalLink *>(cfi->getLink());
                     if(link && dynamic_cast<Function *>(&*link->getTarget())) {
-                        returnInstrs.push_back(i);
+                        epilogueInstrs.push_back(ins);
                     }
                 }
             }
         }
     }
 
-    for(auto const &retInstr : returnInstrs) {
+    for(auto const &retInstr : epilogueInstrs) {
         auto parent = dynamic_cast<Block *>(retInstr->getParent());
-        for(auto i : parent->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = i->getSemantic()->getAssembly()) {
+        for(auto ins : parent->getChildren()->getIterable()->iterable()) {
+            if(auto assembly = ins->getSemantic()->getAssembly()) {
                 auto operands = assembly->getAsmOperands()->getOperands();
                 if(assembly->getId() == ARM64_INS_MOV
                    && operands[0].reg == ARM64_REG_SP
                    && operands[1].type == ARM64_OP_REG
                    && operands[1].reg == ARM64_REG_X29) {
 
-                    resetSPInstrs.push_back(i);
+                    resetSPInstrs.push_back(ins);
+                }
+            }
+        }
+    }
+
+    for(auto block : function->getChildren()->getIterable()->iterable()) {
+        for(auto ins : block->getChildren()->getIterable()->iterable()) {
+            if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
+                ins->getSemantic())) {
+
+                for(auto ins : epilogueInstrs) {
+                    if(cfi->getLink()->getTarget() == ins) {
+                        jumpToEpilogueInstrs.push_back(cfi);
+                        break;
+                    }
                 }
             }
         }
@@ -185,8 +159,8 @@ FrameType::FrameType(Function *function)
 
 size_t FrameType::getFrameSize(Function *function) {
     auto firstB = function->getChildren()->getIterable()->get(0);
-    for(auto i : firstB->getChildren()->getIterable()->iterable()) {
-        if(auto assembly = i->getSemantic()->getAssembly()) {
+    for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
+        if(auto assembly = ins->getSemantic()->getAssembly()) {
             auto operands = assembly->getAsmOperands()->getOperands();
             auto writeback = assembly->getAsmOperands()->getWriteback();
             if(assembly->getId() == ARM64_INS_SUB
@@ -201,6 +175,23 @@ size_t FrameType::getFrameSize(Function *function) {
         }
     }
     return 0;
+}
+
+void FrameType::fixEpilogue(Instruction *oldInstr, Instruction *newInstr) {
+    for(auto &ins : epilogueInstrs) {
+        if(ins == oldInstr) {
+            *&ins = newInstr;
+            break;
+        }
+    }
+
+    for(auto cfi : jumpToEpilogueInstrs) {
+        auto link = cfi->getLink();
+        if(link->getTarget() == oldInstr) {
+            cfi->setLink(new NormalLink(newInstr));
+            delete link;
+        }
+    }
 }
 
 void FrameType::dump() {

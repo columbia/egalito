@@ -39,7 +39,8 @@ void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
 
             // note: this won't work unless PCRelativeInstruction has a LinkDecorator
             pcri->setLink(new DataOffsetLink(elf, offset));
-            //LOG(1, cs->mnemonic << "@" << std::hex << cs->address);
+            //auto assembly = v->getAssembly();
+            //LOG(1, assembly->getMnemonic() << "@" << std::hex << i->getAddress());
             //LOG(1, " target: " << std::hex << pcri->getLink()->getTargetAddress());
 
             i->setSemantic(pcri);

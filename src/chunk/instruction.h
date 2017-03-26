@@ -225,6 +225,7 @@ private:
 };
 
 typedef PCRelativeInstruction RelocationInstruction;
+typedef PCRelativeInstruction PCRelativePageInstruction;
 #endif
 
 class ReturnInstruction : public SemanticImpl<DisassembledStorage> {

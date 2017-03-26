@@ -16,12 +16,17 @@ private:
     size_t outArgSize;
     Instruction *setBPInstr;
     std::vector<Instruction *> resetSPInstrs;
-    std::vector<Instruction *> returnInstrs;
+    std::vector<Instruction *> epilogueInstrs;
+    std::vector<ControlFlowInstruction *> jumpToEpilogueInstrs;
+
 public:
     FrameType(Function *function);
     Instruction *getSetBPInstr() const { return setBPInstr; }
     std::vector<Instruction *> getResetSPInstrs() const { return resetSPInstrs; }
-    std::vector<Instruction *> getReturnInstrs() const { return returnInstrs; }
+    std::vector<Instruction *> getEpilogueInstrs() const {
+        return epilogueInstrs; }
+    void fixEpilogue(Instruction *oldInstr, Instruction *newInstr);
+    void setSetBPInstr(Instruction *newInstr) { setBPInstr = newInstr; }
     void dump();
 
 private:
@@ -38,7 +43,7 @@ public:
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
 private:
-    bool shouldApply(Function *function);
+    virtual bool shouldApply(Function *function) { return true; }
     void addExtendStack(Function *function, FrameType *frame);
     void addShrinkStack(Function *function, FrameType *frame);
     virtual void useStack(Function *function, FrameType *frame) {};
