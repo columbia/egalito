@@ -31,9 +31,7 @@ void ChunkDumper::visit(Block *block) {
 }
 
 void ChunkDumper::visit(Instruction *instruction) {
-    const char *target = nullptr;
-    Assembly *assembly = instruction->getSemantic()->getAssembly();
-
+    auto semantic = instruction->getSemantic();
     int pos = INT_MIN;
     auto parent = instruction->getParent();
     if(parent) {
@@ -46,105 +44,132 @@ void ChunkDumper::visit(Instruction *instruction) {
 
     CLOG0(4, "    ");
 
-    if(!assembly) {
-        if(auto p = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
+    if(auto p = dynamic_cast<ControlFlowInstruction *>(semantic)) {
 
-            auto link = p->getLink();
-            auto target = link ? link->getTarget() : nullptr;
+        dumpInstruction(p, instruction->getAddress(), pos);
 
-            std::ostringstream targetName;
-            if(target) {
-                if(target->getName() != "???") {
-                    targetName << target->getName().c_str();
-                }
-                else {
-                    targetName << "target-" << std::hex << &target;
-                }
-            }
-            else if(auto v = dynamic_cast<PLTLink *>(link)) {
-                targetName << v->getPLTTrampoline()->getName();
-            }
-            else targetName << "[unresolved]";
-
-            std::ostringstream name;
-#ifdef ARCH_X86_64
-            if(p->getMnemonic() == "callq") name << "(CALL)";
-#elif defined(ARCH_AARCH64)
-            if(p->getMnemonic() == "bl") name << "(CALL)";
-#endif
-            else {
-                name << "(JUMP " << p->getMnemonic() << ")";
-                //name << " [opcode size " << p->getOpcode().length() << ", dispSize " << p->getDisplacementSize() << "] ";
-            }
-
-            std::string bytes = instruction->getSemantic()->getData();
-            std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
-
-            DisasmDump::printInstructionRaw(instruction->getAddress(),
-                pos,
-                name.str().c_str(),
-                link ? link->getTargetAddress() : 0,
-                targetName.str().c_str(),
-                bytes2.c_str());
-        }
-#ifdef ARCH_AARCH64
-        else if(auto p = dynamic_cast<PCRelativeInstruction *>(
-            instruction->getSemantic())) {
-
-            auto link = p->getLink();
-            auto target = link ? link->getTarget() : nullptr;
-            auto name = target ? target->getName().c_str() : nullptr;
-            DisasmDump::printInstruction(
-                instruction->getAddress(), p->getAssembly(), pos, name);
-        }
-        else if(auto p = dynamic_cast<RawInstruction *>(
-            instruction->getSemantic())) {
-
-            std::vector<unsigned char> v(p->getData().begin(),
-                                         p->getData().end());
-            cs_insn instr = Disassemble::getInsn(v, instruction->getAddress());
-            Assembly assembly(instr);
-            DisasmDump::printInstruction(
-                instruction->getAddress(), &assembly, pos, nullptr);
-        }
-#endif
-        else LOG(4, "...unknown...");
-        return;
     }
+    else if(auto p = dynamic_cast<PCRelativeInstruction *>(semantic)) {
 
+        dumpInstruction(p, instruction->getAddress(), pos);
+    }
     // this handles RelocationInstruction, InferredInstruction
-    if(auto r = dynamic_cast<LinkedInstruction *>(instruction->getSemantic())) {
-        r->regenerateAssembly();
-        auto link = r->getLink();
-        auto target = link ? link->getTarget() : nullptr;
-        if(target) {
-            DisasmDump::printInstruction(
-                instruction->getAddress(), assembly, pos, target->getName().c_str());
-        }
-        else {
-            unsigned long targetAddress = link->getTargetAddress();
-            DisasmDump::printInstructionCalculated(
-                instruction->getAddress(), assembly, pos, targetAddress);
-        }
-        return;
+    else if(auto r = dynamic_cast<LinkedInstruction *>(semantic)) {
+
+        dumpInstruction(r, instruction->getAddress(), pos);
     }
+    else if(auto p = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
 
-    if(auto p = dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
-        std::ostringstream name;
-        name << "(JUMP* " << p->getMnemonic() << ")";
-
-        std::string bytes = instruction->getSemantic()->getData();
-        std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
-
-        DisasmDump::printInstructionRaw(instruction->getAddress(),
-            pos, name.str().c_str(),
-            p->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
-        return;
+        dumpInstruction(p, instruction->getAddress(), pos);
     }
-
-    DisasmDump::printInstruction(instruction->getAddress(), assembly, pos, target);
+    else {
+        dumpInstruction(semantic, instruction->getAddress(), pos);
+    }
 }
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
     LOG(1, "NYI");
+    LOG(4, "---[" << trampoline->getName() << "]---");
+    LOG(1, "should be located at: 0x" << std::hex << trampoline->getAddress());
 }
+
+void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
+    address_t address, int pos) {
+
+    auto link = semantic->getLink();
+    auto target = link ? link->getTarget() : nullptr;
+
+    std::ostringstream targetName;
+    if(target) {
+        if(target->getName() != "???") {
+            targetName << target->getName().c_str();
+        }
+        else {
+            targetName << "target-" << std::hex << &target;
+        }
+    }
+    else if(auto v = dynamic_cast<PLTLink *>(link)) {
+        targetName << v->getPLTTrampoline()->getName();
+    }
+    else targetName << "[unresolved]";
+
+    std::ostringstream name;
+#ifdef ARCH_X86_64
+    if(semantic->getMnemonic() == "callq") name << "(CALL)";
+#elif defined(ARCH_AARCH64)
+    if(semantic->getMnemonic() == "bl") name << "(CALL)";
+#endif
+    else {
+        name << "(JUMP " << semantic->getMnemonic() << ")";
+        //name << " [opcode size " << semantic->getOpcode().length() << ", dispSize " << semantic->getDisplacementSize() << "] ";
+    }
+
+    std::string bytes = semantic->getData();
+    std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
+
+    DisasmDump::printInstructionRaw(address,
+        pos,
+        name.str().c_str(),
+        link ? link->getTargetAddress() : 0,
+        targetName.str().c_str(),
+        bytes2.c_str());
+}
+
+void ChunkDumper::dumpInstruction(PCRelativeInstruction *semantic,
+    address_t address, int pos) {
+
+    auto link = semantic->getLink();
+    auto target = link ? link->getTarget() : nullptr;
+    auto name = target ? target->getName().c_str() : nullptr;
+    DisasmDump::printInstruction(address, semantic->getAssembly(), pos, name);
+}
+
+void ChunkDumper::dumpInstruction(LinkedInstruction *semantic,
+    address_t address, int pos) {
+
+    semantic->regenerateAssembly();
+    Assembly *assembly = semantic->getAssembly();
+    auto link = semantic->getLink();
+    auto target = link ? link->getTarget() : nullptr;
+    if(target) {
+        DisasmDump::printInstruction(
+            address, assembly, pos, target->getName().c_str());
+    }
+    else {
+        unsigned long targetAddress = link->getTargetAddress();
+        DisasmDump::printInstructionCalculated(
+            address, assembly, pos, targetAddress);
+    }
+}
+
+void ChunkDumper::dumpInstruction(IndirectJumpInstruction *semantic,
+    address_t address, int pos) {
+
+    std::ostringstream name;
+    name << "(JUMP* " << semantic->getMnemonic() << ")";
+
+    std::string bytes = semantic->getData();
+    std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
+
+    DisasmDump::printInstructionRaw(address,
+        pos, name.str().c_str(),
+        semantic->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
+}
+
+void ChunkDumper::dumpInstruction(InstructionSemantic *semantic,
+    address_t address, int pos) {
+
+    Assembly *assembly = semantic->getAssembly();
+
+    if(assembly) {
+        DisasmDump::printInstruction(address, assembly, pos, nullptr);
+    }
+    else {  /* RawInstruction */
+        std::vector<unsigned char> v(semantic->getData().begin(),
+                                     semantic->getData().end());
+        cs_insn instr = Disassemble::getInsn(v, address);
+        Assembly assembly(instr);
+        DisasmDump::printInstruction(address, &assembly, pos, nullptr);
+    }
+}
+

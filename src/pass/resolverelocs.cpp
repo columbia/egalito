@@ -13,8 +13,8 @@ void ResolveRelocs::visit(Instruction *instruction) {
             auto pltEntry = CIter::spatial(pltList)->find(address);
 
             if(pltEntry) {
-                LOG(0, "plt call at " << instruction->getAddress()
-                    << " to " << address
+                LOG(0, "plt call at 0x" << std::hex << instruction->getAddress()
+                    << " to 0x" << address
                     << " i.e. [" << pltEntry->getName() << "]");
                 v->setLink(new PLTLink(address, pltEntry));
                 delete link;

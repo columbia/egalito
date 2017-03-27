@@ -32,10 +32,6 @@ void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
                                                               r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-            // dynamic_cast<> can't tell if it's DisassembledInstruction or
-            // RelocationInstruction
-            if(v->getLink()) return;
-
             auto pcri = new PCRelativeInstruction(i, *v->getAssembly());
             address_t offset = pcri->getOriginalOffset();
 

@@ -22,6 +22,17 @@ public:
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
     virtual void visit(PLTTrampoline *trampoline);
+private:
+    void dumpInstruction(ControlFlowInstruction *semantic,
+                         address_t address, int pos);
+    void dumpInstruction(PCRelativeInstruction *semantic,
+                         address_t address, int pos);
+    void dumpInstruction(LinkedInstruction *semantic,
+                         address_t address, int pos);
+    void dumpInstruction(IndirectJumpInstruction *semantic,
+                         address_t address, int pos);
+    void dumpInstruction(InstructionSemantic *semantic,
+                         address_t address, int pos);
 };
 
 #endif

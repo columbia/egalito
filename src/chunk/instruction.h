@@ -224,8 +224,15 @@ private:
     InstructionRebuilder::Mode getMode(const Assembly &assembly);
 };
 
-typedef PCRelativeInstruction RelocationInstruction;
 typedef PCRelativeInstruction PCRelativePageInstruction;
+
+class RelocationInstruction : public InstructionRebuilder {
+public:
+    RelocationInstruction(Instruction *source, const Assembly &assembly)
+        : InstructionRebuilder(source, getMode(assembly), assembly) {}
+private:
+    InstructionRebuilder::Mode getMode(const Assembly &assembly);
+};
 #endif
 
 class ReturnInstruction : public SemanticImpl<DisassembledStorage> {

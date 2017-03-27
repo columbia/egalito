@@ -281,6 +281,25 @@ InstructionRebuilder::Mode PCRelativeInstruction::getMode(
     return m;
 }
 
+InstructionRebuilder::Mode RelocationInstruction::getMode(
+    const Assembly &assembly) {
+
+    InstructionRebuilder::Mode m;
+    if(assembly.getId() == ARM64_INS_ADRP) {
+        m = AARCH64_IM_ADRP;
+    }
+    else if(assembly.getId() == ARM64_INS_ADD) {
+        m = AARCH64_IM_ADDIMM;
+    }
+    else if(assembly.getId() == ARM64_INS_LDR) {
+        m = AARCH64_IM_LDR;
+    }
+    else {
+        throw "RelocationInstruction: not yet implemented";
+    }
+    return m;
+}
+
 Assembly InstructionRebuilder::generateAssembly() {
     auto data = AARCH64InstructionBinary(rebuild());
     cs_insn insn = Disassemble::getInsn(data.getVector(), getSource()->getAddress());
