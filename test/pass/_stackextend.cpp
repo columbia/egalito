@@ -40,7 +40,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
     auto module = conductor.getMainSpace()->getModule();
 
     std::map<Function *, size_t> funcsize;
-    for(auto f : module->getChildren()->getIterable()->iterable()) {
+    for(auto f : CIter::functions(module)) {
         funcsize[f] = f->getSize();
     }
 
@@ -49,35 +49,35 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
 
     SECTION("without frame") {
         // tail-call
-        auto f = module->getChildren()->getNamed()->find("func");
+        auto f = CIter::named(module->getFunctionList())->find("func");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + numberOfEpilogue(f) * 4);
 
-        f = module->getChildren()->getNamed()->find("func1");
+        f = CIter::named(module->getFunctionList())->find("func1");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + numberOfEpilogue(f) * 4);
     }
 
     SECTION("frame with local variables") {
-        auto f = module->getChildren()->getNamed()->find("func2");
+        auto f = CIter::named(module->getFunctionList())->find("func2");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + 4 + numberOfEpilogue(f) * 4);
     }
 
     SECTION("frame with alloca") {
-        auto f = module->getChildren()->getNamed()->find("funcA");
+        auto f = CIter::named(module->getFunctionList())->find("funcA");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + 4 + 4 + numberOfEpilogue(f) * 4);
     }
 
     SECTION("no frame but stack arguments") {
-        auto f = module->getChildren()->getNamed()->find("func_");
+        auto f = CIter::named(module->getFunctionList())->find("func_");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + numberOfEpilogue(f) * 4);
     }
 
     SECTION("frame with stack arguments") {
-        auto f = module->getChildren()->getNamed()->find("func__");
+        auto f = CIter::named(module->getFunctionList())->find("func__");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + 4 + 4 + numberOfEpilogue(f) * 4);
     }
@@ -97,7 +97,7 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
 
     // expects glibc
     auto module = libc->getElfSpace()->getModule();
-    auto f = module->getChildren()->getNamed()->find("__offtime");
+    auto f = CIter::named(module->getFunctionList())->find("__offtime");
     REQUIRE(f != nullptr);
 
     StackExtendPass extender(0x10);

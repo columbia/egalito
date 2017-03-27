@@ -10,6 +10,7 @@
 void PCRelativePass::visit(Module *module) {
 #if defined(ARCH_X86_64)
 #elif defined(ARCH_AARCH64)
+    auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
         auto t = r->getType();
         if ((t == R_AARCH64_ADR_GOT_PAGE)
@@ -18,16 +19,17 @@ void PCRelativePass::visit(Module *module) {
             /* || (t == R_AARCH64_ADR_PREL_LO21) */
             /* || (t == R_AARCH64_LD64_GOT_LO12_NC) */
             ) {
-            handlePCRelative(r, module);
+            handlePCRelative(r, functionList);
         }
     }
 #endif
 }
 
-void PCRelativePass::handlePCRelative(Reloc *r, Module *module) {
+void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
 #if defined(ARCH_X86_64)
 #elif defined(ARCH_AARCH64)
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(module, r->getAddress());
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList,
+                                                              r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
             // dynamic_cast<> can't tell if it's DisassembledInstruction or

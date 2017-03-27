@@ -18,7 +18,7 @@ public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
-    virtual void handlePCRelative(Reloc *r, Module *module);
+    virtual void handlePCRelative(Reloc *r, FunctionList *functionList);
 };
 
 #endif

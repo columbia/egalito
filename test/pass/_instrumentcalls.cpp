@@ -34,8 +34,8 @@ TEST_CASE("instrument a function", "[pass][fast][aarch64]") {
     conductor.parse(&elf, nullptr);
 
     auto module = conductor.getMainSpace()->getModule();
-    auto entry = module->getChildren()->getNamed()->find("entryAdvice");
-    auto exit = module->getChildren()->getNamed()->find("exitAdvice");
+    auto entry = CIter::named(module->getFunctionList())->find("entryAdvice");
+    auto exit = CIter::named(module->getFunctionList())->find("exitAdvice");
 
     REQUIRE(entry != nullptr);
     REQUIRE(exit != nullptr);
@@ -62,7 +62,7 @@ TEST_CASE("instrument a function", "[pass][fast][aarch64]") {
     };
     for(size_t i = 0; i < sizeof(testCase)/sizeof(*testCase); i ++) {
         auto name = testCase[i].name;
-        auto f = module->getChildren()->getNamed()->find(name);
+        auto f = CIter::named(module->getFunctionList())->find(name);
         REQUIRE(f != nullptr);
         CHECK(checkFunction(f, entry, exit) == testCase[i].expected);
     }
