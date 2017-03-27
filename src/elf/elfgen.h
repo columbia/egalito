@@ -64,7 +64,7 @@ private:
     class Metadata {
     private:
         typedef std::vector<Segment *> SegmentList;
-        typedef std::vector<Elf64_Phdr *> PhdrList;
+        typedef std::vector<std::pair<Segment *, Elf64_Phdr *>> PhdrList;
         typedef std::vector<std::pair<Section *, Elf64_Shdr *>> ShdrList;
     private:
         SegmentList segmentList;
@@ -76,7 +76,7 @@ private:
         ConcreteIterable<ShdrList> getShdrList() { return ConcreteIterable<ShdrList>(shdrList); }
         std::pair<Section *, Elf64_Shdr *> getLastShdr() { return shdrList.back(); }
         void addSegment(Segment *segment) { segmentList.push_back(segment); }
-        void addPhdr(Elf64_Phdr *phdr) { phdrList.push_back(phdr); }
+        void addPhdr(Segment *segment, Elf64_Phdr *phdr) { phdrList.push_back(std::make_pair(segment, phdr)); }
         void addShdr(Section *section, Elf64_Shdr *shdr) { shdrList.push_back(std::make_pair(section, shdr)); }
         size_t getSegmentListSize() const { return segmentList.size(); }
         size_t getPhdrListSize() const { return phdrList.size(); }
@@ -96,7 +96,9 @@ private:
     Segment *headerSegment;
     Segment *visibleSegment;
     Segment *phdrTableSegment;
+    Segment *dynamicSegment;
     Segment *hiddenSegment;
+    Section *dstrtab;
 public:
     ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
         const char *interpreter = nullptr);

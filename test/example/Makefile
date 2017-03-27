@@ -14,7 +14,7 @@ ifeq (aarch64,$(P_ARCH))
 	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
-	STATIC_CFLAGS += -DARCH_X86_64 -no-pie
+	STATIC_CFLAGS += -DARCH_X86_64 #-no-pie
 	BUILDDIR = build_x86_64/
 else
 $(error Unsupported platform, we only handle aarch64 and x86_64)

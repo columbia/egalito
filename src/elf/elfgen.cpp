@@ -80,7 +80,7 @@ ElfGen::Metadata::~Metadata() {
     for(auto segment : segmentList)
         delete segment;
     for(auto phdr : phdrList)
-        delete phdr;
+        delete phdr.second;
     for(auto shdr : shdrList) {
         delete shdr.first;
         delete shdr.second;
@@ -108,10 +108,13 @@ void ElfGen::generate() {
         makeDynamicSymbolInfo();
         makePLT();
         makeDynamic();
+        dynamicSegment->setAddress(getNextFreeAddress(visibleSegment));
+        dynamicSegment->setFileOff(getNextFreeOffset());
     }
     makePhdrTable();
-    phdrTableSegment->setAddress(getNextFreeAddress(visibleSegment));
+    phdrTableSegment->setAddress(getNextFreeAddress(dynamicSegment));
     phdrTableSegment->setFileOff(getNextFreeOffset());
+    // LOG(1, "Next free addr: " << getNextFreeAddress(phdrTableSegment));
     hiddenSegment->setFileOff(getNextFreeOffset());
     makeShdrTable();
     updateEntryPoint();
@@ -219,7 +222,7 @@ void ElfGen::makeNewTextSegment() {
     // Interp
     auto elfMap = elfSpace->getElfMap();
     if(elfMap->isDynamic()) {
-        Section *interpSection = new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter));
+        Section *interpSection = new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter) + 1);
         Segment *interpSegment = new Segment();
         interpSegment->setAddress(getNextFreeAddress(visibleSegment));
         interpSegment->setFileOff(getNextFreeOffset());
@@ -304,7 +307,7 @@ void ElfGen::makeDynamicSymbolInfo() {
         dsymtab->add(static_cast<void *>(&sym), sizeof(sym));
     }
 
-    Section *dstrtab = new Section(".dstrtab");
+    this->dstrtab = new Section(".dstrtab");
     dstrtab->add(dstrtabData.data(), dstrtabData.size());
 
     visibleSegment->add(dsymtab);
@@ -331,8 +334,38 @@ void ElfGen::makePLT() {
 }
 
 void ElfGen::makeDynamic() {
-    Segment *dynamicSegment = new Segment();
+    dynamicSegment = new Segment();
     Section *dynamicSection = new Section(".dynamic");
+
+    std::vector<Elf64_Dyn> dynamicData;
+    auto elfMap = elfSpace->getElfMap();
+    Elf64_Phdr *oldDynamic = nullptr;
+    for(auto original : elfMap->getSegmentList()) {
+        auto segment = static_cast<Elf64_Phdr *>(original);
+        if(segment->p_type == PT_DYNAMIC) {
+            oldDynamic = segment;
+            break;
+        }
+    }
+    unsigned long *oldList = reinterpret_cast<unsigned long *>(
+        elfMap->getCopyBaseAddress() + oldDynamic->p_offset);
+    while(oldList[0] != DT_NULL) {
+        Elf64_Sxword tag = oldList[0];
+        auto value = oldList[1];
+        if(tag == DT_NEEDED) {
+            const char *lib = elfMap->getDynstrtab() + value;
+            LOG(1, "I think the lib is [" << lib << "]");
+            auto index = dstrtab->getSize();
+            dstrtab->add(lib, std::strlen(lib) + 1);
+
+            dynamicData.push_back({tag, index});
+        }
+        oldList += 2;
+    }
+    dynamicData.push_back({DT_NULL, 0});
+    dynamicSection->add(static_cast<void *>(dynamicData.data()),
+        dynamicData.size() * sizeof(Elf64_Dyn));
+
     dynamicSegment->add(dynamicSection);
     addShdr(dynamicSection, SHT_DYNAMIC);
     addSegment(dynamicSegment, PT_DYNAMIC, PF_R | PF_W, 0x8);
@@ -352,7 +385,9 @@ void ElfGen::makePhdrTable() {
         phdrTable->add(entry, sizeof(Elf64_Phdr));
     }
     for(auto phdr : data.getPhdrList()) {
-        phdrTable->add(phdr, sizeof(Elf64_Phdr));
+        phdr.second->p_vaddr = phdr.first->getAddress();
+        phdr.second->p_paddr = phdr.first->getAddress();
+        phdrTable->add(phdr.second, sizeof(Elf64_Phdr));
     }
     phdrTableSegment->add(phdrTable);
     addSegment(phdrTableSegment);
@@ -369,6 +404,7 @@ void ElfGen::makeShdrTable() {
         auto shdr = p.second;
         shdr->sh_offset = section->getFileOff();
         shdr->sh_addr = section->getAddress();
+        shdr->sh_size = section->getSize();
         shdr->sh_name = shstrtab->getSize();
         LOG(1, "for " << section->getName() << ", sh_name is [" << shdr->sh_name << "]");
         shstrtab->add(section->getName().c_str(),
@@ -443,7 +479,7 @@ void ElfGen::addSegment(Segment *segment) {
 }
 void ElfGen::addSegment(Segment *segment, Elf64_Word p_type, Elf64_Word p_flags, Elf64_Xword p_align) {
     Elf64_Phdr *entry = segment->makeProgramHeader(p_type, p_flags, p_align);
-    data.addPhdr(entry);
+    data.addPhdr(segment, entry);
 
     data.addSegment(segment);
 }
