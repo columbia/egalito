@@ -55,7 +55,8 @@ GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
 .PHONY: all
 all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks
 
-$(ALL_OBJECTS): | $(GEN_TIMESTAMP) $(BUILDTREE)
+$(BUILDDIR)load/emulator.o $(BUILDDIR)transform/data.o: | $(GEN_TIMESTAMP)
+$(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
