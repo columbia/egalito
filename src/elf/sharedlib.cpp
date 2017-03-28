@@ -1,6 +1,7 @@
 #include <elf.h>
 #include <stdlib.h>  // for realpath() [ARM]
 #include <limits.h>  // for PATH_MAX [ARM]
+#include <iomanip>
 #include <sstream>
 #include "elfmap.h"
 #include "sharedlib.h"
@@ -21,7 +22,8 @@ std::string SharedLib::getAlternativeSymbolFile() const {
                 symbolFile << "/usr/lib/debug/.build-id/";
 
                 for(size_t i = 0; i < note->n_descsz; i ++) {
-                    symbolFile << std::hex << ((int)p[i] & 0xff);
+                    symbolFile << std::setw(2) << std::setfill('0') << std::hex
+                        << ((int)p[i] & 0xff);
                     if(i == 0) symbolFile << "/";
                 }
                 symbolFile << ".debug";

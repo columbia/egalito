@@ -92,11 +92,6 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 }
 
 Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
-    auto mc = symbolList->find(0x53349);
-    if(mc) {
-        LOG(1, "HERE's memcpy, is it a function? " << mc->isFunction());
-    }
-
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
     module->getChildren()->add(functionList);

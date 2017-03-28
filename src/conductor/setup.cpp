@@ -17,12 +17,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     setBaseAddress(elf, 0x4000000);
 
     this->conductor = new Conductor();
-    if(withSharedLibs) {
-        conductor->parseRecursive(elf);
-    }
-    else {
-        conductor->parse(elf, nullptr);
-    }
+    conductor->parseExecutable(elf);
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
@@ -31,6 +26,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
         auto egalitoLib = new SharedLib("(egalito)", "(egalito)", egalito);
         conductor->getLibraryList()->add(egalitoLib);
         conductor->parseEgalito(egalito, egalitoLib);
+    }
+
+    if(withSharedLibs) {
+        conductor->parseLibraries();
     }
 
     // set base addresses for any shared libraries that were pulled in

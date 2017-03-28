@@ -3,15 +3,26 @@
 #include "generate/debugelf.h"
 #include "pass/relocdata.h"
 #include "transform/data.h"
+#include "log/log.h"
 
 Conductor::Conductor() {
     libraryList = new LibraryList();
     spaceList = new ElfSpaceList();
 }
 
-void Conductor::parseRecursive(ElfMap *elf) {
+void Conductor::parseExecutable(ElfMap *elf) {
     parse(elf, nullptr);
+}
 
+void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
+    ElfSpace *space = new ElfSpace(elf, library, this);
+    library->setElfSpace(space);
+    space->findDependencies(libraryList);
+    space->buildDataStructures();
+    spaceList->addEgalito(space);
+}
+
+void Conductor::parseLibraries() {
     // we use an index here because the list can change as we iterate
     for(size_t i = 0; i < libraryList->getCount(); i ++) {
         auto library = libraryList->get(i);
@@ -25,14 +36,6 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
     space->findDependencies(libraryList);
     space->buildDataStructures();
     spaceList->add(space, library == nullptr);
-}
-
-void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library, this);
-    library->setElfSpace(space);
-    space->findDependencies(libraryList);
-    space->buildDataStructures();
-    spaceList->addEgalito(space);
 }
 
 void Conductor::fixDataSections() {

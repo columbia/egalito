@@ -20,8 +20,6 @@ int main(int argc, char *argv[]) {
 
     LOG(0, "rewriting ELF program [" << argv[1] << "] to [" << argv[2] << "]");
 
-    //Signals::registerHandlers();
-
     try {
         ConductorSetup setup;
 

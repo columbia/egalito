@@ -11,17 +11,20 @@ static int indent = 0;
 Conductor *global_conductor;
 
 static void egalito_log_function_name(unsigned long address, const char *dir) {
-    for(int i = 0; i < indent; i ++) egalito_printf("    ");
+    //for(int i = 0; i < indent; i ++) egalito_printf("    ");
+    egalito_printf("%d ", indent);
 
-    /*auto func = ChunkFind2(global_conductor).findFunctionContaining(address);
+    auto func = ChunkFind2(global_conductor).findFunctionContaining(address);
     if(func) {
         egalito_printf("%s %lx [%s+%lu]\n", dir, address,
             func->getName().c_str(), address - func->getAddress());
     }
-    else*/ {
+    else {
         egalito_printf("%s %lx\n", dir, address);
     }
 }
+
+static bool inside_egalito_log_code = false;
 
 extern "C" void egalito_log_function(void) {
 #ifdef ARCH_X86_64
@@ -37,14 +40,18 @@ extern "C" void egalito_log_function(void) {
         "push   %r11\n"
     );
 
-    unsigned long address;
-    __asm__ (
-        "mov    80(%%rsp), %%rax" : "=a"(address)
-    );
-    address -= 5;
-    //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-    egalito_log_function_name(address, "->");
-    indent ++;
+    if(!inside_egalito_log_code) {
+        inside_egalito_log_code = true;
+        unsigned long address;
+        __asm__ (
+            "mov    80(%%rsp), %%rax" : "=a"(address)
+        );
+        address -= 5;
+        //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
+        egalito_log_function_name(address, "->");
+        indent ++;
+        inside_egalito_log_code = false;
+    }
 
     __asm__ (
         "pop    %r11\n"
@@ -74,14 +81,18 @@ extern "C" void egalito_log_function_ret(void) {
         "push   %r11\n"
     );
 
-    unsigned long address;
-    __asm__ (
-        "mov    80(%%rsp), %%rax" : "=a"(address)
-    );
-    address -= 5;
-    //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-    indent --;
-    egalito_log_function_name(address, "<-");
+    if(!inside_egalito_log_code) {
+        inside_egalito_log_code = true;
+        unsigned long address;
+        __asm__ (
+            "mov    80(%%rsp), %%rax" : "=a"(address)
+        );
+        address -= 5;
+        //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
+        indent --;
+        egalito_log_function_name(address, "<-");
+        inside_egalito_log_code = false;
+    }
 
     __asm__ (
         "pop    %r11\n"
