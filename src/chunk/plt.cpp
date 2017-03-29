@@ -18,9 +18,17 @@ Reloc *PLTRegistry::find(address_t address) {
 PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
     Symbol *targetSymbol) : sourceElf(sourceElf), target(nullptr),
     targetSymbol(targetSymbol) {
-    
+
     setPosition(new AbsolutePosition(address));
 }
+
+PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
+    Symbol *targetSymbol, char *gotPLTEntry) : sourceElf(sourceElf),
+    target(nullptr), targetSymbol(targetSymbol), gotPLTEntry(gotPLTEntry) {
+
+    setPosition(new AbsolutePosition(address));
+}
+
 
 std::string PLTTrampoline::getName() const {
     if(getTargetSymbol()) {
@@ -142,7 +150,7 @@ PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
                 pltList->getChildren()->add(new PLTTrampoline(
-                    elf, pltAddress, r->getSymbol()));
+                    elf, pltAddress, r->getSymbol(), (char *)value));
             }
         }
     }
@@ -194,3 +202,34 @@ void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
         }
     }
 }
+
+void PLTTrampoline::writeTo(char *target) {
+#ifdef ARCH_X86_64
+#elif defined(ARCH_AARCH64)
+    static const uint32_t plt[] = {
+        0x90000010, //adrp x16, .
+        0xf9400211, //ldr  x17, [x16, #0]
+        /* 0x91000210, */ //add x16, x16, #0
+        0xd61f0220  //br x17
+    };
+
+    char *gotPLT = getGotPLTEntry();
+    address_t disp = reinterpret_cast<address_t>(gotPLT - (getAddress() & ~0xFFF));
+    uint32_t imm = disp >> 12;
+
+    uint32_t encoding = (imm & 0x3) << 29 | ((imm & 0x1FFFFC) << 3);
+
+    *(uint32_t *)(target + 0) = plt[0] | encoding;
+
+    disp = reinterpret_cast<address_t>(gotPLT) & 0xFFF;
+    imm = (disp >> 3) << 10;
+    encoding = imm & ~0xFFE003FF;
+
+    *(uint32_t *)(target + 4) = plt[1] | encoding;
+    *(uint32_t *)(target + 8) = plt[2];
+
+    LOG(1, "created PLT entry to " << std::hex << (void *)gotPLT
+        << " from 0x" << getAddress());
+#endif
+}
+

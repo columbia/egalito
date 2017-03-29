@@ -47,7 +47,6 @@ void ChunkDumper::visit(Instruction *instruction) {
     if(auto p = dynamic_cast<ControlFlowInstruction *>(semantic)) {
 
         dumpInstruction(p, instruction->getAddress(), pos);
-
     }
     else if(auto p = dynamic_cast<PCRelativeInstruction *>(semantic)) {
 

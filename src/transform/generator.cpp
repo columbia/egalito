@@ -21,6 +21,19 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
         //f->getPosition()->set(slot.getAddress());
         ChunkMutator(f).setPosition(slot.getAddress());
     }
+
+#ifdef ARCH_X86_64
+#elif defined(ARCH_AARCH64)
+    // these don't have to be contiguous
+    const size_t pltSize = 16;
+    for(auto plt : CIter::plts(module)) {
+        auto slot = sandbox->allocate(pltSize);
+        LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
+            << " for [" << plt->getName()
+            << "] size " << std::dec << pltSize);
+        ChunkMutator(plt).setPosition(slot.getAddress());
+    }
+#endif
 }
 
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
@@ -35,6 +48,15 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
             }
         }
     }
+
+#ifdef ARCH_X86_64
+#elif defined(ARCH_AARCH64)
+    for(auto plt : CIter::plts(module)) {
+        char *output = reinterpret_cast<char *>(plt->getAddress());
+        plt->writeTo(output);
+        output += 16;
+    }
+#endif
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

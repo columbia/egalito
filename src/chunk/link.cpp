@@ -12,7 +12,11 @@ address_t OffsetLink::getTargetAddress() const {
 }
 
 address_t PLTLink::getTargetAddress() const {
+#ifdef AARCH_X86_64
     return pltTrampoline->getSourceElf()->getBaseAddress() + originalAddress;
+#else
+    return pltTrampoline->getAddress();
+#endif
 }
 
 address_t DataOffsetLink::getTargetAddress() const {
