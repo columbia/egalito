@@ -225,17 +225,28 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
     else if(r->getType() == R_AARCH64_RELATIVE) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        if(!found) {
+            dest = elf->getBaseAddress() + r->getAddend();
+            found = true;
+        }
     }
     else if(r->getType() == R_AARCH64_PREL32) {
         LOG(1, "PREL32 isn't handled yet");
     }
+    else if(r->getType() == R_AARCH64_TLS_TPREL) {
+        dest = r->getAddend();
+    }
     else {
-        //LOG(1, "    NOT fixing because type is " << r->getType());
+        LOG(1, "    NOT fixing because type is " << r->getType());
     }
     if(found) {
         LOG(1, "    fix address " << std::hex << update
-            << " to point at " << dest);
+            << " to point at " << dest
+            << " which was " << std::hex << *(unsigned long *)update);
         *(unsigned long *)update = dest;
+    }
+    else {
+        LOG(1, "    not found!");
     }
 #endif
 }
