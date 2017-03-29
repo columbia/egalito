@@ -69,6 +69,8 @@ void ElfMap::verifyElf() {
     if (type != ELFCLASS32 && type != ELFCLASS64) {
         throw "file is not 32-bit or 64-bit ELF, unsupported\n";
     }
+
+    this->archType = type;
 }
 
 void ElfMap::makeSectionMap() {
@@ -165,16 +167,25 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
 // }
 
 size_t ElfMap::getEntryPoint() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    return header->e_entry;
+    if (this->archType == ELFCLASS64) {
+        return ElfMap::getEntryPoint<ElfType<ELFCLASS64> >();
+    } else {
+        return ElfMap::getEntryPoint<ElfType<ELFCLASS32> >();
+    }
 }
 
 bool ElfMap::isExecutable() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    return header->e_type == ET_EXEC;
+    if (this->archType == ELFCLASS64) {
+        return ElfMap::isExecutable<ElfType<ELFCLASS64> >();
+    } else {
+        return ElfMap::isExecutable<ElfType<ELFCLASS32> >();
+    }
 }
 
 bool ElfMap::isSharedLibrary() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    return header->e_type == ET_DYN;
+    if (this->archType == ELFCLASS64) {
+        return ElfMap::isSharedLibrary<ElfType<ELFCLASS64> >();
+    } else {
+        return ElfMap::isSharedLibrary<ElfType<ELFCLASS32> >();
+    }
 }
