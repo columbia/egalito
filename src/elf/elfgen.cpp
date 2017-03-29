@@ -317,17 +317,21 @@ void ElfGen::makeDynamicSymbolInfo() {
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
 
-    Elf64_Shdr *pltShdr = new Elf64_Shdr();
-    memcpy(pltShdr, elfMap->findSectionHeader(".plt"), sizeof(Elf64_Shdr));
-    pltShdr->sh_name = data.getShdrListSize();
-    Section *pltSection = new Section(".plt");
-    data.addShdr(pltSection, pltShdr);
+    if(auto p = elfMap->findSectionHeader(".plt")) {
+        Elf64_Shdr *pltShdr = new Elf64_Shdr();
+        memcpy(pltShdr, p, sizeof(Elf64_Shdr));
+        pltShdr->sh_name = data.getShdrListSize();
+        Section *pltSection = new Section(".plt");
+        data.addShdr(pltSection, pltShdr);
+    }
 
-    Elf64_Shdr *relaPltShdr = new Elf64_Shdr();
-    memcpy(relaPltShdr, elfMap->findSectionHeader(".rela.plt"), sizeof(Elf64_Shdr));
-    relaPltShdr->sh_name = data.getShdrListSize();
-    Section *relaPltSection = new Section(".rela.plt");
-    data.addShdr(relaPltSection, relaPltShdr);
+    if(auto p = elfMap->findSectionHeader(".rela.plt")) {
+        Elf64_Shdr *relaPltShdr = new Elf64_Shdr();
+        memcpy(relaPltShdr, p, sizeof(Elf64_Shdr));
+        relaPltShdr->sh_name = data.getShdrListSize();
+        Section *relaPltSection = new Section(".rela.plt");
+        data.addShdr(relaPltSection, relaPltShdr);
+    }
 }
 
 void ElfGen::makeDynamic() {
