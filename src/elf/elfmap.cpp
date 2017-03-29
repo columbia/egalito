@@ -54,15 +54,20 @@ void ElfMap::parseElf(const char *filename) {
 }
 
 void ElfMap::verifyElf() {
-    // make sure this is an ELF file
-    if(*(Elf64_Word *)map != *(Elf64_Word *)ELFMAG) {
+
+    unsigned char *e_ident = ((Elf32_Ehdr *)map)->e_ident;
+    if (   e_ident[EI_MAG0] != ELFMAG0
+        || e_ident[EI_MAG1] != ELFMAG1
+        || e_ident[EI_MAG2] != ELFMAG2
+        || e_ident[EI_MAG3] != ELFMAG3) {
         throw "executable image does not have ELF magic\n";
     }
 
     // check architecture type
-    char type = ((char *)map)[EI_CLASS];
-    if(type != ELFCLASS64) {
-        throw "file is not 64-bit ELF, unsupported\n";
+    unsigned char type = e_ident[EI_CLASS];
+
+    if (type != ELFCLASS32 && type != ELFCLASS64) {
+        throw "file is not 32-bit or 64-bit ELF, unsupported\n";
     }
 }
 
