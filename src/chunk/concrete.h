@@ -82,6 +82,8 @@ public:
 };
 class PLTList : public CompositeChunkImpl<PLTTrampoline> {
 public:
+    static size_t getPLTTrampolineSize();
+
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }

@@ -9,6 +9,14 @@ std::string Module::getName() const {
     return stream.str();
 }
 
+size_t PLTList::getPLTTrampolineSize() {
+#ifdef ARCH_X86_64
+    return 16;
+#else
+    return 16;
+#endif
+}
+
 std::string Block::getName() const {
     std::ostringstream stream;
     if(getParent()) {

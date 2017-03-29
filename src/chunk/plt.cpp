@@ -16,19 +16,11 @@ Reloc *PLTRegistry::find(address_t address) {
 }
 
 PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
-    Symbol *targetSymbol) : sourceElf(sourceElf), target(nullptr),
-    targetSymbol(targetSymbol) {
-
-    setPosition(new AbsolutePosition(address));
-}
-
-PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
-    Symbol *targetSymbol, char *gotPLTEntry) : sourceElf(sourceElf),
+    Symbol *targetSymbol, address_t gotPLTEntry) : sourceElf(sourceElf),
     target(nullptr), targetSymbol(targetSymbol), gotPLTEntry(gotPLTEntry) {
 
     setPosition(new AbsolutePosition(address));
 }
-
 
 std::string PLTTrampoline::getName() const {
     if(getTargetSymbol()) {
@@ -103,7 +95,7 @@ PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
                 pltList->getChildren()->add(new PLTTrampoline(elf,
-                    pltAddress, r->getSymbol()));
+                    pltAddress, r->getSymbol(), value));
             }
         }
     }
@@ -150,7 +142,7 @@ PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
                 pltList->getChildren()->add(new PLTTrampoline(
-                    elf, pltAddress, r->getSymbol(), (char *)value));
+                    elf, pltAddress, r->getSymbol(), value));
             }
         }
     }
@@ -197,7 +189,7 @@ void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
                 pltList->getChildren()->add(new PLTTrampoline(elf,
-                    pltAddress, r->getSymbol()));
+                    pltAddress, r->getSymbol(), value));
             }
         }
     }
@@ -205,6 +197,21 @@ void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
 
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
+    size_t offset = 0;
+#define ADD_BYTES(data, size) \
+    memcpy(target+offset, data, size), offset += size
+
+    // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
+    ADD_BYTES("\xff\x25", 2);
+    address_t gotPLT = getGotPLTEntry();
+    address_t disp = gotPLT - (getAddress() + 2+4);
+    ADD_BYTES(&disp, 4);
+
+    // 68 NN NN NN NN    pushq  $0xNNNNNNNN
+    ADD_BYTES("\x68", 1);
+    address_t address = getAddress();
+    ADD_BYTES(&address, 4);
+#undef ADD_BYTES
 #elif defined(ARCH_AARCH64)
     static const uint32_t plt[] = {
         0x90000010, //adrp x16, .
@@ -213,23 +220,23 @@ void PLTTrampoline::writeTo(char *target) {
         0xd61f0220  //br x17
     };
 
-    char *gotPLT = getGotPLTEntry();
-    address_t disp = reinterpret_cast<address_t>(gotPLT - (getAddress() & ~0xFFF));
+    address_t gotPLT = getGotPLTEntry();
+    address_t disp = gotPLT - (getAddress() & ~0xFFF);
     uint32_t imm = disp >> 12;
 
     uint32_t encoding = (imm & 0x3) << 29 | ((imm & 0x1FFFFC) << 3);
 
     *(uint32_t *)(target + 0) = plt[0] | encoding;
 
-    disp = reinterpret_cast<address_t>(gotPLT) & 0xFFF;
+    disp = gotPLT & 0xFFF;
     imm = (disp >> 3) << 10;
     encoding = imm & ~0xFFE003FF;
 
     *(uint32_t *)(target + 4) = plt[1] | encoding;
     *(uint32_t *)(target + 8) = plt[2];
+#endif
 
     LOG(1, "created PLT entry to " << std::hex << (void *)gotPLT
         << " from 0x" << getAddress());
-#endif
 }
 

@@ -15,11 +15,10 @@ private:
     ElfMap *sourceElf;
     Chunk *target;
     Symbol *targetSymbol;
-    char *gotPLTEntry;
+    address_t gotPLTEntry;
 public:
-    PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol);
     PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol,
-                  char *gotPLTEntry);
+                  address_t gotPLTEntry);
 
     std::string getName() const;
 
@@ -32,8 +31,8 @@ public:
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 
     void writeTo(char *target);
-    char *getGotPLTEntry() const {
-        return sourceElf->getBaseAddress() + gotPLTEntry; }
+    address_t getGotPLTEntry() const
+        { return sourceElf->getBaseAddress() + gotPLTEntry; }
 };
 
 class PLTSection {
