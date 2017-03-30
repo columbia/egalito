@@ -201,16 +201,33 @@ void PLTTrampoline::writeTo(char *target) {
 #define ADD_BYTES(data, size) \
     memcpy(target+offset, data, size), offset += size
 
-    // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
-    ADD_BYTES("\xff\x25", 2);
-    address_t gotPLT = getGotPLTEntry();
-    address_t disp = gotPLT - (getAddress() + 2+4);
-    ADD_BYTES(&disp, 4);
+    bool isIFunc = false;
+    if(auto v = dynamic_cast<Function *>(this->target)) {
+        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) isIFunc = true;
+    }
 
-    // 68 NN NN NN NN    pushq  $0xNNNNNNNN
-    ADD_BYTES("\x68", 1);
-    address_t address = getAddress();
-    ADD_BYTES(&address, 4);
+    address_t gotPLT = getGotPLTEntry();
+    if(!isIFunc) {
+        // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
+        ADD_BYTES("\xff\x25", 2);
+        address_t disp = gotPLT - (getAddress() + 2+4);
+        ADD_BYTES(&disp, 4);
+
+        // 68 NN NN NN NN    pushq  $0xNNNNNNNN
+        //ADD_BYTES("\x68", 1);
+        //address_t address = getAddress();
+        //ADD_BYTES(&address, 4);
+    }
+    else {
+        // ff 15 NN NN NN NN    callq *0xNNNNNNNN(%rip)
+        ADD_BYTES("\xff\x15", 2);
+        address_t disp = gotPLT - (getAddress() + 2+4);
+        ADD_BYTES(&disp, 4);
+
+        // ff e0    jmpq *%rax
+        ADD_BYTES("\xff\xe0", 2);
+    }
+
 #undef ADD_BYTES
 #elif defined(ARCH_AARCH64)
     static const uint32_t plt[] = {

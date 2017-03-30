@@ -128,6 +128,16 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
     updateSizesAndAuthorities(newChunk);
 }
 
+void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
+    // update sizes of parents and grandparents
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        c->addToSize(added);
+    }
+
+    // update authority pointers in positions
+    updateGenerationCounts(child);
+}
+
 void ChunkMutator::setPosition(address_t address) {
     chunk->getPosition()->set(address);
 }

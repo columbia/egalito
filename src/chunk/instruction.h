@@ -125,13 +125,16 @@ typedef LinkDecorator<SemanticImpl<DisassembledStorage>> PCRelativeInstruction;
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
 private:
+    unsigned int id;
     Instruction *source;
     std::string opcode;
     std::string mnemonic;
     int displacementSize;
 public:
-    ControlFlowInstruction(Instruction *source, std::string opcode, std::string mnemonic, int displacementSize)
-        : source(source), opcode(opcode), mnemonic(mnemonic), displacementSize(displacementSize) {}
+    ControlFlowInstruction(unsigned int id, Instruction *source,
+        std::string opcode, std::string mnemonic, int displacementSize)
+        : id(id), source(source), opcode(opcode), mnemonic(mnemonic),
+        displacementSize(displacementSize) {}
 
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
@@ -146,7 +149,13 @@ public:
     std::string getMnemonic() const { return mnemonic; }
     std::string getOpcode() const { return opcode; }
     int getDisplacementSize() const { return displacementSize; }
-private:
+
+    // the following should only be called by PromoteJumpsPass
+    int getId() const { return id; }
+    void setDisplacementSize(int ds) { displacementSize = ds; }
+    void setOpcode(const std::string &string) { opcode = string; }
+    void setMnemonic(const std::string &string) { mnemonic = string; }
+public:
     diff_t calculateDisplacement();
 };
 #elif defined(ARCH_AARCH64)

@@ -12,6 +12,7 @@
 #include "conductor/setup.h"
 #include "break/signals.h"
 #include "pass/logcalls.h"
+#include "pass/promotejumps.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -99,5 +100,10 @@ static void otherPasses(ConductorSetup *setup) {
     LogCallsPass logCalls(setup->getConductor());
     // false = do not add tracing to Egalito's own functions
     setup->getConductor()->acceptInAllModules(&logCalls, false);
+#endif
+
+#ifdef ARCH_X86_64
+    PromoteJumpsPass promoteJumps;
+    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
 #endif
 }

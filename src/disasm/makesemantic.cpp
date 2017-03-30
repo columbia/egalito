@@ -21,7 +21,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     if(x->op_count > 0 && x->operands[0].type == X86_OP_IMM) {
         if(ins->id == X86_INS_CALL) {
             unsigned long imm = op->imm;
-            auto cfi = new ControlFlowInstruction(instruction,
+            auto cfi = new ControlFlowInstruction(
+                ins->id, instruction,
                 std::string((char *)ins->bytes,
                 ins->size - 4),
                 ins->mnemonic,
@@ -34,7 +35,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             auto dispSize = determineDisplacementSize(&assembly);
             size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
-            auto cfi = new ControlFlowInstruction(instruction,
+            auto cfi = new ControlFlowInstruction(
+                ins->id, instruction,
                 std::string((char *)ins->bytes, use),
                 ins->mnemonic, dispSize);
             cfi->setLink(new UnresolvedLink(imm));

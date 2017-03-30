@@ -44,6 +44,10 @@ public:
     /** Sets the position of a Chunk, performs any necessary updates. */
     void setPosition(address_t address);
 
+    /** Call this to propagate position changes if a child's size is modified.
+    */
+    void modifiedChildSize(Chunk *child, int added);
+
     /** Force positions to be updated, if using cached positions. */
     void updatePositions();
 private:

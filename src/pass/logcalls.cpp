@@ -143,7 +143,7 @@ void LogCallsPass::visit(Instruction *instruction) {
 void LogCallsPass::addEntryInstructionsAt(Block *block) {
 #ifdef ARCH_X86_64
     auto callIns = new Instruction();
-    auto callSem = new ControlFlowInstruction(callIns, "\xe8", "call", 4);
+    auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingBegin));
     callIns->setSemantic(callSem);
     ChunkMutator(block).prepend(callIns);
@@ -153,7 +153,7 @@ void LogCallsPass::addEntryInstructionsAt(Block *block) {
 void LogCallsPass::addExitInstructionsAt(Instruction *instruction) {
 #ifdef ARCH_X86_64
     auto callIns = new Instruction();
-    auto callSem = new ControlFlowInstruction(callIns, "\xe8", "call", 4);
+    auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingEnd));
     callIns->setSemantic(callSem);
     ChunkMutator(instruction->getParent())
