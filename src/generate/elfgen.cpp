@@ -12,11 +12,11 @@ ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     stringTableList(STRING_TABLE_TYPES) {
     int idx = SEGMENT_TYPES;
     while(idx-- >= 0)
-        segmentList[idx] = new Segment();
+        segmentList[idx] = new Segment(idx);
 
-    stringTableList[SH] = new Section(".shstrtab");
-    stringTableList[DYN] = new Section(".dynstr");
-    stringTableList[SYM] = new Section(".strtab");
+    stringTableList[SH] = new Section(".shstrtab", SHT_STRTAB);
+    stringTableList[DYN] = new Section(".dynstr", SHT_STRTAB);
+    stringTableList[SYM] = new Section(".strtab", SHT_STRTAB);
 }
 
 ElfGen::Metadata::~Metadata() {
@@ -34,10 +34,7 @@ ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
 }
 
 void ElfGen::generate() {
-    // {  // add null entry to shdr list
-    //     Section nullSection("");
-    //     addShdr(&nullSection, SHT_NULL);
-    // }
+    // data[Metadata::HIDDEN]->add(new Section("", SHT_NULL));
 
     makeHeader();
     makeRWData();
@@ -85,8 +82,9 @@ void ElfGen::makeRWData() {// Elf Header
     }
     // Read Write data
     if(rwdata) {  // some executables may have no data to load!
-        char *loadRWVirtualAdress = elfMap->getCharmap() + rodata->p_offset; // HERE
-        data[Metadata::RWDATA]->add(new Section(".old_rw", static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz));
+        char *loadRWVirtualAdress = elfMap->getCharmap() + rodata->p_offset;
+        data[Metadata::RWDATA]->add((new Section(".old_rw"))
+            ->with(static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz));
         data[Metadata::RWDATA]->setFileOff(rwdata->p_offset);
         data[Metadata::RWDATA]->setAddress(rwdata->p_vaddr);
         data[Metadata::RWDATA]->setPhdrInfo(rwdata->p_type, rwdata->p_flags, rwdata->p_align);
@@ -126,7 +124,8 @@ void ElfGen::makeText() {
         data[Metadata::VISIBLE]->setPhdrInfo(PT_LOAD, PF_R | PF_X, 0x1000);
         std::ostringstream sectionName;
         sectionName << ".text.0x" << std::hex << *i;
-        auto textSection = new Section(sectionName.str().c_str(), (const uint8_t *)*i, size);
+        auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS);
+        textSection->add((const uint8_t *)*i, size);
         data[Metadata::VISIBLE]->add(textSection);
 
         totalSize += size;
@@ -136,10 +135,10 @@ void ElfGen::makeText() {
     // Interp
     auto elfMap = elfSpace->getElfMap();
     if(elfMap->isDynamic()) {
-        Section *interpSection = new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter) + 1);
+        Section *interpSection = new Section(".interp", SHT_PROGBITS);
+        interpSection->add(elfMap->getInterpreter(), std::strlen(interpreter) + 1);
         data[Metadata::INTERP]->add(interpSection);
         data[Metadata::INTERP]->setPhdrInfo(PT_INTERP, PF_R, 0x1);
-        // data[Metadata::INTERP]->setAddress();
 
         data[Metadata::VISIBLE]->add(interpSection);
     }
@@ -147,14 +146,13 @@ void ElfGen::makeText() {
 
 void ElfGen::makeSymbolInfo() {
     // Symbol Table
-    Section *symtab = new Section(".symtab");
+    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
+    auto strtab = data.getStrTable(Metadata::SYM);
 
-    std::vector<char> strtabData;
     size_t count = 0;
     {  // add null symbol
-        strtabData.push_back('\0');
         Elf64_Sym symbol;
-        symbol.st_name = 0;
+        symbol.st_name = strtab->add("", 1);  // add empty name
         symbol.st_info = 0;
         symbol.st_other = STV_DEFAULT;
         symbol.st_shndx = 0;
@@ -166,39 +164,24 @@ void ElfGen::makeSymbolInfo() {
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
         // add name to string table
-        auto name = func->getName();
-        auto index = strtabData.size();
-        strtabData.insert(strtabData.end(), name.begin(), name.end());
-        strtabData.push_back('\0');
-
-        // generate new Symbol from new address
-        Elf64_Sym sym = generateSymbol(func, func->getSymbol(), index);
-        symtab->add(static_cast<void *>(&sym), sizeof(sym));
-        count ++;
+        auto index = strtab->add(func->getName(), true);
+        symtab->add(func, func->getSymbol(), index);
 
         for(auto alias : func->getSymbol()->getAliases()) {
             // add name to string table
             auto name = std::string(alias->getName());
-            auto index = strtabData.size();
-            strtabData.insert(strtabData.end(), name.begin(), name.end());
-            strtabData.push_back('\0');
-
-            // generate new Symbol from new address
-            Elf64_Sym sym = generateSymbol(func, alias, index);
-            symtab->add(static_cast<void *>(&sym), sizeof(sym));
-            count ++;
+            auto index = strtab->add(name, true);
+            symtab->add(func, alias, index);
         }
     }
 
-    data.getStrTable(Metadata::SYM)->add(strtabData.data(), strtabData.size());
-
+    symtab->setSectionLink(strtab);
     data[Metadata::HIDDEN]->add(symtab);
-    data[Metadata::HIDDEN]->add(data.getStrTable(Metadata::SYM));
+    data[Metadata::HIDDEN]->add(strtab);
 
     // HERE
     // int strtab_id = addShdr(strtab, SHT_STRTAB);
     // addShdr(symtab, SHT_SYMTAB, strtab_id);
-    // data.getLastShdr().second->sh_info = count;
 }
 #if 0
 void ElfGen::makeDynamicSymbolInfo() {
@@ -307,26 +290,45 @@ void ElfGen::makePhdrTable() {
 }
 
 void ElfGen::makeShdrTable() {
+    data[Metadata::HEADER]->add(new Section("", SHT_NULL));
+    auto shstrtab = data.getStrTable(Metadata::SH);
+    data[Metadata::HIDDEN]->add(shstrtab);
+
     // Allocate new space for the shdrs, and don't map them into memory.
     // NOTE: shstrtab must be the last section in the ELF (to set e_shstrndx).
     // addShdr(shstrtab, SHT_STRTAB);
-    auto shdrTable = new Section(".shdr_table");
+    std::vector<std::pair<Section *, Elf64_Shdr *>> shdrList;
+    std::map<Section *, size_t> sectionLookup;
+    size_t index = 0;
     for(auto seg : data.getSegmentList()) {
+        if(seg->getType() == Metadata::INTERP) continue;
+
         for(auto sec : seg->getSections()) {
             if(sec->hasShdr()) {
-                shdrTable->add(sec->makeShdr(0), sizeof(Elf64_Shdr)); // HERE
-                data.getStrTable(Metadata::SH)->add(sec->getName().c_str(),
-                    sec->getName().size() + 1);
+                auto shdr = sec->makeShdr(index++, shstrtab->getSize());
+                shstrtab->add(sec->getName(), true);  // include NULL terminator
+
+                sectionLookup[sec] = shdrList.size();
+                shdrList.push_back(std::make_pair(sec, shdr));
             }
         }
     }
-    // HERE
-    // modify sh string table location in file
-    // data.getLastShdr().second->sh_size = shstrtab->getSize();
-    // data.getLastShdr().second->sh_offset = getNextFreeOffset(); // HERE
-    data[Metadata::HIDDEN]->add(data.getStrTable(Metadata::SH));
+    // expand shstrtab to include the string for itself & following sections
+    shdrList[sectionLookup[shstrtab]].second->sh_size = shstrtab->getSize();
+
+    auto shdrTable = new Section(".shdr_table");
+    for(auto p : shdrList) {
+        auto sec = p.first;
+        auto shdr = p.second;
+        shdr->sh_link = sectionLookup[sec->getSectionLink()];
+        shdrTable->add(shdr, sizeof(*shdr));
+    }
     data[Metadata::HIDDEN]->add(shdrTable);
-    data[Metadata::HIDDEN]->add(shdrTable);
+
+    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    header->e_shstrndx = sectionLookup[data.getStrTable(Metadata::SH)];
+
+    for(auto shdr : shdrList) delete shdr.second;
 }
 
 void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
@@ -334,7 +336,8 @@ void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
     auto elfMap = elfSpace->getElfMap();
     data[Metadata::HEADER]->setFileOff(0);
     data[Metadata::HEADER]->setAddress(0);
-    data[Metadata::HEADER]->add(new Section(".elfheader", elfMap->getMap(), sizeof(Elf64_Ehdr)));
+    data[Metadata::HEADER]->add((new Section(".elfheader"))
+        ->with(elfMap->getMap(), sizeof(Elf64_Ehdr)));
     // Update entry point in existing segment
     Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
     address_t entry_pt = 0;
@@ -388,16 +391,4 @@ address_t ElfGen::getNextFreeAddress(Segment *segment) {
         if(address > maxAddress) maxAddress = address;
     }
     return maxAddress;
-}
-
-Elf64_Sym ElfGen::generateSymbol(Function *func, Symbol *sym, size_t strtabIndex) {
-    Elf64_Sym symbol;
-    symbol.st_name = static_cast<Elf64_Word>(strtabIndex);
-    symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
-                                   Symbol::typeFromInternalToElf(sym->getType()));
-    symbol.st_other = STV_DEFAULT;
-    symbol.st_shndx = func ? 1 : 3;  // dynamic symbols have func==nullptr
-    symbol.st_value = func ? func->getAddress() : 0;
-    symbol.st_size = func ? func->getSize() : 0;
-    return std::move(symbol);
 }

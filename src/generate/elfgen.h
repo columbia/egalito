@@ -57,7 +57,6 @@ private:
 private:
     size_t getNextFreeOffset();
     address_t getNextFreeAddress(Segment *segment);
-    static Elf64_Sym generateSymbol(Function *func, Symbol *sym, size_t strtabIndex);
 };
 
 #endif

@@ -10,6 +10,7 @@ class Section;
 
 class Segment {
 private:
+    size_t type;
     address_t address;
     size_t fileOffset;
     std::vector<Section *> sections;
@@ -19,10 +20,11 @@ private:
 public:
     // Sometimes the first parameter will be ignored, because the Segment
     // won't be mapped into memory
-    Segment() : address(0), fileOffset(0), p_type(PT_NULL),
-        p_flags(PT_NULL), p_align(PT_NULL) {}
+    Segment(size_t type) : type(type), address(0), fileOffset(0),
+        p_type(PT_NULL), p_flags(PT_NULL), p_align(PT_NULL) {}
     ~Segment();
 public:
+    size_t getType() const { return type; }
     address_t getAddress() const { return address; }
     size_t getFileOff() const { return fileOffset; }
     size_t getSize();
