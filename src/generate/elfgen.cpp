@@ -14,6 +14,8 @@ ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     while(idx-- >= 0)
         segmentList[idx] = new Segment(idx);
 
+    segmentList[Metadata::HEADER]->setHasPhdr(false);
+    segmentList[Metadata::HIDDEN]->setHasPhdr(false);
     stringTableList[SH] = new Section(".shstrtab", SHT_STRTAB);
     stringTableList[DYN] = new Section(".dynstr", SHT_STRTAB);
     stringTableList[SYM] = new Section(".strtab", SHT_STRTAB);
@@ -34,8 +36,6 @@ ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
 }
 
 void ElfGen::generate() {
-    // data[Metadata::HIDDEN]->add(new Section("", SHT_NULL));
-
     makeHeader();
     makeRWData();
     makeText();
@@ -43,14 +43,8 @@ void ElfGen::generate() {
     if(elfSpace->getElfMap()->isDynamic()) {
         makeDynamicSymbolInfo();
         // makePLT();
-        // makeDynamic();
-        // dynamicSegment->setAddress(getNextFreeAddress(VISIBLESegment));
-        // dynamicSegment->setFileOff(getNextFreeOffset());
+        makeDynamic();
     }
-    // phdrTableSegment->setAddress(getNextFreeAddress(dynamicSegment));
-    // phdrTableSegment->setFileOff(getNextFreeOffset());
-    // LOG(1, "Next free addr: " << getNextFreeAddress(phdrTableSegment));
-    // hiddenSegment->setFileOff(getNextFreeOffset());
     updateOffsetAndAddress();
     makeShdrTable();
     makePhdrTable();
@@ -214,10 +208,11 @@ void ElfGen::makePLT() {
     Section *relaPltSection = new Section(".rela.plt");
     data.addShdr(relaPltSection, relaPltShdr);
 }
+#endif
 
 void ElfGen::makeDynamic() {
-    dynamicSegment = new Segment();
-    Section *dynamicSection = new Section(".dynamic");
+    Section *dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
+    auto dynstr = data.getStrTable(Metadata::DYN);
 
     std::vector<Elf64_Dyn> dynamicData;
     auto elfMap = elfSpace->getElfMap();
@@ -237,8 +232,7 @@ void ElfGen::makeDynamic() {
         if(tag == DT_NEEDED) {
             const char *lib = elfMap->getDynstrtab() + value;
             LOG(1, "I think the lib is [" << lib << "]");
-            auto index = dstrtab->getSize();
-            dstrtab->add(lib, std::strlen(lib) + 1);
+            auto index = dynstr->add(lib, std::strlen(lib) + 1);
 
             dynamicData.push_back({tag, index});
         }
@@ -248,11 +242,9 @@ void ElfGen::makeDynamic() {
     dynamicSection->add(static_cast<void *>(dynamicData.data()),
         dynamicData.size() * sizeof(Elf64_Dyn));
 
-    dynamicSegment->add(dynamicSection);
-    addShdr(dynamicSection, SHT_DYNAMIC);
-    addSegment(dynamicSegment, PT_DYNAMIC, PF_R | PF_W, 0x8);
+    data[Metadata::DYNAMIC]->add(dynamicSection);
+    data[Metadata::DYNAMIC]->setPhdrInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
 }
-#endif
 
 void ElfGen::makePhdrTable() {
     // Note: we overwrite the previous phdrs list. This only works if we have
@@ -262,8 +254,9 @@ void ElfGen::makePhdrTable() {
     data[Metadata::PHDR_TABLE]->setAddress(0);
     std::vector<Elf64_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
-        if(seg == data[Metadata::HIDDEN] || seg == data[Metadata::HEADER]) continue;
-        phdrList.push_back(seg->makePhdr());
+        if(seg->hasPhdr()) {
+            phdrList.push_back(seg->makePhdr());
+        }
     }
     Section *phdrTable = new Section(".phdr_table");
     {
@@ -284,8 +277,6 @@ void ElfGen::makeShdrTable() {
     data[Metadata::HIDDEN]->add(shstrtab);
 
     // Allocate new space for the shdrs, and don't map them into memory.
-    // NOTE: shstrtab must be the last section in the ELF (to set e_shstrndx).
-    // addShdr(shstrtab, SHT_STRTAB);
     std::vector<std::pair<Section *, Elf64_Shdr *>> shdrList;
     std::map<Section *, size_t> sectionLookup;
     size_t index = 0;
@@ -348,8 +339,11 @@ void ElfGen::updateOffsetAndAddress() {
             data[t]->setFileOff(getNextFreeOffset());
         }
         if(data[t]->getAddress() == 0) {
-            if(t != Metadata::HIDDEN) // Do not update the address
+            if (t == Metadata::HIDDEN) {
+                // don't assign an address
+            } else {
                 data[t]->setAddress(getNextFreeAddress(data[prevT]));
+            }
         }
     }
 }
@@ -359,9 +353,8 @@ void ElfGen::updateHeader() {
     header->e_phoff = data[Metadata::PHDR_TABLE]->getFileOff();
     header->e_phnum = data[Metadata::PHDR_TABLE]->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
     Section *shdrTable = data[Metadata::HIDDEN]->findSection(".shdr_table");
-    header->e_shoff = shdrTable->getFileOff(); // HERE
-    header->e_shnum = shdrTable->getSize() / sizeof(Elf64_Shdr); // HERE
-    // header->e_shstrndx = data.getShdrListSize() - 1;  // assume .shstrtab is last // HERE
+    header->e_shoff = shdrTable->getFileOff();
+    header->e_shnum = shdrTable->getSize() / sizeof(Elf64_Shdr);
 }
 
 size_t ElfGen::getNextFreeOffset() {

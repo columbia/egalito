@@ -30,7 +30,7 @@ Elf64_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     entry->sh_size = getSize();
     entry->sh_addr = address;
 
-    if(shdrType == SHT_SYMTAB) {
+    if(shdrType == SHT_SYMTAB || shdrType == SHT_DYNSYM) {
         entry->sh_entsize = sizeof(Elf64_Sym);
         entry->sh_info = getSize() / entry->sh_entsize;
         entry->sh_addralign = 8;

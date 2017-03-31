@@ -15,7 +15,7 @@ class ElfGen {
 private:
     class Metadata {
     public:
-        enum SegmentType {HEADER, PHDR_TABLE, RWDATA, VISIBLE, INTERP, HIDDEN/*, DYNAMIC*/, SEGMENT_TYPES};
+        enum SegmentType {HEADER, PHDR_TABLE, RWDATA, VISIBLE, INTERP, DYNAMIC, HIDDEN, SEGMENT_TYPES};
         enum StringTableType {SYM, SH, DYN, STRING_TABLE_TYPES};
     private:
         typedef std::vector<Segment *> SegmentList;
