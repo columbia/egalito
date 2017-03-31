@@ -28,6 +28,7 @@ public:
     size_t getSize();
     std::vector<Section *> getSections() const { return sections; }
     Section *getFirstSection() const { return sections[0]; }
+    Section *findSection(const std::string &name);
 public:
     void setAddress(address_t addr);
     void setFileOff(size_t offset);

@@ -14,13 +14,9 @@ ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     while(idx-- >= 0)
         segmentList[idx] = new Segment();
 
-    idx = STRING_TABLE_TYPES;
-    while(idx-- >= 0)
-        stringTableList[idx] = new Section();
-
-    stringTableList[SH]->setName(".shstrtab");
-    stringTableList[DYN]->setName(".dynstr");
-    stringTableList[SYM]->setName(".strtab");
+    stringTableList[SH] = new Section(".shstrtab");
+    stringTableList[DYN] = new Section(".dynstr");
+    stringTableList[SYM] = new Section(".strtab");
 }
 
 ElfGen::Metadata::~Metadata() {
@@ -58,9 +54,10 @@ void ElfGen::generate() {
     // phdrTableSegment->setFileOff(getNextFreeOffset());
     // LOG(1, "Next free addr: " << getNextFreeAddress(phdrTableSegment));
     // hiddenSegment->setFileOff(getNextFreeOffset());
+    updateOffsetAndAddress();
     makeShdrTable();
     makePhdrTable();
-    updateOffsetAndAddress();
+    updateHeader();
 
     // Write to file
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
@@ -123,7 +120,7 @@ void ElfGen::makeText() {
 
         LOG(1, "map " << std::hex << *i << " size " << size);
 
-        // intentionally leave VISIBLESegment set after last iteration
+        // intentionally leave VISIBLE Segment set after last iteration
         data[Metadata::VISIBLE]->setAddress(backing->getBase() + totalSize);
         data[Metadata::VISIBLE]->setFileOff(loadOffset + totalSize);
         data[Metadata::VISIBLE]->setPhdrInfo(PT_LOAD, PF_R | PF_X, 0x1000);
@@ -142,6 +139,8 @@ void ElfGen::makeText() {
         Section *interpSection = new Section(".interp", elfMap->getInterpreter(), std::strlen(interpreter) + 1);
         data[Metadata::INTERP]->add(interpSection);
         data[Metadata::INTERP]->setPhdrInfo(PT_INTERP, PF_R, 0x1);
+        // data[Metadata::INTERP]->setAddress();
+
         data[Metadata::VISIBLE]->add(interpSection);
     }
 }
@@ -291,14 +290,14 @@ void ElfGen::makePhdrTable() {
     data[Metadata::PHDR_TABLE]->setAddress(0);
     std::vector<Elf64_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
+        if(seg == data[Metadata::HIDDEN] || seg == data[Metadata::HEADER]) continue;
         phdrList.push_back(seg->makePhdr());
     }
     Section *phdrTable = new Section(".phdr_table");
     {
-        Elf64_Phdr *entry = data[Metadata::PHDR_TABLE]->makePhdr(); // Program Table Header
+        Elf64_Phdr *entry = phdrList[0];  // assume first phdr is the PHDR entry
         entry->p_memsz = (phdrList.size() + 1) * sizeof(Elf64_Phdr);
         entry->p_filesz = entry->p_memsz;
-        phdrList.insert(phdrList.begin(), entry);
     }
     for(auto phdr : phdrList) {
         phdrTable->add(static_cast<void *>(phdr), sizeof(Elf64_Phdr));
@@ -346,27 +345,31 @@ void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
             + start->getAddress();
     }
     header->e_entry = entry_pt;
-    // header->e_phoff = phdrTableSegment->getFileOff(); // HERE
-    // header->e_phnum = phdrTableSegment->getFirstSection()->getSize() / sizeof(Elf64_Phdr); // HERE
-    // header->e_shoff = shdrTable->getFileOff(); // HERE
-    // header->e_shnum = shdrTable->getSize() / sizeof(Elf64_Shdr); // HERE
-    // header->e_shstrndx = data.getShdrListSize() - 1;  // assume .shstrtab is last // HERE
 }
 
 void ElfGen::updateOffsetAndAddress() {
-    size_t idx = 1;
-    while(idx++ < Metadata::SEGMENT_TYPES) {
+    size_t idx = 0;
+    while(++idx < Metadata::SEGMENT_TYPES) {
         auto t = static_cast<Metadata::SegmentType>(idx);
         auto prevT = static_cast<Metadata::SegmentType>(idx - 1);
         if(data[t]->getFileOff() == 0) {
-            data[t]->setAddress(getNextFreeOffset());
+            data[t]->setFileOff(getNextFreeOffset());
         }
         if(data[t]->getAddress() == 0) {
-            if(t == Metadata::HIDDEN) // Do not update the address
-                continue;
-            data[t]->setAddress(getNextFreeAddress(data[prevT]));
+            if(t != Metadata::HIDDEN) // Do not update the address
+                data[t]->setAddress(getNextFreeAddress(data[prevT]));
         }
     }
+}
+
+void ElfGen::updateHeader() {
+    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    header->e_phoff = data[Metadata::PHDR_TABLE]->getFileOff();
+    header->e_phnum = data[Metadata::PHDR_TABLE]->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
+    Section *shdrTable = data[Metadata::HIDDEN]->findSection(".shdr_table");
+    header->e_shoff = shdrTable->getFileOff(); // HERE
+    header->e_shnum = shdrTable->getSize() / sizeof(Elf64_Shdr); // HERE
+    // header->e_shstrndx = data.getShdrListSize() - 1;  // assume .shstrtab is last // HERE
 }
 
 size_t ElfGen::getNextFreeOffset() {

@@ -15,6 +15,13 @@ size_t Segment::getSize() {
     return size;
 }
 
+Section *Segment::findSection(const std::string &name) {
+    for(auto sec : sections) {
+        if(sec->getName() == name) return sec;
+    }
+    return nullptr;
+}
+
 void Segment::setFileOff(size_t offset) {
     long int diff = 0;
     for(auto sec : sections) {
