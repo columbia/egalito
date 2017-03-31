@@ -58,12 +58,10 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
     symbol.st_size = func ? func->getSize() : 0;
     add(static_cast<void *>(&symbol), sizeof(symbol));
     count ++;
-    LOG(1, "add -> " << count);
 }
 
 Elf64_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
-    LOG(1, "set sh_info to " << count);
     shdr->sh_info = count;
     return shdr;
 }

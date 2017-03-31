@@ -41,7 +41,7 @@ void ElfGen::generate() {
     makeText();
     makeSymbolInfo();
     if(elfSpace->getElfMap()->isDynamic()) {
-        // makeDynamicSymbolInfo();
+        makeDynamicSymbolInfo();
         // makePLT();
         // makeDynamic();
         // dynamicSegment->setAddress(getNextFreeAddress(VISIBLESegment));
@@ -178,38 +178,27 @@ void ElfGen::makeSymbolInfo() {
     symtab->setSectionLink(strtab);
     data[Metadata::HIDDEN]->add(symtab);
     data[Metadata::HIDDEN]->add(strtab);
-
-    // HERE
-    // int strtab_id = addShdr(strtab, SHT_STRTAB);
-    // addShdr(symtab, SHT_SYMTAB, strtab_id);
 }
-#if 0
+
 void ElfGen::makeDynamicSymbolInfo() {
     // Symbol Table
-    Section *dsymtab = new Section(".dsymtab");
-    std::vector<char> dstrtabData = {'\0'};
+    auto dynsym = new SymbolTableSection(".dynsym", SHT_DYNSYM);
+    auto dynstr = data.getStrTable(Metadata::DYN);
     for(auto symbol : *elfSpace->getDynamicSymbolList()) {
         // add name to string table
         std::string name = symbol->getName();
-        auto index = dstrtabData.size();
-        dstrtabData.insert(dstrtabData.end(), name.begin(), name.end());
-        dstrtabData.push_back('\0');
+        auto index = dynstr->add(name, true);
 
         // generate new Symbol from new address
-        Elf64_Sym sym = generateSymbol(nullptr, symbol, index);
-        dsymtab->add(static_cast<void *>(&sym), sizeof(sym));
+        dynsym->add(nullptr, symbol, index);
     }
 
-    data.getStrTable(Metadata::DYN)->add(dstrtabData.data(), dstrtabData.size());
-
-    data[Metadata::HIDDEN]->add(dsymtab);
-    data[Metadata::HIDDEN]->add(data.getStrTable(Metadata::DYN));
-
-    // HERE
-    // int dstrtab_id = addShdr(dstrtab, SHT_STRTAB);
-    // addShdr(dsymtab, SHT_DYNSYM, dstrtab_id);
+    dynsym->setSectionLink(dynstr);
+    data[Metadata::VISIBLE]->add(dynsym);
+    data[Metadata::VISIBLE]->add(dynstr);
 }
 
+#if 0
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
 
