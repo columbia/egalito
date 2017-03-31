@@ -1,6 +1,6 @@
 #include "conductor.h"
 #include "elf/elfmap.h"
-#include "elf/debugelf.h"
+#include "generate/debugelf.h"
 #include "pass/relocdata.h"
 
 Conductor::Conductor() {
