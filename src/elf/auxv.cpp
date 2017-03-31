@@ -62,3 +62,19 @@ void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
         }
     }
 }
+
+int removeLoaderFromArgv(void *argv) {
+    unsigned long *argc = (unsigned long *)argv - 1;
+    int remove_count = 1;  // number of arguments to remove
+
+    LOG(5, "Original command-line arguments:");
+    for(int i = 0; i < (int)*argc; i ++) {
+        CLOG(5, "    argv[%d] = \"%s\"%s", i,
+            (char *) *(unsigned long *)((char *)argv + i*8),
+            i >= remove_count ? "" : "\t[removing]");
+    }
+
+    // move argc, overwriting arguments to be erased, and adjust %rsp
+    *(argc + remove_count) = (*argc) - remove_count;
+    return sizeof(unsigned long) * remove_count;
+}

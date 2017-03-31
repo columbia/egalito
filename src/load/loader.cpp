@@ -17,6 +17,7 @@
 #include "log/log.h"
 
 extern address_t entry;
+extern const char *initial_stack;
 extern "C" void _start2(void);
 
 static void mapSegments(ConductorSetup *setup);
@@ -58,6 +59,7 @@ int main(int argc, char *argv[]) {
 
         // set up execution environment
         adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
+        initial_stack += removeLoaderFromArgv(argv);
 
         std::cout.flush();
         std::fflush(stdout);

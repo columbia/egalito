@@ -5,5 +5,6 @@
 #include "elf/elfmap.h"
 
 void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter);
+int removeLoaderFromArgv(void *argv);
 
 #endif

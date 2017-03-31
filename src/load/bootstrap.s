@@ -1,6 +1,7 @@
 .global _start
 .global _start2
 .global entry
+.global initial_stack
 
 .section .bss
 initial_stack:
