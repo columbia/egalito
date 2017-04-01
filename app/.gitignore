@@ -1,0 +1,5 @@
+*.swp
+/.symlinks
+/etshell
+/build_x86_64
+/build_aarch64
