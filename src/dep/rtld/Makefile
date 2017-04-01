@@ -71,13 +71,13 @@ $(BUILDDIR)%.o: %.c
 .PHONY: relink
 
 %.h: $(BUILDDIR)%.h relink
-	ln -sf $<
+	@ln -sf $<
 
 %.c: $(BUILDDIR)%.c relink
-	ln -sf $<
+	@ln -sf $<
 
 %: $(BUILDDIR)% relink
-	ln -sf $<
+	@ln -sf $<
 
 .PHONY: clean
 clean:

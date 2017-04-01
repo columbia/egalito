@@ -10,6 +10,7 @@ class Conductor {
 private:
     LibraryList *libraryList;
     ElfSpaceList *spaceList;
+    void *mainThreadPointer;
 public:
     Conductor();
 
@@ -25,6 +26,11 @@ public:
 
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
     LibraryList *getLibraryList() const { return libraryList; }
+
+    void *getMainThreadPointer() const { return mainThreadPointer; }
+
+private:
+    void loadTLSData();
 };
 
 #endif
