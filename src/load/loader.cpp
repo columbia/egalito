@@ -6,6 +6,7 @@
 #include "usage.h"
 #include "segmap.h"
 #include "emulator.h"
+#include "callinit.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
@@ -60,6 +61,9 @@ int main(int argc, char *argv[]) {
         // set up execution environment
         adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
         initial_stack += removeLoaderFromArgv(argv);
+
+        auto libc = setup.getConductor()->getLibraryList()->getLibc();
+        CallInit::callInitFunctions(libc->getElfSpace());
 
         std::cout.flush();
         std::fflush(stdout);
