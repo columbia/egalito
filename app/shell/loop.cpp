@@ -6,6 +6,7 @@
 
 #include "loop.h"
 #include "disass.h"
+#include "readline.h"
 #include "conductor/setup.h"
 
 void TopLevelCommand::invokeDefault(Arguments args) {
@@ -31,6 +32,8 @@ static void printUsageHelper(Command *command, int level) {
 }
 
 void mainLoop() {
+    Readline readline;
+
     ConductorSetup setup;
     ConductorSetup *pSetup = &setup;
     bool running = true;
@@ -55,11 +58,7 @@ void mainLoop() {
     registerDisassCommands(pTopLevel, pSetup);
 
     while(running) {
-        std::cout << "egalito> ";
-        std::cout.flush();
-
-        std::string line;
-        std::getline(std::cin, line);
+        std::string line = readline.get("egalito> ");
         std::istringstream sstream(line);
         Arguments args;
         std::string arg;

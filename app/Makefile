@@ -71,7 +71,7 @@ $(BUILDDIR)shell/shell.o: shell/shell.cpp
 
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
 
 # Other targets
 .PHONY: clean realclean
