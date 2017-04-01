@@ -35,7 +35,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
     ElfMap elf(TESTDIR "stack");
 
     Conductor conductor;
-    conductor.parse(&elf, nullptr);
+    conductor.parseExecutable(&elf);
 
     auto module = conductor.getMainSpace()->getModule();
 
@@ -89,7 +89,8 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
     ElfMap elf(TESTDIR "stack");
 
     Conductor conductor;
-    conductor.parseRecursive(&elf);
+    conductor.parseExecutable(&elf);
+    conductor.parseLibraries();
 
     auto libc = conductor.getLibraryList()->getLibc();
     INFO("looking for libc.so in depends...");

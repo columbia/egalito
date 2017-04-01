@@ -36,7 +36,7 @@ OUTPUTS = $(ITEST) $(RUNNER)
 .PHONY: all
 all: test-all symlinks
 
-test-all: $(ITEST) $(RUNNER) | rebuild-src
+test-all: $(OUTPUTS) | rebuild-src
 
 ifeq ($(findstring clean,$(MAKECMDGOALS)),)
 Makefile: rebuild-src

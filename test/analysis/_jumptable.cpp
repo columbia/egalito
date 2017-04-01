@@ -12,7 +12,7 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
     ElfMap elf(TESTDIR "jumptable");
 
     Conductor conductor;
-    conductor.parse(&elf, nullptr);
+    conductor.parseExecutable(&elf);
 
     auto module = conductor.getMainSpace()->getModule();
     auto f = CIter::named(module->getFunctionList())->find("main");
@@ -52,7 +52,8 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
     ElfMap elf(TESTDIR "jumptable");
 
     Conductor conductor;
-    conductor.parseRecursive(&elf);
+    conductor.parseExecutable(&elf);
+    conductor.parseLibraries();
 
     auto libc = conductor.getLibraryList()->getLibc();
     INFO("looking for libc.so in depends...");
@@ -106,7 +107,8 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
     ElfMap elf(TESTDIR "jumptable");
 
     Conductor conductor;
-    conductor.parseRecursive(&elf);
+    conductor.parseExecutable(&elf);
+    conductor.parseLibraries();
 
     auto libc = conductor.getLibraryList()->getLibc();
     INFO("looking for libc.so in depends...");
