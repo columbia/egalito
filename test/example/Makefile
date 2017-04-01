@@ -26,10 +26,12 @@ TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
+LONE_TARGETS = hellocpp
 
 ALL_TARGETS = $(TARGETS)
 ALL_TARGETS += $(TARGETS-q)
 ALL_TARGETS += $(TARGETS-static)
+ALL_TARGETS += $(LONE_TARGETS)
 
 .PHONY: all targets targets-q targets-static
 
@@ -57,6 +59,7 @@ $(eval $(call dep_rule,fp,fp.c))
 $(eval $(call dep_rule,stack,stack.c))
 $(eval $(call dep_rule,log,log.c))
 $(eval $(call dep_rule,stderr,stderr.c))
+$(eval $(call dep_rule,hellocpp,hellocpp.cpp))
 
 addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
 
@@ -69,4 +72,4 @@ $(BUILDDIR)%:
 
 .PHONY: clean
 clean:
-	-$(RM) -rf $(BUILDDIR)
+	-$(RM) -rf $(BUILDDIR) hellocpp
