@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <functional>
+#include "types.h"  // for address_t
 
 class Arguments {
 private:
@@ -12,6 +13,7 @@ private:
 public:
     void add(const std::string &arg) { args.push_back(arg); }
     Arguments popFront();
+    bool asHex(std::size_t index, address_t *address);
     void shouldHave(std::size_t count);
 
     std::size_t size() const { return args.size(); }

@@ -11,6 +11,13 @@ Arguments Arguments::popFront() {
     return std::move(other);
 }
 
+bool Arguments::asHex(std::size_t index, address_t *address) {
+    const char *str = args[index].c_str();
+    char *end = nullptr;
+    *address = std::strtol(str, &end, 16);
+    return (*str != 0 && *end == 0);
+}
+
 void Arguments::shouldHave(std::size_t count) {
     if(size() != count) {
         std::ostringstream stream;

@@ -12,7 +12,10 @@ class Sandbox;
     Note: please call functions in the order they appear, i.e.
         parseElfFiles(),
         makeLoaderSandbox() / makeFileSandbox(),
-        moveCode()
+        moveCode() OR its three components
+            moveCodeAssignAddresses(),
+            copyCodeToNewAddresses(),
+            moveCodeMakeExecutable()
 */
 class ConductorSetup {
 private:
@@ -28,6 +31,10 @@ public:
     void makeLoaderSandbox();
     void makeFileSandbox(const char *outputFile);
     void moveCode();
+public:
+    void moveCodeAssignAddresses();
+    void copyCodeToNewAddresses();
+    void moveCodeMakeExecutable();
 public:
     ElfMap *getElfMap() const { return elf; }
     ElfMap *getEgalitoElfMap() const { return egalito; }

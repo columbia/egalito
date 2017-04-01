@@ -7,6 +7,7 @@
 #include "chunk/concrete.h"
 #include "chunk/find.h"
 #include "chunk/find2.h"
+#include "pass/logcalls.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -21,12 +22,15 @@ static bool findInstrInModule(Module *module, address_t address) {
 
 void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) {
     topLevel->add("disass", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
         args.shouldHave(1);
 
         Function *func = nullptr;
-        char *end = nullptr;
-        auto addr = std::strtol(args.front().c_str(), &end, 16);
-        if(args.front().size() > 0 && *end == 0) {
+        address_t addr;
+        if(args.asHex(0, &addr)) {
             func = ChunkFind2(setup->getConductor())
                 .findFunctionContaining(addr);
         }
@@ -43,11 +47,15 @@ void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) 
             std::cout << "can't find function or address \"" << args.front() << "\"\n";
         }
     }, "disassembles a single function (like the GDB command)");
+
     topLevel->add("x/i", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
         args.shouldHave(1);
-        char *end = nullptr;
-        auto addr = std::strtol(args.front().c_str(), &end, 16);
-        if(args.front().size() == 0 || *end != 0) {
+        address_t addr;
+        if(!args.asHex(0, &addr)) {
             std::cout << "invalid address, please use hex\n";
             return;
         }
@@ -63,4 +71,30 @@ void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) 
             if(findInstrInModule(space->getModule(), addr)) return;
         }
     }, "disassembles a single instruction");
+
+    topLevel->add("logcalls", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        LogCallsPass logCalls(setup->getConductor());
+        // false = do not add tracing to Egalito's own functions
+        setup->getConductor()->acceptInAllModules(&logCalls, false);
+    }, "runs LogCallsPass to instrument function calls");
+
+    topLevel->add("reassign", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        setup->makeLoaderSandbox();
+        setup->moveCodeAssignAddresses();
+    }, "allocates a sandbox and assigns functions new addresses");
+
+    topLevel->add("generate", [&] (Arguments args) {
+        args.shouldHave(1);
+        setup->makeFileSandbox(args.front().c_str());
+        setup->moveCode();  // calls sandbox->finalize()
+    }, "writes out the current code to an ELF file");
 }

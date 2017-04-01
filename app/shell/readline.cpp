@@ -33,12 +33,13 @@ Readline::~Readline() {
 }
 
 std::string Readline::get(const std::string &prompt) {
-    char *line = readline(prompt.c_str());
-    if(line) {
+    std::string prompt2 = "\033[1;37m" + prompt + "\033[0m";
+    char *line = readline(prompt2.c_str());
+    if(line && *line) {
         add_history(line);
     }
 
-    std::string lineCpp(line);
+    std::string lineCpp(line ? line : "");
     free(line);
     return std::move(lineCpp);
 }
