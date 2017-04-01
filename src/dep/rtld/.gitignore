@@ -8,3 +8,5 @@
 /rtld_data2.c
 /test
 /reproduce
+/build_x86_64
+/build_aarch64

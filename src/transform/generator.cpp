@@ -5,11 +5,13 @@
 #include "chunk/mutator.h"
 #include "log/log.h"
 
+#if 0
 Sandbox *Generator::makeSandbox() {
     auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
     return new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing);
 }
+#endif
 
 void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     for(auto f : CIter::functions(module)) {

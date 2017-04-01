@@ -15,6 +15,7 @@
 #define PTR_SIZE    (1<<PTR_LOG_SIZE)
 
 .global entry
+.global main_tp
 .global _start2
 
 .section .bss
@@ -24,6 +25,8 @@ initial_stack:
 saved_x0:
     .skip   8
 entry:
+    .skip   PTR_SIZE
+main_tp:
     .skip   PTR_SIZE
 
 
@@ -106,6 +109,10 @@ _start:
 	bl	abort
 
 _start2:
+    ldr     x1, =main_tp
+    ldr     x1, [x1]
+    msr     tpidr_el0, x1
+
     ldr     x1, =initial_stack
     ldr     x1, [x1]
     #adrp    x1, :pg_hi21:initial_stack

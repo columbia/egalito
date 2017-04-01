@@ -19,7 +19,7 @@ endif
 endif
 
 OPT_FLAGS       = -g -O2
-DEPFLAGS        = -MT '$@ $(@:.o=.d)' -MMD -MP
+DEPFLAGS        = -MT $@ -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = $(CROSSLD) -lcapstone -Wl,-q

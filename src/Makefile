@@ -13,7 +13,7 @@ LOAD_SOURCES        = $(wildcard load/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
 else ifeq (x86_64,$(P_ARCH))
-	LOAD_SOURCES += load/bootstrap.s
+	LOAD_SOURCES += load/bootstrap-x86_64.s
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
@@ -48,11 +48,13 @@ SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY) $(SHARED_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
+GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
+
 # Default target
 .PHONY: all
-all: gencode $(OUTPUTS) symlinks
+all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks
 
-$(ALL_OBJECTS): | gencode $(BUILDTREE)
+$(ALL_OBJECTS): | $(GEN_TIMESTAMP) $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
@@ -73,8 +75,11 @@ symlinks: $(OUTPUTS) .symlinks
 .PHONY: relink
 relink: symlinks
 
+$(GEN_TIMESTAMP): gencode | $(BUILDTREE)
+	touch $@
+
 gencode:
-	$(MAKE) -C dep/rtld
+	$(MAKE) -C dep/rtld P_ARCH=$(P_ARCH)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))

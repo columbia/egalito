@@ -19,6 +19,7 @@
 
 extern address_t entry;
 extern const char *initial_stack;
+extern void *main_tp;
 extern "C" void _start2(void);
 
 static void mapSegments(ConductorSetup *setup);
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
         std::fflush(stdout);
 
         // jump to the interpreter/target program (never returns)
+        main_tp = setup.getMainThreadPointer();
         _start2();
     }
     catch(const char *s) {

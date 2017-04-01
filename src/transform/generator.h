@@ -5,7 +5,7 @@
 
 class Generator {
 public:
-    Sandbox *makeSandbox();
+    //Sandbox *makeSandbox();
     void pickAddressesInSandbox(Module *module, Sandbox *sandbox);
     void copyCodeToSandbox(Module *module, Sandbox *sandbox);
     void jumpToSandbox(Sandbox *sandbox, Module *module,

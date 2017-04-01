@@ -2,6 +2,7 @@
 .global _start2
 .global entry
 .global initial_stack
+.global main_tp
 
 .section .bss
 initial_stack:
@@ -9,6 +10,8 @@ initial_stack:
 saved_rdx:
     .skip   8
 entry:
+    .skip   8
+main_tp:
     .skip   8
 
 .section .text

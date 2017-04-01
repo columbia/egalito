@@ -2,6 +2,7 @@
 #include "elf/elfmap.h"
 #include "elf/debugelf.h"
 #include "pass/relocdata.h"
+#include "transform/data.h"
 
 Conductor::Conductor() {
     libraryList = new LibraryList();
@@ -42,6 +43,8 @@ void Conductor::fixDataSections() {
     }
 
     fixDataSection(spaceList->getMain());
+
+    loadTLSData();
 }
 
 void Conductor::fixDataSection(ElfSpace *elfSpace) {
@@ -51,6 +54,20 @@ void Conductor::fixDataSection(ElfSpace *elfSpace) {
         elfSpace->getRelocList(),
         this);
     elfSpace->getModule()->accept(&relocData);
+}
+
+void Conductor::loadTLSData() {
+    auto module = getMainSpace()->getModule();
+    DataLoader loader;
+
+    mainThreadPointer = loader.setupMainData(module, 0xd0000000);
+    int i = 1;
+    for(auto lib : *getLibraryList()) {
+        if(!lib->getElfSpace()) continue;
+        loader.loadLibraryTLSData(
+            lib->getElfSpace()->getModule(), 0xd0000000 + i*0x1000000);
+        i ++;
+    }
 }
 
 void Conductor::writeDebugElf(const char *filename, const char *suffix) {
