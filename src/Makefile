@@ -48,11 +48,13 @@ SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY) $(SHARED_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
+GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
+
 # Default target
 .PHONY: all
-all: gencode $(OUTPUTS) symlinks
+all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks
 
-$(ALL_OBJECTS): | gencode $(BUILDTREE)
+$(ALL_OBJECTS): | $(GEN_TIMESTAMP) $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
@@ -73,8 +75,11 @@ symlinks: $(OUTPUTS) .symlinks
 .PHONY: relink
 relink: symlinks
 
+$(GEN_TIMESTAMP): gencode
+	touch $@
+
 gencode:
-	$(MAKE) -C dep/rtld
+	$(MAKE) -C dep/rtld P_ARCH=$(P_ARCH)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
