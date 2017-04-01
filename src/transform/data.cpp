@@ -36,15 +36,16 @@ void *DataLoader::setupMainData(Module *module, address_t baseAddress) {
     return tp;
 }
 
-void DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
+void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
     auto tlsList = module->getTLSList();
-    if(!tlsList) return;
+    if(!tlsList) return nullptr;
     size_t size = 0;
     for(auto tls : *tlsList) {
         size += tls->getSize();
     }
 
     if(size != 0) {
+        LOG(1, "mapping TLS region into memory at 0x" << std::hex << baseAddress);
         void *mem = mmap((void *)baseAddress,
                          ROUND_UP(size),
                          PROT_READ | PROT_WRITE,
@@ -56,5 +57,9 @@ void DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
             tls->loadTo(addr);
             addr += tls->getSize();
         }
+
+        return mem;
     }
+
+    return nullptr;
 }

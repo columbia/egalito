@@ -57,6 +57,8 @@ _start2:
     mov     initial_stack, %rsp     # restore %rsp
     mov     saved_rdx, %rdx         # restore %rdx
 
+    mov     main_tp, %fs
+
     ##pop     %r9                     # get argc
     ##dec     %r9                     # subtract from argc
     ##pop     %r10                    # remove loader from argv array
@@ -66,6 +68,10 @@ _start2:
     jmp     *%rbx                   # jump to entry point
     hlt
     .cfi_endproc
+
+get_fs:
+    mov     %fs, %rax
+    retq
 
 .section    .note.GNU-stack, "", @progbits
 

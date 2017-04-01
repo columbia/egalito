@@ -1,6 +1,7 @@
 #include "usage.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
+#include "pass/dumptlsinstr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -39,4 +40,9 @@ int main(int argc, char *argv[]) {
 }
 
 static void otherPasses(ConductorSetup *setup) {
+#if 0
+    DumpTLSInstrPass tlsInstr;
+    setup->getConductor()->acceptInAllModules(&tlsInstr, true);
+    exit(1);
+#endif
 }

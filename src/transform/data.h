@@ -8,7 +8,7 @@ class Module;
 class DataLoader {
 public:
     void *setupMainData(Module *module, address_t baseAddress);
-    void loadLibraryTLSData(Module *module, address_t baseAddress);
+    void *loadLibraryTLSData(Module *module, address_t baseAddress);
 };
 #endif
 

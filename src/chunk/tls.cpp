@@ -5,7 +5,6 @@
 #include "log/log.h"
 
 void TLSList::buildTLSList(ElfMap *elf, RelocList *relocList, Module *module) {
-
     TLSList *list = nullptr;
 
     for(void *s : elf->getSegmentList()) {
@@ -13,17 +12,21 @@ void TLSList::buildTLSList(ElfMap *elf, RelocList *relocList, Module *module) {
         if(phdr->p_type != PT_TLS) continue;
         if(!list) list = new TLSList();
         list->add(new TLSRegion(phdr, elf));
+        LOG(1, "Found TLS region");
     }
+    if(!list) return;
 
-    for(auto r : *relocList) {
-        if(r->getType() == R_AARCH64_TLS_TPREL) {
-            list->addReloc(r);
+#ifdef ARCH_AARCH64
+    if(list) {
+        for(auto r : *relocList) {
+            if(r->getType() == R_AARCH64_TLS_TPREL) {
+                list->addReloc(r);
+            }
         }
     }
+#endif
 
-    if(list) {
-        module->setTLSList(list);
-    }
+    module->setTLSList(list);
 }
 
 void TLSList::TLSRegion::loadTo(address_t baseAddress) {
@@ -35,5 +38,3 @@ void TLSList::TLSRegion::loadTo(address_t baseAddress) {
 
     setAddress(baseAddress);
 }
-
-

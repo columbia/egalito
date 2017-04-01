@@ -67,9 +67,11 @@ void Conductor::loadTLSData() {
     int i = 1;
     for(auto lib : *getLibraryList()) {
         if(!lib->getElfSpace()) continue;
-        loader.loadLibraryTLSData(
+        auto t = loader.loadLibraryTLSData(
             lib->getElfSpace()->getModule(), 0xd0000000 + i*0x1000000);
         i ++;
+
+        if(lib == libraryList->getLibc()) mainThreadPointer = t;
     }
 }
 

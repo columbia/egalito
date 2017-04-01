@@ -13,6 +13,7 @@
 #include "conductor/setup.h"
 #include "pass/logcalls.h"
 #include "pass/promotejumps.h"
+#include "pass/dumptlsinstr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
