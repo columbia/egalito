@@ -20,31 +20,17 @@ void Arguments::shouldHave(std::size_t count) {
     }
 }
 
-void CompositeCommand::add(std::string subcommand, Command *command) {
-    commandList[subcommand] = command;
-}
-
-bool CompositeCommand::invoke(const std::vector<std::string> &args) {
+void CompositeCommand::operator () (Arguments args) {
     if(args.size() == 0) {
-        if(invokeNull(args)) return true;
-
-        std::cout << "error: please pass subcommand to \""
-            << getName() << "\"\n";
-        return false;
+        invokeNull(args);
+        return;
     }
 
-    auto command = commandList.find(args[0]);
-    if(command != commandList.end()) {
-        auto newArgs = args;
-        newArgs.erase(newArgs.begin());
-        return (*command).second->invoke(newArgs);
+    auto command = getMap().find(args.front());
+    if(command != getMap().end()) {
+        (*(*command).second)(args.popFront());
     }
     else {
-        if(invokeDefault(args)) return true;
-
-        std::cout << "error: no subcommand \"" << args[0]
-            << "\" of \"" << getName() << "\"\n";
+        invokeDefault(args);
     }
-
-    return false;
 }

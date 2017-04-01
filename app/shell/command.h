@@ -27,41 +27,56 @@ class Command {
 public:
     virtual ~Command() {}
     virtual std::string getName() const = 0;
-    virtual bool invoke(const std::vector<std::string> &args) = 0;
+    virtual std::string getDescription() const = 0;
+    virtual void operator () (Arguments args) = 0;
 };
 
 class CommandImpl : public Command {
 private:
     std::string name;
+    std::string desc;
 public:
-    CommandImpl(const std::string &name) : name(name) {}
+    CommandImpl(const std::string &name, const std::string &desc)
+        : name(name), desc(desc) {}
     virtual std::string getName() const { return name; }
+    virtual std::string getDescription() const { return desc; }
 };
 
-class CompositeCommand : public CommandImpl {
+class FunctionCommand : public CommandImpl {
+public:
+    typedef std::function<void (Arguments)> FunctionType;
 private:
-    std::map<std::string, Command *> commandList;
+    FunctionType func;
+public:
+    FunctionCommand(const std::string &name, const FunctionType &func,
+        const std::string &desc = "")
+        : CommandImpl(name, desc), func(func) {}
+    virtual void operator () (Arguments args) { func(args); }
+};
+
+class CommandList : public CommandImpl {
+public:
+    typedef std::map<std::string, Command *> CommandMapType;
+private:
+    CommandMapType commandMap;
 public:
     using CommandImpl::CommandImpl;
+    virtual ~CommandList() {}
 
-    void add(std::string subcommand, Command *command);
+    CommandMapType &getMap() { return commandMap; }
 
-    virtual bool invoke(const std::vector<std::string> &args);
-    virtual bool invokeNull(const std::vector<std::string> &args)
-        { return false; }
-    virtual bool invokeDefault(const std::vector<std::string> &args)
-        { return false; }
+    void add(Command *command) { commandMap[command->getName()] = command; }
+    void add(std::string command, const FunctionCommand::FunctionType &func, const std::string &desc = "")
+        { commandMap[command] = new FunctionCommand(command, func, desc); }
+    virtual void operator () (Arguments args) = 0;
 };
 
-template <typename Functor>
-class FunctionCommand : public CommandImpl {
-private:
-    Functor func;
+class CompositeCommand : public CommandList {
 public:
-    FunctionCommand(const std::string &name, const Functor &func)
-        : CommandImpl(name), func(func) {}
-    virtual bool invoke(const std::vector<std::string> &args)
-        { return func(args); }
+    using CommandList::CommandList;
+    virtual void operator () (Arguments args);
+    virtual void invokeNull(Arguments args) {}
+    virtual void invokeDefault(Arguments args) {}
 };
 
 #endif

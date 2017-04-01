@@ -102,8 +102,6 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
         if(!space) continue;
         if(!inEgalito && space == spaceList->getEgalito()) continue;
 
-        if(library->getElfSpace()) {
-            library->getElfSpace()->getModule()->accept(visitor);
-        }
+        space->getModule()->accept(visitor);
     }
 }
