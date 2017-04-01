@@ -75,7 +75,7 @@ symlinks: $(OUTPUTS) .symlinks
 .PHONY: relink
 relink: symlinks
 
-$(GEN_TIMESTAMP): gencode
+$(GEN_TIMESTAMP): gencode | $(BUILDTREE)
 	touch $@
 
 gencode:
