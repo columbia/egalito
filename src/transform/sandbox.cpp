@@ -2,7 +2,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include "sandbox.h"
-#include "elf/elfgen.h"
+#include "generate/elfgen.h"
 
 bool Slot::append(uint8_t *data, size_t size) {
     if(size > available) return false;
