@@ -4,6 +4,7 @@
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
 #include "chunk/aliasmap.h"
+#include "chunk/tls.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
 #include "pass/resolvecalls.h"
@@ -72,6 +73,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //module->accept(&stackXOR);
 
     //module->accept(&dumper);
+
+    TLSList::buildTLSList(elf, relocList, module);
 
     ReloCheckPass checker(relocList);
     module->accept(&checker);
