@@ -30,6 +30,7 @@ void PromoteJumpsPass::visit(Instruction *instruction) {
 }
 
 void PromoteJumpsPass::promote(Instruction *instruction) {
+#ifdef ARCH_X86_64
     LOG(1, "Promote jump instruction " << instruction->getName());
     auto v = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());
     LOG(1, "    target before = " << v->getLink()->getTargetAddress());
@@ -43,6 +44,7 @@ void PromoteJumpsPass::promote(Instruction *instruction) {
         .modifiedChildSize(instruction, v->getSize() - oldSize);
 
     LOG(1, "    target after = " << v->getLink()->getTargetAddress());
+#endif
 }
 
 std::string PromoteJumpsPass::getWiderOpcode(unsigned int id) {
@@ -74,7 +76,7 @@ std::string PromoteJumpsPass::getWiderOpcode(unsigned int id) {
     default:
         LOG(1, "Unknown jump opcode id encountered: " << id);
         break;
-    }    
+    }
 #undef WRITE_BYTE
     return std::move(opcode);
 }

@@ -14,6 +14,7 @@
 
 #define PTR_SIZE    (1<<PTR_LOG_SIZE)
 
+.global initial_stack
 .global entry
 .global main_tp
 .global _start2
