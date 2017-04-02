@@ -1,3 +1,4 @@
+#include <cstring>
 #include <iostream>
 #include <elf.h>
 #include "auxv.h"
@@ -5,11 +6,11 @@
 
 static address_t *findAuxiliaryVector(char **argv) {
     address_t *address = reinterpret_cast<address_t *>(argv);
-    
+
     //address ++;  // skip argc
     while(*address++) {}  // skip argv entries
     while(*address++) {}  // skip envp entries
-    
+
     return address;
 }
 
@@ -74,7 +75,14 @@ int removeLoaderFromArgv(void *argv) {
             i >= remove_count ? "" : "\t[removing]");
     }
 
+#ifdef ARCH_X86_64
     // move argc, overwriting arguments to be erased, and adjust %rsp
     *(argc + remove_count) = (*argc) - remove_count;
     return sizeof(unsigned long) * remove_count;
+#elif defined(ARCH_AARCH64)
+    // AARCH64 ABI requires the stack to be 16 Bytes aligned between calls
+    *(argc) = (*argc) - remove_count;
+    std::memmove(argv, (char *)argv + remove_count*8, *argc);
+    return 0;
+#endif
 }
