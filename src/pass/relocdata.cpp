@@ -236,6 +236,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_AARCH64_TLS_TPREL) {
         dest = r->getAddend();
     }
+    else if(r->getType() == R_AARCH64_ABS64) {
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+    }
     else {
         LOG(1, "    NOT fixing because type is " << r->getType());
     }
