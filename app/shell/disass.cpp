@@ -8,6 +8,7 @@
 #include "chunk/find.h"
 #include "chunk/find2.h"
 #include "pass/logcalls.h"
+#include "pass/dumptlsinstr.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -97,4 +98,10 @@ void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) 
         setup->makeFileSandbox(args.front().c_str());
         setup->moveCode();  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
+
+    topLevel->add("dumptls", [&] (Arguments args) {
+        args.shouldHave(0);
+        DumpTLSInstrPass dumptls;
+        setup->getConductor()->acceptInAllModules(&dumptls);
+    }, "shows all instructions that refer to the TLS register");
 }
