@@ -81,8 +81,14 @@ int removeLoaderFromArgv(void *argv) {
     return sizeof(unsigned long) * remove_count;
 #elif defined(ARCH_AARCH64)
     // AARCH64 ABI requires the stack to be 16 Bytes aligned between calls
+    address_t *auxv = findAuxiliaryVector((char **)argv);
+    address_t *p;
+    for(p = auxv; p[0] != AT_NULL; p += 2) { }
+
     *(argc) = (*argc) - remove_count;
-    std::memmove(argv, (char *)argv + remove_count*8, *argc);
+    size_t newSize = (char *)p - (char *)argv - remove_count*8;
+    std::memmove(argv, (char *)argv + remove_count*8, newSize);
+    *(unsigned long *)((char *)argv + newSize) = 0;
     return 0;
 #endif
 }
