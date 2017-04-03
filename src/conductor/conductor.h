@@ -14,9 +14,9 @@ private:
 public:
     Conductor();
 
-    void parseRecursive(ElfMap *elf);
-    void parse(ElfMap *elf, SharedLib *library);
+    void parseExecutable(ElfMap *elf);
     void parseEgalito(ElfMap *elf, SharedLib *library);
+    void parseLibraries();
 
     void fixDataSections();
     void fixDataSection(ElfSpace *elfSpace);
@@ -28,8 +28,8 @@ public:
     LibraryList *getLibraryList() const { return libraryList; }
 
     void *getMainThreadPointer() const { return mainThreadPointer; }
-
 private:
+    void parse(ElfMap *elf, SharedLib *library);
     void loadTLSData();
 };
 

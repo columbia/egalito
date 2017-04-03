@@ -89,7 +89,7 @@ TEST_CASE("position validation for simple main with default Position type", "[ch
     ElfMap elf(TESTDIR "hi0");
 
     Conductor conductor;
-    conductor.parse(&elf, nullptr);
+    conductor.parseExecutable(&elf);
 
     auto module = conductor.getMainSpace()->getModule();
     auto func = CIter::named(module->getFunctionList())->find("main");
@@ -133,7 +133,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
             ElfMap elf(TESTDIR "hi0");
 
             Conductor conductor;
-            conductor.parse(&elf, nullptr);
+            conductor.parseExecutable(&elf);
 
             auto module = conductor.getMainSpace()->getModule();
             auto func = CIter::named(module->getFunctionList())->find("main");

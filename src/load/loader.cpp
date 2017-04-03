@@ -11,9 +11,9 @@
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
-#include "break/signals.h"
 #include "pass/logcalls.h"
 #include "pass/promotejumps.h"
+#include "pass/dumptlsinstr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -38,8 +38,6 @@ int main(int argc, char *argv[]) {
     GroupRegistry::getInstance()->dumpSettings();
 
     LOG(0, "loading ELF program [" << argv[1] << "]");
-
-    //Signals::registerHandlers();
 
     LoaderEmulator::getInstance().useArgv(argv);
 
@@ -106,7 +104,7 @@ static void mapSegments(ConductorSetup *setup) {
 }
 
 static void otherPasses(ConductorSetup *setup) {
-#if 1  // add call logging?
+#if 0  // add call logging?
     LogCallsPass logCalls(setup->getConductor());
     // false = do not add tracing to Egalito's own functions
     setup->getConductor()->acceptInAllModules(&logCalls, false);

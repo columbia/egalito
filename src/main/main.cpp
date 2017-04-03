@@ -1,6 +1,7 @@
 #include "usage.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
+#include "pass/dumptlsinstr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -19,8 +20,6 @@ int main(int argc, char *argv[]) {
     GroupRegistry::getInstance()->dumpSettings();
 
     LOG(0, "rewriting ELF program [" << argv[1] << "] to [" << argv[2] << "]");
-
-    //Signals::registerHandlers();
 
     try {
         ConductorSetup setup;
@@ -41,4 +40,9 @@ int main(int argc, char *argv[]) {
 }
 
 static void otherPasses(ConductorSetup *setup) {
+#if 0
+    DumpTLSInstrPass tlsInstr;
+    setup->getConductor()->acceptInAllModules(&tlsInstr, true);
+    exit(1);
+#endif
 }

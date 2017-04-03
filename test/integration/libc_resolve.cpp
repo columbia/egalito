@@ -52,7 +52,8 @@ void LibcResolve::run() {
         ElfMap elf(TESTDIR "hi0");
 
         Conductor conductor;
-        conductor.parseRecursive(&elf);
+        conductor.parseExecutable(&elf);
+        conductor.parseLibraries();
 
         auto libc = conductor.getLibraryList()->getLibc();
         if(!libc) {

@@ -8,7 +8,8 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
     ElfMap elf(TESTDIR "stack");
 
     Conductor conductor;
-    conductor.parseRecursive(&elf);
+    conductor.parseExecutable(&elf);
+    conductor.parseLibraries();
 
     auto libc = conductor.getLibraryList()->getLibc();
     INFO("looking for libc.so in depends...");

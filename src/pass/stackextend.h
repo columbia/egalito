@@ -11,7 +11,7 @@
 #ifdef ARCH_AARCH64
 class FrameType {
 private:
-    size_t baseSize;    // local varible + callee-saved regs
+    size_t baseSize;    // local variable + callee-saved regs
     size_t outArgSize;
     Instruction *setBPInstr;
     std::vector<Instruction *> resetSPInstrs;

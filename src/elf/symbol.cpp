@@ -121,7 +121,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     }*/
 
     for(auto sym : *list) {
-        if(sym->getSize() == 0) {
+        if(sym->getSize() == 0 && sym->getAddress() > 0) {
             size_t estimate = list->estimateSizeOf(sym);
             LOG(1, "estimate size of symbol ["
                 << sym->getName() << "] to be " << std::dec << estimate);

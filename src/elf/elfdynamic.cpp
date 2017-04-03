@@ -150,7 +150,8 @@ void ElfDynamic::resolveLibraries() {
     }
 }
 
-void ElfDynamic::processLibrary(const std::string &fullPath, const std::string &filename) {
+void ElfDynamic::processLibrary(const std::string &fullPath,
+    const std::string &filename) {
 
     if(libraryList->contains(fullPath)) return;
     if(filename == "ld-linux-x86-64.so.2") {

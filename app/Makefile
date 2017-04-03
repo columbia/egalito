@@ -1,4 +1,4 @@
-# Makefile for egalito test code
+# Makefile for egalito applications
 
 include ../env.mk
 
@@ -6,37 +6,28 @@ CFLAGS      += -I ../src/
 CXXFLAGS    += -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
-ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
-CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
-PASS_SOURCES        = $(wildcard pass/*.cpp)
-FRAMEWORK_SOURCES   = $(wildcard framework/*.cpp)
-INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
-ELF_SOURCES         = $(wildcard elf/*.cpp)
+SHELL_SOURCES       = $(wildcard shell/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
 dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
-SOURCES = $(INTEGRATION_SOURCES)
-ITEST_SOURCES = $(SOURCES) $(INTEGRATION_SOURCES)
-ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
-RUNNER_SOURCES = $(FRAMEWORK_SOURCES) $(CHUNK_SOURCES) $(ANALYSIS_SOURCES) $(PASS_SOURCES) $(ELF_SOURCES)
-RUNNER_OBJECTS = $(call obj-filename,$(RUNNER_SOURCES))
-ALL_SOURCES = $(sort $(ITEST_SOURCES) $(RUNNER_SOURCES))
+ETSHELL_SOURCES = $(SHELL_SOURCES)
+ETSHELL_OBJECTS = $(call obj-filename,$(ETSHELL_SOURCES))
+ALL_SOURCES = $(sort $(ETSHELL_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
-ITEST = $(BUILDDIR)itest
-RUNNER = $(BUILDDIR)runner
+ETSHELL = $(BUILDDIR)etshell
 
-OUTPUTS = $(ITEST) $(RUNNER)
+OUTPUTS = $(ETSHELL)
 
 # Default target
 .PHONY: all
-all: test-all symlinks
+all: app-all symlinks
 
-test-all: $(OUTPUTS) | rebuild-src
+app-all: $(OUTPUTS) | rebuild-src
 
 ifeq ($(findstring clean,$(MAKECMDGOALS)),)
 Makefile: rebuild-src
@@ -48,8 +39,7 @@ $(BUILDTREE):
 
 symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
-	@ln -sf $(BUILDDIR)itest
-	@ln -sf $(BUILDDIR)runner
+	@ln -sf $(BUILDDIR)etshell
 
 .symlinks:
 	@touch .symlinks
@@ -75,17 +65,15 @@ $(BUILDDIR)%.o: %.c
 $(BUILDDIR)%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
+# Special files
+$(BUILDDIR)shell/shell.o: shell/shell.cpp
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+
 # Programs and libraries
-$(ITEST): $(ITEST_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
-$(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+$(ETSHELL): $(ETSHELL_OBJECTS) ../src/libegalito.a
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
 
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -f .symlinks itest runner
-	-find $(BUILDDIR) -name framework -prune -o -type f -exec rm {} \;
-
-realclean:
-	-rm -rf $(BUILDDIR) .symlinks itest runner
+	-rm -rf $(BUILDDIR) .symlinks etshell

@@ -17,12 +17,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     setBaseAddress(elf, 0x4000000);
 
     this->conductor = new Conductor();
-    if(withSharedLibs) {
-        conductor->parseRecursive(elf);
-    }
-    else {
-        conductor->parse(elf, nullptr);
-    }
+    conductor->parseExecutable(elf);
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
@@ -31,6 +26,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
         auto egalitoLib = new SharedLib("(egalito)", "(egalito)", egalito);
         conductor->getLibraryList()->add(egalitoLib);
         conductor->parseEgalito(egalito, egalitoLib);
+    }
+
+    if(withSharedLibs) {
+        conductor->parseLibraries();
     }
 
     // set base addresses for any shared libraries that were pulled in
@@ -57,26 +56,42 @@ void ConductorSetup::makeFileSandbox(const char *outputFile) {
 }
 
 void ConductorSetup::moveCode() {
+
+    // 1. assign new addresses to all code
+    moveCodeAssignAddresses();
+
+    // 2. copy code to the new addresses
+    copyCodeToNewAddresses();
+
+    // 3. make code executable, or change permissions
+    moveCodeMakeExecutable();
+}
+
+void ConductorSetup::moveCodeAssignAddresses() {
     auto module = conductor->getMainSpace()->getModule();
     Generator generator;
 
-    // 1. assign new addresses to all code
     generator.pickAddressesInSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
         generator.pickAddressesInSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }
+}
 
-    // 2. copy code to the new addresses
+void ConductorSetup::copyCodeToNewAddresses() {
+    auto module = conductor->getMainSpace()->getModule();
+    Generator generator;
+
     generator.copyCodeToSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
         generator.copyCodeToSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }
+}
 
-    // 3. make code executable, or change permissions
+void ConductorSetup::moveCodeMakeExecutable() {
     sandbox->finalize();
 }
 
