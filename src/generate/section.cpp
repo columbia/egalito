@@ -21,6 +21,10 @@ size_t Section::add(const std::string &string, bool withNull) {
     return oldSize;
 }
 
+void Section::addNullBytes(size_t size) {
+    this->data.append(size, '\0');
+}
+
 Elf64_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     this->shdrIndex = index;
     Elf64_Shdr *entry = new Elf64_Shdr();

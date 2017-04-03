@@ -114,6 +114,9 @@ void ElfMap::makeSegmentList() {
         if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
             copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
         }
+        if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_W)) {
+            rwCopyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
+        }
         if(phdr->p_type == PT_INTERP) {
             interpreter = charmap + phdr->p_offset;
         }

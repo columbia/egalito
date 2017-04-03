@@ -30,6 +30,8 @@ public:
     uint64_t getAddend() const { return addend; }
 
     std::string getSymbolName() const;
+
+    Elf64_Rela makeRela() const;
 };
 
 class RelocList {

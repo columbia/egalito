@@ -44,4 +44,16 @@ private:
         PLTList *pltList);
 };
 
+class ElfSpace;
+class MakeOriginalPLT {
+private:
+    std::string pltData;
+    std::string relocData;
+public:
+    void makePLT(ElfSpace *space, PLTList *pltList);
+
+    const std::string &getPLTData() const { return pltData; }
+    const std::string &getRelocations() const { return relocData; }
+};
+
 #endif

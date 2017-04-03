@@ -47,6 +47,7 @@ public:
     size_t add(const void *data, size_t size);
     size_t add(const char *data, size_t size);
     size_t add(const std::string &string, bool withNull = false);
+    void addNullBytes(size_t size);
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
     template<typename ElfStructType> ElfStructType *castAs()
         { return (ElfStructType *)(data.data()); }

@@ -5,6 +5,7 @@
 #include <elf.h>
 #include <sys/stat.h>  // for chmod
 #include "elfgen.h"
+#include "chunk/plt.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -36,13 +37,14 @@ ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
 }
 
 void ElfGen::generate() {
+    if(elfSpace->getElfMap()->isDynamic()) generatePLT();
     makeHeader();
     makeRWData();
     makeText();
     makeSymbolInfo();
     if(elfSpace->getElfMap()->isDynamic()) {
         makeDynamicSymbolInfo();
-        // makePLT();
+        makePLT();
         makeDynamic();
     }
     updateOffsetAndAddress();
@@ -53,14 +55,21 @@ void ElfGen::generate() {
     // Write to file
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
     for(auto segment : data.getSegmentList()) {
-        if(segment->getSections().size() == 0)
+        if(segment->getSections().size() == 0) {
             continue;
+        }
+
         LOG(1, "serialize segment at " << segment->getFirstSection()->getName());
         fs << *segment;
     }
     fs.close();
 
     chmod(filename.c_str(), 0755);
+}
+
+void ElfGen::generatePLT() {
+    originalPLT.makePLT(elfSpace,
+        elfSpace->getModule()->getPLTList());
 }
 
 void ElfGen::makeRWData() {// Elf Header
@@ -198,27 +207,28 @@ void ElfGen::makeDynamicSymbolInfo() {
     data[Metadata::VISIBLE]->add(dynstr);
 }
 
-#if 0
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
 
-    if(auto p = elfMap->findSectionHeader(".plt")) {
-        Elf64_Shdr *pltShdr = new Elf64_Shdr();
-        memcpy(pltShdr, p, sizeof(Elf64_Shdr));
-        pltShdr->sh_name = data.getShdrListSize();
-        Section *pltSection = new Section(".plt");
-        data.addShdr(pltSection, pltShdr);
-    }
+#if 0
+    auto pltSection = new Section(".plt", SHT_PROGBITS);
+    pltSection->add(originalPLT.getPLTData());
+    data[Metadata::VISIBLE]->add(pltSection);
+#else
+    auto pltSection = new Section(".plt", SHT_PROGBITS);
+    auto oldPLT = static_cast<Elf64_Shdr *>(
+        elfMap->findSectionHeader(".plt"));
 
-    if(auto p = elfMap->findSectionHeader(".rela.plt")) {
-        Elf64_Shdr *relaPltShdr = new Elf64_Shdr();
-        memcpy(relaPltShdr, p, sizeof(Elf64_Shdr));
-        relaPltShdr->sh_name = data.getShdrListSize();
-        Section *relaPltSection = new Section(".rela.plt");
-        data.addShdr(relaPltSection, relaPltShdr);
-    }
-}
+    pltSection->setAddress(oldPLT->sh_addr);
+    pltSection->addNullBytes(oldPLT->sh_size);
+
+    data[Metadata::RODATA]->add(pltSection);
 #endif
+
+    auto pltRelocSection = new Section(".rela.plt", SHT_RELA);
+    pltRelocSection->add(originalPLT.getRelocations());
+    data[Metadata::RODATA]->add(pltRelocSection);
+}
 
 void ElfGen::makeDynamic() {
     Section *dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
@@ -235,7 +245,7 @@ void ElfGen::makeDynamic() {
         }
     }
     unsigned long *oldList = reinterpret_cast<unsigned long *>(
-        elfMap->getCopyBaseAddress() + oldDynamic->p_offset);
+        elfMap->getRWCopyBaseAddress() + oldDynamic->p_offset);
     while(oldList[0] != DT_NULL) {
         Elf64_Sxword tag = oldList[0];
         auto value = oldList[1];
@@ -261,7 +271,7 @@ void ElfGen::makePhdrTable() {
     // at most as many entries as were originally present.
     data[Metadata::PHDR_TABLE]->setPhdrInfo(PT_PHDR, PF_R | PF_X, 8);
     data[Metadata::PHDR_TABLE]->setFileOff(sizeof(Elf64_Ehdr));
-    data[Metadata::PHDR_TABLE]->setAddress(0);
+    //data[Metadata::PHDR_TABLE]->setAddress(0);
     std::vector<Elf64_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
         if(seg->hasPhdr()) {
@@ -282,14 +292,19 @@ void ElfGen::makePhdrTable() {
 }
 
 void ElfGen::makeShdrTable() {
-    data[Metadata::HEADER]->add(new Section("", SHT_NULL));
     auto shstrtab = data.getStrTable(Metadata::SH);
     data[Metadata::HIDDEN]->add(shstrtab);
 
     // Allocate new space for the shdrs, and don't map them into memory.
     std::vector<std::pair<Section *, Elf64_Shdr *>> shdrList;
     std::map<Section *, size_t> sectionLookup;
+
     size_t index = 0;
+    auto nullSection = new Section("", SHT_NULL);
+    auto nullShdr = nullSection->makeShdr(index++, shstrtab->getSize());
+    shstrtab->add(nullSection->getName(), true);  // include NULL terminator
+    sectionLookup[nullSection] = 0;
+    shdrList.push_back(std::make_pair(nullSection, nullShdr));
     for(auto seg : data.getSegmentList()) {
         if(seg->getType() == Metadata::INTERP) continue;
 
@@ -319,6 +334,7 @@ void ElfGen::makeShdrTable() {
     header->e_shstrndx = sectionLookup[data.getStrTable(Metadata::SH)];
 
     for(auto shdr : shdrList) delete shdr.second;
+    delete nullSection;
 }
 
 void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
@@ -341,10 +357,11 @@ void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
 }
 
 void ElfGen::updateOffsetAndAddress() {
-    size_t idx = 0;
-    while(++idx < Metadata::SEGMENT_TYPES) {
+    // skip HEADER
+    for(size_t idx = Metadata::HEADER+1; idx < Metadata::SEGMENT_TYPES;
+        idx ++) {
+
         auto t = static_cast<Metadata::SegmentType>(idx);
-        auto prevT = static_cast<Metadata::SegmentType>(idx - 1);
         if(data[t]->getFileOff() == 0) {
             size_t offset = getNextFreeOffset();
             if(data[t]->getPType() == PT_LOAD) {
@@ -353,12 +370,8 @@ void ElfGen::updateOffsetAndAddress() {
                 data[t]->setFileOff(offset);
             }
         }
-        if(data[t]->getAddress() == 0) {
-            if (t == Metadata::HIDDEN) {
-                // don't assign an address
-            } else {
-                data[t]->setAddress(getNextFreeAddress(data[prevT]));
-            }
+        if(data[t]->getAddress() == 0 /*Metadata::CHOOSE_ADDRESS*/) {
+            data[t]->setAddress(getNextFreeAddress());
         }
     }
 }
@@ -385,11 +398,13 @@ size_t ElfGen::roundUpToPageAlign(size_t offset) {
     return (offset + 0xfff) & ~0xfff;
 }
 
-address_t ElfGen::getNextFreeAddress(Segment *segment) {
+address_t ElfGen::getNextFreeAddress() {
     address_t maxAddress = 0;
-    for(auto sec : segment->getSections()) {
-        auto address = sec->getAddress() + sec->getSize();
-        if(address > maxAddress) maxAddress = address;
+    for(auto segment : data.getSegmentList()) {
+        for(auto section : segment->getSections()) {
+            auto address = section->getAddress() + section->getSize();
+            if(address > maxAddress) maxAddress = address;
+        }
     }
     return maxAddress;
 }

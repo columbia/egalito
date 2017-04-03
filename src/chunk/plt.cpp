@@ -1,4 +1,5 @@
 #include "plt.h"
+#include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "log/log.h"
 
@@ -257,3 +258,30 @@ void PLTTrampoline::writeTo(char *target) {
         << " from 0x" << getAddress());
 }
 
+void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList) {
+    auto elf = space->getElfMap();
+    auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt"));
+#ifdef ARCH_X86_64
+    static const size_t ENTRY_SIZE = 16;
+    static const size_t INITIAL_ENTRY_SIZE = 1 * ENTRY_SIZE;
+#else
+    static const size_t ENTRY_SIZE = 16;
+    static const size_t INITIAL_ENTRY_SIZE = 2 * ENTRY_SIZE;
+#endif
+
+    /*const char *rawPLT = reinterpret_cast<const char *>(
+        elf->getCopyBaseAddress() + header->sh_addr);
+    pltData.append(rawPLT, INITIAL_ENTRY_SIZE);*/
+
+    for(auto r : *space->getRelocList()) {
+        if(r->getType() == R_X86_64_JUMP_SLOT
+            || r->getType() == R_AARCH64_JUMP_SLOT
+            || r->getType() == R_X86_64_IRELATIVE
+            || r->getType() == R_AARCH64_IRELATIVE) {
+
+            auto rela = r->makeRela();
+            relocData.append(reinterpret_cast<const char *>(&rela),
+                sizeof(rela));
+        }
+    }
+}

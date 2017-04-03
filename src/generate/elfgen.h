@@ -13,6 +13,7 @@
 
 class ElfGen {
 private:
+    static const address_t CHOOSE_ADDRESS = static_cast<address_t>(-1);
     class Metadata {
     public:
         enum SegmentType {HEADER, PHDR_TABLE, RODATA, RWDATA, VISIBLE, INTERP, DYNAMIC, HIDDEN, SEGMENT_TYPES};
@@ -37,12 +38,14 @@ private:
     std::string filename;
     const char *interpreter;
     Metadata data;
+    MakeOriginalPLT originalPLT;
 public:
     ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
         const char *interpreter = nullptr);
 public:
     void generate();
 private:
+    void generatePLT();
     void makeRWData();
     void makeText();
     void makeSymbolInfo();
@@ -56,7 +59,7 @@ private:
     void updateHeader();
 private:
     size_t getNextFreeOffset();
-    address_t getNextFreeAddress(Segment *segment);
+    address_t getNextFreeAddress();
     static size_t roundUpToPageAlign(size_t address);
 };
 

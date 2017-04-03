@@ -32,6 +32,7 @@ private:
 private:
     address_t baseAddress;
     address_t copyBase;
+    address_t rwCopyBase;
 public:
     ElfMap(pid_t pid);
     ElfMap(const char *filename);
@@ -47,6 +48,7 @@ public:
     void setBaseAddress(address_t base) { baseAddress = base; }
     address_t getBaseAddress() const { return baseAddress; }
     address_t getCopyBaseAddress() const { return copyBase; }
+    address_t getRWCopyBaseAddress() const { return rwCopyBase; }
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
     const char *getSHStrtab() const { return shstrtab; }
