@@ -15,7 +15,7 @@ class ElfGen {
 private:
     class Metadata {
     public:
-        enum SegmentType {HEADER, PHDR_TABLE, RWDATA, VISIBLE, INTERP, DYNAMIC, HIDDEN, SEGMENT_TYPES};
+        enum SegmentType {HEADER, PHDR_TABLE, RODATA, RWDATA, VISIBLE, INTERP, DYNAMIC, HIDDEN, SEGMENT_TYPES};
         enum StringTableType {SYM, SH, DYN, STRING_TABLE_TYPES};
     private:
         typedef std::vector<Segment *> SegmentList;
@@ -57,6 +57,7 @@ private:
 private:
     size_t getNextFreeOffset();
     address_t getNextFreeAddress(Segment *segment);
+    static size_t roundUpToPageAlign(size_t address);
 };
 
 #endif

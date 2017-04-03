@@ -54,7 +54,7 @@ void ElfGen::generate() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
     for(auto segment : data.getSegmentList()) {
         if(segment->getSections().size() == 0)
-            continue; // HERE
+            continue;
         LOG(1, "serialize segment at " << segment->getFirstSection()->getName());
         fs << *segment;
     }
@@ -74,6 +74,12 @@ void ElfGen::makeRWData() {// Elf Header
             if(segment->p_flags == (PF_R | PF_W)) rwdata = segment;
         }
     }
+    data[Metadata::RODATA]->add((new Section(".old_ro"))
+        ->with(elfMap->getCharmap(), rodata->p_memsz));
+    data[Metadata::RODATA]->setFileOff(rodata->p_offset);
+    data[Metadata::RODATA]->setAddress(rodata->p_vaddr);
+    data[Metadata::RODATA]->setPhdrInfo(rodata->p_type, rodata->p_flags, rodata->p_align);
+
     // Read Write data
     if(rwdata) {  // some executables may have no data to load!
         char *loadRWVirtualAdress = elfMap->getCharmap() + rodata->p_offset;
@@ -340,7 +346,12 @@ void ElfGen::updateOffsetAndAddress() {
         auto t = static_cast<Metadata::SegmentType>(idx);
         auto prevT = static_cast<Metadata::SegmentType>(idx - 1);
         if(data[t]->getFileOff() == 0) {
-            data[t]->setFileOff(getNextFreeOffset());
+            size_t offset = getNextFreeOffset();
+            if(data[t]->getPType() == PT_LOAD) {
+                data[t]->setFileOff(roundUpToPageAlign(offset));
+            } else {
+                data[t]->setFileOff(offset);
+            }
         }
         if(data[t]->getAddress() == 0) {
             if (t == Metadata::HIDDEN) {
@@ -368,6 +379,10 @@ size_t ElfGen::getNextFreeOffset() {
         if(offset > maxOffset) maxOffset = offset;
     }
     return maxOffset;
+}
+
+size_t ElfGen::roundUpToPageAlign(size_t offset) {
+    return (offset + 0xfff) & ~0xfff;
 }
 
 address_t ElfGen::getNextFreeAddress(Segment *segment) {
