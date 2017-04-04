@@ -21,6 +21,7 @@ extern address_t entry;
 extern const char *initial_stack;
 extern void *main_tp;
 extern "C" void _start2(void);
+extern "C" void _set_fs(void *fs);
 
 static void mapSegments(ConductorSetup *setup);
 static void otherPasses(ConductorSetup *setup);
@@ -71,6 +72,7 @@ int main(int argc, char *argv[]) {
 
         // jump to the interpreter/target program (never returns)
         main_tp = setup.getMainThreadPointer();
+        _set_fs(main_tp);
         _start2();
     }
     catch(const char *s) {

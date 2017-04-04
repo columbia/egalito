@@ -204,6 +204,7 @@ void PLTTrampoline::writeTo(char *target) {
     bool isIFunc = false;
     if(auto v = dynamic_cast<Function *>(this->target)) {
         if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) isIFunc = true;
+        LOG(1, "making PLT entry for [" << v->getName() << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
     address_t gotPLT = getGotPLTEntry();

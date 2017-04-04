@@ -1,6 +1,7 @@
 #include "conductor.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
+#include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "transform/data.h"
 #include "log/log.h"
@@ -36,6 +37,19 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
     space->findDependencies(libraryList);
     space->buildDataStructures();
     spaceList->add(space, library == nullptr);
+}
+
+void Conductor::resolvePLTLinks() {
+    ResolvePLTPass resolvePLT(this, getMainSpace());
+    getMainSpace()->getModule()->getPLTList()->accept(&resolvePLT);
+
+    for(auto library : *libraryList) {
+        if(library->getElfSpace()) {
+            ResolvePLTPass resolvePLT(this, library->getElfSpace());
+            library->getElfSpace()->getModule()->getPLTList()
+                ->accept(&resolvePLT);
+        }
+    }
 }
 
 void Conductor::fixDataSections() {

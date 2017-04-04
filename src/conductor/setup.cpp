@@ -41,6 +41,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
             i ++;
         }
     }
+
+    if(withSharedLibs) {
+        conductor->resolvePLTLinks();
+    }
 }
 
 void ConductorSetup::makeLoaderSandbox() {

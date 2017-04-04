@@ -18,6 +18,7 @@ public:
     void parseEgalito(ElfMap *elf, SharedLib *library);
     void parseLibraries();
 
+    void resolvePLTLinks();
     void fixDataSections();
     void fixDataSection(ElfSpace *elfSpace);
 
