@@ -3,8 +3,9 @@
 
 #include <climits>
 #include <string>
-#include <disasm/assembly.h>
 #include "types.h"
+
+class Assembly;
 
 class DisasmDump {
 public:

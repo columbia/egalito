@@ -1,3 +1,4 @@
+#include <cstring>  // for memcpy
 #include "plt.h"
 #include "elf/symbol.h"
 #include "log/log.h"
@@ -199,7 +200,7 @@ void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     size_t offset = 0;
 #define ADD_BYTES(data, size) \
-    memcpy(target+offset, data, size), offset += size
+    std::memcpy(target+offset, data, size), offset += size
 
     bool isIFunc = false;
     if(auto v = dynamic_cast<Function *>(this->target)) {

@@ -3,6 +3,7 @@
 #include <cstdio>  // for std::fflush
 #include "generator.h"
 #include "chunk/mutator.h"
+#include "instr/semantic.h"
 #include "log/log.h"
 
 #if 0

@@ -1,6 +1,7 @@
 #include "stackxor.h"
 #include "disasm/disassemble.h"
 #include "chunk/mutator.h"
+#include "instr/concrete.h"
 
 void StackXOR::visit(Function *function) {
     addInstructions(function->getChildren()->getIterable()->get(0), 0);

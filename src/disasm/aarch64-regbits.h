@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <utility>
-#include "register.h"
+#include "instr/register.h"
 
 #ifdef ARCH_AARCH64
 class AARCH64RegBits {
@@ -33,5 +33,5 @@ private:
     void makeDPIReg_RegPositionList();
 };
 #endif
-#endif
 
+#endif

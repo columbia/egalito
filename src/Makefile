@@ -9,7 +9,7 @@ CONDUCTOR_SOURCES   = $(wildcard conductor/*.cpp)
 DISASM_SOURCES      = $(wildcard disasm/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 GENERATE_SOURCES    = $(wildcard generate/*.cpp)
-INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
+INSTR_SOURCES       = $(wildcard instr/*.cpp)
 LOAD_SOURCES        = $(wildcard load/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
@@ -28,15 +28,14 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
     $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
-    $(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) load/emulator.cpp
+    $(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
+    load/emulator.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
-ITEST_SOURCES = $(TYPICAL_SOURCES) $(INTEGRATION_SOURCES)
-ITEST_OBJECTS = $(call obj-filename,$(ITEST_SOURCES))
-ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(ITEST_SOURCES))
+ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))

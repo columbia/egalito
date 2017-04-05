@@ -29,9 +29,3 @@ std::string Block::getName() const {
     else stream << "bb-anonymous";
     return stream.str();
 }
-
-std::string Instruction::getName() const {
-    std::ostringstream stream;
-    stream << "i/0x" << std::hex << getAddress();
-    return stream.str();
-}

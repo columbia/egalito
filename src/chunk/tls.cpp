@@ -1,3 +1,4 @@
+#include <cstring>  // for memcpy, memset
 #include <elf.h>
 #include "tls.h"
 #include "elf/elfmap.h"

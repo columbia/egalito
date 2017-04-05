@@ -3,6 +3,7 @@
 #include "conductor/conductor.h"
 #include "chunk/find2.h"
 #include "chunk/mutator.h"
+#include "instr/concrete.h"
 #include "disasm/disassemble.h"
 #include "cminus/print.h"
 #include "log/log.h"

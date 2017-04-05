@@ -2,6 +2,7 @@
 #include <iomanip>
 #include "controlflow.h"
 #include "chunk/concrete.h"
+#include "instr/concrete.h"
 #include "pass/chunkpass.h"
 #include "log/log.h"
 

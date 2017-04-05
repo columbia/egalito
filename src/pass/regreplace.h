@@ -1,8 +1,10 @@
+#ifndef EGALITO_PASS_REGREPLACE_H
+#define EGALITO_PASS_REGREPLACE_H
+
 #include <vector>
 #include <utility>
-#include "chunkpass.h"
 #include "stackextend.h"
-#include "disasm/register.h"
+#include "instr/register.h"
 
 #ifdef ARCH_AARCH64
 class AARCH64RegisterUsage {
@@ -44,3 +46,4 @@ private:
 
 #endif
 
+#endif

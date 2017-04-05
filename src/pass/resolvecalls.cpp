@@ -1,6 +1,8 @@
 #include <iostream>
 #include "resolvecalls.h"
 #include "chunk/find.h"
+#include "instr/semantic.h"
+#include "instr/concrete.h"
 #include "log/log.h"
 
 void ResolveCalls::visit(Module *module) {

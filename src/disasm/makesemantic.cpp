@@ -1,5 +1,8 @@
+#include <cstring>  // for memcmp
 #include "makesemantic.h"
 #include "disassemble.h"
+#include "instr/assembly.h"
+#include "instr/concrete.h"
 #include "chunk/concrete.h"
 #include "chunk/link.h"
 

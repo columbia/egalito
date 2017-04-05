@@ -9,6 +9,7 @@
 #define D_break         9
 #define D_elf           9
 #define D_generate      9
+#define D_instr         9
 #define D_load          9
 #define D_transform     9
 #define D_log           9

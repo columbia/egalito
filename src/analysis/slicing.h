@@ -4,10 +4,10 @@
 #include <vector>
 #include <map>
 #include "controlflow.h"
-#include "chunk/instruction.h"
+#include "instr/register.h"
 
+class Instruction;
 class TreeNode;
-
 class SlicingInstructionState;
 
 class SearchState {

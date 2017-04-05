@@ -3,6 +3,7 @@
 #include "slicing.h"
 #include "slicingtree.h"
 #include "chunk/dump.h"
+#include "instr/concrete.h"
 #include "disasm/disassemble.h"
 #include "log/log.h"
 

@@ -1,6 +1,6 @@
 #include "pass/switchcontext.h"
 #include "disasm/disassemble.h"
-#include "disasm/register.h"
+#include "instr/register.h"
 #include "chunk/mutator.h"
 
 #ifdef ARCH_AARCH64

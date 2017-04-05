@@ -1,3 +1,4 @@
+#include <cstring>
 #include <cassert>
 #include "relocdata.h"
 #include "elf/elfmap.h"

@@ -4,6 +4,7 @@
 #include <vector>
 #include <climits>
 #include "chunk/concrete.h"
+#include "instr/register.h"
 #include "types.h"
 
 class SearchState;

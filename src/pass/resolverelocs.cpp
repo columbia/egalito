@@ -1,5 +1,5 @@
 #include "resolverelocs.h"
-#include "chunk/instruction.h"
+#include "instr/concrete.h"
 #include "log/log.h"
 
 void ResolveRelocs::visit(Instruction *instruction) {

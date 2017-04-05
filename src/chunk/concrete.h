@@ -3,7 +3,6 @@
 
 #include "chunk.h"
 #include "chunklist.h"
-#include "instruction.h"
 
 class Program;
 class Module;
@@ -112,29 +111,11 @@ public:
 
     virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
 };
-class InstructionSemantic;
-class SemanticVisitor;
-class Instruction : public ChunkImpl {
-private:
-    InstructionSemantic *semantic;
-public:
-    Instruction(InstructionSemantic *semantic = nullptr)
-        : semantic(semantic) {}
-
-    virtual std::string getName() const;
-
-    InstructionSemantic *getSemantic() const { return semantic; }
-    void setSemantic(InstructionSemantic *semantic)
-        { this->semantic = semantic; }
-
-    virtual size_t getSize() const { return semantic->getSize(); }
-    virtual void setSize(size_t value) { semantic->setSize(value); }
-
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-};
 
 // PLTTrampoline defined in plt.h
 #include "plt.h"
+
+#include "instr/instr.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"

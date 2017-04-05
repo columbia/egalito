@@ -1,7 +1,7 @@
 #include "relocheck.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "chunk/instruction.h"
+#include "instr/concrete.h"
 #include "chunk/find.h"
 #include "log/log.h"
 
