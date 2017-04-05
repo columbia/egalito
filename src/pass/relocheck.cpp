@@ -2,7 +2,7 @@
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "instr/concrete.h"
-#include "chunk/find.h"
+#include "operation/find.h"
 #include "log/log.h"
 
 void ReloCheckPass::visit(Module *module) {

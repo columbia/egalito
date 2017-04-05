@@ -1,6 +1,6 @@
 #include <capstone/capstone.h>
 #include "promotejumps.h"
-#include "chunk/mutator.h"
+#include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "log/log.h"
 

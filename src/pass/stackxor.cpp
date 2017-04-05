@@ -1,6 +1,6 @@
 #include "stackxor.h"
 #include "disasm/disassemble.h"
-#include "chunk/mutator.h"
+#include "operation/mutator.h"
 #include "instr/concrete.h"
 
 void StackXOR::visit(Function *function) {

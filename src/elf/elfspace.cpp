@@ -19,7 +19,7 @@
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library, Conductor *conductor)
     : elf(elf), library(library), module(nullptr), conductor(conductor),
     symbolList(nullptr), dynamicSymbolList(nullptr), relocList(nullptr),
-    pltSection(nullptr), aliasMap(nullptr) {
+    aliasMap(nullptr) {
 
 }
 
@@ -53,7 +53,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //module->accept(&dumper);
 
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-    PLTSection::parsePLTList(elf, relocList, module);
+    PLTList::parsePLTList(elf, relocList, module);
 
     FuncptrsPass funcptrsPass(relocList);
     module->accept(&funcptrsPass);

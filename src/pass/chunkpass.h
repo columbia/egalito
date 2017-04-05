@@ -3,7 +3,7 @@
 
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "chunk/chunklist.h"
+#include "chunk/visitor.h"
 
 class ChunkPass : public ChunkVisitor {
 protected:

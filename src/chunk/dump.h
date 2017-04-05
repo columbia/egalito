@@ -4,6 +4,7 @@
 #include "chunk.h"
 #include "concrete.h"
 #include "instr/concrete.h"
+#include "visitor.h"
 
 class ChunkDumper : public ChunkVisitor {
 private:

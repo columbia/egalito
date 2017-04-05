@@ -5,8 +5,8 @@
 #include "conductor/conductor.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
-#include "chunk/find.h"
-#include "chunk/find2.h"
+#include "operation/find.h"
+#include "operation/find2.h"
 #include "pass/logcalls.h"
 #include "pass/dumptlsinstr.h"
 

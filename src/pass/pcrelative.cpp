@@ -3,7 +3,7 @@
 #include "pcrelative.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "chunk/find.h"
+#include "operation/find.h"
 #include "instr/semantic.h"
 #include "log/log.h"
 

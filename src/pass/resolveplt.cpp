@@ -1,5 +1,5 @@
 #include "resolveplt.h"
-#include "chunk/find2.h"
+#include "operation/find2.h"
 
 void ResolvePLTPass::visit(PLTList *pltList) {
     recurse(pltList);

@@ -1,9 +1,9 @@
 #include <cstdio>
 #include "logcalls.h"
 #include "conductor/conductor.h"
-#include "chunk/find2.h"
-#include "chunk/mutator.h"
 #include "instr/concrete.h"
+#include "operation/find2.h"
+#include "operation/mutator.h"
 #include "disasm/disassemble.h"
 #include "cminus/print.h"
 #include "log/log.h"

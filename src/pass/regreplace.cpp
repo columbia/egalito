@@ -4,8 +4,8 @@
 #ifdef ARCH_AARCH64
     #include "disasm/aarch64-regbits.h"
 #endif
-#include "chunk/mutator.h"
 #include "chunk/dump.h"
+#include "operation/mutator.h"
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64

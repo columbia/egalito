@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <cstdio>  // for std::fflush
 #include "generator.h"
-#include "chunk/mutator.h"
+#include "operation/mutator.h"
 #include "instr/semantic.h"
 #include "log/log.h"
 

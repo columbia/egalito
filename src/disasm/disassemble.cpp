@@ -7,7 +7,7 @@
 #include "makesemantic.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
-#include "chunk/mutator.h"
+#include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "log/log.h"
 

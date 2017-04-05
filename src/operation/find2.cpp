@@ -1,6 +1,6 @@
 #include "find2.h"
-#include "concrete.h"
-#include "aliasmap.h"
+#include "chunk/concrete.h"
+#include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
 #include "elf/elfspace.h"
 

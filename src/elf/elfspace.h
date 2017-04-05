@@ -23,7 +23,6 @@ private:
     SymbolList *symbolList;
     SymbolList *dynamicSymbolList;
     RelocList *relocList;
-    PLTSection *pltSection;
     FunctionAliasMap *aliasMap;
 public:
     ElfSpace(ElfMap *elf, SharedLib *library, Conductor *conductor = nullptr);
@@ -41,7 +40,6 @@ public:
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
     RelocList *getRelocList() const { return relocList; }
-    PLTSection *getPLTSection() const { return pltSection; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }
 };

@@ -1,7 +1,7 @@
 #include <cassert>
 #include "cursor.h"
-#include "chunk.h"
-#include "chunklist.h"
+#include "chunk/chunk.h"
+#include "chunk/chunklist.h"
 
 ChunkCursor::ChunkCursor(Chunk *parent, size_t index)
     : list(parent->getChildren()), index(index) {

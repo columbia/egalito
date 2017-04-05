@@ -1,7 +1,7 @@
 #include <algorithm>  // for std::max
 #include <iomanip>
 #include "mutator.h"
-#include "position.h"
+#include "chunk/position.h"
 #include "pass/positiondump.h"
 #include "log/log.h"
 

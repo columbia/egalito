@@ -1,8 +1,8 @@
 #ifndef EGALITO_CHUNK_MUTATOR_H
 #define EGALITO_CHUNK_MUTATOR_H
 
-#include "chunk.h"
-#include "chunklist.h"
+#include "chunk/chunk.h"
+#include "chunk/chunklist.h"
 #include "cursor.h"
 
 /** Class to add/remove children in the Chunk hierarchy.

@@ -18,6 +18,7 @@ else ifeq (x86_64,$(P_ARCH))
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
+OPERATION_SOURCES   = $(wildcard operation/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 CMINUS_SOURCES      = $(wildcard cminus/*.c)
@@ -29,7 +30,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
     $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
     $(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
-    load/emulator.cpp
+    $(OPERATION_SOURCES) load/emulator.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))

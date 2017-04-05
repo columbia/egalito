@@ -1,7 +1,7 @@
 #include "funcptrs.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "chunk/find.h"
+#include "operation/find.h"
 #include "instr/concrete.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"

@@ -1,6 +1,7 @@
 #ifndef EGALITO_INSTR_INSTR_H
 #define EGALITO_INSTR_INSTR_H
 
+#include "chunk/chunk.h"
 #include "types.h"
 
 class InstructionSemantic;
