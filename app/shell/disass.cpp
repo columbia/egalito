@@ -9,6 +9,7 @@
 #include "operation/find2.h"
 #include "pass/logcalls.h"
 #include "pass/dumptlsinstr.h"
+#include "pass/stackxor.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -103,5 +104,11 @@ void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) 
         args.shouldHave(0);
         DumpTLSInstrPass dumptls;
         setup->getConductor()->acceptInAllModules(&dumptls);
+    }, "shows all instructions that refer to the TLS register");
+
+    topLevel->add("stackxor", [&] (Arguments args) {
+        args.shouldHave(0);
+        StackXOR stackXOR(0x28);
+        setup->getConductor()->acceptInAllModules(&stackXOR);
     }, "shows all instructions that refer to the TLS register");
 }

@@ -4,7 +4,12 @@
 #include "instr/concrete.h"
 
 void StackXOR::visit(Function *function) {
-    addInstructions(function->getChildren()->getIterable()->get(0), 0);
+    auto block1 = function->getChildren()->getIterable()->get(0);
+    Instruction *first = nullptr;
+    if(block1->getChildren()->getIterable()->getCount() > 0) {
+        first = block1->getChildren()->getIterable()->get(0);
+    }
+    addInstructions(block1, first);
     recurse(function);
 }
 
@@ -13,16 +18,21 @@ void StackXOR::visit(Block *block) {
 }
 
 void StackXOR::visit(Instruction *instruction) {
-    std::string bytes = instruction->getSemantic()->getData();
-    if(dynamic_cast<ReturnInstruction *>(instruction->getSemantic())) {
-        auto parent = dynamic_cast<Block *>(instruction->getParent());
+    auto parent = dynamic_cast<Block *>(instruction->getParent());
+    auto s = instruction->getSemantic();
+    if(dynamic_cast<ReturnInstruction *>(s)) {
+        addInstructions(parent, instruction);
+    }
+    else if(auto v = dynamic_cast<ControlFlowInstruction *>(s)) {
+        if(v->getMnemonic() != "callq"
+            && dynamic_cast<ExternalNormalLink *>(s->getLink())) {
 
-        addInstructions(parent,
-            parent->getChildren()->getIterable()->indexOf(instruction));
+            addInstructions(parent, instruction);
+        }
     }
 }
 
-void StackXOR::addInstructions(Block *block, size_t index) {
+void StackXOR::addInstructions(Block *block, Instruction *instruction) {
 #ifdef ARCH_X86_64
     /*
         0000000000000000 <xor_ret_addr>:
@@ -30,11 +40,11 @@ void StackXOR::addInstructions(Block *block, size_t index) {
            7:   00 00
            9:   4c 31 1c 24             xor    %r11,(%rsp)
     */
-
-    insertAt(block, index, Disassemble::instruction(
+    ChunkMutator mutator(block);
+    mutator.insertBefore(instruction, Disassemble::instruction(
         {0x64, 0x4c, 0x8b, 0x1c, 0x25,
             (unsigned char)xorOffset, 0x00, 0x00, 0x00}));
-    insertAt(block, index + 1, Disassemble::instruction(
+    mutator.insertBefore(instruction, Disassemble::instruction(
         {0x4c, 0x31, 0x1c, 0x24}));
 #elif defined(ARCH_AARCH64)
     /*
@@ -44,42 +54,10 @@ void StackXOR::addInstructions(Block *block, size_t index) {
             note: depending on the disassembler the first instruction might be
             shown as movn #0
      */
-    insertAt(block, index,   Disassemble::instruction({0x10, 0x00, 0x80, 0x92}));
-    insertAt(block, index+1, Disassemble::instruction({0xde, 0x03, 0x10, 0xca}));
+    ChunkMutator mutator(block);
+    mutator.insertBefore(Disassemble::instruction(
+        {0x10, 0x00, 0x80, 0x92}), instruction);
+    mutator.insertBefore(Disassemble::instruction(
+        {0xde, 0x03, 0x10, 0xca}), instruction);
 #endif
-}
-
-void StackXOR::insertAt(Block *block, size_t index, Instruction *instr) {
-    PositionFactory *positionFactory = PositionFactory::getInstance();
-
-    auto list = block->getChildren()->getIterable();
-    if(index == 0) {
-        instr->setPosition(
-            positionFactory->makePosition(nullptr, instr, 0));
-    }
-    else {
-        auto prev = list->get(index - 1);
-        instr->setPosition(
-            positionFactory->makePosition(prev, instr,
-                prev->getPosition()->get() - block->getPosition()->get() + prev->getSize()));
-        prev->setNextSibling(instr);
-        instr->setPreviousSibling(prev);
-    }
-
-    // ChunkMutator doesn't support this yet
-    //ChunkMutator(block).insertAt(index, instr);
-    list->insertAt(index, instr);
-    instr->setParent(block);
-    block->addToSize(instr->getSize());
-
-    ChunkMutator(block).updatePositions();
-
-    if(index + 1 < block->getChildren()->getIterable()->getCount()) {
-        auto next = list->get(index + 1);
-        next->setPosition(
-            positionFactory->makePosition(instr, next,
-                instr->getPosition()->get() - block->getPosition()->get()));
-        next->setPreviousSibling(instr);
-        instr->setNextSibling(next);
-    }
 }
