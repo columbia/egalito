@@ -57,6 +57,7 @@ private:
     void makeHeader();
     void updateOffsetAndAddress();
     void updateHeader();
+    void serializeSegments();
 private:
     size_t getNextFreeOffset();
     address_t getNextFreeAddress();

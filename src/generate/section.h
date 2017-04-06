@@ -12,17 +12,17 @@ private:
     std::string data;
     std::string name;
     address_t address;
-    size_t fileOffset;
+    size_t offset;
     bool withShdr;
     Elf64_Word shdrType;
     Section *sectionLink;
     size_t shdrIndex;
 public:
     Section(std::string name) : name(name),
-        address(0), fileOffset(0), withShdr(false), shdrType(SHT_NULL),
+        address(0), offset(0), withShdr(false), shdrType(SHT_NULL),
         sectionLink(nullptr), shdrIndex(static_cast<size_t>(-1)) {}
     Section(std::string name, Elf64_Word shdrType) : name(name),
-        address(0), fileOffset(0), withShdr(true), shdrType(shdrType),
+        address(0), offset(0), withShdr(true), shdrType(shdrType),
         sectionLink(nullptr), shdrIndex(static_cast<size_t>(-1)) {}
     virtual ~Section() {}
     Section *with(const void *data, size_t size)
@@ -33,14 +33,14 @@ public:
     std::string getData() const { return data; }
     std::string getName() const { return name; }
     address_t getAddress() const { return address; }
-    size_t getFileOff() const { return fileOffset; }
+    size_t getOffset() const { return offset; }
     size_t getSize() const { return data.size(); }
     bool hasShdr() const { return withShdr; }
     Section *getSectionLink() const { return sectionLink; }
     size_t getShdrIndex() const { return shdrIndex; }
 public:
     void setAddress(address_t addr) { address = addr; }
-    void setFileOff(size_t offset) { fileOffset = offset; }
+    void setOffset(size_t off) { offset = off; }
     void setSectionLink(Section *link) { sectionLink = link; }
 public:
     friend std::ostream& operator<<(std::ostream &stream, Section &rhs);

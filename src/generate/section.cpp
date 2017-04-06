@@ -30,7 +30,7 @@ Elf64_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     Elf64_Shdr *entry = new Elf64_Shdr();
     entry->sh_name = nameStrIndex;
     entry->sh_type = shdrType;
-    entry->sh_offset = fileOffset;
+    entry->sh_offset = offset;
     entry->sh_size = getSize();
     entry->sh_addr = address;
 

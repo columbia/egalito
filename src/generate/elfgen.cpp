@@ -13,10 +13,8 @@ ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     stringTableList(STRING_TABLE_TYPES) {
     int idx = SEGMENT_TYPES;
     while(idx-- >= 0)
-        segmentList[idx] = new Segment(idx);
+        segmentList[idx] = new Segment();
 
-    segmentList[Metadata::HEADER]->setHasPhdr(false);
-    segmentList[Metadata::HIDDEN]->setHasPhdr(false);
     stringTableList[SH] = new Section(".shstrtab", SHT_STRTAB);
     stringTableList[DYN] = new Section(".dynstr", SHT_STRTAB);
     stringTableList[SYM] = new Section(".strtab", SHT_STRTAB);
@@ -53,16 +51,7 @@ void ElfGen::generate() {
     updateHeader();
 
     // Write to file
-    std::ofstream fs(filename, std::ios::out | std::ios::binary);
-    for(auto segment : data.getSegmentList()) {
-        if(segment->getSections().size() == 0) {
-            continue;
-        }
-
-        LOG(1, "serialize segment at " << segment->getFirstSection()->getName());
-        fs << *segment;
-    }
-    fs.close();
+    serializeSegments();
 
     chmod(filename.c_str(), 0755);
 }
@@ -70,6 +59,24 @@ void ElfGen::generate() {
 void ElfGen::generatePLT() {
     originalPLT.makePLT(elfSpace,
         elfSpace->getModule()->getPLTList());
+}
+
+void ElfGen::makeHeader() {
+    // Elf Header
+    auto elfMap = elfSpace->getElfMap();
+    data[Metadata::HEADER]->setOffset(0, Segment::Offset::FIXED);
+    data[Metadata::HEADER]->add((new Section(".elfheader"))
+        ->with(elfMap->getMap(), sizeof(Elf64_Ehdr)));
+    // Update entry point in existing segment
+    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    address_t entry_pt = 0;
+    if(auto start = CIter::named(elfSpace->getModule()->getFunctionList())
+        ->find("_start")) {
+
+        entry_pt = elfSpace->getElfMap()->getBaseAddress()
+            + start->getAddress();
+    }
+    header->e_entry = entry_pt;
 }
 
 void ElfGen::makeRWData() {// Elf Header
@@ -85,8 +92,8 @@ void ElfGen::makeRWData() {// Elf Header
     }
     data[Metadata::RODATA]->add((new Section(".old_ro"))
         ->with(elfMap->getCharmap(), rodata->p_memsz));
-    data[Metadata::RODATA]->setFileOff(rodata->p_offset);
-    data[Metadata::RODATA]->setAddress(rodata->p_vaddr);
+    data[Metadata::RODATA]->setOffset(rodata->p_offset, Segment::Offset::ORIGINAL);
+    data[Metadata::RODATA]->setAddress(rodata->p_vaddr, Segment::Address::ORIGINAL);
     data[Metadata::RODATA]->setPhdrInfo(rodata->p_type, rodata->p_flags, rodata->p_align);
 
     // Read Write data
@@ -94,8 +101,8 @@ void ElfGen::makeRWData() {// Elf Header
         char *loadRWVirtualAdress = elfMap->getCharmap() + rodata->p_offset;
         data[Metadata::RWDATA]->add((new Section(".old_rw"))
             ->with(static_cast<void *>(loadRWVirtualAdress), rwdata->p_memsz));
-        data[Metadata::RWDATA]->setFileOff(rwdata->p_offset);
-        data[Metadata::RWDATA]->setAddress(rwdata->p_vaddr);
+        data[Metadata::RWDATA]->setOffset(rwdata->p_offset, Segment::Offset::ORIGINAL);
+        data[Metadata::RWDATA]->setAddress(rwdata->p_vaddr, Segment::Address::ORIGINAL);
         data[Metadata::RWDATA]->setPhdrInfo(rwdata->p_type, rwdata->p_flags, rwdata->p_align);
     }
 }
@@ -128,8 +135,8 @@ void ElfGen::makeText() {
         LOG(1, "map " << std::hex << *i << " size " << size);
 
         // intentionally leave VISIBLE Segment set after last iteration
-        data[Metadata::VISIBLE]->setAddress(backing->getBase() + totalSize);
-        data[Metadata::VISIBLE]->setFileOff(loadOffset + totalSize);
+        data[Metadata::VISIBLE]->setOffset(loadOffset + totalSize, Segment::Offset::FIXED);
+        data[Metadata::VISIBLE]->setAddress(backing->getBase() + totalSize, Segment::Address::FIXED);
         data[Metadata::VISIBLE]->setPhdrInfo(PT_LOAD, PF_R | PF_X, 0x1000);
         std::ostringstream sectionName;
         sectionName << ".text.0x" << std::hex << *i;
@@ -146,7 +153,7 @@ void ElfGen::makeText() {
     if(elfMap->isDynamic()) {
         Section *interpSection = new Section(".interp", SHT_PROGBITS);
         interpSection->add(elfMap->getInterpreter(), std::strlen(interpreter) + 1);
-        data[Metadata::INTERP]->add(interpSection);
+        data[Metadata::INTERP]->add(interpSection); // HERE
         data[Metadata::INTERP]->setPhdrInfo(PT_INTERP, PF_R, 0x1);
 
         data[Metadata::VISIBLE]->add(interpSection);
@@ -262,6 +269,8 @@ void ElfGen::makeDynamic() {
     dynamicSection->add(static_cast<void *>(dynamicData.data()),
         dynamicData.size() * sizeof(Elf64_Dyn));
 
+    data[Metadata::DYNAMIC]->setOffsetType(Segment::Offset::ASSIGNABLE);
+    data[Metadata::DYNAMIC]->setAddressType(Segment::Address::ASSIGNABLE);
     data[Metadata::DYNAMIC]->add(dynamicSection);
     data[Metadata::DYNAMIC]->setPhdrInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
 }
@@ -270,7 +279,7 @@ void ElfGen::makePhdrTable() {
     // Note: we overwrite the previous phdrs list. This only works if we have
     // at most as many entries as were originally present.
     data[Metadata::PHDR_TABLE]->setPhdrInfo(PT_PHDR, PF_R | PF_X, 8);
-    data[Metadata::PHDR_TABLE]->setFileOff(sizeof(Elf64_Ehdr));
+    data[Metadata::PHDR_TABLE]->setOffset(sizeof(Elf64_Ehdr), Segment::Offset::FIXED);
     //data[Metadata::PHDR_TABLE]->setAddress(0);
     std::vector<Elf64_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
@@ -306,7 +315,7 @@ void ElfGen::makeShdrTable() {
     sectionLookup[nullSection] = 0;
     shdrList.push_back(std::make_pair(nullSection, nullShdr));
     for(auto seg : data.getSegmentList()) {
-        if(seg->getType() == Metadata::INTERP) continue;
+        if(seg->getPType() == PT_INTERP) continue;
 
         for(auto sec : seg->getSections()) {
             if(sec->hasShdr()) {
@@ -337,40 +346,23 @@ void ElfGen::makeShdrTable() {
     delete nullSection;
 }
 
-void ElfGen::makeHeader() { // NEEDS TO BE UPDATED
-    // Elf Header
-    auto elfMap = elfSpace->getElfMap();
-    data[Metadata::HEADER]->setFileOff(0);
-    data[Metadata::HEADER]->setAddress(0);
-    data[Metadata::HEADER]->add((new Section(".elfheader"))
-        ->with(elfMap->getMap(), sizeof(Elf64_Ehdr)));
-    // Update entry point in existing segment
-    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
-    address_t entry_pt = 0;
-    if(auto start = CIter::named(elfSpace->getModule()->getFunctionList())
-        ->find("_start")) {
-
-        entry_pt = elfSpace->getElfMap()->getBaseAddress()
-            + start->getAddress();
-    }
-    header->e_entry = entry_pt;
-}
-
 void ElfGen::updateOffsetAndAddress() {
     // skip HEADER
     for(size_t idx = Metadata::HEADER+1; idx < Metadata::SEGMENT_TYPES;
         idx ++) {
 
         auto t = static_cast<Metadata::SegmentType>(idx);
-        if(data[t]->getFileOff() == 0) {
+        if(data[t]->getOffset().type == Segment::Offset::ASSIGNABLE) {
             size_t offset = getNextFreeOffset();
             if(data[t]->getPType() == PT_LOAD) {
-                data[t]->setFileOff(roundUpToPageAlign(offset));
+                data[t]->setOffset(roundUpToPageAlign(offset));
             } else {
-                data[t]->setFileOff(offset);
+                if(t == Metadata::HIDDEN)
+                    LOG(1, "OFFSET: " << offset);
+                data[t]->setOffset(offset);
             }
         }
-        if(data[t]->getAddress() == 0 /*Metadata::CHOOSE_ADDRESS*/) {
+        if(data[t]->getAddress().type == Segment::Address::ASSIGNABLE) {
             data[t]->setAddress(getNextFreeAddress());
         }
     }
@@ -378,17 +370,39 @@ void ElfGen::updateOffsetAndAddress() {
 
 void ElfGen::updateHeader() {
     Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
-    header->e_phoff = data[Metadata::PHDR_TABLE]->getFileOff();
+    header->e_phoff = data[Metadata::PHDR_TABLE]->getOffset().off;
     header->e_phnum = data[Metadata::PHDR_TABLE]->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
     Section *shdrTable = data[Metadata::HIDDEN]->findSection(".shdr_table");
-    header->e_shoff = shdrTable->getFileOff();
+    header->e_shoff = shdrTable->getOffset();
     header->e_shnum = shdrTable->getSize() / sizeof(Elf64_Shdr);
+}
+
+void ElfGen::serializeSegments() {
+    std::ofstream fs(filename, std::ios::out | std::ios::binary);
+    for(auto segment : data.getSegmentList()) {
+        if(segment->getSections().size() == 0 ||
+            segment->getAddress().type != Segment::Address::ORIGINAL) {
+            continue;
+        }
+        LOG(1, "serialize segment at " << segment->getFirstSection()->getName());
+        fs << *segment;
+    }
+
+    for(auto segment : data.getSegmentList()) {
+        if(segment->getSections().size() == 0 ||
+            segment->getAddress().type == Segment::Address::ORIGINAL) {
+            continue;
+        }
+        LOG(1, "serialize segment at " << segment->getFirstSection()->getName());
+        fs << *segment;
+    }
+    fs.close();
 }
 
 size_t ElfGen::getNextFreeOffset() {
     size_t maxOffset = 0;
     for(auto seg : data.getSegmentList()) {
-        auto offset = seg->getFileOff() + seg->getSize();
+        auto offset = seg->getOffset().off + seg->getSize();
         if(offset > maxOffset) maxOffset = offset;
     }
     return maxOffset;
