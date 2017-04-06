@@ -1,4 +1,5 @@
-#ifndef EGALITO_CHUNK_CURSOR_H
+#ifndef EGALITO_OPERATION_CURSOR_H
+#define EGALITO_OPERATION_CURSOR_H
 
 #include "types.h"
 

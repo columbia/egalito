@@ -1,5 +1,5 @@
-#ifndef EGALITO_CHUNK_FIND_H
-#define EGALITO_CHUNK_FIND_H
+#ifndef EGALITO_OPERATION_FIND_H
+#define EGALITO_OPERATION_FIND_H
 
 #include "types.h"
 #include "chunk/chunk.h"

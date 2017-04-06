@@ -1,5 +1,5 @@
-#ifndef EGALITO_CHUNK_MUTATOR_H
-#define EGALITO_CHUNK_MUTATOR_H
+#ifndef EGALITO_OPERATION_MUTATOR_H
+#define EGALITO_OPERATION_MUTATOR_H
 
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
