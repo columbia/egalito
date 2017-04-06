@@ -153,7 +153,8 @@ void ElfGen::makeText() {
     if(elfMap->isDynamic()) {
         Section *interpSection = new Section(".interp", SHT_PROGBITS);
         interpSection->add(elfMap->getInterpreter(), std::strlen(interpreter) + 1);
-        data[Metadata::INTERP]->add(interpSection); // HERE
+        data[Metadata::INTERP]->setAddressType(Segment::Address::DEPENDENT, data[Metadata::VISIBLE]);
+        data[Metadata::INTERP]->add(interpSection);
         data[Metadata::INTERP]->setPhdrInfo(PT_INTERP, PF_R, 0x1);
 
         data[Metadata::VISIBLE]->add(interpSection);
@@ -347,8 +348,7 @@ void ElfGen::makeShdrTable() {
 }
 
 void ElfGen::updateOffsetAndAddress() {
-    // skip HEADER
-    for(size_t idx = Metadata::HEADER+1; idx < Metadata::SEGMENT_TYPES;
+    for(size_t idx = Metadata::HEADER; idx < Metadata::SEGMENT_TYPES;
         idx ++) {
 
         auto t = static_cast<Metadata::SegmentType>(idx);
@@ -365,6 +365,18 @@ void ElfGen::updateOffsetAndAddress() {
         if(data[t]->getAddress().type == Segment::Address::ASSIGNABLE) {
             data[t]->setAddress(getNextFreeAddress());
         }
+    }
+    // Update dependent segments
+    for(size_t idx = Metadata::HEADER; idx < Metadata::SEGMENT_TYPES;
+        idx ++) {
+        auto t = static_cast<Metadata::SegmentType>(idx);
+        auto address = data[t]->getAddress();
+        if(address.type != Segment::Address::DEPENDENT) {
+            continue;
+        }
+        auto name = data[t]->getFirstSection()->getName();
+        auto section = address.dependent->findSection(name);
+        data[t]->setAddress(section->getAddress());
     }
 }
 

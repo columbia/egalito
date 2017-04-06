@@ -44,7 +44,10 @@ public:
     Elf64_Word getPType() const { return p_type; }
 public:
     void setAddress(address_t addr, Address::AddressType type = Address::ASSIGNABLE);
-    void setAddressType(Address::AddressType type) {address.type = type;};
+    void setAddressType(Address::AddressType type, Segment *seg = nullptr) {
+        address.type = type;
+        address.dependent = seg;
+    }
     void setOffset(size_t off, Offset::OffsetType type = Offset::ASSIGNABLE);
     void setOffsetType(Offset::OffsetType type) {offset.type = type;};
     void setPhdrInfo(Elf64_Word ptype, Elf64_Word pflags, Elf64_Xword palign);
