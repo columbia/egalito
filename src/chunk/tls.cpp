@@ -20,7 +20,11 @@ void TLSList::buildTLSList(ElfMap *elf, RelocList *relocList, Module *module) {
 #ifdef ARCH_AARCH64
     if(list) {
         for(auto r : *relocList) {
+#ifdef R_AARCH64_TLS_TPREL64  // needed on debian
+            if(r->getType() == R_AARCH64_TLS_TPREL64) {
+#else  // is this really needed?
             if(r->getType() == R_AARCH64_TLS_TPREL) {
+#endif
                 list->addReloc(r);
             }
         }

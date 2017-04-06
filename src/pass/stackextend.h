@@ -9,6 +9,8 @@
 #include "elf/reloc.h"
 
 #ifdef ARCH_AARCH64
+class ControlFlowInstruction;
+
 class FrameType {
 private:
     size_t baseSize;    // local variable + callee-saved regs

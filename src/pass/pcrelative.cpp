@@ -4,7 +4,7 @@
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "operation/find.h"
-#include "instr/semantic.h"
+#include "instr/concrete.h"
 #include "log/log.h"
 
 void PCRelativePass::visit(Module *module) {

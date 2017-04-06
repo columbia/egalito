@@ -37,25 +37,6 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
     address_t dest = getLink()->getTargetAddress();
     diff_t disp = dest - (getSource()->getAddress() + getSize());
 
-#if 0  // this does not work
-    unsigned long mask = (1 << (displacementSize * CHAR_BIT)) - 1;
-    bool fits = false;
-    if(disp >= 0) {
-        if(disp == (disp & mask)) fits = true;
-    }
-    else {
-        if((-disp) == ((-disp) & mask)) fits = true;
-    }
-    if(!fits) {
-        std::ostringstream stream;
-        stream << "writing ControlFlowInstruction with disp size "
-            << displacementSize << ", but value " << disp
-            << " is too large to encode";
-        LOG(0, stream.str());
-        throw stream.str();
-    }
-#endif
-
     return disp;
 }
 

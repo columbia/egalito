@@ -9,12 +9,12 @@ ifneq ($(CROSS),)
 ifneq ($(CAPSTONE_INC),)
 	GENERIC_FLAGS += -isystem $(CAPSTONE_INC)
 else
-	$(error Capstone Include directory not defined)
+    $(error Capstone Include directory not defined)
 endif
 ifneq ($(CAPSTONE_LIB),)
 	CROSSLD = -L $(CAPSTONE_LIB)
 else
-	$(error Capstone Lib directory not defined)
+    $(error Capstone Lib directory not defined)
 endif
 endif
 
@@ -47,7 +47,7 @@ else ifeq (x86_64,$(P_ARCH))
 	CXXFLAGS += -DARCH_X86_64
 	BUILDDIR = build_x86_64/
 else
-$(error Unsupported platform, we only handle aarch64 and x86_64)
+    $(error Unsupported platform, we only handle aarch64 and x86_64)
 endif
 
 CFLAGS += '-DTESTDIR="example/$(BUILDDIR)"'

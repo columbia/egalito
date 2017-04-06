@@ -31,7 +31,7 @@ TEST_CASE("instrument a function", "[pass][fast][aarch64]") {
     ElfMap elf(TESTDIR "log");
 
     Conductor conductor;
-    conductor.parse(&elf, nullptr);
+    conductor.parseExecutable(&elf);
 
     auto module = conductor.getMainSpace()->getModule();
     auto entry = CIter::named(module->getFunctionList())->find("entryAdvice");
