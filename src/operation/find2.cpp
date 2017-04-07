@@ -4,58 +4,58 @@
 #include "conductor/conductor.h"
 #include "elf/elfspace.h"
 
-Function *ChunkFind2::findFunctionHelper(const char *name, ElfSpace *space) {
+ChunkFind2::ChunkFind2(Conductor *conductor)
+    : program(conductor->getProgram()) {
+
+}
+
+Function *ChunkFind2::findFunctionHelper(const char *name, Module *module) {
     // Search for the function by name.
-    auto func = CIter::named(space->getModule()->getFunctionList())
+    auto func = CIter::named(module->getFunctionList())
         ->find(name);
     if(func) return func;
 
     // Also, check if this is an alias for a known function.
-    auto alias = space->getAliasMap()->find(name);
+    auto alias = module->getElfSpace()->getAliasMap()->find(name);
     if(alias) return alias;
 
     return nullptr;
 }
 
 Function *ChunkFind2::findFunctionContainingHelper(address_t address,
-    ElfSpace *space) {
+    Module *module) {
 
-    auto f = CIter::spatial(space->getModule()->getFunctionList())
+    auto f = CIter::spatial(module->getFunctionList())
         ->findContaining(address);
     return f;
 }
 
-Function *ChunkFind2::findFunction(const char *name, ElfSpace *sourceSpace) {
-    if(sourceSpace) {
-        if(auto f = findFunctionHelper(name, sourceSpace)) return f;
-    }
-
-    for(auto library : *conductor->getLibraryList()) {
-        auto space = library->getElfSpace();
-        if(space && space != sourceSpace) {
-            if(auto f = findFunctionHelper(name, space)) return f;
+Function *ChunkFind2::findFunction(const char *name, Module *source) {
+    if(source) {
+        if(auto f = findFunctionHelper(name, source)) {
+            return f;
         }
     }
 
-    auto mainSpace = conductor->getMainSpace();
-    if(mainSpace != sourceSpace) {
-        if(auto f = findFunctionHelper(name, mainSpace)) return f;
+    for(auto module : CIter::children(program)) {
+        if(module == source) continue;
+        if(auto f = findFunctionHelper(name, module)) {
+            return f;
+        }
     }
 
     return nullptr;
 }
 
-Function *ChunkFind2::findFunctionInSpace(const char *name, ElfSpace *space) {
-    return findFunctionHelper(name, space);
+Function *ChunkFind2::findFunctionInModule(const char *name, Module *module) {
+    return findFunctionHelper(name, module);
 }
 
 Function *ChunkFind2::findFunctionContaining(address_t address) {
-    auto mainSpace = conductor->getMainSpace();
-    if(auto f = findFunctionContainingHelper(address, mainSpace)) return f;
-    
-    for(auto library : *conductor->getLibraryList()) {
-        auto space = library->getElfSpace();
-        if(auto f = findFunctionContainingHelper(address, space)) return f;
+    for(auto module : CIter::children(program)) {
+        if(auto f = findFunctionContainingHelper(address, module)) {
+            return f;
+        }
     }
 
     return nullptr;

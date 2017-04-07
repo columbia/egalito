@@ -8,14 +8,15 @@ class ElfSpace;
 
 class ResolvePLTPass : public ChunkPass {
 private:
-    Conductor *conductor;
-    ElfSpace *elfSpace;
+    Program *program;
+    Module *module;
 public:
-    ResolvePLTPass(Conductor *conductor, ElfSpace *elfSpace)
-        : conductor(conductor), elfSpace(elfSpace) {}
+    ResolvePLTPass(Program *program)
+        : program(program), module(nullptr) {}
+    virtual void visit(Module *module);
+protected:
     virtual void visit(PLTList *pltList);
     virtual void visit(PLTTrampoline *pltTrampoline);
-    virtual void visit(Instruction *instruction) {}
 };
 
 #endif

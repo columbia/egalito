@@ -1,18 +1,18 @@
 #ifndef EGALITO_CONDUCTOR_CONDUCTOR_H
 #define EGALITO_CONDUCTOR_CONDUCTOR_H
 
-#include "elf/sharedlib.h"
-#include "elf/elfspace.h"
+#include "elf/elfforest.h"
 
 class ChunkVisitor;
 
 class Conductor {
 private:
-    LibraryList *libraryList;
-    ElfSpaceList *spaceList;
+    ElfForest *forest;
+    Program *program;
     void *mainThreadPointer;
 public:
     Conductor();
+    ~Conductor();
 
     void parseExecutable(ElfMap *elf);
     void parseEgalito(ElfMap *elf, SharedLib *library);
@@ -25,8 +25,10 @@ public:
     void writeDebugElf(const char *filename, const char *suffix = "$new");
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);
 
-    ElfSpace *getMainSpace() const { return spaceList->getMain(); }
-    LibraryList *getLibraryList() const { return libraryList; }
+    Program *getProgram() const { return program; }
+    ElfSpace *getMainSpace() const { return forest->getMainSpace(); }
+    LibraryList *getLibraryList() const { return forest->getLibraryList(); }
+    ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
 
     void *getMainThreadPointer() const { return mainThreadPointer; }
 private:

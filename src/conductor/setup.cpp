@@ -114,7 +114,8 @@ void ConductorSetup::dumpElfSpace(ElfSpace *space) {
 void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
     Function *f = nullptr;
     if(space) {
-        f = ChunkFind2(conductor).findFunctionInSpace(function, space);
+        f = ChunkFind2(conductor)
+            .findFunctionInModule(function, space->getModule());
     }
     else {
         f = ChunkFind2(conductor).findFunction(function);

@@ -11,16 +11,25 @@
 #include "pass/resolverelocs.h"
 #include "pass/funcptrs.h"
 #include "pass/inferredptrs.h"
-#include "pass/stackxor.h"
 #include "pass/relocheck.h"
 #include "pass/relocdata.h"
 #include "log/log.h"
 
-ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library, Conductor *conductor)
-    : elf(elf), library(library), module(nullptr), conductor(conductor),
+ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
+    : elf(elf), library(library), module(nullptr),
     symbolList(nullptr), dynamicSymbolList(nullptr), relocList(nullptr),
     aliasMap(nullptr) {
 
+}
+
+ElfSpace::~ElfSpace() {
+    delete elf;
+    delete library;
+    delete module;
+    delete symbolList;
+    delete dynamicSymbolList;
+    delete relocList;
+    delete aliasMap;
 }
 
 void ElfSpace::findDependencies(LibraryList *libraryList) {
@@ -45,11 +54,12 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     auto baseAddr = elf->getCopyBaseAddress();
     Disassemble::init();
     this->module = Disassemble::module(baseAddr, symbolList);
+    this->module->setElfSpace(this);
 
     ResolveCalls resolver;
     module->accept(&resolver);
 
-    ChunkDumper dumper;
+    //ChunkDumper dumper;
     //module->accept(&dumper);
 
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
@@ -66,13 +76,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     InferredPtrsPass inferredPtrsPass(elf);
     module->accept(&inferredPtrsPass);
-
-    //module->accept(&dumper);
-
-    //StackXOR stackXOR(0x28);
-    //module->accept(&stackXOR);
-
-    //module->accept(&dumper);
 
     TLSList::buildTLSList(elf, relocList, module);
 

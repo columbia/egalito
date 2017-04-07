@@ -7,8 +7,13 @@
 #include "log/log.h"
 
 Conductor::Conductor() {
-    libraryList = new LibraryList();
-    spaceList = new ElfSpaceList();
+    forest = new ElfForest();
+    program = new Program(forest->getSpaceList());
+}
+
+Conductor::~Conductor() {
+    delete forest;
+    delete program;
 }
 
 void Conductor::parseExecutable(ElfMap *elf) {
@@ -16,50 +21,40 @@ void Conductor::parseExecutable(ElfMap *elf) {
 }
 
 void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library, this);
+    ElfSpace *space = new ElfSpace(elf, library);
     library->setElfSpace(space);
-    space->findDependencies(libraryList);
+    space->findDependencies(getLibraryList());
     space->buildDataStructures();
-    spaceList->addEgalito(space);
+    getSpaceList()->addEgalito(space);
+    program->getChildren()->add(space->getModule());
 }
 
 void Conductor::parseLibraries() {
     // we use an index here because the list can change as we iterate
-    for(size_t i = 0; i < libraryList->getCount(); i ++) {
-        auto library = libraryList->get(i);
+    for(size_t i = 0; i < getLibraryList()->getCount(); i ++) {
+        auto library = getLibraryList()->get(i);
         parse(library->getElfMap(), library);
     }
 }
 
 void Conductor::parse(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library, this);
+    ElfSpace *space = new ElfSpace(elf, library);
     if(library) library->setElfSpace(space);
-    space->findDependencies(libraryList);
+    space->findDependencies(getLibraryList());
     space->buildDataStructures();
-    spaceList->add(space, library == nullptr);
+    getSpaceList()->add(space, library == nullptr);
+    program->getChildren()->add(space->getModule());
 }
 
 void Conductor::resolvePLTLinks() {
-    ResolvePLTPass resolvePLT(this, getMainSpace());
-    getMainSpace()->getModule()->getPLTList()->accept(&resolvePLT);
-
-    for(auto library : *libraryList) {
-        if(library->getElfSpace()) {
-            ResolvePLTPass resolvePLT(this, library->getElfSpace());
-            library->getElfSpace()->getModule()->getPLTList()
-                ->accept(&resolvePLT);
-        }
-    }
+    ResolvePLTPass resolvePLT(program);
+    program->accept(&resolvePLT);
 }
 
 void Conductor::fixDataSections() {
-    for(auto library : *libraryList) {
-        if(library->getElfSpace()) {
-            fixDataSection(library->getElfSpace());
-        }
+    for(auto module : CIter::children(program)) {
+        fixDataSection(module->getElfSpace());
     }
-
-    fixDataSection(spaceList->getMain());
 
     loadTLSData();
 }
@@ -76,8 +71,8 @@ void Conductor::fixDataSection(ElfSpace *elfSpace) {
 void Conductor::loadTLSData() {
     auto module = getMainSpace()->getModule();
     DataLoader loader;
-
     mainThreadPointer = loader.setupMainData(module, 0xd0000000);
+
     int i = 1;
     for(auto lib : *getLibraryList()) {
         if(!lib->getElfSpace()) continue;
@@ -85,21 +80,16 @@ void Conductor::loadTLSData() {
             lib->getElfSpace()->getModule(), 0xd0000000 + i*0x1000000);
         i ++;
 
-        if(lib == libraryList->getLibc()) mainThreadPointer = t;
+        if(lib == getLibraryList()->getLibc()) {
+            mainThreadPointer = t;
+        }
     }
 }
 
 void Conductor::writeDebugElf(const char *filename, const char *suffix) {
     DebugElf debugElf;
 
-    auto mainModule = getMainSpace()->getModule();
-    for(auto func : CIter::functions(mainModule)) {
-        debugElf.add(func, suffix);
-    }
-
-    for(auto library : *libraryList) {
-        if(!library->getElfSpace()) continue;
-        auto module = library->getElfSpace()->getModule();
+    for(auto module : CIter::children(program)) {
         for(auto func : CIter::functions(module)) {
             debugElf.add(func, suffix);
         }
@@ -109,13 +99,9 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
 }
 
 void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
-    spaceList->getMain()->getModule()->accept(visitor);
+    for(auto module : CIter::children(program)) {
+        if(inEgalito && module == program->getEgalito()) continue;
 
-    for(auto library : *libraryList) {
-        auto space = library->getElfSpace();
-        if(!space) continue;
-        if(!inEgalito && space == spaceList->getEgalito()) continue;
-
-        space->getModule()->accept(visitor);
+        module->accept(visitor);
     }
 }

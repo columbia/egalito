@@ -4,6 +4,7 @@
 #include "chunk.h"
 #include "chunklist.h"
 
+class ElfSpace;
 class FunctionList;
 class BlockSoup;
 class PLTList;
@@ -11,15 +12,20 @@ class TLSList;
 
 class Module : public CompositeChunkImpl<Chunk> {
 private:
+    ElfSpace *elfSpace;
+private:
     FunctionList *functionList;
     BlockSoup *blockSoup;
     PLTList *pltList;
     TLSList *tlsList;
 public:
-    Module() : functionList(nullptr), blockSoup(nullptr), pltList(nullptr),
-        tlsList(nullptr) {}
+    Module() : elfSpace(nullptr), functionList(nullptr), blockSoup(nullptr),
+        pltList(nullptr), tlsList(nullptr) {}
 
     std::string getName() const;
+
+    void setElfSpace(ElfSpace *space) { elfSpace = space; }
+    ElfSpace *getElfSpace() const { return elfSpace; }
 
     FunctionList *getFunctionList() const { return functionList; }
     BlockSoup *getBlockSoup() const { return blockSoup; }

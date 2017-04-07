@@ -4,22 +4,24 @@
 #include "types.h"
 
 class Conductor;
+class Program;
+class Module;
 class Function;
-class ElfSpace;
 
 class ChunkFind2 {
 private:
-    Conductor *conductor;
+    Program *program;
 public:
-    ChunkFind2(Conductor *conductor) : conductor(conductor) {}
+    ChunkFind2(Conductor *conductor);
+    ChunkFind2(Program *program) : program(program) {}
 
-    Function *findFunction(const char *name, ElfSpace *sourceSpace = nullptr);
-    Function *findFunctionInSpace(const char *name, ElfSpace *space);
+    Function *findFunction(const char *name, Module *source = nullptr);
+    Function *findFunctionInModule(const char *name, Module *module);
 
     Function *findFunctionContaining(address_t address);
 private:
-    Function *findFunctionHelper(const char *name, ElfSpace *space);
-    Function *findFunctionContainingHelper(address_t address, ElfSpace *space);
+    Function *findFunctionHelper(const char *name, Module *module);
+    Function *findFunctionContainingHelper(address_t address, Module *module);
 };
 
 #endif
