@@ -68,7 +68,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
 #endif
     else if(ins->id == PLAT_(INS_RET)) {
-        semantic = new ReturnInstruction(*ins);
+        semantic = new ReturnInstruction(DisassembledStorage(*ins));
     }
 
     return semantic;

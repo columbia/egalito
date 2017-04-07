@@ -65,7 +65,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
     PLTList::parsePLTList(elf, relocList, module);
 
-    FuncptrsPass funcptrsPass(relocList);
+    FuncptrsPass funcptrsPass(elf, relocList);
     module->accept(&funcptrsPass);
 
     ResolveRelocs resolveRelocs(module->getPLTList());

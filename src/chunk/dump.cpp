@@ -47,10 +47,12 @@ void ChunkDumper::visit(Instruction *instruction) {
 
         dumpInstruction(p, instruction->getAddress(), pos);
     }
+#ifdef ARCH_AARCH64
     else if(auto p = dynamic_cast<PCRelativeInstruction *>(semantic)) {
 
         dumpInstruction(p, instruction->getAddress(), pos);
     }
+#endif
     // this handles RelocationInstruction, InferredInstruction
     else if(auto r = dynamic_cast<LinkedInstruction *>(semantic)) {
 
@@ -113,6 +115,7 @@ void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
         bytes2.c_str());
 }
 
+#ifdef ARCH_AARCH64
 void ChunkDumper::dumpInstruction(PCRelativeInstruction *semantic,
     address_t address, int pos) {
 
@@ -121,6 +124,7 @@ void ChunkDumper::dumpInstruction(PCRelativeInstruction *semantic,
     auto name = target ? target->getName().c_str() : nullptr;
     DisasmDump::printInstruction(address, semantic->getAssembly(), pos, name);
 }
+#endif
 
 void ChunkDumper::dumpInstruction(LinkedInstruction *semantic,
     address_t address, int pos) {

@@ -35,6 +35,11 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class AbsoluteNormalLink : public NormalLink {
+public:
+    using NormalLink::NormalLink;
+};
+
 /** Stores a link to a target Chunk, offset a given number of bytes from
     its start. This is used to target into an instruction that has a LOCK
     prefix on x86_64, for example.
@@ -90,7 +95,25 @@ public:
         : elf(elf), target(target) {}
 
     virtual ChunkRef getTarget() const { return nullptr; }
-    address_t getTargetAddress() const;
+    virtual address_t getTargetAddress() const;
+};
+
+class ImmAndDispLink : public Link {
+private:
+    NormalLink *immLink;
+    Link *dispLink;
+public:
+    ImmAndDispLink(NormalLink *immLink, Link *dispLink)
+        : immLink(immLink), dispLink(dispLink) {}
+    NormalLink *getImmLink() const { return immLink; }
+    Link *getDispLink() const { return dispLink; }
+
+    // arbitrarily choose to use the displacement link
+    /*virtual ChunkRef getTarget() const { return dispLink->getTarget(); }
+    virtual address_t getTargetAddress() const
+        { return dispLink->getTargetAddress(); }*/
+    virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }
+    virtual address_t getTargetAddress() const { throw "ImmAndDispLink not handled"; }
 };
 
 /** We know that this is a Link, but we're not sure what it points at yet.
@@ -102,7 +125,7 @@ public:
     UnresolvedLink(address_t target) : target(target) {}
 
     virtual ChunkRef getTarget() const { return nullptr; }
-    address_t getTargetAddress() const { return target; }
+    virtual address_t getTargetAddress() const { return target; }
 };
 
 class XRef {

@@ -16,12 +16,18 @@ void InferredPtrsPass::visit(Instruction *instruction) {
         if(!assembly) return;
 
 #ifdef ARCH_X86_64
+        auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
+        if(linked) {
+            instruction->setSemantic(linked);
+            delete v;
+        }
+#if 0
         auto asmOps = assembly->getAsmOperands();
         for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
             const cs_x86_op *op = &asmOps->getOperands()[i];
             if(MakeSemantic::isRIPRelative(assembly, i)) {
                 address_t target = (instruction->getAddress() + instruction->getSize()) + op->mem.disp;
-                auto inferred = new InferredInstruction(instruction, v->moveStorageFrom(), i);
+                auto inferred = new LinkedInstruction(instruction, v->moveStorageFrom(), i);
 
                 auto found = CIter::spatial(module->getFunctionList())
                     ->find(target);
@@ -57,7 +63,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 if(found) {
                     auto inferred = new AbsoluteLinkedInstruction(
                         instruction, v->moveStorageFrom(), i);
-                    inferred->setLink(new NormalLink(found));  // !!! ExternalNormalLink
+                    inferred->setLink(new ExternalNormalLink(found));
                     instruction->setSemantic(inferred);
                     delete v;
                     return;  // don't access v after we delete it
@@ -67,6 +73,7 @@ void InferredPtrsPass::visit(Instruction *instruction) {
                 }*/
             }
         }
+#endif
 #elif defined(ARCH_AARCH64)
         if(assembly->getId() == ARM64_INS_ADRP) {
             auto s = new PCRelativePageInstruction(instruction, *assembly);

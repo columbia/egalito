@@ -27,8 +27,10 @@ public:
 private:
     void dumpInstruction(ControlFlowInstruction *semantic,
                          address_t address, int pos);
+#ifdef ARCH_AARCH64
     void dumpInstruction(PCRelativeInstruction *semantic,
                          address_t address, int pos);
+#endif
     void dumpInstruction(LinkedInstruction *semantic,
                          address_t address, int pos);
     void dumpInstruction(IndirectJumpInstruction *semantic,

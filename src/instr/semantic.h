@@ -70,6 +70,8 @@ public:
     std::string getData();
 
     Assembly *getAssembly() { return &assembly; }
+    void setAssembly(Assembly &&newAssembly)
+        { assembly = std::move(newAssembly); }
 };
 
 template <typename Storage>

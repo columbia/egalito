@@ -7,6 +7,7 @@
 #include "log/log.h"
 
 void FuncptrsPass::visit(Module *module) {
+    this->module = module;
     auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
@@ -30,12 +31,20 @@ void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
 
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
+            auto assembly = v->getAssembly();
+            if(!assembly) return;
+            auto linked = LinkedInstruction::makeLinked(module, i, assembly);
+            if(linked) {
+                i->setSemantic(linked);
+                delete v;
+            }
+#if 0
             for(size_t op = 0;
                 op < v->getAssembly()->getAsmOperands()->getOpCount();
                 op ++) {
 
                 if(MakeSemantic::isRIPRelative(v->getAssembly(), op)) {
-                    auto ri = new RelocationInstruction(i, *v->getAssembly(), op);
+                    auto ri = new LinkedInstruction(i, *v->getAssembly(), op);
                     ri->setLink(new NormalLink(target));
                     i->setSemantic(ri);
                     LOG(2, " -> CREATED LINK for funcptr");
@@ -46,10 +55,11 @@ void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
             ri->setLink(new NormalLink(target));
             i->setSemantic(ri);
             LOG(2, " -> CREATED ABSOLUTE LINK for funcptr");
+#endif
 #else
             if(r->getType() != R_AARCH64_ADR_GOT_PAGE
                && r->getType() != R_AARCH64_LD64_GOT_LO12_NC) {
-                auto ri = new RelocationInstruction(i, *v->getAssembly());
+                auto ri = new LinkedInstruction(i, *v->getAssembly());
                 ri->setLink(new NormalLink(target));
                 i->setSemantic(ri);
                 LOG(2, " -> CREATED LINK for funcptr");

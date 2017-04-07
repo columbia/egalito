@@ -9,9 +9,12 @@ class Module;
 /** Find function pointers that are referred to by relocations. */
 class FuncptrsPass : public ChunkPass {
 private:
+    ElfMap *elf;
     RelocList *relocList;
+    Module *module;
 public:
-    FuncptrsPass(RelocList *relocList) : relocList(relocList) {}
+    FuncptrsPass(ElfMap *elf, RelocList *relocList)
+        : elf(elf), relocList(relocList), module(nullptr) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:
