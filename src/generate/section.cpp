@@ -57,7 +57,7 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
     symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
                                    Symbol::typeFromInternalToElf(sym->getType()));
     symbol.st_other = STV_DEFAULT;
-    symbol.st_shndx = func ? 1 : 3;  // dynamic symbols have func==nullptr
+    symbol.st_shndx = func ? 1 : SHN_UNDEF;  // dynamic symbols have func==nullptr
     symbol.st_value = func ? func->getAddress() : 0;
     symbol.st_size = func ? func->getSize() : 0;
     add(static_cast<void *>(&symbol), sizeof(symbol));

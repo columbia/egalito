@@ -30,7 +30,7 @@ void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
             auto sym = r->getSymbol();
             auto info = dynsym->getSymbolInfo(sym);
 
-            auto rela = makeRela(r, 0, /*info.symbolIndex*/0);
+            auto rela = makeRela(r, r->getAddend(), info.symbolIndex);
             LOG(1, "add relocation type " << r->getType() << " to "
                 << r->getSymbolName());
             relocData.append(reinterpret_cast<const char *>(&rela),
