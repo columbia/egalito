@@ -10,6 +10,7 @@
 #include "elf/elfspace.h"
 #include "segment.h"
 #include "section.h"
+#include "makeplt.h"
 
 class ElfGen {
 private:
@@ -45,7 +46,6 @@ public:
 public:
     void generate();
 private:
-    void generatePLT();
     void makeRWData();
     void makeText();
     void makeSymbolInfo();

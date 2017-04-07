@@ -11,14 +11,6 @@ std::string Reloc::getSymbolName() const {
     return symbol ? symbol->getName() : "???";
 }
 
-Elf64_Rela Reloc::makeRela() const {
-    Elf64_Rela rela;
-    rela.r_offset   = address;
-    rela.r_info     = ELF64_R_INFO(symbolIndex, type);
-    rela.r_addend   = addend;
-    return std::move(rela);
-}
-
 bool RelocList::add(Reloc *reloc) {
     relocList.push_back(reloc);
     address_t address = reloc->getAddress();

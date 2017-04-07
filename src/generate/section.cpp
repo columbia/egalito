@@ -61,11 +61,19 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
     symbol.st_value = func ? func->getAddress() : 0;
     symbol.st_size = func ? func->getSize() : 0;
     add(static_cast<void *>(&symbol), sizeof(symbol));
+
+    infoMap[sym] = SymbolInfo(count, nameStrIndex);
     count ++;
 }
 
 Elf64_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
     shdr->sh_info = count;
+    return shdr;
+}
+
+Elf64_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
+    auto shdr = Section::makeShdr(index, nameStrIndex);
+    shdr->sh_info = targetSection->getShdrIndex();
     return shdr;
 }

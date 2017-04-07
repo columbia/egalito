@@ -4,6 +4,7 @@ class Function;
 
 #include <string>
 #include <set>
+#include <map>
 #include <elf.h>
 #include "types.h"
 
@@ -59,14 +60,36 @@ class Function;
 class Symbol;
 
 class SymbolTableSection : public Section {
+public:
+    struct SymbolInfo {
+        size_t symbolIndex;
+        size_t strTabIndex;
+        SymbolInfo() {}
+        SymbolInfo(size_t symbolIndex, size_t strTabIndex)
+            : symbolIndex(symbolIndex), strTabIndex(strTabIndex) {}
+    };
 private:
     size_t count;
+    std::map<Symbol *, SymbolInfo> infoMap;
 public:
     SymbolTableSection(std::string name, Elf64_Word type)
         : Section(name, type), count(0) {}
 
     using Section::add;
     void add(Function *func, Symbol *sym, size_t nameStrIndex);
+
+    SymbolInfo getSymbolInfo(Symbol *sym) { return infoMap[sym]; }
+
+    virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+};
+
+class RelocationSection : public Section {
+private:
+    Section *targetSection;
+public:
+    using Section::Section;
+
+    void setTargetSection(Section *target) { targetSection = target; }
 
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };

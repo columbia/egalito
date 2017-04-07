@@ -5,6 +5,7 @@
 #include <elf.h>
 #include <sys/stat.h>  // for chmod
 #include "elfgen.h"
+#include "makeplt.h"
 #include "chunk/plt.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -35,7 +36,6 @@ ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
 }
 
 void ElfGen::generate() {
-    if(elfSpace->getElfMap()->isDynamic()) generatePLT();
     makeHeader();
     makeRWData();
     makeText();
@@ -54,11 +54,6 @@ void ElfGen::generate() {
     serializeSegments();
 
     chmod(filename.c_str(), 0755);
-}
-
-void ElfGen::generatePLT() {
-    originalPLT.makePLT(elfSpace,
-        elfSpace->getModule()->getPLTList());
 }
 
 void ElfGen::makeHeader() {
@@ -218,11 +213,15 @@ void ElfGen::makeDynamicSymbolInfo() {
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
 
-#if 0
-    auto pltSection = new Section(".plt", SHT_PROGBITS);
-    pltSection->add(originalPLT.getPLTData());
-    data[Metadata::VISIBLE]->add(pltSection);
-#else
+    auto dynsym = dynamic_cast<SymbolTableSection *>(
+        data[Metadata::VISIBLE]->findSection(".dynsym"));
+    if(!dynsym) return;
+
+    // make plt
+    originalPLT.makePLT(elfSpace,
+        elfSpace->getModule()->getPLTList(),
+        dynsym);
+
     auto pltSection = new Section(".plt", SHT_PROGBITS);
     auto oldPLT = static_cast<Elf64_Shdr *>(
         elfMap->findSectionHeader(".plt"));
@@ -231,9 +230,11 @@ void ElfGen::makePLT() {
     pltSection->addNullBytes(oldPLT->sh_size);
 
     data[Metadata::RODATA]->add(pltSection);
-#endif
 
-    auto pltRelocSection = new Section(".rela.plt", SHT_RELA);
+    // make relocs
+    auto pltRelocSection = new RelocationSection(".rela.plt", SHT_RELA);
+    pltRelocSection->setTargetSection(pltSection);
+    pltRelocSection->setSectionLink(data.getStrTable(Metadata::DYN));
     pltRelocSection->add(originalPLT.getRelocations());
     data[Metadata::RODATA]->add(pltRelocSection);
 }
