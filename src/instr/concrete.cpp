@@ -1,50 +1,12 @@
 #include <climits>
 #include <cassert>
 #include <cstring>
-#include <sstream>
-#include "instruction.h"
 #include "concrete.h"
-#include "chunk.h"
-#include "link.h"
+#include "chunk/chunk.h"
+#include "chunk/link.h"
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"  // for determineDisplacementSize
 #include "log/log.h"
-
-void RawByteStorage::writeTo(char *target) {
-    std::memcpy(target, rawData.c_str(), rawData.size());
-}
-void RawByteStorage::writeTo(std::string &target) {
-    target.append(rawData);
-}
-std::string RawByteStorage::getData() {
-    return rawData;
-}
-
-DisassembledStorage::DisassembledStorage(DisassembledStorage &&other) {
-    this->assembly = other.assembly;
-}
-
-DisassembledStorage::~DisassembledStorage() {
-}
-
-DisassembledStorage &DisassembledStorage::operator = (
-    DisassembledStorage &&other) {
-
-    this->assembly = other.assembly;
-    return *this;
-}
-
-void DisassembledStorage::writeTo(char *target) {
-    std::memcpy(target, assembly.getBytes(), assembly.getSize());
-}
-void DisassembledStorage::writeTo(std::string &target) {
-    target.append(assembly.getBytes(), assembly.getSize());
-}
-std::string DisassembledStorage::getData() {
-    std::string data;
-    data.assign(assembly.getBytes(), assembly.getSize());
-    return std::move(data);
-}
 
 #ifdef ARCH_X86_64
 void ControlFlowInstruction::setSize(size_t value) {
@@ -74,25 +36,6 @@ std::string ControlFlowInstruction::getData() {
 diff_t ControlFlowInstruction::calculateDisplacement() {
     address_t dest = getLink()->getTargetAddress();
     diff_t disp = dest - (getSource()->getAddress() + getSize());
-
-#if 0  // this does not work
-    unsigned long mask = (1 << (displacementSize * CHAR_BIT)) - 1;
-    bool fits = false;
-    if(disp >= 0) {
-        if(disp == (disp & mask)) fits = true;
-    }
-    else {
-        if((-disp) == ((-disp) & mask)) fits = true;
-    }
-    if(!fits) {
-        std::ostringstream stream;
-        stream << "writing ControlFlowInstruction with disp size "
-            << displacementSize << ", but value " << disp
-            << " is too large to encode";
-        LOG(0, stream.str());
-        throw stream.str();
-    }
-#endif
 
     return disp;
 }

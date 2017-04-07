@@ -1,8 +1,9 @@
 #include <cstdio>
 #include "logcalls.h"
 #include "conductor/conductor.h"
-#include "chunk/find2.h"
-#include "chunk/mutator.h"
+#include "instr/concrete.h"
+#include "operation/find2.h"
+#include "operation/mutator.h"
 #include "disasm/disassemble.h"
 #include "cminus/print.h"
 #include "log/log.h"
@@ -114,10 +115,10 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
     auto lib = conductor->getLibraryList()->get("(egalito)");
     if(!lib) throw "LogCallsPass requires libegalito.so to be transformed";
 
-    loggingBegin = ChunkFind2(conductor).findFunctionInSpace(
-        "egalito_log_function", lib->getElfSpace());
-    loggingEnd = ChunkFind2(conductor).findFunctionInSpace(
-        "egalito_log_function_ret", lib->getElfSpace());
+    loggingBegin = ChunkFind2(conductor).findFunctionInModule(
+        "egalito_log_function", lib->getElfSpace()->getModule());
+    loggingEnd = ChunkFind2(conductor).findFunctionInModule(
+        "egalito_log_function_ret", lib->getElfSpace()->getModule());
     if(!loggingBegin || !loggingEnd) {
         throw "LogCallsPass can't find log functions";
     }

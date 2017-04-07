@@ -2,8 +2,9 @@
 #define EGALITO_CHUNK_PLT_H
 
 #include <map>
+#include "chunk.h"
+#include "chunklist.h"
 #include "elf/reloc.h"
-#include "concrete.h"
 #include "types.h"
 
 class ElfMap;
@@ -28,19 +29,25 @@ public:
 
     void setTarget(Chunk *target) { this->target = target; }
 
-    virtual void accept(ChunkVisitor *visitor) { visitor->visit(this); }
-
     void writeTo(char *target);
     address_t getGotPLTEntry() const
         { return sourceElf->getBaseAddress() + gotPLTEntry; }
+
+    virtual void accept(ChunkVisitor *visitor);
 };
 
-class PLTSection {
+class Module;
+class PLTList : public CompositeChunkImpl<PLTTrampoline> {
 public:
-    PLTList *parse(RelocList *relocList, ElfMap *elf);
+    virtual void setSize(size_t newSize) {}  // ignored
+    virtual void addToSize(diff_t add) {}  // ignored
+    virtual void accept(ChunkVisitor *visitor);
+public:
+    static size_t getPLTTrampolineSize();
+    static PLTList *parse(RelocList *relocList, ElfMap *elf);
     static bool parsePLTList(ElfMap *elf, RelocList *relocList, Module *module);
 private:
-    void parsePLTGOT(RelocList *relocList, ElfMap *elf,
+    static void parsePLTGOT(RelocList *relocList, ElfMap *elf,
         PLTList *pltList);
 };
 

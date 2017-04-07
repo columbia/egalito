@@ -2,10 +2,10 @@
 #define EGALITO_DISASM_MAKE_SEMANTIC_H
 
 #include <capstone/capstone.h>
-#include <disasm/assembly.h>
 
 class Instruction;
 class InstructionSemantic;
+class Assembly;
 
 class MakeSemantic {
 public:

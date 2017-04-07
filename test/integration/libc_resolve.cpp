@@ -3,6 +3,7 @@
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
 #include "pass/chunkpass.h"
+#include "instr/semantic.h"
 #include "log/registry.h"
 
 class _Pass : public ChunkPass {

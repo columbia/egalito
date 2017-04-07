@@ -10,7 +10,6 @@
 class ElfMap;
 class SharedLib;
 class LibraryList;
-class Conductor;
 class FunctionAliasMap;
 
 class ElfSpace {
@@ -18,15 +17,14 @@ private:
     ElfMap *elf;
     SharedLib *library;
     Module *module;
-    Conductor *conductor;
 private:
     SymbolList *symbolList;
     SymbolList *dynamicSymbolList;
     RelocList *relocList;
-    PLTSection *pltSection;
     FunctionAliasMap *aliasMap;
 public:
-    ElfSpace(ElfMap *elf, SharedLib *library, Conductor *conductor = nullptr);
+    ElfSpace(ElfMap *elf, SharedLib *library);
+    ~ElfSpace();
 
     void findDependencies(LibraryList *libraryList);
     void buildDataStructures(bool hasRelocs = true);
@@ -41,7 +39,6 @@ public:
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
     RelocList *getRelocList() const { return relocList; }
-    PLTSection *getPLTSection() const { return pltSection; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }
 };

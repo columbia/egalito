@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 #include <vector>
-#include "disasm/register.h"
+#include "instr/register.h"
 #include "types.h"
 
 class TreePrinter {

@@ -1,3 +1,4 @@
+#include <cstring>  // for strstr
 #include "aliasmap.h"
 #include "concrete.h"
 #include "log/log.h"
@@ -11,7 +12,7 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
             aliasMap[alias] = func;
 
 #if 1
-            auto specialVersion = strstr(alias, "@@GLIBC");
+            auto specialVersion = std::strstr(alias, "@@GLIBC");
             if(specialVersion) {
                 std::string splice(alias, specialVersion - alias);
                 aliasMap[splice] = func;
@@ -22,7 +23,7 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
 
 #if 1
         auto name = sym->getName();
-        auto specialVersion = strstr(name, "@@GLIBC");
+        auto specialVersion = std::strstr(name, "@@GLIBC");
         if(specialVersion) {
             std::string splice(name, specialVersion - name);
             aliasMap[splice] = func;

@@ -1,4 +1,5 @@
 #include "dump.h"
+#include "instr/assembly.h"
 #include "log/log.h"
 
 std::string DisasmDump::formatBytes(const char *bytes, size_t size) {

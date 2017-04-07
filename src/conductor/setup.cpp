@@ -4,7 +4,7 @@
 #include "transform/generator.h"
 #include "load/segmap.h"
 #include "chunk/dump.h"
-#include "chunk/find2.h"
+#include "operation/find2.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -40,6 +40,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
         if(setBaseAddress(lib->getElfMap(), 0xa0000000 + i*0x1000000)) {
             i ++;
         }
+    }
+
+    if(withSharedLibs) {
+        conductor->resolvePLTLinks();
     }
 }
 
@@ -110,7 +114,8 @@ void ConductorSetup::dumpElfSpace(ElfSpace *space) {
 void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
     Function *f = nullptr;
     if(space) {
-        f = ChunkFind2(conductor).findFunctionInSpace(function, space);
+        f = ChunkFind2(conductor)
+            .findFunctionInModule(function, space->getModule());
     }
     else {
         f = ChunkFind2(conductor).findFunction(function);

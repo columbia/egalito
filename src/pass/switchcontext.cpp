@@ -1,7 +1,7 @@
 #include "pass/switchcontext.h"
 #include "disasm/disassemble.h"
-#include "disasm/register.h"
-#include "chunk/mutator.h"
+#include "instr/register.h"
+#include "operation/mutator.h"
 
 #ifdef ARCH_AARCH64
 void SwitchContextPass::useStack(Function *function, FrameType *frame) {

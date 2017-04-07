@@ -19,7 +19,7 @@ void CallInit::callInitFunctions(ElfSpace *space) {
             if(found) {
                 auto chunk = CIter::named(module->getFunctionList())
                     ->find(found->getName());
-                LOG(1, "got chunk " << chunk->getName());
+                LOG(1, "invoking init function " << chunk->getName());
                 // then, we should actually call this...
                 ((void (*)())chunk->getAddress())();
             }

@@ -3,7 +3,6 @@
 #include <cstdio>
 #include "disasm/dump.h"
 #include "disasm/disassemble.h"
-#include "chunk/plt.h"  // for dumping PLTLink
 #include "dump.h"
 #include "log/log.h"
 

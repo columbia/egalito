@@ -2,21 +2,6 @@
 #include <iomanip>
 #include "concrete.h"
 
-std::string Module::getName() const {
-    std::ostringstream stream;
-    auto count = getChildren()->getIterable()->getCount();
-    stream << "module-" << count << "-functions";
-    return stream.str();
-}
-
-size_t PLTList::getPLTTrampolineSize() {
-#ifdef ARCH_X86_64
-    return 16;
-#else
-    return 16;
-#endif
-}
-
 std::string Block::getName() const {
     std::ostringstream stream;
     if(getParent()) {
@@ -27,11 +12,5 @@ std::string Block::getName() const {
         stream << "bb+" << (getAddress() - getParent()->getAddress());
     }
     else stream << "bb-anonymous";
-    return stream.str();
-}
-
-std::string Instruction::getName() const {
-    std::ostringstream stream;
-    stream << "i/0x" << std::hex << getAddress();
     return stream.str();
 }

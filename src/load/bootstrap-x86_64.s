@@ -1,5 +1,7 @@
 .global _start
 .global _start2
+.global _set_fs
+.global _get_fs
 .global entry
 .global initial_stack
 .global main_tp
@@ -57,7 +59,7 @@ _start2:
     mov     initial_stack, %rsp     # restore %rsp
     mov     saved_rdx, %rdx         # restore %rdx
 
-    mov     main_tp, %fs
+    #mov     main_tp, %fs
 
     ##pop     %r9                     # get argc
     ##dec     %r9                     # subtract from argc
@@ -69,8 +71,28 @@ _start2:
     hlt
     .cfi_endproc
 
-get_fs:
-    mov     %fs, %rax
+_set_fs:
+    push    %rcx
+    push    %r11
+    mov     %rdi, %rsi    # ptr value
+    mov     $0x1002, %rdi # ARCH_SET_FS
+    mov     $158, %rax    # arch_prctl
+    syscall               # other args in %rdi, %rsi
+    pop     %r11
+    pop     %rcx
+    retq
+
+_get_fs:
+    push    %rcx
+    push    %r11
+    mov     $0x1003, %rdi # ARCH_GET_FS
+    sub     $0x8, %rsp
+    mov     %rsp, %rsi    # &ptr
+    mov     $158, %rax    # arch_prctl
+    syscall               # other args in %rdi, %rsi
+    pop     %rax
+    pop     %r11
+    pop     %rcx
     retq
 
 .section    .note.GNU-stack, "", @progbits

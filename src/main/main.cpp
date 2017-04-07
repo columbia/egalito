@@ -1,3 +1,4 @@
+#include <cstring>  // for strlen
 #include "usage.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"

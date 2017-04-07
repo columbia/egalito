@@ -1,7 +1,7 @@
 #include <capstone/capstone.h>
 #include "jumptable.h"
 #include "controlflow.h"
-#include "chunk/instruction.h"
+#include "instr/concrete.h"
 #include "slicing.h"
 #include "slicingtree.h"
 #include "slicingmatch.h"

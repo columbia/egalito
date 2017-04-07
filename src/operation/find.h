@@ -1,9 +1,9 @@
-#ifndef EGALITO_CHUNK_FIND_H
-#define EGALITO_CHUNK_FIND_H
+#ifndef EGALITO_OPERATION_FIND_H
+#define EGALITO_OPERATION_FIND_H
 
 #include "types.h"
-#include "chunk.h"
-#include "concrete.h"  // for Instruction
+#include "chunk/chunk.h"
+#include "chunk/concrete.h"  // for Instruction
 
 class ChunkFind {
 public:

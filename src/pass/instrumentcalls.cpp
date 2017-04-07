@@ -1,7 +1,8 @@
 #include "pass/instrumentcalls.h"
 #include "disasm/disassemble.h"
-#include "disasm/register.h"
-#include "chunk/mutator.h"
+#include "instr/register.h"
+#include "instr/semantic.h"
+#include "operation/mutator.h"
 
 #ifdef ARCH_AARCH64
 void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {

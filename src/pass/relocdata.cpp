@@ -1,3 +1,4 @@
+#include <cstring>
 #include <cassert>
 #include "relocdata.h"
 #include "elf/elfmap.h"
@@ -233,7 +234,11 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_AARCH64_PREL32) {
         LOG(1, "PREL32 isn't handled yet");
     }
+#ifdef R_AARCH64_TLS_TPREL64
+    else if(r->getType() == R_AARCH64_TLS_TPREL64) {
+#else
     else if(r->getType() == R_AARCH64_TLS_TPREL) {
+#endif
         dest = r->getAddend();
     }
     else if(r->getType() == R_AARCH64_ABS64) {

@@ -3,11 +3,11 @@
 #include "stackextend.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "chunk/instruction.h"
-#include "chunk/mutator.h"
-#include "disasm/disassemble.h"
-#include "log/log.h"
 #include "chunk/dump.h"
+#include "instr/concrete.h"
+#include "disasm/disassemble.h"
+#include "operation/mutator.h"
+#include "log/log.h"
 
 #ifdef ARCH_AARCH64
 void StackExtendPass::visit(Module *module) {

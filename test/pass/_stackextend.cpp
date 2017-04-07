@@ -1,5 +1,6 @@
 #include "framework/include.h"
 #include "pass/stackextend.h"
+#include "instr/concrete.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
 

@@ -1,4 +1,8 @@
+#include <cstring>  // for memcpy
 #include "plt.h"
+#include "function.h"
+#include "module.h"
+#include "visitor.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "log/log.h"
@@ -32,8 +36,87 @@ std::string PLTTrampoline::getName() const {
     }
 }
 
-bool PLTSection::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
-    auto pltList = PLTSection().parse(relocList, elf);
+void PLTTrampoline::writeTo(char *target) {
+#ifdef ARCH_X86_64
+    size_t offset = 0;
+#define ADD_BYTES(data, size) \
+    std::memcpy(target+offset, data, size), offset += size
+
+    bool isIFunc = false;
+    if(auto v = dynamic_cast<Function *>(this->target)) {
+        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) isIFunc = true;
+        LOG(1, "making PLT entry for [" << v->getName() << "] : ifunc? " << (isIFunc ? "yes":"no"));
+    }
+
+    address_t gotPLT = getGotPLTEntry();
+    if(!isIFunc) {
+        // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
+        ADD_BYTES("\xff\x25", 2);
+        address_t disp = gotPLT - (getAddress() + 2+4);
+        ADD_BYTES(&disp, 4);
+
+        // 68 NN NN NN NN    pushq  $0xNNNNNNNN
+        //ADD_BYTES("\x68", 1);
+        //address_t address = getAddress();
+        //ADD_BYTES(&address, 4);
+    }
+    else {
+        // ff 15 NN NN NN NN    callq *0xNNNNNNNN(%rip)
+        ADD_BYTES("\xff\x15", 2);
+        address_t disp = gotPLT - (getAddress() + 2+4);
+        ADD_BYTES(&disp, 4);
+
+        // ff e0    jmpq *%rax
+        ADD_BYTES("\xff\xe0", 2);
+    }
+
+#undef ADD_BYTES
+#elif defined(ARCH_AARCH64)
+    static const uint32_t plt[] = {
+        0x90000010, //adrp x16, .
+        0xf9400211, //ldr  x17, [x16, #0]
+        /* 0x91000210, */ //add x16, x16, #0
+        0xd61f0220  //br x17
+    };
+
+    address_t gotPLT = getGotPLTEntry();
+    address_t disp = gotPLT - (getAddress() & ~0xFFF);
+    uint32_t imm = disp >> 12;
+
+    uint32_t encoding = (imm & 0x3) << 29 | ((imm & 0x1FFFFC) << 3);
+
+    *(uint32_t *)(target + 0) = plt[0] | encoding;
+
+    disp = gotPLT & 0xFFF;
+    imm = (disp >> 3) << 10;
+    encoding = imm & ~0xFFE003FF;
+
+    *(uint32_t *)(target + 4) = plt[1] | encoding;
+    *(uint32_t *)(target + 8) = plt[2];
+#endif
+
+    LOG(1, "created PLT entry to " << std::hex << (void *)gotPLT
+        << " from 0x" << getAddress());
+}
+
+void PLTTrampoline::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
+size_t PLTList::getPLTTrampolineSize() {
+#ifdef ARCH_X86_64
+    return 16;
+#else
+    return 16;
+#endif
+}
+
+void PLTList::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
+bool PLTList::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
+    auto pltList = parse(relocList, elf);
     if(pltList) {
         module->getChildren()->add(pltList);
         module->setPLTList(pltList);
@@ -42,7 +125,7 @@ bool PLTSection::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module)
     return pltList != nullptr;
 }
 
-PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
+PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf) {
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt"));
     if(!header) return nullptr;
     auto section = reinterpret_cast<address_t>(elf->findSection(".plt"));
@@ -153,7 +236,7 @@ PLTList *PLTSection::parse(RelocList *relocList, ElfMap *elf) {
     return pltList;
 }
 
-void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
+void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
     PLTList *pltList) {
 
     auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt.got"));
@@ -194,68 +277,6 @@ void PLTSection::parsePLTGOT(RelocList *relocList, ElfMap *elf,
             }
         }
     }
-}
-
-void PLTTrampoline::writeTo(char *target) {
-#ifdef ARCH_X86_64
-    size_t offset = 0;
-#define ADD_BYTES(data, size) \
-    memcpy(target+offset, data, size), offset += size
-
-    bool isIFunc = false;
-    if(auto v = dynamic_cast<Function *>(this->target)) {
-        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) isIFunc = true;
-    }
-
-    address_t gotPLT = getGotPLTEntry();
-    if(!isIFunc) {
-        // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
-        ADD_BYTES("\xff\x25", 2);
-        address_t disp = gotPLT - (getAddress() + 2+4);
-        ADD_BYTES(&disp, 4);
-
-        // 68 NN NN NN NN    pushq  $0xNNNNNNNN
-        //ADD_BYTES("\x68", 1);
-        //address_t address = getAddress();
-        //ADD_BYTES(&address, 4);
-    }
-    else {
-        // ff 15 NN NN NN NN    callq *0xNNNNNNNN(%rip)
-        ADD_BYTES("\xff\x15", 2);
-        address_t disp = gotPLT - (getAddress() + 2+4);
-        ADD_BYTES(&disp, 4);
-
-        // ff e0    jmpq *%rax
-        ADD_BYTES("\xff\xe0", 2);
-    }
-
-#undef ADD_BYTES
-#elif defined(ARCH_AARCH64)
-    static const uint32_t plt[] = {
-        0x90000010, //adrp x16, .
-        0xf9400211, //ldr  x17, [x16, #0]
-        /* 0x91000210, */ //add x16, x16, #0
-        0xd61f0220  //br x17
-    };
-
-    address_t gotPLT = getGotPLTEntry();
-    address_t disp = gotPLT - (getAddress() & ~0xFFF);
-    uint32_t imm = disp >> 12;
-
-    uint32_t encoding = (imm & 0x3) << 29 | ((imm & 0x1FFFFC) << 3);
-
-    *(uint32_t *)(target + 0) = plt[0] | encoding;
-
-    disp = gotPLT & 0xFFF;
-    imm = (disp >> 3) << 10;
-    encoding = imm & ~0xFFE003FF;
-
-    *(uint32_t *)(target + 4) = plt[1] | encoding;
-    *(uint32_t *)(target + 8) = plt[2];
-#endif
-
-    LOG(1, "created PLT entry to " << std::hex << (void *)gotPLT
-        << " from 0x" << getAddress());
 }
 
 void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList) {
