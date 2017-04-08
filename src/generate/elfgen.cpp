@@ -12,9 +12,10 @@
 
 ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     stringTableList(STRING_TABLE_TYPES) {
-    int idx = SEGMENT_TYPES;
-    while(idx-- >= 0)
+
+    for(int idx = SEGMENT_TYPES - 1; idx >= 0; idx --) {
         segmentList[idx] = new Segment();
+    }
 
     stringTableList[SH] = new Section(".shstrtab", SHT_STRTAB);
     stringTableList[DYN] = new Section(".dynstr", SHT_STRTAB);
@@ -212,6 +213,9 @@ void ElfGen::makeDynamicSymbolInfo() {
 
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
+    auto oldPLT = static_cast<Elf64_Shdr *>(
+        elfMap->findSectionHeader(".plt"));
+    if(!oldPLT) return;
 
     auto dynsym = dynamic_cast<SymbolTableSection *>(
         data[Metadata::VISIBLE]->findSection(".dynsym"));
@@ -223,8 +227,6 @@ void ElfGen::makePLT() {
         dynsym);
 
     auto pltSection = new Section(".plt", SHT_PROGBITS);
-    auto oldPLT = static_cast<Elf64_Shdr *>(
-        elfMap->findSectionHeader(".plt"));
 
     pltSection->setAddress(oldPLT->sh_addr);
     pltSection->addNullBytes(oldPLT->sh_size);
