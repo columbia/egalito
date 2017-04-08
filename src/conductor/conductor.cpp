@@ -80,9 +80,11 @@ void Conductor::loadTLSData() {
             lib->getElfSpace()->getModule(), 0xd0000000 + i*0x1000000);
         i ++;
 
+#ifdef ARCH_X86_64
         if(lib == getLibraryList()->getLibc()) {
             mainThreadPointer = t;
         }
+#endif
     }
 }
 

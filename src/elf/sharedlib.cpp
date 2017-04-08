@@ -49,7 +49,7 @@ std::string SharedLib::getAlternativeSymbolFile() const {
     symbolFile << "/usr/lib/debug";
     char realPath[PATH_MAX];
     if(realpath(fullPath.c_str(), realPath)) {
-        symbolFile << realPath;
+        symbolFile << realPath << ".debug";
         return symbolFile.str();
     }
 #endif

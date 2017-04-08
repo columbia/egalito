@@ -172,9 +172,4 @@ void LinkedInstruction::regenerateAssembly() {
     cs_insn insn = Disassemble::getInsn(data.getVector(), getSource()->getAddress());
     getStorage().setAssembly(Assembly(insn));
 }
-
-Assembly *LinkedInstruction::getAssembly() {
-    regenerateAssembly();
-    return LinkDecorator<DisassembledInstruction>::getAssembly();
-}
 #endif

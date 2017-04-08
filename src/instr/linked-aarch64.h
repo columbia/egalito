@@ -44,7 +44,6 @@ public:
     virtual std::string getData();
 
     void regenerateAssembly();
-    virtual Assembly *getAssembly();
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
@@ -52,22 +51,13 @@ public:
     const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
     uint32_t getOriginalOffset() const;
 
-    virtual uint32_t rebuild();
+    uint32_t rebuild();
 
 private:
     static Mode getMode(const Assembly &assembly);
 };
 
 class ControlFlowInstruction : public LinkedInstruction {
-public:
-    using LinkedInstruction::LinkedInstruction;
-};
-
-// This semantic is used for code pointers in .got section. An example case
-// is in _start for PIE. This semantics adjust the offset to .got and
-// another pass adjusts the actual data in .got.
-// !!! please remove this
-class PCRelativeInstruction : public LinkedInstruction {
 public:
     using LinkedInstruction::LinkedInstruction;
 };

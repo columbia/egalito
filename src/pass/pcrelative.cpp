@@ -32,10 +32,9 @@ void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
                                                               r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-            auto pcri = new PCRelativeInstruction(i, *v->getAssembly());
+            auto pcri = new LinkedInstruction(i, *v->getAssembly());
             address_t offset = pcri->getOriginalOffset();
 
-            // note: this won't work unless PCRelativeInstruction has a LinkDecorator
             pcri->setLink(new DataOffsetLink(elf, offset));
             //auto assembly = v->getAssembly();
             //LOG(1, assembly->getMnemonic() << "@" << std::hex << i->getAddress());
