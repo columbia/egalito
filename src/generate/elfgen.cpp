@@ -5,15 +5,17 @@
 #include <elf.h>
 #include <sys/stat.h>  // for chmod
 #include "elfgen.h"
+#include "makeplt.h"
 #include "chunk/plt.h"
 #include "log/registry.h"
 #include "log/log.h"
 
 ElfGen::Metadata::Metadata() : segmentList(SEGMENT_TYPES),
     stringTableList(STRING_TABLE_TYPES) {
-    int idx = SEGMENT_TYPES;
-    while(idx-- >= 0)
+
+    for(int idx = SEGMENT_TYPES - 1; idx >= 0; idx --) {
         segmentList[idx] = new Segment();
+    }
 
     stringTableList[SH] = new Section(".shstrtab", SHT_STRTAB);
     stringTableList[DYN] = new Section(".dynstr", SHT_STRTAB);
@@ -35,7 +37,6 @@ ElfGen::ElfGen(ElfSpace *space, MemoryBacking *backing, std::string filename,
 }
 
 void ElfGen::generate() {
-    if(elfSpace->getElfMap()->isDynamic()) generatePLT();
     makeHeader();
     makeRWData();
     makeText();
@@ -54,11 +55,6 @@ void ElfGen::generate() {
     serializeSegments();
 
     chmod(filename.c_str(), 0755);
-}
-
-void ElfGen::generatePLT() {
-    originalPLT.makePLT(elfSpace,
-        elfSpace->getModule()->getPLTList());
 }
 
 void ElfGen::makeHeader() {
@@ -217,23 +213,30 @@ void ElfGen::makeDynamicSymbolInfo() {
 
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
-
-#if 0
-    auto pltSection = new Section(".plt", SHT_PROGBITS);
-    pltSection->add(originalPLT.getPLTData());
-    data[Metadata::VISIBLE]->add(pltSection);
-#else
-    auto pltSection = new Section(".plt", SHT_PROGBITS);
     auto oldPLT = static_cast<Elf64_Shdr *>(
         elfMap->findSectionHeader(".plt"));
+    if(!oldPLT) return;
+
+    auto dynsym = dynamic_cast<SymbolTableSection *>(
+        data[Metadata::VISIBLE]->findSection(".dynsym"));
+    if(!dynsym) return;
+
+    // make plt
+    originalPLT.makePLT(elfSpace,
+        elfSpace->getModule()->getPLTList(),
+        dynsym);
+
+    auto pltSection = new Section(".plt", SHT_PROGBITS);
 
     pltSection->setAddress(oldPLT->sh_addr);
     pltSection->addNullBytes(oldPLT->sh_size);
 
     data[Metadata::RODATA]->add(pltSection);
-#endif
 
-    auto pltRelocSection = new Section(".rela.plt", SHT_RELA);
+    // make relocs
+    auto pltRelocSection = new RelocationSection(".rela.plt", SHT_RELA);
+    pltRelocSection->setTargetSection(pltSection);
+    pltRelocSection->setSectionLink(dynsym);
     pltRelocSection->add(originalPLT.getRelocations());
     data[Metadata::RODATA]->add(pltRelocSection);
 }
@@ -252,9 +255,11 @@ void ElfGen::makeDynamic() {
             break;
         }
     }
+    LOG(1, "old dynamic offset " << oldDynamic->p_offset);
     unsigned long *oldList = reinterpret_cast<unsigned long *>(
-        elfMap->getRWCopyBaseAddress() + oldDynamic->p_offset);
+        elfMap->getCharmap() + oldDynamic->p_offset);
     while(oldList[0] != DT_NULL) {
+        LOG(1, "old dynamic list entry tag " << oldList[0]);
         Elf64_Sxword tag = oldList[0];
         auto value = oldList[1];
         if(tag == DT_NEEDED) {
@@ -266,6 +271,18 @@ void ElfGen::makeDynamic() {
         }
         oldList += 2;
     }
+
+    auto dynsym = dynamic_cast<SymbolTableSection *>(
+        data[Metadata::VISIBLE]->findSection(".dynsym"));
+    dynamicData.push_back({DT_SYMTAB, dynsym->getOffset()});
+    dynamicData.push_back({DT_STRTAB, data.getStrTable(Metadata::DYN)->getOffset()});
+
+    auto relaplt = dynamic_cast<RelocationSection *>(
+        data[Metadata::RODATA]->findSection(".rela.plt"));
+    dynamicData.push_back({DT_PLTGOT, 0x201000});
+    dynamicData.push_back({DT_PLTRELSZ, relaplt->getSize()});
+    dynamicData.push_back({DT_PLTREL, DT_RELA});
+
     dynamicData.push_back({DT_NULL, 0});
     dynamicSection->add(static_cast<void *>(dynamicData.data()),
         dynamicData.size() * sizeof(Elf64_Dyn));
