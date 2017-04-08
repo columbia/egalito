@@ -66,10 +66,10 @@ symlinks: $(OUTPUTS) .symlinks
 	@ln -sf $(BUILDDIR)loader
 	@ln -sf $(BUILDDIR)libegalito.a
 	@ln -sf $(BUILDDIR)libegalito.so
-	@rm -f example
-	@rm -f ex
-	@ln -s ../test/example example
-	@ln -s ../test/example/$(BUILDDIR) ex
+	@rm -f example; \
+	ln -s ../test/example example
+	@rm -f ex; \
+	ln -s ../test/example/$(BUILDDIR) ex
 
 .symlinks:
 	@touch .symlinks
@@ -78,7 +78,7 @@ symlinks: $(OUTPUTS) .symlinks
 relink: symlinks
 
 $(GEN_TIMESTAMP): gencode | $(BUILDTREE)
-	touch $@
+	@touch $@
 
 gencode:
 	$(MAKE) -C dep/rtld P_ARCH=$(P_ARCH)
