@@ -6,10 +6,13 @@ class Module;
 class FunctionList;
 class BlockSoup;
 class PLTList;
+class JumpTableList;
 class Function;
 class Block;
 class Instruction;
 class PLTTrampoline;
+class JumpTable;
+class JumpTableEntry;
 class TLSList;
 
 #endif

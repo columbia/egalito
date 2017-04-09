@@ -272,8 +272,8 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
         auto insList = node->getBlock()->getChildren()->getIterable();
         for(int index = insList->indexOf(instruction); index >= 0; index --) {
             Instruction *i = insList->get(index);
-            ChunkDumper dumper;
-            dumper.visit(i);
+            //ChunkDumper dumper;
+            //dumper.visit(i);
 
             currentState->setInstruction(i);
 
@@ -324,8 +324,8 @@ void SlicingSearch::buildRegTreePass() {
 
         SlicingUtilities u;
         u.printRegs(state, false);
-        ChunkDumper dumper;
-        dumper.visit(instruction);
+        //ChunkDumper dumper;
+        //dumper.visit(instruction);
 
         u.copyParentMemTrees(state);
         buildRegTreesFor(state);

@@ -13,6 +13,8 @@
 #include "pass/inferredptrs.h"
 #include "pass/relocheck.h"
 #include "pass/relocdata.h"
+#include "pass/jumptablepass.h"
+#include "analysis/jumptable.h"
 #include "log/log.h"
 
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
@@ -81,6 +83,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     ReloCheckPass checker(relocList);
     module->accept(&checker);
+
+    JumpTablePass jumpTablePass;
+    module->accept(&jumpTablePass);
 
     aliasMap = new FunctionAliasMap(module);
 }

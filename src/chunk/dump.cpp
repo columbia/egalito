@@ -18,6 +18,9 @@ void ChunkDumper::visit(BlockSoup *blockSoup) {
 void ChunkDumper::visit(PLTList *pltList) {
     recurse(pltList);
 }
+void ChunkDumper::visit(JumpTableList *jumpTableList) {
+    recurse(jumpTableList);
+}
 
 void ChunkDumper::visit(Function *function) {
     LOG(4, "---[" << function->getName() << "]---");
@@ -62,9 +65,20 @@ void ChunkDumper::visit(Instruction *instruction) {
 }
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
-    LOG(1, "NYI");
     LOG(4, "---[" << trampoline->getName() << "]---");
     LOG(1, "should be located at: 0x" << std::hex << trampoline->getAddress());
+}
+
+void ChunkDumper::visit(JumpTable *jumpTable) {
+    LOG(1, "jump table in ["
+        << jumpTable->getFunction()->getName() << "] at 0x"
+        << std::hex << jumpTable->getAddress() << " with "
+        << std::dec << jumpTable->getEntryCount()
+        << " entries");
+}
+
+void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
+    LOG(1, "NYI");
 }
 
 void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,

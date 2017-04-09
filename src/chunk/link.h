@@ -86,6 +86,17 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class JumpTable;
+class JumpTableLink : public Link {
+private:
+    JumpTable *jumpTable;
+public:
+    JumpTableLink(JumpTable *jumpTable) : jumpTable(jumpTable) {}
+
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+};
+
 class DataOffsetLink : public Link {
 private:
     ElfMap *elf;

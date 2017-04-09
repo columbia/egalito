@@ -15,6 +15,7 @@
 #include "instr/instr.h"
 
 #include "plt.h"
+#include "jumptable.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"

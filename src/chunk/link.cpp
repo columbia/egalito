@@ -1,6 +1,7 @@
 #include "link.h"
 #include "chunk.h"
 #include "plt.h"
+#include "jumptable.h"
 #include "elf/reloc.h"
 
 address_t NormalLink::getTargetAddress() const {
@@ -13,6 +14,14 @@ address_t OffsetLink::getTargetAddress() const {
 
 address_t PLTLink::getTargetAddress() const {
     return pltTrampoline->getAddress();
+}
+
+ChunkRef JumpTableLink::getTarget() const {
+    return jumpTable;
+}
+
+address_t JumpTableLink::getTargetAddress() const {
+    return jumpTable->getAddress();
 }
 
 address_t DataOffsetLink::getTargetAddress() const {
