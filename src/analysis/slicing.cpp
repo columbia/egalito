@@ -52,6 +52,8 @@ void SlicingUtilities::printRegTrees(SearchState *state) {
         auto tree = state->getRegTree(r);
         if(!tree) continue;
 
+        if(r == X86_REG_INVALID) continue;
+
         LOG0(2, "        REG " << printReg(r) << ": ");
         IF_LOG(2) tree->print(TreePrinter(3, 1));
         LOG(2, "");
