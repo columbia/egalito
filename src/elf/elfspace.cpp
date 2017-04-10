@@ -40,7 +40,8 @@ void ElfSpace::findDependencies(LibraryList *libraryList) {
 }
 
 void ElfSpace::buildDataStructures(bool hasRelocs) {
-    LOG(1, "Building elf data structures for [" << getName() << "]");
+    LOG(1, "");
+    LOG(1, "=== BUILDING ELF DATA STRUCTURES for [" << getName() << "] ===");
 
     if(library) {
         this->symbolList = SymbolList::buildSymbolList(library);
@@ -49,9 +50,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         this->symbolList = SymbolList::buildSymbolList(elf);
     }
     this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
-
-    LOG(1, "");
-    LOG(1, "=== Creating internal data structures ===");
 
     auto baseAddr = elf->getCopyBaseAddress();
     Disassemble::init();

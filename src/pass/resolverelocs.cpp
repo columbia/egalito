@@ -1,5 +1,8 @@
 #include "resolverelocs.h"
 #include "instr/concrete.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dplt
 #include "log/log.h"
 
 void ResolveRelocs::visit(Instruction *instruction) {
@@ -13,7 +16,7 @@ void ResolveRelocs::visit(Instruction *instruction) {
             auto pltEntry = CIter::spatial(pltList)->find(address);
 
             if(pltEntry) {
-                LOG(0, "plt call at 0x" << std::hex << instruction->getAddress()
+                LOG(1, "plt call at 0x" << std::hex << instruction->getAddress()
                     << " to 0x" << address
                     << " i.e. [" << pltEntry->getName() << "]");
                 v->setLink(new PLTLink(address, pltEntry));

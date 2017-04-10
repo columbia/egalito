@@ -4,6 +4,9 @@
 #include "generator.h"
 #include "operation/mutator.h"
 #include "instr/semantic.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dassign
 #include "log/log.h"
 
 #if 0

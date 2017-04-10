@@ -21,12 +21,12 @@ void ElfDynamic::parse(ElfMap *elf) {
 
         if(type == DT_NEEDED) {
             auto library = strtab + value;
-            LOG(1, "    depends on shared library [" << library << "]");
+            LOG(2, "    depends on shared library [" << library << "]");
             dependencyList.push_back(library);
         }
         else if(type == DT_RPATH) {
             this->rpath = strtab + value;
-            LOG(1, "    rpath [" << rpath << "]");
+            LOG(2, "    rpath [" << rpath << "]");
         }
     }
 
@@ -126,19 +126,19 @@ void ElfDynamic::resolveLibraries() {
 
     for(auto &library : dependencyList) {
         if(library[0] == '/') {
-            LOG(1, "    library at [" << library << "]");
+            LOG(3, "    library at [" << library << "]");
             processLibrary(library, library.substr(library.rfind('/') + 1));
             continue;
         }
 
         bool found = false;
         for(auto path : searchPath) {
-            LOG(2, "        search [" << path << "]");
+            LOG(10, "        search [" << path << "]");
             std::string fullPath = path + "/" + library;
             std::ifstream file(fullPath);
             if(file.is_open() && isValidElf(file)) {
                 file.close();
-                LOG(1, "    library at [" << fullPath << "]");
+                LOG(2, "    library at [" << fullPath << "]");
                 processLibrary(fullPath, library);
                 found = true;
                 break;

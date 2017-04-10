@@ -6,6 +6,9 @@
 #include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
 #include "load/emulator.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dloadtime
 #include "log/log.h"
 
 bool FindAnywhere::resolveName(const char *name, address_t *address) {

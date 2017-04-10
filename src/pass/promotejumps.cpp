@@ -33,9 +33,9 @@ void PromoteJumpsPass::visit(Instruction *instruction) {
 
 void PromoteJumpsPass::promote(Instruction *instruction) {
 #ifdef ARCH_X86_64
-    LOG(1, "Promote jump instruction " << instruction->getName());
+    LOG(10, "promote jump instruction " << instruction->getName());
     auto v = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());
-    LOG(1, "    target before = " << v->getLink()->getTargetAddress());
+    LOG(11, "    target before = " << v->getLink()->getTargetAddress());
 
     size_t oldSize = v->getSize();
 
@@ -45,7 +45,7 @@ void PromoteJumpsPass::promote(Instruction *instruction) {
     ChunkMutator(instruction->getParent())
         .modifiedChildSize(instruction, v->getSize() - oldSize);
 
-    LOG(1, "    target after = " << v->getLink()->getTargetAddress());
+    LOG(11, "    target after = " << v->getLink()->getTargetAddress());
 #endif
 }
 

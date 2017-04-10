@@ -4,6 +4,9 @@
 #include "chunk/dump.h"
 #include "elf/elfspace.h"
 #include "analysis/jumptable.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP djumptable
 #include "log/log.h"
 
 void FixJumpTablesPass::visit(Module *module) {
@@ -21,8 +24,10 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
     auto descriptor = jumpTable->getDescriptor();
 
     LOG(1, "fixing jump table...");
-    ChunkDumper dumper;
-    jumpTable->accept(&dumper);
+    IF_LOG(1) {
+        ChunkDumper dumper;
+        jumpTable->accept(&dumper);
+    }
 
     for(auto entry : CIter::children(jumpTable)) {
         auto link = entry->getLink();

@@ -3,6 +3,9 @@
 #include "chunk/jumptable.h"
 #include "operation/find.h"
 #include "elf/elfspace.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP djumptable
 #include "log/log.h"
 
 void JumpTablePass::visit(Module *module) {

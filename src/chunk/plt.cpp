@@ -5,6 +5,9 @@
 #include "visitor.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dplt
 #include "log/log.h"
 
 class PLTRegistry {

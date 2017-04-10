@@ -7,6 +7,9 @@
 #include "slicingmatch.h"
 
 #include "types.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP djumptable
 #include "log/log.h"
 
 long JumpTableDescriptor::getEntries() const {

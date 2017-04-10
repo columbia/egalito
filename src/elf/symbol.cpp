@@ -6,6 +6,9 @@
 #include "symbol.h"
 #include "elfmap.h"
 #include "sharedlib.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dsymbol
 #include "log/log.h"
 
 bool Symbol::isFunction() const {

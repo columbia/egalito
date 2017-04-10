@@ -97,7 +97,7 @@ void DebugElf::add(Function *func, const char *suffix) {
         p ++, q ++;
     }
     *q = 0;
-    LOG(1, "debug symbol [" << name << "] at " << func->getAddress()
+    LOG(11, "debug symbol [" << name << "] at " << func->getAddress()
         << " size " << func->getSize());
     add(func->getAddress(), func->getSize(), name);
 }
