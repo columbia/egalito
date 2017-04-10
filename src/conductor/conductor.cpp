@@ -3,6 +3,7 @@
 #include "generate/debugelf.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
+#include "pass/fixjumptables.h"
 #include "transform/data.h"
 #include "log/log.h"
 
@@ -65,7 +66,11 @@ void Conductor::fixDataSection(ElfSpace *elfSpace) {
         elfSpace,
         elfSpace->getRelocList(),
         this);
-    elfSpace->getModule()->accept(&relocData);
+    //elfSpace->getModule()->accept(&relocData);
+    acceptInAllModules(&relocData);
+
+    FixJumpTablesPass fixJumpTables;
+    acceptInAllModules(&fixJumpTables);
 }
 
 void Conductor::loadTLSData() {

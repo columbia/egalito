@@ -28,6 +28,8 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
     if(phdr->p_flags & PF_W) prot |= PROT_WRITE;
     if(phdr->p_flags & PF_X) prot |= PROT_EXEC;
 
+    prot |= PROT_WRITE;  // !!! hack for updating jump tables
+
     size_t address = ROUND_DOWN(phdr->p_vaddr);
     size_t address_offset = phdr->p_vaddr - address;
     size_t offset = ROUND_DOWN(phdr->p_offset);

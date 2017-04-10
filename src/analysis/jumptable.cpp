@@ -99,7 +99,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         auto left = dynamic_cast<TreeNodeAddress *>(node->getLeft());
         auto right = dynamic_cast<TreeNodeRegisterRIP *>(node->getRight());
         IF_LOG(1) capture.get(0)->print(TreePrinter(1, 0));
-        LOG(1, "  => 0x" << std::hex << left->getValue() + right->getValue());
+        LOG(1, "  => 0x" << std::hex << (left->getValue() + right->getValue()));
 
         LOG0(1, "    indexing expression:   ");
         IF_LOG(1) capture.get(1)->print(TreePrinter(1, 0));

@@ -29,8 +29,6 @@ public:
     long getEntryCount() const;  // returns -1 if not known
     JumpTableDescriptor *getDescriptor() const { return descriptor; }
 
-    void makeChildren(ElfMap *elf);
-
     virtual void accept(ChunkVisitor *visitor);
 };
 

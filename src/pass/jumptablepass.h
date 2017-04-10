@@ -3,9 +3,14 @@
 
 #include "chunkpass.h"
 
+/** Constructs jump table data structures in the given Module. */
 class JumpTablePass : public ChunkPass {
+private:
+    Module *module;
 public:
+    JumpTablePass(Module *module = nullptr) : module(module) {}
     virtual void visit(Module *module);
+    virtual void visit(JumpTableList *jumpTableList);
 };
 
 #endif

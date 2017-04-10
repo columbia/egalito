@@ -36,7 +36,7 @@ public:
     bool isBoundKnown() const { return bound != LONG_MAX; }
     long getEntries() const;
 
-    void setAddress(address_t address) { this->address = address; }
+    void setAddress(address_t a) { address = a; }
     void setIndexExpr(TreeNode *node) { indexExpr = node; }
     void setIndexRegister(Register r) { indexRegister = r; }
     void setScale(int scale) { this->scale = scale; }
