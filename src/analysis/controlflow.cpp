@@ -96,22 +96,22 @@ void ControlFlowGraph::construct(Block *block) {
 }
 
 void ControlFlowGraph::dump() {
-    LOG(1, "Control flow graph:");
+    LOG(10, "Control flow graph:");
     for(auto node : graph) {
-        LOG(1, "    " << node.getDescription());
-        LOG0(1, "        forward edges:");
+        LOG(10, "    " << node.getDescription());
+        LOG0(10, "        forward edges:");
         for(auto link : node.forwardLinks()) {
-            LOG0(1, " " << link.getID() << " ("
+            LOG0(10, " " << link.getID() << " ("
                 << graph[link.getID()].getBlock()->getName()
                 << ") + " << std::dec << link.getOffset() << ";");
         }
-        LOG(1, "");
-        LOG0(1, "        backward edges:");
+        LOG(10, "");
+        LOG0(10, "        backward edges:");
         for(auto link : node.backwardLinks()) {
-            LOG0(1, " " << link.getID() << " ("
+            LOG0(10, " " << link.getID() << " ("
                 << graph[link.getID()].getBlock()->getName()
                 << ") + " << std::dec << link.getOffset() << ";");
         }
-        LOG(1, "");
+        LOG(10, "");
     }
 }

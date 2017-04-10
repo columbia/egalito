@@ -227,17 +227,17 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         }
 
         unsigned long bound = right->getValue();
-        LOG0(1, "comparison of ");
-        IF_LOG(1) leftGeneric->print(TreePrinter(2, 0));
-        LOG(1, " is " << opString[op] << " " << std::dec << bound);
+        LOG0(11, "comparison of ");
+        IF_LOG(11) leftGeneric->print(TreePrinter(2, 0));
+        LOG(11, " is " << opString[op] << " " << std::dec << bound);
 
         auto indexExpr = d->getIndexExpr();
         if(leftGeneric == indexExpr
             && (op == OP_LE || op == OP_LT)) {
 
-            LOG0(1, "BOUNDS CHECK FOUND! ");
-            IF_LOG(1) d->getIndexExpr()->print(TreePrinter(2, 0));
-            LOG(1, " is " << opString[op] << " " << std::dec << bound);
+            LOG0(5, "BOUNDS CHECK FOUND! ");
+            IF_LOG(5) d->getIndexExpr()->print(TreePrinter(2, 0));
+            LOG(5, " is " << opString[op] << " " << std::dec << bound);
 
             if(op == OP_LT) bound --;  // convert "<" to "<="
             d->setBound(bound);
@@ -250,7 +250,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
                 for(auto sub : mult->getParents()) {
                     if(leftGeneric == sub
                        && (op == OP_LE || op == OP_LT)) {
-                        LOG0(1, "BOUNDS CHECK (MIGHT BE) FOUND! ");
+                        LOG0(5, "BOUNDS CHECK (MIGHT BE) FOUND! ");
 
                         if(op == OP_LT) bound --;  // convert "<" to "<="
                         d->setBound(bound);

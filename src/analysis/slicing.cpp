@@ -40,10 +40,10 @@ void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {
     }
     output << "]";
 
-    LOG0(1, "    regs " << std::left << std::setw(30)
+    LOG0(11, "    regs " << std::left << std::setw(30)
         << output.str());
 
-    if(withNewline) LOG(1, "");
+    if(withNewline) LOG(11, "");
 }
 
 void SlicingUtilities::printRegTrees(SearchState *state) {
@@ -54,9 +54,9 @@ void SlicingUtilities::printRegTrees(SearchState *state) {
 
         if(r == X86_REG_INVALID) continue;
 
-        LOG0(2, "        REG " << printReg(r) << ": ");
-        IF_LOG(2) tree->print(TreePrinter(3, 1));
-        LOG(2, "");
+        LOG0(12, "        REG " << printReg(r) << ": ");
+        IF_LOG(12) tree->print(TreePrinter(3, 1));
+        LOG(12, "");
     }
 }
 
@@ -72,11 +72,11 @@ void SlicingUtilities::copyParentRegTrees(SearchState *state) {
 
 void SlicingUtilities::printMemTrees(SearchState *state) {
     for(auto const &tree : state->getMemTree()) {
-        LOG0(2, "        MEM ");
-        IF_LOG(2) tree.first->print(TreePrinter(3,1));
-        LOG0(2, ": ");
-        IF_LOG(2) tree.second->print(TreePrinter(3, 1));
-        LOG(2, "");
+        LOG0(12, "        MEM ");
+        IF_LOG(12) tree.first->print(TreePrinter(3,1));
+        LOG0(12, ": ");
+        IF_LOG(12) tree.second->print(TreePrinter(3, 1));
+        LOG(12, "");
     }
 }
 
@@ -123,7 +123,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
                                         arm64_shifter sft_type,
                                         unsigned int sft_value) {
 #if 0
-    LOG(1, "makeMemTree: ext = " << ext
+    LOG(11, "makeMemTree: ext = " << ext
         << " shift type = " << sft_type
         << " shift value = " << sft_value);
 #endif
@@ -136,7 +136,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
                 tree = new TreeNodeUnsignedExtendWord(tree);
             }
             else {
-                LOG(1, "unknown extender");
+                LOG(11, "unknown extender");
             }
         }
 #endif
@@ -236,7 +236,7 @@ void SlicingUtilities::copyParentMemTrees(SearchState *state) {
 void SlicingSearch::sliceAt(Instruction *i) {
     auto block = dynamic_cast<Block *>(i->getParent());
     auto node = cfg->get(block);
-    LOG(1, "begin slicing at " << i->getName());
+    LOG(11, "begin slicing at " << i->getName());
 
     SearchState *startState = new SearchState(node, i);
     auto j = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic());
@@ -268,7 +268,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
         if(visited[node->getID()]) continue;
         visited[node->getID()] = true;
 
-        LOG(1, "visit " << node->getDescription());
+        LOG(11, "visit " << node->getDescription());
 
         // visit all prior instructions in this node in backwards order
         auto insList = node->getBlock()->getChildren()->getIterable();
@@ -306,7 +306,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                 Instruction *newStart
                     = newNode->getBlock()->getChildren()->getSpatial()->find(
                         newNode->getBlock()->getAddress() + offset);
-                LOG(1, "    start at offset " << offset << " -> " << newStart);
+                LOG(11, "    start at offset " << offset << " -> " << newStart);
                 SearchState *newState = new SearchState(*currentState);
                 newState->setNode(newNode);
                 newState->setInstruction(newStart);
@@ -319,7 +319,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 }
 
 void SlicingSearch::buildRegTreePass() {
-    LOG(1, "second pass iteration");
+    LOG(11, "second pass iteration");
     for(auto it = stateList.rbegin(); it != stateList.rend(); ++it) {
         auto state = (*it);
         auto instruction = state->getInstruction();
@@ -344,11 +344,11 @@ void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
     SlicingUtilities u;
 
     for(size_t r = 0; r < assembly->getImplicitRegsReadCount(); r ++) {
-        LOG(1, "        implicit reg read "
+        LOG(11, "        implicit reg read "
             << u.printReg(assembly->getImplicitRegsRead()[r]));
     }
     for(size_t r = 0; r < assembly->getImplicitRegsWriteCount(); r ++) {
-        LOG(1, "        implicit reg write "
+        LOG(11, "        implicit reg write "
             << u.printReg(assembly->getImplicitRegsWrite()[r]));
     }
 
@@ -356,7 +356,7 @@ void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
     for(size_t p = 0; p < asmOps->getOpCount(); p ++) {
         auto op = &asmOps->getOperands()[p];  // cs_x86_op*, cs_arm64_op*
         if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
-            LOG(1, "        explicit reg ref "
+            LOG(11, "        explicit reg ref "
                 << u.printReg(op->reg));
         }
     }
@@ -858,7 +858,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                     u.getParentRegTree(state, target)));
             }
         }
-        LOG(1, "        add found");
+        LOG(11, "        add found");
         break;
     case X86_INS_LEA:
         if(mode == SlicingInstructionState::MODE_MEM_REG) {
@@ -873,7 +873,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 state->setRegTree(reg, tree);
             }
         }
-        LOG(1, "        lea found");
+        LOG(11, "        lea found");
         break;
     case X86_INS_MOV:
         if(mode == SlicingInstructionState::MODE_REG_REG) {
@@ -900,7 +900,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 state->setRegTree(reg, tree);
             }
         }
-        LOG(1, "        mov found");
+        LOG(11, "        mov found");
         break;
     case X86_INS_MOVSXD:
         if(mode == SlicingInstructionState::MODE_MEM_REG) {
@@ -916,7 +916,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
 
-        LOG(1, "        movslq found");
+        LOG(11, "        movslq found");
         break;
     case X86_INS_MOVZX:
         if(mode == SlicingInstructionState::MODE_REG_REG) {
@@ -943,7 +943,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 state->setRegTree(target, tree);
             }
         }
-        LOG(1, "        movzx found");
+        LOG(11, "        movzx found");
         break;
     case X86_INS_CMP:
         if(mode == SlicingInstructionState::MODE_IMM_REG) {
@@ -976,13 +976,13 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for mov" << mode);
+            LOG(11, "unknown mode for mov" << mode);
         }
-        LOG(1, "        mov found");
+        LOG(11, "        mov found");
         break;
 #if 1
     case ARM64_INS_MOVZ:
-        LOG(1, "        movz found -- ignored");
+        LOG(11, "        movz found -- ignored");
         break;
 #endif
     case ARM64_INS_ADRP:
@@ -998,9 +998,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for adrp");
+            LOG(11, "unknown mode for adrp");
         }
-        LOG(1, "        adrp found");
+        LOG(11, "        adrp found");
         break;
     case ARM64_INS_ADR:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -1015,9 +1015,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for adr");
+            LOG(11, "unknown mode for adr");
         }
-        LOG(1, "        adr found");
+        LOG(11, "        adr found");
         break;
     case ARM64_INS_ADD:
         if(mode == SlicingInstructionState::MODE_REG_REG_REG) {
@@ -1043,7 +1043,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                         tree = new TreeNodeSignExtendByte(tree);
                     }
                     else {
-                        LOG(1, "unknown extender");
+                        LOG(11, "unknown extender");
                     }
                 }
 #endif
@@ -1095,9 +1095,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for add");
+            LOG(11, "unknown mode for add");
         }
-        LOG(1, "        add found");
+        LOG(11, "        add found");
         break;
     case ARM64_INS_SUB:
         if(mode == SlicingInstructionState::MODE_REG_REG_IMM) {
@@ -1146,9 +1146,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for sub");
+            LOG(11, "unknown mode for sub");
         }
-        LOG(1, "        sub found");
+        LOG(11, "        sub found");
         break;
     case ARM64_INS_LDR:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1165,9 +1165,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for ldr");
+            LOG(11, "unknown mode for ldr");
         }
-        LOG(1, "        ldr found");
+        LOG(11, "        ldr found");
         break;
     case ARM64_INS_LDRH:    //same as ldr for now
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1184,9 +1184,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for ldrh");
+            LOG(11, "unknown mode for ldrh");
         }
-        LOG(1, "        ldrh found");
+        LOG(11, "        ldrh found");
         break;
     case ARM64_INS_LDRB:    //same as ldr for now
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1203,9 +1203,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for ldrb");
+            LOG(11, "unknown mode for ldrb");
         }
-        LOG(1, "        ldrb found");
+        LOG(11, "        ldrb found");
         break;
     case ARM64_INS_STR:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1223,12 +1223,12 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         else {
-            LOG(1, "unknown mode for str");
+            LOG(11, "unknown mode for str");
         }
-        LOG(1, "        str found");
+        LOG(11, "        str found");
         break;
     case ARM64_INS_STRB:
-        LOG(1, "        strb found -- ignored");
+        LOG(11, "        strb found -- ignored");
         break;
     case ARM64_INS_CMP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -1259,19 +1259,19 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 
         }
         else {
-            LOG(1, "unknown mode for cmp");
+            LOG(11, "unknown mode for cmp");
         }
-        LOG(1, "        cmp found");
+        LOG(11, "        cmp found");
         break;
     case ARM64_INS_CCMP:
-        LOG(1, "        ccmp found -- HANDLER NOT YET IMPLEMENTED");
+        LOG(11, "        ccmp found -- HANDLER NOT YET IMPLEMENTED");
         break;
     case ARM64_INS_TST:
-        LOG(1, "        tst found -- HANDLER NOT YET IMPLEMENTED");
+        LOG(11, "        tst found -- HANDLER NOT YET IMPLEMENTED");
         break;
 #endif
     default:
-        LOG(1, "        got instr id " << assembly->getId()
+        LOG(11, "        got instr id " << assembly->getId()
             << "(" << assembly->getMnemonic() << ")");
         break;
     }
@@ -1280,7 +1280,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
     SlicingUtilities u;
     auto semantic = state->getInstruction()->getSemantic();
-    LOG(1, "@ " << std::hex << state->getInstruction()->getAddress());
+    LOG(11, "@ " << std::hex << state->getInstruction()->getAddress());
     if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
 #ifdef ARCH_X86_64
         if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
@@ -1291,14 +1291,14 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
                 state->addReg(CONDITION_REGISTER);
             }
             else {
-                LOG0(1, "    found a conditional jump, condition is ");
+                LOG0(11, "    found a conditional jump, condition is ");
                 //auto tree = state->getRegTree(CONDITION_REGISTER);
                 auto tree = u.getParentRegTree(state, CONDITION_REGISTER);
                 if(tree) {
-                    IF_LOG(1) tree->print(TreePrinter(2, 0));
+                    IF_LOG(11) tree->print(TreePrinter(2, 0));
                 }
-                else LOG0(1, "NULL");
-                LOG(1, "");
+                else LOG0(11, "NULL");
+                LOG(11, "");
 
                 state->setRegTree(CONDITION_REGISTER, tree);
 
