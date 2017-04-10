@@ -152,8 +152,7 @@ void ChunkDumper::dumpInstruction(InstructionSemantic *semantic,
     else {  /* RawInstruction */
         std::vector<unsigned char> v(semantic->getData().begin(),
                                      semantic->getData().end());
-        cs_insn instr = Disassemble::getInsn(v, address);
-        Assembly assembly(instr);
+        Assembly assembly = Disassemble::makeAssembly(v, address);
         DisasmDump::printInstruction(address, &assembly, pos, nullptr);
     }
 }

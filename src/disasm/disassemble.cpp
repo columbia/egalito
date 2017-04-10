@@ -185,7 +185,9 @@ Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
     return function;
 }
 
-cs_insn Disassemble::getInsn(const std::vector<unsigned char> &str, address_t address) {
+Assembly Disassemble::makeAssembly(
+    const std::vector<unsigned char> &str, address_t address) {
+
     Handle handle(true);
 
     cs_insn *insn;
@@ -194,10 +196,9 @@ cs_insn Disassemble::getInsn(const std::vector<unsigned char> &str, address_t ad
 
         throw "Invalid instruction opcode string provided\n";
     }
-
-    cs_insn ret = *insn;
+    Assembly assembly(*insn);
     cs_free(insn, 1);
-    return ret;
+    return assembly;
 }
 
 Instruction *Disassemble::instruction(

@@ -60,8 +60,9 @@ void LinkedInstruction::regenerateAssembly() {
     for(size_t i = 0; i < data.length(); i ++) {
         dataVector.push_back(data[i]);
     }
-    cs_insn ins = Disassemble::getInsn(dataVector, instruction->getAddress());
-    Assembly assembly(ins);
+    Assembly assembly = Disassemble::makeAssembly(
+        dataVector, instruction->getAddress());
+
     DisassembledStorage storage(assembly);
     setStorage(std::move(storage));
 }

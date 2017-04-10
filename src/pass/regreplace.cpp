@@ -124,9 +124,7 @@ void AARCH64RegReplacePass::replacePerFunction(Function *function,
         char data[assembly->getSize()];
         regbits.encode(data);
         std::vector<unsigned char> dataVector(data, data + assembly->getSize());
-        cs_insn insn = Disassemble::getInsn(dataVector, ins->getAddress());
-        Assembly a(insn);
-        *assembly = a;
+        *assembly = Disassemble::makeAssembly(dataVector, ins->getAddress());
     }
 }
 
@@ -187,9 +185,7 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
         char data[assembly->getSize()];
         regbits.encode(data);
         std::vector<unsigned char> dataVector(data, data + assembly->getSize());
-        cs_insn insn = Disassemble::getInsn(dataVector, ins->getAddress());
-        Assembly a(insn);
-        *assembly = a;
+        *assembly = Disassemble::makeAssembly(dataVector, ins->getAddress());
     }
 }
 

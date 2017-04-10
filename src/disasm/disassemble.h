@@ -6,6 +6,7 @@
 #include "types.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
+#include "instr/assembly.h"
 
 class Symbol;
 class SymbolList;
@@ -28,7 +29,8 @@ public:
     static void init();
     static Module *module(address_t baseAddr, SymbolList *symbolList);
     static Function *function(Symbol *symbol, address_t baseAddr);
-    static cs_insn getInsn(const std::vector<unsigned char> &str, address_t address = 0);
+    static Assembly makeAssembly(const std::vector<unsigned char> &str,
+        address_t address = 0);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
     static Instruction *instruction(cs_insn *ins, Handle &handle,

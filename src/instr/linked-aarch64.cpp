@@ -169,7 +169,8 @@ LinkedInstruction::Mode LinkedInstruction::getMode(
 
 void LinkedInstruction::regenerateAssembly() {
     auto data = AARCH64InstructionBinary(rebuild());
-    cs_insn insn = Disassemble::getInsn(data.getVector(), getSource()->getAddress());
-    getStorage().setAssembly(Assembly(insn));
+    Assembly assembly = Disassemble::makeAssembly(
+        data.getVector(), getSource()->getAddress());
+    getStorage().setAssembly(std::move(assembly));
 }
 #endif
