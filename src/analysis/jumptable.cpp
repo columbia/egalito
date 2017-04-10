@@ -422,4 +422,3 @@ std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
 
     return baseAddresses;
 }
-

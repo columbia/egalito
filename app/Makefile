@@ -2,8 +2,8 @@
 
 include ../env.mk
 
-CFLAGS      += -I ../src/
-CXXFLAGS    += -I ../src/
+CFLAGS      += -g -I ../src/
+CXXFLAGS    += -g -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
 SHELL_SOURCES       = $(wildcard shell/*.cpp)

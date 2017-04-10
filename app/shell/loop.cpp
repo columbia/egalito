@@ -35,11 +35,9 @@ void mainLoop() {
     Readline readline;
 
     ConductorSetup setup;
-    ConductorSetup *pSetup = &setup;
     bool running = true;
 
     TopLevelCommand topLevel;
-    TopLevelCommand *pTopLevel = &topLevel;
     topLevel.add("quit", [&] (Arguments) { running = false; },
         "quit the egalito shell");
     topLevel.add("help", [&] (Arguments) { printUsage(&topLevel); },
@@ -52,10 +50,15 @@ void mainLoop() {
     }, "parses the given ELF executable");
     topLevel.add("parse2", [&] (Arguments args) {
         args.shouldHave(1);
+        setup.parseElfFiles(args.front().c_str(), true, false);
+    }, "parses the given ELF and all its shared libraries");
+    topLevel.add("parse3", [&] (Arguments args) {
+        args.shouldHave(1);
         setup.parseElfFiles(args.front().c_str(), true, true);
     }, "parses the given ELF and all its shared libraries");
 
-    registerDisassCommands(pTopLevel, pSetup);
+    DisassCommands disassCommands(&setup);
+    disassCommands.registerCommands(&topLevel);
 
     while(running) {
         std::string line = readline.get("egalito> ");

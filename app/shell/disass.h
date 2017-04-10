@@ -5,6 +5,13 @@
 
 class ConductorSetup;
 
-void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup);
+class DisassCommands {
+private:
+    ConductorSetup *setup;
+public:
+    DisassCommands(ConductorSetup *setup) : setup(setup) {}
+
+    void registerCommands(CompositeCommand *topLevel);
+};
 
 #endif

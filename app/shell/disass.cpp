@@ -22,7 +22,7 @@ static bool findInstrInModule(Module *module, address_t address) {
     return false;
 }
 
-void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) {
+void DisassCommands::registerCommands(CompositeCommand *topLevel) {
     topLevel->add("disass", [&] (Arguments args) {
         if(!setup->getConductor()) {
             std::cout << "no ELF files loaded\n";
@@ -111,4 +111,14 @@ void registerDisassCommands(CompositeCommand *topLevel, ConductorSetup *&setup) 
         StackXOR stackXOR(0x28);
         setup->getConductor()->acceptInAllModules(&stackXOR);
     }, "shows all instructions that refer to the TLS register");
+
+    topLevel->add("jumptables", [&] (Arguments args) {
+        args.shouldHave(0);
+        std::cout << "all jumptables\n";
+        for(auto module : CIter::children(setup->getConductor()->getProgram())) {
+            std::cout << "jumptables in module...\n";
+            ChunkDumper dumper;
+            module->getJumpTableList()->accept(&dumper);
+        }
+    }, "dumps all jump tables in all modules");
 }

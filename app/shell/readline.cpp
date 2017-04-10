@@ -39,7 +39,7 @@ std::string Readline::get(const std::string &prompt) {
         add_history(line);
     }
 
-    std::string lineCpp(line ? line : "");
+    std::string lineCpp(line ? line : "quit");
     free(line);
     return std::move(lineCpp);
 }
