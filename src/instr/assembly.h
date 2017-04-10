@@ -1,5 +1,5 @@
-#ifndef EGALITO_DISASM_ASSEMBLY_H
-#define EGALITO_DISASM_ASSEMBLY_H
+#ifndef EGALITO_INSTR_ASSEMBLY_H
+#define EGALITO_INSTR_ASSEMBLY_H
 
 #include <types.h>
 #include <string>
