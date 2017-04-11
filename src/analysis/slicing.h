@@ -28,6 +28,7 @@ public:
         : node(node), instruction(instruction), iState(nullptr), regs(REGISTER_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
         : node(other.node), instruction(other.instruction), iState(nullptr), regs(other.regs), jumpTaken(other.jumpTaken) {}
+    ~SearchState() { delete iState; }
 
     ControlFlowNode *getNode() const { return node; }
     Instruction *getInstruction() const { return instruction; }
@@ -74,6 +75,11 @@ public:
     TreeNode *getParentRegTree(SearchState *state, int reg);
 };
 
+class SlicingHalt {
+public:
+    virtual bool cutoff(SearchState *) = 0;
+};
+
 class SlicingSearch {
 private:
     ControlFlowGraph *cfg;
@@ -81,9 +87,11 @@ private:
     std::vector<SearchState *> conditions;  // conditional jumps
 public:
     SlicingSearch(ControlFlowGraph *cfg) : cfg(cfg) {}
+    ~SlicingSearch() { for(auto state : stateList) { delete state; } }
 
     /** Run search beginning at this instruction. */
     void sliceAt(Instruction *i);
+    void sliceFwAt(Instruction *instruction, int opIndex, SlicingHalt *halt);
 
     SearchState *getInitialState() const { return stateList.front(); }
     const std::vector<SearchState *> &getConditionList() const
@@ -97,6 +105,10 @@ private:
     void buildRegTreesFor(SearchState *state);
     void detectInstruction(SearchState *state, bool firstPass);
     void detectJumpRegTrees(SearchState *state, bool firstPass);
+
+    void buildStateFwPass(SearchState *startState);
+    void buildOffsetPass(SlicingHalt *halt);
+    void buildOffsetTreesFor(SearchState *state);
 };
 
 #endif

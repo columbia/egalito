@@ -10,6 +10,7 @@ private:
 public:
     void add(TreeNode *node) { captureList.push_back(node); }
     TreeNode *get(int index) const { return captureList[index]; }
+    void clear() { captureList.clear(); }
 };
 
 class TreePatternAny {

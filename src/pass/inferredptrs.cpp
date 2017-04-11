@@ -75,11 +75,9 @@ void InferredPtrsPass::visit(Instruction *instruction) {
         }
 #endif
 #elif defined(ARCH_AARCH64)
-        if(assembly->getId() == ARM64_INS_ADRP) {
-            auto s = new PCRelativePageInstruction(instruction, *assembly);
-            address_t page = assembly->getAsmOperands()->getOperands()[1].imm;
-            s->setLink(new DataOffsetLink(elf, page));
-            instruction->setSemantic(s);
+        auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
+        if(linked) {
+            instruction->setSemantic(linked);
             delete v;
         }
 #endif
