@@ -7,6 +7,8 @@
 #include "log/log.h"
 
 void ChunkDumper::visit(Module *module) {
+    auto count = module->getChildren()->getIterable()->getCount();
+    LOG(4, "=== [" << module->getName() << "] with " << count << " functions ===");
     recurse(module);
 }
 void ChunkDumper::visit(FunctionList *functionList) {

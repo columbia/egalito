@@ -42,7 +42,8 @@ void mainLoop() {
         "quit the egalito shell");
     topLevel.add("help", [&] (Arguments) { printUsage(&topLevel); },
         "prints this help message");
-    topLevel.add("q", [&] (Arguments args) { (*topLevel.getMap()["quit"])(args); });
+    topLevel.add("q", [&] (Arguments args) { (*topLevel.getMap()["quit"])(args); },
+        "quit the egalito shell");
 
     topLevel.add("parse", [&] (Arguments args) {
         args.shouldHave(1);

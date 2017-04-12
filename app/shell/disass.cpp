@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdio>
 #include "disass.h"
 
 #include "conductor/setup.h"
@@ -112,13 +113,65 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->getConductor()->acceptInAllModules(&stackXOR);
     }, "shows all instructions that refer to the TLS register");
 
+    topLevel->add("modules", [&] (Arguments args) {
+        args.shouldHave(0);
+        if(!setup->getConductor() || !setup->getConductor()->getProgram()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        for(auto module : CIter::children(setup->getConductor()->getProgram())) {
+            std::cout << module->getName() << std::endl;
+        }
+    }, "shows a list of all loaded modules");
+
     topLevel->add("jumptables", [&] (Arguments args) {
         args.shouldHave(0);
-        std::cout << "all jumptables\n";
         for(auto module : CIter::children(setup->getConductor()->getProgram())) {
-            std::cout << "jumptables in module...\n";
+            std::cout << "jumptables in " << module->getName() << "...\n";
             ChunkDumper dumper;
             module->getJumpTableList()->accept(&dumper);
         }
     }, "dumps all jump tables in all modules");
+
+    topLevel->add("jumptables2", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            ChunkDumper dumper;
+            module->getJumpTableList()->accept(&dumper);
+        }
+    }, "dumps all jump tables in the given module");
+
+    topLevel->add("functions", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            for(auto func : CIter::functions(module)) {
+                std::cout << func->getName() << std::endl;
+            }
+        }
+    }, "shows a list of all functions in a module");
+    topLevel->add("functions2", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            std::vector<Function *> funcList;
+            for(auto func : CIter::functions(module)) {
+                funcList.push_back(func);
+            }
+
+            std::sort(funcList.begin(), funcList.end(),
+                [](Function *a, Function *b) {
+                    return a->getName() < b->getName();
+                });
+
+            for(auto func : funcList) {
+                std::printf("0x%08lx %s\n",
+                    func->getAddress(), func->getName().c_str());
+            }
+        }
+    }, "shows a sorted list of all functions in a module, with addresses");
 }

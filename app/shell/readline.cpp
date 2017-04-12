@@ -32,8 +32,18 @@ Readline::~Readline() {
     write_history(HISTORY_FILE);
 }
 
+#define C_WHITE "37"
+#define C_GREEN "32"
+#define PROMPT_COLOR C_WHITE
+
+#define UNPRINTABLE(text) "\001" text "\002"
+
 std::string Readline::get(const std::string &prompt) {
-    std::string prompt2 = "\033[1;37m" + prompt + "\033[0m";
+    std::string prompt2
+        = UNPRINTABLE("\033[1;" PROMPT_COLOR "m")
+        + prompt
+        + UNPRINTABLE("\033[0m");
+
     char *line = readline(prompt2.c_str());
     if(line && *line) {
         add_history(line);
