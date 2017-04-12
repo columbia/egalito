@@ -1,13 +1,13 @@
-#ifndef EGALITO_CHUNK_RESOLVE_H
-#define EGALITO_CHUNK_RESOLVE_H
+#ifndef EGALITO_INTERNAL_CALLS_H
+#define EGALITO_INTERNAL_CALLS_H
 
 #include "chunkpass.h"
 
-class ResolveCalls : public ChunkPass {
+class InternalCalls : public ChunkPass {
 private:
     FunctionList *functionList;
 public:
-    ResolveCalls() : functionList(nullptr) {}
+    InternalCalls() : functionList(nullptr) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction);
 };

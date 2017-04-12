@@ -1,4 +1,4 @@
-#include "funcptrs.h"
+#include "handlerelocs.h"
 #include "elf/elfspace.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
@@ -8,7 +8,7 @@
 #include "disasm/makesemantic.h"
 #include "log/log.h"
 
-void FuncptrsPass::visit(Module *module) {
+void HandleRelocsPass::visit(Module *module) {
     this->module = module;
     auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
@@ -29,7 +29,7 @@ void FuncptrsPass::visit(Module *module) {
     }
 }
 
-void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
+void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
     Function *target) {
 
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());
@@ -82,7 +82,7 @@ void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
     }
 }
 
-void FuncptrsPass::handleRelocation(Reloc *r, FunctionList *functionList,
+void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
                                     Symbol *symbol) {
 
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());

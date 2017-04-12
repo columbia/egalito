@@ -1,16 +1,16 @@
 #include <iostream>
-#include "resolvecalls.h"
+#include "internalcalls.h"
 #include "operation/find.h"
 #include "instr/semantic.h"
 #include "instr/concrete.h"
 #include "log/log.h"
 
-void ResolveCalls::visit(Module *module) {
+void InternalCalls::visit(Module *module) {
     functionList = module->getFunctionList();
     recurse(functionList);
 }
 
-void ResolveCalls::visit(Instruction *instruction) {
+void InternalCalls::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     auto link = semantic->getLink();
     if(!link) return;  // no link in this instruction

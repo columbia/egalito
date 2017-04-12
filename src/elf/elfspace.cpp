@@ -7,10 +7,10 @@
 #include "chunk/tls.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
-#include "pass/resolvecalls.h"
-#include "pass/resolverelocs.h"
-#include "pass/funcptrs.h"
-#include "pass/inferredptrs.h"
+#include "pass/internalcalls.h"
+#include "pass/externalcalls.h"
+#include "pass/handlerelocs.h"
+#include "pass/inferlinks.h"
 #include "pass/relocheck.h"
 #include "pass/relocdata.h"
 #include "log/log.h"
@@ -58,8 +58,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->module = Disassemble::module(elf, symbolList);
     this->module->setElfSpace(this);
 
-    ResolveCalls resolver;
-    module->accept(&resolver);
+    InternalCalls internalCalls;
+    module->accept(&internalCalls);
 
     //ChunkDumper dumper;
     //module->accept(&dumper);
@@ -67,19 +67,19 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
     PLTList::parsePLTList(elf, relocList, module);
 
-    FuncptrsPass funcptrsPass(elf, relocList);
-    module->accept(&funcptrsPass);
+    HandleRelocsPass handleRelocsPass(elf, relocList);
+    module->accept(&handleRelocsPass);
 
     if (module->getPLTList()) {
-        ResolveRelocs resolveRelocs(module->getPLTList());
-        module->accept(&resolveRelocs);
+        ExternalCalls externalCalls(module->getPLTList());
+        module->accept(&externalCalls);
     }
 
     PCRelativePass pcrelative(elf, relocList);
     module->accept(&pcrelative);
 
-    InferredPtrsPass inferredPtrsPass(elf);
-    module->accept(&inferredPtrsPass);
+    InferLinksPass inferLinksPass(elf);
+    module->accept(&inferLinksPass);
 
     TLSList::buildTLSList(elf, relocList, module);
 
