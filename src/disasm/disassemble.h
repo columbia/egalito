@@ -4,6 +4,7 @@
 #include <climits>  // for INT_MIN
 #include <capstone/capstone.h>
 #include "types.h"
+#include "elf/elfmap.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "instr/assembly.h"
@@ -27,8 +28,8 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
-    static Module *module(address_t baseAddr, SymbolList *symbolList);
-    static Function *function(Symbol *symbol, address_t baseAddr);
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList);
+    static Function *function(ElfMap *elfMap, Symbol *symbol);
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,

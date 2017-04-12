@@ -46,14 +46,16 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     else {
         this->symbolList = SymbolList::buildSymbolList(elf);
     }
-    this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
+
+    if (elf->isDynamic()) {
+        this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
+    }
 
     LOG(1, "");
     LOG(1, "=== Creating internal data structures ===");
 
-    auto baseAddr = elf->getCopyBaseAddress();
     Disassemble::init();
-    this->module = Disassemble::module(baseAddr, symbolList);
+    this->module = Disassemble::module(elf, symbolList);
     this->module->setElfSpace(this);
 
     ResolveCalls resolver;
@@ -68,8 +70,10 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     FuncptrsPass funcptrsPass(elf, relocList);
     module->accept(&funcptrsPass);
 
-    ResolveRelocs resolveRelocs(module->getPLTList());
-    module->accept(&resolveRelocs);
+    if (module->getPLTList()) {
+        ResolveRelocs resolveRelocs(module->getPLTList());
+        module->accept(&resolveRelocs);
+    }
 
     PCRelativePass pcrelative(elf, relocList);
     module->accept(&pcrelative);

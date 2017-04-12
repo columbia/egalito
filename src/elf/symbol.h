@@ -17,6 +17,7 @@ public:
         TYPE_IFUNC,
         TYPE_OBJECT,
         TYPE_SECTION,
+        TYPE_FILE,
         TYPE_UNKNOWN
     };
     enum BindingType {
@@ -33,11 +34,12 @@ private:
     SymbolType symbolType;
     BindingType bindingType;
     size_t index;
+    size_t shndx;
 public:
     Symbol(address_t address, size_t size, const char *name,
-        SymbolType sym, BindingType bind, size_t index)
+           SymbolType sym, BindingType bind, size_t index, size_t shndx)
         : address(address), size(size), name(name), aliasFor(nullptr),
-        symbolType(sym), bindingType(bind), index(index) {}
+        symbolType(sym), bindingType(bind), index(index), shndx(shndx) {}
 
     address_t getAddress() const { return address; }
     size_t getSize() const { return size; }
@@ -45,6 +47,8 @@ public:
     SymbolType getType() const { return symbolType; }
     BindingType getBind() const { return bindingType; }
     Symbol *getAliasFor() const { return aliasFor; }
+    size_t getSectionIndex() const { return shndx; }
+    size_t getIndex() const { return index; }
 
     void setSize(size_t size) { this->size = size; }
     void setAliasFor(Symbol *aliasFor) { this->aliasFor = aliasFor; }

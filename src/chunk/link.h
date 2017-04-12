@@ -98,6 +98,18 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class AbsoluteDataLink : public Link {
+private:
+    ElfMap *elf;
+    address_t target;
+public:
+    AbsoluteDataLink(ElfMap *elf, address_t target)
+        : elf(elf), target(target) {}
+
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const;
+};
+
 class ImmAndDispLink : public Link {
 private:
     NormalLink *immLink;
@@ -124,6 +136,21 @@ private:
 public:
     UnresolvedLink(address_t target) : target(target) {}
 
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return target; }
+};
+
+class Symbol;
+
+class SymbolOnlyLink : public Link {
+private:
+    Symbol *symbol;
+    address_t target;
+public:
+
+    SymbolOnlyLink(Symbol *symbol, address_t target) : symbol(symbol), target(target) {}
+
+    Symbol *getSymbol() const { return symbol; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const { return target; }
 };

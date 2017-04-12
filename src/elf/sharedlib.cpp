@@ -9,7 +9,8 @@
 
 std::string SharedLib::getAlternativeSymbolFile() const {
 #ifdef ARCH_X86_64
-    auto buildIdHeader = static_cast<Elf64_Shdr *>(elfMap->findSectionHeader(".note.gnu.build-id"));
+    auto buildIdSection = (elfMap->findSection(".note.gnu.build-id"));
+    auto buildIdHeader = buildIdSection->getHeader();
     if(buildIdHeader) {
         auto section = reinterpret_cast<address_t>(elfMap->findSection(".note.gnu.build-id"));
         auto note = reinterpret_cast<Elf64_Nhdr *>(section);
