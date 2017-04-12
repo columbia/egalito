@@ -9,7 +9,8 @@
 #include "log/log.h"
 
 void ElfDynamic::parse(ElfMap *elf) {
-    auto dynamic = static_cast<unsigned long *>(elf->findSection(".dynamic"));
+
+    auto dynamic = (elf->getSectionReadPtr<unsigned long *>(".dynamic"));
     if(!dynamic) return;  // statically linked
     auto strtab = elf->getDynstrtab();
 

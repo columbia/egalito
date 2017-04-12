@@ -25,6 +25,7 @@ public:
     void regenerateAssembly();
 
     void setIndex(int index) { opIndex = index; }
+    int getIndex() const { return opIndex; }
 
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, Assembly *assembly);
