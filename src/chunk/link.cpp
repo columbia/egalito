@@ -27,3 +27,7 @@ address_t JumpTableLink::getTargetAddress() const {
 address_t DataOffsetLink::getTargetAddress() const {
     return elf->getBaseAddress() + target;
 }
+
+address_t AbsoluteDataLink::getTargetAddress() const {
+    return elf->getBaseAddress() + target;
+}

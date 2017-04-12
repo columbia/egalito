@@ -28,9 +28,9 @@ void JumpTableSearch::search(Function *function) {
 
     for(auto b : CIter::children(function)) {
         auto i = b->getChildren()->getIterable()->getLast();
-        if(dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
-            SlicingSearch search(&cfg);
-            search.sliceAt(i);
+        if(auto j = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
+            SlicingSearch search(&cfg, SlicingSearch::Direction::BACKWARDS);
+            search.sliceAt(i, j->getRegister());
 
             JumpTableDescriptor descriptor(function, i);
 

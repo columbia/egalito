@@ -3,6 +3,7 @@
 
 #include "semantic.h"
 #include "isolated.h"
+#include "chunk/chunkfwd.h"
 
 // Defines LinkedInstruction and ControlFlowInstruction for aarch64.
 
@@ -45,6 +46,9 @@ public:
 
     void regenerateAssembly();
 
+    static LinkedInstruction *makeLinked(Module *module,
+        Instruction *instruction, Assembly *assembly);
+
     Instruction *getSource() const { return source; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
@@ -55,15 +59,14 @@ public:
 
 private:
     static Mode getMode(const Assembly &assembly);
+    static address_t makeTargetAddress(Instruction *instruction,
+        Assembly *assembly, int regIndex);
 };
 
 class ControlFlowInstruction : public LinkedInstruction {
 public:
     using LinkedInstruction::LinkedInstruction;
 };
-
-// !!! please remove this
-typedef LinkedInstruction PCRelativePageInstruction;
 #endif
 
 #endif

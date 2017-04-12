@@ -8,7 +8,8 @@ void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
     SymbolTableSection *dynsym) {
 
     auto elf = space->getElfMap();
-    auto header = static_cast<Elf64_Shdr *>(elf->findSectionHeader(".plt"));
+    auto section = (elf->findSection(".plt"));
+    auto header = section->getHeader();
 #ifdef ARCH_X86_64
     static const size_t ENTRY_SIZE = 16;
     static const size_t INITIAL_ENTRY_SIZE = 1 * ENTRY_SIZE;

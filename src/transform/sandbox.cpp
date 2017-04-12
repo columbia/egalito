@@ -14,8 +14,9 @@ bool Slot::append(uint8_t *data, size_t size) {
 }
 
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
-    base = (address_t) mmap((void *)0x40000000, size, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS
+#define SANDBOX_BASE_ADDRESS    0x80000000
+    base = (address_t) mmap((void *)SANDBOX_BASE_ADDRESS, size,
+        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS
 #ifdef ARCH_X86_64
         | MAP_32BIT
 #endif
@@ -23,6 +24,10 @@ MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
     if(base == (address_t)-1) {
         throw std::bad_alloc();
     }
+    if(base != SANDBOX_BASE_ADDRESS) {
+        throw "must not overlap with other regions such as heap";
+    }
+#undef SANDBOX_BASE_ADDRESS
 }
 
 void MemoryBacking::finalize() {

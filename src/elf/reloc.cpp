@@ -7,6 +7,8 @@
 #define DEBUG_GROUP dreloc
 #include "log/log.h"
 
+#define RELA_PREFIX ".rela"
+
 std::string Reloc::getSymbolName() const {
     return symbol ? symbol->getName() : "???";
 }
@@ -70,7 +72,15 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
 
             address_t address = r->r_offset;
             auto type = ELF64_R_TYPE(r->r_info);
-            //address += elf->getBaseAddress();
+
+            if (elf->isObjectFile()) {
+                if (std::strncmp(RELA_PREFIX, name, std::strlen(RELA_PREFIX)) == 0) {
+                    auto s = (elf->findSection(name + std::strlen(RELA_PREFIX)));
+                    if(s) {
+                        address += s->getVirtualAddress();
+                    }
+                }
+            }
 
             if(!sym && type == R_X86_64_IRELATIVE) {
                 sym = currentSymbolList->find(r->r_addend);

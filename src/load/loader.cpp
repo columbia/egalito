@@ -103,7 +103,7 @@ static void mapSegments(ConductorSetup *setup) {
 
     for(auto lib : *setup->getConductor()->getLibraryList()) {
         auto map = lib->getElfMap();
-        if(map) {
+        if(map && map != egalito) {
             SegMap::mapSegments(*map, map->getBaseAddress());
         }
     }

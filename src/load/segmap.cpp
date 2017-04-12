@@ -53,12 +53,13 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
         mem = mmap((void *)address,
             memsz_pages,
             prot,
-            MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+            MAP_ANONYMOUS | MAP_PRIVATE,
             -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
+        if(mem != (void *)address) throw "Overlapping with other regions?";
         munmap(mem, filesz_pages);
         mem = mmap(mem, filesz_pages, prot,
-            MAP_PRIVATE | MAP_FIXED,
+            MAP_PRIVATE,
             elf.getFileDescriptor(),
             offset);
         // the last page from the file might need zeroing, in case
@@ -68,15 +69,17 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
                 0, filesz_pages - filesz_orig);
         }
         if(mem == (void *)-1) throw "Out of memory?";
+        if(mem != (void *)address) throw "Overlapping with other regions?";
     }
     else {
         // in this case there are no extra zero pages
         mem = mmap((void *)address,
             memsz_pages,
             prot,
-            MAP_PRIVATE | MAP_FIXED,
+            MAP_PRIVATE,
             elf.getFileDescriptor(),
             offset);
         if(mem == (void *)-1) throw "Out of memory?";
+        if(mem != (void *)address) throw "Overlapping with other regions?";
     }
 }

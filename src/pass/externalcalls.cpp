@@ -1,11 +1,11 @@
-#include "resolverelocs.h"
+#include "externalcalls.h"
 #include "instr/concrete.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dplt
 #include "log/log.h"
 
-void ResolveRelocs::visit(Instruction *instruction) {
+void ExternalCalls::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
 
     // look for instructions with Links

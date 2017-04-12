@@ -99,6 +99,9 @@ void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
     else if(auto v = dynamic_cast<PLTLink *>(link)) {
         targetName << v->getPLTTrampoline()->getName();
     }
+    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
+        targetName << v->getSymbol()->getName() << "@symonly";
+    }
     else targetName << "[unresolved]";
 
     std::ostringstream name;

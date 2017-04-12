@@ -213,8 +213,8 @@ void ElfGen::makeDynamicSymbolInfo() {
 
 void ElfGen::makePLT() {
     auto elfMap = elfSpace->getElfMap();
-    auto oldPLT = static_cast<Elf64_Shdr *>(
-        elfMap->findSectionHeader(".plt"));
+    auto oldPLT = (
+                   elfMap->findSection(".plt"))->getHeader();
     if(!oldPLT) return;
 
     auto dynsym = dynamic_cast<SymbolTableSection *>(

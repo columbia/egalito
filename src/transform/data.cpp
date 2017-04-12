@@ -17,9 +17,10 @@ void *DataLoader::setupMainData(Module *module, address_t baseAddress) {
     void *mem = mmap((void *)baseAddress,
                      ROUND_UP(size),
                      PROT_READ | PROT_WRITE,
-                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+                     MAP_ANONYMOUS | MAP_PRIVATE,
                      -1, 0);
     if(mem == (void *)-1) throw "Out of memory?";
+    if(mem != (void *)baseAddress) throw "Overlapping with other regions?";
 #ifdef ARCH_X86_64
     auto tp = (char *)mem;
 #elif defined(ARCH_AARCH64)
@@ -49,9 +50,10 @@ void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
         void *mem = mmap((void *)baseAddress,
                          ROUND_UP(size),
                          PROT_READ | PROT_WRITE,
-                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+                         MAP_ANONYMOUS | MAP_PRIVATE,
                          -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
+        if(mem != (void *)baseAddress) throw "Overlapping with other regions?";
         auto addr = reinterpret_cast<address_t>(mem);
         for(auto tls : *tlsList) {
             tls->loadTo(addr);

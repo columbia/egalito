@@ -91,7 +91,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
+Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
     module->getChildren()->add(functionList);
@@ -110,7 +110,7 @@ Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
 #endif
            ) {
 
-            Function *function = Disassemble::function(sym, baseAddr);
+            Function *function = Disassemble::function(elfMap, sym);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
         }
@@ -118,8 +118,10 @@ Module *Disassemble::module(address_t baseAddr, SymbolList *symbolList) {
     return module;
 }
 
-Function *Disassemble::function(Symbol *symbol, address_t baseAddr) {
-    address_t readAddress = baseAddr + symbol->getAddress();
+Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
+    auto sectionIndex = symbol->getSectionIndex();
+    auto section = elfMap->findSection(sectionIndex);
+    address_t readAddress = section->getReadAddress() + section->convertVAToOffset(symbol->getAddress());
     address_t trueAddress = symbol->getAddress();
     Handle handle(true);
     cs_insn *insn;

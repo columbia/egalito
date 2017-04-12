@@ -70,7 +70,8 @@ Symbol *SymbolList::find(address_t address) {
 
 SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
     ElfMap *elfMap = library->getElfMap();
-    Elf64_Shdr *s = (Elf64_Shdr *)elfMap->findSectionHeader(".symtab");
+    auto section = elfMap->findSection(".symtab");
+    auto s = section->getHeader();
     if(s && s->sh_type == SHT_SYMTAB) {
         return buildSymbolList(elfMap);
     }
@@ -111,7 +112,8 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     }
 
     if(auto s = findSizeZero(list, "_init")) {
-        auto init = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(".init"));
+        auto init_section = (elfmap->findSection(".init"));
+        auto init = init_section->getHeader();
         if(init) s->setSize(init->sh_size);
     }
 
@@ -134,8 +136,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
     std::map<address_t, Symbol *> seen;
     for(auto sym : *list) {
-        // don't alias SECTIONs with other types (e.g. first FUNC in .text)
-        if(sym->getType() == Symbol::TYPE_SECTION) continue;
+        // don't alias the null section index 0
+        if (sym->getSectionIndex() == 0) continue;
+
+        // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
+        if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
 #ifdef ARCH_AARCH64
         // skip mapping symbols in AARCH64 ELF
         if(sym->getName()[0] == '$') continue;
@@ -144,7 +149,8 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         auto prev = seen.find(sym->getAddress());
         if(prev != seen.end()) {
             auto prevSym = (*prev).second;
-            if(prevSym->getSize() == sym->getSize()) {
+
+            if(prevSym->getSize() == sym->getSize() && prevSym->getBind() == sym->getBind() && prevSym->getSectionIndex() == sym->getSectionIndex()) {
                 sym->setAliasFor(prevSym);
                 prevSym->addAlias(sym);
             }
@@ -170,7 +176,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
 
     SymbolList *list = new SymbolList();
 
-    auto s = static_cast<Elf64_Shdr *>(elfmap->findSectionHeader(sectionName));
+    auto section = (elfmap->findSection(sectionName));
+    auto s = section->getHeader();
     if(!s || s->sh_type != sectionType) {
         LOG(1, "Warning: no symbol table " << sectionName << " in ELF file");
         return list;
@@ -179,7 +186,7 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     const char *strtab = (sectionType == SHT_DYNSYM
         ? elfmap->getDynstrtab() : elfmap->getStrtab());
 
-    auto sym = static_cast<Elf64_Sym *>(elfmap->findSection(sectionName));
+    auto sym = (elfmap->getSectionReadPtr<Elf64_Sym*>(sectionName));
 
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
@@ -202,10 +209,21 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
             name = newName;
         }
 
-        // sym->st_shndx will be 0 for load-time relocations in dynsym
-        auto index = sym->st_shndx;
 
-        Symbol *symbol = new Symbol(address, size, name, type, bind, index);
+        // sym->st_shndx will be 0 for load-time relocations in dynsym
+        auto shndx = sym->st_shndx;
+
+        if (elfmap->isObjectFile()) {
+            LOG0(1, "symbol name: " << sym->st_name << " shndx " << shndx);
+            auto symSection = elfmap->findSection(shndx);
+            // will be null if COM section...
+            if (symSection) {
+                // Convert Offset to Virtual address.
+                address += symSection->getVirtualAddress();
+            }
+        }
+
+        Symbol *symbol = new Symbol(address, size, name, type, bind, j, shndx);
         CLOG0(1, "%s symbol #%d, index %d, [%s]\n", sectionName,
             (int)list->symbolList.size(), j, name);
         list->add(symbol, (size_t)j);
@@ -240,6 +258,7 @@ unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
     case Symbol::TYPE_IFUNC:    return STT_GNU_IFUNC;
     case Symbol::TYPE_OBJECT:   return STT_OBJECT;
     case Symbol::TYPE_SECTION:  return STT_SECTION;
+    case Symbol::TYPE_FILE:     return STT_FILE;
     default:                    return STT_NOTYPE;
     }
 }
@@ -250,6 +269,7 @@ Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
     case STT_GNU_IFUNC:return Symbol::TYPE_IFUNC;
     case STT_OBJECT:   return Symbol::TYPE_OBJECT;
     case STT_SECTION:  return Symbol::TYPE_SECTION;
+    case STT_FILE:     return Symbol::TYPE_FILE;
     default:           return Symbol::TYPE_UNKNOWN;
     }
 }

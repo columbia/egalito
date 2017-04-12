@@ -1,9 +1,15 @@
 #include <cstring>  // for memcpy
 #include "linked-aarch64.h"
 #include "instr.h"
+#include "analysis/slicingtree.h"
+#include "analysis/controlflow.h"
+#include "analysis/slicing.h"
+#include "analysis/slicingmatch.h"
 #include "chunk/link.h"
 #include "disasm/disassemble.h"
+#include "elf/elfspace.h"
 #include "util/streamasstring.h"
+#include "log/log.h"
 
 #if defined(ARCH_AARCH64)
 LinkedInstruction::LinkedInstruction(Instruction *source,
@@ -172,5 +178,150 @@ void LinkedInstruction::regenerateAssembly() {
     Assembly assembly = Disassemble::makeAssembly(
         data.getVector(), getSource()->getAddress());
     getStorage().setAssembly(std::move(assembly));
+}
+
+
+class RegPointerPredicate : public SlicingHalt {
+private:
+    int reg;
+    TreeNodeConstant *offsetTree;
+
+public:
+    RegPointerPredicate(int reg) : reg(reg), offsetTree(nullptr) {}
+    virtual bool cutoff(SearchState *state);
+    address_t getOffset();
+
+private:
+    TreeNodeConstant *getOffsetTree(TreeNode *node);
+};
+
+TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternAny>,
+        TreePatternCapture<TreePatternAny>
+    > TreePatternOffset;
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternCapture<TreePatternOffset>
+    > TreePatternOffset2;
+
+    TreeCapture capture;
+    if(TreePatternOffset2::matches(tree, capture)) {
+        tree = capture.get(0);
+    }
+
+    capture.clear();
+    if(TreePatternOffset::matches(tree, capture)) {
+        auto r1 = dynamic_cast<TreeNodeRegister *>(capture.get(0));
+        auto c2 = dynamic_cast<TreeNodeConstant *>(capture.get(1));
+        if(r1 && r1->getRegister() == reg && c2) {
+            return c2;
+        }
+    }
+
+    return nullptr;
+}
+
+bool RegPointerPredicate::cutoff(SearchState *state) {
+    auto tree = getOffsetTree(state->getRegTree(reg));
+    if(tree) {
+        offsetTree = tree;
+    }
+    else {
+        auto v = dynamic_cast<DisassembledInstruction *>(
+            state->getInstruction()->getSemantic());
+        if(v) {
+            auto assembly = v->getAssembly();
+            if(assembly->getId() == ARM64_INS_ADD
+               || assembly->getId() == ARM64_INS_LDR
+               || assembly->getId() == ARM64_INS_LDRB
+               || assembly->getId() == ARM64_INS_LDRH
+               || assembly->getId() == ARM64_INS_LDRSB
+               || assembly->getId() == ARM64_INS_LDRSH
+               || assembly->getId() == ARM64_INS_LDRSW
+               ) {
+
+                auto r = assembly->getAsmOperands()->getOperands()[0].reg;
+                auto tree = getOffsetTree(state->getRegTree(r));
+                if(tree) {
+                    offsetTree = tree;
+                }
+            }
+            else if(assembly->getId() == ARM64_INS_STR
+                    || assembly->getId() == ARM64_INS_STRB
+                    || assembly->getId() == ARM64_INS_STRH
+                    ) {
+                for(auto mem : state->getMemTree()) {
+                    auto tree = getOffsetTree(mem.first);
+                    if(tree) {
+                        offsetTree = tree;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return (offsetTree != nullptr);
+}
+
+address_t RegPointerPredicate::getOffset() {
+#if 0
+    LOG(1, "tree is: ");
+    if(offsetTree) {
+        IF_LOG(1) offsetTree->print(TreePrinter(2, 0));
+    }
+    else {
+        LOG(1, "--------not found------------");
+    }
+    LOG(1, "");
+#endif
+    return (offsetTree) ? offsetTree->getValue() : 0;
+}
+
+address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
+    Assembly *assembly, int regIndex) {
+
+    Function *function = dynamic_cast<Function *>(
+        instruction->getParent()->getParent());
+
+    auto reg =
+        assembly->getAsmOperands()->getOperands()[regIndex].reg;
+
+    ControlFlowGraph cfg(function);
+
+    RegPointerPredicate rpp(reg);
+    SlicingSearch search(&cfg, SlicingSearch::Direction::FORWARDS, &rpp);
+    auto next = dynamic_cast<Instruction *>(instruction->getNextSibling());
+    search.sliceAt(next, reg);
+
+    return assembly->getAsmOperands()->getOperands()[1].imm + rpp.getOffset();
+}
+
+LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
+    Instruction *instruction, Assembly *assembly) {
+
+    if(assembly->getId() == ARM64_INS_ADRP) {
+        address_t target = LinkedInstruction::makeTargetAddress(
+            instruction, assembly, 0);
+        //LOG(1, "target: 0x" << std::hex << target);
+        auto found = CIter::spatial(module->getFunctionList())->find(target);
+        if(found) {
+            //LOG(1, " ==> " << found->getName());
+            auto link = new ExternalNormalLink(found);
+            auto linked = new LinkedInstruction(instruction, *assembly);
+            linked->setLink(link);
+            return linked;
+        }
+        else {
+            //LOG(1, " --> data link");
+            auto link = new DataOffsetLink(
+                module->getElfSpace()->getElfMap(), target);
+            auto linked = new LinkedInstruction(instruction, *assembly);
+            linked->setLink(link);
+            return linked;
+        }
+    }
+    return nullptr;
 }
 #endif

@@ -1,7 +1,7 @@
 #include "framework/include.h"
 #include "analysis/slicingtree.h"
 
-TEST_CASE("TreeNodeContant canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeContant canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeConstant t1(1);
     TreeNodeConstant t2(1);
     REQUIRE(t1.canbe(&t2) == true);
@@ -13,7 +13,7 @@ TEST_CASE("TreeNodeContant canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&t4) == false);
 }
 
-TEST_CASE("TreeNodeAddress canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeAddress canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress t1(1);
     TreeNodeAddress t2(1);
     REQUIRE(t1.canbe(&t2) == true);
@@ -25,7 +25,7 @@ TEST_CASE("TreeNodeAddress canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&t4) == false);
 }
 
-TEST_CASE("TreeNodeRegister canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeRegister canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeRegister t1(1);
     TreeNodeRegister t2(1);
     REQUIRE(t1.canbe(&t2) == true);
@@ -37,7 +37,7 @@ TEST_CASE("TreeNodeRegister canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&t4) == false);
 }
 
-TEST_CASE("TreeNodeRegisterRIP canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeRegisterRIP canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeRegisterRIP t1(1);
     TreeNodeRegisterRIP t2(1);
     REQUIRE(t1.canbe(&t2) == true);
@@ -49,7 +49,7 @@ TEST_CASE("TreeNodeRegisterRIP canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&t4) == false);
 }
 
-TEST_CASE("TreeNodeDereference canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeDereference canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeDereference t1(&ta);
@@ -64,7 +64,7 @@ TEST_CASE("TreeNodeDereference canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeJump canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeJump canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeJump t1(&ta);
@@ -79,7 +79,7 @@ TEST_CASE("TreeNodeJump canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeSignExtendByte canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeSignExtendByte canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeSignExtendByte t1(&ta);
@@ -94,7 +94,7 @@ TEST_CASE("TreeNodeSignExtendByte canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeSignExtendHalfWord canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeSignExtendHalfWord canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeSignExtendHalfWord t1(&ta);
@@ -109,7 +109,7 @@ TEST_CASE("TreeNodeSignExtendHalfWord canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeSignExtendWord canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeSignExtendWord canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeSignExtendWord t1(&ta);
@@ -124,7 +124,7 @@ TEST_CASE("TreeNodeSignExtendWord canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeUnsignedExtendWord canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeUnsignedExtendWord canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeUnsignedExtendWord t1(&ta);
@@ -139,7 +139,7 @@ TEST_CASE("TreeNodeUnsignedExtendWord canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeAddition canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeAddition canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeAddition t1(&ta, &ta);
@@ -159,7 +159,7 @@ TEST_CASE("TreeNodeAddition canbe", "[analysis][slicingtree][fast]") {
 
 // skip TreeNodeSubtraction, TreeNodeMultiplication, TreeNodeLogicalShiftLeft
 
-TEST_CASE("TreeNodeComparison canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeComparison canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeComparison t1(&ta, &ta);
@@ -177,7 +177,7 @@ TEST_CASE("TreeNodeComparison canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t1.canbe(&tc) == false);
 }
 
-TEST_CASE("TreeNodeMultipleParents canbe", "[analysis][slicingtree][fast]") {
+TEST_CASE("TreeNodeMultipleParents canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
     TreeNodeMultipleParents t1;
@@ -235,4 +235,3 @@ TEST_CASE("TreeNodeMultipleParents canbe", "[analysis][slicingtree][fast]") {
     REQUIRE(t6.canbe(&t7) == false);
     REQUIRE(t7.canbe(&t6) == false);
 }
-
