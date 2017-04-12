@@ -66,11 +66,10 @@ void Conductor::fixDataSection(ElfSpace *elfSpace) {
         elfSpace,
         elfSpace->getRelocList(),
         this);
-    //elfSpace->getModule()->accept(&relocData);
-    acceptInAllModules(&relocData);
+    elfSpace->getModule()->accept(&relocData);
 
     FixJumpTablesPass fixJumpTables;
-    acceptInAllModules(&fixJumpTables);
+    elfSpace->getModule()->accept(&fixJumpTables);
 }
 
 void Conductor::loadTLSData() {

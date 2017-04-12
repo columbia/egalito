@@ -31,6 +31,7 @@ void JumpTableSearch::search(Function *function) {
         if(auto j = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
             SlicingSearch search(&cfg, SlicingSearch::Direction::BACKWARDS);
             search.sliceAt(i, j->getRegister());
+            LOG(1, "slicing at " << i->getName() << " in " << function->getName());
 
             JumpTableDescriptor descriptor(function, i);
 

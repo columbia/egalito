@@ -30,7 +30,7 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
         if(count < 0) {
             LOG(1, "Warning: can't make jump table entries for table "
                 << jumpTable->getAddress() << ", bounds are not known");
-            return;
+            continue;
         }
 
         LOG(1, "constructing jump table at " << jumpTable->getAddress());
