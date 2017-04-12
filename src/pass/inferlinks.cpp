@@ -1,14 +1,14 @@
-#include "inferredptrs.h"
+#include "inferlinks.h"
 #include "chunk/dump.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"
 
-void InferredPtrsPass::visit(Module *module) {
+void InferLinksPass::visit(Module *module) {
     this->module = module;
     recurse(module);
 }
 
-void InferredPtrsPass::visit(Instruction *instruction) {
+void InferLinksPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
         if(v->getLink()) return;
