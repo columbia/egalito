@@ -18,3 +18,7 @@ address_t PLTLink::getTargetAddress() const {
 address_t DataOffsetLink::getTargetAddress() const {
     return elf->getBaseAddress() + target;
 }
+
+address_t AbsoluteDataLink::getTargetAddress() const {
+    return elf->getBaseAddress() + target;
+}

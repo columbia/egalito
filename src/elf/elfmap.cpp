@@ -1,6 +1,6 @@
 #include <iostream>
 #include <sstream>
-
+#include <cstring>
 #include <elf.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -34,6 +34,7 @@ void ElfMap::setup() {
     verifyElf();
     makeSectionMap();
     makeSegmentList();
+    makeVirtualAddresses();
 }
 
 void ElfMap::parseElf(const char *filename) {
@@ -86,30 +87,57 @@ void ElfMap::makeSectionMap() {
     for(int i = 0; i < header->e_shnum; i ++) {
         Elf64_Shdr *s = &sheader[i];
         const char *name = shstrtab + s->sh_name;
-
+        ElfSection *section = new ElfSection(i, name, s);
         //std::cout << "section [" << name << "]\n";
 
-        sectionMap[name] = static_cast<void *>(s);
+        sectionMap[name] = section;
+        sectionList.push_back(section);
         LOG(1, "found section [" << name << "] in elf file");
     }
-
-    this->strtab = static_cast<const char *>(findSection(".strtab"));
-    this->dynstr = static_cast<const char *>(findSection(".dynstr"));
 }
 
 void ElfMap::makeSegmentList() {
-    // this also calculates copyBase and sets interpreter
-    baseAddress = 0;
-    copyBase = 0;
-    interpreter = nullptr;
-
     char *charmap = static_cast<char *>(map);
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
+
     for(int i = 0; i < header->e_phnum; i ++) {
         Elf64_Phdr *phdr = &pheader[i];
-
         segmentList.push_back(static_cast<void *>(phdr));
+    }
+}
+
+void ElfMap::makeVirtualAddresses() {
+    baseAddress = 0;
+    copyBase = 0;
+    interpreter = nullptr;
+    char *charmap = static_cast<char *>(map);
+
+    for(std::map<std::string, ElfSection *>::iterator it = sectionMap.begin(); it != sectionMap.end(); ++it) {
+        auto section = it->second;
+        auto header = section->getHeader();
+        section->setReadAddress((address_t)charmap + header->sh_offset);
+        section->setVirtualAddress(header->sh_addr);
+    }
+
+    this->strtab = (getSectionReadPtr<const char *>(".strtab"));
+    this->dynstr = (getSectionReadPtr<const char *>(".dynstr"));
+
+    if (isObjectFile()) {
+        copyBase = (address_t)(charmap);
+        rwCopyBase = (address_t)(charmap);
+
+        sectionMap[".data"]->setVirtualAddress(0x20000);
+        sectionMap[".bss"]->setVirtualAddress(sectionMap[".data"]->getVirtualAddress() + sectionMap[".data"]->getHeader()->sh_size);
+        sectionMap[".rodata"]->setVirtualAddress(sectionMap[".bss"]->getVirtualAddress() + sectionMap[".bss"]->getHeader()->sh_size);
+        return;
+    }
+
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
+
+    for(int i = 0; i < header->e_phnum; i ++) {
+        Elf64_Phdr *phdr = &pheader[i];
 
         if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
             copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
@@ -123,20 +151,19 @@ void ElfMap::makeSegmentList() {
     }
 }
 
-void *ElfMap::findSectionHeader(const char *name) {
+ElfSection *ElfMap::findSection(const char *name) const {
     auto it = sectionMap.find(name);
     if(it == sectionMap.end()) return nullptr;
 
-    return (*it).second;
+    auto elfsection = (it->second);
+    return elfsection;
 }
 
-void *ElfMap::findSection(const char *name) {
-    auto it = sectionMap.find(name);
-    if(it == sectionMap.end()) return nullptr;
-
-    char *charmap = static_cast<char *>(map);
-    auto shdr = static_cast<Elf64_Shdr *>((*it).second);
-    return static_cast<void *>(charmap + shdr->sh_offset);
+ElfSection *ElfMap::findSection(int index) const {
+    if ((unsigned int)index < sectionList.size()) {
+        return sectionList[index];
+    }
+    return 0;
 }
 
 std::vector<void *> ElfMap::findSectionsByType(int type) {
@@ -156,16 +183,13 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
     return std::move(sections);
 }
 
-// size_t ElfMap::getSectionIndex(const char *name) {
-//     auto offset = findSection(name);
-//     if(offset == nullptr)
-//         return static_cast<size_t>(-1);
-//
-//     char *charmap = static_cast<char *>(map);
-//     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-//     Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
-//     return (offset - static_cast<void *>(sheader)) / sizeof(Elf64_Shdr);
-// }
+address_t ElfSection::convertOffsetToVA(size_t offset) {
+    return virtualAddress + offset;
+}
+
+address_t ElfSection::convertVAToOffset(address_t va) {
+    return va - virtualAddress;
+}
 
 size_t ElfMap::getEntryPoint() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
@@ -180,4 +204,16 @@ bool ElfMap::isExecutable() const {
 bool ElfMap::isSharedLibrary() const {
     Elf64_Ehdr *header = (Elf64_Ehdr *)map;
     return header->e_type == ET_DYN;
+}
+
+bool ElfMap::isObjectFile() const {
+    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    return header->e_type == ET_REL;
+}
+
+bool ElfMap::hasRelocations() const {
+    if (findSection(".rela.text")) {
+        return true;
+    }
+    return false;
 }

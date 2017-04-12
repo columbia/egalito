@@ -5,6 +5,7 @@
 #include "instr/concrete.h"
 #include "chunk/concrete.h"
 #include "chunk/link.h"
+#include "log/log.h"
 
 #if defined(ARCH_X86_64)
     #define PLAT_(x) X86_ ## x
@@ -140,6 +141,7 @@ int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
         }
         return offset;
     }
+    LOG(0, "error");
     return 0;
 #else
     throw "getDispOffset is only meaningful on x86";
