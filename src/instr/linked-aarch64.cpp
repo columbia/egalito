@@ -279,7 +279,7 @@ address_t RegPointerPredicate::getOffset() {
     return (offsetTree) ? offsetTree->getValue() : 0;
 }
 
-address_t LinkedInstruction::constructTargetAddress(Instruction *instruction,
+address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
     Assembly *assembly, int regIndex) {
 
     Function *function = dynamic_cast<Function *>(
@@ -290,9 +290,10 @@ address_t LinkedInstruction::constructTargetAddress(Instruction *instruction,
 
     ControlFlowGraph cfg(function);
 
-    SlicingSearch search(&cfg);
     RegPointerPredicate rpp(reg);
-    search.sliceFwAt(instruction, reg, &rpp);
+    SlicingSearch search(&cfg, SlicingSearch::Direction::FORWARDS, &rpp);
+    auto next = dynamic_cast<Instruction *>(instruction->getNextSibling());
+    search.sliceAt(next, reg);
 
     return assembly->getAsmOperands()->getOperands()[1].imm + rpp.getOffset();
 }
@@ -301,7 +302,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, Assembly *assembly) {
 
     if(assembly->getId() == ARM64_INS_ADRP) {
-        address_t target = LinkedInstruction::constructTargetAddress(
+        address_t target = LinkedInstruction::makeTargetAddress(
             instruction, assembly, 0);
         //LOG(1, "target: 0x" << std::hex << target);
         auto found = CIter::spatial(module->getFunctionList())->find(target);

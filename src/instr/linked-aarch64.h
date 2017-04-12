@@ -59,7 +59,7 @@ public:
 
 private:
     static Mode getMode(const Assembly &assembly);
-    static address_t constructTargetAddress(Instruction *instruction,
+    static address_t makeTargetAddress(Instruction *instruction,
         Assembly *assembly, int regIndex);
 };
 
