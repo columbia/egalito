@@ -85,6 +85,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
 void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
                                     Symbol *symbol) {
 
+#ifdef ARCH_X86_64
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());
     if (inner){
         if(auto i = dynamic_cast<Instruction *>(inner)) {
@@ -129,4 +130,5 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
             }
         }
     }
+#endif
 }

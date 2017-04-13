@@ -53,6 +53,6 @@ void ReloCheckPass::checkSemantic(Reloc *r, FunctionList *list) {
         }
     }
     else {
-        LOG(1, "address (0x" << r->getAddress() << ") points to a local symbol or data");
+        //LOG(1, "address (0x" << r->getAddress() << ") points to a local symbol or data");
     }
 }
