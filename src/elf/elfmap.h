@@ -4,8 +4,17 @@
 #include <map>
 #include <vector>
 #include <string>
+
+#include <elf.h>
 #include "types.h"
 #include <elf.h>
+
+template <int ELFCLASS>
+class ElfType
+{
+ public:
+    typedef typename std::conditional<ELFCLASS == 1, Elf32_Ehdr, Elf64_Ehdr>::type Elf_Ehdr;
+};
 
 class ELFGen;
 class ElfSection {
@@ -43,6 +52,10 @@ private:
     /** File descriptor associated with memory map.
     */
     int fd;
+
+    /** 32-bit or 64-bit architecture
+     */
+    unsigned char archType;
 private:
     const char *shstrtab;
     const char *strtab;
@@ -102,6 +115,25 @@ public:
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
+private:
+    template <typename T>
+        size_t getEntryPoint() const {
+        auto header = (typename T::Elf_Ehdr*)map;
+        return header->e_entry;
+    }
+
+    template <typename T>
+        bool isExecutable() const {
+        auto header = (typename T::Elf_Ehdr*)map;
+        return header->e_type == ET_EXEC;
+    }
+
+    template <typename T>
+        bool isSharedLibrary() const {
+        auto header = (typename T::Elf_Ehdr*)map;
+        return header->e_type == ET_DYN;
+    }
+
 };
 
 template <typename T>
