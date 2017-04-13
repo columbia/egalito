@@ -71,8 +71,7 @@ Symbol *SymbolList::find(address_t address) {
 SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
     ElfMap *elfMap = library->getElfMap();
     auto section = elfMap->findSection(".symtab");
-    auto s = section->getHeader();
-    if(s && s->sh_type == SHT_SYMTAB) {
+    if(section && section->getHeader()->sh_type == SHT_SYMTAB) {
         return buildSymbolList(elfMap);
     }
     else {
@@ -112,9 +111,8 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     }
 
     if(auto s = findSizeZero(list, "_init")) {
-        auto init_section = (elfmap->findSection(".init"));
-        auto init = init_section->getHeader();
-        if(init) s->setSize(init->sh_size);
+        auto init = elfmap->findSection(".init");
+        if(init) s->setSize(init->getHeader()->sh_size);
     }
 
     // for musl only
@@ -150,7 +148,10 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         if(prev != seen.end()) {
             auto prevSym = (*prev).second;
 
-            if(prevSym->getSize() == sym->getSize() && prevSym->getBind() == sym->getBind() && prevSym->getSectionIndex() == sym->getSectionIndex()) {
+            if(prevSym->getSize() == sym->getSize()
+                && prevSym->getBind() == sym->getBind()
+                && prevSym->getSectionIndex() == sym->getSectionIndex()) {
+
                 sym->setAliasFor(prevSym);
                 prevSym->addAlias(sym);
             }
@@ -176,9 +177,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
 
     SymbolList *list = new SymbolList();
 
-    auto section = (elfmap->findSection(sectionName));
-    auto s = section->getHeader();
-    if(!s || s->sh_type != sectionType) {
+    auto section = elfmap->findSection(sectionName);
+    if(!section || section->getHeader()->sh_type != sectionType) {
         LOG(1, "Warning: no symbol table " << sectionName << " in ELF file");
         return list;
     }
@@ -186,8 +186,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     const char *strtab = (sectionType == SHT_DYNSYM
         ? elfmap->getDynstrtab() : elfmap->getStrtab());
 
-    auto sym = (elfmap->getSectionReadPtr<Elf64_Sym*>(sectionName));
-
+    auto sym = elfmap->getSectionReadPtr<Elf64_Sym *>(section);
+    auto s = section->getHeader();
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
         auto type = Symbol::typeFromElfToInternal(sym->st_info);

@@ -75,28 +75,16 @@ public:
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
     const char *getSHStrtab() const { return shstrtab; }
+
     ElfSection *findSection(const char *name) const;
     ElfSection *findSection(int index) const;
     template <typename T>
-    T getSectionReadPtr(ElfSection *section) {
-        return reinterpret_cast<T>(section->getReadAddress());
-    }
-
+    T getSectionReadPtr(ElfSection *section);
     template <typename T>
-    T getSectionReadPtr(int index) {
-        ElfSection *section = findSection(index);
-        if (!section) return static_cast<T>(0);
-
-        return reinterpret_cast<T>(section->getReadAddress());
-    }
-
+    T getSectionReadPtr(int index);
     template <typename T>
-    T getSectionReadPtr(const char *name) {
-        auto section = findSection(name);
-        if (!section) return static_cast<T>(0);
+    T getSectionReadPtr(const char *name);
 
-        return getSectionReadPtr<T>(section);
-    }
     std::vector<void *> findSectionsByType(int type);
 
     bool hasInterpreter() const { return interpreter != nullptr; }
@@ -106,7 +94,7 @@ public:
     bool isExecutable() const;
     bool isSharedLibrary() const;
     bool isObjectFile() const;
-    bool isDynamic() const { return hasInterpreter(); }
+    bool isDynamic() const;
     bool hasRelocations() const;
 
     char *getCharmap() { return static_cast<char *>(map); }
@@ -115,5 +103,26 @@ public:
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
 };
+
+template <typename T>
+T ElfMap::getSectionReadPtr(ElfSection *section) {
+    return reinterpret_cast<T>(section->getReadAddress());
+}
+
+template <typename T>
+T ElfMap::getSectionReadPtr(int index) {
+    ElfSection *section = findSection(index);
+    if (!section) return static_cast<T>(0);
+
+    return reinterpret_cast<T>(section->getReadAddress());
+}
+
+template <typename T>
+T ElfMap::getSectionReadPtr(const char *name) {
+    auto section = findSection(name);
+    if (!section) return static_cast<T>(0);
+
+    return getSectionReadPtr<T>(section);
+}
 
 #endif

@@ -41,8 +41,7 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
     RelocList *list = new RelocList();
 
     CLOG(0, "building relocation list");
-    std::vector<void *> sectionList
-        = elf->findSectionsByType(SHT_RELA);
+    std::vector<void *> sectionList = elf->findSectionsByType(SHT_RELA);
     for(void *p : sectionList) {
         // Note: 64-bit x86 always uses RELA relocations (not REL),
         // according to readelf source: see the function guess_is_rela()
@@ -73,9 +72,12 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
             address_t address = r->r_offset;
             auto type = ELF64_R_TYPE(r->r_info);
 
-            if (elf->isObjectFile()) {
-                if (std::strncmp(RELA_PREFIX, name, std::strlen(RELA_PREFIX)) == 0) {
-                    auto s = (elf->findSection(name + std::strlen(RELA_PREFIX)));
+            if(elf->isObjectFile()) {
+                // If this relocation refers to a known section, add that
+                // section's virtual address to the relocation address.
+                // This is currently only applicable in object files.
+                if(std::strncmp(RELA_PREFIX, name, std::strlen(RELA_PREFIX)) == 0) {
+                    auto s = elf->findSection(name + std::strlen(RELA_PREFIX));
                     if(s) {
                         address += s->getVirtualAddress();
                     }

@@ -9,12 +9,12 @@
 
 std::string SharedLib::getAlternativeSymbolFile() const {
 #ifdef ARCH_X86_64
-    auto buildIdSection = (elfMap->findSection(".note.gnu.build-id"));
-    auto buildIdHeader = buildIdSection->getHeader();
-    if(buildIdHeader) {
-        auto section = reinterpret_cast<address_t>(elfMap->findSection(".note.gnu.build-id"));
-        auto note = reinterpret_cast<Elf64_Nhdr *>(section);
-        auto sectionEnd = reinterpret_cast<Elf64_Nhdr *>(section + buildIdHeader->sh_size);
+    auto buildIdSection = elfMap->findSection(".note.gnu.build-id");
+    if(buildIdSection) {
+        auto buildIdHeader = buildIdSection->getHeader();
+        auto section = elfMap->getSectionReadPtr<const char *>(buildIdSection);
+        auto note = elfMap->getSectionReadPtr<Elf64_Nhdr *>(buildIdSection);
+        auto sectionEnd = reinterpret_cast<const Elf64_Nhdr *>(section + buildIdHeader->sh_size);
         while(note < sectionEnd) {
             if(note->n_type == NT_GNU_BUILD_ID) {
                 const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string

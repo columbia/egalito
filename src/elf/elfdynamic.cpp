@@ -10,7 +10,7 @@
 
 void ElfDynamic::parse(ElfMap *elf) {
 
-    auto dynamic = (elf->getSectionReadPtr<unsigned long *>(".dynamic"));
+    auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
     if(!dynamic) return;  // statically linked
     auto strtab = elf->getDynstrtab();
 

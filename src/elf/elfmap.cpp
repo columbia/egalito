@@ -90,7 +90,7 @@ void ElfMap::makeSectionMap() {
         ElfSection *section = new ElfSection(i, name, s);
         //std::cout << "section [" << name << "]\n";
 
-        sectionMap[name] = static_cast<void *>(s);
+        sectionMap[name] = section;
         sectionList.push_back(section);
         LOG(11, "found section [" << name << "] in elf file");
     }
@@ -120,8 +120,8 @@ void ElfMap::makeVirtualAddresses() {
         section->setVirtualAddress(header->sh_addr);
     }
 
-    this->strtab = (getSectionReadPtr<const char *>(".strtab"));
-    this->dynstr = (getSectionReadPtr<const char *>(".dynstr"));
+    this->strtab = getSectionReadPtr<const char *>(".strtab");
+    this->dynstr = getSectionReadPtr<const char *>(".dynstr");
 
     if (isObjectFile()) {
         copyBase = (address_t)(charmap);
@@ -155,15 +155,14 @@ ElfSection *ElfMap::findSection(const char *name) const {
     auto it = sectionMap.find(name);
     if(it == sectionMap.end()) return nullptr;
 
-    auto elfsection = (it->second);
-    return elfsection;
+    return it->second;
 }
 
 ElfSection *ElfMap::findSection(int index) const {
-    if ((unsigned int)index < sectionList.size()) {
+    if((unsigned int)index < sectionList.size()) {
         return sectionList[index];
     }
-    return 0;
+    return nullptr;
 }
 
 std::vector<void *> ElfMap::findSectionsByType(int type) {
@@ -211,9 +210,10 @@ bool ElfMap::isObjectFile() const {
     return header->e_type == ET_REL;
 }
 
+bool ElfMap::isDynamic() const {
+    return findSection(".dynamic") != nullptr;
+}
+
 bool ElfMap::hasRelocations() const {
-    if (findSection(".rela.text")) {
-        return true;
-    }
-    return false;
+    return findSection(".rela.text") != nullptr;
 }

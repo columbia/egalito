@@ -14,7 +14,11 @@ bool Slot::append(uint8_t *data, size_t size) {
 }
 
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
-#define SANDBOX_BASE_ADDRESS    0x80000000
+#ifdef ARCH_X86_64
+    #define SANDBOX_BASE_ADDRESS    0x40000000
+#else
+    #define SANDBOX_BASE_ADDRESS    0x80000000
+#endif
     base = (address_t) mmap((void *)SANDBOX_BASE_ADDRESS, size,
         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS
 #ifdef ARCH_X86_64

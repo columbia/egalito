@@ -129,10 +129,10 @@ bool PLTList::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
 }
 
 PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf) {
-    auto pltSection = (elf->findSection(".plt"));
+    auto pltSection = elf->findSection(".plt");
     if(!pltSection) return nullptr;
     auto header = pltSection->getHeader();
-    auto section = (elf->getSectionReadPtr<address_t>(".plt"));
+    auto section = elf->getSectionReadPtr<address_t>(pltSection);
 
     PLTRegistry *registry = new PLTRegistry();
     for(auto r : *relocList) {
@@ -243,9 +243,10 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf) {
 void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
     PLTList *pltList) {
 
-    auto header = (elf->findSection(".plt.got"))->getHeader();
-    auto section = reinterpret_cast<address_t>(elf->findSection(".plt.got"));
-    if(!header || !section) return;  // no .plt.got section
+    auto pltgot = elf->findSection(".plt.got");
+    if(!pltgot) return;  // no .plt.got section
+    auto header = pltgot->getHeader();
+    auto section = elf->getSectionReadPtr<address_t>(pltgot);
 
     PLTRegistry *newRegistry = new PLTRegistry();
     for(auto r : *relocList) {
