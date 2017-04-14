@@ -3,6 +3,7 @@ import python_egalito
 import cmd
 import readline
 import sys
+import time
 
 class EgalitoShell(cmd.Cmd):
 
@@ -14,12 +15,25 @@ class EgalitoShell(cmd.Cmd):
     def do_parse(self, line):
         self.conductorSetup.parseElfFiles(line, False, False)
 
+    def do_parse2(self, line):
+        self.conductorSetup.parseElfFiles(line, True, False)
+
+    def do_parse3(self, line):
+        self.conductorSetup.parseElfFiles(line, True, True)
+
     def do_disass(self, line):
-        """TODO: Not complete yet"""
         conductor = self.conductorSetup.getConductor()
         chunkFind = python_egalito.ChunkFind2(conductor)
         func = chunkFind.findFunction(line, None)
-        print(func.getName())
+        chunkDumper = python_egalito.ChunkDumper()
+        if (func):
+            func.accept(chunkDumper)
+        else:
+            print("%s not found" % (line))
+
+    def do_reassign(self, line):
+        self.conductorSetup.makeLoaderSandbox()
+        self.conductorSetup.moveCodeAssignAddresses()
 
     def do_EOF(self, line):
         return True
