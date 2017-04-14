@@ -56,7 +56,7 @@ void ElfMap::parseElf(const char *filename) {
 
 void ElfMap::verifyElf() {
 
-    unsigned char *e_ident = ((Elf32_Ehdr *)map)->e_ident;
+    unsigned char *e_ident = ((ElfXX_Ehdr *)map)->e_ident;
     if (   e_ident[EI_MAG0] != ELFMAG0
         || e_ident[EI_MAG1] != ELFMAG1
         || e_ident[EI_MAG2] != ELFMAG2
@@ -67,25 +67,25 @@ void ElfMap::verifyElf() {
     // check architecture type
     unsigned char type = e_ident[EI_CLASS];
 
-    if (type != ELFCLASS32 && type != ELFCLASS64) {
-        throw "file is not 32-bit or 64-bit ELF, unsupported\n";
+    if (type != ELFCLASSXX) {
+        throw "file is unsupported\n";
     }
 }
 
 void ElfMap::makeSectionMap() {
     char *charmap = static_cast<char *>(map);
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    if(sizeof(Elf64_Shdr) != header->e_shentsize) {
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
+    if(sizeof(ElfXX_Shdr) != header->e_shentsize) {
         throw "header shentsize mismatch\n";
     }
 
-    Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
+    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
     //Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
 
     this->shstrtab = charmap + sheader[header->e_shstrndx].sh_offset;
 
     for(int i = 0; i < header->e_shnum; i ++) {
-        Elf64_Shdr *s = &sheader[i];
+        ElfXX_Shdr *s = &sheader[i];
         const char *name = shstrtab + s->sh_name;
         ElfSection *section = new ElfSection(i, name, s);
         //std::cout << "section [" << name << "]\n";
@@ -98,11 +98,11 @@ void ElfMap::makeSectionMap() {
 
 void ElfMap::makeSegmentList() {
     char *charmap = static_cast<char *>(map);
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
+    ElfXX_Phdr *pheader = (ElfXX_Phdr *)(charmap + header->e_phoff);
 
     for(int i = 0; i < header->e_phnum; i ++) {
-        Elf64_Phdr *phdr = &pheader[i];
+        ElfXX_Phdr *phdr = &pheader[i];
         segmentList.push_back(static_cast<void *>(phdr));
     }
 }
@@ -133,11 +133,11 @@ void ElfMap::makeVirtualAddresses() {
         return;
     }
 
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
+    ElfXX_Phdr *pheader = (ElfXX_Phdr *)(charmap + header->e_phoff);
 
     for(int i = 0; i < header->e_phnum; i ++) {
-        Elf64_Phdr *phdr = &pheader[i];
+        ElfXX_Phdr *phdr = &pheader[i];
 
         if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
             copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
@@ -169,12 +169,12 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
     std::vector<void *> sections;
 
     char *charmap = static_cast<char *>(map);
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
-    Elf64_Shdr *sheader = (Elf64_Shdr *)(charmap + header->e_shoff);
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
+    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
     for(int i = 0; i < header->e_shnum; i ++) {
-        Elf64_Shdr *s = &sheader[i];
+        ElfXX_Shdr *s = &sheader[i];
 
-        if(s->sh_type == static_cast<uint32_t>(type)) {
+        if(s->sh_type == static_cast<typename(s->sh_type)>(type)) {
             sections.push_back(static_cast<void *>(s));
         }
     }
@@ -191,22 +191,22 @@ address_t ElfSection::convertVAToOffset(address_t va) {
 }
 
 size_t ElfMap::getEntryPoint() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
     return header->e_entry;
 }
 
 bool ElfMap::isExecutable() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
     return header->e_type == ET_EXEC;
 }
 
 bool ElfMap::isSharedLibrary() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
     return header->e_type == ET_DYN;
 }
 
 bool ElfMap::isObjectFile() const {
-    Elf64_Ehdr *header = (Elf64_Ehdr *)map;
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
     return header->e_type == ET_REL;
 }
 
