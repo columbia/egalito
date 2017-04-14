@@ -41,6 +41,7 @@ public:
     void setIndexRegister(Register r) { indexRegister = r; }
     void setScale(int scale) { this->scale = scale; }
     void setBound(long bound) { this->bound = bound; }
+    void setEntries(long entries) { this->bound = entries - 1; }
 };
 
 class JumpTableSearch {

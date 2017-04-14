@@ -27,13 +27,15 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
             module->getElfSpace()->getElfMap(), descriptor);
 
         int count = jumpTable->getEntryCount();
-        if(count < 0) {
+        /*if(count < 0) {
             LOG(1, "Warning: can't make jump table entries for table "
-                << jumpTable->getAddress() << ", bounds are not known");
+                << jumpTable->getAddress() << " in ["
+                << descriptor->getFunction()->getName() << "], bounds are not known");
             continue;
-        }
+        }*/
 
-        LOG(1, "constructing jump table at " << jumpTable->getAddress());
+        LOG(1, "constructing jump table at " << jumpTable->getAddress() << " in ["
+            << descriptor->getFunction()->getName() << "] with " << count << " entries");
         for(int i = 0; i < count; i ++) {
             auto address = jumpTable->getAddress() + i*descriptor->getScale();
             auto p = elfMap->getCopyBaseAddress() + address;
