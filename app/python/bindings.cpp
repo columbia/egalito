@@ -45,7 +45,7 @@ BOOST_PYTHON_MODULE(python_egalito)
 	class_<ConductorSetup>("ConductorSetup")
 		.def("parse_elf_files",            &ConductorSetup::parseElfFiles)
 		.def("get_conductor",              &ConductorSetup::getConductor,
-																												return_value_policy<manage_new_object>())
+																												return_internal_reference<>())
 		.def("make_loader_sandbox",        &ConductorSetup::makeLoaderSandbox)
 		.def("move_code_assign_addresses", &ConductorSetup::moveCodeAssignAddresses);
 
@@ -54,8 +54,10 @@ BOOST_PYTHON_MODULE(python_egalito)
 	class_<ChunkDumper, bases<ChunkVisitor> >("ChunkDumper");
 
 	class_<ChunkFind2>("ChunkFind2", init<Conductor *>())
-		.def("find_function", &ChunkFind2::findFunction,
-																			 arg("module")=NULL,
-																			 return_value_policy<manage_new_object>());
+		.def("find_function",            &ChunkFind2::findFunction,
+																									arg("module")=NULL,
+																									return_value_policy<reference_existing_object>())
+		.def("find_function_containing", &ChunkFind2::findFunctionContaining,
+																									return_value_policy<reference_existing_object>());
 
 }
