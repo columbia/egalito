@@ -2,6 +2,11 @@
 
 include ../env.mk
 
+#Dependencies for Python Bindings
+BOOST_PYTHON_LIB = boost_python3
+PYTHON_LIB = python3.6m
+PYTHON_INC_DIR = /usr/include/python3.6m
+
 CFLAGS      += -g -I ../src/
 CXXFLAGS    += -g -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
@@ -27,13 +32,16 @@ ETSHELL = $(BUILDDIR)etshell
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 
-OUTPUTS = $(ETSHELL) $(PYTHON_BINDING) $(PYSHELL)
+OUTPUTS = $(ETSHELL)
 
 # Default target
 .PHONY: all
 all: app-all symlinks
 
 app-all: $(OUTPUTS) | rebuild-src
+
+python: $(BUILDTREE) $(PYTHON_BINDING) $(PYSHELL)
+	@ln -sf $(PYSHELL)
 
 ifeq ($(findstring clean,$(MAKECMDGOALS)),)
 Makefile: rebuild-src
@@ -46,7 +54,6 @@ $(BUILDTREE):
 symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
 	@ln -sf $(ETSHELL)
-	@ln -sf $(PYSHELL)
 
 .symlinks:
 	@touch .symlinks
@@ -74,19 +81,19 @@ $(BUILDDIR)%.o: %.cpp
 
 # Special files
 $(BUILDDIR)python/%.o: python/%.cpp
-	$(CXX) $(CXXFLAGS) -I /usr/include/python3.6m -fPIC $(DEPFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -I $(PYTHON_INC_DIR) -fPIC $(DEPFLAGS) -c -o $@ $<
 
 $(BUILDDIR)shell/shell.o: shell/shell.cpp
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 
-$(PYTHON_BINDING): $(PYTHON_OBJECTS)
-	$(CXX) $(CXXFLAGS) -fPIC -o $@ $^ -lboost_python3 -lpython3.6m  $(CLDFLAGS) -shared
+$(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/libegalito.a
+	$(CXX) $(CXXFLAGS) -fPIC -o $@ $< -l$(BOOST_PYTHON_LIB) -l$(PYTHON_LIB)  $(CLDFLAGS) -shared
 
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS) ../src/libegalito.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
 
-$(PYSHELL): $(PYTHON_BINDING)
+$(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
 
