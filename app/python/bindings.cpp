@@ -34,26 +34,28 @@ BOOST_PYTHON_MODULE(python_egalito)
 								 Symbol::BindingType,
 								 size_t,
 								 size_t>())
-		.def("getName", &Symbol::getName);
+		.def("get_name", &Symbol::getName);
 
 	class_<Function>("Function", init<Symbol *>())
-		.def("getName", &Function::getName)
+		.def("get_name", &Function::getName)
 		.def("accept",  &Function::accept);
 
 	class_<Conductor>("Conductor");
 
 	class_<ConductorSetup>("ConductorSetup")
-		.def("parseElfFiles",           &ConductorSetup::parseElfFiles)
-		.def("getConductor",            &ConductorSetup::getConductor, return_value_policy<manage_new_object>())
-		.def("makeLoaderSandbox",       &ConductorSetup::makeLoaderSandbox)
-		.def("moveCodeAssignAddresses", &ConductorSetup::moveCodeAssignAddresses);
+		.def("parse_elf_files",            &ConductorSetup::parseElfFiles)
+		.def("get_conductor",              &ConductorSetup::getConductor,
+																												return_value_policy<manage_new_object>())
+		.def("make_loader_sandbox",        &ConductorSetup::makeLoaderSandbox)
+		.def("move_code_assign_addresses", &ConductorSetup::moveCodeAssignAddresses);
 
 	class_<ChunkVisitor, boost::noncopyable>("ChunkVisitor", no_init);
 
 	class_<ChunkDumper, bases<ChunkVisitor> >("ChunkDumper");
 
 	class_<ChunkFind2>("ChunkFind2", init<Conductor *>())
-		.def("findFunction", &ChunkFind2::findFunction,
-				 arg("module")=NULL, return_value_policy<manage_new_object>());
+		.def("find_function", &ChunkFind2::findFunction,
+																			 arg("module")=NULL,
+																			 return_value_policy<manage_new_object>());
 
 }
