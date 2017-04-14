@@ -8,7 +8,7 @@ src:
 test: src
 	$(MAKE) -C test
 	$(MAKE) -C test/example
-app: src
+app: src | test
 	$(MAKE) -C app
 
 clean realclean:
