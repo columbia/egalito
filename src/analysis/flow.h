@@ -3,7 +3,8 @@
 
 #include <memory>
 #include "instr/register.h"
-#include "analysis/slicing.h"
+
+class SearchState;
 
 class Flow {
 private:
@@ -49,9 +50,10 @@ public:
 
 class FlowFactory {
 public:
+    virtual ~FlowFactory() {}
+
     virtual Flow* makeFlow(Register reg, SearchState *state) = 0;
     virtual Flow* makeFlow(unsigned int reg, SearchState *state) = 0;
-    virtual ~FlowFactory() {}
 };
 
 class ForwardFlowFactory : public FlowFactory {

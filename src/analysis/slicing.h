@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include "controlflow.h"
+#include "flow.h"
 #include "instr/register.h"
 
 class Instruction;
@@ -83,23 +84,50 @@ public:
 
 class FlowFactory;
 
+class SlicingDirection {
+private:
+    int _step;
+public:
+    SlicingDirection(int _step) : _step(_step) {}
+
+    int step() { return _step; }
+    bool isIndexValid(int index, int size) {
+        return (_step < 0 ? index >= 0 : index < size);
+    }
+    virtual FlowFactory *getFlowFactory() { return nullptr; }
+};
+
+class BackwardSlicing : public SlicingDirection {
+private:
+    BackwardFlowFactory factory;
+
+public:
+    BackwardSlicing() : SlicingDirection(-1) {}
+    virtual FlowFactory *getFlowFactory() { return &factory; }
+};
+
+class ForwardSlicing : public SlicingDirection {
+private:
+    ForwardFlowFactory factory;
+
+public:
+    ForwardSlicing() : SlicingDirection(1) {}
+    virtual FlowFactory *getFlowFactory() { return &factory; }
+};
+
 class SlicingSearch {
 private:
     ControlFlowGraph *cfg;
     std::vector<SearchState *> stateList;  // history of states
     std::vector<SearchState *> conditions;  // conditional jumps
-    int direction;
+    SlicingDirection *direction;
     SlicingHalt *halt;
-    FlowFactory *flowFactory;
 
 public:
-    enum Direction {    // has to give the unit in the desired direction
-        BACKWARDS = -1,
-        FORWARDS = 1
-    };
-    SlicingSearch(ControlFlowGraph *cfg, int direction,
-        SlicingHalt *halt = nullptr);
-    ~SlicingSearch();
+    SlicingSearch(ControlFlowGraph *cfg, SlicingDirection *direction,
+        SlicingHalt *halt = nullptr)
+        : cfg(cfg), direction(direction), halt(halt) {}
+    ~SlicingSearch() { for(auto state : stateList) { delete state; } }
 
     /** Run search beginning at this instruction. */
     void sliceAt(Instruction *instruction, int reg);
@@ -107,7 +135,8 @@ public:
     SearchState *getInitialState() const { return stateList.front(); }
     const std::vector<SearchState *> &getConditionList() const
         { return conditions; }
-    FlowFactory *getFlowFactory() const { return flowFactory; }
+    FlowFactory *getFlowFactory() { return direction->getFlowFactory(); }
+    int getStep() const { return direction->step(); }
 
 private:
     void buildStatePass(SearchState *startState);

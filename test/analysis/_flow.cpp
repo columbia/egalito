@@ -1,5 +1,6 @@
 #include "framework/include.h"
 #include "analysis/flow.h"
+#include "analysis/slicing.h"
 
 TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     BackwardFlowFactory factory;

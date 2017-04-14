@@ -291,7 +291,8 @@ address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
     ControlFlowGraph cfg(function);
 
     RegPointerPredicate rpp(reg);
-    SlicingSearch search(&cfg, SlicingSearch::Direction::FORWARDS, &rpp);
+    ForwardSlicing forward;
+    SlicingSearch search(&cfg, &forward, &rpp);
     auto next = dynamic_cast<Instruction *>(instruction->getNextSibling());
     search.sliceAt(next, reg);
 

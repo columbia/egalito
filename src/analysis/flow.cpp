@@ -1,4 +1,5 @@
 #include "flow.h"
+#include "analysis/slicing.h"
 
 bool Flow::interested() const {
     if(isValid()) {

@@ -234,23 +234,6 @@ void SlicingUtilities::copyParentMemTrees(SearchState *state) {
     }
 }
 
-SlicingSearch::SlicingSearch(
-    ControlFlowGraph *cfg, int direction, SlicingHalt *halt)
-    : cfg(cfg), direction(direction), halt(halt) {
-
-    if(direction < 0) {
-        flowFactory = new BackwardFlowFactory();
-    }
-    else {
-        flowFactory = new ForwardFlowFactory();
-    }
-}
-
-SlicingSearch::~SlicingSearch() {
-    for(auto state : stateList) { delete state; }
-    delete flowFactory;
-}
-
 void SlicingSearch::sliceAt(Instruction *instruction, int reg) {
     auto block = dynamic_cast<Block *>(instruction->getParent());
     auto node = cfg->get(block);
@@ -264,12 +247,12 @@ void SlicingSearch::sliceAt(Instruction *instruction, int reg) {
 }
 
 bool SlicingSearch::isIndexValid(ChunkList *list, int index) {
-    return (direction < 0 ? index >= 0
-            : index < static_cast<int>(list->genericGetSize()));
+    return direction->isIndexValid(index,
+        static_cast<int>(list->genericGetSize()));
 }
 bool SlicingSearch::isIndexValid(std::vector<SearchState *> &list, int index) {
-    return (direction < 0 ? index >= 0
-            : index < static_cast<int>(list.size()));
+    return direction->isIndexValid(index,
+        static_cast<int>(list.size()));
 }
 
 void SlicingSearch::buildStatePass(SearchState *startState) {
@@ -301,7 +284,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
         auto insList = node->getBlock()->getChildren();
         for(int index = insList->getIterable()->indexOf(instruction);
             isIndexValid(insList, index);
-            index += direction) {
+            index += getStep()) {
 
             Instruction *i = insList->getIterable()->get(index);
 
@@ -319,7 +302,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
             buildStateFor(currentState);
             stateList.push_back(currentState);
 
-            if(isIndexValid(insList, index+direction)) {
+            if(isIndexValid(insList, index+getStep())) {
                 auto newState = new SearchState(*currentState);
                 currentState->addParent(newState);
                 currentState = newState;
@@ -350,8 +333,8 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 
 void SlicingSearch::buildRegTreePass() {
     LOG(11, "second pass iteration");
-    int index = (direction < 0 ? stateList.size() - 1 : 0);
-    for(; isIndexValid(stateList, index); index += direction) {
+    int index = (getStep() < 0 ? stateList.size() - 1 : 0);
+    for(; isIndexValid(stateList, index); index += getStep()) {
         auto state = stateList[index];
         //auto instruction = state->getInstruction();
 
