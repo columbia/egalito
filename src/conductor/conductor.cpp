@@ -34,6 +34,9 @@ void Conductor::parseLibraries() {
     // we use an index here because the list can change as we iterate
     for(size_t i = 0; i < getLibraryList()->getCount(); i ++) {
         auto library = getLibraryList()->get(i);
+        if(library->getElfMap() == getSpaceList()->getEgalito()->getElfMap()) {
+            continue;
+        }
         parse(library->getElfMap(), library);
     }
 }
