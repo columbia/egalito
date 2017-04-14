@@ -66,21 +66,11 @@ rebuild-src:
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
 
-# Rules
-$(BUILDDIR)%.o: %.s
-	$(CC) -fPIC -c $< -o $@
-$(BUILDDIR)%.o: %.S
-	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
-$(BUILDDIR)%.o: %.c
-	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-$(BUILDDIR)%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-
 # Programs and libraries
 $(ITEST): $(ITEST_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 
 # Other targets
 .PHONY: clean realclean

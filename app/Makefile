@@ -55,23 +55,13 @@ rebuild-src:
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
 
-# Rules
-$(BUILDDIR)%.o: %.s
-	$(CC) -fPIC -c $< -o $@
-$(BUILDDIR)%.o: %.S
-	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
-$(BUILDDIR)%.o: %.c
-	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-$(BUILDDIR)%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-
 # Special files
 $(BUILDDIR)shell/shell.o: shell/shell.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
 
 # Other targets
 .PHONY: clean realclean

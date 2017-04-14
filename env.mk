@@ -1,7 +1,10 @@
 # Setup for egalito compilation environment
 
-CC  = $(CROSS)gcc
-CXX = $(CROSS)g++
+CC      = $(CROSS)gcc
+CXX     = $(CROSS)g++
+
+AS      = $(CC)
+LINK    = $(CXX)
 
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 
@@ -66,3 +69,31 @@ CRTN = $(shell $(CC) --print-file-name=crtn.o)
 
 STARTFILES = $(CRTI) $(CRTBEGIN)
 ENDFILES = $(CRTEND) $(CRTN)
+
+ifeq ($(VERBOSE),)
+	SHORT_AS    = @echo "AS   $<"; $(AS)
+	SHORT_CC    = @echo "CC   $<"; $(CC)
+	SHORT_CXX   = @echo "CXX  $<"; $(CXX)
+	SHORT_LINK  = @echo "LINK $@"; $(LINK)
+	SHORT_AR    = @echo "AR   $@"; $(AR)
+else
+	SHORT_AS    = $(AS)
+	SHORT_CC    = $(CC)
+	SHORT_CXX   = $(CXX)
+	SHORT_LINK  = $(LINK)
+	SHORT_AR    = $(AR)
+endif
+
+# Rules
+$(BUILDDIR)%.o: %.s
+	$(SHORT_AS) -fPIC -c $< -o $@
+$(BUILDDIR)%.o: %.S
+	$(SHORT_AS) -fPIC $(DEPFLAGS) -c $< -o $@
+$(BUILDDIR)%.o: %.c
+	$(SHORT_CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.o: %.cpp
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.c
+	$(SHORT_CC) -fPIC $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.cpp
+	$(SHORT_CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<

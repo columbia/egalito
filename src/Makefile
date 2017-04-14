@@ -87,39 +87,25 @@ gencode:
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
 
-# Rules
-$(BUILDDIR)%.o: %.s
-	$(CC) -fPIC -c $< -o $@
-$(BUILDDIR)%.o: %.S
-	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
-$(BUILDDIR)%.o: %.c
-	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-$(BUILDDIR)%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-$(BUILDDIR)%.so: %.c
-	$(CC) -fPIC $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-$(BUILDDIR)%.so: %.cpp
-	$(CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
-
 # Special files
 $(BUILDDIR)load/usage.o: load/usage.cpp load/usage.h
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 $(BUILDDIR)main/usage.o: main/usage.cpp main/usage.h
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
-	$(CXX) -static -o $@ -pg \
+	$(SHORT_LINK) -static -o $@ -pg \
         -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
         -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 $(LIBRARY): $(TYPICAL_OBJECTS)
-	$(AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
+	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
-	$(CXX) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
 
 # Other targets
 .PHONY: clean
