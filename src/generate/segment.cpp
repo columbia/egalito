@@ -54,7 +54,7 @@ void Segment::setAddress(address_t addr, Address::AddressType type) {
     address.addr = addr;
 }
 
-void Segment::setPhdrInfo(Elf64_Word ptype, Elf64_Word pflags, Elf64_Xword palign) {
+void Segment::setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Xword palign) {
     withPhdr = true;
     p_type = ptype;
     p_flags = pflags;
@@ -69,8 +69,8 @@ void Segment::add(Section *sec) {
     sections.push_back(sec);
 }
 
-Elf64_Phdr* Segment::makePhdr() {
-    Elf64_Phdr *entry = new Elf64_Phdr();
+ElfXX_Phdr* Segment::makePhdr() {
+    ElfXX_Phdr *entry = new ElfXX_Phdr();
     entry->p_type = p_type;
     entry->p_flags = p_flags;
     entry->p_align = p_align;

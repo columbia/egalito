@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <elf.h>
+#include "elf/elfxx.h"
 
 class Function;
 
@@ -13,7 +14,7 @@ class Function;
 */
 class DebugElf {
 private:
-    Elf64_Sym *symbols;
+    ElfXX_Sym *symbols;
     size_t symbols_size, symbols_used;
     char *strtable;
     size_t strtable_size, strtable_used;

@@ -12,7 +12,7 @@
 #include "log/log.h"
 
 DebugElf::DebugElf() {
-    symbols = (Elf64_Sym *)mmap(NULL, 0x1000,
+    symbols = (ElfXX_Sym *)mmap(NULL, 0x1000,
         PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
     symbols_size = 0x1000;
     symbols_used = 0;
@@ -37,8 +37,8 @@ DebugElf::~DebugElf() {
 }
 
 void DebugElf::add(unsigned long addr, unsigned long size, const char *name) {
-    if(symbols_size < (symbols_used+1)*sizeof(Elf64_Sym)) {
-        symbols = (Elf64_Sym *)mremap(symbols,
+    if(symbols_size < (symbols_used+1)*sizeof(ElfXX_Sym)) {
+        symbols = (ElfXX_Sym *)mremap(symbols,
             symbols_size, symbols_size + 0x1000,
             MREMAP_MAYMOVE);
 
@@ -104,7 +104,7 @@ void DebugElf::add(Function *func, const char *suffix) {
 
 void DebugElf::writeTo(int fd) {
     // build ELF header
-    Elf64_Ehdr ehdr;
+    ElfXX_Ehdr ehdr;
     // sensible defaults
     const unsigned char ident[] = {0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -115,12 +115,12 @@ void DebugElf::writeTo(int fd) {
     ehdr.e_version = EV_CURRENT;
     ehdr.e_entry = 0;
     ehdr.e_phoff = 0; // one program header, NULL
-    ehdr.e_shoff = sizeof(Elf64_Ehdr); // section head go right after elf head
+    ehdr.e_shoff = sizeof(ElfXX_Ehdr); // section head go right after elf head
     ehdr.e_flags = 0;
-    ehdr.e_ehsize = sizeof(Elf64_Ehdr);
-    ehdr.e_phentsize = sizeof(Elf64_Phdr);
+    ehdr.e_ehsize = sizeof(ElfXX_Ehdr);
+    ehdr.e_phentsize = sizeof(ElfXX_Phdr);
     ehdr.e_phnum = 0; // one NULL program header
-    ehdr.e_shentsize = sizeof(Elf64_Shdr);
+    ehdr.e_shentsize = sizeof(ElfXX_Shdr);
     // NULL section + symbols + string table + text section
     ehdr.e_shnum = 4;
     ehdr.e_shstrndx = 2;
@@ -128,8 +128,8 @@ void DebugElf::writeTo(int fd) {
     write(fd, &ehdr, sizeof(ehdr));
 
     // build section headers
-    Elf64_Shdr shdr;
-    for(size_t i = 0; i < sizeof(Elf64_Shdr); i ++) {
+    ElfXX_Shdr shdr;
+    for(size_t i = 0; i < sizeof(ElfXX_Shdr); i ++) {
         ((char *)&shdr)[i] = 0;
     }
     write(fd, &shdr, sizeof(shdr));
@@ -138,12 +138,12 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_type = SHT_SYMTAB;
     shdr.sh_flags = 0;
     shdr.sh_addr = 0;
-    shdr.sh_offset = sizeof(Elf64_Ehdr) + 4*sizeof(Elf64_Shdr);
-    shdr.sh_size = symbols_used * sizeof(Elf64_Sym);
+    shdr.sh_offset = sizeof(ElfXX_Ehdr) + 4*sizeof(ElfXX_Shdr);
+    shdr.sh_size = symbols_used * sizeof(ElfXX_Sym);
     shdr.sh_link = 2;
     shdr.sh_info = 0; // all symbols global
     shdr.sh_addralign = 1;
-    shdr.sh_entsize = sizeof(Elf64_Sym);
+    shdr.sh_entsize = sizeof(ElfXX_Sym);
     write(fd, &shdr, sizeof(shdr));
 
     shdr.sh_name = 9; // .strtab
@@ -171,7 +171,7 @@ void DebugElf::writeTo(int fd) {
     write(fd, &shdr, sizeof(shdr));
 
     write(fd, symbols,
-        symbols_used*sizeof(Elf64_Sym));
+        symbols_used*sizeof(ElfXX_Sym));
     write(fd, strtable, strtable_used);
 }
 

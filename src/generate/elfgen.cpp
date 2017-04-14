@@ -62,9 +62,9 @@ void ElfGen::makeHeader() {
     auto elfMap = elfSpace->getElfMap();
     data[Metadata::HEADER]->setOffset(0, Segment::Offset::FIXED);
     data[Metadata::HEADER]->add((new Section(".elfheader"))
-        ->with(elfMap->getMap(), sizeof(Elf64_Ehdr)));
+        ->with(elfMap->getMap(), sizeof(ElfXX_Ehdr)));
     // Update entry point in existing segment
-    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    ElfXX_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<ElfXX_Ehdr>();
     address_t entry_pt = 0;
     if(auto start = CIter::named(elfSpace->getModule()->getFunctionList())
         ->find("_start")) {
@@ -77,10 +77,10 @@ void ElfGen::makeHeader() {
 
 void ElfGen::makeRWData() {// Elf Header
     auto elfMap = elfSpace->getElfMap();
-    Elf64_Phdr *rodata = nullptr;
-    Elf64_Phdr *rwdata = nullptr;
+    ElfXX_Phdr *rodata = nullptr;
+    ElfXX_Phdr *rwdata = nullptr;
     for(auto original : elfMap->getSegmentList()) {
-        auto segment = static_cast<Elf64_Phdr *>(original);
+        auto segment = static_cast<ElfXX_Phdr *>(original);
         if(segment->p_type == PT_LOAD) {
             if(segment->p_flags == (PF_R | PF_X)) rodata = segment;
             if(segment->p_flags == (PF_R | PF_W)) rwdata = segment;
@@ -164,7 +164,7 @@ void ElfGen::makeSymbolInfo() {
 
     size_t count = 0;
     {  // add null symbol
-        Elf64_Sym symbol;
+        ElfXX_Sym symbol;
         symbol.st_name = strtab->add("", 1);  // add empty name
         symbol.st_info = 0;
         symbol.st_other = STV_DEFAULT;
@@ -245,11 +245,11 @@ void ElfGen::makeDynamic() {
     Section *dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
     auto dynstr = data.getStrTable(Metadata::DYN);
 
-    std::vector<Elf64_Dyn> dynamicData;
+    std::vector<ElfXX_Dyn> dynamicData;
     auto elfMap = elfSpace->getElfMap();
-    Elf64_Phdr *oldDynamic = nullptr;
+    ElfXX_Phdr *oldDynamic = nullptr;
     for(auto original : elfMap->getSegmentList()) {
-        auto segment = static_cast<Elf64_Phdr *>(original);
+        auto segment = static_cast<ElfXX_Phdr *>(original);
         if(segment->p_type == PT_DYNAMIC) {
             oldDynamic = segment;
             break;
@@ -285,7 +285,7 @@ void ElfGen::makeDynamic() {
 
     dynamicData.push_back({DT_NULL, 0});
     dynamicSection->add(static_cast<void *>(dynamicData.data()),
-        dynamicData.size() * sizeof(Elf64_Dyn));
+        dynamicData.size() * sizeof(ElfXX_Dyn));
 
     data[Metadata::DYNAMIC]->setOffsetType(Segment::Offset::ASSIGNABLE);
     data[Metadata::DYNAMIC]->setAddressType(Segment::Address::ASSIGNABLE);
@@ -297,7 +297,7 @@ void ElfGen::makePhdrTable() {
     // Note: we overwrite the previous phdrs list. This only works if we have
     // at most as many entries as were originally present.
     data[Metadata::PHDR_TABLE]->setPhdrInfo(PT_PHDR, PF_R | PF_X, 8);
-    data[Metadata::PHDR_TABLE]->setOffset(sizeof(Elf64_Ehdr), Segment::Offset::FIXED);
+    data[Metadata::PHDR_TABLE]->setOffset(sizeof(ElfXX_Ehdr), Segment::Offset::FIXED);
     //data[Metadata::PHDR_TABLE]->setAddress(0);
     std::vector<Elf64_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
@@ -307,12 +307,12 @@ void ElfGen::makePhdrTable() {
     }
     Section *phdrTable = new Section(".phdr_table");
     {
-        Elf64_Phdr *entry = phdrList[0];  // assume first phdr is the PHDR entry
-        entry->p_memsz = (phdrList.size() + 1) * sizeof(Elf64_Phdr);
+        ElfXX_Phdr *entry = phdrList[0];  // assume first phdr is the PHDR entry
+        entry->p_memsz = (phdrList.size() + 1) * sizeof(ElfXX_Phdr);
         entry->p_filesz = entry->p_memsz;
     }
     for(auto phdr : phdrList) {
-        phdrTable->add(static_cast<void *>(phdr), sizeof(Elf64_Phdr));
+        phdrTable->add(static_cast<void *>(phdr), sizeof(ElfXX_Phdr));
     }
     data[Metadata::PHDR_TABLE]->add(phdrTable);
     data[Metadata::PHDR_TABLE]->setPhdrInfo(PT_PHDR, PF_R | PF_X, 0x8);
@@ -323,7 +323,7 @@ void ElfGen::makeShdrTable() {
     data[Metadata::HIDDEN]->add(shstrtab);
 
     // Allocate new space for the shdrs, and don't map them into memory.
-    std::vector<std::pair<Section *, Elf64_Shdr *>> shdrList;
+    std::vector<std::pair<Section *, ElfXX_Shdr *>> shdrList;
     std::map<Section *, size_t> sectionLookup;
 
     size_t index = 0;
@@ -357,7 +357,7 @@ void ElfGen::makeShdrTable() {
     }
     data[Metadata::HIDDEN]->add(shdrTable);
 
-    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    ElfXX_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<ElfXX_Ehdr>();
     header->e_shstrndx = sectionLookup[data.getStrTable(Metadata::SH)];
 
     for(auto shdr : shdrList) delete shdr.second;
@@ -398,7 +398,7 @@ void ElfGen::updateOffsetAndAddress() {
 }
 
 void ElfGen::updateHeader() {
-    Elf64_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<Elf64_Ehdr>();
+    ElfXX_Ehdr *header = data[Metadata::HEADER]->getFirstSection()->castAs<ElfXX_Ehdr>();
     header->e_phoff = data[Metadata::PHDR_TABLE]->getOffset().off;
     header->e_phnum = data[Metadata::PHDR_TABLE]->getFirstSection()->getSize() / sizeof(Elf64_Phdr);
     Section *shdrTable = data[Metadata::HIDDEN]->findSection(".shdr_table");

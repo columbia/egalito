@@ -2,6 +2,7 @@
 #include <iostream>
 #include <elf.h>
 #include "auxv.h"
+#include "elfxx.h"
 #include "log/log.h"
 
 static address_t *findAuxiliaryVector(char **argv) {
@@ -16,7 +17,7 @@ static address_t *findAuxiliaryVector(char **argv) {
 
 void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
     ElfMap *beginning = (interpreter ? interpreter : elf);
-    Elf64_Ehdr *header = (Elf64_Ehdr *)elf->getCharmap();
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)elf->getCharmap();
 
     address_t *auxv = findAuxiliaryVector(argv);
 

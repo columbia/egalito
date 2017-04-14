@@ -6,6 +6,7 @@
 #include "elfmap.h"
 #include "sharedlib.h"
 #include "types.h"
+#include "elfxx.h"
 
 std::string SharedLib::getAlternativeSymbolFile() const {
 #ifdef ARCH_X86_64
@@ -13,8 +14,8 @@ std::string SharedLib::getAlternativeSymbolFile() const {
     if(buildIdSection) {
         auto buildIdHeader = buildIdSection->getHeader();
         auto section = elfMap->getSectionReadPtr<const char *>(buildIdSection);
-        auto note = elfMap->getSectionReadPtr<Elf64_Nhdr *>(buildIdSection);
-        auto sectionEnd = reinterpret_cast<const Elf64_Nhdr *>(section + buildIdHeader->sh_size);
+        auto note = elfMap->getSectionReadPtr<ElfXX_Nhdr *>(buildIdSection);
+        auto sectionEnd = reinterpret_cast<const ElfXX_Nhdr *>(section + buildIdHeader->sh_size);
         while(note < sectionEnd) {
             if(note->n_type == NT_GNU_BUILD_ID) {
                 const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
@@ -89,4 +90,3 @@ SharedLib *LibraryList::getLibc() {
     return nullptr;
 }
 #undef LIBC_PATH
-

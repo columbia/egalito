@@ -3,6 +3,8 @@
 
 #include "chunk/plt.h"
 #include <elf.h>
+#include "elf/elfmap.h"
+#include "elf/reloc.h"
 
 class ElfSpace;
 class SymbolTableSection;
@@ -19,7 +21,7 @@ public:
     const std::string &getPLTData() const { return pltData; }
     const std::string &getRelocations() const { return relocData; }
 private:
-    static Elf64_Rela makeRela(Reloc *r, uint64_t addend,
+    static ElfXX_Rela makeRela(Reloc *r, rel_addend_t addend,
         size_t symbolIndex);
 };
 

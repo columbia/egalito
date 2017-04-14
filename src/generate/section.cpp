@@ -1,5 +1,6 @@
 #include "section.h"
 #include "elf/symbol.h"
+#include "elf/elfxx.h"
 #include "chunk/concrete.h"  // for Function
 #include "log/log.h"
 
@@ -25,9 +26,9 @@ void Section::addNullBytes(size_t size) {
     this->data.append(size, '\0');
 }
 
-Elf64_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
+ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     this->shdrIndex = index;
-    Elf64_Shdr *entry = new Elf64_Shdr();
+    ElfXX_Shdr *entry = new ElfXX_Shdr();
     entry->sh_name = nameStrIndex;
     entry->sh_type = shdrType;
     entry->sh_offset = offset;
@@ -35,7 +36,7 @@ Elf64_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     entry->sh_addr = address;
 
     if(shdrType == SHT_SYMTAB || shdrType == SHT_DYNSYM) {
-        entry->sh_entsize = sizeof(Elf64_Sym);
+        entry->sh_entsize = sizeof(ElfXX_Sym);
         entry->sh_info = getSize() / entry->sh_entsize;
         entry->sh_addralign = 8;
     }
@@ -52,9 +53,9 @@ std::ostream& operator<<(std::ostream &stream, Section &rhs) {
 }
 
 void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
-    Elf64_Sym symbol;
-    symbol.st_name = static_cast<Elf64_Word>(nameStrIndex);
-    symbol.st_info = ELF64_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
+    ElfXX_Sym symbol;
+    symbol.st_name = static_cast<ElfXX_Word>(nameStrIndex);
+    symbol.st_info = ELFXX_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
                                    Symbol::typeFromInternalToElf(sym->getType()));
     symbol.st_other = STV_DEFAULT;
     symbol.st_shndx = func ? 1 : SHN_UNDEF;  // dynamic symbols have func==nullptr
@@ -66,13 +67,13 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
     count ++;
 }
 
-Elf64_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
+ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
     shdr->sh_info = count;
     return shdr;
 }
 
-Elf64_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
+ElfXX_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
     shdr->sh_info = targetSection->getShdrIndex();
     return shdr;

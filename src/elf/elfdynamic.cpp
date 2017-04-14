@@ -6,6 +6,8 @@
 
 #include "elfdynamic.h"
 #include "elfmap.h"
+#include "elfxx.h"
+
 #include "log/log.h"
 
 void ElfDynamic::parse(ElfMap *elf) {
@@ -85,17 +87,17 @@ void ElfDynamic::parseLdConfig(std::string filename,
 }
 
 bool ElfDynamic::isValidElf(std::ifstream &file) {
-    Elf64_Ehdr header;
+    ElfXX_Ehdr header;
     file.read((char *)&header, sizeof(header));
-    
+
     // make sure this is an ELF file
-    if(*(Elf64_Word *)&header != *(Elf64_Word *)ELFMAG) {
+    if(*(ElfXX_Word *)&header != *(ElfXX_Word *)ELFMAG) {
         return false;
     }
 
     // check architecture type
     char type = ((char *)&header)[EI_CLASS];
-    if(type != ELFCLASS64) {
+    if(type != ELFCLASSXX) {
         return false;
     }
 

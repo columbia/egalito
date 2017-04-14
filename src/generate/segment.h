@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <elf.h>
+#include "elf/elfmap.h"
 #include "types.h"
 
 class Section;
@@ -27,9 +28,9 @@ private:
     Offset offset;
     std::vector<Section *> sections;
     bool withPhdr;
-    Elf64_Word p_type;
-    Elf64_Word p_flags;
-    Elf64_Xword p_align;
+    ElfXX_Word p_type;
+    ElfXX_Word p_flags;
+    ElfXX_Xword p_align;
 public:
     Segment();
     ~Segment();
@@ -41,7 +42,7 @@ public:
     std::vector<Section *> getSections() const { return sections; }
     Section *getFirstSection() const { return sections[0]; }
     Section *findSection(const std::string &name);
-    Elf64_Word getPType() const { return p_type; }
+    ElfXX_Word getPType() const { return p_type; }
 public:
     void setAddress(address_t addr, Address::AddressType type = Address::ASSIGNABLE);
     void setAddressType(Address::AddressType type, Segment *seg = nullptr) {
@@ -50,11 +51,11 @@ public:
     }
     void setOffset(size_t off, Offset::OffsetType type = Offset::ASSIGNABLE);
     void setOffsetType(Offset::OffsetType type) {offset.type = type;};
-    void setPhdrInfo(Elf64_Word ptype, Elf64_Word pflags, Elf64_Xword palign);
+    void setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Xword palign);
 public:
     friend std::ostream& operator<<(std::ostream &stream, Segment &rhs);
     void add(Section *sec);
-    Elf64_Phdr *makePhdr();
+    ElfXX_Phdr *makePhdr();
 };
 
 #endif

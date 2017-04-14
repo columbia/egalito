@@ -6,6 +6,7 @@
 #include "symbol.h"
 #include "elfmap.h"
 #include "sharedlib.h"
+#include "elfxx.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dsymbol
@@ -186,7 +187,7 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     const char *strtab = (sectionType == SHT_DYNSYM
         ? elfmap->getDynstrtab() : elfmap->getStrtab());
 
-    auto sym = elfmap->getSectionReadPtr<Elf64_Sym *>(section);
+    auto sym = elfmap->getSectionReadPtr<ElfXX_Sym *>(section);
     auto s = section->getHeader();
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
@@ -264,7 +265,7 @@ unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
 }
 
 Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
-    switch(ELF64_ST_TYPE(type)) {
+    switch(ELFXX_ST_TYPE(type)) {
     case STT_FUNC:     return Symbol::TYPE_FUNC;
     case STT_GNU_IFUNC:return Symbol::TYPE_IFUNC;
     case STT_OBJECT:   return Symbol::TYPE_OBJECT;
@@ -283,7 +284,7 @@ unsigned char Symbol::bindFromInternalToElf(BindingType bind) {
 }
 
 Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
-    switch(ELF64_ST_BIND(type)) {
+    switch(ELFXX_ST_BIND(type)) {
     case STB_LOCAL:     return Symbol::BIND_LOCAL;
     case STB_GLOBAL:    return Symbol::BIND_GLOBAL;
     default:            return Symbol::BIND_WEAK;

@@ -6,6 +6,7 @@ class Function;
 #include <set>
 #include <map>
 #include <elf.h>
+#include "elf/elfxx.h"
 #include "types.h"
 
 class Section {
@@ -15,14 +16,14 @@ private:
     address_t address;
     size_t offset;
     bool withShdr;
-    Elf64_Word shdrType;
+    ElfXX_Word shdrType;
     Section *sectionLink;
     size_t shdrIndex;
 public:
     Section(std::string name) : name(name),
         address(0), offset(0), withShdr(false), shdrType(SHT_NULL),
         sectionLink(nullptr), shdrIndex(static_cast<size_t>(-1)) {}
-    Section(std::string name, Elf64_Word shdrType) : name(name),
+    Section(std::string name, ElfXX_Word shdrType) : name(name),
         address(0), offset(0), withShdr(true), shdrType(shdrType),
         sectionLink(nullptr), shdrIndex(static_cast<size_t>(-1)) {}
     virtual ~Section() {}
@@ -49,7 +50,7 @@ public:
     size_t add(const char *data, size_t size);
     size_t add(const std::string &string, bool withNull = false);
     void addNullBytes(size_t size);
-    virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+    virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
     template<typename ElfStructType> ElfStructType *castAs()
         { return (ElfStructType *)(data.data()); }
     template<typename ElfStructType> size_t getElementCount()
@@ -72,7 +73,7 @@ private:
     size_t count;
     std::map<Symbol *, SymbolInfo> infoMap;
 public:
-    SymbolTableSection(std::string name, Elf64_Word type)
+    SymbolTableSection(std::string name, ElfXX_Word type)
         : Section(name, type), count(0) {}
 
     using Section::add;
@@ -80,7 +81,7 @@ public:
 
     SymbolInfo getSymbolInfo(Symbol *sym) { return infoMap[sym]; }
 
-    virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+    virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 
 class RelocationSection : public Section {

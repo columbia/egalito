@@ -2,6 +2,7 @@
 #include "section.h"
 #include "elf/reloc.h"
 #include "elf/elfspace.h"
+#include "elf/elfxx.h"
 #include "log/log.h"
 
 void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
@@ -40,12 +41,12 @@ void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
     }
 }
 
-Elf64_Rela MakeOriginalPLT::makeRela(Reloc *r, uint64_t addend,
+ElfXX_Rela MakeOriginalPLT::makeRela(Reloc *r, rel_addend_t addend,
     size_t symbolIndex) {
 
-    Elf64_Rela rela;
+    ElfXX_Rela rela;
     rela.r_offset   = r->getAddress();
-    rela.r_info     = ELF64_R_INFO(symbolIndex, r->getType());
+    rela.r_info     = ELFXX_R_INFO(symbolIndex, r->getType());
     rela.r_addend   = addend;
     LOG(1, "made rela offset " << rela.r_offset << ", "
         << "symbolIndex " << symbolIndex << ", addend "

@@ -7,27 +7,38 @@
 
 #include "types.h"
 #include "elf/elfmap.h"
+#include "elf/elfxx.h"
 
 class Symbol;
 class SymbolList;
 
+#ifdef ARCH_ARM
+    typedef ElfXX_Half  rel_type_t;
+    typedef ElfXX_Half  rel_sym_t;
+    typedef ElfXX_Sword rel_addend_t;
+#else
+    typedef ElfXX_Word   rel_type_t;
+    typedef ElfXX_Word   rel_sym_t;
+    typedef ElfXX_Sxword rel_addend_t;
+#endif
+
 class Reloc {
 private:
     address_t address;      // source address
-    uint16_t type;          // type
-    uint64_t symbolIndex;   // target index
+    rel_type_t type;          // type
+    rel_sym_t symbolIndex;   // target index
     Symbol *symbol;         // target
-    uint64_t addend;        // for RELA relocs
+    rel_addend_t addend;        // for RELA relocs
 public:
-    Reloc(address_t address, uint16_t type, uint64_t symbolIndex,
-        Symbol *symbol, uint64_t addend)
+    Reloc(address_t address, rel_type_t type, rel_sym_t symbolIndex,
+        Symbol *symbol, rel_addend_t addend)
         : address(address), type(type), symbolIndex(symbolIndex),
         symbol(symbol), addend(addend) {}
 
     address_t getAddress() const { return address; }
-    uint16_t getType() const { return type; }
+    rel_type_t getType() const { return type; }
     Symbol *getSymbol() const { return symbol; }
-    uint64_t getAddend() const { return addend; }
+    rel_addend_t getAddend() const { return addend; }
 
     std::string getSymbolName() const;
 };

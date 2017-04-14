@@ -45,7 +45,7 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
     for(void *p : sectionList) {
         // Note: 64-bit x86 always uses RELA relocations (not REL),
         // according to readelf source: see the function guess_is_rela()
-        Elf64_Shdr *s = static_cast<Elf64_Shdr *>(p);
+        ElfXX_Shdr *s = static_cast<ElfXX_Shdr *>(p);
 
         // We never use debug relocations, and they often contain relative
         // addresses which cannot be dereferenced directly (segfault).
@@ -61,16 +61,16 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
             currentSymbolList = dynamicSymbolList;
         }
 
-        Elf64_Rela *data = reinterpret_cast<Elf64_Rela *>
+        ElfXX_Rela *data = reinterpret_cast<ElfXX_Rela *>
             (elf->getCharmap() + s->sh_offset);
 
         size_t count = s->sh_size / sizeof(*data);
         for(size_t i = 0; i < count; i ++) {
-            Elf64_Rela *r = &data[i];
-            Symbol *sym = currentSymbolList->get(ELF64_R_SYM(r->r_info));
+            ElfXX_Rela *r = &data[i];
+            Symbol *sym = currentSymbolList->get(ELFXX_R_SYM(r->r_info));
 
             address_t address = r->r_offset;
-            auto type = ELF64_R_TYPE(r->r_info);
+            auto type = ELFXX_R_TYPE(r->r_info);
 
             if(elf->isObjectFile()) {
                 // If this relocation refers to a known section, add that
@@ -93,7 +93,7 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
             Reloc *reloc = new Reloc(
                 address,                                // address
                 type,                                   // type
-                ELF64_R_SYM(r->r_info),                 // symbol index
+                ELFXX_R_SYM(r->r_info),                 // symbol index
                 sym,
                 r->r_addend                             // addend
             );

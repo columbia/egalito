@@ -167,6 +167,7 @@ ElfSection *ElfMap::findSection(int index) const {
 
 std::vector<void *> ElfMap::findSectionsByType(int type) {
     std::vector<void *> sections;
+    ElfXX_Shdr sCast;
 
     char *charmap = static_cast<char *>(map);
     ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
@@ -174,7 +175,7 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
     for(int i = 0; i < header->e_shnum; i ++) {
         ElfXX_Shdr *s = &sheader[i];
 
-        if(s->sh_type == static_cast<typename(s->sh_type)>(type)) {
+        if(s->sh_type == static_cast<decltype(sCast.sh_type)>(type)) {
             sections.push_back(static_cast<void *>(s));
         }
     }
