@@ -81,6 +81,8 @@ public:
     virtual bool cutoff(SearchState *) = 0;
 };
 
+class FlowFactory;
+
 class SlicingSearch {
 private:
     ControlFlowGraph *cfg;
@@ -88,14 +90,16 @@ private:
     std::vector<SearchState *> conditions;  // conditional jumps
     int direction;
     SlicingHalt *halt;
+    FlowFactory *flowFactory;
+
 public:
-    enum Direction {
+    enum Direction {    // has to give the unit in the desired direction
         BACKWARDS = -1,
         FORWARDS = 1
     };
-    SlicingSearch(ControlFlowGraph *cfg, int direction, SlicingHalt *halt = nullptr)
-        : cfg(cfg), direction(direction), halt(halt) {}
-    ~SlicingSearch() { for(auto state : stateList) { delete state; } }
+    SlicingSearch(ControlFlowGraph *cfg, int direction,
+        SlicingHalt *halt = nullptr);
+    ~SlicingSearch();
 
     /** Run search beginning at this instruction. */
     void sliceAt(Instruction *instruction, int reg);
@@ -103,6 +107,8 @@ public:
     SearchState *getInitialState() const { return stateList.front(); }
     const std::vector<SearchState *> &getConditionList() const
         { return conditions; }
+    FlowFactory *getFlowFactory() const { return flowFactory; }
+
 private:
     void buildStatePass(SearchState *startState);
     void buildRegTreePass();

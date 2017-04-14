@@ -2,6 +2,7 @@
 #include <sstream>
 #include "slicing.h"
 #include "slicingtree.h"
+#include "flow.h"
 #include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "disasm/disassemble.h"
@@ -233,6 +234,23 @@ void SlicingUtilities::copyParentMemTrees(SearchState *state) {
     }
 }
 
+SlicingSearch::SlicingSearch(
+    ControlFlowGraph *cfg, int direction, SlicingHalt *halt)
+    : cfg(cfg), direction(direction), halt(halt) {
+
+    if(direction < 0) {
+        flowFactory = new BackwardFlowFactory();
+    }
+    else {
+        flowFactory = new ForwardFlowFactory();
+    }
+}
+
+SlicingSearch::~SlicingSearch() {
+    for(auto state : stateList) { delete state; }
+    delete flowFactory;
+}
+
 void SlicingSearch::sliceAt(Instruction *instruction, int reg) {
     auto block = dynamic_cast<Block *>(instruction->getParent());
     auto node = cfg->get(block);
@@ -335,7 +353,7 @@ void SlicingSearch::buildRegTreePass() {
     int index = (direction < 0 ? stateList.size() - 1 : 0);
     for(; isIndexValid(stateList, index); index += direction) {
         auto state = stateList[index];
-        auto instruction = state->getInstruction();
+        //auto instruction = state->getInstruction();
 
         SlicingUtilities u;
         u.printRegs(state, false);
@@ -395,6 +413,7 @@ public:
 private:
     SearchState *state;
     Mode mode;
+    FlowFactory *flowFactory;
 #ifdef ARCH_X86_64
     union arg1_t {
         x86_reg reg;
@@ -447,8 +466,9 @@ private:
     } a3;
 #endif
 public:
-    SlicingInstructionState(SearchState *state, Assembly *assembly)
-        : state(state) { determineMode(assembly); }
+    SlicingInstructionState(SearchState *state, Assembly *assembly,
+                            FlowFactory *flowFactory)
+        : state(state), flowFactory(flowFactory) { determineMode(assembly); }
 
     arg1_t *get1() { return &a1; }
     arg2_t *get2() { return &a2; }
@@ -659,45 +679,31 @@ bool SlicingInstructionState::convertRegisterSize(Register &reg) {
 void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
     convertRegisterSize(a2.reg);
-    auto source = a1.reg;
-    auto target = a2.reg;
-
-    if(state->getReg(target)) {
-        state->addReg(source);
-        if(overwriteTarget) {
-            state->removeReg(target);
-        }
-    }
+    auto source = flowFactory->makeFlow(a1.reg, state);
+    auto target = flowFactory->makeFlow(a2.reg, state);
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
-    auto target = a1.reg;
-    auto source = a2.reg;
-
-    if(state->getReg(target)) {
-        state->addReg(source);
-        if(overwriteTarget) {
-            state->removeReg(target);
-        }
-    }
+    auto target = flowFactory->makeFlow(a1.reg, state);
+    auto source = flowFactory->makeFlow(a2.reg, state);
 #endif
+
+    target->channel(source, overwriteTarget);
+
+    delete source;
+    delete target;
 }
 void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
     convertRegisterSize(a2.reg);
-    auto mem = a1.mem;
-    auto reg = a2.reg;
+    auto reg = flowFactory->makeFlow(a2.reg, state);
+    auto base = flowFactory->makeFlow(a1.mem->base, state);
+    auto index = flowFactory->makeFlow(a1.mem->index, state);
 
-    if(state->getReg(reg)) {
-        if(overwriteTarget) {
-            state->removeReg(reg);
-        }
-        if(mem->base != X86_REG_INVALID) {
-            state->addReg(mem->base);
-        }
-        if(mem->index != X86_REG_INVALID) {
-            state->addReg(mem->index);
-        }
-    }
+    reg->confluence(base, index, overwriteTarget);
+
+    delete reg;
+    delete base;
+    delete index;
 #elif defined(ARCH_AARCH64)
     throw "not implemented";
 #endif
@@ -706,35 +712,24 @@ void SlicingInstructionState::defaultDetectImmReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
     convertRegisterSize(a2.reg);
     //auto imm = a1.imm;
-    auto reg = a2.reg;
+    auto reg = flowFactory->makeFlow(a2.reg, state);
 
-    if(state->getReg(reg)) {
-        if(overwriteTarget) {
-            state->removeReg(reg);
-        }
-    }
+    reg->source(overwriteTarget);
+
+    delete reg;
 #elif defined(ARCH_AARCH64)
     throw "not implemented";
 #endif
 }
-// if we use getTargetReg(), getSourceReg1(), getSourceReg2(), ...
-// also the body of function seems to be 1:1 mapping against the type
 void SlicingInstructionState::defaultDetectRegRegReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
-    auto target = a1.reg;
-    auto source1 = a2.reg;
-    auto source2 = a3.extreg.reg;
+    auto target = flowFactory->makeFlow(a1.reg, state);
+    auto source1 = flowFactory->makeFlow(a2.reg, state);
+    auto source2 = flowFactory->makeFlow(a3.extreg.reg, state);
 
-    if(state->getReg(target)) {
-        if(overwriteTarget) {
-            state->removeReg(target);
-        }
-        // re-add if target == source1 or source2
-        state->addReg(source1);
-        state->addReg(source2);
-    }
+    target->confluence(source1, source2, overwriteTarget);
 #endif
 }
 void SlicingInstructionState::defaultDetectRegImm(bool overwriteTarget) {
@@ -742,14 +737,11 @@ void SlicingInstructionState::defaultDetectRegImm(bool overwriteTarget) {
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
     //auto imm = a2.imm;
-    auto reg = a1.reg;
+    auto reg = flowFactory->makeFlow(a1.reg, state);
 
-    if(state->getReg(reg)) {
-        state->addReg(reg);
-        if(overwriteTarget) {
-            state->removeReg(reg);
-        }
-    }
+    reg->source(overwriteTarget);
+
+    delete reg;
 #endif
 }
 
@@ -757,58 +749,46 @@ void SlicingInstructionState::defaultDetectRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
-    auto reg = a1.reg;
-    auto extmem = a2.extmem;
+    auto reg = flowFactory->makeFlow(a1.reg, state);
+    auto base = flowFactory->makeFlow(a2.extmem.mem->base, state);
+    auto index = flowFactory->makeFlow(a2.extmem.mem->index, state);
 
-    if(state->getReg(reg)) {
-        if(overwriteTarget) {
-            state->removeReg(reg);
-        }
-        state->addReg(extmem.mem->base);
-        if(extmem.mem->index != INVALID_REGISTER) {
-            state->addReg(extmem.mem->index);
-        }
-    }
+    reg->confluence(base, index, overwriteTarget);
+
+    delete reg;
+    delete base;
+    delete index;
 #endif
 }
 void SlicingInstructionState::defaultDetectRegRegImm(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
-    auto target = a1.reg;
-    auto source = a2.reg;
+    auto target = flowFactory->makeFlow(a1.reg, state);
+    auto source = flowFactory->makeFlow(a2.reg, state);
     //auto imm = a3.imm;
 
-    if(state->getReg(target)) {
-        if(overwriteTarget) {
-            state->removeReg(target);
-        }
-        // re-add if target == source
-        state->addReg(source);
-    }
+    target->channel(source, overwriteTarget);
+
+    delete target;
+    delete source;
 #endif
 }
 void SlicingInstructionState::defaultDetectRegRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64)
     convertRegisterSize(a1.reg);
-    auto target = a1.reg;
-    auto source = a2.reg;
-    auto mem = a3.mem;
+    auto target = flowFactory->makeFlow(a1.reg, state);
+    auto source = flowFactory->makeFlow(a2.reg, state);
+    auto base = flowFactory->makeFlow(a3.mem->base, state);
+    auto index = flowFactory->makeFlow(a3.mem->index, state);
 
-    if(state->getReg(target)) {
-        if(overwriteTarget) {
-            state->removeReg(target);
-        }
-        // re-add if target == source
-        state->addReg(source);
-        if(mem->base != INVALID_REGISTER) {
-            state->addReg(mem->base);
-        }
-        if(mem->index != INVALID_REGISTER) {
-            state->addReg(mem->index);
-        }
-    }
+    target->confluence(source, base, index, overwriteTarget);
+
+    delete target;
+    delete source;
+    delete base;
+    delete index;
 #endif
 }
 
@@ -854,7 +834,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 
     SlicingInstructionState *iState;
     if(firstPass) {
-        iState = new SlicingInstructionState(state, assembly);
+        iState = new SlicingInstructionState(state, assembly, getFlowFactory());
         state->setIState(iState);
     }
     else {
