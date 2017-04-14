@@ -55,6 +55,7 @@ public:
 };
 
 class ForwardFlowFactory : public FlowFactory {
+public:
     virtual Flow* makeFlow(Register reg, SearchState *state) {
         return new ForwardFlow(reg, state);
     }
@@ -64,6 +65,7 @@ class ForwardFlowFactory : public FlowFactory {
 };
 
 class BackwardFlowFactory : public FlowFactory {
+public:
     virtual Flow* makeFlow(Register reg, SearchState *state) {
         return new BackwardFlow(reg, state);
     }
