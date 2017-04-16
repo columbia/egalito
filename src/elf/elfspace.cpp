@@ -15,6 +15,7 @@
 #include "pass/relocdata.h"
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
+#include "pass/jtoverestimate.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
 
@@ -92,6 +93,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     JumpTableBounds jumpTableBounds;
     module->accept(&jumpTableBounds);
+
+    JumpTableOverestimate jumpTableOverestimate;
+    module->accept(&jumpTableOverestimate);
 
     aliasMap = new FunctionAliasMap(module);
 }

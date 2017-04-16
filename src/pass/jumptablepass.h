@@ -13,6 +13,11 @@ public:
     JumpTablePass(Module *module = nullptr) : module(module) {}
     virtual void visit(Module *module);
     virtual void visit(JumpTableList *jumpTableList);
+
+    /** Constructs JumpTableEntries for the given jumptable.
+        Note: relies on this->module being set.
+    */
+    void makeChildren(JumpTable *jumpTable, int count);
 };
 
 #endif

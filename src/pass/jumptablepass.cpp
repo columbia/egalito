@@ -18,8 +18,6 @@ void JumpTablePass::visit(Module *module) {
 }
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
-    auto elfMap = module->getElfSpace()->getElfMap();
-
     JumpTableSearch search;
     search.search(module);
     for(auto descriptor : search.getTableList()) {
@@ -67,28 +65,34 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
         tableMap[jumpTable->getAddress()] = jumpTable;
 
         // create JumpTableEntry's
-        for(int i = 0; i < count; i ++) {
-            auto address = jumpTable->getAddress() + i*descriptor->getScale();
-            auto p = elfMap->getCopyBaseAddress() + address;
-            auto value = *reinterpret_cast<int *>(p);
-            value += descriptor->getAddress();  // for relative jump tables
-            LOG(2, "    jump table entry " << i << " value " << value);
+        makeChildren(jumpTable, count);
+    }
+}
 
-            Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-                module->getFunctionList(), value);
-            Link *link = nullptr;
-            if(inner) {
-                LOG(3, "        resolved to " << inner->getName());
-                link = new NormalLink(inner);
-            }
-            else {
-                LOG(3, "        unresolved at " << value);
-                link = new UnresolvedLink(value);
-            }
-            auto entry = new JumpTableEntry(link);
-            entry->setPosition(PositionFactory::getInstance()
-                ->makeAbsolutePosition(address));
-            jumpTable->getChildren()->add(entry);
+void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
+    auto elfMap = module->getElfSpace()->getElfMap();
+    auto descriptor = jumpTable->getDescriptor();
+    for(int i = 0; i < count; i ++) {
+        auto address = jumpTable->getAddress() + i*descriptor->getScale();
+        auto p = elfMap->getCopyBaseAddress() + address;
+        auto value = *reinterpret_cast<int *>(p);
+        value += descriptor->getAddress();  // for relative jump tables
+        LOG(2, "    jump table entry " << i << " value " << value);
+
+        Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+            module->getFunctionList(), value);
+        Link *link = nullptr;
+        if(inner) {
+            LOG(3, "        resolved to " << inner->getName());
+            link = new NormalLink(inner);
         }
+        else {
+            LOG(3, "        unresolved at " << value);
+            link = new UnresolvedLink(value);
+        }
+        auto entry = new JumpTableEntry(link);
+        entry->setPosition(PositionFactory::getInstance()
+            ->makeAbsolutePosition(address));
+        jumpTable->getChildren()->add(entry);
     }
 }

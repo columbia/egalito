@@ -17,7 +17,8 @@ private:
     address_t virtualAddress;
     address_t readAddress;
 public:
- ElfSection(int ndx, std::string name, ElfXX_Shdr *shdr) : ndx(ndx), name(name), shdr(shdr), virtualAddress(0), readAddress(0) {}
+    ElfSection(int ndx, std::string name, Elf64_Shdr *shdr)
+        : ndx(ndx), name(name), shdr(shdr), virtualAddress(0), readAddress(0) {}
 
     int getNdx() { return ndx; }
     std::string getName() { return name; }
