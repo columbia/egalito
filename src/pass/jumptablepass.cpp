@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "jumptablepass.h"
 #include "analysis/jumptable.h"
 #include "chunk/jumptable.h"
@@ -23,19 +24,49 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
     search.search(module);
     for(auto descriptor : search.getTableList()) {
         // this constructor automatically creates JumpTableEntry children
-        auto jumpTable = new JumpTable(
-            module->getElfSpace()->getElfMap(), descriptor);
 
-        int count = jumpTable->getEntryCount();
-        /*if(count < 0) {
-            LOG(1, "Warning: can't make jump table entries for table "
-                << jumpTable->getAddress() << " in ["
-                << descriptor->getFunction()->getName() << "], bounds are not known");
-            continue;
-        }*/
+        LOG(1, "constructing jump table at "
+            << descriptor->getAddress() << " in ["
+            << descriptor->getFunction()->getName() << "] with "
+            << descriptor->getEntries() << " entries");
 
-        LOG(1, "constructing jump table at " << jumpTable->getAddress() << " in ["
-            << descriptor->getFunction()->getName() << "] with " << count << " entries");
+        JumpTable *jumpTable = nullptr;
+        int count = -1;
+        auto it = tableMap.find(descriptor->getAddress());
+        if(it != tableMap.end()) {
+            // already exists
+            jumpTable = (*it).second;
+            auto otherCount = jumpTable->getEntryCount();
+            auto thisCount = descriptor->getEntries();
+            if(otherCount < 0 && thisCount >= 0) {
+                count = descriptor->getEntries();
+                delete jumpTable->getDescriptor();
+                jumpTable->setDescriptor(descriptor);
+            }
+            else if(otherCount >= 0 && thisCount >= 0) {
+                if(otherCount != thisCount) {
+                    LOG(0, "WARNING: overlapping jump tables at "
+                        << std::hex << descriptor->getAddress() << " in ["
+                        << descriptor->getFunction()->getName()
+                        << "] with different sizes! " << std::dec
+                        << otherCount << " vs " << thisCount);
+                    count = std::max(otherCount, thisCount);
+                    if(thisCount > otherCount) {
+                        delete jumpTable->getDescriptor();
+                        jumpTable->setDescriptor(descriptor);
+                    }
+                }
+            }
+        }
+        else {
+            jumpTable = new JumpTable(
+                module->getElfSpace()->getElfMap(), descriptor);
+            count = jumpTable->getEntryCount();
+            jumpTableList->getChildren()->add(jumpTable);
+        }
+        tableMap[jumpTable->getAddress()] = jumpTable;
+
+        // create JumpTableEntry's
         for(int i = 0; i < count; i ++) {
             auto address = jumpTable->getAddress() + i*descriptor->getScale();
             auto p = elfMap->getCopyBaseAddress() + address;
@@ -59,7 +90,5 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
                 ->makeAbsolutePosition(address));
             jumpTable->getChildren()->add(entry);
         }
-
-        jumpTableList->getChildren()->add(jumpTable);
     }
 }

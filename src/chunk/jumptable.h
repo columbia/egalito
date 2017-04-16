@@ -29,6 +29,9 @@ public:
     long getEntryCount() const;  // returns -1 if not known
     JumpTableDescriptor *getDescriptor() const { return descriptor; }
 
+    void setDescriptor(JumpTableDescriptor *descriptor)
+        { this->descriptor = descriptor; }
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
