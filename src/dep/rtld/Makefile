@@ -67,6 +67,8 @@ sizes:
 	@echo \# rtld_global size $(RTLD_GLOBAL_SIZE)
 	@echo \# rtld_global_ro size $(RTLD_GLOBAL_RO_SIZE)
 
+$(BUILDDIR)load_test: $(BUILDDIR)load_test.o
+	$(CC) $(CFLAGS) -o $@ $^
 $(BUILDDIR)test: $(BUILDDIR)test.o
 	$(CC) $(CFLAGS) -o $@ $^
 $(BUILDDIR)reproduce: $(BUILDDIR)reproduce.o
