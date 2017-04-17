@@ -52,9 +52,9 @@ class ReconstructCCommand(ReconstructCommand):
                 declType = ["void *", "", "0x%lx", "(void *)"]
             elif(code == gdb.TYPE_CODE_INT):
                 if(size == 1): declType = ["unsigned char", "", "(unsigned char)%d", ""]
-                elif(size == 2): declType = ["unsigned short", "", "0x%x", ""]
-                elif(size == 4): declType = ["unsigned int", "", "0x%x", ""]
-                elif(size == 8): declType = ["unsigned long", "", "0x%lx", ""]
+                elif(size == 2): declType = ["uint16_t", "", "0x%x", ""]
+                elif(size == 4): declType = ["uint32_t", "", "0x%x", ""]
+                elif(size == 8): declType = ["uint64_t", "", "0x%lx", ""]
             elif(code == gdb.TYPE_CODE_BOOL):
                 declType = ["unsigned char", "", "(bool)%d", ""]
 
@@ -88,6 +88,7 @@ class ReconstructCCommand(ReconstructCommand):
         self.output(name, position, size, fieldType, True)
 
     def initial_print(self, arg):
+        print('#include <stdint.h>')
         print("%s {" % arg)
     def final_print(self, arg):
         print("}; // expected size: %d" % self.calculatedPos)
