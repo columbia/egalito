@@ -72,15 +72,15 @@ $(BUILDDIR)%.o: %.s
 $(BUILDDIR)%.o: %.S
 	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
 $(BUILDDIR)%.o: %.c
-	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CC) $(CFLAGS) -fPIC $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -fPIC $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Programs and libraries
 $(ITEST): $(ITEST_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(CXX) $(CXXFLAGS) -fPIC -o $@ $^ $(CLDFLAGS)
 $(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+	$(CXX) $(CXXFLAGS) -fPIC -o $@ $^ $(CLDFLAGS)
 
 # Other targets
 .PHONY: clean realclean
