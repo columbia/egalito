@@ -61,9 +61,9 @@ $(BUILDDIR)%.o: %.s
 $(BUILDDIR)%.o: %.S
 	$(CC) -fPIC $(DEPFLAGS) -c $< -o $@
 $(BUILDDIR)%.o: %.c
-	$(CC) -fPIC $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.o: %.cpp
-	$(CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 
 # Special files
 $(BUILDDIR)shell/shell.o: shell/shell.cpp

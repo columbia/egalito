@@ -1,6 +1,9 @@
 include ../../env.mk
 
 docker_build:
+	docker run --rm --privileged multiarch/qemu-user-static:register --reset
+	docker create --name register hypriot/qemu-register
+	docker cp register:qemu-$ARCH $DOCKER_DIR/qemu-$ARCH-static
 	docker build -t egalito/$(P_ARCH) -f Dockerfile_$(P_ARCH) .
 
 docker_check:
@@ -14,7 +17,7 @@ endif
 
 run: docker_check
 	@if grep -q "egalito/$(P_ARCH)" $<; then \
-		docker run -it -v $(shell readlink -f ../../):/egalito egalito/$(P_ARCH) $(DOCKER_QEMU); \
+		docker run -it -e LOCAL_USER_ID=$(id -u $(whoami)) -v $(shell readlink -f ../../):/egalito egalito/$(P_ARCH) $(DOCKER_QEMU); \
 	else \
 		echo "Error egalito/$(P_ARCH) docker image not built!"; \
 	fi;
