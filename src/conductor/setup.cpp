@@ -54,9 +54,12 @@ void ConductorSetup::makeLoaderSandbox() {
 }
 
 void ConductorSetup::makeFileSandbox(const char *outputFile) {
-    auto backing = ElfBacking(conductor->getMainSpace(), outputFile);
-    this->sandbox = new SandboxImpl<ElfBacking,
-        WatermarkAllocator<ElfBacking>>(backing);
+    // auto backing = ExeBacking(conductor->getMainSpace(), outputFile);
+    // this->sandbox = new SandboxImpl<ExeBacking,
+    //     WatermarkAllocator<ExeBacking>>(backing);
+    auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
+    this->sandbox = new SandboxImpl<ObjBacking,
+        WatermarkAllocator<ObjBacking>>(backing);
 }
 
 void ConductorSetup::moveCode() {

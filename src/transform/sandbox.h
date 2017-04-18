@@ -48,12 +48,22 @@ public:
     void finalize();
 };
 
-class ElfBacking : public MemoryBacking {
+class ExeBacking : public MemoryBacking {
 private:
     ElfSpace *elfSpace;
     std::string filename;
 public:
-    ElfBacking(ElfSpace *elfSpace, std::string filename);
+    ExeBacking(ElfSpace *elfSpace, std::string filename);
+
+    void finalize();
+};
+
+class ObjBacking : public MemoryBacking {
+private:
+    ElfSpace *elfSpace;
+    std::string filename;
+public:
+    ObjBacking(ElfSpace *elfSpace, std::string filename);
 
     void finalize();
 };

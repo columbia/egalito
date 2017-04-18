@@ -3,6 +3,7 @@ class Function;
 #define EGALITO_GENERATE_SECTION_H
 
 #include <string>
+#include <vector>
 #include <set>
 #include <map>
 #include <elf.h>
@@ -93,6 +94,28 @@ public:
     void setTargetSection(Section *target) { targetSection = target; }
 
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+};
+
+class ShdrTableSection : public Section {
+private:
+    std::vector<Section *> sections;
+    Section *strtab;
+    Section *shstrtab;
+public:
+    ShdrTableSection(std::string name);
+    ShdrTableSection(std::string name, ElfXX_Word type);
+    ~ShdrTableSection();
+public:
+    void addSection(Section *section) {sections.push_back(section); }
+    std::vector<Section *> getSections() { return sections; }
+    Section *findSection(const std::string &name);
+public:
+    Section *getStrTab() { return strtab; }
+    Section *getShStrTab() { return shstrtab; }
+public:
+    friend std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs);
+private:
+    size_t getNextFreeOffset();
 };
 
 #endif
