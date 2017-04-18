@@ -58,7 +58,6 @@ $(BUILDDIR)tcbhead.h: | depends
 $(BUILDDIR)%.c: %.gdb | depends
 	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' > $@
 ifneq ($(CROSS),)
- $(info "Not testing")
 $(BUILDDIR)rtld_data1.c: test
 	$(RTLD_EXEC) ./test 1 > $@
 $(BUILDDIR)rtld_data2.c: test
