@@ -13,6 +13,14 @@ using namespace boost::python;
 
 BOOST_PYTHON_MODULE(python_egalito)
 {
+    register_exception_translator<const char *>([] (const char *s) {
+        PyErr_SetString(PyExc_RuntimeError, s);
+    });
+    register_exception_translator<std::string>([] (const std::string &s) {
+        PyErr_SetString(PyExc_RuntimeError, s.c_str());
+    });
+
+
 	enum_<Symbol::SymbolType>("SymbolType")
 		.value("FUNC",    Symbol::SymbolType::TYPE_FUNC)
 		.value("IFUNC",   Symbol::SymbolType::TYPE_IFUNC)
