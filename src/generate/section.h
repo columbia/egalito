@@ -107,6 +107,7 @@ public:
     void addShdrPair(ElfXX_Shdr *shdr, Section *section) { shdrPairs.push_back(std::make_pair(shdr, section)); }
     ShdrPair getShdrPairs() { return shdrPairs; }
     virtual size_t getSize() const { return shdrPairs.size() * sizeof(ElfXX_Shdr); }
+    size_t findIndex(Section *section);
 public:
     friend std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs);
 };

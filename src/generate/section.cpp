@@ -84,6 +84,16 @@ ShdrTableSection::~ShdrTableSection() {
         delete shdrPair.first;
 }
 
+size_t ShdrTableSection::findIndex(Section *section) {
+    size_t index = 0;
+    for(auto shdrPair : shdrPairs) {
+        if(shdrPair.second == section)
+            return index;
+        index++;
+    }
+    return 0;
+}
+
 std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs) {
     for(auto shdrPair : rhs.getShdrPairs()) {
         rhs.add(shdrPair.first, sizeof(*shdrPair.first));

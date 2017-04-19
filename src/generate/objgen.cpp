@@ -167,6 +167,7 @@ void ObjGen::updateShdrTable() {
     for(auto shdrPair : shdrTable->getShdrPairs()) {
         shdrPair.first->sh_offset = shdrPair.second->getOffset();
         shdrPair.first->sh_addr = shdrPair.second->getAddress();
+        shdrPair.first->sh_link = shdrTable->findIndex(shdrPair.second->getSectionLink());
         shdrTable->add(shdrPair.first, sizeof(ElfXX_Shdr));
     }
 }
@@ -176,13 +177,7 @@ void ObjGen::updateHeader() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
     header->e_shoff = shdrTable->getOffset();
     header->e_shnum = shdrTable->getSize() / sizeof(ElfXX_Shdr);
-    size_t index = 0;
-    for(auto shdrPair : shdrTable->getShdrPairs()) {
-        if(shdrPair.second == sections->getShStrTab())
-            break;
-        index++;
-    }
-    header->e_shstrndx = index;
+    header->e_shstrndx = shdrTable->findIndex(sections->findSection(".shstrtab"));
 }
 
 void ObjGen::serialize() {
