@@ -1,0 +1,20 @@
+To build the python shell, first install the following:
+    $ sudo apt-get install libboost-python-dev python3-cmd2 python3-colorama
+Next, update the following lines in the Makefile as appropriate:
+    BOOST_PYTHON_LIB = boost_python3
+    PYTHON_LIB = python3.6m
+    PYTHON_INC_DIR = /usr/include/python3.6m
+Then run
+    $ make python
+
+Run the shell with this (use "python3 ./pyshell" if needed):
+    $ ./pyshell
+Type "help" to get help on instructions. Mostly compatible with the C++ shell.
+
+Getting errors while trying to run the python shell?
+1) "ImportError: dynamic module does not define init function (initpython_egalito)"
+    means you compiled against python 3 but are running with python 2
+2) "ImportError: .../python_egalito.so: undefined symbol: _ZN5boost6python..."
+    means your boost python library and python library are different versions
+3) "ImportError: ...: undefined symbol: PyString_Type"
+    means you compiled against python 2 but are running with python 3

@@ -2,7 +2,7 @@
 
 include ../env.mk
 
-#Dependencies for Python Bindings
+# Dependencies for Python Bindings
 BOOST_PYTHON_LIB = boost_python3
 PYTHON_LIB = python3.6m
 PYTHON_INC_DIR = /usr/include/python3.6m
@@ -12,7 +12,7 @@ CXXFLAGS    += -g -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
 SHELL_SOURCES       = $(wildcard shell/*.cpp)
-PYTHON_SOURCES = $(wildcard python/*.cpp)
+PYTHON_SOURCES      = $(wildcard python/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
