@@ -5,6 +5,8 @@
 #include "chunk/chunklist.h"
 #include "cursor.h"
 
+class Instruction;
+
 /** Class to add/remove children in the Chunk hierarchy.
 
     Sizes are updated immediately whenever a child is added or removed,
@@ -40,6 +42,14 @@ public:
         If insertPoint is NULL, the newChunk is appended to the end.
     */
     void insertBefore(Chunk *insertPoint, Chunk *newChunk);
+
+    /** Like insertBefore(), adds a new child immediately before insertPoint.
+        However, if some jump instruction targeted insertPoint, it will now
+        target the newly inserted instruction.
+
+        If insertPoint is NULL, the newChunk is appended to the end.
+    */
+    void insertBeforeJumpTo(Instruction *insertPoint, Instruction *newChunk);
 
     /** Sets the position of a Chunk, performs any necessary updates. */
     void setPosition(address_t address);

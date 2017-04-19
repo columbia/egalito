@@ -4,6 +4,7 @@
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
+#include "pass/libchacks.h"
 #include "transform/data.h"
 #include "log/log.h"
 
@@ -53,6 +54,9 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
 void Conductor::resolvePLTLinks() {
     ResolvePLTPass resolvePLT(program);
     program->accept(&resolvePLT);
+
+    LibcHacksPass libcHacks(program);
+    getLibraryList()->getLibc()->getElfSpace()->getModule()->accept(&libcHacks);
 }
 
 void Conductor::fixDataSections() {

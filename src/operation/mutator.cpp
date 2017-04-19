@@ -3,6 +3,7 @@
 #include "mutator.h"
 #include "chunk/position.h"
 #include "pass/positiondump.h"
+#include "instr/instr.h"
 #include "log/log.h"
 
 void ChunkMutator::makePositionFor(Chunk *child) {
@@ -126,6 +127,21 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
     }
 
     updateSizesAndAuthorities(newChunk);
+}
+
+void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *newChunk) {
+    if(insertPoint == nullptr) {
+        insertBefore(nullptr, newChunk);
+        return;
+    }
+
+    insertAfter(insertPoint, newChunk);
+
+    // swap semantics of these two instructions
+    auto sem1 = insertPoint->getSemantic();
+    auto sem2 = newChunk->getSemantic();
+    insertPoint->setSemantic(sem2);
+    newChunk->setSemantic(sem1);
 }
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
