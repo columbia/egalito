@@ -31,6 +31,7 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     ElfXX_Shdr *entry = new ElfXX_Shdr();
     entry->sh_name = nameStrIndex;
     entry->sh_type = shdrType;
+    entry->sh_flags = 0;  // !!! should set this!
     entry->sh_offset = offset;
     entry->sh_size = getSize();
     entry->sh_addr = address;
@@ -41,6 +42,8 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
         entry->sh_addralign = 8;
     }
     else {
+        entry->sh_entsize = 0;
+        entry->sh_info = 0;
         entry->sh_addralign = 1;
     }
     // don't forget to set sh_link!

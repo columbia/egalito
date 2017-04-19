@@ -116,6 +116,9 @@ void ObjGen::makeSymbolInfo() {
     }
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
+        // fix addresses for objgen
+        func->getPosition()->set(func->getAddress() - backing->getBase());
+
         // add name to string table
         auto index = strtab->add(func->getName(), true);
         symtab->add(func, func->getSymbol(), index);
@@ -126,6 +129,9 @@ void ObjGen::makeSymbolInfo() {
             auto index = strtab->add(name, true);
             symtab->add(func, alias, index);
         }
+
+        // undo address fix
+        func->getPosition()->set(backing->getBase() + func->getAddress());
     }
 
     symtab->setSectionLink(strtab);

@@ -1,5 +1,4 @@
 #ifndef EGALITO_GENERATE_SECTION_H
-class Function;
 #define EGALITO_GENERATE_SECTION_H
 
 #include <string>
@@ -9,6 +8,8 @@ class Function;
 #include <elf.h>
 #include "elf/elfxx.h"
 #include "types.h"
+
+class Function;
 
 class Section {
 private:

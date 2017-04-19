@@ -20,7 +20,7 @@ private:
         std::vector<Section *> getSections() { return sections; }
         Section *findSection(const std::string &name);
     public:
-        Section *getHeader() {return header; }
+        Section *getHeader() { return header; }
         Section *getStrTab() { return strtab; }
         Section *getShStrTab() { return shstrtab; }
     };
