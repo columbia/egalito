@@ -164,6 +164,7 @@ void ObjGen::updateOffsetAndAddress() {
 void ObjGen::updateShdrTable() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
     for(auto shdrPair : shdrTable->getShdrPairs()) {
+        shdrPair.first->sh_size = shdrPair.second->getSize();
         shdrPair.first->sh_offset = shdrPair.second->getOffset();
         shdrPair.first->sh_addr = shdrPair.second->getAddress();
         shdrPair.first->sh_link = shdrTable->findIndex(shdrPair.second->getSectionLink());
