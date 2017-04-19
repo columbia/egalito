@@ -7,27 +7,55 @@
 #include "log/registry.h"
 #include "log/log.h"
 
+ObjGen::Sections::Sections() {
+    header = new Section(".elfheader");
+    strtab = new Section(".strtab", SHT_STRTAB);
+    shstrtab = new Section(".shstrtab", SHT_STRTAB);
+    sections.push_back(header);
+    sections.push_back(strtab);
+    sections.push_back(shstrtab);
+}
+
+ObjGen::Sections::~Sections() {
+    for(auto section : sections) {
+        delete section;
+    }
+}
+
+Section *ObjGen::Sections::findSection(const std::string &name) {
+    for(auto section : sections) {
+        if(section->getName() == name) return section;
+    }
+    return nullptr;
+}
 
 ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
     elfSpace(elfSpace), backing(backing), filename(filename) {
-    shdrTable = new ShdrTableSection(".shdr_table");
+    sections = new Sections();
 }
 
 void ObjGen::generate() {
     LOG(1, "generating object file");
     makeHeader();
     makeText();
+    makeSymbolInfo();
+    makeShdrTable();
+    updateOffsetAndAddress();
+    updateShdrTable();
+    updateHeader();
     serialize();
 }
 
 void ObjGen::makeHeader() {
     auto elfMap = elfSpace->getElfMap();
-    shdrTable->addSection((new Section(".elfheader"))
-        ->with(elfMap->getMap(), sizeof(ElfXX_Ehdr)));
-    ElfXX_Ehdr *header = shdrTable->findSection(".elfheader")->castAs<ElfXX_Ehdr>();
+    sections->getHeader()->add(elfMap->getMap(), sizeof(ElfXX_Ehdr));
+
+    ElfXX_Ehdr *header = sections->getHeader()->castAs<ElfXX_Ehdr>();
     header->e_type = ET_REL;
     header->e_entry = 0;
     header->e_phoff = 0;
+    header->e_phentsize = 0;
+    header->e_phnum = 0;
 }
 
 void ObjGen::makeText() {
@@ -59,7 +87,7 @@ void ObjGen::makeText() {
         sectionName << ".text.0x" << std::hex << *i;
         auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS);
         textSection->add((const uint8_t *)*i, size);
-        shdrTable->addSection(textSection);
+        sections->addSection(textSection);
 
         totalSize += size;
         i = j;
@@ -72,7 +100,7 @@ void ObjGen::makeROData() {
 
 void ObjGen::makeSymbolInfo() {
     auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
-    auto strtab = shdrTable->getStrTab();
+    auto strtab = sections->getStrTab();
 
     size_t count = 0;
     {  // add null symbol
@@ -101,12 +129,67 @@ void ObjGen::makeSymbolInfo() {
     }
 
     symtab->setSectionLink(strtab);
-    shdrTable->addSection(symtab);
-    shdrTable->addSection(strtab);
+    sections->addSection(symtab);
+}
+
+void ObjGen::makeShdrTable() {
+    auto shdrTable = new ShdrTableSection(".shdr_table");
+    auto shstrtab = sections->getShStrTab();
+
+    size_t index = 0;
+    auto nullSection = new Section("", SHT_NULL);
+    auto nullShdr = nullSection->makeShdr(index++, shstrtab->getSize());
+    shstrtab->add(nullSection->getName(), true);  // include NULL terminator
+    shdrTable->addShdrPair(nullShdr, nullSection);
+
+    for(auto section : sections->getSections()) {
+        if(section->hasShdr()) {
+            LOG(1, "STRTAB IND: " << shstrtab->getSize());
+            auto shdr = section->makeShdr(index++, shstrtab->getSize());
+            shstrtab->add(section->getName(), true);  // include NULL terminator
+            shdrTable->addShdrPair(shdr, section);
+        }
+    }
+
+    sections->addSection(shdrTable);
+}
+
+void ObjGen::updateOffsetAndAddress() {
+    size_t offset = 0;
+    for(auto section : sections->getSections()) {
+        section->setOffset(offset);
+        offset += section->getSize();
+    }
+}
+
+void ObjGen::updateShdrTable() {
+    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
+    for(auto shdrPair : shdrTable->getShdrPairs()) {
+        shdrPair.first->sh_offset = shdrPair.second->getOffset();
+        shdrPair.first->sh_addr = shdrPair.second->getAddress();
+        shdrTable->add(shdrPair.first, sizeof(ElfXX_Shdr));
+    }
+}
+
+void ObjGen::updateHeader() {
+    ElfXX_Ehdr *header = sections->getHeader()->castAs<ElfXX_Ehdr>();
+    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
+    header->e_shoff = shdrTable->getOffset();
+    header->e_shnum = shdrTable->getSize() / sizeof(ElfXX_Shdr);
+    size_t index = 0;
+    for(auto shdrPair : shdrTable->getShdrPairs()) {
+        if(shdrPair.second == sections->getShStrTab())
+            break;
+        index++;
+    }
+    header->e_shstrndx = index;
 }
 
 void ObjGen::serialize() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
-    fs << *shdrTable;
+    for(auto section : sections->getSections()) {
+        LOG(1, "serializing " << section->getName() << " @ " << section->getOffset());
+        fs << *section;
+    }
     fs.close();
 }

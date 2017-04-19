@@ -79,43 +79,15 @@ ElfXX_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
     return shdr;
 }
 
-std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs) {
-    for(auto section : rhs.getSections()) {
-        LOG(1, "serializing " << section->getName() << " @ " << section->getOffset());
-        stream << *section;
-    }
-    return stream;
-}
-
-ShdrTableSection::ShdrTableSection(std::string name) :
-    Section(name) {
-    strtab = new Section(".shstrtab", SHT_STRTAB);
-    shstrtab = new Section(".dynstr", SHT_STRTAB);
-}
-
-ShdrTableSection::ShdrTableSection(std::string name, ElfXX_Word type) :
-    Section(name, type) {
-    strtab = new Section(".shstrtab", SHT_STRTAB);
-    shstrtab = new Section(".dynstr", SHT_STRTAB);
-}
-
 ShdrTableSection::~ShdrTableSection() {
-    for(auto section : sections)
-        delete section;
+    for(auto shdrPair : shdrPairs)
+        delete shdrPair.first;
 }
 
-Section *ShdrTableSection::findSection(const std::string &name) {
-    for(auto sec : sections) {
-        if(sec->getName() == name) return sec;
+std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs) {
+    for(auto shdrPair : rhs.getShdrPairs()) {
+        rhs.add(shdrPair.first, sizeof(*shdrPair.first));
     }
-    return nullptr;
-}
-
-size_t ShdrTableSection::getNextFreeOffset() {
-    size_t maxOffset = 0;
-    for(auto section : sections) {
-        auto offset = section->getOffset() + section->getSize();
-        if(offset > maxOffset) maxOffset = offset;
-    }
-    return maxOffset;
+    stream << rhs.getData();
+    return stream;
 }

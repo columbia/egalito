@@ -37,7 +37,7 @@ public:
     std::string getName() const { return name; }
     address_t getAddress() const { return address; }
     size_t getOffset() const { return offset; }
-    size_t getSize() const { return data.size(); }
+    virtual size_t getSize() const { return data.size(); }
     bool hasShdr() const { return withShdr; }
     Section *getSectionLink() const { return sectionLink; }
     size_t getShdrIndex() const { return shdrIndex; }
@@ -98,24 +98,16 @@ public:
 
 class ShdrTableSection : public Section {
 private:
-    std::vector<Section *> sections;
-    Section *strtab;
-    Section *shstrtab;
+    typedef std::vector<std::pair<ElfXX_Shdr *, Section *>> ShdrPair;
+    ShdrPair shdrPairs;
 public:
-    ShdrTableSection(std::string name);
-    ShdrTableSection(std::string name, ElfXX_Word type);
+    using Section::Section;
     ~ShdrTableSection();
 public:
-    void addSection(Section *section) {sections.push_back(section); }
-    std::vector<Section *> getSections() { return sections; }
-    Section *findSection(const std::string &name);
-public:
-    Section *getStrTab() { return strtab; }
-    Section *getShStrTab() { return shstrtab; }
+    void addShdrPair(ElfXX_Shdr *shdr, Section *section) { shdrPairs.push_back(std::make_pair(shdr, section)); }
+    ShdrPair getShdrPairs() { return shdrPairs; }
+    virtual size_t getSize() const { return shdrPairs.size() * sizeof(ElfXX_Shdr); }
 public:
     friend std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs);
-private:
-    size_t getNextFreeOffset();
 };
-
 #endif
