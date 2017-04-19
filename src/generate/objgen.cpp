@@ -144,7 +144,6 @@ void ObjGen::makeShdrTable() {
 
     for(auto section : sections->getSections()) {
         if(section->hasShdr()) {
-            LOG(1, "STRTAB IND: " << shstrtab->getSize());
             auto shdr = section->makeShdr(index++, shstrtab->getSize());
             shstrtab->add(section->getName(), true);  // include NULL terminator
             shdrTable->addShdrPair(shdr, section);
