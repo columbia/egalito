@@ -2,6 +2,7 @@
 #include "data.h"
 #include "chunk/tls.h"
 #include "dep/rtld/pthread.h"
+#include "elf/elfspace.h"
 #include "log/log.h"
 
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
@@ -59,6 +60,7 @@ void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
             tls->loadTo(addr);
             addr += tls->getSize();
         }
+        tlsList->resolveRelocs(module->getElfSpace()->getElfMap());
 
         return mem;
     }

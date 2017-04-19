@@ -13,7 +13,6 @@
 #include "conductor/setup.h"
 #include "pass/logcalls.h"
 #include "pass/promotejumps.h"
-#include "pass/dumptlsinstr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -72,11 +71,12 @@ int main(int argc, char *argv[]) {
         std::cout.flush();
         std::fflush(stdout);
 
-        // jump to the interpreter/target program (never returns)
         main_tp = setup.getMainThreadPointer();
 #ifdef ARCH_X86_64
+        LOG(1, "set %""fs to point at " << main_tp);
         _set_fs(main_tp);
 #endif
+        // jump to the interpreter/target program (never returns)
         _start2();
     }
     catch(const char *s) {

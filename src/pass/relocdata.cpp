@@ -221,6 +221,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     address_t update = elf->getBaseAddress() + r->getAddress();
     address_t dest = 0;
     bool found = false;
+
     if(r->getType() == R_AARCH64_GLOB_DAT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
     }
