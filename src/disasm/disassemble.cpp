@@ -91,7 +91,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
+Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList=nullptr) {
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
     module->getChildren()->add(functionList);

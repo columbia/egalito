@@ -28,7 +28,7 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList);
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList);
     static Function *function(ElfMap *elfMap, Symbol *symbol);
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
