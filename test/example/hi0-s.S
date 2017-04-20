@@ -12,6 +12,11 @@ my_write:
     mov     x8, 64
     svc     0
     ret
+#elif defined(ARCH_ARM)
+		mov     r7, #4
+		svc     #0
+		bx      lr
 #endif
-.type my_write, @function
+
+.type my_write, STT_FUNC
 .size my_write, .-my_write

@@ -39,6 +39,9 @@ ifneq ($(CROSS),)
 	P_ARCH=$(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
 else
 	P_ARCH=$(shell uname -m)
+	ifeq (armv7l, $(P_ARCH))
+		P_ARCH = arm
+	endif
 endif
 
 $(info "Building for $(P_ARCH)")
@@ -51,8 +54,12 @@ else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
 	CXXFLAGS += -DARCH_X86_64
 	BUILDDIR = build_x86_64/
+else ifeq (arm,$(P_ARCH))
+	CFLAGS += -DARCH_ARM
+	CXXFLAGS += -DARCH_ARM
+	BUILDDIR = build_arm/
 else
-	$(error Unsupported platform, we only handle aarch32, aarch64, and x86_64)
+	$(error "Unsupported platform, we only handle aarch32, aarch64, and x86_64")
 endif
 
 CFLAGS += '-DTESTDIR="example/$(BUILDDIR)"'
