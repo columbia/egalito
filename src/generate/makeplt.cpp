@@ -30,9 +30,9 @@ void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
             || r->getType() == R_AARCH64_IRELATIVE) {
 
             auto sym = r->getSymbol();
-            auto info = dynsym->getSymbolInfo(sym);
+            auto symbolIndex = dynsym->findIndex(sym);
 
-            auto rela = makeRela(r, r->getAddend(), info.symbolIndex);
+            auto rela = makeRela(r, r->getAddend(), symbolIndex);
             LOG(1, "add relocation type " << r->getType() << " to "
                 << r->getSymbolName());
             relocData.append(reinterpret_cast<const char *>(&rela),

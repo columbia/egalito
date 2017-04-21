@@ -40,7 +40,7 @@ void ObjGen::generate() {
     makeText();
     makeSymbolInfo();
     makeShdrTable();
-    updateOffsetAndAddress();
+    updateOffsetAndAddress();  // must run before updateShdrTable()
     updateShdrTable();
     updateHeader();
     serialize();
@@ -85,7 +85,8 @@ void ObjGen::makeText() {
         // intentionally leave VISIBLE Segment set after last iteration
         std::ostringstream sectionName;
         sectionName << ".text.0x" << std::hex << *i;
-        auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS);
+        auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS,
+            SHF_ALLOC | SHF_EXECINSTR);
         textSection->add((const uint8_t *)*i, size);
         sections->addSection(textSection);
 
@@ -146,13 +147,13 @@ void ObjGen::makeShdrTable() {
     auto nullSection = new Section("", SHT_NULL);
     auto nullShdr = nullSection->makeShdr(index++, shstrtab->getSize());
     shstrtab->add(nullSection->getName(), true);  // include NULL terminator
-    shdrTable->addShdrPair(nullShdr, nullSection);
+    shdrTable->addShdrPair(nullSection, nullShdr);
 
     for(auto section : sections->getSections()) {
         if(section->hasShdr()) {
             auto shdr = section->makeShdr(index++, shstrtab->getSize());
             shstrtab->add(section->getName(), true);  // include NULL terminator
-            shdrTable->addShdrPair(shdr, section);
+            shdrTable->addShdrPair(section, shdr);
         }
     }
 
@@ -167,14 +168,21 @@ void ObjGen::updateOffsetAndAddress() {
     }
 }
 
+//void ObjGen::updateSymbolTable() {
+    // update section indices in symbol table
+    //sections->findSection(
+//}
+
 void ObjGen::updateShdrTable() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
-    for(auto shdrPair : shdrTable->getShdrPairs()) {
-        shdrPair.first->sh_size = shdrPair.second->getSize();
-        shdrPair.first->sh_offset = shdrPair.second->getOffset();
-        shdrPair.first->sh_addr = shdrPair.second->getAddress();
-        shdrPair.first->sh_link = shdrTable->findIndex(shdrPair.second->getSectionLink());
-        shdrTable->add(shdrPair.first, sizeof(ElfXX_Shdr));
+    for(auto shdrPair : shdrTable->getContentMap()) {
+        auto section = shdrPair.first;
+        auto shdr    = shdrPair.second;
+        shdr->sh_size   = section->getSize();
+        shdr->sh_offset = section->getOffset();
+        shdr->sh_addr   = section->getAddress();
+        shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
+        //shdrTable->add(shdr, sizeof(shdr));
     }
 }
 
@@ -183,13 +191,16 @@ void ObjGen::updateHeader() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
     header->e_shoff = shdrTable->getOffset();
     header->e_shnum = shdrTable->getSize() / sizeof(ElfXX_Shdr);
+    LOG(1, "size of section headers is " << shdrTable->getSize() << ", " << sizeof(ElfXX_Shdr));
     header->e_shstrndx = shdrTable->findIndex(sections->findSection(".shstrtab"));
 }
 
 void ObjGen::serialize() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
     for(auto section : sections->getSections()) {
-        LOG(1, "serializing " << section->getName() << " @ " << section->getOffset());
+        LOG(1, "serializing " << section->getName()
+            << " @ " << std::hex << section->getOffset()
+            << " of size " << std::dec << section->getSize());
         fs << *section;
     }
     fs.close();

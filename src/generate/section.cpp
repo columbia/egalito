@@ -31,7 +31,7 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     ElfXX_Shdr *entry = new ElfXX_Shdr();
     entry->sh_name = nameStrIndex;
     entry->sh_type = shdrType;
-    entry->sh_flags = 0;  // !!! should set this!
+    entry->sh_flags = shdrFlags;
     entry->sh_offset = offset;
     entry->sh_size = getSize();
     entry->sh_addr = address;
@@ -43,7 +43,7 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     }
     else {
         entry->sh_entsize = 0;
-        entry->sh_info = 0;
+        entry->sh_info = 0;  // updated later for strtabs
         entry->sh_addralign = 1;
     }
     // don't forget to set sh_link!
@@ -51,56 +51,9 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
 }
 
 std::ostream& operator<<(std::ostream &stream, Section &rhs) {
+    rhs.commitContents();
+    LOG(1, "actual size " << rhs.getData().size());
     stream << rhs.getData();
     return stream;
 }
 
-void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
-    ElfXX_Sym symbol;
-    symbol.st_name = static_cast<ElfXX_Word>(nameStrIndex);
-    symbol.st_info = ELFXX_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
-                                   Symbol::typeFromInternalToElf(sym->getType()));
-    symbol.st_other = STV_DEFAULT;
-    symbol.st_shndx = func ? 1 : SHN_UNDEF;  // dynamic symbols have func==nullptr
-    symbol.st_value = func ? func->getAddress() : 0;
-    symbol.st_size = func ? func->getSize() : 0;
-    add(static_cast<void *>(&symbol), sizeof(symbol));
-
-    infoMap[sym] = SymbolInfo(count, nameStrIndex);
-    count ++;
-}
-
-ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
-    auto shdr = Section::makeShdr(index, nameStrIndex);
-    shdr->sh_info = count;
-    return shdr;
-}
-
-ElfXX_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
-    auto shdr = Section::makeShdr(index, nameStrIndex);
-    shdr->sh_info = targetSection->getShdrIndex();
-    return shdr;
-}
-
-ShdrTableSection::~ShdrTableSection() {
-    for(auto shdrPair : shdrPairs)
-        delete shdrPair.first;
-}
-
-size_t ShdrTableSection::findIndex(Section *section) {
-    size_t index = 0;
-    for(auto shdrPair : shdrPairs) {
-        if(shdrPair.second == section)
-            return index;
-        index++;
-    }
-    return 0;
-}
-
-std::ostream& operator<<(std::ostream &stream, ShdrTableSection &rhs) {
-    for(auto shdrPair : rhs.getShdrPairs()) {
-        rhs.add(shdrPair.first, sizeof(*shdrPair.first));
-    }
-    stream << rhs.getData();
-    return stream;
-}
