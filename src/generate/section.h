@@ -90,7 +90,7 @@ protected:
     virtual void lowLevelAdd(ElfContentType &content)
         { add(static_cast<void *>(&content), sizeof(content)); }
 public:
-    ElfContentType findContent(ElementType *element);
+    ElfContentType &findContent(ElementType *element);
     size_t findIndex(ElementType *element);
 
     // returns elements in arbitrary order, not index-sorted
@@ -101,11 +101,10 @@ public:
 };
 
 template <typename ElementType, typename ElfContentType>
-ElfContentType DeferredContentSection<ElementType, ElfContentType>
+ElfContentType &DeferredContentSection<ElementType, ElfContentType>
     ::findContent(ElementType *element) {
 
-    auto it = contentMap.find(element);
-    return (it != contentMap.end() ? (*it).second : nullptr);
+    return (*contentMap.find(element)).second;
 }
 
 template <typename ElementType, typename ElfContentType>

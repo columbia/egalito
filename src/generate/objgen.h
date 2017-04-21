@@ -12,17 +12,20 @@ private:
         Section *header;
         Section *strtab;
         Section *shstrtab;
+        Section *text;
     public:
         Sections();
         ~Sections();
     public:
-        void addSection(Section *section) {sections.push_back(section); }
+        void addSection(Section *section) { sections.push_back(section); }
         std::vector<Section *> getSections() { return sections; }
         Section *findSection(const std::string &name);
     public:
         Section *getHeader() { return header; }
         Section *getStrTab() { return strtab; }
         Section *getShStrTab() { return shstrtab; }
+        Section *getText() { return text; }
+        void addTextSection(Section *s) { addSection(s); text = s; }
     };
 private:
     ElfSpace *elfSpace;
@@ -43,6 +46,7 @@ private:
     void makeShdrTable();
 private:
     void updateOffsetAndAddress();
+    void updateSymbolTable();
     void updateShdrTable();
     void updateHeader();
     void serialize();

@@ -11,6 +11,7 @@ ObjGen::Sections::Sections() {
     header = new Section(".elfheader");
     strtab = new Section(".strtab", SHT_STRTAB);
     shstrtab = new Section(".shstrtab", SHT_STRTAB);
+    text = nullptr;
     sections.push_back(header);
     sections.push_back(strtab);
     sections.push_back(shstrtab);
@@ -41,6 +42,7 @@ void ObjGen::generate() {
     makeSymbolInfo();
     makeShdrTable();
     updateOffsetAndAddress();  // must run before updateShdrTable()
+    updateSymbolTable();  // must run after .text & shdrTable are created
     updateShdrTable();
     updateHeader();
     serialize();
@@ -88,7 +90,7 @@ void ObjGen::makeText() {
         auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
         textSection->add((const uint8_t *)*i, size);
-        sections->addSection(textSection);
+        sections->addTextSection(textSection);
 
         totalSize += size;
         i = j;
@@ -168,10 +170,19 @@ void ObjGen::updateOffsetAndAddress() {
     }
 }
 
-//void ObjGen::updateSymbolTable() {
+void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
-    //sections->findSection(
-//}
+    auto shdrTable = static_cast<ShdrTableSection *>(
+        sections->findSection(".shdr_table"));
+    auto symtab = static_cast<SymbolTableSection *>(
+        sections->findSection(".symtab"));
+    auto text = sections->getText();
+    auto textIndex = shdrTable->findIndex(text);
+
+    for(auto symbol : symtab->getContentList()) {
+        symtab->findContent(symbol).st_shndx = textIndex;
+    }
+}
 
 void ObjGen::updateShdrTable() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
