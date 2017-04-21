@@ -15,6 +15,8 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
     symbol.st_value = func ? func->getAddress() : 0;
     symbol.st_size = func ? func->getSize() : 0;
     addElement(sym, symbol);
+    LOG(1, "addElement size " << sizeof(symbol) << ", count now "
+        << getCount());
 }
 
 ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
@@ -27,12 +29,4 @@ ElfXX_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
     shdr->sh_info = targetSection->getShdrIndex();
     return shdr;
-}
-
-void ShdrTableSection::commitContents() {
-    for(auto element : getContentList()) {
-        auto content = findContent(element);
-        LOG(1, "add " << sizeof(*content) << " bytes");
-        add(static_cast<void *>(content), sizeof(*content));
-    }
 }

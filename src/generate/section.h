@@ -72,14 +72,23 @@ private:
 
     typedef std::vector<ElementType *> ContentListType;
     ContentListType contentList;
+
+    bool committed;
 public:
-    using Section::Section;
+    DeferredContentSection(std::string name)
+        : Section(name), committed(false) {}
+    DeferredContentSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
+        : Section(name, type, flags), committed(false) {}
+
+    virtual size_t getElementSize() const { return sizeof(ElfContentType); }
     virtual size_t getSize() const
-        { return contentList.size() * sizeof(ElfContentType); }
+        { return contentList.size() * getElementSize(); }
     size_t getCount() const { return contentList.size(); }
 protected:
     void addElement(ElementType *element, ElfContentType content)
         { contentMap[element] = content; contentList.push_back(element); }
+    virtual void lowLevelAdd(ElfContentType &content)
+        { add(static_cast<void *>(&content), sizeof(content)); }
 public:
     ElfContentType findContent(ElementType *element);
     size_t findIndex(ElementType *element);
@@ -111,12 +120,29 @@ size_t DeferredContentSection<ElementType, ElfContentType>
 
 template <typename ElementType, typename ElfContentType>
 void DeferredContentSection<ElementType, ElfContentType>::commitContents() {
-    if(Section::getSize() > 0) return;
+    if(committed) return;
     for(auto element : contentList) {
-        auto content = contentMap[element];
-        add(static_cast<void *>(&content), sizeof(content));
+        auto &content = contentMap[element];
+        lowLevelAdd(content);
     }
+    committed = true;
 }
+
+// for pointer types
+template <typename ElementType, typename ElfContentType>
+class PtrDeferredContentSection
+    : public DeferredContentSection<ElementType, ElfContentType *> {
+public:
+    //using DeferredContentSection::DeferredContentSection;
+    PtrDeferredContentSection(std::string name)
+        : DeferredContentSection<ElementType, ElfContentType *>(name) {}
+    PtrDeferredContentSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
+        : DeferredContentSection<ElementType, ElfContentType *>(name, type, flags) {}
+    virtual size_t getElementSize() const { return sizeof(ElfContentType); }
+protected:
+    virtual void lowLevelAdd(ElfContentType *&content)
+        { this->add(static_cast<void *>(content), sizeof(*content)); }
+};
 
 #include "concretesection.h"
 

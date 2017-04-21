@@ -16,6 +16,10 @@ public:
     using Section::add;
     void add(Function *func, Symbol *sym, size_t nameStrIndex);
 
+    // we allow both concrete and deferred data here
+    virtual size_t getSize() const
+        { return Section::getSize() + DeferredContentSection<Symbol, ElfXX_Sym>::getSize(); }
+
     virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 
@@ -30,15 +34,10 @@ public:
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 
-class ShdrTableSection : public DeferredContentSection<Section, ElfXX_Shdr *> {
+class ShdrTableSection : public PtrDeferredContentSection<Section, ElfXX_Shdr> {
 public:
-    using DeferredContentSection::DeferredContentSection;
+    using PtrDeferredContentSection::PtrDeferredContentSection;
 public:
-    /** Overload to return size of elements, not size of pointers. */
-    virtual size_t getSize() const
-        { return getCount() * sizeof(ElfXX_Shdr); }
-    virtual void commitContents();
-
     void addShdrPair(Section *section, ElfXX_Shdr *shdr)
         { addElement(section, shdr); }
 };

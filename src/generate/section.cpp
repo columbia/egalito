@@ -13,6 +13,7 @@ size_t Section::add(const void *data, size_t size) {
 size_t Section::add(const char *data, size_t size) {
     size_t oldSize = this->data.size();
     this->data.append(data, size);
+    LOG(1, "    really added " << size << " bytes");
     return oldSize;
 }
 
@@ -52,8 +53,9 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
 
 std::ostream& operator<<(std::ostream &stream, Section &rhs) {
     rhs.commitContents();
-    LOG(1, "actual size " << rhs.getData().size());
-    stream << rhs.getData();
+    auto data = rhs.getData();
+    stream << data;
+    LOG(1, "actual size " << data.size());
     return stream;
 }
 
