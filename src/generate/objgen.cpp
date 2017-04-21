@@ -105,7 +105,6 @@ void ObjGen::makeSymbolInfo() {
     auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
     auto strtab = sections->getStrTab();
 
-    size_t count = 0;
     {  // add null symbol
         ElfXX_Sym symbol;
         symbol.st_name = strtab->add("", 1);  // add empty name
@@ -115,10 +114,37 @@ void ObjGen::makeSymbolInfo() {
         symbol.st_value = 0;
         symbol.st_size = 0;
         symtab->add(static_cast<void *>(&symbol), sizeof(symbol));
-        count ++;
     }
 
+    {  // add .text SECTION symbol
+        ElfXX_Sym symbol;
+        symbol.st_name = strtab->add("", 1);
+        symbol.st_info = ELFXX_ST_INFO(STB_LOCAL, STT_SECTION);
+        symbol.st_other = STV_DEFAULT;
+        symbol.st_shndx = 3;  // !!!!!!!!!
+        symbol.st_value = 0;
+        symbol.st_size = 0;
+        symtab->add(static_cast<void *>(&symbol), sizeof(symbol));
+    }
+
+    // Remove these symbols which are only in executables and will be added
+    // back in by the linker.
+    std::set<std::string> blacklist;
+    blacklist.insert("_init");
+    blacklist.insert("_fini");
+    blacklist.insert("register_tm_clones");
+    blacklist.insert("deregister_tm_clones");
+    blacklist.insert("frame_dummy");
+    blacklist.insert("__do_global_dtors_aux");
+    blacklist.insert("__libc_csu_init");
+    blacklist.insert("__libc_csu_fini");
+    blacklist.insert("_start");
+
     for(auto func : CIter::functions(elfSpace->getModule())) {
+        if(blacklist.find(func->getName()) != blacklist.end()) {
+            //continue;  // skip making a symbol for this function
+        }
+
         // fix addresses for objgen
         func->getPosition()->set(func->getAddress() - backing->getBase());
 
