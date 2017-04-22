@@ -12,6 +12,8 @@
 class Symbol;
 class SymbolList;
 
+class Reloc {
+public:
 #ifdef ARCH_ARM
     typedef ElfXX_Half  rel_type_t;
     typedef ElfXX_Half  rel_sym_t;
@@ -21,14 +23,12 @@ class SymbolList;
     typedef ElfXX_Word   rel_sym_t;
     typedef ElfXX_Sxword rel_addend_t;
 #endif
-
-class Reloc {
 private:
     address_t address;      // source address
-    rel_type_t type;          // type
-    rel_sym_t symbolIndex;   // target index
+    rel_type_t type;        // type
+    rel_sym_t symbolIndex;  // target index
     Symbol *symbol;         // target
-    rel_addend_t addend;        // for RELA relocs
+    rel_addend_t addend;    // for RELA relocs
 public:
     Reloc(address_t address, rel_type_t type, rel_sym_t symbolIndex,
         Symbol *symbol, rel_addend_t addend)

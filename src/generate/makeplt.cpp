@@ -41,7 +41,7 @@ void MakeOriginalPLT::makePLT(ElfSpace *space, PLTList *pltList,
     }
 }
 
-ElfXX_Rela MakeOriginalPLT::makeRela(Reloc *r, rel_addend_t addend,
+ElfXX_Rela MakeOriginalPLT::makeRela(Reloc *r, Reloc::rel_addend_t addend,
     size_t symbolIndex) {
 
     ElfXX_Rela rela;

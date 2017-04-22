@@ -21,7 +21,7 @@ public:
     const std::string &getPLTData() const { return pltData; }
     const std::string &getRelocations() const { return relocData; }
 private:
-    static ElfXX_Rela makeRela(Reloc *r, rel_addend_t addend,
+    static ElfXX_Rela makeRela(Reloc *r, Reloc::rel_addend_t addend,
         size_t symbolIndex);
 };
 

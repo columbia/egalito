@@ -1,57 +1,64 @@
-#ifndef EGALITO_ELF_TYPES_H
-#define EGALITO_ELF_TYPES_H
+#ifndef EGALITO_ELF_ELF_XX_H
+#define EGALITO_ELF_ELF_XX_H
 
 #include <elf.h>
 
 #ifdef ARCH_ARM
-		#define ElfXX_Ehdr  Elf32_Ehdr
-		#define ElfXX_Shdr  Elf32_Shdr
-		#define ElfXX_Phdr  Elf32_Phdr
-		#define ElfXX_Nhdr  Elf32_Nhdr
-		#define ElfXX_Rela  Elf32_Rela
-		#define ElfXX_Sym   Elf32_Sym
-		#define ElfXX_Dyn   Elf32_Dyn
+    // integral types
+    typedef Elf32_Addr  ElfXX_Addr;
+    typedef Elf32_Half  ElfXX_Half;
+    typedef Elf32_Off   ElfXX_Off;
+    typedef Elf32_Sword ElfXX_Sword;
+    typedef Elf32_Word  ElfXX_Word;
+    typedef Elf32_Xword ElfXX_Xword;
+    typedef Elf32_Sxword ElfXX_Sxword;
 
-		#define ELFCLASSXX ELFCLASS32
+    // structures
+    typedef Elf32_Ehdr  ElfXX_Ehdr;
+    typedef Elf32_Shdr  ElfXX_Shdr;
+    typedef Elf32_Phdr  ElfXX_Phdr;
+    typedef Elf32_Nhdr  ElfXX_Nhdr;
+    typedef Elf32_Rela  ElfXX_Rela;
+    typedef Elf32_Sym   ElfXX_Sym;
+    typedef Elf32_Dyn   ElfXX_Dyn;
 
-		#define ELFXX_R_INFO  ELF32_R_INFO
-		#define ELFXX_R_SYM   ELF32_R_SYM
-		#define ELFXX_R_TYPE  ELF32_R_TYPE
-		#define ELFXX_ST_TYPE ELF32_ST_TYPE
-		#define ELFXX_ST_BIND ELF32_ST_BIND
-		#define ELFXX_ST_INFO ELF32_ST_INFO
+    // macros
+    #define ELFCLASSXX  ELFCLASS32
 
-		#define ElfXX_Addr  Elf32_Addr
-		#define ElfXX_Half  Elf32_Half
-		#define ElfXX_Off   Elf32_Off
-		#define ElfXX_Sword Elf32_Sword
-		#define ElfXX_Word  Elf32_Word
-#else
-		#define ElfXX_Ehdr  Elf64_Ehdr
-		#define ElfXX_Shdr  Elf64_Shdr
-		#define ElfXX_Phdr  Elf64_Phdr
-		#define ElfXX_Nhdr  Elf64_Nhdr
-		#define ElfXX_Rela  Elf64_Rela
-		#define ElfXX_Sym   Elf64_Sym
-		#define ElfXX_Dyn   Elf64_Dyn
+    #define ELFXX_R_INFO    ELF32_R_INFO
+    #define ELFXX_R_SYM     ELF32_R_SYM
+    #define ELFXX_R_TYPE    ELF32_R_TYPE
+    #define ELFXX_ST_TYPE   ELF32_ST_TYPE
+    #define ELFXX_ST_BIND   ELF32_ST_BIND
+    #define ELFXX_ST_INFO   ELF32_ST_INFO
+#else  /* ARCH_X86_64, ARCH_AARCH64 */
+    // integral types
+    typedef Elf64_Addr  ElfXX_Addr;
+    typedef Elf64_Half  ElfXX_Half;
+    typedef Elf64_Off   ElfXX_Off;
+    typedef Elf64_Sword ElfXX_Sword;
+    typedef Elf64_Word  ElfXX_Word;
+    typedef Elf64_Xword ElfXX_Xword;
+    typedef Elf64_Sxword ElfXX_Sxword;
 
-		#define ELFCLASSXX ELFCLASS64
+    // structures
+    typedef Elf64_Ehdr  ElfXX_Ehdr;
+    typedef Elf64_Shdr  ElfXX_Shdr;
+    typedef Elf64_Phdr  ElfXX_Phdr;
+    typedef Elf64_Nhdr  ElfXX_Nhdr;
+    typedef Elf64_Rela  ElfXX_Rela;
+    typedef Elf64_Sym   ElfXX_Sym;
+    typedef Elf64_Dyn   ElfXX_Dyn;
 
-		#define ELFXX_R_INFO  ELF64_R_INFO
-		#define ELFXX_R_SYM   ELF64_R_SYM
-		#define ELFXX_R_TYPE  ELF64_R_TYPE
-		#define ELFXX_ST_TYPE ELF64_ST_TYPE
-		#define ELFXX_ST_BIND ELF64_ST_BIND
-		#define ELFXX_ST_INFO ELF64_ST_INFO
+    // macros
+    #define ELFCLASSXX  ELFCLASS64
 
-		#define ElfXX_Addr  Elf64_Addr
-		#define ElfXX_Half  Elf64_Half
-		#define ElfXX_SHalf Elf64_SHalf
-		#define ElfXX_Off   Elf64_Off
-		#define ElfXX_Sword Elf64_Sword
-		#define ElfXX_Word  Elf64_Word
-		#define ElfXX_Xword Elf64_Xword
-		#define ElfXX_Sxword Elf64_Sxword
+    #define ELFXX_R_INFO    ELF64_R_INFO
+    #define ELFXX_R_SYM     ELF64_R_SYM
+    #define ELFXX_R_TYPE    ELF64_R_TYPE
+    #define ELFXX_ST_TYPE   ELF64_ST_TYPE
+    #define ELFXX_ST_BIND   ELF64_ST_BIND
+    #define ELFXX_ST_INFO   ELF64_ST_INFO
 #endif
 
 #endif
