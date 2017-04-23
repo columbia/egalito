@@ -16,6 +16,7 @@
 
 #include "plt.h"
 #include "jumptable.h"
+#include "dataregion.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"

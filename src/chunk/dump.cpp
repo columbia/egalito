@@ -23,6 +23,9 @@ void ChunkDumper::visit(PLTList *pltList) {
 void ChunkDumper::visit(JumpTableList *jumpTableList) {
     recurse(jumpTableList);
 }
+void ChunkDumper::visit(DataRegionList *dataRegionList) {
+    recurse(dataRegionList);
+}
 
 void ChunkDumper::visit(Function *function) {
     LOG(4, "---[" << function->getName() << "]---");
@@ -80,6 +83,10 @@ void ChunkDumper::visit(JumpTable *jumpTable) {
 }
 
 void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
+    LOG(1, "NYI");
+}
+
+void ChunkDumper::visit(DataRegion *dataRegion) {
     LOG(1, "NYI");
 }
 

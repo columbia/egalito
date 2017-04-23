@@ -20,12 +20,14 @@ public:
     virtual void visit(BlockSoup *blockSoup) { recurse(blockSoup); }
     virtual void visit(PLTList *pltList) { recurse(pltList); }
     virtual void visit(JumpTableList *jumpTableList) { recurse(jumpTableList); }
+    virtual void visit(DataRegionList *dataRegionList) { recurse(dataRegionList); }
     virtual void visit(Function *function) { recurse(function); }
     virtual void visit(Block *block) { recurse(block); }
     virtual void visit(Instruction *instruction) {}
     virtual void visit(PLTTrampoline *trampoline) {}
     virtual void visit(JumpTable *jumpTable) { recurse(jumpTable); }
     virtual void visit(JumpTableEntry *jumpTableEntry) {}
+    virtual void visit(DataRegion *dataRegion) {}
 };
 
 #endif

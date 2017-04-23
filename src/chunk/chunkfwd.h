@@ -7,12 +7,14 @@ class FunctionList;
 class BlockSoup;
 class PLTList;
 class JumpTableList;
+class DataRegionList;
 class Function;
 class Block;
 class Instruction;
 class PLTTrampoline;
 class JumpTable;
 class JumpTableEntry;
+class DataRegion;
 class TLSList;
 
 #endif

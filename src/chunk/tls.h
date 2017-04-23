@@ -23,9 +23,6 @@
 class ElfMap;
 class RelocList;
 
-class DataRegion {
-};
-
 class TLSList {
 private:
     class TLSRegion : public DataRegion {
