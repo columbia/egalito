@@ -7,8 +7,6 @@
 #include "util/iter.h"
 #include "types.h"
 
-class ElfMap;
-
 /** Represents a reference from a Chunk that may need to be updated.
 
     Some Links refer to a target Chunk, and the offset may change if either
@@ -24,7 +22,13 @@ public:
     virtual address_t getTargetAddress() const = 0;
 };
 
-/** A reference to another Chunk. */
+
+// --- standard Chunk links ---
+
+/** A relative reference to another Chunk.
+
+    The source and destination address may both be updated for this Link.
+*/
 class NormalLink : public Link {
 private:
     ChunkRef target;
@@ -35,6 +39,10 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+/** An absolute reference to another Chunk.
+
+    Here the source address is irrelevant.
+*/
 class AbsoluteNormalLink : public NormalLink {
 public:
     using NormalLink::NormalLink;
@@ -56,6 +64,7 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+/** Indicates that a Link targets outside the current function. */
 template <typename BaseType>
 class ExternalLinkDecorator : public BaseType {
 public:
@@ -65,6 +74,8 @@ public:
 typedef ExternalLinkDecorator<NormalLink> ExternalNormalLink;
 typedef ExternalLinkDecorator<OffsetLink> ExternalOffsetLink;
 
+
+// --- special Chunk links ---
 
 class PLTTrampoline;
 class PLTLink : public Link {
@@ -91,6 +102,23 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class Symbol;
+class SymbolOnlyLink : public Link {
+private:
+    Symbol *symbol;
+    address_t target;
+public:
+    SymbolOnlyLink(Symbol *symbol, address_t target) : symbol(symbol), target(target) {}
+
+    Symbol *getSymbol() const { return symbol; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return target; }
+};
+
+
+// --- data links ---
+
+class ElfMap;
 class DataOffsetLink : public Link {
 private:
     ElfMap *elf;
@@ -115,23 +143,8 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
-class ImmAndDispLink : public Link {
-private:
-    NormalLink *immLink;
-    Link *dispLink;
-public:
-    ImmAndDispLink(NormalLink *immLink, Link *dispLink)
-        : immLink(immLink), dispLink(dispLink) {}
-    NormalLink *getImmLink() const { return immLink; }
-    Link *getDispLink() const { return dispLink; }
 
-    // arbitrarily choose to use the displacement link
-    /*virtual ChunkRef getTarget() const { return dispLink->getTarget(); }
-    virtual address_t getTargetAddress() const
-        { return dispLink->getTargetAddress(); }*/
-    virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }
-    virtual address_t getTargetAddress() const { throw "ImmAndDispLink not handled"; }
-};
+// --- other links ---
 
 /** We know that this is a Link, but we're not sure what it points at yet.
 */
@@ -145,19 +158,23 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
-class Symbol;
+/** Some x86_64 instructions can contain two links.
 
-class SymbolOnlyLink : public Link {
+    Most Link-processing code for Instructions needs to handle this case
+    specially.
+*/
+class ImmAndDispLink : public Link {
 private:
-    Symbol *symbol;
-    address_t target;
+    NormalLink *immLink;
+    Link *dispLink;
 public:
+    ImmAndDispLink(NormalLink *immLink, Link *dispLink)
+        : immLink(immLink), dispLink(dispLink) {}
+    NormalLink *getImmLink() const { return immLink; }
+    Link *getDispLink() const { return dispLink; }
 
-    SymbolOnlyLink(Symbol *symbol, address_t target) : symbol(symbol), target(target) {}
-
-    Symbol *getSymbol() const { return symbol; }
-    virtual ChunkRef getTarget() const { return nullptr; }
-    virtual address_t getTargetAddress() const { return target; }
+    virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }
+    virtual address_t getTargetAddress() const { throw "ImmAndDispLink not handled"; }
 };
 
 #endif
