@@ -4,6 +4,7 @@
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
+#include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
 #include "transform/data.h"
 #include "log/log.h"
@@ -77,9 +78,13 @@ void Conductor::fixDataSection(ElfSpace *elfSpace) {
 
     FixJumpTablesPass fixJumpTables;
     elfSpace->getModule()->accept(&fixJumpTables);
+
+    FixDataRegionsPass fixDataRegions;
+    elfSpace->getModule()->accept(&fixDataRegions);
 }
 
 void Conductor::loadTLSData() {
+#if 0
     auto module = getMainSpace()->getModule();
     DataLoader loader;
     mainThreadPointer = loader.setupMainData(module, 0xd0000000);
@@ -97,6 +102,13 @@ void Conductor::loadTLSData() {
         }
 #endif
     }
+#else
+    auto libc = getLibraryList()->getLibc();
+    auto regionList = libc->getElfSpace()->getModule()->getDataRegionList();
+    auto region = regionList->getTLS();
+    mainThreadPointer = DataLoader(libc->getElfMap())
+        .mapTLS(region, 0xd0000000);
+#endif
 }
 
 void Conductor::writeDebugElf(const char *filename, const char *suffix) {

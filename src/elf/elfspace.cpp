@@ -61,8 +61,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->module = Disassemble::module(elf, symbolList);
     this->module->setElfSpace(this);
 
-    DataRegionList::buildDataRegionList(elf, module);
-
     InternalCalls internalCalls;
     module->accept(&internalCalls);
 
@@ -70,6 +68,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //module->accept(&dumper);
 
     this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+
+    DataRegionList::buildDataRegionList(elf, module);
+
     PLTList::parsePLTList(elf, relocList, module);
 
     HandleRelocsPass handleRelocsPass(elf, relocList);

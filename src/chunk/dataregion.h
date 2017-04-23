@@ -10,27 +10,44 @@
 class Link;
 class ElfMap;
 
+// perhaps this should be a Chunk
+class DataVariable {
+private:
+    DataRegion *region;
+    address_t offset;
+    Link *dest;
+public:
+    DataVariable(DataRegion *region, address_t offset, Link *dest)
+        : region(region), offset(offset), dest(dest) {}
+
+    address_t getAddress();
+    Link *getDest() const { return dest; }
+};
+
 class DataRegion : public ComputedSizeDecorator<AddressableChunkImpl> {
 private:
-    typedef std::vector<Link *> LinkListType;
-    LinkListType linkList;
+    typedef std::vector<DataVariable *> VariableListType;
+    VariableListType variableList;
     ElfXX_Phdr *phdr;
 public:
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
 
-    void addLink(Link *link);
-    void removeLink(Link *link);
+    ElfXX_Phdr *getPhdr() const { return phdr; }
+
+    void addVariable(DataVariable *variable);
+    bool contains(address_t address);
 
     void updateAddressFor(address_t baseAddress);
 
-    ConcreteIterable<LinkListType> linkIterable()
-        { return ConcreteIterable<LinkListType>(linkList); }
+    ConcreteIterable<VariableListType> variableIterable()
+        { return ConcreteIterable<VariableListType>(variableList); }
 
     virtual void accept(ChunkVisitor *visitor);
 };
 
 class ElfMap;
 class Module;
+class Reloc;
 class DataRegionList : public CollectionChunkImpl<DataRegion> {
 private:
     DataRegion *tls;
@@ -41,6 +58,8 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 
     Link *createDataLink(address_t target, bool isRelative = true);
+    DataRegion *findRegionContaining(address_t target);
+    Link *resolveVariableLink(Reloc *reloc);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
 };

@@ -3,12 +3,17 @@
 
 #include "types.h"
 
-class Module;
+class ElfMap;
+class DataRegion;
 
 class DataLoader {
+private:
+    ElfMap *elfMap;
 public:
-    void *setupMainData(Module *module, address_t baseAddress);
-    void *loadLibraryTLSData(Module *module, address_t baseAddress);
+    DataLoader(ElfMap *elfMap) : elfMap(elfMap) {}
+    void *mapTLS(DataRegion *tls, address_t baseAddress);
+private:
+    void copyTLSData(DataRegion *tls, address_t loadAddress);
 };
-#endif
 
+#endif

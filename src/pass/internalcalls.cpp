@@ -60,7 +60,6 @@ void InternalCalls::visit(Instruction *instruction) {
             ->findAllContaining(targetAddress);
         for(auto f : funcs) {
             found = ChunkFind().findInnermostAt(f, targetAddress);
-            // we could use a different Link type for external jumps
             if(found) break;
         }
 #else
