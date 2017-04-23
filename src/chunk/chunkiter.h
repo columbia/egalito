@@ -57,6 +57,8 @@ public:
         { return CIterChildren<BlockSoup>(module->getBlockSoup()); }
     static CIterChildren<PLTList> plts(Module *module)
         { return CIterChildren<PLTList>(module->getPLTList()); }
+    static CIterChildren<DataRegionList> regions(Module *module)
+        { return CIterChildren<DataRegionList>(module->getDataRegionList()); }
 };
 
 #endif

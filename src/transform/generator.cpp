@@ -39,6 +39,11 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
             ChunkMutator(plt).setPosition(slot.getAddress());
         }
     }
+
+    auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
+    for(auto region : CIter::regions(module)) {
+        region->updateAddressFor(baseAddress);
+    }
 }
 
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {

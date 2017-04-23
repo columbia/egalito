@@ -8,6 +8,7 @@
 #include "elf/elfxx.h"
 
 class Link;
+class ElfMap;
 
 class DataRegion : public ComputedSizeDecorator<AddressableChunkImpl> {
 private:
@@ -15,10 +16,12 @@ private:
     LinkListType linkList;
     ElfXX_Phdr *phdr;
 public:
-    DataRegion(ElfXX_Phdr *phdr);
+    DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
 
     void addLink(Link *link);
     void removeLink(Link *link);
+
+    void updateAddressFor(address_t baseAddress);
 
     ConcreteIterable<LinkListType> linkIterable()
         { return ConcreteIterable<LinkListType>(linkList); }

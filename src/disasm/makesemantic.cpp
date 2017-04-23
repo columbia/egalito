@@ -56,7 +56,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
 #elif defined(ARCH_AARCH64)
     cs_arm64 *x = &ins->detail->arm64;
     cs_arm64_op *op = &x->operands[0];
-    if((ins->id == ARM64_INS_BR) || (ins->id == ARM64_INS_BLR)){
+    if(ins->id == ARM64_INS_BR || ins->id == ARM64_INS_BLR) {
         semantic = new IndirectJumpInstruction(
                 *ins, static_cast<Register>(op->reg), ins->mnemonic);
     }
