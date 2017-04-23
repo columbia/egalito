@@ -1,4 +1,5 @@
 #include "resolveplt.h"
+#include "elf/symbol.h"
 #include "chunk/program.h"
 #include "operation/find2.h"
 

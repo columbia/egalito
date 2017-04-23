@@ -11,7 +11,7 @@ class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTTrampoline : public ChunkImpl {
+class PLTTrampoline : public AddressableChunkImpl {
 private:
     ElfMap *sourceElf;
     Chunk *target;
@@ -37,7 +37,7 @@ public:
 };
 
 class Module;
-class PLTList : public CompositeChunkImpl<PLTTrampoline> {
+class PLTList : public CollectionChunkImpl<PLTTrampoline> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

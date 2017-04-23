@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <vector>
 #include <memory>  // for std::shared_ptr
-#include "elf/symbol.h"
 #include "position.h"  // for Position
 #include "size.h"  // for ComputedSize, Range
-#include "link.h"  // for Link, XRefDatabase
+#include "link.h"  // for Link
 #include "types.h"
 
 class Sandbox;
@@ -18,7 +17,14 @@ class ChunkListImpl;
 
 class ChunkVisitor;
 
-/** Chunks represent pieces of code arranged in a hierarchical structure.
+/** Main base class for representing code and entities in a program.
+
+    Chunks are arranged in a hierarchical structure. If the concrete type is
+    known, it is possible to iterate over children in a type-safe manner.
+    It is also possible to iterate over generic Chunks.
+
+    Some Chunks have a Position, like Functions and Blocks and Instructions.
+    Others, like JumpTableList, do not.
 */
 class Chunk {
 public:
@@ -39,7 +45,6 @@ public:
     virtual size_t getSize() const = 0;
     virtual void setSize(size_t newSize) = 0;
     virtual void addToSize(diff_t add) = 0;
-    virtual XRefDatabase *getDatabase() const = 0;
 
     virtual address_t getAddress() const = 0;
     virtual Range getRange() const = 0;
@@ -47,13 +52,16 @@ public:
     virtual void accept(ChunkVisitor *visitor) = 0;
 };
 
+/** Main Chunk implementation class that provides parent and sibling links
+    and sensible defaults for all functions. Use decorators to add additional
+    functionality.
+*/
 class ChunkImpl : public Chunk {
 private:
     Chunk *parent, *prev, *next;
-    Position *position;
 public:
-    ChunkImpl(Chunk *parent = nullptr, Position *position = nullptr)
-        : parent(parent), prev(nullptr), next(nullptr), position(position) {}
+    ChunkImpl(Chunk *parent = nullptr)
+        : parent(parent), prev(nullptr), next(nullptr) {}
 
     virtual std::string getName() const { return "???"; }
 
@@ -65,15 +73,26 @@ public:
     virtual void setNextSibling(Chunk *n) { next = n; }
     virtual ChunkList *getChildren() const { return nullptr; }
 
-    virtual Position *getPosition() const { return position; }
-    virtual void setPosition(Position *newPosition) { position = newPosition; }
+    virtual Position *getPosition() const { return nullptr; }
+    virtual void setPosition(Position *newPosition);
     virtual size_t getSize() const { return 0; }
     virtual void setSize(size_t newSize);
     virtual void addToSize(diff_t add);
-    virtual XRefDatabase *getDatabase() const { return nullptr; }
 
     virtual address_t getAddress() const;
     virtual Range getRange() const;
+};
+
+template <typename ChunkType>
+class ChunkPositionDecorator : public ChunkType {
+private:
+    Position *position;
+public:
+    ChunkPositionDecorator(Position *position = nullptr)
+        : position(position) {}
+
+    virtual Position *getPosition() const { return position; }
+    virtual void setPosition(Position *newPosition) { position = newPosition; }
 };
 
 template <typename ChunkType, typename ChildType>
@@ -96,22 +115,18 @@ public:
     virtual void addToSize(diff_t add) { size.adjustBy(add); }
 };
 
+/** Represents a leaf Chunk with a Position. */
+typedef ChunkPositionDecorator<ChunkImpl> AddressableChunkImpl;
+
+/** A Chunk that contains a list of other Chunks, and has a Position. */
 template <typename ChildType>
 class CompositeChunkImpl : public ChildListDecorator<
-    ComputedSizeDecorator<ChunkImpl>, ChildType> {
+    ComputedSizeDecorator<AddressableChunkImpl>, ChildType> {
 };
 
-#if 0
-template <typename ChunkType>
-class XRefDecorator : public ChunkType {
-private:
-    XRefDatabase database;
-public:
-    virtual XRefDatabase *getDatabase() const { return &database; }
-
-    virtual void handle(AddLinkEvent e)
-        { database.add(XRef(e.getOrigin(), e.getLink())); ChunkType::handle(e); }
+/** A Chunk that contains a list of other Chunks, but has no Position. */
+template <typename ChildType>
+class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
 };
-#endif
 
 #endif

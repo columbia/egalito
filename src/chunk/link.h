@@ -160,26 +160,4 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
-class XRef {
-private:
-    ChunkRef source;
-    Link *link;
-public:
-    XRef(ChunkRef source, Link *link) : source(source), link(link) {}
-
-    ChunkRef getSource() const { return source; }
-    ChunkRef getTarget() const { return link->getTarget(); }
-};
-
-class XRefDatabase {
-private:
-    typedef std::vector<XRef> DatabaseType;
-    DatabaseType database;
-public:
-    void add(XRef xref) { database.push_back(xref); }
-
-    ConcreteIterable<DatabaseType> iterable()
-        { return ConcreteIterable<DatabaseType>(database); }
-};
-
 #endif

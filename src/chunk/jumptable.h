@@ -8,7 +8,7 @@ class JumpTableDescriptor;
 class Function;
 class ElfMap;
 
-class JumpTableEntry : public ChunkImpl {
+class JumpTableEntry : public AddressableChunkImpl {
 private:
     Link *link;
 public:
@@ -35,7 +35,7 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class JumpTableList : public CompositeChunkImpl<JumpTable> {
+class JumpTableList : public CollectionChunkImpl<JumpTable> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

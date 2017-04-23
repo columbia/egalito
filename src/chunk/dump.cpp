@@ -1,9 +1,10 @@
 #include <iostream>
 #include <sstream>
 #include <cstdio>
+#include "dump.h"
 #include "disasm/dump.h"
 #include "disasm/disassemble.h"
-#include "dump.h"
+#include "elf/symbol.h"
 #include "log/log.h"
 
 void ChunkDumper::visit(Module *module) {

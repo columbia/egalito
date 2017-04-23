@@ -9,6 +9,7 @@
 #include "util/iter.h"
 #include "types.h"
 
+// forward declarations
 template <typename ChildType>
 class IterableChunkList;
 template <typename ChildType>
@@ -16,6 +17,10 @@ class SpatialChunkList;
 template <typename ChildType>
 class NamedChunkList;
 
+/** Stores a list of Chunks. Primarily used for lists of children. Supports
+    generic Chunk operations, but more operations are available when the child
+    type is known (see ChunkListImpl).
+*/
 class ChunkList {
 public:
     virtual ~ChunkList() {}
@@ -28,6 +33,12 @@ public:
     virtual Iterable<Chunk *> genericIterable() = 0;
 };
 
+/** Stores a list of Chunks of the specific type ChildType.
+
+    There are three aspects: iterable, spatial, and named. Each aspect can
+    be accessed at any point and the appropriate data structure will be
+    created. Currently, the iterable data structure is always present.
+*/
 template <typename ChildType>
 class ChunkListImpl : public ChunkList {
 private:
@@ -85,9 +96,10 @@ private:
     typedef std::vector<ChildType *> ChildListType;
     ChildListType childList;
 public:
-    ConcreteIterable<ChildListType> iterable() { return ConcreteIterable<ChildListType>(childList); }
-
-    Iterable<Chunk *> genericIterable() { return Iterable<Chunk *>(new STLIteratorGenerator<ChildListType, Chunk *>(childList)); }
+    ConcreteIterable<ChildListType> iterable()
+        { return ConcreteIterable<ChildListType>(childList); }
+    Iterable<Chunk *> genericIterable()
+        { return Iterable<Chunk *>(new STLIteratorGenerator<ChildListType, Chunk *>(childList)); }
 
     void add(ChildType *child) { childList.push_back(child); }
 

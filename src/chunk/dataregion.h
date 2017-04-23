@@ -8,7 +8,7 @@
 
 class Link;
 
-class DataRegion : public ChunkImpl {
+class DataRegion : public AddressableChunkImpl {
 private:
     typedef std::vector<Link *> LinkListType;
     LinkListType linkList;
@@ -22,7 +22,7 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class DataRegionList : public CompositeChunkImpl<DataRegion> {
+class DataRegionList : public CollectionChunkImpl<DataRegion> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

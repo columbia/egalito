@@ -1,6 +1,11 @@
 #include "chunk.h"
 #include "log/log.h"
 
+void ChunkImpl::setPosition(Position *newPosition) {
+    throw "Operation not supported: ChunkImpl::setPosition"
+        " (use ChunkPositionDecorator)";
+}
+
 void ChunkImpl::setSize(size_t newSize) {
     throw "Operation not supported: ChunkImpl::setSize";
 }

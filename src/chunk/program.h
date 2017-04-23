@@ -6,7 +6,7 @@
 
 class ElfSpaceList;
 
-class Program : public CompositeChunkImpl<Module> {
+class Program : public CollectionChunkImpl<Module> {
 private:
     Module *main;
     Module *egalito;

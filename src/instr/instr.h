@@ -8,7 +8,7 @@ class InstructionSemantic;
 class SemanticVisitor;
 class ChunkVisitor;
 
-class Instruction : public ChunkImpl {
+class Instruction : public AddressableChunkImpl {
 private:
     InstructionSemantic *semantic;
 public:

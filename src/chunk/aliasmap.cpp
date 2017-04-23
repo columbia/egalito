@@ -1,6 +1,7 @@
 #include <cstring>  // for strstr
 #include "aliasmap.h"
 #include "concrete.h"
+#include "elf/symbol.h"
 #include "log/log.h"
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
