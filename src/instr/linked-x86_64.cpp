@@ -89,15 +89,14 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                 dispLink = new ExternalNormalLink(found);
             }
             else {
-                dispLink = new DataOffsetLink(
-                    module->getElfSpace()->getElfMap(), target);
+                dispLink = LinkFactory::makeDataLink(module, target, true);
             }
 
             dispIndex = i;
         }
         else if(op->type == X86_OP_IMM) {
             auto elfMap = module->getElfSpace()->getElfMap();
-            if (elfMap->isExecutable() && !elfMap->hasRelocations()) {
+            if(elfMap->isExecutable() && !elfMap->hasRelocations()) {
                 address_t target = op->imm;
                 auto found = CIter::spatial(module->getFunctionList())
                     ->find(target);

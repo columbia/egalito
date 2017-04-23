@@ -8,6 +8,7 @@
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
 void *DataLoader::setupMainData(Module *module, address_t baseAddress) {
+#if 0
     size_t size = sizeof(struct my_pthread); // tcbhead_t not implemented yet
     auto tlsList = module->getTLSList();
     if(tlsList) {
@@ -36,9 +37,12 @@ void *DataLoader::setupMainData(Module *module, address_t baseAddress) {
     }
 
     return tp;
+#endif
+    return nullptr;
 }
 
 void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
+#if 0
     auto tlsList = module->getTLSList();
     if(!tlsList) return nullptr;
     size_t size = 0;
@@ -46,7 +50,7 @@ void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
         size += tls->getSize();
     }
 
-    if(size != 0) {
+    if(size) {
         LOG(1, "mapping TLS region into memory at 0x" << std::hex << baseAddress);
         void *mem = mmap((void *)baseAddress,
                          ROUND_UP(size),
@@ -65,5 +69,7 @@ void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
         return mem;
     }
 
+    return nullptr;
+#endif
     return nullptr;
 }

@@ -72,6 +72,7 @@ public:
 };
 
 typedef ExternalLinkDecorator<NormalLink> ExternalNormalLink;
+typedef ExternalLinkDecorator<AbsoluteNormalLink> ExternalAbsoluteNormalLink;
 typedef ExternalLinkDecorator<OffsetLink> ExternalOffsetLink;
 
 
@@ -118,29 +119,22 @@ public:
 
 // --- data links ---
 
-class ElfMap;
+class DataRegion;
 class DataOffsetLink : public Link {
 private:
-    ElfMap *elf;
+    DataRegion *region;
     address_t target;
 public:
-    DataOffsetLink(ElfMap *elf, address_t target)
-        : elf(elf), target(target) {}
+    DataOffsetLink(DataRegion *region, address_t target)
+        : region(region), target(target) {}
 
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
 };
 
-class AbsoluteDataLink : public Link {
-private:
-    ElfMap *elf;
-    address_t target;
+class AbsoluteDataLink : public DataOffsetLink {
 public:
-    AbsoluteDataLink(ElfMap *elf, address_t target)
-        : elf(elf), target(target) {}
-
-    virtual ChunkRef getTarget() const { return nullptr; }
-    virtual address_t getTargetAddress() const;
+    using DataOffsetLink::DataOffsetLink;
 };
 
 
@@ -175,6 +169,18 @@ public:
 
     virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }
     virtual address_t getTargetAddress() const { throw "ImmAndDispLink not handled"; }
+};
+
+
+// --- link factory ---
+
+class Module;
+class LinkFactory {
+public:
+    static Link *makeNormalLink(ChunkRef target, bool isRelative = true,
+        bool isExternal = false);
+    static Link *makeDataLink(Module *module, address_t target,
+        bool isRelative = true);
 };
 
 #endif

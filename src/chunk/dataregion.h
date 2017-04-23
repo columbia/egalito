@@ -5,14 +5,18 @@
 #include "chunk.h"
 #include "chunklist.h"
 #include "util/iter.h"
+#include "elf/elfxx.h"
 
 class Link;
 
-class DataRegion : public AddressableChunkImpl {
+class DataRegion : public ComputedSizeDecorator<AddressableChunkImpl> {
 private:
     typedef std::vector<Link *> LinkListType;
     LinkListType linkList;
+    ElfXX_Phdr *phdr;
 public:
+    DataRegion(ElfXX_Phdr *phdr);
+
     void addLink(Link *link);
     void removeLink(Link *link);
 
@@ -22,11 +26,20 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
+class ElfMap;
+class Module;
 class DataRegionList : public CollectionChunkImpl<DataRegion> {
+private:
+    DataRegion *tls;
 public:
-    virtual void setSize(size_t newSize) {}  // ignored
-    virtual void addToSize(diff_t add) {}  // ignored
+    void setTLS(DataRegion *tls) { this->tls = tls; }
+    DataRegion *getTLS() const { return tls; }
+
     virtual void accept(ChunkVisitor *visitor);
+
+    Link *createDataLink(address_t target, bool isRelative = true);
+
+    static void buildDataRegionList(ElfMap *elfMap, Module *module);
 };
 
 #endif

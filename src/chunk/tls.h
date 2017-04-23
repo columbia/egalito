@@ -25,7 +25,7 @@ class RelocList;
 
 class TLSList {
 private:
-    class TLSRegion : public DataRegion {
+    class TLSRegion {
     private:
         ElfMap *sourceElf;
         Elf64_Phdr *phdr;

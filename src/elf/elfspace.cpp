@@ -5,6 +5,7 @@
 #include "chunk/dump.h"
 #include "chunk/aliasmap.h"
 #include "chunk/tls.h"
+#include "chunk/dataregion.h"
 #include "disasm/disassemble.h"
 #include "pass/pcrelative.h"
 #include "pass/internalcalls.h"
@@ -60,6 +61,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->module = Disassemble::module(elf, symbolList);
     this->module->setElfSpace(this);
 
+    DataRegionList::buildDataRegionList(elf, module);
+
     InternalCalls internalCalls;
     module->accept(&internalCalls);
 
@@ -72,18 +75,18 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     HandleRelocsPass handleRelocsPass(elf, relocList);
     module->accept(&handleRelocsPass);
 
-    if (module->getPLTList()) {
+    if(module->getPLTList()) {
         ExternalCalls externalCalls(module->getPLTList());
         module->accept(&externalCalls);
     }
 
-    PCRelativePass pcrelative(elf, relocList);
+    PCRelativePass pcrelative(relocList);
     module->accept(&pcrelative);
 
     InferLinksPass inferLinksPass(elf);
     module->accept(&inferLinksPass);
 
-    TLSList::buildTLSList(elf, relocList, module);
+    //TLSList::buildTLSList(elf, relocList, module);
 
     ReloCheckPass checker(relocList);
     module->accept(&checker);

@@ -108,7 +108,6 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
                 i->setSemantic(linked);
                 delete v;
 
-                auto elfMap = module->getElfSpace()->getElfMap();
                 auto targetAddress = r->getSymbol()->getAddress() + r->getAddend();
 
                 for(size_t op = 0;
@@ -120,11 +119,11 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
                     }
                 }
 
-                if (MakeSemantic::isRIPRelative(linked->getAssembly(), linked->getIndex())) {
-                    linked->setLink(new DataOffsetLink(elfMap, targetAddress));
-                } else {
-                    linked->setLink(new AbsoluteDataLink(elfMap, targetAddress));
-                }
+                bool isRelative = MakeSemantic::isRIPRelative(
+                    linked->getAssembly(), linked->getIndex());
+                auto newLink = module->getDataRegionList()->createDataLink(
+                    targetAddress, isRelative);
+                linked->setLink(newLink);
 
                 LOG(2, " -> CREATED DATA LINK");
             }

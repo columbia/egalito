@@ -11,12 +11,11 @@ class Module;
 // Function pointers should be resolved before running this pass.
 class PCRelativePass : public ChunkPass {
 private:
-    ElfMap *elf;
+    Module *module;
     RelocList *relocList;
 public:
-    PCRelativePass(ElfMap *elf, RelocList *relocList) : elf(elf), relocList(relocList) {}
+    PCRelativePass(RelocList *relocList) : relocList(relocList) {}
     virtual void visit(Module *module);
-    virtual void visit(Instruction *instruction) {}
 private:
     virtual void handlePCRelative(Reloc *r, FunctionList *functionList);
 };

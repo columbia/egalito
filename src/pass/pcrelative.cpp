@@ -10,6 +10,7 @@
 void PCRelativePass::visit(Module *module) {
 #if defined(ARCH_X86_64)
 #elif defined(ARCH_AARCH64)
+    this->module = module;
     auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
         auto t = r->getType();
@@ -35,7 +36,7 @@ void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
             auto pcri = new LinkedInstruction(i, *v->getAssembly());
             address_t offset = pcri->getOriginalOffset();
 
-            pcri->setLink(new DataOffsetLink(elf, offset));
+            pcri->setLink(LinkFactory::makeDataLink(module, offset));
             //auto assembly = v->getAssembly();
             //LOG(1, assembly->getMnemonic() << "@" << std::hex << i->getAddress());
             //LOG(1, " target: " << std::hex << pcri->getLink()->getTargetAddress());
@@ -46,4 +47,3 @@ void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
     }
 #endif
 }
-

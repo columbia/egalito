@@ -9,7 +9,7 @@ class FunctionList;
 class BlockSoup;
 class PLTList;
 class JumpTableList;
-class TLSList;
+class DataRegionList;
 
 class Module : public CompositeChunkImpl<Chunk> {
 private:
@@ -19,10 +19,10 @@ private:
     BlockSoup *blockSoup;
     PLTList *pltList;
     JumpTableList *jumpTableList;
-    TLSList *tlsList;
+    DataRegionList *dataRegionList;
 public:
     Module() : elfSpace(nullptr), functionList(nullptr), blockSoup(nullptr),
-        pltList(nullptr), jumpTableList(nullptr), tlsList(nullptr) {}
+        pltList(nullptr), jumpTableList(nullptr), dataRegionList(nullptr) {}
 
     std::string getName() const;
 
@@ -33,13 +33,13 @@ public:
     BlockSoup *getBlockSoup() const { return blockSoup; }
     PLTList *getPLTList() const { return pltList; }
     JumpTableList *getJumpTableList() const { return jumpTableList; }
-    TLSList *getTLSList() const { return tlsList; }
+    DataRegionList *getDataRegionList() const { return dataRegionList; }
 
     void setFunctionList(FunctionList *list) { functionList = list; }
     void setBlockSoup(BlockSoup *soup) { blockSoup = soup; }
     void setPLTList(PLTList *list) { pltList = list; }
-    void setTLSList(TLSList *list) { tlsList = list; }
     void setJumpTableList(JumpTableList *list) { jumpTableList = list; }
+    void setDataRegionList(DataRegionList *list) { dataRegionList = list; }
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

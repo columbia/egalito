@@ -5,6 +5,7 @@
 #include "elf/reloc.h"
 #include "log/log.h"
 
+#if 0
 void TLSList::buildTLSList(ElfMap *elf, RelocList *relocList, Module *module) {
     TLSList *list = nullptr;
 
@@ -58,3 +59,4 @@ void TLSList::resolveRelocs(ElfMap *elf) {
         *(unsigned long *)location = value;
     }
 }
+#endif

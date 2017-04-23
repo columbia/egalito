@@ -15,6 +15,5 @@ class PLTTrampoline;
 class JumpTable;
 class JumpTableEntry;
 class DataRegion;
-class TLSList;
 
 #endif
