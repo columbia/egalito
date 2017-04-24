@@ -22,7 +22,7 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr
+TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr islower
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
@@ -68,6 +68,7 @@ $(eval $(call dep_rule,stack,stack.c))
 $(eval $(call dep_rule,log,log.c))
 $(eval $(call dep_rule,stderr,stderr.c))
 $(eval $(call dep_rule,hellocpp,hellocpp.cpp))
+$(eval $(call dep_rule,islower,islower.c))
 
 $(BUILDDIR)hello-obj: hello-obj.c
 
