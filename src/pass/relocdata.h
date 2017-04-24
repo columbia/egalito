@@ -36,16 +36,12 @@ private:
 */
 class RelocDataPass : public ChunkPass {
 private:
-    ElfMap *elf;
     ElfSpace *elfSpace;
-    RelocList *relocList;
     Conductor *conductor;
     Module *module;
 public:
-    RelocDataPass(ElfMap *elf, ElfSpace *elfSpace, RelocList *relocList,
-        Conductor *conductor)
-        : elf(elf), elfSpace(elfSpace), relocList(relocList),
-        conductor(conductor) {}
+    RelocDataPass(ElfSpace *elfSpace, Conductor *conductor)
+        : elfSpace(elfSpace), conductor(conductor) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:

@@ -61,26 +61,22 @@ void Conductor::resolvePLTLinks() {
 }
 
 void Conductor::fixDataSections() {
-    for(auto module : CIter::children(program)) {
-        fixDataSection(module->getElfSpace());
-    }
-
     loadTLSData();
+
+    for(auto module : CIter::children(program)) {
+        fixDataSection(module);
+    }
 }
 
-void Conductor::fixDataSection(ElfSpace *elfSpace) {
-    RelocDataPass relocData(
-        elfSpace->getElfMap(),
-        elfSpace,
-        elfSpace->getRelocList(),
-        this);
-    elfSpace->getModule()->accept(&relocData);
+void Conductor::fixDataSection(Module *module) {
+    RelocDataPass relocData(module->getElfSpace(), this);
+    module->accept(&relocData);
 
     FixJumpTablesPass fixJumpTables;
-    elfSpace->getModule()->accept(&fixJumpTables);
+    module->accept(&fixJumpTables);
 
     FixDataRegionsPass fixDataRegions;
-    elfSpace->getModule()->accept(&fixDataRegions);
+    module->accept(&fixDataRegions);
 }
 
 void Conductor::loadTLSData() {
@@ -108,6 +104,17 @@ void Conductor::loadTLSData() {
     auto region = regionList->getTLS();
     mainThreadPointer = DataLoader(libc->getElfMap())
         .mapTLS(region, 0xd0000000);
+
+    int i = 1;
+    for(auto module : CIter::children(program)) {
+        if(module == libc->getElfSpace()->getModule()) continue;
+        auto tls = module->getDataRegionList()->getTLS();
+        if(!tls) continue;
+
+        DataLoader(module->getElfSpace()->getElfMap())
+            .mapTLS(tls, 0xd0000000 + i*0x1000000);
+        i ++;
+    }
 #endif
 }
 

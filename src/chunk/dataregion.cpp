@@ -1,10 +1,18 @@
+#include <iomanip>
 #include "dataregion.h"
 #include "link.h"
 #include "position.h"
 #include "concrete.h"
 #include "visitor.h"
 #include "elf/elfspace.h"
+#include "util/streamasstring.h"
 #include "log/log.h"
+
+std::string DataRegion::getName() const {
+    StreamAsString stream;
+    stream << "region-0x" << std::hex << originalAddress;
+    return stream;
+}
 
 address_t DataVariable::getAddress() {
     return region->getAddress() + offset;
@@ -14,6 +22,7 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     this->phdr = phdr;
     setPosition(new AbsolutePosition(phdr->p_vaddr));
     setSize(phdr->p_memsz);
+    originalAddress = getAddress();
 }
 
 void DataRegion::addVariable(DataVariable *variable) {
@@ -32,6 +41,16 @@ void DataRegion::updateAddressFor(address_t baseAddress) {
 
 void DataRegion::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
+}
+
+std::string TLSDataRegion::getName() const {
+    return "region-TLS";
+}
+
+void TLSDataRegion::updateAddressFor(address_t baseAddress) {
+    LOG(1, "UPDATE address for TLSDataRegion from " << std::hex
+        << getAddress() << " to " << baseAddress);
+    getPosition()->set(baseAddress);
 }
 
 void DataRegionList::accept(ChunkVisitor *visitor) {
@@ -57,29 +76,18 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
 }
 
 DataRegion *DataRegionList::findRegionContaining(address_t target) {
+    // check for TLS region first, since it will overlap another LOAD segment
+    if(tls && tls->contains(target)) return tls;
+
     for(auto region : CIter::children(this)) {
+        if(region == tls) continue;
+
         if(region->contains(target)) {
             return region;
         }
     }
     return nullptr;
 }
-
-#if 0
-bool DataRegionList::isRelocationRelative(Reloc *r) {
-    switch(r->getType()) {
-    case R_X86_64_GLOB_DAT:     return false;
-    case R_X86_64_JUMP_SLOT:    return false;
-    case R_X86_64_PLT32:        return false;
-    case R_X86_64_PC32:         return true;
-    case R_X86_64_64:           return false;
-    case R_X86_64_RELATIVE:     return true;
-    case R_X86_64_TPOFF64:      return false;  // index into tls table
-    case R_X86_64_COPY:         return false;  // hmm...
-    default:                    return false;
-    }
-}
-#endif
 
 Link *DataRegionList::resolveVariableLink(Reloc *reloc) {
 #ifdef ARCH_X86_64
@@ -99,16 +107,15 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     for(void *s : elfMap->getSegmentList()) {
         Elf64_Phdr *phdr = static_cast<Elf64_Phdr *>(s);
 
-        DataRegion *region = nullptr;
         if(phdr->p_type == PT_LOAD /*&& phdr->p_flags == (PF_R | PF_W)*/) {
-            region = new DataRegion(elfMap, phdr);
+            auto region = new DataRegion(elfMap, phdr);
             LOG(1, "Found data region at 0x"
                 << std::hex << region->getAddress()
                 << " size 0x" << region->getSize());
             list->getChildren()->add(region);
         }
         else if(phdr->p_type == PT_TLS) {
-            auto region = new DataRegion(elfMap, phdr);
+            auto region = new TLSDataRegion(elfMap, phdr);
             LOG(1, "Found TLS data region at 0x"
                 << std::hex << region->getAddress()
                 << " size 0x" << region->getSize());
@@ -119,35 +126,18 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
 
     // make variables for all relocations located inside the regions
     for(auto reloc : *module->getElfSpace()->getRelocList()) {
-#if 0
-        switch(reloc->getType()) {
-        case R_X86_64_GLOB_DAT:
-        case R_X86_64_JUMP_SLOT:
-        case R_X86_64_PLT32:
-        case R_X86_64_64:
-            link = list->createDataLink(reloc->getAddress(), false);
-            break;
-        case R_X86_64_PC32:
-        case R_X86_64_RELATIVE:
-            // in theory variables might use relative relocations, but that
-            // would normally be for jump tables (handled separately)
-            break;
-        case R_X86_64_TPOFF64:  // index into tls table
-        case R_X86_64_COPY:
-        default:
-            break;
-        }
-#endif
-
-        if(auto link = list->resolveVariableLink(reloc)) {
-            // source region (will be different from the link's dest region)
-            auto region = list->findRegionContaining(reloc->getAddress());
-            if(region) {
-                auto var = new DataVariable(region,
-                    reloc->getAddress() - region->getAddress(), link);
-                region->addVariable(var);
+        // source region (will be different from the link's dest region)
+        auto sourceRegion = list->findRegionContaining(reloc->getAddress());
+        if(sourceRegion) {
+            if(auto link = list->resolveVariableLink(reloc)) {
+                LOG(1, "resolving a variable at " << std::hex
+                    << reloc->getAddress()
+                    << " => " << reloc->getAddend());
+                if(sourceRegion == list->getTLS()) LOG(1, "TLS!");
+                auto var = new DataVariable(sourceRegion,
+                    reloc->getAddress() - sourceRegion->getAddress(), link);
+                sourceRegion->addVariable(var);
             }
-            else delete link;
         }
     }
 

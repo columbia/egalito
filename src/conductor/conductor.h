@@ -20,7 +20,7 @@ public:
 
     void resolvePLTLinks();
     void fixDataSections();
-    void fixDataSection(ElfSpace *elfSpace);
+    void fixDataSection(Module *module);
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);

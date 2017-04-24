@@ -21,6 +21,7 @@ public:
         : region(region), offset(offset), dest(dest) {}
 
     address_t getAddress();
+    address_t getOffset() const { return offset; }
     Link *getDest() const { return dest; }
 };
 
@@ -29,20 +30,34 @@ private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
     ElfXX_Phdr *phdr;
+    address_t originalAddress;
 public:
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
+    virtual ~DataRegion() {}
+
+    virtual std::string getName() const;
 
     ElfXX_Phdr *getPhdr() const { return phdr; }
 
     void addVariable(DataVariable *variable);
     bool contains(address_t address);
 
-    void updateAddressFor(address_t baseAddress);
+    virtual void updateAddressFor(address_t baseAddress);
+    address_t getOriginalAddress() const { return originalAddress; }
 
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
 
     virtual void accept(ChunkVisitor *visitor);
+};
+
+class TLSDataRegion : public DataRegion {
+public:
+    using DataRegion::DataRegion;
+
+    virtual std::string getName() const;
+
+    virtual void updateAddressFor(address_t baseAddress);
 };
 
 class ElfMap;

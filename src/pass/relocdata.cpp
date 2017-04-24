@@ -137,7 +137,7 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
 
 void RelocDataPass::visit(Module *module) {
     this->module = module;
-    for(auto r : *relocList) {
+    for(auto r : *elfSpace->getRelocList()) {
         fixRelocation(r);
     }
 }
@@ -157,8 +157,10 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     LOG(1, "trying to fix " << (name ? name : "???")
         << " reloc type " << std::dec << (int)r->getType());
 
+    auto elfMap = elfSpace->getElfMap();
+
 #ifdef ARCH_X86_64
-    address_t update = elf->getBaseAddress() + r->getAddress();
+    address_t update = elfMap->getBaseAddress() + r->getAddress();
     address_t dest = 0;
     bool found = false;
 
@@ -187,7 +189,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_X86_64_RELATIVE) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
         if(!found) {
-            dest = elf->getBaseAddress() + r->getAddend();
+            dest = elfMap->getBaseAddress() + r->getAddend();
             found = true;
         }
     }
@@ -218,7 +220,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         *(unsigned long *)update = dest;
     }
 #else
-    address_t update = elf->getBaseAddress() + r->getAddress();
+    address_t update = elfMap->getBaseAddress() + r->getAddress();
     address_t dest = 0;
     bool found = false;
 
@@ -231,7 +233,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else if(r->getType() == R_AARCH64_RELATIVE) {
         found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
         if(!found) {
-            dest = elf->getBaseAddress() + r->getAddend();
+            dest = elfMap->getBaseAddress() + r->getAddend();
             found = true;
         }
     }
