@@ -15,22 +15,27 @@ public:
 
     using Section::add;
     void add(Function *func, Symbol *sym, size_t nameStrIndex);
+    void add(ElfXX_Sym symbol);
 
     // we allow both concrete and deferred data here
     virtual size_t getSize() const
         { return Section::getSize() + DeferredContentSection<Symbol, ElfXX_Sym>::getSize(); }
 
     virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+
+public:
+    size_t findIndexWithShIndex(size_t idx);
 };
 
-class RelocationSection : public Section {
+class RelocationSection : public PtrDeferredContentSection<Section, ElfXX_Rela> {
 private:
     Section *targetSection;
 public:
-    using Section::Section;
+    using PtrDeferredContentSection::PtrDeferredContentSection;
 
     void setTargetSection(Section *target) { targetSection = target; }
-
+    void addRelaPair(Section *section, ElfXX_Rela *rela)
+        { addElement(section, rela); }
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 

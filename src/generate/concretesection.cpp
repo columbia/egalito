@@ -19,6 +19,27 @@ void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
         << getCount());
 }
 
+void SymbolTableSection::add(ElfXX_Sym symbol) {
+    address_t address = symbol.st_value;
+    size_t size = symbol.st_size;
+    auto type = Symbol::typeFromElfToInternal(symbol.st_info);
+    auto bind = Symbol::bindFromElfToInternal(symbol.st_info);
+    Symbol *sym = new Symbol(address, size, "",
+        type, bind, 0, symbol.st_shndx);
+    addElement(sym, symbol);
+}
+
+size_t SymbolTableSection::findIndexWithShIndex(size_t idx) {
+    size_t index = 0;
+    for(auto symbol : getContentMap()) {
+        if(symbol.second.st_shndx == idx) {
+            return index;
+        }
+        index++;
+    }
+    return index;
+}
+
 ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
     auto shdr = Section::makeShdr(index, nameStrIndex);
     shdr->sh_info = getCount();

@@ -11,10 +11,12 @@ ObjGen::Sections::Sections() {
     header = new Section(".elfheader");
     strtab = new Section(".strtab", SHT_STRTAB);
     shstrtab = new Section(".shstrtab", SHT_STRTAB);
+    symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
     text = nullptr;
     sections.push_back(header);
     sections.push_back(strtab);
     sections.push_back(shstrtab);
+    sections.push_back(symtab);
 }
 
 ObjGen::Sections::~Sections() {
@@ -40,9 +42,11 @@ void ObjGen::generate() {
     makeHeader();
     makeText();
     makeSymbolInfo();
+    makeRoData();
     makeShdrTable();
-    updateOffsetAndAddress();  // must run before updateShdrTable()
     updateSymbolTable();  // must run after .text & shdrTable are created
+    updateRelocations();
+    updateOffsetAndAddress();  // must run before updateShdrTable()
     updateShdrTable();
     updateHeader();
     serialize();
@@ -97,12 +101,8 @@ void ObjGen::makeText() {
     }
 }
 
-void ObjGen::makeROData() {
-
-}
-
 void ObjGen::makeSymbolInfo() {
-    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
+    auto symtab = sections->getSymTab();
     auto strtab = sections->getStrTab();
 
     {  // add null symbol
@@ -111,17 +111,6 @@ void ObjGen::makeSymbolInfo() {
         symbol.st_info = 0;
         symbol.st_other = STV_DEFAULT;
         symbol.st_shndx = 0;
-        symbol.st_value = 0;
-        symbol.st_size = 0;
-        symtab->add(static_cast<void *>(&symbol), sizeof(symbol));
-    }
-
-    {  // add .text SECTION symbol
-        ElfXX_Sym symbol;
-        symbol.st_name = strtab->add("", 1);
-        symbol.st_info = ELFXX_ST_INFO(STB_LOCAL, STT_SECTION);
-        symbol.st_other = STV_DEFAULT;
-        symbol.st_shndx = 3;  // !!!!!!!!!
         symbol.st_value = 0;
         symbol.st_size = 0;
         symtab->add(static_cast<void *>(&symbol), sizeof(symbol));
@@ -164,7 +153,29 @@ void ObjGen::makeSymbolInfo() {
     }
 
     symtab->setSectionLink(strtab);
-    sections->addSection(symtab);
+}
+
+void ObjGen::makeRoData() {
+    auto elfMap = elfSpace->getElfMap();
+    auto oldRoDataShdr = elfMap->findSection(".rodata")->getHeader();
+    auto roDataSection = new Section(".rodata", SHT_PROGBITS, SHF_ALLOC);
+    char *address = elfMap->getCharmap() + oldRoDataShdr->sh_offset;
+    roDataSection->add(address, oldRoDataShdr->sh_size);
+    sections->addSection(roDataSection);
+
+    auto symtab = static_cast<SymbolTableSection *>(
+        sections->findSection(".symtab"));
+    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, SHF_ALLOC);
+    relaRoDataSection->setTargetSection(roDataSection);
+    relaRoDataSection->setSectionLink(symtab);
+    {
+        ElfXX_Rela *rela = new ElfXX_Rela();
+        rela->r_offset = 0;
+        rela->r_info = ELFXX_R_INFO(0, R_X86_64_32S);
+        rela->r_addend = 0;
+        relaRoDataSection->addRelaPair(roDataSection, rela);
+    }
+    sections->addSection(relaRoDataSection);
 }
 
 void ObjGen::makeShdrTable() {
@@ -200,13 +211,39 @@ void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
     auto shdrTable = static_cast<ShdrTableSection *>(
         sections->findSection(".shdr_table"));
-    auto symtab = static_cast<SymbolTableSection *>(
-        sections->findSection(".symtab"));
+    auto strtab = sections->getStrTab();
+    auto symtab = sections->getSymTab();
     auto text = sections->getText();
     auto textIndex = shdrTable->findIndex(text);
 
     for(auto symbol : symtab->getContentList()) {
         symtab->findContent(symbol).st_shndx = textIndex;
+    }
+
+    for(auto shdrPair : shdrTable->getContentMap()) {
+        if(shdrPair.second->sh_type == SHT_NULL)
+            continue;
+        ElfXX_Sym symbol;
+        symbol.st_name = strtab->add("", 1);
+        symbol.st_info = ELFXX_ST_INFO(STB_LOCAL, STT_SECTION);
+        symbol.st_other = STV_DEFAULT;
+        symbol.st_shndx = shdrTable->findIndex(shdrPair.first);
+        symbol.st_value = 0;
+        symbol.st_size = 0;
+        symtab->add(symbol);
+    }
+}
+
+void ObjGen::updateRelocations() {
+    auto symtab = sections->getSymTab();
+    auto shdrTable = static_cast<ShdrTableSection *>(
+        sections->findSection(".shdr_table"));
+    auto *relaRoDataSection = static_cast<RelocationSection *>(
+        sections->findSection(".rela.rodata"));
+    for(auto relaPair : relaRoDataSection->getContentMap()) {
+        auto index = symtab->findIndexWithShIndex(shdrTable->findIndex(relaPair.first)) + 1;
+        LOG(1, "updating rela.rodata " << shdrTable->findIndex(relaPair.first));
+        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_32S);
     }
 }
 
@@ -219,7 +256,6 @@ void ObjGen::updateShdrTable() {
         shdr->sh_offset = section->getOffset();
         shdr->sh_addr   = section->getAddress();
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
-        //shdrTable->add(shdr, sizeof(shdr));
     }
 }
 

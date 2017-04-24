@@ -12,6 +12,7 @@ private:
         Section *header;
         Section *strtab;
         Section *shstrtab;
+        SymbolTableSection *symtab;
         Section *text;
     public:
         Sections();
@@ -24,6 +25,7 @@ private:
         Section *getHeader() { return header; }
         Section *getStrTab() { return strtab; }
         Section *getShStrTab() { return shstrtab; }
+        SymbolTableSection *getSymTab() { return symtab; }
         Section *getText() { return text; }
         void addTextSection(Section *s) { addSection(s); text = s; }
     };
@@ -41,12 +43,13 @@ public:
 private:
     void makeHeader();
     void makeText();
-    void makeROData();
     void makeSymbolInfo();
+    void makeRoData();
     void makeShdrTable();
 private:
-    void updateOffsetAndAddress();
     void updateSymbolTable();
+    void updateRelocations();
+    void updateOffsetAndAddress();
     void updateShdrTable();
     void updateHeader();
     void serialize();
