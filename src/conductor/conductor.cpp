@@ -127,7 +127,7 @@ void Conductor::loadTLSData() {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
             LOG(1, "copying in TLS for " << module->getName() << " at "
-                << offset);
+                << offset << " size " << tls->getSize());
             tls->setTLSOffset((base + offset) - mainThreadPointer);
             dataLoader.copyTLSData(module->getElfSpace()->getElfMap(),
                 tls, offset);
@@ -139,6 +139,8 @@ void Conductor::loadTLSData() {
     // x86: place executable's TLS (if present) right before the header
     auto executable = program->getMain();
     if(auto tls = executable->getDataRegionList()->getTLS()) {
+        LOG(1, "copying in TLS for " << executable->getName() << " at "
+            << offset << " size " << tls->getSize());
         tls->setTLSOffset((base + offset) - mainThreadPointer);
         dataLoader.copyTLSData(executable->getElfSpace()->getElfMap(),
             tls, offset);

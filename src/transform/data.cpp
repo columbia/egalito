@@ -3,6 +3,7 @@
 #include "data.h"
 #include "chunk/tls.h"
 #include "dep/rtld/pthread.h"
+#include "dep/rtld/tcbhead.h"
 #include "elf/elfspace.h"
 #include "log/log.h"
 
@@ -75,7 +76,7 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
 #ifdef ARCH_X86_64
     // header is at the end
     address_t tp = tlsBaseAddress + size;
-    size += sizeof(struct my_pthread);  // add space for header
+    size += sizeof(struct my_tcbhead_t);  // add space for header
 #elif defined(ARCH_AARCH64)
     // header is at the beginning
     address_t tp = tlsBaseAddress + sizeof(struct my_pthread);

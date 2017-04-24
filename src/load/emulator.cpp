@@ -59,6 +59,9 @@ void LoaderEmulator::useArgv(char **argv) {
     addSymbol("_rtld_global_ro", &Emulation::_rtld_global_ro);
 
     addSymbol("global_conductor", &global_conductor);
+
+    Emulation::_rtld_global_ro._dl_lookup_symbol_x
+        = (void *)&Emulation::function_not_implemented;
 }
 
 LoaderEmulator LoaderEmulator::instance;

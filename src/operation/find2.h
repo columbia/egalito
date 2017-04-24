@@ -14,6 +14,7 @@ private:
 public:
     ChunkFind2(Conductor *conductor);
     ChunkFind2(Program *program) : program(program) {}
+    ChunkFind2() : program(nullptr) {}
 
     Function *findFunction(const char *name, Module *source = nullptr);
     Function *findFunctionInModule(const char *name, Module *module);

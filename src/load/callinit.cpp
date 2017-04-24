@@ -1,11 +1,20 @@
 #include "callinit.h"
 #include "elf/elfspace.h"
 #include "chunk/concrete.h"
+#include "operation/find2.h"
 #include "log/log.h"
 
 void CallInit::callInitFunctions(ElfSpace *space) {
     auto elf = space->getElfMap();
     auto module = space->getModule();
+
+    auto _init = ChunkFind2().findFunctionInModule("_init", module);
+    if(_init) {
+        LOG(1, "invoking init function " << _init->getName());
+        // !!! we should actually call this in transformed code...
+        ((void (*)())_init->getAddress())();
+    }
+
     auto init_array = elf->findSection(".init_array");
     if(init_array) {
         unsigned long *array = elf->getSectionReadPtr<unsigned long *>(init_array);
