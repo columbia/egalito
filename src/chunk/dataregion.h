@@ -51,13 +51,22 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
+/** Maintains a tlsOffset, which is the offset from the beginning of all TLS
+    data to this particular TLS region.
+*/
 class TLSDataRegion : public DataRegion {
+private:
+    address_t tlsOffset;
 public:
-    using DataRegion::DataRegion;
+    TLSDataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr)
+        : DataRegion(elfMap, phdr), tlsOffset(0) {}
 
     virtual std::string getName() const;
 
     virtual void updateAddressFor(address_t baseAddress);
+
+    void setTLSOffset(address_t offset) { tlsOffset = offset; }
+    address_t getTLSOffset() const { return tlsOffset; }
 };
 
 class ElfMap;
@@ -65,10 +74,10 @@ class Module;
 class Reloc;
 class DataRegionList : public CollectionChunkImpl<DataRegion> {
 private:
-    DataRegion *tls;
+    TLSDataRegion *tls;
 public:
-    void setTLS(DataRegion *tls) { this->tls = tls; }
-    DataRegion *getTLS() const { return tls; }
+    void setTLS(TLSDataRegion *tls) { this->tls = tls; }
+    TLSDataRegion *getTLS() const { return tls; }
 
     virtual void accept(ChunkVisitor *visitor);
 

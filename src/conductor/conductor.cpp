@@ -29,7 +29,7 @@ void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
     space->findDependencies(getLibraryList());
     space->buildDataStructures();
     getSpaceList()->addEgalito(space);
-    program->getChildren()->add(space->getModule());
+    program->add(space->getModule());
 }
 
 void Conductor::parseLibraries() {
@@ -49,7 +49,12 @@ void Conductor::parse(ElfMap *elf, SharedLib *library) {
     space->findDependencies(getLibraryList());
     space->buildDataStructures();
     getSpaceList()->add(space, library == nullptr);
-    program->getChildren()->add(space->getModule());
+    if(library == nullptr) {
+        program->addMain(space->getModule());
+    }
+    else {
+        program->add(space->getModule());
+    }
 }
 
 void Conductor::resolvePLTLinks() {
@@ -99,22 +104,47 @@ void Conductor::loadTLSData() {
 #endif
     }
 #else
-    auto libc = getLibraryList()->getLibc();
-    auto regionList = libc->getElfSpace()->getModule()->getDataRegionList();
-    auto region = regionList->getTLS();
-    mainThreadPointer = DataLoader(libc->getElfMap())
-        .mapTLS(region, 0xd0000000);
+    const static address_t base = 0xd0000000;
+    DataLoader dataLoader(base);
 
-    int i = 1;
+    // calculate size
+    size_t size = 0;
     for(auto module : CIter::children(program)) {
-        if(module == libc->getElfSpace()->getModule()) continue;
         auto tls = module->getDataRegionList()->getTLS();
-        if(!tls) continue;
-
-        DataLoader(module->getElfSpace()->getElfMap())
-            .mapTLS(tls, 0xd0000000 + i*0x1000000);
-        i ++;
+        if(tls) size += tls->getSize();
     }
+
+    // allocate headers
+    address_t offset = 0;
+    mainThreadPointer = dataLoader.allocateTLS(size, &offset);
+
+    // copy in individual TLS regions
+    for(auto module : CIter::children(program)) {
+#ifdef ARCH_X86_64
+        if(module == program->getMain()) continue;
+#endif
+
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls) {
+            LOG(1, "copying in TLS for " << module->getName() << " at "
+                << offset);
+            tls->setTLSOffset((base + offset) - mainThreadPointer);
+            dataLoader.copyTLSData(module->getElfSpace()->getElfMap(),
+                tls, offset);
+            offset += tls->getSize();
+        }
+    }
+
+#ifdef ARCH_X86_64
+    // x86: place executable's TLS (if present) right before the header
+    auto executable = program->getMain();
+    if(auto tls = executable->getDataRegionList()->getTLS()) {
+        tls->setTLSOffset((base + offset) - mainThreadPointer);
+        dataLoader.copyTLSData(executable->getElfSpace()->getElfMap(),
+            tls, offset);
+        offset += tls->getSize();
+    }
+#endif
 #endif
 }
 

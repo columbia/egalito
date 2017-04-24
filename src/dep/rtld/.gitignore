@@ -7,6 +7,7 @@
 /rtld_data1.c
 /rtld_data2.c
 /pthread.h
+/tcbhead.h
 /test
 /reproduce
 /build_x86_64

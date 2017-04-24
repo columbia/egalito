@@ -4,16 +4,21 @@
 #include "types.h"
 
 class ElfMap;
-class DataRegion;
+class TLSDataRegion;
 
 class DataLoader {
 private:
-    ElfMap *elfMap;
+    address_t tlsBaseAddress;
 public:
-    DataLoader(ElfMap *elfMap) : elfMap(elfMap) {}
-    void *mapTLS(DataRegion *tls, address_t baseAddress);
-private:
-    void copyTLSData(DataRegion *tls, address_t loadAddress);
+    DataLoader(address_t tlsBaseAddress)
+        : tlsBaseAddress(tlsBaseAddress) {}
+
+    /** Returns thread pointer for this platform's TLS.
+        offset will be incremented by the size of the header.
+    */
+    address_t allocateTLS(size_t size, size_t *offset);
+    void copyTLSData(ElfMap *elfMap, TLSDataRegion *tls,
+        address_t offset);
 };
 
 #endif

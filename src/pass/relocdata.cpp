@@ -195,8 +195,11 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
     else if(r->getType() == R_X86_64_TPOFF64) {
         // stores an index into the thread-local storage table at %fs
-        dest = r->getAddend();
-        found = true;
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls) {
+            dest = tls->getTLSOffset() + r->getAddend();
+            found = true;
+        }
     }
     else if(r->getType() == R_X86_64_COPY) {
         address_t other;

@@ -7,6 +7,7 @@
 #include "segmap.h"
 #include "emulator.h"
 #include "callinit.h"
+#include "preparetls.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
@@ -18,10 +19,10 @@
 
 extern address_t entry;
 extern const char *initial_stack;
-extern void *main_tp;
+extern address_t main_tp;
 extern "C" void _start2(void);
 #ifdef ARCH_X86_64
-extern "C" void _set_fs(void *fs);
+extern "C" void _set_fs(address_t fs);
 #endif
 
 static void mapSegments(ConductorSetup *setup);
@@ -71,11 +72,8 @@ int main(int argc, char *argv[]) {
         std::cout.flush();
         std::fflush(stdout);
 
-        main_tp = setup.getMainThreadPointer();
-#ifdef ARCH_X86_64
-        LOG(1, "set %""fs to point at " << main_tp);
-        _set_fs(main_tp);
-#endif
+        PrepareTLS::prepare(setup.getConductor());
+
         // jump to the interpreter/target program (never returns)
         _start2();
     }

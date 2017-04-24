@@ -61,6 +61,10 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
             currentSymbolList = dynamicSymbolList;
         }
 
+        // We don't have the appropriate symbol section for these relocations.
+        // This can happen when a shared object is statically linked.
+        if(!currentSymbolList) continue;
+
         ElfXX_Rela *data = reinterpret_cast<ElfXX_Rela *>
             (elf->getCharmap() + s->sh_offset);
 

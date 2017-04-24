@@ -71,30 +71,38 @@ void *DataLoader::loadLibraryTLSData(Module *module, address_t baseAddress) {
 }
 #endif
 
-void *DataLoader::mapTLS(DataRegion *tls, address_t baseAddress) {
-    if(!tls) return nullptr;
+address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
+#ifdef ARCH_X86_64
+    // header is at the end
+    address_t tp = tlsBaseAddress + size;
+    size += sizeof(struct my_pthread);  // add space for header
+#elif defined(ARCH_AARCH64)
+    // header is at the beginning
+    address_t tp = tlsBaseAddress + sizeof(struct my_pthread);
+    if(offset) *offset += sizeof(struct my_pthread);
+#endif
 
-    LOG(1, "mapping TLS region into memory at 0x" << std::hex << baseAddress);
-    void *mem = mmap((void *)baseAddress,
-                     ROUND_UP(tls->getSize()),
-                     PROT_READ | PROT_WRITE,
-                     MAP_ANONYMOUS | MAP_PRIVATE,
-                     -1, 0);
+    LOG(1, "mapping TLS region into memory at 0x" << std::hex << tlsBaseAddress
+        << ", size 0x" << size);
+    void *mem = mmap((void *)tlsBaseAddress,
+        ROUND_UP(size),
+        PROT_READ | PROT_WRITE,
+        MAP_ANONYMOUS | MAP_PRIVATE,
+        -1, 0);
     if(mem == (void *)-1) throw "Out of memory?";
-    if(mem != (void *)baseAddress) throw "Overlapping with other regions?";
-    auto addr = reinterpret_cast<address_t>(mem);
-    copyTLSData(tls, addr);
-    return mem;
+    if(mem != (void *)tlsBaseAddress) throw "Overlapping with other regions?";
+
+    return tp;
 }
 
-void DataLoader::copyTLSData(DataRegion *tls, address_t loadAddress) {
+void DataLoader::copyTLSData(ElfMap *elfMap, TLSDataRegion *tls, address_t offset) {
     auto phdr = tls->getPhdr();
     address_t sourceAddr = elfMap->getBaseAddress() + phdr->p_vaddr;
     char *source = reinterpret_cast<char *>(sourceAddr);
-    char *output = reinterpret_cast<char *>(loadAddress);
+    char *output = reinterpret_cast<char *>(tlsBaseAddress + offset);
 
     std::memcpy(output, source, phdr->p_filesz);
     std::memset(output + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
 
-    tls->updateAddressFor(loadAddress);
+    tls->updateAddressFor(tlsBaseAddress + offset);
 }

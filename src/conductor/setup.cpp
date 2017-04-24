@@ -143,10 +143,6 @@ address_t ConductorSetup::getEntryPoint() {
 #endif
 }
 
-void *ConductorSetup::getMainThreadPointer() {
-    return getConductor()->getMainThreadPointer();
-}
-
 bool ConductorSetup::setBaseAddress(ElfMap *map, address_t base) {
     if(!map) return false;
 

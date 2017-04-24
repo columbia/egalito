@@ -15,6 +15,7 @@ RUN_GDB = $(GDB) -n -q -x reconstruct.py
 
 GDB_GEN_FILES = rtld.h assign1.c assign2.c generate1.c generate2.c
 GDB_GEN_FILES += pthread.h
+GDB_GEN_FILES += tcbhead.h
 TEST_GEN_FILES = rtld_data1.c rtld_data2.c
 ALL_GEN_FILES = $(GDB_GEN_FILES) $(TEST_GEN_FILES)
 
@@ -50,6 +51,9 @@ $(BUILDDIR)rtld.h: | depends
 $(BUILDDIR)pthread.h: | depends
 	$(RUN_GDB) -x pthread.gdb $(LIBC) | grep -v 'done\.' \
 		| sed 's/struct pthread/struct my_pthread/' > $@
+$(BUILDDIR)tcbhead.h: | depends
+	$(RUN_GDB) -x tcbhead.gdb $(LIBC) | grep -v 'done\.' \
+		| sed 's/tcbhead_t/struct my_tcbhead_t/' > $@
 
 $(BUILDDIR)%.c: %.gdb | depends
 	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' > $@

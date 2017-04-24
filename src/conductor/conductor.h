@@ -9,7 +9,7 @@ class Conductor {
 private:
     ElfForest *forest;
     Program *program;
-    void *mainThreadPointer;
+    address_t mainThreadPointer;
 public:
     Conductor();
     ~Conductor();
@@ -30,7 +30,7 @@ public:
     LibraryList *getLibraryList() const { return forest->getLibraryList(); }
     ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
 
-    void *getMainThreadPointer() const { return mainThreadPointer; }
+    address_t getMainThreadPointer() const { return mainThreadPointer; }
 private:
     void parse(ElfMap *elf, SharedLib *library);
     void loadTLSData();
