@@ -171,7 +171,7 @@ void ObjGen::makeRoData() {
     {
         ElfXX_Rela *rela = new ElfXX_Rela();
         rela->r_offset = 0;
-        rela->r_info = ELFXX_R_INFO(0, R_X86_64_32S);
+        rela->r_info = ELFXX_R_INFO(0, R_X86_64_64);
         rela->r_addend = 0;
         relaRoDataSection->addRelaPair(roDataSection, rela);
     }
@@ -224,7 +224,7 @@ void ObjGen::updateSymbolTable() {
         if(shdrPair.second->sh_type == SHT_NULL)
             continue;
         ElfXX_Sym symbol;
-        symbol.st_name = strtab->add("", 1);
+        symbol.st_name = 0;
         symbol.st_info = ELFXX_ST_INFO(STB_LOCAL, STT_SECTION);
         symbol.st_other = STV_DEFAULT;
         symbol.st_shndx = shdrTable->findIndex(shdrPair.first);
@@ -243,7 +243,7 @@ void ObjGen::updateRelocations() {
     for(auto relaPair : relaRoDataSection->getContentMap()) {
         auto index = symtab->findIndexWithShIndex(shdrTable->findIndex(relaPair.first)) + 1;
         LOG(1, "updating rela.rodata " << shdrTable->findIndex(relaPair.first));
-        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_32S);
+        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_64);
     }
 }
 
