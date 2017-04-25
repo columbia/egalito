@@ -131,7 +131,7 @@ void ObjGen::makeSymbolInfo() {
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
         if(blacklist.find(func->getName()) != blacklist.end()) {
-            //continue;  // skip making a symbol for this function
+            continue;  // skip making a symbol for this function
         }
 
         // fix addresses for objgen
