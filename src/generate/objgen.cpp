@@ -165,7 +165,7 @@ void ObjGen::makeRoData() {
 
     auto symtab = static_cast<SymbolTableSection *>(
         sections->findSection(".symtab"));
-    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, SHF_ALLOC);
+    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, 0);
     relaRoDataSection->setTargetSection(roDataSection);
     relaRoDataSection->setSectionLink(symtab);
     {
@@ -211,7 +211,6 @@ void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
     auto shdrTable = static_cast<ShdrTableSection *>(
         sections->findSection(".shdr_table"));
-    auto strtab = sections->getStrTab();
     auto symtab = sections->getSymTab();
     auto text = sections->getText();
     auto textIndex = shdrTable->findIndex(text);
