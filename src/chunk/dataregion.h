@@ -63,6 +63,8 @@ public:
 
     virtual std::string getName() const;
 
+    bool containsData(address_t address);
+
     virtual void updateAddressFor(address_t baseAddress);
 
     void setTLSOffset(address_t offset) { tlsOffset = offset; }

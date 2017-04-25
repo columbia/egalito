@@ -53,6 +53,11 @@ void TLSDataRegion::updateAddressFor(address_t baseAddress) {
     getPosition()->set(baseAddress);
 }
 
+bool TLSDataRegion::containsData(address_t address) {
+    auto phdr = getPhdr();
+    return Range(getAddress(), phdr->p_memsz).contains(address);
+}
+
 void DataRegionList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
@@ -77,7 +82,7 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
 
 DataRegion *DataRegionList::findRegionContaining(address_t target) {
     // check for TLS region first, since it will overlap another LOAD segment
-    if(tls && tls->contains(target)) return tls;
+    if(tls && tls->containsData(target)) return tls;
 
     for(auto region : CIter::children(this)) {
         if(region == tls) continue;
