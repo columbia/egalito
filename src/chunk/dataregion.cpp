@@ -55,7 +55,7 @@ void TLSDataRegion::updateAddressFor(address_t baseAddress) {
 
 bool TLSDataRegion::containsData(address_t address) {
     auto phdr = getPhdr();
-    return Range(getAddress(), phdr->p_memsz).contains(address);
+    return Range(getAddress(), phdr->p_filesz).contains(address);
 }
 
 void DataRegionList::accept(ChunkVisitor *visitor) {
@@ -101,7 +101,9 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc) {
         return createDataLink(reloc->getAddend(), true);
     }
 #else
-    #error "relocation types NYI on aarch64!"
+    if(reloc->getType() == R_AARCH64_RELATIVE) {
+        return createDataLink(reloc->getAddend(), true);
+    }
 #endif
     return nullptr;
 }

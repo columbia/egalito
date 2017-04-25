@@ -65,14 +65,14 @@ int main(int argc, char *argv[]) {
         initial_stack += removeLoaderFromArgv(argv);
 
         auto libc = setup.getConductor()->getLibraryList()->getLibc();
-        if(libc && libc->getElfSpace()) {
-            CallInit::callInitFunctions(libc->getElfSpace());
-        }
-
         std::cout.flush();
         std::fflush(stdout);
 
         PrepareTLS::prepare(setup.getConductor());
+
+        if(libc && libc->getElfSpace()) {
+            CallInit::callInitFunctions(libc->getElfSpace());
+        }
 
         // jump to the interpreter/target program (never returns)
         _start2();
