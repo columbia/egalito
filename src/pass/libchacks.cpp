@@ -6,6 +6,7 @@
 #include "log/log.h"
 
 void LibcHacksPass::visit(Module *module) {
+#ifdef ARCH_X86_64
     const char *funcs[] = {
         "memmove", "__memmove_chk",
         "strcmp", "strncmp", "strcpy", "strncpy",
@@ -16,9 +17,11 @@ void LibcHacksPass::visit(Module *module) {
         auto func = ChunkFind2(program).findFunction(funcs[i]);
         if(func) fixFunction(func);
     }
+#endif
 }
 
 void LibcHacksPass::fixFunction(Function *func) {
+#ifdef ARCH_X86_64
     ChunkMutator m(func->getChildren()->getIterable()->get(0));
     m.prepend(Disassemble::instruction({0x52}));  // push %rdx
 
@@ -39,4 +42,5 @@ void LibcHacksPass::fixFunction(Function *func) {
             }
         }
     }
+#endif
 }

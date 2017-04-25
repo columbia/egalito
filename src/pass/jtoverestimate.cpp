@@ -19,7 +19,10 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
     auto tableReadPtr = module->getElfSpace()->getElfMap()
         ->getSectionReadPtr<unsigned char *>(tableSection);
 #else
-    #error what section contains arm jump tables?
+    auto tableSection = module->getElfSpace()->getElfMap()
+        ->findSection(".rodata");
+    auto tableReadPtr = module->getElfSpace()->getElfMap()
+        ->getSectionReadPtr<unsigned char *>(tableSection);
 #endif
 
     for(auto it = tableMap.begin(); it != tableMap.end(); it ++) {
