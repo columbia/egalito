@@ -260,6 +260,8 @@ void ObjGen::updateShdrTable() {
         shdr->sh_addr   = section->getAddress();
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
+    SymbolTableSection *symtab = sections->getSymTab();
+    shdrTable->getContentMap()[symtab]->sh_info = symtab->getCount() + 1;
 }
 
 void ObjGen::updateHeader() {
