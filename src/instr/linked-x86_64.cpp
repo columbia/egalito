@@ -24,7 +24,7 @@ unsigned LinkedInstruction::calculateDisplacement() {
 void LinkedInstruction::writeTo(char *target) {
     Assembly *assembly = getAssembly();
     auto dispSize = getDispSize();
-    unsigned int newDisp = calculateDisplacement();
+    unsigned int newDisp = 0;//calculateDisplacement();
     int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
     int i = 0;
     std::memcpy(target + i, assembly->getBytes() + i, dispOffset);

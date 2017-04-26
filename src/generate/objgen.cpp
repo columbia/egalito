@@ -114,9 +114,16 @@ void ObjGen::makeText() {
     {
         ElfXX_Rela *rela = new ElfXX_Rela();
         rela->r_offset = 0x1a9;
-        rela->r_info = ELFXX_R_INFO(0, R_X86_64_64);
-        rela->r_addend = 0;
+        rela->r_info = ELFXX_R_INFO(0, 0);
+        rela->r_addend = -1;
         relaRoDataSection->addRelaPair(lastTextSection, rela);
+    }
+    {
+        ElfXX_Rela *rela = new ElfXX_Rela();
+        rela->r_offset = 0x1c6;
+        rela->r_info = ELFXX_R_INFO(0, 0);
+        rela->r_addend = 0;
+        relaRoDataSection->addRelaPair(0, rela);
     }
     sections->addSection(relaRoDataSection);
 }
@@ -254,7 +261,7 @@ void ObjGen::updateRelocations() {
         auto destSection = shdrTable->findIndex(rodata);
         auto index = symtab->findIndexWithShIndex(destSection) + 1;
         LOG(1, "updating rela.rodata " << destSection << " => " << index);
-        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_64);
+        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
     }
 }
 
