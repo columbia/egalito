@@ -26,7 +26,7 @@ void SymbolTableSection::add(ElfXX_Sym symbol) {
     auto bind = Symbol::bindFromElfToInternal(symbol.st_info);
     Symbol *sym = new Symbol(address, size, "",
         type, bind, 0, symbol.st_shndx);
-    addElement(sym, symbol);
+    addElementFirst(sym, symbol);
 }
 
 size_t SymbolTableSection::findIndexWithShIndex(size_t idx) {

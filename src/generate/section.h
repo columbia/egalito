@@ -87,6 +87,8 @@ public:
 protected:
     void addElement(ElementType *element, ElfContentType content)
         { contentMap[element] = content; contentList.push_back(element); }
+    void addElementFirst(ElementType *element, ElfContentType content)
+        { contentMap[element] = content; contentList.insert(contentList.begin(), element); }
     virtual void lowLevelAdd(ElfContentType &content)
         { add(static_cast<void *>(&content), sizeof(content)); }
 public:

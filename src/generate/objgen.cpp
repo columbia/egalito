@@ -38,6 +38,9 @@ ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename)
 }
 
 void ObjGen::generate() {
+    //ZeroRelocsPass zeroRelocs;
+    //elfSpace->getModule()->accept(&zeroRelocs);
+
     LOG(1, "generating object file");
     makeHeader();
     makeText();
@@ -76,6 +79,7 @@ void ObjGen::makeText() {
         }
     }
 
+    Section *lastTextSection = nullptr;
     std::set<address_t>::iterator i = pagesUsed.begin();
     size_t totalSize = 0;
     while(i != pagesUsed.end()) {
@@ -96,9 +100,25 @@ void ObjGen::makeText() {
         textSection->add((const uint8_t *)*i, size);
         sections->addTextSection(textSection);
 
+        lastTextSection = textSection;
+
         totalSize += size;
         i = j;
     }
+
+    auto symtab = static_cast<SymbolTableSection *>(
+        sections->findSection(".symtab"));
+    auto relaRoDataSection = new RelocationSection(".rela" + lastTextSection->getName(), SHT_RELA, SHF_INFO_LINK);
+    relaRoDataSection->setTargetSection(lastTextSection);
+    relaRoDataSection->setSectionLink(symtab);
+    {
+        ElfXX_Rela *rela = new ElfXX_Rela();
+        rela->r_offset = 0x1a9;
+        rela->r_info = ELFXX_R_INFO(0, R_X86_64_64);
+        rela->r_addend = 0;
+        relaRoDataSection->addRelaPair(lastTextSection, rela);
+    }
+    sections->addSection(relaRoDataSection);
 }
 
 void ObjGen::makeSymbolInfo() {
@@ -162,20 +182,6 @@ void ObjGen::makeRoData() {
     char *address = elfMap->getCharmap() + oldRoDataShdr->sh_offset;
     roDataSection->add(address, oldRoDataShdr->sh_size);
     sections->addSection(roDataSection);
-
-    auto symtab = static_cast<SymbolTableSection *>(
-        sections->findSection(".symtab"));
-    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, SHF_INFO_LINK);
-    relaRoDataSection->setTargetSection(roDataSection);
-    relaRoDataSection->setSectionLink(symtab);
-    {
-        ElfXX_Rela *rela = new ElfXX_Rela();
-        rela->r_offset = 0;
-        rela->r_info = ELFXX_R_INFO(0, R_X86_64_64);
-        rela->r_addend = 0;
-        relaRoDataSection->addRelaPair(roDataSection, rela);
-    }
-    sections->addSection(relaRoDataSection);
 }
 
 void ObjGen::makeShdrTable() {
@@ -242,10 +248,12 @@ void ObjGen::updateRelocations() {
     auto shdrTable = static_cast<ShdrTableSection *>(
         sections->findSection(".shdr_table"));
     auto *relaRoDataSection = static_cast<RelocationSection *>(
-        sections->findSection(".rela.rodata"));
+        sections->findSection(".rela.text.0x40000000"));
+    auto rodata = sections->findSection(".rodata");
     for(auto relaPair : relaRoDataSection->getContentMap()) {
-        auto index = symtab->findIndexWithShIndex(shdrTable->findIndex(relaPair.first)) + 1;
-        LOG(1, "updating rela.rodata " << shdrTable->findIndex(relaPair.first) << " => " << index);
+        auto destSection = shdrTable->findIndex(rodata);
+        auto index = symtab->findIndexWithShIndex(destSection) + 1;
+        LOG(1, "updating rela.rodata " << destSection << " => " << index);
         relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_64);
     }
 }
@@ -261,7 +269,7 @@ void ObjGen::updateShdrTable() {
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
     SymbolTableSection *symtab = sections->getSymTab();
-    shdrTable->getContentMap()[symtab]->sh_info = symtab->getCount() + 1;
+    shdrTable->getContentMap()[symtab]->sh_info = shdrTable->getCount();
 }
 
 void ObjGen::updateHeader() {
