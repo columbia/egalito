@@ -22,7 +22,9 @@
 
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
     : elf(elf), library(library), module(nullptr),
-    symbolList(nullptr), dynamicSymbolList(nullptr), relocList(nullptr),
+    symbolList(nullptr), dynamicSymbolList(nullptr),
+    mappingSymbolList(nullptr),
+    relocList(nullptr),
     aliasMap(nullptr) {
 
 }
@@ -33,6 +35,7 @@ ElfSpace::~ElfSpace() {
     delete module;
     delete symbolList;
     delete dynamicSymbolList;
+    delete mappingSymbolList;
     delete relocList;
     delete aliasMap;
 }

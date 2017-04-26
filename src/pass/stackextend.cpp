@@ -9,7 +9,7 @@
 #include "operation/mutator.h"
 #include "log/log.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void StackExtendPass::visit(Module *module) {
     if(extendSize >= 4096) {
         LOG(1, "can't extend over 4096");
@@ -200,4 +200,3 @@ void FrameType::dump() {
 }
 
 #endif
-

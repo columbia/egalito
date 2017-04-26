@@ -94,7 +94,7 @@ public:
 
     void setTargetSection(Section *target) { targetSection = target; }
 
-    virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+    virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 
 class ShdrTableSection : public Section {

@@ -1,6 +1,6 @@
 #include "disasm/aarch64-regbits.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void AARCH64RegBits::decode(const char *bytes) {
     bin = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
     cached = false;
@@ -272,4 +272,3 @@ void AARCH64RegBits::makeDPIReg_RegPositionList() {
     list = RegPositionsList(source, destination);
 }
 #endif
-

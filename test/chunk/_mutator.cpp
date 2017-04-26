@@ -11,7 +11,7 @@ static Instruction *makeWithImmediate(unsigned char imm) {
 #ifdef ARCH_X86_64
     // add imm, %eax
     std::vector<unsigned char> bytes = {0x83, 0xc0, imm};
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // add X0, X0, #imm
     unsigned char imm1 = (imm << 2) & 0xFF;
     unsigned char imm2 = (imm >> 6) & 0xFF;

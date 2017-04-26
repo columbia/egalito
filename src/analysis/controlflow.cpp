@@ -39,7 +39,7 @@ void ControlFlowGraph::construct(Block *block) {
 #ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "jmp") {
             // fall-through to next block
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(cfi->getMnemonic() != "b") {
 #endif
             fallThrough = true;
@@ -48,7 +48,7 @@ void ControlFlowGraph::construct(Block *block) {
         auto link = i->getSemantic()->getLink();
 #ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "callq" && link && link->getTarget()) {
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(cfi->getMnemonic() != "bl" && link && link->getTarget()) {
 #endif
             auto target = link->getTarget();

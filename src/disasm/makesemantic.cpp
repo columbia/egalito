@@ -53,7 +53,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
                 *ins, op->reg, ins->mnemonic);
         }
     }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     cs_arm64 *x = &ins->detail->arm64;
     cs_arm64_op *op = &x->operands[0];
     if(ins->id == ARM64_INS_BR || ins->id == ARM64_INS_BLR) {

@@ -10,7 +10,7 @@ void TLSList::buildTLSList(ElfMap *elf, RelocList *relocList, Module *module) {
     TLSList *list = nullptr;
 
     for(void *s : elf->getSegmentList()) {
-        Elf64_Phdr *phdr = static_cast<Elf64_Phdr *>(s);
+        ElfXX_Phdr *phdr = static_cast<ElfXX_Phdr *>(s);
         if(phdr->p_type != PT_TLS) continue;
         if(!list) list = new TLSList();
         list->add(new TLSRegion(phdr, elf));

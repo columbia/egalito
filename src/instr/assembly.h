@@ -34,6 +34,20 @@ public:
                    insn.detail->arm64.operands + insn.detail->arm64.op_count) {}
     bool getWriteback() const { return writeback; }
     const cs_arm64_op *getOperands() const { return operands.data(); }
+#elif defined(ARCH_ARM)
+ private:
+    bool writeback;
+    std::vector<cs_arm_op> operands;
+
+ public:
+ AssemblyOperands(const cs_insn &insn)
+   : op_count(insn.detail->arm.op_count),
+      writeback(insn.detail->arm.writeback),
+      operands(insn.detail->arm.operands,
+               insn.detail->arm.operands + insn.detail->arm.op_count) {}
+    bool getWriteback() const { return writeback; }
+    const cs_arm_op *getOperands() const { return operands.data(); }
+
 #endif
 public:
     AssemblyOperands() {}
@@ -81,4 +95,3 @@ public:
 };
 
 #endif
-

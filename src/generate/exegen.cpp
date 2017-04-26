@@ -299,7 +299,7 @@ void ExeGen::makePhdrTable() {
     data[Metadata::PHDR_TABLE]->setPhdrInfo(PT_PHDR, PF_R | PF_X, 8);
     data[Metadata::PHDR_TABLE]->setOffset(sizeof(ElfXX_Ehdr), Segment::Offset::FIXED);
     //data[Metadata::PHDR_TABLE]->setAddress(0);
-    std::vector<Elf64_Phdr *> phdrList;
+    std::vector<ElfXX_Phdr *> phdrList;
     for(auto seg : data.getSegmentList()) {
         if(seg->hasPhdr()) {
             phdrList.push_back(seg->makePhdr());

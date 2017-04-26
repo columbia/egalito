@@ -16,7 +16,7 @@ Disassemble::Handle::Handle(bool detailed) {
     if(cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
         throw "Can't initialize capstone handle!";
     }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     if(cs_open(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN, &handle) != CS_ERR_OK) {
         throw "Can't initialize capstone handle!";
     }
@@ -68,7 +68,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
                 }
             }
         }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(symbolList && insn[j].id == ARM64_INS_BL) {
             cs_arm64_op *op = &insn[j].detail->arm64.operands[0];
             if(op->type == ARM64_OP_IMM) {
@@ -254,7 +254,7 @@ bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
     }
     else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
     }*/
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     if (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
         split = true;
     }

@@ -46,7 +46,7 @@ void StackXOR::addInstructions(Block *block, Instruction *instruction) {
             (unsigned char)xorOffset, 0x00, 0x00, 0x00}));
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x4c, 0x31, 0x1c, 0x24}));
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     /*
            0:   92800010        mov     x16, #0xffffffffffffffff        // #-1
            4:   ca1003de        eor     x30, x30, x16

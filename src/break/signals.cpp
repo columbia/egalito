@@ -22,6 +22,8 @@ void sigsegv_handler(int sig, siginfo_t *info, void *context) {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 #elif defined(ARCH_AARCH64)
     unsigned long rip = uc->uc_mcontext.pc;
+#elif defined(ARCH_ARM)
+    unsigned long rip = 0;
 #endif
     std::printf("received SIGSEGV at 0x%lx\n", rip);
     std::exit(1);

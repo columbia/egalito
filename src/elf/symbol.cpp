@@ -105,7 +105,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
         s->setSize(42);  // no really! :)
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         s->setSize(56);  // this does not include embedded following literals
 #endif
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
@@ -140,8 +140,8 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
         // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
         if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
-#ifdef ARCH_AARCH64
-        // skip mapping symbols in AARCH64 ELF
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        // skip mapping symbols
         if(sym->getName()[0] == '$') continue;
 #endif
 
@@ -289,4 +289,59 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     case STB_GLOBAL:    return Symbol::BIND_GLOBAL;
     default:            return Symbol::BIND_WEAK;
     }
+}
+
+bool Symbol::isMappingSymbol() const {
+    return this->bindingType == Symbol::BIND_LOCAL
+        && this->symbolType == Symbol::TYPE_UNKNOWN
+        && this->shndx != 0
+        && this->name[0] == '$';
+}
+
+Symbol::MappingType Symbol::mappingFromElfToInternal(unsigned char type) {
+  switch(type) {
+  case 'a': return Symbol::MAPPING_ARM;
+  case 't': return Symbol::MAPPING_THUMB;
+  case 'x': return Symbol::MAPPING_AARCH64;
+  default:  return Symbol::MAPPING_DATA;
+  }
+}
+
+bool MappingSymbolList::add(Symbol *symbol) {
+  symbolList.push_back(symbol);
+  symbolMap[symbol->getAddress()] = symbol;
+  return true;
+}
+
+Symbol *MappingSymbolList::find(address_t address) {
+  MapType::iterator exact, range;
+
+  exact = symbolMap.find(address);
+  if (exact != symbolMap.end()) {
+    return exact->second;
+  }
+
+  range=symbolMap.lower_bound(address);
+
+  if (range != symbolMap.begin()) {
+    return std::prev(range)->second;
+  }
+
+  return nullptr;
+}
+
+MappingSymbolList *MappingSymbolList::buildMappingSymbolList(SymbolList *symbolList) {
+
+    MappingSymbolList *list = new MappingSymbolList();
+
+    for (auto sym : *symbolList) {
+      if( sym->isMappingSymbol() ) {
+        Symbol::MappingType type = Symbol::mappingFromElfToInternal(sym->getName()[1]);
+        sym->setMappingType(type);
+        list->add(sym);
+      }
+    }
+
+    return list;
+
 }

@@ -74,7 +74,7 @@ void PLTTrampoline::writeTo(char *target) {
     }
 
 #undef ADD_BYTES
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     static const uint32_t plt[] = {
         0x90000010, //adrp x16, .
         0xf9400211, //ldr  x17, [x16, #0]

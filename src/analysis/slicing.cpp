@@ -408,7 +408,7 @@ private:
     } a2;
     union arg3_t {
     } a3;
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     typedef struct extmem {
         const arm64_op_mem *mem;
         arm64_extender ext;
@@ -505,7 +505,8 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
         a1.imm = asmOps->getOperands()[0].imm;
         a2.reg = asmOps->getOperands()[1].reg;
     }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+
     if(asmOps->getOpCount() == 2) {
         if(asmOps->getOperands()[0].type == ARM64_OP_REG
            && asmOps->getOperands()[1].type == ARM64_OP_REG) {
@@ -526,9 +527,9 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
 
             mode = MODE_REG_MEM;
             a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
-            a2.extmem.mem = &asmOps->getOperands()[1].mem;
-            a2.extmem.ext = asmOps->getOperands()[1].ext;
-            a2.extmem.shift.type = asmOps->getOperands()[1].shift.type;
+            //a2.extmem.mem = &asmOps->getOperands()[1].mem;
+            //a2.extmem.ext = asmOps->getOperands()[1].ext;
+            //a2.extmem.shift.type = asmOps->getOperands()[1].shift.type;
             a2.extmem.shift.value = asmOps->getOperands()[1].shift.value;
         }
     }
@@ -542,8 +543,8 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
             a3.extreg.reg = static_cast<arm64_reg>(
                 asmOps->getOperands()[2].reg);
-            a3.extreg.ext = asmOps->getOperands()[2].ext;
-            a3.extreg.shift.type = asmOps->getOperands()[2].shift.type;
+            //a3.extreg.ext = asmOps->getOperands()[2].ext;
+            //a3.extreg.shift.type = asmOps->getOperands()[2].shift.type;
             a3.extreg.shift.value = asmOps->getOperands()[2].shift.value;
         }
         else if(asmOps->getOperands()[0].type == ARM64_OP_REG
@@ -553,7 +554,7 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
             a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
             a3.extimm.imm = asmOps->getOperands()[2].imm;
-            a3.extimm.shift.type = asmOps->getOperands()[2].shift.type;
+            //a3.extimm.shift.type = asmOps->getOperands()[2].shift.type;
             a3.extimm.shift.value = asmOps->getOperands()[2].shift.value;
         }
         else if(asmOps->getOperands()[0].type == ARM64_OP_REG
@@ -562,7 +563,7 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             mode = MODE_REG_REG_MEM;
             a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
             a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
-            a3.mem = &asmOps->getOperands()[2].mem;
+            //a3.mem = &asmOps->getOperands()[2].mem;
         }
     }
 #endif
@@ -593,7 +594,7 @@ bool SlicingInstructionState::convertRegisterSize(Register &reg) {
         {X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
         {X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15}
     };
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     static const Register promotion[][2] = {
         {ARM64_REG_W0,  ARM64_REG_X0},
         {ARM64_REG_W1,  ARM64_REG_X1},
@@ -664,7 +665,8 @@ void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
     convertRegisterSize(a2.reg);
     auto source = flowFactory->makeFlow(a1.reg, state);
     auto target = flowFactory->makeFlow(a2.reg, state);
-#elif defined(ARCH_AARCH64)
+
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     auto target = flowFactory->makeFlow(a1.reg, state);
     auto source = flowFactory->makeFlow(a2.reg, state);
@@ -687,7 +689,8 @@ void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
     delete reg;
     delete base;
     delete index;
-#elif defined(ARCH_AARCH64)
+
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     throw "not implemented";
 #endif
 }
@@ -700,13 +703,14 @@ void SlicingInstructionState::defaultDetectImmReg(bool overwriteTarget) {
     reg->source(overwriteTarget);
 
     delete reg;
-#elif defined(ARCH_AARCH64)
+
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     throw "not implemented";
 #endif
 }
 void SlicingInstructionState::defaultDetectRegRegReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     auto target = flowFactory->makeFlow(a1.reg, state);
     auto source1 = flowFactory->makeFlow(a2.reg, state);
@@ -717,7 +721,7 @@ void SlicingInstructionState::defaultDetectRegRegReg(bool overwriteTarget) {
 }
 void SlicingInstructionState::defaultDetectRegImm(bool overwriteTarget) {
 #ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     //auto imm = a2.imm;
     auto reg = flowFactory->makeFlow(a1.reg, state);
@@ -730,7 +734,7 @@ void SlicingInstructionState::defaultDetectRegImm(bool overwriteTarget) {
 
 void SlicingInstructionState::defaultDetectRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     auto reg = flowFactory->makeFlow(a1.reg, state);
     auto base = flowFactory->makeFlow(a2.extmem.mem->base, state);
@@ -745,7 +749,7 @@ void SlicingInstructionState::defaultDetectRegMem(bool overwriteTarget) {
 }
 void SlicingInstructionState::defaultDetectRegRegImm(bool overwriteTarget) {
 #ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     auto target = flowFactory->makeFlow(a1.reg, state);
     auto source = flowFactory->makeFlow(a2.reg, state);
@@ -759,7 +763,7 @@ void SlicingInstructionState::defaultDetectRegRegImm(bool overwriteTarget) {
 }
 void SlicingInstructionState::defaultDetectRegRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     auto target = flowFactory->makeFlow(a1.reg, state);
     auto source = flowFactory->makeFlow(a2.reg, state);
@@ -804,7 +808,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
     auto assembly = state->getInstruction()->getSemantic()->getAssembly();
 #ifdef ARCH_X86_64
     if(!assembly) {
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     if(dynamic_cast<ControlFlowInstruction *>(
         state->getInstruction()->getSemantic())) {
 
@@ -945,7 +949,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             }
         }
         break;
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     case ARM64_INS_MOV:
         if(mode == SlicingInstructionState::MODE_REG_REG) {
             if(firstPass) {
@@ -1233,7 +1237,7 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
     if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
 #ifdef ARCH_X86_64
         if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(v->getMnemonic() != "b" && v->getMnemonic() != "bl") {
 #endif
             if(firstPass) {
@@ -1256,4 +1260,3 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
         }
     }
 }
-

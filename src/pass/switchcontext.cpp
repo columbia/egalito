@@ -3,7 +3,7 @@
 #include "instr/register.h"
 #include "operation/mutator.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void SwitchContextPass::useStack(Function *function, FrameType *frame) {
     addSaveContextAt(function, frame);
 

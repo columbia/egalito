@@ -30,7 +30,11 @@ private:
     bool withPhdr;
     ElfXX_Word p_type;
     ElfXX_Word p_flags;
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     ElfXX_Xword p_align;
+#else
+    ElfXX_Word  p_align;
+#endif
 public:
     Segment();
     ~Segment();
@@ -51,7 +55,12 @@ public:
     }
     void setOffset(size_t off, Offset::OffsetType type = Offset::ASSIGNABLE);
     void setOffsetType(Offset::OffsetType type) {offset.type = type;};
+
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     void setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Xword palign);
+#elif defined(ARCH_ARM)
+    void setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Word palign);
+#endif
 public:
     friend std::ostream& operator<<(std::ostream &stream, Segment &rhs);
     void add(Section *sec);

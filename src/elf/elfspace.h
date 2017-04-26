@@ -20,6 +20,7 @@ private:
 private:
     SymbolList *symbolList;
     SymbolList *dynamicSymbolList;
+    MappingSymbolList *mappingSymbolList;
     RelocList *relocList;
     FunctionAliasMap *aliasMap;
 public:
@@ -38,6 +39,7 @@ public:
 
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
+    MappingSymbolList *getMappingSymbolList() const { return mappingSymbolList; }
     RelocList *getRelocList() const { return relocList; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }

@@ -1,14 +1,14 @@
 #include <numeric>
 #include "regreplace.h"
 #include "disasm/disassemble.h"
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     #include "disasm/aarch64-regbits.h"
 #endif
 #include "chunk/dump.h"
 #include "operation/mutator.h"
 #include "log/log.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 // if we can find a register R not used within this function:
 //   if R is callee saved register:
 //     [CASE-1]

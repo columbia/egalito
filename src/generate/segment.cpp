@@ -54,12 +54,21 @@ void Segment::setAddress(address_t addr, Address::AddressType type) {
     address.addr = addr;
 }
 
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
 void Segment::setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Xword palign) {
     withPhdr = true;
     p_type = ptype;
     p_flags = pflags;
     p_align = palign;
 }
+#elif defined(ARCH_ARM)
+void Segment::setPhdrInfo(ElfXX_Word ptype, ElfXX_Word pflags, ElfXX_Word palign) {
+    withPhdr = true;
+    p_type = ptype;
+    p_flags = pflags;
+    p_align = palign;
+}
+#endif
 
 void Segment::add(Section *sec) {
     size_t size = getSize();

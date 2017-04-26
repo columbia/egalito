@@ -25,6 +25,14 @@ public:
         BIND_GLOBAL,
         BIND_WEAK
     };
+    // Only applicable for ARM architectures
+    enum MappingType {
+        MAPPING_ARM,
+        MAPPING_THUMB,
+        MAPPING_AARCH64,
+        MAPPING_DATA
+    };
+
 private:
     address_t address;
     size_t size;
@@ -33,6 +41,7 @@ private:
     std::vector<Symbol *> aliasList;
     SymbolType symbolType;
     BindingType bindingType;
+    MappingType mappingType;
     size_t index;
     size_t shndx;
 public:
@@ -59,11 +68,17 @@ public:
     const std::vector<Symbol *> &getAliases() const { return aliasList; }
 
     bool isFunction() const;
-public:
+
+    MappingType getMappingType() const { return mappingType; }
+    void setMappingType(MappingType type) { this->mappingType = type; }
+    bool isMappingSymbol() const;
+
+ public:
     static unsigned char typeFromInternalToElf(SymbolType type);
     static SymbolType typeFromElfToInternal(unsigned char type);
     static unsigned char bindFromInternalToElf(BindingType bind);
     static BindingType bindFromElfToInternal(unsigned char bind);
+    static MappingType mappingFromElfToInternal(unsigned char type);
 };
 
 class SymbolList {
@@ -97,6 +112,22 @@ private:
         const char *sectionName, unsigned sectionType);
     static Symbol *findSizeZero(SymbolList *list, const char *sym);
     void sortSymbols();
+};
+
+// Only applicable for ARM architectures
+class MappingSymbolList {
+private:
+    typedef std::vector<Symbol *> ListType;
+    ListType symbolList;
+    typedef std::map<address_t, Symbol *> MapType;
+    MapType symbolMap;
+public:
+    ListType::iterator begin() { return symbolList.begin(); }
+    ListType::iterator end() { return symbolList.end(); }
+    size_t getCount() const { return symbolList.size(); }
+    bool add(Symbol *symbol);
+    Symbol *find(address_t address);
+    static MappingSymbolList *buildMappingSymbolList(SymbolList *symbolList);
 };
 
 #endif

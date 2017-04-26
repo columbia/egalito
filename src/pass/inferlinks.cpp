@@ -23,7 +23,7 @@ void InferLinksPass::visit(Instruction *instruction) {
             instruction->setSemantic(linked);
             delete v;
         }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
         if(linked) {
             instruction->setSemantic(linked);

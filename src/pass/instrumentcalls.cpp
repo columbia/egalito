@@ -4,7 +4,7 @@
 #include "instr/semantic.h"
 #include "operation/mutator.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {
     if(entry) {
         addEntryAdvice(function, frame);
@@ -67,4 +67,3 @@ void InstrumentCallsPass::addAdvice(
     }
 }
 #endif
-

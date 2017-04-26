@@ -7,7 +7,7 @@
 
 #define FUNCTIONCALL_CONTEXT_SIZE   (1*16)
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class InstrumentCallsPass : public StackExtendPass {
 public:
     typedef bool (*predicate_t) (Function *function);
@@ -35,4 +35,3 @@ private:
 #endif
 
 #endif
-

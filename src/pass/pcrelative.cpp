@@ -9,7 +9,7 @@
 
 void PCRelativePass::visit(Module *module) {
 #if defined(ARCH_X86_64)
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     this->module = module;
     auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
@@ -28,7 +28,7 @@ void PCRelativePass::visit(Module *module) {
 
 void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
 #if defined(ARCH_X86_64)
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList,
                                                               r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {

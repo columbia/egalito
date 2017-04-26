@@ -1,5 +1,5 @@
 // Created based on glibc start up file for aarch64.
-
+#if defined(ARCH_AARCH64)
 #ifdef __LP64__
 # define AARCH64_R(NAME)    R_AARCH64_ ## NAME
 # define PTR_REG(n)     x##n
@@ -22,30 +22,30 @@
 .section .bss
 .align 8    //only GOT requires 8-byte alignment?
 initial_stack:
-    .skip   8
+		.skip   8
 saved_x0:
-    .skip   8
+		.skip   8
 entry:
-    .skip   PTR_SIZE
+		.skip   PTR_SIZE
 main_tp:
-    .skip   PTR_SIZE
+		.skip   PTR_SIZE
 
 
 /* This is the canonical entry point, usually the first thing in the text
-   segment.
+	 segment.
 
-   Note that the code in the .init section has already been run.
-   This includes _init and _libc_init
+	 Note that the code in the .init section has already been run.
+	 This includes _init and _libc_init
 
 
-   At this entry point, most registers' values are unspecified, except:
+	 At this entry point, most registers' values are unspecified, except:
 
-   x0/w0	Contains a function pointer to be registered with `atexit'.
+	 x0/w0	Contains a function pointer to be registered with `atexit'.
 		This is how the dynamic linker arranges to have DT_FINI
 		functions called for shared libraries that have been loaded
 		before this code runs.
 
-   sp		The stack contains the arguments and environment:
+	 sp		The stack contains the arguments and environment:
 		0(sp)			argc
 		8(sp)			argv[0]
 		...
@@ -59,16 +59,16 @@ main_tp:
 	.globl _start
 	.type _start,#function
 _start:
-    # save for _start2
-    add     x2, sp, #0
-    ldr     x1, =initial_stack
-    str     x2, [x1]
-    #adrp    x1, :pg_hi21:initial_stack
-    #str     x2, [x1, #:lo12:initial_stack]
-    ldr     x1, =saved_x0
-    str     x0, [x1]
-    #adrp    x1, :pg_hi21:saved_x0
-    #str     x0, [x1, #:lo12:saved_x0]
+		# save for _start2
+		add     x2, sp, #0
+		ldr     x1, =initial_stack
+		str     x2, [x1]
+		#adrp    x1, :pg_hi21:initial_stack
+		#str     x2, [x1, #:lo12:initial_stack]
+		ldr     x1, =saved_x0
+		str     x0, [x1]
+		#adrp    x1, :pg_hi21:saved_x0
+		#str     x0, [x1, #:lo12:saved_x0]
 
 	/* Create an initial frame with 0 LR and FP */
 	mov	x29, #0
@@ -85,13 +85,13 @@ _start:
 	mov	x6, sp
 
 #ifdef SHARED
-        adrp    x0, :got:main
+				adrp    x0, :got:main
 	ldr     PTR_REG (0), [x0, #:got_lo12:main]
 
-        adrp    x3, :got:__libc_csu_init
+				adrp    x3, :got:__libc_csu_init
 	ldr     PTR_REG (3), [x3, #:got_lo12:__libc_csu_init]
 
-        adrp    x4, :got:__libc_csu_fini
+				adrp    x4, :got:__libc_csu_fini
 	ldr     PTR_REG (4), [x4, #:got_lo12:__libc_csu_fini]
 #else
 	/* Set up the other arguments in registers */
@@ -101,7 +101,7 @@ _start:
 #endif
 
 	/* __libc_start_main (main, argc, argv, init, fini, rtld_fini,
-			      stack_end) */
+						stack_end) */
 
 	/* Let the libc call main and exit with its return code.  */
 	bl	__libc_start_main
@@ -110,26 +110,26 @@ _start:
 	bl	abort
 
 _start2:
-    ldr     x1, =main_tp
-    ldr     x1, [x1]
-    msr     tpidr_el0, x1
+		ldr     x1, =main_tp
+		ldr     x1, [x1]
+		msr     tpidr_el0, x1
 
-    ldr     x1, =initial_stack
-    ldr     x1, [x1]
-    #adrp    x1, :pg_hi21:initial_stack
-    #ldr     x1, [x1, #:lo12:initial_stack]
-    mov     sp, x1
-    ldr     x1, =saved_x0
-    ldr     x0, [x1]
-    #adrp    x1, :pg_hi21:saved_x0
-    #ldr     x0, [x1, #:lo12:saved_x0]
+		ldr     x1, =initial_stack
+		ldr     x1, [x1]
+		#adrp    x1, :pg_hi21:initial_stack
+		#ldr     x1, [x1, #:lo12:initial_stack]
+		mov     sp, x1
+		ldr     x1, =saved_x0
+		ldr     x0, [x1]
+		#adrp    x1, :pg_hi21:saved_x0
+		#ldr     x0, [x1, #:lo12:saved_x0]
 
-    ldr     x1, =entry
-    ldr     x1, [x1]
-    #adrp    x1, :pg_hi21:entry
-    #ldr     x1, [x1, #:lo12:entry]
-    br      x1
-    bl      abort
+		ldr     x1, =entry
+		ldr     x1, [x1]
+		#adrp    x1, :pg_hi21:entry
+		#ldr     x1, [x1, #:lo12:entry]
+		br      x1
+		bl      abort
 
 
 	/* Define a symbol for the first piece of initialized data.  */
@@ -139,3 +139,4 @@ __data_start:
 	.long 0
 	.weak data_start
 	data_start = __data_start
+#endif
