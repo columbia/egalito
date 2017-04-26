@@ -112,7 +112,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     auto list = new DataRegionList();
 
     for(void *s : elfMap->getSegmentList()) {
-        Elf64_Phdr *phdr = static_cast<Elf64_Phdr *>(s);
+        ElfXX_Phdr *phdr = static_cast<ElfXX_Phdr *>(s);
 
         if(phdr->p_type == PT_LOAD /*&& phdr->p_flags == (PF_R | PF_W)*/) {
             auto region = new DataRegion(elfMap, phdr);

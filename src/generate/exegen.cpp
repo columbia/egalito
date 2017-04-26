@@ -260,7 +260,7 @@ void ExeGen::makeDynamic() {
         elfMap->getCharmap() + oldDynamic->p_offset);
     while(oldList[0] != DT_NULL) {
         LOG(1, "old dynamic list entry tag " << oldList[0]);
-        Elf64_Sxword tag = oldList[0];
+        ElfXX_Sxword tag = oldList[0];
         auto value = oldList[1];
         if(tag == DT_NEEDED) {
             const char *lib = elfMap->getDynstrtab() + value;
