@@ -55,6 +55,15 @@ public:
 };
 
 class Assembly {
+#if defined(ARCH_ARM)
+public:
+  enum ModeType {
+    MODE_ARM,
+    MODE_THUMB,
+    MODE_UNKNOWN
+  };
+#endif
+
 private:
     unsigned int id;
     std::vector<uint8_t> bytes;
@@ -66,9 +75,12 @@ private:
     std::vector<uint8_t> regs_read;     // effectively?
     size_t regs_write_count;
     std::vector<uint8_t> regs_write;
+#if defined(ARCH_ARM)
+  ModeType modeType;
+#endif
 
 public:
-    Assembly() {}
+  Assembly() {}
     Assembly(const cs_insn &insn)
         : id(insn.id),
           bytes(insn.bytes, insn.bytes + insn.size),
@@ -79,19 +91,38 @@ public:
                      insn.detail->regs_read + insn.detail->regs_read_count),
           regs_write_count(insn.detail->regs_write_count),
           regs_write(insn.detail->regs_write,
-                     insn.detail->regs_write + insn.detail->regs_write_count) {}
+                     insn.detail->regs_write + insn.detail->regs_write_count) {
+#if defined(ARCH_ARM)
+        modeType = ModeType::MODE_UNKNOWN;
+        for(int i = 0; i < insn.detail->groups_count; i++) {
+          if(insn.detail->groups[i] == ARM_GRP_THUMB) {
+            modeType = ModeType::MODE_THUMB;
+            break;
+          }
+          else if(insn.detail->groups[i] == ARM_GRP_ARM) {
+            modeType = ModeType::MODE_ARM;
+            break;
+          }
+        }
+#endif
+    }
 
-    unsigned int getId() const { return id; }
-    size_t getSize() const { return bytes.size(); }
-    const char *getBytes() const {
-        return reinterpret_cast<const char *>(bytes.data()); }
-    const char *getMnemonic() const { return mnemonic.c_str(); }
-    const char *getOpStr() const { return operandString.c_str(); }
-    const AssemblyOperands *getAsmOperands() const { return &operands; }
-    size_t getImplicitRegsReadCount() const { return regs_read_count; }
-    const uint8_t *getImplicitRegsRead() const { return regs_read.data(); }
-    size_t getImplicitRegsWriteCount() const { return regs_write_count; }
-    const uint8_t *getImplicitRegsWrite() const { return regs_write.data(); }
+  unsigned int getId() const { return id; }
+  size_t getSize() const { return bytes.size(); }
+  const char *getBytes() const {
+    return reinterpret_cast<const char *>(bytes.data()); }
+  const char *getMnemonic() const { return mnemonic.c_str(); }
+  const char *getOpStr() const { return operandString.c_str(); }
+  const AssemblyOperands *getAsmOperands() const { return &operands; }
+  size_t getImplicitRegsReadCount() const { return regs_read_count; }
+  const uint8_t *getImplicitRegsRead() const { return regs_read.data(); }
+  size_t getImplicitRegsWriteCount() const { return regs_write_count; }
+  const uint8_t *getImplicitRegsWrite() const { return regs_write.data(); }
+
+#if defined(ARCH_ARM)
+  ModeType getModeType() const { return modeType; }
+#endif
+
 };
 
 #endif

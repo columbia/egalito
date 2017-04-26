@@ -25,15 +25,8 @@ public:
         BIND_GLOBAL,
         BIND_WEAK
     };
-    // Only applicable for ARM architectures
-    enum MappingType {
-        MAPPING_ARM,
-        MAPPING_THUMB,
-        MAPPING_AARCH64,
-        MAPPING_DATA
-    };
 
-private:
+ private:
     address_t address;
     size_t size;
     const char *name;
@@ -41,7 +34,6 @@ private:
     std::vector<Symbol *> aliasList;
     SymbolType symbolType;
     BindingType bindingType;
-    MappingType mappingType;
     size_t index;
     size_t shndx;
 public:
@@ -69,16 +61,11 @@ public:
 
     bool isFunction() const;
 
-    MappingType getMappingType() const { return mappingType; }
-    void setMappingType(MappingType type) { this->mappingType = type; }
-    bool isMappingSymbol() const;
-
- public:
+public:
     static unsigned char typeFromInternalToElf(SymbolType type);
     static SymbolType typeFromElfToInternal(unsigned char type);
     static unsigned char bindFromInternalToElf(BindingType bind);
     static BindingType bindFromElfToInternal(unsigned char bind);
-    static MappingType mappingFromElfToInternal(unsigned char type);
 };
 
 class SymbolList {
@@ -114,20 +101,60 @@ private:
     void sortSymbols();
 };
 
-// Only applicable for ARM architectures
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+// Mapping Symbol Decorator
+class MappingSymbol {
+public:
+  enum MappingType {
+    MAPPING_ARM,
+    MAPPING_THUMB,
+    MAPPING_AARCH64,
+    MAPPING_DATA,
+    MAPPING_UNKNOWN
+  };
+
+private:
+  MappingType mappingType;
+  Symbol *symbol;
+  address_t address;
+  size_t size;
+
+  static MappingType mappingFromElfToInternal(unsigned char type);
+  static size_t mappingTypeToWordSize(MappingType type);
+
+public:
+  MappingSymbol(Symbol *symbol) {
+    this->mappingType = mappingFromElfToInternal(symbol->getName()[1]);
+    this->symbol = symbol;
+    this->address = symbol->getAddress();
+    this->size = symbol->getSize();
+  }
+
+  MappingType getType() const { return mappingType; }
+  Symbol *getSymbol() const { return symbol; }
+  address_t getAddress() const { return address; }
+  size_t getSize() const { return size; }
+  void setSize(size_t size) { this->size = size; }
+  void setMappingType(MappingType type) { this->mappingType = type; }
+  bool isLastMappingSymbol() { return this->size == 0; }
+  static bool isMappingSymbol(Symbol *symbol);
+};
+
 class MappingSymbolList {
 private:
-    typedef std::vector<Symbol *> ListType;
+    typedef std::vector<MappingSymbol *> ListType;
     ListType symbolList;
-    typedef std::map<address_t, Symbol *> MapType;
+    typedef std::map<address_t, MappingSymbol *> MapType;
     MapType symbolMap;
 public:
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }
     size_t getCount() const { return symbolList.size(); }
-    bool add(Symbol *symbol);
-    Symbol *find(address_t address);
+    bool add(MappingSymbol *symbol);
+    MappingSymbol *find(address_t address);
+    ListType *findSymbolsInRegion(address_t start, address_t end);
     static MappingSymbolList *buildMappingSymbolList(SymbolList *symbolList);
 };
+#endif
 
 #endif

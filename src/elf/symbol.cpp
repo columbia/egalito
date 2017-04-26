@@ -291,29 +291,32 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     }
 }
 
-bool Symbol::isMappingSymbol() const {
-    return this->bindingType == Symbol::BIND_LOCAL
-        && this->symbolType == Symbol::TYPE_UNKNOWN
-        && this->shndx != 0
-        && this->name[0] == '$';
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+
+bool MappingSymbol::isMappingSymbol(Symbol *symbol) {
+    return symbol->getBind() == Symbol::BIND_LOCAL
+        && symbol->getType() == Symbol::TYPE_UNKNOWN
+        && symbol->getSectionIndex() != 0
+        && symbol->getName()[0] == '$';
 }
 
-Symbol::MappingType Symbol::mappingFromElfToInternal(unsigned char type) {
+MappingSymbol::MappingType MappingSymbol::mappingFromElfToInternal(unsigned char type) {
   switch(type) {
-  case 'a': return Symbol::MAPPING_ARM;
-  case 't': return Symbol::MAPPING_THUMB;
-  case 'x': return Symbol::MAPPING_AARCH64;
-  default:  return Symbol::MAPPING_DATA;
+  case 'a': return MappingSymbol::MAPPING_ARM;
+  case 't': return MappingSymbol::MAPPING_THUMB;
+  case 'x': return MappingSymbol::MAPPING_AARCH64;
+  case 'd': return MappingSymbol::MAPPING_DATA;
+  default:  return MappingSymbol::MAPPING_UNKNOWN;
   }
 }
 
-bool MappingSymbolList::add(Symbol *symbol) {
+bool MappingSymbolList::add(MappingSymbol *symbol) {
   symbolList.push_back(symbol);
   symbolMap[symbol->getAddress()] = symbol;
   return true;
 }
 
-Symbol *MappingSymbolList::find(address_t address) {
+MappingSymbol *MappingSymbolList::find(address_t address) {
   MapType::iterator exact, range;
 
   exact = symbolMap.find(address);
@@ -330,18 +333,56 @@ Symbol *MappingSymbolList::find(address_t address) {
   return nullptr;
 }
 
+MappingSymbolList::ListType *MappingSymbolList::findSymbolsInRegion(address_t start, address_t end) {
+
+  ListType *symbolsInRegion = new ListType();
+
+  auto startSym = find(start);
+  auto endSym = find(end);
+
+  // If there is only 1 mapping symbol
+  if (startSym == endSym) {
+    symbolsInRegion->push_back(startSym);
+    return symbolsInRegion;
+  }
+
+  MapType::iterator startIt, endIt;
+  startIt = symbolMap.find(startSym->getAddress());
+  endIt = symbolMap.find(endSym->getAddress());
+
+  for(auto it = startIt; it != endIt; it++) {
+    symbolsInRegion->push_back(it->second);
+  }
+
+  return symbolsInRegion;
+}
+
 MappingSymbolList *MappingSymbolList::buildMappingSymbolList(SymbolList *symbolList) {
 
     MappingSymbolList *list = new MappingSymbolList();
 
-    for (auto sym : *symbolList) {
-      if( sym->isMappingSymbol() ) {
-        Symbol::MappingType type = Symbol::mappingFromElfToInternal(sym->getName()[1]);
-        sym->setMappingType(type);
-        list->add(sym);
+    MappingSymbol *prev = nullptr;
+
+    for(auto sym : *symbolList) {
+      if( MappingSymbol::isMappingSymbol(sym) ) {
+        MappingSymbol *mappingSymbol = new MappingSymbol(sym);
+        LOG(1, "Adding Mapping Symbol @ " << std::hex << mappingSymbol->getAddress() << " Type: " << mappingSymbol->getType());
+        list->add(mappingSymbol);
+        if(prev) {
+          // Sec 4.5.5.1 - Each interval starts at the address defined by the
+          // mapping symbol, and continues up to, but not including, the
+          // address defined by the next (in address order) mapping symbol or
+          // the end of the section.
+          // See: http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044f/IHI0044F_aaelf.pdf
+          size_t regionSize = mappingSymbol->getAddress() - prev->getAddress();
+          // Size will be 0 for last mapping symbol. All subsequent addresses use the last mapping type.
+          prev->setSize(regionSize);
+        }
+
+        prev = mappingSymbol;
       }
     }
 
     return list;
-
 }
+#endif

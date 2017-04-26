@@ -117,8 +117,10 @@ void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
     std::ostringstream name;
 #ifdef ARCH_X86_64
     if(semantic->getMnemonic() == "callq") name << "(CALL)";
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(ARCH_AARCH64)
     if(semantic->getMnemonic() == "bl") name << "(CALL)";
+#elif defined(ARCH_ARM)
+    if(semantic->getMnemonic() == "bl" || semantic->getMnemonic() == "blx") name << "(CALL)";
 #endif
     else {
         name << "(JUMP " << semantic->getMnemonic() << ")";

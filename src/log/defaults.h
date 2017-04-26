@@ -21,7 +21,7 @@
 #define D_transform     9
 
 // Custom groups
-#define D_dsymbol       0
+#define D_dsymbol       9
 #define D_dreloc        0
 #define D_djumptable    0
 #define D_dplt          0

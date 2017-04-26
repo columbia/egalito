@@ -5,6 +5,7 @@
 #include <capstone/capstone.h>
 #include "types.h"
 #include "elf/elfmap.h"
+#include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "instr/assembly.h"
@@ -28,16 +29,32 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList=nullptr);
+    static Function *function(ElfMap *elfMap, Symbol *symbol, MappingSymbolList *mappingSymbolList=nullptr);
+#else
     static Module *module(ElfMap *elfMap, SymbolList *symbolList);
     static Function *function(ElfMap *elfMap, Symbol *symbol);
+#endif
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
+    static Instruction *instruction(Handle &handle, const std::vector<unsigned char> &bytes,
+                                  bool details = true, address_t address = 0);
     static Instruction *instruction(cs_insn *ins, Handle &handle,
         bool details = true);
 
     static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
+
+private:
+    static std::tuple<cs_insn *, size_t> disassembleBlock(Handle &handle,
+                                                          PositionFactory *positionFactory,
+                                                          Function *function,
+                                                          Block **block,
+                                                          address_t readAddress,
+                                                          size_t readSize,
+                                                          address_t virtualAddress);
 };
 
 class AARCH64InstructionBinary {

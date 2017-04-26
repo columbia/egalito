@@ -23,7 +23,9 @@
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
     : elf(elf), library(library), module(nullptr),
     symbolList(nullptr), dynamicSymbolList(nullptr),
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
     mappingSymbolList(nullptr),
+#endif
     relocList(nullptr),
     aliasMap(nullptr) {
 
@@ -35,7 +37,9 @@ ElfSpace::~ElfSpace() {
     delete module;
     delete symbolList;
     delete dynamicSymbolList;
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
     delete mappingSymbolList;
+#endif
     delete relocList;
     delete aliasMap;
 }
@@ -61,7 +65,15 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     }
 
     Disassemble::init();
+
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+    // Not necessary to build MappingSymbolList for other architectures.
+    this->mappingSymbolList = MappingSymbolList::buildMappingSymbolList(this->symbolList);
+    this->module = Disassemble::module(elf, symbolList, mappingSymbolList);
+#else
     this->module = Disassemble::module(elf, symbolList);
+#endif
+
     this->module->setElfSpace(this);
 
     InternalCalls internalCalls;
