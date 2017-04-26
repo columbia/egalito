@@ -165,7 +165,7 @@ void ObjGen::makeRoData() {
 
     auto symtab = static_cast<SymbolTableSection *>(
         sections->findSection(".symtab"));
-    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, 0);
+    auto relaRoDataSection = new RelocationSection(".rela.rodata", SHT_RELA, SHF_INFO_LINK);
     relaRoDataSection->setTargetSection(roDataSection);
     relaRoDataSection->setSectionLink(symtab);
     {
@@ -219,6 +219,8 @@ void ObjGen::updateSymbolTable() {
         symtab->findContent(symbol).st_shndx = textIndex;
     }
 
+    LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
+
     for(auto shdrPair : shdrTable->getContentMap()) {
         if(shdrPair.second->sh_type == SHT_NULL)
             continue;
@@ -231,6 +233,8 @@ void ObjGen::updateSymbolTable() {
         symbol.st_size = 0;
         symtab->add(symbol);
     }
+
+    LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
 }
 
 void ObjGen::updateRelocations() {
@@ -241,7 +245,7 @@ void ObjGen::updateRelocations() {
         sections->findSection(".rela.rodata"));
     for(auto relaPair : relaRoDataSection->getContentMap()) {
         auto index = symtab->findIndexWithShIndex(shdrTable->findIndex(relaPair.first)) + 1;
-        LOG(1, "updating rela.rodata " << shdrTable->findIndex(relaPair.first));
+        LOG(1, "updating rela.rodata " << shdrTable->findIndex(relaPair.first) << " => " << index);
         relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_64);
     }
 }

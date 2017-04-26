@@ -31,13 +31,16 @@ void SymbolTableSection::add(ElfXX_Sym symbol) {
 
 size_t SymbolTableSection::findIndexWithShIndex(size_t idx) {
     size_t index = 0;
-    for(auto symbol : getContentMap()) {
-        if(symbol.second.st_shndx == idx) {
+    for(auto symbol : getContentList()) {
+        auto content = findContent(symbol);
+        if(symbol->getType() == Symbol::TYPE_SECTION
+            && content.st_shndx == idx) {
+
             return index;
         }
         index++;
     }
-    return index;
+    return 0;
 }
 
 ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
