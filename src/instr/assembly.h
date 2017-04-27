@@ -31,23 +31,25 @@ public:
         : op_count(insn.detail->arm64.op_count),
           writeback(insn.detail->arm64.writeback),
           operands(insn.detail->arm64.operands,
-                   insn.detail->arm64.operands + insn.detail->arm64.op_count) {}
+                   insn.detail->arm64.operands + insn.detail->arm64.op_count)
+        { overrideCapstone(insn); }
     bool getWriteback() const { return writeback; }
     const cs_arm64_op *getOperands() const { return operands.data(); }
+private:
+    void overrideCapstone(const cs_insn &insn);
 #elif defined(ARCH_ARM)
- private:
+private:
     bool writeback;
     std::vector<cs_arm_op> operands;
 
- public:
- AssemblyOperands(const cs_insn &insn)
-   : op_count(insn.detail->arm.op_count),
-      writeback(insn.detail->arm.writeback),
-      operands(insn.detail->arm.operands,
-               insn.detail->arm.operands + insn.detail->arm.op_count) {}
+public:
+    AssemblyOperands(const cs_insn &insn)
+        : op_count(insn.detail->arm.op_count),
+        writeback(insn.detail->arm.writeback),
+        operands(insn.detail->arm.operands,
+            insn.detail->arm.operands + insn.detail->arm.op_count) {}
     bool getWriteback() const { return writeback; }
     const cs_arm_op *getOperands() const { return operands.data(); }
-
 #endif
 public:
     AssemblyOperands() {}
