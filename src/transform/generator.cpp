@@ -4,6 +4,7 @@
 #include "generator.h"
 #include "operation/mutator.h"
 #include "instr/semantic.h"
+#include "instr/writer.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dassign
@@ -55,7 +56,14 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
         LOG(2, "    writing out [" << f->getName() << "] at 0x" << std::hex << f->getAddress());
         for(auto b : CIter::children(f)) {
             for(auto i : CIter::children(b)) {
-                i->getSemantic()->writeTo(output);
+                if(useDisps) {
+                    InstrWriterCString writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                else {
+                    InstrWriterForObjectFile writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
                 output += i->getSemantic()->getSize();
             }
         }

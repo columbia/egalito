@@ -5,6 +5,7 @@
 #include <utility>  // for std::move
 #include <capstone/capstone.h>  // for cs_insn
 #include "assembly.h"
+#include "visitor.h"
 #include "types.h"
 
 class Instruction;
@@ -22,11 +23,9 @@ public:
     virtual Link *getLink() const = 0;
     virtual void setLink(Link *newLink) = 0;
 
-    virtual void writeTo(char *target) = 0;
-    virtual void writeTo(std::string &target) = 0;
-    virtual std::string getData() = 0;
-
     virtual Assembly *getAssembly() = 0;
+
+    virtual void accept(InstructionVisitor *visitor) = 0;
 };
 
 class RawByteStorage {
@@ -36,10 +35,7 @@ public:
     RawByteStorage(const std::string &rawData) : rawData(rawData) {}
 
     size_t getSize() const { return rawData.size(); }
-
-    void writeTo(char *target);
-    void writeTo(std::string &target);
-    std::string getData();
+    const std::string &getData() const { return rawData; }
 
     Assembly *getAssembly() { return nullptr; }
 };
@@ -64,10 +60,7 @@ public:
     DisassembledStorage &operator = (DisassembledStorage &&other);
 
     size_t getSize() const { return assembly.getSize(); }
-
-    void writeTo(char *target);
-    void writeTo(std::string &target);
-    std::string getData();
+    std::string getData() const;
 
     Assembly *getAssembly() { return &assembly; }
     void setAssembly(Assembly &&newAssembly)
@@ -92,11 +85,9 @@ public:
     virtual void setLink(Link *newLink)
         { throw "Can't set link for this instruction type!"; }
 
-    virtual void writeTo(char *target) { storage.writeTo(target); }
-    virtual void writeTo(std::string &target) { storage.writeTo(target); }
-    virtual std::string getData() { return storage.getData(); }
-
     virtual Assembly *getAssembly() { return storage.getAssembly(); }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
     void setStorage(Storage &&storage) { this->storage = std::move(storage); }
 };

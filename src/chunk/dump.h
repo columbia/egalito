@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "concrete.h"
+#include "instr/visitor.h"
 #include "instr/concrete.h"
 #include "visitor.h"
 
@@ -29,15 +30,22 @@ public:
     virtual void visit(JumpTable *jumpTable);
     virtual void visit(JumpTableEntry *jumpTableEntry);
     virtual void visit(DataRegion *dataRegion);
+};
+
+class InstrDumper : public InstructionVisitor {
 private:
-    void dumpInstruction(ControlFlowInstruction *semantic,
-                         address_t address, int pos);
-    void dumpInstruction(LinkedInstruction *semantic,
-                         address_t address, int pos);
-    void dumpInstruction(IndirectJumpInstruction *semantic,
-                         address_t address, int pos);
-    void dumpInstruction(InstructionSemantic *semantic,
-                         address_t address, int pos);
+    address_t address;
+    int pos;
+public:
+    InstrDumper(address_t address, int pos) : address(address), pos(pos) {}
+
+    virtual void visit(RawInstruction *semantic);
+    virtual void visit(IsolatedInstruction *semantic);
+    virtual void visit(LinkedInstruction *semantic);
+    virtual void visit(ControlFlowInstruction *semantic);
+    virtual void visit(IndirectJumpInstruction *semantic);
+private:
+    std::string getBytes(InstructionSemantic *semantic);
 };
 
 #endif

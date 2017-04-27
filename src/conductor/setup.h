@@ -30,10 +30,10 @@ public:
         bool injectEgalito = false);
     void makeLoaderSandbox();
     void makeFileSandbox(const char *outputFile);
-    void moveCode();
+    void moveCode(bool useDisps = true);
 public:
-    void moveCodeAssignAddresses();
-    void copyCodeToNewAddresses();
+    void moveCodeAssignAddresses(bool useDisps);
+    void copyCodeToNewAddresses(bool useDisps);
     void moveCodeMakeExecutable();
 public:
     ElfMap *getElfMap() const { return elf; }

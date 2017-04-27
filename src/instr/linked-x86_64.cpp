@@ -21,10 +21,10 @@ unsigned LinkedInstruction::calculateDisplacement() {
     return disp;
 }
 
-void LinkedInstruction::writeTo(char *target) {
+void LinkedInstruction::writeTo(char *target, bool useDisp) {
     Assembly *assembly = getAssembly();
     auto dispSize = getDispSize();
-    unsigned int newDisp = 0;//calculateDisplacement();
+    unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
     int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
     int i = 0;
     std::memcpy(target + i, assembly->getBytes() + i, dispOffset);
@@ -35,10 +35,10 @@ void LinkedInstruction::writeTo(char *target) {
         assembly->getSize() - dispSize - dispOffset);
 }
 
-void LinkedInstruction::writeTo(std::string &target) {
+void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     Assembly *assembly = getAssembly();
     auto dispSize = getDispSize();
-    unsigned int newDisp = calculateDisplacement();
+    unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
     int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
     target.append(reinterpret_cast<const char *>(assembly->getBytes()),
         dispOffset);
@@ -48,20 +48,11 @@ void LinkedInstruction::writeTo(std::string &target) {
         assembly->getSize() - dispSize - dispOffset);
 }
 
-std::string LinkedInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return std::move(data);
-}
-
 void LinkedInstruction::regenerateAssembly() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).
-    std::string data = getData();
-    std::vector<unsigned char> dataVector;
-    for(size_t i = 0; i < data.length(); i ++) {
-        dataVector.push_back(data[i]);
-    }
+    std::string data = getStorage().getData();
+    std::vector<unsigned char> dataVector(data.begin(), data.end());
     Assembly assembly = Disassemble::makeAssembly(
         dataVector, instruction->getAddress());
 
@@ -137,20 +128,16 @@ void ControlFlowInstruction::setSize(size_t value) {
     displacementSize = disp;
 }
 
-void ControlFlowInstruction::writeTo(char *target) {
+void ControlFlowInstruction::writeTo(char *target, bool useDisp) {
     std::memcpy(target, opcode.c_str(), opcode.size());
-    diff_t disp = calculateDisplacement();
+    diff_t disp = useDisp ? calculateDisplacement() : 0;
     std::memcpy(target + opcode.size(), &disp, displacementSize);
 }
-void ControlFlowInstruction::writeTo(std::string &target) {
+
+void ControlFlowInstruction::writeTo(std::string &target, bool useDisp) {
     target.append(opcode);
-    diff_t disp = calculateDisplacement();
+    diff_t disp = useDisp ? calculateDisplacement() : 0;
     target.append(reinterpret_cast<const char *>(&disp), displacementSize);
-}
-std::string ControlFlowInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return data;
 }
 
 diff_t ControlFlowInstruction::calculateDisplacement() {

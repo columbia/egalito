@@ -62,21 +62,21 @@ void ConductorSetup::makeFileSandbox(const char *outputFile) {
         WatermarkAllocator<ObjBacking>>(backing);
 }
 
-void ConductorSetup::moveCode() {
+void ConductorSetup::moveCode(bool useDisps) {
 
     // 1. assign new addresses to all code
-    moveCodeAssignAddresses();
+    moveCodeAssignAddresses(useDisps);
 
     // 2. copy code to the new addresses
-    copyCodeToNewAddresses();
+    copyCodeToNewAddresses(useDisps);
 
     // 3. make code executable, or change permissions
     moveCodeMakeExecutable();
 }
 
-void ConductorSetup::moveCodeAssignAddresses() {
+void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
     auto module = conductor->getMainSpace()->getModule();
-    Generator generator;
+    Generator generator(useDisps);
 
     generator.pickAddressesInSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
@@ -86,9 +86,9 @@ void ConductorSetup::moveCodeAssignAddresses() {
     }
 }
 
-void ConductorSetup::copyCodeToNewAddresses() {
+void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
     auto module = conductor->getMainSpace()->getModule();
-    Generator generator;
+    Generator generator(useDisps);
 
     generator.copyCodeToSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {

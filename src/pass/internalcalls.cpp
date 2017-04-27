@@ -3,6 +3,7 @@
 #include "operation/find.h"
 #include "instr/semantic.h"
 #include "instr/concrete.h"
+#include "instr/writer.h"
 #include "log/log.h"
 
 void InternalCalls::visit(Module *module) {
@@ -86,15 +87,22 @@ void InternalCalls::visit(Instruction *instruction) {
         }
         else {
             auto i = dynamic_cast<Instruction *>(found);
-            if(i && offset == 1 && static_cast<unsigned char>(
-                i->getSemantic()->getData()[0]) == 0xf0) {
-
-                // jumping by skipping the "LOCK" prefix
-                if(isExternal) {
-                    semantic->setLink(new ExternalOffsetLink(found, 1));
+            if(i && offset == 1) {
+                InstrWriterGetData writer;
+                i->getSemantic()->accept(&writer);
+                if(static_cast<unsigned char>(writer.get()[0]) == 0xf0) {
+                    // jumping by skipping the "LOCK" prefix
+                    if(isExternal) {
+                        semantic->setLink(new ExternalOffsetLink(found, 1));
+                    }
+                    else {
+                        semantic->setLink(new OffsetLink(found, 1));
+                    }
                 }
                 else {
-                    semantic->setLink(new OffsetLink(found, 1));
+                    LOG(1, "WARNING: unknown prefix when jumping into "
+                        "the middle of an instruction!");
+                    return;  // skip delete link
                 }
             }
             else {

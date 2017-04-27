@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         setup.parseElfFiles(argv[1], false, false);
         setup.makeFileSandbox(argv[2]);
         otherPasses(&setup);
-        setup.moveCode();  // calls sandbox->finalize()
+        setup.moveCode(false);  // calls sandbox->finalize()
     }
     catch(const char *s) {
         LOG(0, "ERROR: " << s);

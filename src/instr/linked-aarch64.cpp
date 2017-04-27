@@ -131,17 +131,13 @@ uint32_t LinkedInstruction::getOriginalOffset() const {
     }
 }
 
-void LinkedInstruction::writeTo(char *target) {
+void LinkedInstruction::writeTo(char *target, bool useDisp) {
     *reinterpret_cast<uint32_t *>(target) = rebuild();
 }
-void LinkedInstruction::writeTo(std::string &target) {
+
+void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     uint32_t data = rebuild();
     target.append(reinterpret_cast<const char *>(&data), getSize());
-}
-std::string LinkedInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return data;
 }
 
 LinkedInstruction::Mode LinkedInstruction::getMode(

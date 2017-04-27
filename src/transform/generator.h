@@ -4,7 +4,10 @@
 #include "sandbox.h"
 
 class Generator {
+private:
+    bool useDisps;
 public:
+    Generator(bool useDisps = true) : useDisps(useDisps) {}
     //Sandbox *makeSandbox();
     void pickAddressesInSandbox(Module *module, Sandbox *sandbox);
     void copyCodeToSandbox(Module *module, Sandbox *sandbox);

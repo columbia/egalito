@@ -4,6 +4,7 @@
 #include "dump.h"
 #include "disasm/dump.h"
 #include "disasm/disassemble.h"
+#include "instr/writer.h"
 #include "elf/symbol.h"
 #include "log/log.h"
 
@@ -52,22 +53,8 @@ void ChunkDumper::visit(Instruction *instruction) {
 
     CLOG0(4, "    ");
 
-    if(auto p = dynamic_cast<ControlFlowInstruction *>(semantic)) {
-
-        dumpInstruction(p, instruction->getAddress(), pos);
-    }
-    // this handles RelocationInstruction, InferredInstruction
-    else if(auto r = dynamic_cast<LinkedInstruction *>(semantic)) {
-
-        dumpInstruction(r, instruction->getAddress(), pos);
-    }
-    else if(auto p = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
-
-        dumpInstruction(p, instruction->getAddress(), pos);
-    }
-    else {
-        dumpInstruction(semantic, instruction->getAddress(), pos);
-    }
+    InstrDumper instrDumper(instruction->getAddress(), pos);
+    instruction->getSemantic()->accept(&instrDumper);
 }
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
@@ -91,9 +78,35 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
     LOG(1, "NYI");
 }
 
-void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
-    address_t address, int pos) {
+void InstrDumper::visit(RawInstruction *semantic) {
+    std::string data = getBytes(semantic);
+    std::vector<unsigned char> v(data.begin(), data.end());
+    Assembly assembly = Disassemble::makeAssembly(v, address);
+    DisasmDump::printInstruction(address, &assembly, pos, nullptr);
+}
 
+void InstrDumper::visit(IsolatedInstruction *semantic) {
+    Assembly *assembly = semantic->getAssembly();
+    DisasmDump::printInstruction(address, assembly, pos, nullptr);
+}
+
+void InstrDumper::visit(LinkedInstruction *semantic) {
+    semantic->regenerateAssembly();
+    Assembly *assembly = semantic->getAssembly();
+    auto link = semantic->getLink();
+    auto target = link ? link->getTarget() : nullptr;
+    if(target) {
+        DisasmDump::printInstruction(
+            address, assembly, pos, target->getName().c_str());
+    }
+    else {
+        unsigned long targetAddress = link->getTargetAddress();
+        DisasmDump::printInstructionCalculated(
+            address, assembly, pos, targetAddress);
+    }
+}
+
+void InstrDumper::visit(ControlFlowInstruction *semantic) {
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
 
@@ -125,7 +138,7 @@ void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
         //name << " [opcode size " << semantic->getOpcode().length() << ", dispSize " << semantic->getDisplacementSize() << "] ";
     }
 
-    std::string bytes = semantic->getData();
+    std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
     DisasmDump::printInstructionRaw(address,
@@ -136,31 +149,11 @@ void ChunkDumper::dumpInstruction(ControlFlowInstruction *semantic,
         bytes2.c_str());
 }
 
-void ChunkDumper::dumpInstruction(LinkedInstruction *semantic,
-    address_t address, int pos) {
-
-    semantic->regenerateAssembly();
-    Assembly *assembly = semantic->getAssembly();
-    auto link = semantic->getLink();
-    auto target = link ? link->getTarget() : nullptr;
-    if(target) {
-        DisasmDump::printInstruction(
-            address, assembly, pos, target->getName().c_str());
-    }
-    else {
-        unsigned long targetAddress = link->getTargetAddress();
-        DisasmDump::printInstructionCalculated(
-            address, assembly, pos, targetAddress);
-    }
-}
-
-void ChunkDumper::dumpInstruction(IndirectJumpInstruction *semantic,
-    address_t address, int pos) {
-
+void InstrDumper::visit(IndirectJumpInstruction *semantic) {
     std::ostringstream name;
     name << "(JUMP* " << semantic->getMnemonic() << ")";
 
-    std::string bytes = semantic->getData();
+    std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
     DisasmDump::printInstructionRaw(address,
@@ -168,19 +161,8 @@ void ChunkDumper::dumpInstruction(IndirectJumpInstruction *semantic,
         semantic->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
 }
 
-void ChunkDumper::dumpInstruction(InstructionSemantic *semantic,
-    address_t address, int pos) {
-
-    Assembly *assembly = semantic->getAssembly();
-
-    if(assembly) {
-        DisasmDump::printInstruction(address, assembly, pos, nullptr);
-    }
-    else {  /* RawInstruction */
-        std::vector<unsigned char> v(semantic->getData().begin(),
-                                     semantic->getData().end());
-        Assembly assembly = Disassemble::makeAssembly(v, address);
-        DisasmDump::printInstruction(address, &assembly, pos, nullptr);
-    }
+std::string InstrDumper::getBytes(InstructionSemantic *semantic) {
+    InstrWriterGetData writer;
+    semantic->accept(&writer);
+    return std::move(writer.get());
 }
-

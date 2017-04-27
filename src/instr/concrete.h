@@ -12,6 +12,8 @@
 class ReturnInstruction : public IsolatedInstruction {
 public:
     using IsolatedInstruction::IsolatedInstruction;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
 class IndirectJumpInstruction : public IsolatedInstruction {
@@ -26,6 +28,8 @@ public:
 
     std::string getMnemonic() const { return mnemonic; }
     register_t getRegister() const { return reg; }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
 #endif

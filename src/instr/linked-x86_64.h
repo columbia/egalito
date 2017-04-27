@@ -18,9 +18,8 @@ public:
         : LinkDecorator<DisassembledInstruction>(assembly),
         instruction(i), opIndex(-1) {}
 
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData();
+    void writeTo(char *target, bool useDisp);
+    void writeTo(std::string &target, bool useDisp);
 
     void regenerateAssembly();
 
@@ -29,6 +28,8 @@ public:
 
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, Assembly *assembly);
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
     Instruction *getInstruction() const { return instruction; }
     int getDispSize();
@@ -51,11 +52,12 @@ public:
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
 
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData();
+    void writeTo(char *target, bool useDisp);
+    void writeTo(std::string &target, bool useDisp);
 
     virtual Assembly *getAssembly() { return nullptr; }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
