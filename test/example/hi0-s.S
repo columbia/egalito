@@ -13,9 +13,9 @@ my_write:
     svc     0
     ret
 #elif defined(ARCH_ARM)
-		mov     r7, #4
-		svc     #0
-		bx      lr
+    mov     r7, #4
+    svc     #0
+    bx      lr
 #endif
 
 .type my_write, STT_FUNC

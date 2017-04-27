@@ -24,12 +24,16 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr
+TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr islower
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
+ifeq (arm,$(P_ARCH))
+TARGETS-thumb = $(addsuffix -thumb,$(TARGETS))
+TARGETS-arm = $(addsuffix -arm,$(TARGETS))
+endif
 
 LONE_TARGETS = hellocpp
 
@@ -38,9 +42,13 @@ ALL_TARGETS += $(TARGETS-q)
 ALL_TARGETS += $(TARGETS-strip)
 ALL_TARGETS += $(TARGETS-static)
 ALL_TARGETS += $(TARGETS-obj)
+ifeq (arm,$(P_ARCH))
+ALL_TARGETS += $(TARGETS-thumb)
+ALL_TARGETS += $(TARGETS-arm)
+endif
 ALL_TARGETS += $(LONE_TARGETS)
 
-.PHONY: all targets targets-q targets-strip targets-static
+.PHONY: all targets targets-q targets-strip targets-static targets-thumb targets-arm
 
 all: $(ALL_TARGETS)
 
@@ -53,12 +61,20 @@ targets-q: $(TARGETS-q)
 targets-strip: $(TARGETS-strip)
 targets-static: $(TARGETS-static)
 targets-obj: $(TARGETS-obj)
+ifeq (arm,$(P_ARCH))
+targets-thumb: $(TARGETS-thumb)
+targets-arm: $(TARGETS-arm)
+endif
 
 define dep_rule
 $$(BUILDDIR)$1: $2
 $$(BUILDDIR)$1-q: $2
 $$(BUILDDIR)$1-strip: $2
 $$(BUILDDIR)$1-static: $2
+ifeq (arm,$(P_ARCH))
+$$(BUILDDIR)$1-thumb: $2
+$$(BUILDDIR)$1-arm: $2
+endif
 endef
 
 $(eval $(call dep_rule,hello,hello.c))
@@ -70,11 +86,18 @@ $(eval $(call dep_rule,stack,stack.c))
 $(eval $(call dep_rule,log,log.c))
 $(eval $(call dep_rule,stderr,stderr.c))
 $(eval $(call dep_rule,hellocpp,hellocpp.cpp))
+$(eval $(call dep_rule,islower,islower.c))
 
 $(BUILDDIR)hello-obj: hello-obj.c
 
 addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
 
+ifeq (arm,$(P_ARCH))
+$(BUILDDIR)%-thumb:
+	$(CC) $(CFLAGS) -mthumb $(call addcflags,$(notdir $@)) $^ -o $@
+$(BUILDDIR)%-arm:
+	$(CC) $(CFLAGS) -marm $(call addcflags,$(notdir $@)) $^ -o $@
+endif
 $(BUILDDIR)%-static:
 	$(CC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%-strip:
