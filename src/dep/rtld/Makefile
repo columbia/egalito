@@ -52,8 +52,9 @@ $(BUILDDIR)pthread.h: | depends
 	$(RUN_GDB) -x pthread.gdb $(LIBC) | grep -v 'done\.' \
 		| sed 's/struct pthread/struct my_pthread/' > $@
 $(BUILDDIR)tcbhead.h: | depends
-	$(RUN_GDB) -x tcbhead.gdb $(LIBC) | grep -v 'done\.' \
-		| sed 's/tcbhead_t/struct my_tcbhead_t/' > $@
+	$(RUN_GDB) -x tcbhead.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' \
+		| sed 's/tcbhead_t/struct my_tcbhead_t/' \
+		| sed 's/private/my_private/' > $@
 
 $(BUILDDIR)%.c: %.gdb | depends
 	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' > $@
