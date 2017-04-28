@@ -8,10 +8,10 @@
 #include "log/log.h"
 
 ObjGen::Sections::Sections() {
-    header = new Section(".elfheader");
-    strtab = new Section(".strtab", SHT_STRTAB);
-    shstrtab = new Section(".shstrtab", SHT_STRTAB);
-    symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
+    auto header = new Section(".elfheader");
+    auto strtab = new Section(".strtab", SHT_STRTAB);
+    auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
+    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
     addSection(header);
     addSection(strtab);
     addSection(shstrtab);
@@ -95,7 +95,7 @@ void ObjGen::makeText() {
     }
 
     // Redo Relocations
-    auto symtab = static_cast<SymbolTableSection *>(sections.getSymTab());
+    auto symtab = static_cast<SymbolTableSection *>(sections[".symbtab"]);
     auto relaTextSection = new RelocationSection(lastTextSection);
     relaTextSection->setSectionLink(symtab);
     {
@@ -218,8 +218,6 @@ void ObjGen::updateSymbolTable() {
         symtab->findValue(symbol)->st_shndx = textIndex;
     }
 
-    LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
-
     for(auto shdrPair : shdrTable->getValueMap()) {
         if(shdrPair.second->sh_type == SHT_NULL)
             continue;
@@ -230,11 +228,10 @@ void ObjGen::updateSymbolTable() {
         symtab->add(sym);
     }
 
-    LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
 }
 
 void ObjGen::updateRelocations() {
-    auto symtab = sections.getSymTab();
+    auto symtab = static_cast<SymbolTableSection *>(sections[".symbtab"]);
     auto shdrTable = static_cast<ShdrTableSection *>(sections[".shdr_table"]);
     auto *relaTextSection = static_cast<RelocationSection *>(sections[".rela.text.0x40000000"]);
     for(auto rela : relaTextSection->getValueList()) {
@@ -255,7 +252,7 @@ void ObjGen::updateShdrTable() {
         shdr->sh_addr   = section->getAddress();
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
-    SymbolTableSection *symtab = sections.getSymTab();
+    SymbolTableSection *symtab = static_cast<SymbolTableSection *>(sections[".symbtab"]);
     shdrTable->getValueMap()[symtab]->sh_info = shdrTable->getCount();
 }
 

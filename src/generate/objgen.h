@@ -21,7 +21,6 @@ private:
         std::vector<Section *>::iterator end() { return sections.end(); }
         Section *operator [](std::string name) {return sectionMap[name];}
     public:
-        SymbolTableSection *getSymTab() { return symtab; }
         Section *getText() { return text; }
         void addTextSection(Section *s) { addSection(s); text = s; }
     };
@@ -33,7 +32,6 @@ private:
     Sections sections;
 public:
     ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename);
-    ~ObjGen() {}
 public:
     void generate();
 private:
