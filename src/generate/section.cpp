@@ -36,25 +36,16 @@ ElfXX_Shdr *Section::makeShdr(size_t index, size_t nameStrIndex) {
     entry->sh_offset = offset;
     entry->sh_size = getSize();
     entry->sh_addr = address;
-
-    if(shdrType == SHT_SYMTAB || shdrType == SHT_DYNSYM) {
-        entry->sh_entsize = sizeof(ElfXX_Sym);
-        entry->sh_info = getSize() / entry->sh_entsize;
-        entry->sh_addralign = 8;
-    } else if(shdrType == SHT_RELA) {
-        entry->sh_entsize = sizeof(ElfXX_Rela);
-        entry->sh_addralign = 8;
-    } else {
-        entry->sh_entsize = 0;
-        entry->sh_info = 0;  // updated later for strtabs
-        entry->sh_addralign = 1;
-    }
+    // These are sometimes changed later
+    entry->sh_entsize = 0;
+    entry->sh_info = 0;  // updated later for strtabs
+    entry->sh_addralign = 1;
     // don't forget to set sh_link!
     return entry;
 }
 
 std::ostream& operator<<(std::ostream &stream, Section &rhs) {
-    rhs.commitContents();
+    rhs.commitValues();
     auto data = rhs.getData();
     stream << data;
     LOG(1, "actual size " << data.size());

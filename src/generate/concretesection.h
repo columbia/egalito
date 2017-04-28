@@ -8,18 +8,18 @@
 class Function;
 class Symbol;
 
-class SymbolTableSection : public DeferredContentSection<Symbol, ElfXX_Sym> {
+class SymbolTableSection : public DeferredSection<Symbol, ElfXX_Sym> {
 public:
     SymbolTableSection(std::string name, ElfXX_Word type)
-        : DeferredContentSection<Symbol, ElfXX_Sym>(name, type) {}
+        : DeferredSection<Symbol, ElfXX_Sym>(name, type) {}
 
     using Section::add;
     void add(Function *func, Symbol *sym, size_t nameStrIndex);
-    void add(ElfXX_Sym symbol);
+    void add(Symbol *symb);
 
     // we allow both concrete and deferred data here
     virtual size_t getSize() const
-        { return Section::getSize() + DeferredContentSection<Symbol, ElfXX_Sym>::getSize(); }
+        { return Section::getSize() + DeferredSection<Symbol, ElfXX_Sym>::getSize(); }
 
     virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 
@@ -27,24 +27,31 @@ public:
     size_t findIndexWithShIndex(size_t idx);
 };
 
-class RelocationSection : public PtrDeferredContentSection<Section, ElfXX_Rela> {
+class RelocationSection : public SimpleDeferredSection<ElfXX_Rela> {
 private:
-    Section *targetSection;
+    Section *destSection;
+    Section *sourceSection;
 public:
-    using PtrDeferredContentSection::PtrDeferredContentSection;
+    RelocationSection(Section *source)
+        : SimpleDeferredSection<ElfXX_Rela>(".rela" + source->getName(),
+            SHT_RELA, SHF_INFO_LINK), sourceSection(source) {}
 
-    void setTargetSection(Section *target) { targetSection = target; }
-    void addRelaPair(Section *section, ElfXX_Rela *rela)
-        { addElement(section, rela); }
+public:
+    Section *getDestSection() { return destSection; }
+    Section *getSourceSection() { return sourceSection; }
+    void setDestSection(Section *dest) { destSection = dest; }
+public:
+    void addRela(ElfXX_Rela *rela)
+        { addValue(rela); }
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 };
 
-class ShdrTableSection : public PtrDeferredContentSection<Section, ElfXX_Shdr> {
+class ShdrTableSection : public DeferredSection<Section, ElfXX_Shdr> {
 public:
-    using PtrDeferredContentSection::PtrDeferredContentSection;
+    using DeferredSection::DeferredSection;
 public:
     void addShdrPair(Section *section, ElfXX_Shdr *shdr)
-        { addElement(section, shdr); }
+        { addKeyValue(section, shdr); }
 };
 
 #endif

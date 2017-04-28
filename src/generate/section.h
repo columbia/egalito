@@ -46,7 +46,7 @@ public:
     void setAddress(address_t addr) { address = addr; }
     void setOffset(size_t off) { offset = off; }
     void setSectionLink(Section *link) { sectionLink = link; }
-    virtual void commitContents() {}
+    virtual void commitValues() {}
 public:
     friend std::ostream& operator<<(std::ostream &stream, Section &rhs);
     size_t add(const void *data, size_t size);
@@ -57,93 +57,144 @@ public:
     virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
     template<typename ElfStructType> ElfStructType *castAs()
         { return (ElfStructType *)(data.data()); }
-    template<typename ElfStructType> size_t getElementCount()
+    template<typename ElfStructType> size_t getKeyCount()
         { return data.size() / sizeof(ElfStructType); }
 };
 
-/** Stores intermediate data generated from ElementType objects, which will
-    be serialized into ElfContentType objects (e.g. Symbols -> ElfXX_Sym).
+/** Stores intermediate data generated from KeyType objects, which will
+    be serialized into ValueType objects (e.g. Symbols -> ElfXX_Sym).
+    This stores a map as well as vector.
 */
-template <typename ElementType, typename ElfContentType>
-class DeferredContentSection : public Section {
+template <typename KeyType, typename ValueType>
+class DeferredSection : public Section {
 private:
-    typedef std::map<ElementType *, ElfContentType> ContentMapType;
-    ContentMapType contentMap;
+    typedef std::map<KeyType *, ValueType *> ValueMapType;
+    ValueMapType valueMap;
 
-    typedef std::vector<ElementType *> ContentListType;
-    ContentListType contentList;
+    typedef std::vector<KeyType *> KeyListType;
+    KeyListType keyList;
 
     bool committed;
 public:
-    DeferredContentSection(std::string name)
+    DeferredSection(std::string name)
         : Section(name), committed(false) {}
-    DeferredContentSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
+    DeferredSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
         : Section(name, type, flags), committed(false) {}
 
-    virtual size_t getElementSize() const { return sizeof(ElfContentType); }
+    ~DeferredSection();
+
+    virtual size_t getValueSize() const { return sizeof(ValueType); }
     virtual size_t getSize() const
-        { return contentList.size() * getElementSize(); }
-    size_t getCount() const { return contentList.size(); }
+        { return keyList.size() * getValueSize(); }
+    size_t getCount() const { return keyList.size(); }
 protected:
-    void addElement(ElementType *element, ElfContentType content)
-        { contentMap[element] = content; contentList.push_back(element); }
-    void addElementFirst(ElementType *element, ElfContentType content)
-        { contentMap[element] = content; contentList.insert(contentList.begin(), element); }
-    virtual void lowLevelAdd(ElfContentType &content)
-        { add(static_cast<void *>(&content), sizeof(content)); }
+    void addKeyValue(KeyType *key, ValueType *value)
+        { valueMap[key] = value; keyList.push_back(key); }
+    void lowLevelAdd(ValueType *&value)
+        { add(static_cast<void *>(value), getValueSize()); }
 public:
-    ElfContentType &findContent(ElementType *element);
-    size_t findIndex(ElementType *element);
+    ValueType *&findValue(KeyType *key);
+    size_t findIndex(KeyType *key);
 
-    // returns elements in arbitrary order, not index-sorted
-    ContentMapType &getContentMap() { return contentMap; }
-    ContentListType &getContentList() { return contentList; }
+    // returns keys in arbitrary order, not index-sorted
+    ValueMapType &getValueMap() { return valueMap; }
+    KeyListType &getKeyList() { return keyList; }
 
-    virtual void commitContents();
+    // Create an iterator
+    typename KeyListType::iterator begin() { return keyList.begin(); }
+    typename KeyListType::iterator end() { return keyList.end(); }
+    void insert(typename KeyListType::iterator it, KeyType *key, ValueType *value)
+        { valueMap[key] = value; keyList.insert(it, key); }
+
+    void commitValues();
 };
 
-template <typename ElementType, typename ElfContentType>
-ElfContentType &DeferredContentSection<ElementType, ElfContentType>
-    ::findContent(ElementType *element) {
-
-    return (*contentMap.find(element)).second;
+template <typename KeyType, typename ValueType>
+DeferredSection<KeyType, ValueType>::~DeferredSection() {
+    for(auto value : valueMap) {
+        delete value.second;
+    }
 }
 
-template <typename ElementType, typename ElfContentType>
-size_t DeferredContentSection<ElementType, ElfContentType>
-    ::findIndex(ElementType *element) {
+template <typename KeyType, typename ValueType>
+ValueType *&DeferredSection<KeyType, ValueType>
+    ::findValue(KeyType *key) {
 
-    auto it = std::find(contentList.begin(), contentList.end(), element);
-    return (it != contentList.end()
-        ? std::distance(contentList.begin(), it)
+    return (*valueMap.find(key)).second;
+}
+
+template <typename KeyType, typename ValueType>
+size_t DeferredSection<KeyType, ValueType>
+    ::findIndex(KeyType *key) {
+
+    auto it = std::find(keyList.begin(), keyList.end(), key);
+    return (it != keyList.end()
+        ? std::distance(keyList.begin(), it)
         : static_cast<size_t>(0));
 }
 
-template <typename ElementType, typename ElfContentType>
-void DeferredContentSection<ElementType, ElfContentType>::commitContents() {
+template <typename KeyType, typename ValueType>
+void DeferredSection<KeyType, ValueType>::commitValues() {
     if(committed) return;
-    for(auto element : contentList) {
-        auto &content = contentMap[element];
-        lowLevelAdd(content);
+    for(auto key : keyList) {
+        auto &value = valueMap[key];
+        lowLevelAdd(value);
     }
     committed = true;
 }
 
-// for pointer types
-template <typename ElementType, typename ElfContentType>
-class PtrDeferredContentSection
-    : public DeferredContentSection<ElementType, ElfContentType *> {
+/** Stores intermediate data generated from KeyType objects, which will
+    be serialized into ValueType objects (e.g. just a list of ElfXX_Sym).
+*/
+template <typename ValueType>
+class SimpleDeferredSection : public Section {
+private:
+    typedef std::vector<ValueType *> ValueListType;
+    ValueListType valueList;
+
+    bool committed;
 public:
-    //using DeferredContentSection::DeferredContentSection;
-    PtrDeferredContentSection(std::string name)
-        : DeferredContentSection<ElementType, ElfContentType *>(name) {}
-    PtrDeferredContentSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
-        : DeferredContentSection<ElementType, ElfContentType *>(name, type, flags) {}
-    virtual size_t getElementSize() const { return sizeof(ElfContentType); }
+    SimpleDeferredSection(std::string name)
+        : Section(name), committed(false) {}
+    SimpleDeferredSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
+        : Section(name, type, flags), committed(false) {}
+
+    ~SimpleDeferredSection();
+
+    virtual size_t getValueSize() const { return sizeof(ValueType); }
+    virtual size_t getSize() const
+        { return valueList.size() * getValueSize(); }
+    size_t getCount() const { return valueList.size(); }
 protected:
-    virtual void lowLevelAdd(ElfContentType *&content)
-        { this->add(static_cast<void *>(content), sizeof(*content)); }
+    void addValue(ValueType *value)
+        { valueList.push_back(value); }
+    virtual void lowLevelAdd(ValueType *&value)
+        { add(static_cast<void *>(value), getValueSize()); }
+public:
+    ValueListType &getValueList() { return valueList; }
+    typename ValueListType::iterator begin() { return valueList.begin(); }
+    typename ValueListType::iterator end() { return valueList.end(); }
+    void insert(typename ValueListType::iterator it, ValueType *value)
+        { valueList.insert(it, value); }
+
+    void commitValues();
 };
+
+template <typename ValueType>
+SimpleDeferredSection<ValueType>::~SimpleDeferredSection() {
+    for(auto value : valueList) {
+        delete value;
+    }
+}
+
+template <typename ValueType>
+void SimpleDeferredSection<ValueType>::commitValues() {
+    if(committed) return;
+    for(auto value : valueList) {
+        lowLevelAdd(value);
+    }
+    committed = true;
+}
 
 #include "concretesection.h"
 

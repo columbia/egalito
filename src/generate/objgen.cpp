@@ -12,11 +12,11 @@ ObjGen::Sections::Sections() {
     strtab = new Section(".strtab", SHT_STRTAB);
     shstrtab = new Section(".shstrtab", SHT_STRTAB);
     symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
+    addSection(header);
+    addSection(strtab);
+    addSection(shstrtab);
+    addSection(symtab);
     text = nullptr;
-    sections.push_back(header);
-    sections.push_back(strtab);
-    sections.push_back(shstrtab);
-    sections.push_back(symtab);
 }
 
 ObjGen::Sections::~Sections() {
@@ -25,22 +25,10 @@ ObjGen::Sections::~Sections() {
     }
 }
 
-Section *ObjGen::Sections::findSection(const std::string &name) {
-    for(auto section : sections) {
-        if(section->getName() == name) return section;
-    }
-    return nullptr;
-}
-
 ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
-    elfSpace(elfSpace), backing(backing), filename(filename) {
-    sections = new Sections();
-}
+    elfSpace(elfSpace), backing(backing), filename(filename) {}
 
 void ObjGen::generate() {
-    //ZeroRelocsPass zeroRelocs;
-    //elfSpace->getModule()->accept(&zeroRelocs);
-
     LOG(1, "generating object file");
     makeHeader();
     makeText();
@@ -57,9 +45,9 @@ void ObjGen::generate() {
 
 void ObjGen::makeHeader() {
     auto elfMap = elfSpace->getElfMap();
-    sections->getHeader()->add(elfMap->getMap(), sizeof(ElfXX_Ehdr));
+    sections[".elfheader"]->add(elfMap->getMap(), sizeof(ElfXX_Ehdr));
 
-    ElfXX_Ehdr *header = sections->getHeader()->castAs<ElfXX_Ehdr>();
+    ElfXX_Ehdr *header = sections[".elfheader"]->castAs<ElfXX_Ehdr>();
     header->e_type = ET_REL;
     header->e_entry = 0;
     header->e_phoff = 0;
@@ -98,7 +86,7 @@ void ObjGen::makeText() {
         auto textSection = new Section(sectionName.str().c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
         textSection->add((const uint8_t *)*i, size);
-        sections->addTextSection(textSection);
+        sections.addTextSection(textSection);
 
         lastTextSection = textSection;
 
@@ -106,31 +94,30 @@ void ObjGen::makeText() {
         i = j;
     }
 
-    auto symtab = static_cast<SymbolTableSection *>(
-        sections->findSection(".symtab"));
-    auto relaRoDataSection = new RelocationSection(".rela" + lastTextSection->getName(), SHT_RELA, SHF_INFO_LINK);
-    relaRoDataSection->setTargetSection(lastTextSection);
-    relaRoDataSection->setSectionLink(symtab);
+    // Redo Relocations
+    auto symtab = static_cast<SymbolTableSection *>(sections.getSymTab());
+    auto relaTextSection = new RelocationSection(lastTextSection);
+    relaTextSection->setSectionLink(symtab);
     {
         ElfXX_Rela *rela = new ElfXX_Rela();
         rela->r_offset = 0x1a9;
         rela->r_info = ELFXX_R_INFO(0, 0);
         rela->r_addend = -1;
-        relaRoDataSection->addRelaPair(lastTextSection, rela);
+        relaTextSection->addRela(rela);
     }
     {
         ElfXX_Rela *rela = new ElfXX_Rela();
         rela->r_offset = 0x1c6;
         rela->r_info = ELFXX_R_INFO(0, 0);
         rela->r_addend = 0;
-        relaRoDataSection->addRelaPair(0, rela);
+        relaTextSection->addRela(rela);
     }
-    sections->addSection(relaRoDataSection);
+    sections.addSection(relaTextSection);
 }
 
 void ObjGen::makeSymbolInfo() {
-    auto symtab = sections->getSymTab();
-    auto strtab = sections->getStrTab();
+    auto symtab = static_cast<SymbolTableSection *>(sections[".symtab"]);
+    auto strtab = sections[".strtab"];
 
     {  // add null symbol
         ElfXX_Sym symbol;
@@ -188,12 +175,12 @@ void ObjGen::makeRoData() {
     auto roDataSection = new Section(".rodata", SHT_PROGBITS, SHF_ALLOC);
     char *address = elfMap->getCharmap() + oldRoDataShdr->sh_offset;
     roDataSection->add(address, oldRoDataShdr->sh_size);
-    sections->addSection(roDataSection);
+    sections.addSection(roDataSection);
 }
 
 void ObjGen::makeShdrTable() {
     auto shdrTable = new ShdrTableSection(".shdr_table");
-    auto shstrtab = sections->getShStrTab();
+    auto shstrtab = sections[".shstrtab"];
 
     size_t index = 0;
     auto nullSection = new Section("", SHT_NULL);
@@ -201,7 +188,7 @@ void ObjGen::makeShdrTable() {
     shstrtab->add(nullSection->getName(), true);  // include NULL terminator
     shdrTable->addShdrPair(nullSection, nullShdr);
 
-    for(auto section : sections->getSections()) {
+    for(auto section : sections) {
         if(section->hasShdr()) {
             auto shdr = section->makeShdr(index++, shstrtab->getSize());
             shstrtab->add(section->getName(), true);  // include NULL terminator
@@ -209,12 +196,12 @@ void ObjGen::makeShdrTable() {
         }
     }
 
-    sections->addSection(shdrTable);
+    sections.addSection(shdrTable);
 }
 
 void ObjGen::updateOffsetAndAddress() {
     size_t offset = 0;
-    for(auto section : sections->getSections()) {
+    for(auto section : sections) {
         section->setOffset(offset);
         offset += section->getSize();
     }
@@ -222,52 +209,45 @@ void ObjGen::updateOffsetAndAddress() {
 
 void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
-    auto shdrTable = static_cast<ShdrTableSection *>(
-        sections->findSection(".shdr_table"));
-    auto symtab = sections->getSymTab();
-    auto text = sections->getText();
+    auto shdrTable = static_cast<ShdrTableSection *>(sections[".shdr_table"]);
+    auto symtab = static_cast<SymbolTableSection *>(sections[".symtab"]);
+    auto text = sections.getText();
     auto textIndex = shdrTable->findIndex(text);
 
-    for(auto symbol : symtab->getContentList()) {
-        symtab->findContent(symbol).st_shndx = textIndex;
+    for(auto symbol : symtab->getKeyList()) {
+        symtab->findValue(symbol)->st_shndx = textIndex;
     }
 
     LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
 
-    for(auto shdrPair : shdrTable->getContentMap()) {
+    for(auto shdrPair : shdrTable->getValueMap()) {
         if(shdrPair.second->sh_type == SHT_NULL)
             continue;
-        ElfXX_Sym symbol;
-        symbol.st_name = 0;
-        symbol.st_info = ELFXX_ST_INFO(STB_LOCAL, STT_SECTION);
-        symbol.st_other = STV_DEFAULT;
-        symbol.st_shndx = shdrTable->findIndex(shdrPair.first);
-        symbol.st_value = 0;
-        symbol.st_size = 0;
-        symtab->add(symbol);
+        auto type = Symbol::typeFromElfToInternal(STT_SECTION);
+        auto bind = Symbol::bindFromElfToInternal(STB_LOCAL);
+        Symbol *sym = new Symbol(0, 0, "", type, bind, 0,
+            shdrTable->findIndex(shdrPair.first));
+        symtab->add(sym);
     }
 
     LOG(1, "FIND shindex 5 => " << symtab->findIndexWithShIndex(5));
 }
 
 void ObjGen::updateRelocations() {
-    auto symtab = sections->getSymTab();
-    auto shdrTable = static_cast<ShdrTableSection *>(
-        sections->findSection(".shdr_table"));
-    auto *relaRoDataSection = static_cast<RelocationSection *>(
-        sections->findSection(".rela.text.0x40000000"));
-    auto rodata = sections->findSection(".rodata");
-    for(auto relaPair : relaRoDataSection->getContentMap()) {
-        auto destSection = shdrTable->findIndex(rodata);
+    auto symtab = sections.getSymTab();
+    auto shdrTable = static_cast<ShdrTableSection *>(sections[".shdr_table"]);
+    auto *relaTextSection = static_cast<RelocationSection *>(sections[".rela.text.0x40000000"]);
+    for(auto rela : relaTextSection->getValueList()) {
+        auto destSection = shdrTable->findIndex(relaTextSection->getDestSection());
         auto index = symtab->findIndexWithShIndex(destSection) + 1;
         LOG(1, "updating rela.rodata " << destSection << " => " << index);
-        relaPair.second->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
     }
 }
 
 void ObjGen::updateShdrTable() {
-    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
-    for(auto shdrPair : shdrTable->getContentMap()) {
+    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections[".shdr_table"]);
+    for(auto shdrPair : shdrTable->getValueMap()) {
         auto section = shdrPair.first;
         auto shdr    = shdrPair.second;
         shdr->sh_size   = section->getSize();
@@ -275,22 +255,22 @@ void ObjGen::updateShdrTable() {
         shdr->sh_addr   = section->getAddress();
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
-    SymbolTableSection *symtab = sections->getSymTab();
-    shdrTable->getContentMap()[symtab]->sh_info = shdrTable->getCount();
+    SymbolTableSection *symtab = sections.getSymTab();
+    shdrTable->getValueMap()[symtab]->sh_info = shdrTable->getCount();
 }
 
 void ObjGen::updateHeader() {
-    ElfXX_Ehdr *header = sections->getHeader()->castAs<ElfXX_Ehdr>();
-    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections->findSection(".shdr_table"));
+    ElfXX_Ehdr *header = sections[".elfheader"]->castAs<ElfXX_Ehdr>();
+    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sections[".shdr_table"]);
     header->e_shoff = shdrTable->getOffset();
     header->e_shnum = shdrTable->getSize() / sizeof(ElfXX_Shdr);
     LOG(1, "size of section headers is " << shdrTable->getSize() << ", " << sizeof(ElfXX_Shdr));
-    header->e_shstrndx = shdrTable->findIndex(sections->findSection(".shstrtab"));
+    header->e_shstrndx = shdrTable->findIndex(sections[".shstrtab"]);
 }
 
 void ObjGen::serialize() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
-    for(auto section : sections->getSections()) {
+    for(auto section : sections) {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
             << " of size " << std::dec << section->getSize());

@@ -234,11 +234,11 @@ void ExeGen::makePLT() {
     data[Metadata::RODATA]->add(pltSection);
 
     // make relocs
-    auto pltRelocSection = new RelocationSection(".rela.plt", SHT_RELA);
-    pltRelocSection->setTargetSection(pltSection);
-    pltRelocSection->setSectionLink(dynsym);
-    pltRelocSection->add(originalPLT.getRelocations());
-    data[Metadata::RODATA]->add(pltRelocSection);
+    // auto pltRelocSection = new RelocationSection(".rela.plt", SHT_RELA);
+    // pltRelocSection->setTargetSection(pltSection);
+    // pltRelocSection->setSectionLink(dynsym);
+    // pltRelocSection->add(originalPLT.getRelocations());
+    // data[Metadata::RODATA]->add(pltRelocSection);
 }
 
 void ExeGen::makeDynamic() {

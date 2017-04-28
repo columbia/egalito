@@ -8,23 +8,19 @@ class ObjGen {
 private:
     class Sections {
     private:
+        std::map<std::string, Section *> sectionMap;
         std::vector<Section *> sections;
-        Section *header;
-        Section *strtab;
-        Section *shstrtab;
-        SymbolTableSection *symtab;
         Section *text;
     public:
         Sections();
         ~Sections();
     public:
-        void addSection(Section *section) { sections.push_back(section); }
-        std::vector<Section *> getSections() { return sections; }
-        Section *findSection(const std::string &name);
+        void addSection(Section *section)
+            { sectionMap[section->getName()] = section; sections.push_back(section); }
+        std::vector<Section *>::iterator begin() { return sections.begin(); }
+        std::vector<Section *>::iterator end() { return sections.end(); }
+        Section *operator [](std::string name) {return sectionMap[name];}
     public:
-        Section *getHeader() { return header; }
-        Section *getStrTab() { return strtab; }
-        Section *getShStrTab() { return shstrtab; }
         SymbolTableSection *getSymTab() { return symtab; }
         Section *getText() { return text; }
         void addTextSection(Section *s) { addSection(s); text = s; }
@@ -34,10 +30,10 @@ private:
     MemoryBacking *backing;
     std::string filename;
 private:
-    Sections *sections;
+    Sections sections;
 public:
     ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename);
-    ~ObjGen() { delete sections; }
+    ~ObjGen() {}
 public:
     void generate();
 private:
