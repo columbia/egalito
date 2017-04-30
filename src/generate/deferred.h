@@ -5,7 +5,7 @@
 #include <string>
 #include "types.h"
 
-/** Any kind of value whose full contents are computed just-in-time.
+/** Base class for any output value which may need further computation.
 */
 class DeferredValue {
 public:
@@ -41,14 +41,21 @@ private:
     FunctionList functionList;
     ElfType *elfValue;
 public:
-    DeferredValueImpl(ElfType *elfValue) : elfValue(elfValue) {}
+    DeferredValueImpl(ElfType *elfValue = nullptr) : elfValue(elfValue) {}
     virtual ~DeferredValueImpl() { delete elfValue; }
 
-    void add(FunctionType func) { functionList.push_back(func); }
+    void addFunction(FunctionType func) { functionList.push_back(func); }
+    ElfType *getElfPtr() const { return elfValue; }
     virtual const char *getPtr() const
         { return reinterpret_cast<const char *>(elfValue); }
     virtual size_t getSize() const { return sizeof(ElfType); }
     virtual void writeTo(std::ostream &stream);
+
+    // basic operators to allow this type to be a key in a std::map
+    bool operator < (const DeferredValueImpl<ElfType> &other) const
+        { return this < &other; }
+    bool operator == (const DeferredValueImpl<ElfType> &other) const
+        { return this == &other; }
 };
 
 template <typename ElfType>
@@ -60,10 +67,10 @@ void DeferredValueImpl<ElfType>::writeTo(std::ostream &stream) {
 }
 
 /** Base class for list of deferred values. */
-template <typename ValueType>
+template <typename VType>
 class DeferredListBase : public DeferredValue {
 public:
-    typedef ValueType ValueType;
+    typedef VType ValueType;
     typedef std::vector<ValueType> ValueListType;
     typedef typename ValueListType::iterator IteratorType;
 private:
@@ -83,8 +90,8 @@ public:
     virtual void writeTo(std::ostream &stream);
 };
 
-template <typename ValueType>
-void DeferredListBase<ValueType>::writeTo(std::ostream &stream) {
+template <typename VType>
+void DeferredListBase<VType>::writeTo(std::ostream &stream) {
     for(auto value : valueList) {
         value->writeTo(stream);
     }
@@ -101,9 +108,9 @@ private:
     ReverseMapType reverseMap;
 public:
     void add(KeyType key, ValueType value)
-        { add(value); valueMap[key] = value; reverseMap[value] = key; }
+        { BaseType::add(value); valueMap[key] = value; reverseMap[value] = key; }
     void insertAt(typename BaseType::IteratorType it, KeyType key, ValueType value)
-        { insertAt(it, value); valueMap[key] = value; reverseMap[value] = key; }
+        { BaseType::insertAt(it, value); valueMap[key] = value; reverseMap[value] = key; }
     ValueType find(KeyType key) { return valueMap[key]; }
     KeyType getKey(ValueType value) { return reverseMap[value]; }
 };
@@ -120,8 +127,14 @@ public:
         { indexMap[value] = BaseType::getCount(); BaseType::add(value); }
     virtual void insertAt(typename BaseType::IteratorType it, ValueType value)
         { indexMap[value] = it - BaseType::begin(); BaseType::insertAt(it, value); }
-    size_t indexOf(ValueType value) const { return indexMap[value]; }
+    size_t indexOf(ValueType value) const;
 };
+
+template <typename BaseType>
+size_t DeferredListIndexDecorator<BaseType>::indexOf(ValueType value) const {
+    auto it = indexMap.find(value);
+    return (it != indexMap.end() ? (*it) : static_cast<size_t>(-1));
+}
 
 template <typename ValueType>
 class DeferredList : public DeferredListIndexDecorator<
@@ -131,5 +144,44 @@ class DeferredList : public DeferredListIndexDecorator<
 template <typename KeyType, typename ValueType>
 class DeferredMap : public DeferredListMapDecorator<
     DeferredList<ValueType>, KeyType> {};
+
+class DeferredStringList : public DeferredValue {
+private:
+    std::string output;
+public:
+    size_t add(const std::string &data, bool withNull = false);
+    size_t add(const char *str, bool withNull = false);
+    virtual size_t getSize() const { return output.length(); }
+    virtual void writeTo(std::ostream &stream);
+};
+
+#if 0
+template <typename VType>
+class RawListBase : public DeferredValue {
+public:
+    typedef VType ValueType;
+    typedef typename std::string::iterator IteratorType;
+private:
+    std::string output;
+public:
+    virtual ~DeferredListBase() {}
+    virtual void add(ValueType value)
+        { output.append(reinterpret_cast<const char *>(value), sizeof(value)); }
+    virtual void insertAt(IteratorType it, ValueType value)
+        { valueList.insert(it, value); }
+
+    IteratorType begin() { return valueList.begin(); }
+    IteratorType end() { return valueList.end(); }
+
+    size_t getCount() const { return valueList.size(); }
+
+    virtual size_t getSize() const { return getCount(); }
+    virtual void writeTo(std::ostream &stream);
+};
+#endif
+
+template <typename ValueType>
+class RawDeferredList : public DeferredListIndexDecorator<
+    DeferredList<ValueType>> {};
 
 #endif

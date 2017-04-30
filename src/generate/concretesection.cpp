@@ -5,6 +5,12 @@
 #include "chunk/function.h"
 #include "log/log.h"
 
+StringTableSection::StringTableSection(const std::string &name, ElfXX_Word type)
+    : Section2(name, type) {
+
+    setContent(new ContentType());
+}
+
 SymbolTableSection::SymbolTableSection(const std::string &name,
     ElfXX_Word type) : Section2(name, type) {
 
@@ -70,6 +76,13 @@ ElfXX_Shdr *SymbolTableSection::makeShdr(size_t index, size_t nameStrIndex) {
     shdr->sh_info = getCount();
     shdr->sh_addralign = 8;
     return shdr;
+}
+
+RelocationSection::RelocationSection(Section2 *source)
+    : Section2(".rela" + source->getName(), SHT_RELA, SHF_INFO_LINK),
+    source(source) {
+
+    setContent(new ContentType());
 }
 
 ElfXX_Shdr *RelocationSection::makeShdr(size_t index, size_t nameStrIndex) {

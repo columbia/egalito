@@ -49,10 +49,11 @@ private:
     SectionHeader *header;
     DeferredValue *content;
 public:
+    /** Constructs a Section which will be mapped into memory. */
     Section2(const std::string &name, ElfXX_Word type, ElfXX_Xword flags = 0);
+    /** Constructs an ephemeral Section which is not mapped into memory. */
     Section2(const std::string &name, DeferredValue *content = nullptr);
     virtual ~Section2() { delete header, delete content; }
-    virtual void init() {}
 
     const std::string &getName() const { return name; }
 
@@ -64,12 +65,19 @@ public:
     void setContent(DeferredValue *content) { this->content = content; }
 
     template <typename ValueType>
+    ValueType castAs() { return dynamic_cast<
+        DeferredValueImpl<ValueType>>(content)->getElfPtr(); }
+
+    template <typename ValueType>
     DeferredList<ValueType> *contentAsList()
-        { return dynamic_cast<DeferredList<ValueType>>(content); }
+        { return dynamic_cast<DeferredList<ValueType> *>(content); }
 
     template <typename KeyType, typename ValueType>
     DeferredMap<KeyType, ValueType> *contentAsMap()
-        { return dynamic_cast<DeferredMap<KeyType, ValueType>>(content); }
+        { return dynamic_cast<DeferredMap<KeyType, ValueType> *>(content); }
+
+    DeferredStringList *contentAsStringList()
+        { return dynamic_cast<DeferredStringList *>(content); }
 };
 
 std::ostream &operator << (std::ostream &stream, Section2 &rhs);

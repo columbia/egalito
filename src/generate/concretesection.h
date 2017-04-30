@@ -10,12 +10,23 @@
 class Function;
 class Symbol;
 
+class StringTableSection : public Section2 {
+public:
+    typedef DeferredStringList ContentType;
+public:
+    StringTableSection(const std::string &name, ElfXX_Word type);
+
+    ContentType *getContent()
+        { return static_cast<ContentType *>(Section2::getContent()); }
+
+    int add(const char *str);
+};
+
 class SymbolTableSection : public Section2 {
 public:
-    typedef DeferredMap<Symbol *, ElfXX_Sym> ContentType;
+    typedef DeferredMap<Symbol *, ElfXX_Sym *> ContentType;
 public:
     SymbolTableSection(const std::string &name, ElfXX_Word type);
-    virtual void init();
 
     ContentType *getContent()
         { return static_cast<ContentType *>(Section2::getContent()); }
@@ -26,31 +37,36 @@ public:
     size_t findIndexWithShIndex(size_t idx);
 };
 
-class RelocationSection
-    : public SimpleDeferredSection<ConcreteDeferredValue<ElfXX_Rela>> {
+class RelocationSection : public Section2 {
+public:
+    typedef DeferredList<ElfXX_Rela *> ContentType;
 private:
-    Section *source;
+    Section2 *source;
 public:
-    RelocationSection(Section *source)
-        : SimpleDeferredSection<ConcreteDeferredValue<ElfXX_Rela>>(
-            ".rela" + source->getName(),
-        SHT_RELA, SHF_INFO_LINK), source(source) {}
-public:
-    Section *getSourceSection() { return source; }
-public:
-    void addRela(ElfXX_Rela *rela)
-        { addValue(rela); }
+    RelocationSection(Section2 *source);
+
+    ContentType *getContent()
+        { return static_cast<ContentType *>(Section2::getContent()); }
+
+    Section2 *getSourceSection() { return source; }
+
+    void add(const ContentType::ValueType &rela) { getContent()->add(rela); }
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
 
     virtual void commitValues();
 };
 
-class ShdrTableSection : public DeferredSection<Section, ElfXX_Shdr> {
+class ShdrTableSection : public Section2 {
 public:
-    using DeferredSection::DeferredSection;
+    typedef DeferredMap<Section2 *, ElfXX_Shdr *> ContentType;
 public:
-    void addShdrPair(Section *section, ElfXX_Shdr *shdr)
-        { addKeyValue(section, shdr); }
+    using Section2::Section2;
+
+    ContentType *getContent()
+        { return static_cast<ContentType *>(Section2::getContent()); }
+
+    void add(Section2 *section, ContentType::ValueType shdr)
+        { getContent()->add(section, shdr); }
 };
 
 #endif

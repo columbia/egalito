@@ -9,18 +9,18 @@
 
 class SectionList {
 private:
-    std::map<std::string, Section *> sectionMap;
-    std::map<Section *, size_t> sectionIndexMap;
-    std::vector<Section *> sections;
+    std::map<std::string, Section2 *> sectionMap;
+    std::map<Section2 *, size_t> sectionIndexMap;
+    std::vector<Section2 *> sections;
 public:
-    Sections() {}
-    ~Sections();
+    ~SectionList();
 public:
-    void addSection(Section *section);
-    std::vector<Section *>::iterator begin() { return sections.begin(); }
-    std::vector<Section *>::iterator end() { return sections.end(); }
-    Section *operator [] (std::string name);
-    int indexOf(Section *section);
+    void addSection(Section2 *section);
+    std::vector<Section2 *>::iterator begin() { return sections.begin(); }
+    std::vector<Section2 *>::iterator end() { return sections.end(); }
+    Section2 *operator [] (std::string name);
+    int indexOf(Section2 *section);
+    int indexOf(const std::string &sectionName);
 };
 
 /** Section -> int deferred data. */
@@ -31,16 +31,17 @@ private:
 public:
     SectionRef(SectionList *list, const std::string &sectionName)
         : list(list), sectionName(sectionName) {}
-    Section *get() const;
+    Section2 *get() const;
     int getIndex() const;
 };
 
 class StringRef {
 private:
+    SectionRef section;
     std::string str;
 public:
-    StringRef(SectionList *list, const std::string &str)
-        : list(list), str(str) {}
+    StringRef(SectionRef section, const std::string &str)
+        : section(section), str(str) {}
     size_t getIndex() const;
 };
 

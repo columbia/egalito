@@ -11,7 +11,7 @@ private:
     ElfSpace *elfSpace;
     MemoryBacking *backing;
     std::string filename;
-    SectionList sections;
+    SectionList sectionList;
 public:
     ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename);
 public:
@@ -29,6 +29,8 @@ private:
     void updateShdrTable();
     void updateHeader();
     void serialize();
+private:
+    ElfXX_Ehdr *getHeader();
 };
 
 #endif

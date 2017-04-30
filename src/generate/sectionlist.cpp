@@ -1,6 +1,6 @@
 #include "sectionlist.h"
 
-ObjGen::Sections::~Sections() {
+SectionList::~SectionList() {
     for(auto section : sections) {
         delete section;
     }
@@ -21,6 +21,11 @@ int SectionList::indexOf(Section *section) {
     return sectionIndexMap[section];
 }
 
+int SectionList::indexOf(const std::string &sectionName) {
+    auto found = operator [] (sectionName);
+    return (found ? sectionIndexMap[found] : -1);
+}
+
 Section *SectionRef::get() const {
     return list[sectionName];
 }
@@ -28,4 +33,8 @@ Section *SectionRef::get() const {
 int SectionRef::getIndex() const {
     auto section = get();
     return (section ? list->indexOf(section) : -1);
+}
+
+size_t StringRef::getIndex() const {
+    section.get();
 }

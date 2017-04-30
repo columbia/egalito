@@ -1,5 +1,6 @@
 #include <cstring>  // for memset
 #include "section.h"
+#include "sectionlist.h"
 #include "elf/symbol.h"
 #include "elf/elfxx.h"
 #include "chunk/concrete.h"  // for Function
@@ -34,13 +35,10 @@ Section2::Section2(const std::string &name, ElfXX_Word type,
     ElfXX_Xword flags) : name(name), content(nullptr) {
 
     header = new SectionHeader(this, type, flags);
-    init();
 }
 
 Section2::Section2(const std::string &name, DeferredValue *content)
     : name(name), header(nullptr), content(content) {
-
-    init();
 }
 
 std::ostream &operator << (std::ostream &stream, Section2 &rhs) {
