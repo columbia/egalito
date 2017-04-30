@@ -7,18 +7,6 @@
 #include "log/registry.h"
 #include "log/log.h"
 
-ObjGen::Sections::Sections() {
-    auto header = new Section(".elfheader");
-    auto strtab = new Section(".strtab", SHT_STRTAB);
-    auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
-    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
-    addSection(header);
-    addSection(strtab);
-    addSection(shstrtab);
-    addSection(symtab);
-    text = nullptr;
-}
-
 ObjGen::Sections::~Sections() {
     for(auto section : sections) {
         delete section;
@@ -26,7 +14,17 @@ ObjGen::Sections::~Sections() {
 }
 
 ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
-    elfSpace(elfSpace), backing(backing), filename(filename) {}
+    elfSpace(elfSpace), backing(backing), filename(filename) {
+
+    auto header = new Section(".elfheader");
+    auto strtab = new Section(".strtab", SHT_STRTAB);
+    auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
+    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
+    sections.addSection(header);
+    sections.addSection(strtab);
+    sections.addSection(shstrtab);
+    sections.addSection(symtab);
+}
 
 void ObjGen::generate() {
     LOG(1, "generating object file");
@@ -95,7 +93,7 @@ void ObjGen::makeText() {
     }
 
     // Redo Relocations
-    auto symtab = static_cast<SymbolTableSection *>(sections[".symbtab"]);
+    auto symtab = static_cast<SymbolTableSection *>(sections[".symtab"]);
     auto relaTextSection = new RelocationSection(lastTextSection);
     relaTextSection->setSectionLink(symtab);
     {

@@ -7,9 +7,75 @@
 #include <map>
 #include <elf.h>
 #include "elf/elfxx.h"
+#include "deferred.h"
 #include "types.h"
 
-class Section {
+class SectionRef;
+class Section2;
+
+class SectionHeader : public DeferredValue {
+public:
+    typedef std::function<void (std::ostream &stream, ElfXX_Shdr *)> WriteFuncType;
+private:
+    Section2 *outer;  // ptr so that we can fetch content size
+    WriteFuncType writeFunc;
+private:
+    address_t address;
+    size_t offset;
+    ElfXX_Word shdrType;
+    ElfXX_Xword shdrFlags;
+    SectionRef *sectionLink;
+public:
+    SectionHeader(Section2 *outer, ElfXX_Word type,
+        ElfXX_Xword flags = 0);
+
+    address_t getAddress() const { return address; }
+    size_t getOffset() const { return offset; }
+    SectionRef *getSectionLink() const { return sectionLink; }
+
+    void setAddress(address_t addr) { address = addr; }
+    void setOffset(size_t off) { offset = off; }
+    void setShdrFlags(ElfXX_Xword flags) { shdrFlags = flags; }
+    void setSectionLink(SectionRef *link) { sectionLink = link; }
+    void setWriteFunc(WriteFuncType func) { writeFunc = func; }
+
+    virtual size_t getSize() const { return sizeof(ElfXX_Shdr); }
+    virtual void writeTo(std::ostream &stream);
+};
+
+class Section2 {
+private:
+    std::string name;
+    SectionHeader *header;
+    DeferredValue *content;
+public:
+    Section2(const std::string &name, ElfXX_Word type, ElfXX_Xword flags = 0);
+    Section2(const std::string &name, DeferredValue *content = nullptr);
+    virtual ~Section2() { delete header, delete content; }
+    virtual void init() {}
+
+    const std::string &getName() const { return name; }
+
+    SectionHeader *getHeader() const { return header; }
+    DeferredValue *getContent() const { return content; }
+    bool hasHeader() const { return header != nullptr; }
+    bool hasContent() const { return content != nullptr; }
+    void setHeader(SectionHeader *header) { this->header = header; }
+    void setContent(DeferredValue *content) { this->content = content; }
+
+    template <typename ValueType>
+    DeferredList<ValueType> *contentAsList()
+        { return dynamic_cast<DeferredList<ValueType>>(content); }
+
+    template <typename KeyType, typename ValueType>
+    DeferredMap<KeyType, ValueType> *contentAsMap()
+        { return dynamic_cast<DeferredMap<KeyType, ValueType>>(content); }
+};
+
+std::ostream &operator << (std::ostream &stream, Section2 &rhs);
+
+#if 0
+class Section : public SectionBase {
 private:
     std::string data;
     std::string name;
@@ -81,7 +147,7 @@ public:
     DeferredSection(std::string name, ElfXX_Word type, ElfXX_Xword flags = 0)
         : Section(name, type, flags), committed(false) {}
 
-    ~DeferredSection();
+    virtual ~DeferredSection();
 
     virtual size_t getValueSize() const { return sizeof(ValueType); }
     virtual size_t getSize() const
@@ -106,7 +172,7 @@ public:
     void insert(typename KeyListType::iterator it, KeyType *key, ValueType *value)
         { valueMap[key] = value; keyList.insert(it, key); }
 
-    void commitValues();
+    virtual void commitValues();
 };
 
 template <typename KeyType, typename ValueType>
@@ -195,6 +261,39 @@ void SimpleDeferredSection<ValueType>::commitValues() {
     }
     committed = true;
 }
+
+template <typename KeyType, typename ValueType>
+std::ostream &operator << (std::ostream &stream, DeferredSection<KeyType, ValueType> &rhs) {
+    rhs.commitValues();
+    for(auto value : rhs) {
+        stream << value;
+    }
+    return stream;
+}
+#endif
+#if 0
+class SectionHeader {
+private:
+    address_t address;
+    size_t offset;
+    ElfXX_Word shdrType;
+    ElfXX_Xword shdrFlags;
+    SectionRef *sectionLink;
+public:
+    SectionHeader(ElfXX_Word type, ElfXX_Xword flags = 0)
+        : address(0), offset(0), shdrType(type), shdrFlags(flags),
+        sectionLink(nullptr) {}
+
+    address_t getAddress() const { return address; }
+    size_t getOffset() const { return offset; }
+    SectionRef *getSectionLink() const { return sectionLink; }
+
+    void setAddress(address_t addr) { address = addr; }
+    void setOffset(size_t off) { offset = off; }
+    void setShdrFlags(ElfXX_Xword flags) { shdrFlags = flags; }
+    void setSectionLink(SectionRef *link) { sectionLink = link; }
+};
+#endif
 
 #include "concretesection.h"
 

@@ -5,45 +5,44 @@
     #error "Do not include concretesection.h directly, include section.h"
 #endif
 
+#include "deferred.h"
+
 class Function;
 class Symbol;
 
-class SymbolTableSection : public DeferredSection<Symbol, ElfXX_Sym> {
+class SymbolTableSection : public Section2 {
 public:
-    SymbolTableSection(std::string name, ElfXX_Word type)
-        : DeferredSection<Symbol, ElfXX_Sym>(name, type) {}
+    typedef DeferredMap<Symbol *, ElfXX_Sym> ContentType;
+public:
+    SymbolTableSection(const std::string &name, ElfXX_Word type);
+    virtual void init();
 
-    using Section::add;
-    void add(Function *func, Symbol *sym, size_t nameStrIndex);
-    void add(Symbol *symb);
+    ContentType *getContent()
+        { return static_cast<ContentType *>(Section2::getContent()); }
 
-    // we allow both concrete and deferred data here
-    virtual size_t getSize() const
-        { return Section::getSize() + DeferredSection<Symbol, ElfXX_Sym>::getSize(); }
-
-    virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
-
+    void add(Function *func, Symbol *sym, size_t strndx);
+    void addAtStart(Symbol *symb);
 public:
     size_t findIndexWithShIndex(size_t idx);
 };
 
-class RelocationSection : public SimpleDeferredSection<ElfXX_Rela> {
+class RelocationSection
+    : public SimpleDeferredSection<ConcreteDeferredValue<ElfXX_Rela>> {
 private:
-    Section *destSection;
-    Section *sourceSection;
+    Section *source;
 public:
     RelocationSection(Section *source)
-        : SimpleDeferredSection<ElfXX_Rela>(".rela" + source->getName(),
-            SHT_RELA, SHF_INFO_LINK), sourceSection(source) {}
-
+        : SimpleDeferredSection<ConcreteDeferredValue<ElfXX_Rela>>(
+            ".rela" + source->getName(),
+        SHT_RELA, SHF_INFO_LINK), source(source) {}
 public:
-    Section *getDestSection() { return destSection; }
-    Section *getSourceSection() { return sourceSection; }
-    void setDestSection(Section *dest) { destSection = dest; }
+    Section *getSourceSection() { return source; }
 public:
     void addRela(ElfXX_Rela *rela)
         { addValue(rela); }
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+
+    virtual void commitValues();
 };
 
 class ShdrTableSection : public DeferredSection<Section, ElfXX_Shdr> {
