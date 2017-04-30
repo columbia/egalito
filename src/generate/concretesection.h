@@ -10,20 +10,6 @@
 class Function;
 class Symbol;
 
-#if 0
-class StringTableSection : public Section2 {
-public:
-    typedef DeferredStringList ContentType;
-public:
-    StringTableSection(const std::string &name, ElfXX_Word type);
-
-    ContentType *getContent()
-        { return static_cast<ContentType *>(Section2::getContent()); }
-
-    int add(const char *str);
-};
-#endif
-
 class SymbolTableSection : public Section2 {
 public:
     typedef DeferredMap<Symbol *, ElfXX_Sym *> ContentType;

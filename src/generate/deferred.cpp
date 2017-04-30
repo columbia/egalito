@@ -6,7 +6,7 @@ std::ostream &operator << (std::ostream &stream, DeferredValue &dv) {
 }
 
 void DeferredValueCString::writeTo(std::ostream &stream) {
-    stream.write(reinterpret_cast<const char *>(getPtr()), getSize());
+    stream.write(getPtr(), getSize());
 }
 
 size_t DeferredStringList::add(const std::string &data, bool withNull) {
@@ -19,12 +19,4 @@ size_t DeferredStringList::add(const char *str, bool withNull) {
     size_t len = strlen(str);
     if(withNull) len ++;
     output.append(str, len);
-}
-
-void DeferredString::writeTo(std::ostream &stream) {
-    stream.write(value.c_str(), value.length());
-}
-
-void DeferredStringList::writeTo(std::ostream &stream) {
-    stream.write(output.c_str(), output.length());
 }

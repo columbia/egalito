@@ -5,14 +5,6 @@
 #include "chunk/function.h"
 #include "log/log.h"
 
-#if 0
-StringTableSection::StringTableSection(const std::string &name, ElfXX_Word type)
-    : Section2(name, type) {
-
-    setContent(new ContentType());
-}
-#endif
-
 SymbolTableSection::SymbolTableSection(const std::string &name,
     ElfXX_Word type) : Section2(name, type) {
 
@@ -31,19 +23,6 @@ DeferredValueImpl<ElfXX_Sym *> *SymbolTableSection::add(Function *func, Symbol *
     auto value = new DeferredValueImpl<ElfXX_Sym *>(symbol);
     getContent()->add(sym, value);
     return value;
-}
-
-void SymbolTableSection::addAtStart(Symbol *sym) {
-    ElfXX_Sym *symbol = new ElfXX_Sym();
-    symbol->st_name = 0;
-    symbol->st_info = ELFXX_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
-                                   Symbol::typeFromInternalToElf(sym->getType()));
-    symbol->st_other = STV_DEFAULT;
-    symbol->st_shndx = sym->getSectionIndex();
-    symbol->st_value = 0;
-    symbol->st_size = 0;
-
-    getContent()->insertAt(getContent()->begin(), sym, symbol);
 }
 
 size_t SymbolTableSection::findIndexWithShIndex(size_t idx) {

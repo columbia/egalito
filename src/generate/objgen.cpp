@@ -3,6 +3,8 @@
 #include <fstream>
 #include <elf.h>
 #include "objgen.h"
+#include "deferred.h"
+#include "concretedeferred.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "util/streamasstring.h"
@@ -32,9 +34,8 @@ void ObjGen::generate() {
     makeRoData();
     makeShdrTable();
     updateSymbolTable();  // must run after .text & shdrTable are created
-    updateRelocations();
     updateOffsetAndAddress();  // must run before updateShdrTable()
-    updateShdrTable();
+    //updateShdrTable();
     serialize();
 }
 
@@ -54,9 +55,10 @@ void ObjGen::makeHeader() {
     header->e_phnum = 0;
 
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
-        ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
-        header->e_shoff = shdrTable->getOffset();
-        header->e_shnum = shdrTable->getContent()->getCount();
+        auto shdrTableSection = sectionList[".shdr_table"];
+        auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
+        header->e_shoff = shdrTableSection->getOffset();
+        header->e_shnum = shdrTable->getCount();
     });
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
         header->e_shstrndx = sectionList.indexOf(".shstrtab");
@@ -131,9 +133,9 @@ void ObjGen::makeText() {
 }
 
 void ObjGen::makeSymbolInfo() {
-    auto symtabValue = new DeferredMap<Symbol *, ElfXX_Sym *>();
-    auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
-    symtab->setContent(symtabValue);
+    auto symtab = new SymbolTableContent();
+    auto symtabSection = new Section2(".symtab", SHT_SYMTAB);
+    symtabSection->setContent(symtab);
 
     auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
 
@@ -145,13 +147,14 @@ void ObjGen::makeSymbolInfo() {
         symbol->st_shndx = 0;
         symbol->st_value = 0;
         symbol->st_size = 0;
-        symtab->getContent()->add(nullptr, &symbol);
+        symtab->add(symbol);
     }
 
     // other symbols will be added later
 
-    symtab->getHeader()->setSectionLink(
+    symtabSection->getHeader()->setSectionLink(
         new SectionRef(&sectionList, ".strtab"));
+    sectionList.addSection(symtabSection);
 }
 
 void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
@@ -161,7 +164,7 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
     // which fall into the given range [begin, begin+size).
 
     auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
-    auto symtab = sectionList[".symtab"]->castAs<DeferredMap<Symbol *, ElfXX_Sym *> *>();
+    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
         if(blacklistedSymbol(func->getName())) {
@@ -187,7 +190,7 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
             // add name to string table
             auto name = std::string(alias->getName());
             auto index = strtab->add(name, true);
-            auto value = symtab->add(func, alias, index)
+            auto value = symtab->add(func, alias, index);
             value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
                 symbol->st_shndx = sectionList.indexOf(textSection);
             });
@@ -209,51 +212,29 @@ void ObjGen::makeRoData() {
 }
 
 void ObjGen::makeShdrTable() {
-    auto shdrTableValue = new DeferredMap<Section2 *, ElfXX_Shdr *>();
-    auto shdrTable = new Section2(".shdr_table");
-    shdrTable->setContent(shdrTableValue);
+    auto shdrTable = new ShdrTableContent();
+    auto shdrTableSection = new Section2(".shdr_table", shdrTable);
 
     auto shstrtab = sectionList[".shstrtab"]->castAs<DeferredStringList *>();
 
     auto nullSection = new Section2("", static_cast<ElfXX_Word>(SHT_NULL));
-    makeShdrStructure(nullSection, shdrTableValue);
+    shdrTable->add(nullSection);
     shstrtab->add(nullSection->getName(), true);  // include NULL terminator
 
     for(auto section : sectionList) {
         if(section->hasHeader()) {
-            makeShdrStructure(section, shdrTableValue);
+            auto deferred = shdrTable->add(section);
             shstrtab->add(section->getName(), true);  // include NULL terminator
+
+            if(dynamic_cast<SymbolTableContent *>(section->getContent())) {
+                deferred->addFunction([shdrTable] (ElfXX_Shdr *shdr) {
+                    shdr->sh_info = shdrTable->getCount();
+                });
+            }
         }
     }
 
-    sectionList.addSection(shdrTable);
-}
-
-DeferredValueImpl<ElfXX_Shdr> *ObjGen::makeShdrStructure(Section2 *section,
-    DeferredMap<Section2 *, ElfXX_Shdr *> *shdrTable) {
-
-    auto shdr = new ElfXX_Shdr();
-    std::memset(shdr, 0, sizeof(*shdr));
-
-    auto deferred = new DeferredValueImpl<ElfXX_Shdr>(shdr);
-
-    deferred->addFunction([this, section] (ElfXX_Shdr *shdr) {
-        auto header = section->getHeader();
-        shdr->sh_name       = 0;
-        shdr->sh_type       = header->getShdrType();
-        shdr->sh_flags      = header->getShdrFlags();
-        shdr->sh_addr       = header->getAddress();
-        shdr->sh_offset     = section->getOffset();
-        shdr->sh_size       = section->getContent()->getSize();
-        shdr->sh_link       = header->getSectionLink()
-            ? header->getSectionLink()->getIndex() : 0;
-        shdr->sh_info       = 0;  // updated later for strtabs
-        shdr->sh_addralign  = 1;
-        shdr->sh_entsize    = 0;
-    });
-
-    shdrTable->add(section, deferred);
-    return deferred;
+    sectionList.addSection(shdrTableSection);
 }
 
 void ObjGen::updateOffsetAndAddress() {
@@ -267,26 +248,22 @@ void ObjGen::updateOffsetAndAddress() {
 
 void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
-    auto shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
-    auto symtab = static_cast<SymbolTableSection *>(sectionList[".symtab"]);
-    auto text = sectionList.getText();
-    auto textIndex = shdrTable->findIndex(text);
+    auto shdrTable = sectionList[".shdr_table"]->castAs<ShdrTableContent *>();
+    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
-    for(auto symbol : symtab->getKeyList()) {
-        symtab->findValue(symbol)->st_shndx = textIndex;
-    }
+    for(auto shdr : *shdrTable) {
+        auto section = shdrTable->getKey(shdr);
+        if(!section->getHeader()) continue;
 
-    for(auto shdrPair : shdrTable->getValueMap()) {
-        if(shdrPair.second->sh_type == SHT_NULL)
-            continue;
-        auto type = Symbol::typeFromElfToInternal(STT_SECTION);
-        auto bind = Symbol::bindFromElfToInternal(STB_LOCAL);
-        Symbol *sym = new Symbol(0, 0, "", type, bind, 0,
-            shdrTable->findIndex(shdrPair.first));
-        symtab->add(sym);
+        auto symbol = new Symbol(0, 0, "",
+            Symbol::typeFromElfToInternal(STT_SECTION),
+            Symbol::bindFromElfToInternal(STB_LOCAL),
+            0, sectionList.indexOf(section));
+        symtab->add(symbol, true);
     }
 }
 
+#if 0
 void ObjGen::updateRelocations() {
     auto symtab = static_cast<SymbolTableSection *>(sectionList[".symbtab"]);
     auto shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
@@ -298,7 +275,9 @@ void ObjGen::updateRelocations() {
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
     }
 }
+#endif
 
+#if 0
 void ObjGen::updateShdrTable() {
     ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
     for(auto shdrPair : shdrTable->getValueMap()) {
@@ -309,16 +288,15 @@ void ObjGen::updateShdrTable() {
         shdr->sh_addr   = section->getAddress();
         shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
-    SymbolTableSection *symtab = static_cast<SymbolTableSection *>(sectionList[".symbtab"]);
-    shdrTable->getValueMap()[symtab]->sh_info = shdrTable->getCount();
 }
+#endif
 
 void ObjGen::serialize() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
     for(auto section : sectionList) {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
-            << " of size " << std::dec << section->getSize());
+            << " of size " << std::dec << section->getContent()->getSize());
         fs << *section;
     }
     fs.close();

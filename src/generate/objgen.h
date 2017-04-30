@@ -5,7 +5,6 @@
 #include "elf/elfspace.h"
 #include "section.h"
 #include "sectionlist.h"
-#include "deferred.h"
 
 class ObjGen {
 private:
@@ -27,13 +26,10 @@ private:
     void makeShdrTable();
 private:
     void updateSymbolTable();
-    void updateRelocations();
+    //void updateRelocations();
     void updateOffsetAndAddress();
-    void updateShdrTable();
+    //void updateShdrTable();
     void serialize();
-private:
-    DeferredValueImpl<ElfXX_Shdr> *makeShdrStructure(Section2 *section,
-        DeferredMap<Section2 *, ElfXX_Shdr *> *shdrTable);
 private:
     bool blacklistedSymbol(const std::string &name);
 };
