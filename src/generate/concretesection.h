@@ -10,6 +10,7 @@
 class Function;
 class Symbol;
 
+#if 0
 class StringTableSection : public Section2 {
 public:
     typedef DeferredStringList ContentType;
@@ -21,6 +22,7 @@ public:
 
     int add(const char *str);
 };
+#endif
 
 class SymbolTableSection : public Section2 {
 public:
@@ -31,7 +33,7 @@ public:
     ContentType *getContent()
         { return static_cast<ContentType *>(Section2::getContent()); }
 
-    void add(Function *func, Symbol *sym, size_t strndx);
+    DeferredValueImpl<ElfXX_Sym *> *add(Function *func, Symbol *sym, size_t strndx);
     void addAtStart(Symbol *symb);
 public:
     size_t findIndexWithShIndex(size_t idx);

@@ -145,6 +145,17 @@ template <typename KeyType, typename ValueType>
 class DeferredMap : public DeferredListMapDecorator<
     DeferredList<ValueType>, KeyType> {};
 
+class DeferredString : public DeferredValue {
+private:
+    std::string value;
+public:
+    DeferredString(const std::string &value) : value(value) {}
+    DeferredString(const char *value, size_t length)
+        : value(value, length) {}
+    virtual size_t getSize() const { return value.length(); }
+    virtual void writeTo(std::ostream &stream);
+};
+
 class DeferredStringList : public DeferredValue {
 private:
     std::string output;

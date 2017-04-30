@@ -6,27 +6,8 @@
 #include "chunk/concrete.h"  // for Function
 #include "log/log.h"
 
-void SectionHeader::writeTo(std::ostream &stream) {
-    auto shdr = new ElfXX_Shdr();
-    std::memset(shdr, 0, sizeof(*shdr));
-    shdr->sh_name       = 0;
-    shdr->sh_type       = shdrType;
-    shdr->sh_flags      = shdrFlags;
-    shdr->sh_addr       = address;
-    shdr->sh_offset     = offset;
-    shdr->sh_size       = outer->getContent()->getSize();
-    shdr->sh_link       = sectionLink->getIndex();
-    shdr->sh_info       = 0;  // updated later for strtabs
-    shdr->sh_addralign  = 1;
-    shdr->sh_entsize    = 0;
-
-    if(writeFunc) writeFunc(stream, shdr);
-
-    stream.write(reinterpret_cast<const char *>(shdr), sizeof(*shdr));
-}
-
 SectionHeader::SectionHeader(Section2 *outer, ElfXX_Word type,
-    ElfXX_Xword flags) : outer(outer), address(0), offset(0),
+    ElfXX_Xword flags) : outer(outer), address(0),
     shdrType(type), shdrFlags(flags), sectionLink(nullptr) {
 
 }

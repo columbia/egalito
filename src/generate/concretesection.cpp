@@ -5,11 +5,13 @@
 #include "chunk/function.h"
 #include "log/log.h"
 
+#if 0
 StringTableSection::StringTableSection(const std::string &name, ElfXX_Word type)
     : Section2(name, type) {
 
     setContent(new ContentType());
 }
+#endif
 
 SymbolTableSection::SymbolTableSection(const std::string &name,
     ElfXX_Word type) : Section2(name, type) {
@@ -17,16 +19,18 @@ SymbolTableSection::SymbolTableSection(const std::string &name,
     setContent(new ContentType());
 }
 
-void SymbolTableSection::add(Function *func, Symbol *sym, size_t nameStrIndex) {
+DeferredValueImpl<ElfXX_Sym *> *SymbolTableSection::add(Function *func, Symbol *sym, size_t strndx) {
     ElfXX_Sym *symbol = new ElfXX_Sym();
-    symbol->st_name = static_cast<ElfXX_Word>(nameStrIndex);
+    symbol->st_name = static_cast<ElfXX_Word>(strndx);
     symbol->st_info = ELFXX_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
                                    Symbol::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
-    symbol->st_shndx = func ? 1 : SHN_UNDEF;  // dynamic symbols have func==nullptr
+    symbol->st_shndx = SHN_UNDEF;
     symbol->st_value = func ? func->getAddress() : 0;
     symbol->st_size = func ? func->getSize() : 0;
-    getContent()->add(sym, symbol);
+    auto value = new DeferredValueImpl<ElfXX_Sym *>(symbol);
+    getContent()->add(sym, value);
+    return value;
 }
 
 void SymbolTableSection::addAtStart(Symbol *sym) {

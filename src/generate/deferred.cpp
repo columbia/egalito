@@ -21,6 +21,10 @@ size_t DeferredStringList::add(const char *str, bool withNull) {
     output.append(str, len);
 }
 
+void DeferredString::writeTo(std::ostream &stream) {
+    stream.write(value.c_str(), value.length());
+}
+
 void DeferredStringList::writeTo(std::ostream &stream) {
     stream.write(output.c_str(), output.length());
 }

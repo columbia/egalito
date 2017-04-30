@@ -14,14 +14,10 @@ class SectionRef;
 class Section2;
 
 class SectionHeader : public DeferredValue {
-public:
-    typedef std::function<void (std::ostream &stream, ElfXX_Shdr *)> WriteFuncType;
 private:
     Section2 *outer;  // ptr so that we can fetch content size
-    WriteFuncType writeFunc;
 private:
     address_t address;
-    size_t offset;
     ElfXX_Word shdrType;
     ElfXX_Xword shdrFlags;
     SectionRef *sectionLink;
@@ -30,22 +26,21 @@ public:
         ElfXX_Xword flags = 0);
 
     address_t getAddress() const { return address; }
-    size_t getOffset() const { return offset; }
+    ElfXX_Word getShdrType() const { return shdrType; }
+    ElfXX_Xword getShdrFlags() const { return shdrFlags; }
     SectionRef *getSectionLink() const { return sectionLink; }
 
     void setAddress(address_t addr) { address = addr; }
-    void setOffset(size_t off) { offset = off; }
     void setShdrFlags(ElfXX_Xword flags) { shdrFlags = flags; }
     void setSectionLink(SectionRef *link) { sectionLink = link; }
-    void setWriteFunc(WriteFuncType func) { writeFunc = func; }
 
     virtual size_t getSize() const { return sizeof(ElfXX_Shdr); }
-    virtual void writeTo(std::ostream &stream);
 };
 
 class Section2 {
 private:
     std::string name;
+    size_t offset;
     SectionHeader *header;
     DeferredValue *content;
 public:
@@ -56,6 +51,8 @@ public:
     virtual ~Section2() { delete header, delete content; }
 
     const std::string &getName() const { return name; }
+    size_t getOffset() const { return offset; }
+    void setOffset(size_t off) { offset = off; }
 
     SectionHeader *getHeader() const { return header; }
     DeferredValue *getContent() const { return content; }
@@ -65,7 +62,10 @@ public:
     void setContent(DeferredValue *content) { this->content = content; }
 
     template <typename ValueType>
-    ValueType castAs() { return dynamic_cast<
+    ValueType castAs() { return dynamic_cast<ValueType>(content); }
+
+    template <typename ValueType>
+    ValueType castAsValue() { return dynamic_cast<
         DeferredValueImpl<ValueType>>(content)->getElfPtr(); }
 
     template <typename ValueType>
