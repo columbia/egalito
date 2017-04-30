@@ -13,7 +13,7 @@
 class SectionRef;
 class Section2;
 
-class SectionHeader : public DeferredValue {
+class SectionHeader {
 private:
     Section2 *outer;  // ptr so that we can fetch content size
 private:
@@ -34,7 +34,7 @@ public:
     void setShdrFlags(ElfXX_Xword flags) { shdrFlags = flags; }
     void setSectionLink(SectionRef *link) { sectionLink = link; }
 
-    virtual size_t getSize() const { return sizeof(ElfXX_Shdr); }
+    size_t getSize() const { return sizeof(ElfXX_Shdr); }
 };
 
 class Section2 {
@@ -82,8 +82,8 @@ public:
 
 std::ostream &operator << (std::ostream &stream, Section2 &rhs);
 
-#if 0
-class Section : public SectionBase {
+#if 1
+class Section {
 private:
     std::string data;
     std::string name;
@@ -122,7 +122,6 @@ public:
     void setSectionLink(Section *link) { sectionLink = link; }
     virtual void commitValues() {}
 public:
-    friend std::ostream& operator<<(std::ostream &stream, Section &rhs);
     size_t add(const void *data, size_t size);
     size_t add(const char *data, size_t size);
     size_t add(const std::string &string, bool withNull = false);
@@ -134,7 +133,10 @@ public:
     template<typename ElfStructType> size_t getKeyCount()
         { return data.size() / sizeof(ElfStructType); }
 };
+std::ostream& operator<<(std::ostream &stream, Section &rhs);
+#endif
 
+#if 1
 /** Stores intermediate data generated from KeyType objects, which will
     be serialized into ValueType objects (e.g. Symbols -> ElfXX_Sym).
     This stores a map as well as vector.

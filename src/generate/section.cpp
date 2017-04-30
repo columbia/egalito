@@ -29,7 +29,13 @@ std::ostream &operator << (std::ostream &stream, Section2 &rhs) {
     return stream;
 }
 
-#if 0
+#if 1
+std::ostream &operator << (std::ostream &stream, Section &rhs) {
+    rhs.commitValues();
+    stream.write(rhs.getData().c_str(), rhs.getSize());
+    return stream;
+}
+
 size_t Section::add(const void *data, size_t size) {
     size_t oldSize = this->data.size();
     add(static_cast<const char *>(data), size);

@@ -24,6 +24,10 @@ ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename)
     auto strtab = new Section2(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
     sectionList.addSection(strtab);
+
+    auto shstrtab = new Section2(".shstrtab", SHT_STRTAB);
+    shstrtab->setContent(new DeferredStringList());
+    sectionList.addSection(shstrtab);
 }
 
 void ObjGen::generate() {

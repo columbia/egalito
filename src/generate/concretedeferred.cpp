@@ -4,6 +4,7 @@
 #include "sectionlist.h"
 #include "elf/symbol.h"
 #include "chunk/function.h"
+#include "log/log.h"
 
 SymbolTableContent::DeferredType *SymbolTableContent
     ::add(Function *func, Symbol *sym, size_t strndx) {
@@ -52,7 +53,10 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
 
     auto deferred = new DeferredType(shdr);
 
+    LOG(1, "preparing shdr for section [" << section->getName() << "]");
+
     deferred->addFunction([this, section] (ElfXX_Shdr *shdr) {
+        LOG(1, "generating shdr for section [" << section->getName() << "]");
         auto header = section->getHeader();
         shdr->sh_name       = 0;
         shdr->sh_type       = header->getShdrType();

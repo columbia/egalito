@@ -13,7 +13,7 @@ class DeferredValue {
 public:
     virtual ~DeferredValue() {}
     virtual size_t getSize() const = 0;
-    virtual void writeTo(std::ostream &stream);
+    virtual void writeTo(std::ostream &stream) = 0;
 };
 
 std::ostream &operator << (std::ostream &stream, DeferredValue &dv);
@@ -57,7 +57,7 @@ void DeferredValueImpl<ElfType>::writeTo(std::ostream &stream) {
     for(auto func : functionList) {
         func(elfValue);
     }
-    DeferredValue::writeTo(stream);
+    DeferredValueCString::writeTo(stream);
 }
 
 /** Base class for list of deferred values. */

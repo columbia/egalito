@@ -5,56 +5,53 @@
     #error "Do not include concretesection.h directly, include section.h"
 #endif
 
-#include "deferred.h"
-
 class Function;
 class Symbol;
 
-class SymbolTableSection : public Section2 {
+class SymbolTableSection : public DeferredSection<Symbol, ElfXX_Sym> {
 public:
-    typedef DeferredMap<Symbol *, ElfXX_Sym *> ContentType;
-public:
-    SymbolTableSection(const std::string &name, ElfXX_Word type);
+    SymbolTableSection(std::string name, ElfXX_Word type)
+        : DeferredSection<Symbol, ElfXX_Sym>(name, type) {}
 
-    ContentType *getContent()
-        { return static_cast<ContentType *>(Section2::getContent()); }
+    using Section::add;
+    void add(Function *func, Symbol *sym, size_t nameStrIndex);
+    void add(Symbol *symb);
 
-    DeferredValueImpl<ElfXX_Sym *> *add(Function *func, Symbol *sym, size_t strndx);
-    void addAtStart(Symbol *symb);
+    // we allow both concrete and deferred data here
+    virtual size_t getSize() const
+        { return Section::getSize() + DeferredSection<Symbol, ElfXX_Sym>::getSize(); }
+
+    virtual ElfXX_Shdr *makeShdr(size_t index, size_t nameStrIndex);
+
 public:
     size_t findIndexWithShIndex(size_t idx);
 };
 
-class RelocationSection : public Section2 {
-public:
-    typedef DeferredList<ElfXX_Rela *> ContentType;
+class RelocationSection : public SimpleDeferredSection<ElfXX_Rela> {
 private:
-    Section2 *source;
+    Section *destSection;
+    Section *sourceSection;
 public:
-    RelocationSection(Section2 *source);
+    RelocationSection(Section *source)
+        : SimpleDeferredSection<ElfXX_Rela>(".rela" + source->getName(),
+            SHT_RELA, SHF_INFO_LINK), sourceSection(source) {}
 
-    ContentType *getContent()
-        { return static_cast<ContentType *>(Section2::getContent()); }
-
-    Section2 *getSourceSection() { return source; }
-
-    void add(const ContentType::ValueType &rela) { getContent()->add(rela); }
+public:
+    Section *getDestSection() { return destSection; }
+    Section *getSourceSection() { return sourceSection; }
+    void setDestSection(Section *dest) { destSection = dest; }
+public:
+    void addRela(ElfXX_Rela *rela)
+        { addValue(rela); }
     virtual Elf64_Shdr *makeShdr(size_t index, size_t nameStrIndex);
-
-    virtual void commitValues();
 };
 
-class ShdrTableSection : public Section2 {
+class ShdrTableSection : public DeferredSection<Section, ElfXX_Shdr> {
 public:
-    typedef DeferredMap<Section2 *, ElfXX_Shdr *> ContentType;
+    using DeferredSection::DeferredSection;
 public:
-    using Section2::Section2;
-
-    ContentType *getContent()
-        { return static_cast<ContentType *>(Section2::getContent()); }
-
-    void add(Section2 *section, ContentType::ValueType shdr)
-        { getContent()->add(section, shdr); }
+    void addShdrPair(Section *section, ElfXX_Shdr *shdr)
+        { addKeyValue(section, shdr); }
 };
 
 #endif

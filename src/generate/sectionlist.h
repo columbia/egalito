@@ -7,6 +7,8 @@
 #include <functional>
 #include "types.h"
 
+class Section2;
+
 class SectionList {
 private:
     std::map<std::string, Section2 *> sectionMap;
@@ -33,16 +35,6 @@ public:
         : list(list), sectionName(sectionName) {}
     Section2 *get() const;
     int getIndex() const;
-};
-
-class StringRef {
-private:
-    SectionRef section;
-    std::string str;
-public:
-    StringRef(SectionRef section, const std::string &str)
-        : section(section), str(str) {}
-    size_t getIndex() const;
 };
 
 #endif
