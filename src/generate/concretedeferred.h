@@ -3,15 +3,16 @@
 
 #include <vector>
 #include "deferred.h"
+#include "chunk/link.h"
 #include "elf/elfxx.h"
 
 class Section;
 class SectionRef;
 class Symbol;
 class Function;
+class Instruction;
 class ElfSpace;
 class Chunk;
-class Link;
 class SectionList;
 
 class SymbolTableContent : public DeferredMap<Symbol *, ElfXX_Sym> {
@@ -48,6 +49,9 @@ public:
     Section *getTargetSection();
 
     DeferredType *add(Chunk *source, Link *link);
+private:
+    DeferredType *addConcrete(Instruction *source, DataOffsetLink *link);
+    DeferredType *addConcrete(Instruction *source, PLTLink *link);
 };
 
 #endif

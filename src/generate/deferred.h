@@ -132,12 +132,24 @@ public:
     virtual void insertAt(typename BaseType::IteratorType it, ValueType value)
         { indexMap[value] = it - BaseType::begin(); BaseType::insertAt(it, value); }
     size_t indexOf(ValueType value) const;
+
+    /** Must be called if insertAt() is used and shifts existing elements. */
+    void recalculateIndices();
 };
 
 template <typename BaseType>
 size_t DeferredListIndexDecorator<BaseType>::indexOf(ValueType value) const {
     auto it = indexMap.find(value);
     return (it != indexMap.end() ? (*it).second : static_cast<size_t>(-1));
+}
+
+template <typename BaseType>
+void DeferredListIndexDecorator<BaseType>::recalculateIndices() {
+    indexMap.clear();
+    size_t index = 0;
+    for(auto value : *this) {
+        indexMap[value] = index ++;
+    }
 }
 
 template <typename ValueType>

@@ -223,15 +223,28 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
                 auto deferred = reloc->add(instr, link);
                 if(deferred == nullptr)
                     continue;
-                deferred->addFunction([this, symtab] (ElfXX_Rela *rela) {
-                    size_t index = symtab->indexOfSectionSymbol(".rodata", &sectionList);
-                    rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
-                });
-                deferred->addFunction([this, roDataOffset] (ElfXX_Rela *rela) {
-                    // This affects the order in which things are called and breaks
-                    // for other relocations
-                    rela->r_addend -= roDataOffset;
-                });
+
+                if(dynamic_cast<DataOffsetLink *>(link)) {
+                    deferred->addFunction([this, symtab] (ElfXX_Rela *rela) {
+                        size_t index = symtab->indexOfSectionSymbol(".rodata", &sectionList);
+                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+                    });
+                    deferred->addFunction([this, roDataOffset] (ElfXX_Rela *rela) {
+                        // This affects the order in which things are called and breaks
+                        // for other relocations
+                        rela->r_addend -= roDataOffset;
+                    });
+                }
+                else if(auto link2 = dynamic_cast<PLTLink *>(link)) {
+                    deferred->addFunction([this, symtab, link2] (ElfXX_Rela *rela) {
+                        auto elfSym = symtab->find(
+                            link2->getPLTTrampoline()->getTargetSymbol());
+                        size_t index = symtab->indexOf(elfSym);
+                        LOG(1, "looks like we're using index " << index);
+                        LOG(1, "...which is for symbol " << symtab->getKey(elfSym)->getName());
+                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+                    });
+                }
             }
         }
     }
@@ -292,6 +305,7 @@ void ObjGen::updateSymbolTable() {
     auto shdrTable = sectionList[".shdr_table"]->castAs<ShdrTableContent *>();
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
+    // add section symbols
     int index = 1;  // skip the NULL symbol at index 0
     for(auto shdr : *shdrTable) {
         auto section = shdrTable->getKey(shdr);
@@ -304,6 +318,7 @@ void ObjGen::updateSymbolTable() {
             0, sectionList.indexOf(section));
         symtab->add(symbol, index ++);
     }
+    symtab->recalculateIndices();
     sectionSymbolCount = index - 1;
 }
 

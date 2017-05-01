@@ -1,5 +1,6 @@
 #include <cstring>  // for memcpy
 #include "writer.h"
+#include "chunk/link.h"
 #include "concrete.h"
 
 // RawInstruction
@@ -41,13 +42,17 @@ void InstrWriterGetData::visit(LinkedInstruction *linked) {
 
 // ControlFlow Instruction
 void InstrWriterCString::visit(ControlFlowInstruction *controlFlow) {
-    controlFlow->writeTo(target, true);  // always use disp for jumps
+    // always use a displacement for direct jumps, unless it's to a PLT entry
+    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterCppString::visit(ControlFlowInstruction *controlFlow) {
-    controlFlow->writeTo(target, true);
+    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
-    controlFlow->writeTo(data, true);
+    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    controlFlow->writeTo(data, useDisp);
 }
 
 void InstrWriterMakeReloc::visit(LinkedInstruction *linked) {
