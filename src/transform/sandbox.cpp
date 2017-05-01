@@ -2,7 +2,6 @@
 #include <cstring>
 #include <sys/mman.h>
 #include "sandbox.h"
-#include "generate/exegen.h"
 #include "generate/objgen.h"
 
 bool Slot::append(uint8_t *data, size_t size) {
@@ -37,9 +36,11 @@ ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)
 
 void ExeBacking::finalize() {
     MemoryBacking::finalize();
+#if 0
     ExeGen *gen = new ExeGen(elfSpace, this, filename);
     gen->generate();
     delete gen;
+#endif
 }
 
 ObjBacking::ObjBacking(ElfSpace *elfSpace, std::string filename)

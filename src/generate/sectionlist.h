@@ -7,22 +7,22 @@
 #include <functional>
 #include "types.h"
 
-class Section2;
+class Section;
 
 class SectionList {
 private:
-    std::map<std::string, Section2 *> sectionMap;
-    std::map<Section2 *, size_t> sectionIndexMap;
-    std::vector<Section2 *> sections;
+    std::map<std::string, Section *> sectionMap;
+    std::map<Section *, size_t> sectionIndexMap;
+    std::vector<Section *> sections;
 public:
     ~SectionList();
 public:
-    void addSection(Section2 *section);
-    std::vector<Section2 *>::iterator begin() { return sections.begin(); }
-    std::vector<Section2 *>::iterator end() { return sections.end(); }
-    void insert(std::vector<Section2 *>::iterator it, Section2 *section);
-    Section2 *operator [] (std::string name);
-    int indexOf(Section2 *section);
+    void addSection(Section *section);
+    std::vector<Section *>::iterator begin() { return sections.begin(); }
+    std::vector<Section *>::iterator end() { return sections.end(); }
+    void insert(std::vector<Section *>::iterator it, Section *section);
+    Section *operator [] (std::string name);
+    int indexOf(Section *section);
     int indexOf(const std::string &sectionName);
 };
 
@@ -34,7 +34,7 @@ private:
 public:
     SectionRef(SectionList *list, const std::string &sectionName)
         : list(list), sectionName(sectionName) {}
-    Section2 *get() const;
+    Section *get() const;
     int getIndex() const;
 };
 

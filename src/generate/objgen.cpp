@@ -13,14 +13,14 @@
 ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
     elfSpace(elfSpace), backing(backing), filename(filename) {
 
-    auto header = new Section2(".elfheader");
+    auto header = new Section(".elfheader");
     sectionList.addSection(header);
 
-    auto strtab = new Section2(".strtab", SHT_STRTAB);
+    auto strtab = new Section(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
     sectionList.addSection(strtab);
 
-    auto shstrtab = new Section2(".shstrtab", SHT_STRTAB);
+    auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
     shstrtab->setContent(new DeferredStringList());
     sectionList.addSection(shstrtab);
 }
@@ -33,8 +33,7 @@ void ObjGen::generate() {
     makeRoData();
     makeShdrTable();
     updateSymbolTable();  // must run after .text & shdrTable are created
-    updateOffsetAndAddress();  // must run before updateShdrTable()
-    //updateShdrTable();
+    updateOffsets();  // must run before updateShdrTable()
     serialize();
 }
 
@@ -96,7 +95,7 @@ void ObjGen::makeText() {
 
         std::string name = StreamAsString()
             << ".text.0x" << std::hex << address;
-        auto textSection = new Section2(name.c_str(), SHT_PROGBITS,
+        auto textSection = new Section(name.c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
         auto textValue = new DeferredString(reinterpret_cast<const char *>(*i), size);
         textSection->setContent(textValue);
@@ -108,33 +107,11 @@ void ObjGen::makeText() {
         totalSize += size;
         i = j;
     }
-
-#if 0
-    // Redo Relocations
-    auto symtab = static_cast<SymbolTableSection *>(sectionList[".symtab"]);
-    auto relaTextSection = new RelocationSection(lastTextSection);
-    relaTextSection->setSectionLink(symtab);
-    {
-        ElfXX_Rela *rela = new ElfXX_Rela();
-        rela->r_offset = 0x1a9;
-        rela->r_info = ELFXX_R_INFO(0, 0);
-        rela->r_addend = -1;
-        relaTextSection->addRela(rela);
-    }
-    {
-        ElfXX_Rela *rela = new ElfXX_Rela();
-        rela->r_offset = 0x1c6;
-        rela->r_info = ELFXX_R_INFO(0, 0);
-        rela->r_addend = 0;
-        relaTextSection->addRela(rela);
-    }
-    sectionList.addSection(relaTextSection);
-#endif
 }
 
 void ObjGen::makeSymbolInfo() {
     auto symtab = new SymbolTableContent();
-    auto symtabSection = new Section2(".symtab", SHT_SYMTAB);
+    auto symtabSection = new Section(".symtab", SHT_SYMTAB);
     symtabSection->setContent(symtab);
 
     auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
@@ -160,7 +137,7 @@ void ObjGen::makeSymbolInfo() {
 void ObjGen::makeRelocInfo(const std::string &textSection) {
     auto reloc = new RelocSectionContent(
         new SectionRef(&sectionList, textSection));
-    auto relocSection = new Section2(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
+    auto relocSection = new Section(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
 
     sectionList.addSection(relocSection);
@@ -231,7 +208,7 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
 void ObjGen::makeRoData() {
     auto elfMap = elfSpace->getElfMap();
     auto oldRoDataShdr = elfMap->findSection(".rodata")->getHeader();
-    auto roDataSection = new Section2(".rodata", SHT_PROGBITS, SHF_ALLOC);
+    auto roDataSection = new Section(".rodata", SHT_PROGBITS, SHF_ALLOC);
     const char *address = elfMap->getCharmap() + oldRoDataShdr->sh_offset;
     auto content = new DeferredString(address, oldRoDataShdr->sh_size);
     roDataSection->setContent(content);
@@ -241,11 +218,11 @@ void ObjGen::makeRoData() {
 void ObjGen::makeShdrTable() {
     LOG(1, "generating shdr");
     auto shdrTable = new ShdrTableContent();
-    auto shdrTableSection = new Section2(".shdr_table", shdrTable);
+    auto shdrTableSection = new Section(".shdr_table", shdrTable);
 
     auto shstrtab = sectionList[".shstrtab"]->castAs<DeferredStringList *>();
 
-    auto nullSection = new Section2("", static_cast<ElfXX_Word>(SHT_NULL));
+    auto nullSection = new Section("", static_cast<ElfXX_Word>(SHT_NULL));
     auto nullDeferred = shdrTable->add(nullSection);
     nullDeferred->getElfPtr()->sh_name
         = shstrtab->add(nullSection->getName(), true);
@@ -278,16 +255,6 @@ void ObjGen::makeShdrTable() {
     sectionList.addSection(shdrTableSection);
 }
 
-void ObjGen::updateOffsetAndAddress() {
-    // every section is written to the file, even those without Headers
-    size_t offset = 0;
-    for(auto section : sectionList) {
-        LOG(1, "section [" << section->getName() << "] is at offset " << std::dec << offset);
-        section->setOffset(offset);
-        offset += section->getContent()->getSize();
-    }
-}
-
 void ObjGen::updateSymbolTable() {
     // update section indices in symbol table
     auto shdrTable = sectionList[".shdr_table"]->castAs<ShdrTableContent *>();
@@ -308,19 +275,15 @@ void ObjGen::updateSymbolTable() {
     sectionSymbolCount = index - 1;
 }
 
-#if 0
-void ObjGen::updateRelocations() {
-    auto symtab = static_cast<SymbolTableSection *>(sectionList[".symbtab"]);
-    auto shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
-    auto *relaTextSection = static_cast<RelocationSection *>(sectionList[".rela.text.0x40000000"]);
-    for(auto rela : relaTextSection->getValueList()) {
-        auto destSection = shdrTable->findIndex(relaTextSection->getDestSection());
-        auto index = symtab->findIndexWithShIndex(destSection) + 1;
-        LOG(1, "updating rela.rodata " << destSection << " => " << index);
-        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+void ObjGen::updateOffsets() {
+    // every section is written to the file, even those without Headers
+    size_t offset = 0;
+    for(auto section : sectionList) {
+        LOG(1, "section [" << section->getName() << "] is at offset " << std::dec << offset);
+        section->setOffset(offset);
+        offset += section->getContent()->getSize();
     }
 }
-#endif
 
 void ObjGen::serialize() {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);

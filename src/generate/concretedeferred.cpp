@@ -59,7 +59,7 @@ size_t SymbolTableContent::indexOfSectionSymbol(const std::string &section,
     return this->indexOf(sectionSymbols[index]);
 }
 
-ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
+ShdrTableContent::DeferredType *ShdrTableContent::add(Section *section) {
     auto shdr = new ElfXX_Shdr();
     std::memset(shdr, 0, sizeof(*shdr));
 
@@ -82,11 +82,11 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
         shdr->sh_entsize    = 0;
     });
 
-    DeferredMap<Section2 *, ElfXX_Shdr>::add(section, deferred);
+    DeferredMap<Section *, ElfXX_Shdr>::add(section, deferred);
     return deferred;
 }
 
-Section2 *RelocSectionContent::getTargetSection() {
+Section *RelocSectionContent::getTargetSection() {
     return outer->get();
 }
 

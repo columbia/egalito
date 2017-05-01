@@ -5,7 +5,7 @@
 #include "deferred.h"
 #include "elf/elfxx.h"
 
-class Section2;
+class Section;
 class SectionRef;
 class Symbol;
 class Function;
@@ -30,11 +30,11 @@ public:
         SectionList *sectionList);
 };
 
-class ShdrTableContent : public DeferredMap<Section2 *, ElfXX_Shdr> {
+class ShdrTableContent : public DeferredMap<Section *, ElfXX_Shdr> {
 public:
     typedef DeferredValueImpl<ElfXX_Shdr> DeferredType;
 public:
-    DeferredType *add(Section2 *section);
+    DeferredType *add(Section *section);
 };
 
 class RelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
@@ -45,7 +45,7 @@ private:
 public:
     RelocSectionContent(SectionRef *outer) : outer(outer) {}
 
-    Section2 *getTargetSection();
+    Section *getTargetSection();
 
     DeferredType *add(ElfSpace *space, Chunk *source, Link *link, SymbolTableContent *symtab,
         SectionList *sectionList);

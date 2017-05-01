@@ -30,9 +30,7 @@ private:
     void makeShdrTable();
 private:
     void updateSymbolTable();
-    //void updateRelocations();
-    void updateOffsetAndAddress();
-    //void updateShdrTable();
+    void updateOffsets();
     void serialize();
 private:
     static bool blacklistedSymbol(const std::string &name);
