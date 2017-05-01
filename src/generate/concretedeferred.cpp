@@ -4,6 +4,10 @@
 #include "sectionlist.h"
 #include "elf/symbol.h"
 #include "chunk/function.h"
+#include "chunk/dataregion.h"
+#include "chunk/link.h"
+#include "instr/instr.h"
+#include "instr/concrete.h"
 #include "log/log.h"
 
 SymbolTableContent::DeferredType *SymbolTableContent
@@ -11,8 +15,9 @@ SymbolTableContent::DeferredType *SymbolTableContent
 
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = static_cast<ElfXX_Word>(strndx);
-    symbol->st_info = ELFXX_ST_INFO(Symbol::bindFromInternalToElf(sym->getBind()),
-                                   Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = SHN_UNDEF;
     symbol->st_value = func ? func->getAddress() : 0;
@@ -42,13 +47,18 @@ void SymbolTableContent::add(ElfXX_Sym *symbol) {
         new DeferredType(symbol));
 }
 
+size_t SymbolTableContent::indexOfSectionSymbol(const std::string &section,
+    SectionList *sectionList) {
+
+    size_t index = sectionList->indexOf(section);
+    return this->indexOf(sectionSymbols[index]);
+}
+
 ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
     auto shdr = new ElfXX_Shdr();
     std::memset(shdr, 0, sizeof(*shdr));
 
     auto deferred = new DeferredType(shdr);
-
-    //LOG(1, "preparing shdr for section [" << section->getName() << "]");
 
     deferred->addFunction([this, section] (ElfXX_Shdr *shdr) {
         LOG(1, "generating shdr for section [" << section->getName() << "]");
@@ -69,4 +79,43 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
 
     DeferredMap<Section2 *, ElfXX_Shdr>::add(section, deferred);
     return deferred;
+}
+
+RelocSectionContent::DeferredType *RelocSectionContent
+    ::add(Chunk *source, Link *link, SymbolTableContent *symtab,
+        SectionList *sectionList) {
+
+    if(dynamic_cast<DataOffsetLink *>(link)) {
+        auto rela = new ElfXX_Rela();
+        std::memset(rela, 0, sizeof(*rela));
+        auto deferred = new DeferredType(rela);
+
+        auto address = source->getAddress();
+        if(auto instr = dynamic_cast<Instruction *>(source)) {
+#ifdef ARCH_X86_64
+            if(auto sem = dynamic_cast<LinkedInstruction *>(instr->getSemantic())) {
+                address += sem->getDispOffset();
+            }
+            else if(auto sem = dynamic_cast<ControlFlowInstruction *>(instr->getSemantic())) {
+                address += sem->getDispOffset();
+            }
+#else
+    #error "how do we encode relocation offsets in instructions on arm?"
+#endif
+        }
+
+        auto dest = static_cast<DataRegion *>(&*link->getTarget());  // assume != nullptr
+        auto destAddress = link->getTargetAddress();
+
+        rela->r_offset = address;
+        rela->r_addend = destAddress - dest->getAddress();
+        deferred->addFunction([symtab, sectionList] (ElfXX_Rela *rela) {
+            size_t index = symtab->indexOfSectionSymbol(".rodata", sectionList);
+            rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+        });
+
+        DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
+    }
+
+    return nullptr;
 }

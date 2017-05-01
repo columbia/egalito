@@ -5,21 +5,13 @@
 #include "objgen.h"
 #include "deferred.h"
 #include "concretedeferred.h"
+#include "instr/semantic.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "util/streamasstring.h"
 
 ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
     elfSpace(elfSpace), backing(backing), filename(filename) {
-
-    //auto header = new Section2(".elfheader", new DeferredValueImpl<ElfXX_Ehdr>());
-    //auto strtab = new Section2(".strtab", SHT_STRTAB);
-    //auto shstrtab = new Section2(".shstrtab", SHT_STRTAB);
-    //auto symtab = new SymbolTableSection(".symtab", SHT_SYMTAB);
-    //sectionList.addSection(header);
-    //sectionList.addSection(strtab);
-    //sectionList.addSection(shstrtab);
-    //sectionList.addSection(symtab);
 
     auto header = new Section2(".elfheader");
     sectionList.addSection(header);
@@ -111,6 +103,7 @@ void ObjGen::makeText() {
         sectionList.addSection(textSection);
 
         makeSymbolInfoForText(address, size, name);
+        makeRelocationInfoForText(address, size, name);
 
         totalSize += size;
         i = j;
@@ -183,8 +176,7 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
             continue;  // not in this text section
         }
 
-        // fix addresses for objgen (set base to 0)
-        func->getPosition()->set(func->getAddress() - backing->getBase());
+        // fix addresses for objgen (set base to 0) func->getPosition()->set(func->getAddress() - backing->getBase());
 
         // add name to string table
         auto index = strtab->add(func->getName(), true);
@@ -206,6 +198,39 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
         // undo address fix
         func->getPosition()->set(backing->getBase() + func->getAddress());
     }
+}
+
+void ObjGen::makeRelocationInfoForText(address_t begin, size_t size,
+    const std::string &textSection) {
+
+    auto reloc = new RelocSectionContent();
+    auto relocSection = new Section2(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
+    relocSection->setContent(reloc);
+
+    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+
+    for(auto func : CIter::functions(elfSpace->getModule())) {
+        LOG(1, "considering adding relocations for " << func->getName());
+        if(blacklistedSymbol(func->getName())) {
+            continue;  // skip relocations for this function
+        }
+
+        if(func->getAddress() < begin
+            || func->getAddress() + func->getSize() >= begin + size) {
+            continue;  // not in this text section
+        }
+
+        for(auto block : CIter::children(func)) {
+            for(auto instr : CIter::children(block)) {
+                if(auto link = instr->getSemantic()->getLink()) {
+                    LOG(1, "adding relocation at " << instr->getName());
+                    reloc->add(instr, link, symtab, &sectionList);
+                }
+            }
+        }
+    }
+
+    sectionList.addSection(relocSection);
 }
 
 void ObjGen::makeRoData() {
@@ -290,20 +315,6 @@ void ObjGen::updateRelocations() {
         auto index = symtab->findIndexWithShIndex(destSection) + 1;
         LOG(1, "updating rela.rodata " << destSection << " => " << index);
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
-    }
-}
-#endif
-
-#if 0
-void ObjGen::updateShdrTable() {
-    ShdrTableSection *shdrTable = static_cast<ShdrTableSection *>(sectionList[".shdr_table"]);
-    for(auto shdrPair : shdrTable->getValueMap()) {
-        auto section = shdrPair.first;
-        auto shdr    = shdrPair.second;
-        shdr->sh_size   = section->getSize();
-        shdr->sh_offset = section->getOffset();
-        shdr->sh_addr   = section->getAddress();
-        shdr->sh_link   = shdrTable->findIndex(section->getSectionLink());
     }
 }
 #endif

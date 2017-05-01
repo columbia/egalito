@@ -137,7 +137,7 @@ public:
 template <typename BaseType>
 size_t DeferredListIndexDecorator<BaseType>::indexOf(ValueType value) const {
     auto it = indexMap.find(value);
-    return (it != indexMap.end() ? (*it) : static_cast<size_t>(-1));
+    return (it != indexMap.end() ? (*it).second : static_cast<size_t>(-1));
 }
 
 template <typename ValueType>

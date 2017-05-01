@@ -48,6 +48,11 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
         assembly->getSize() - dispSize - dispOffset);
 }
 
+int LinkedInstruction::getDispOffset() const {
+    auto assembly = const_cast<LinkedInstruction *>(this)->getAssembly();
+    return MakeSemantic::getDispOffset(assembly, opIndex);
+}
+
 void LinkedInstruction::regenerateAssembly() {
     // Recreate the internal capstone data structure.
     // Useful for printing the instruction (ChunkDumper).

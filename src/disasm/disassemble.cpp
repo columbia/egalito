@@ -255,7 +255,7 @@ bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
     else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
     }*/
 #elif defined(ARCH_AARCH64)
-    if (cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
+    if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
         split = true;
     }
     else if(ins->id == ARM64_INS_BL) {

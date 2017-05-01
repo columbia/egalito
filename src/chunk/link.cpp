@@ -26,6 +26,10 @@ address_t JumpTableLink::getTargetAddress() const {
     return jumpTable->getAddress();
 }
 
+ChunkRef DataOffsetLink::getTarget() const {
+    return region;
+}
+
 address_t DataOffsetLink::getTargetAddress() const {
     return region->getAddress() + target;
 }

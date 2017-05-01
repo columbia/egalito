@@ -128,7 +128,7 @@ public:
     DataOffsetLink(DataRegion *region, address_t target)
         : region(region), target(target) {}
 
-    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };
 

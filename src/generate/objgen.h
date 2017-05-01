@@ -23,6 +23,8 @@ private:
     void makeText();
     void makeSymbolInfoForText(address_t begin, size_t size,
         const std::string &textSection);
+    void makeRelocationInfoForText(address_t begin, size_t size,
+        const std::string &textSection);
     void makeRoData();
     void makeShdrTable();
 private:

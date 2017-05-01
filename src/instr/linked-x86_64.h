@@ -20,6 +20,7 @@ public:
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
+    int getDispOffset() const;
 
     void regenerateAssembly();
 
@@ -54,6 +55,7 @@ public:
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
+    int getDispOffset() const { return opcode.size(); }
 
     virtual Assembly *getAssembly() { return nullptr; }
 
