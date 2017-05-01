@@ -20,6 +20,7 @@ public:
     void addSection(Section2 *section);
     std::vector<Section2 *>::iterator begin() { return sections.begin(); }
     std::vector<Section2 *>::iterator end() { return sections.end(); }
+    void insert(std::vector<Section2 *>::iterator it, Section2 *section);
     Section2 *operator [] (std::string name);
     int indexOf(Section2 *section);
     int indexOf(const std::string &sectionName);

@@ -36,8 +36,7 @@ void SymbolTableContent::add(Symbol *sym, bool atFront) {
     auto value = new DeferredType(symbol);
     if(!atFront) {
         DeferredMap<Symbol *, ElfXX_Sym>::add(sym, value);
-    }
-    else {
+    } else {
         insertAt(this->begin() + 1, sym, value);
     }
 }
@@ -63,7 +62,8 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
         shdr->sh_flags      = header->getShdrFlags();
         shdr->sh_addr       = header->getAddress();
         shdr->sh_offset     = section->getOffset();
-        shdr->sh_size       = section->getContent()->getSize();
+        shdr->sh_size       = section->getContent() ?
+            section->getContent()->getSize() : 0;
         shdr->sh_link       = header->getSectionLink()
             ? header->getSectionLink()->getIndex() : 0;
         shdr->sh_info       = 0;  // updated later for strtabs

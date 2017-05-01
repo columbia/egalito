@@ -21,6 +21,9 @@ ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename)
     //sectionList.addSection(shstrtab);
     //sectionList.addSection(symtab);
 
+    auto header = new Section2(".elfheader");
+    sectionList.addSection(header);
+
     auto strtab = new Section2(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
     sectionList.addSection(strtab);
@@ -68,7 +71,7 @@ void ObjGen::makeHeader() {
         header->e_shstrndx = sectionList.indexOf(".shstrtab");
     });
 
-    sectionList.addSection(new Section2(".elfheader", deferred));
+    sectionList[".elfheader"]->setContent(deferred);
 }
 
 void ObjGen::makeText() {
@@ -216,6 +219,7 @@ void ObjGen::makeRoData() {
 }
 
 void ObjGen::makeShdrTable() {
+    LOG(1, "generating shdr");
     auto shdrTable = new ShdrTableContent();
     auto shdrTableSection = new Section2(".shdr_table", shdrTable);
 
