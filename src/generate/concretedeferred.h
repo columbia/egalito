@@ -6,6 +6,7 @@
 #include "elf/elfxx.h"
 
 class Section2;
+class SectionRef;
 class Symbol;
 class Function;
 class Chunk;
@@ -38,7 +39,13 @@ public:
 class RelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
 public:
     typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
+private:
+    SectionRef *outer;
 public:
+    RelocSectionContent(SectionRef *outer) : outer(outer) {}
+
+    Section2 *getTargetSection();
+
     DeferredType *add(Chunk *source, Link *link, SymbolTableContent *symtab,
         SectionList *sectionList);
 };

@@ -176,7 +176,8 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
             continue;  // not in this text section
         }
 
-        // fix addresses for objgen (set base to 0) func->getPosition()->set(func->getAddress() - backing->getBase());
+        // fix addresses for objgen (set base to 0)
+        func->getPosition()->set(func->getAddress() - backing->getBase());
 
         // add name to string table
         auto index = strtab->add(func->getName(), true);
@@ -203,22 +204,26 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
 void ObjGen::makeRelocationInfoForText(address_t begin, size_t size,
     const std::string &textSection) {
 
-    auto reloc = new RelocSectionContent();
+    auto reloc = new RelocSectionContent(
+        new SectionRef(&sectionList, textSection));
     auto relocSection = new Section2(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
 
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
-        LOG(1, "considering adding relocations for " << func->getName());
         if(blacklistedSymbol(func->getName())) {
             continue;  // skip relocations for this function
         }
+
+        LOG(1, "    what about " << func->getAddress() << "?");
 
         if(func->getAddress() < begin
             || func->getAddress() + func->getSize() >= begin + size) {
             continue;  // not in this text section
         }
+
+        LOG(1, "considering adding relocations for " << func->getName());
 
         for(auto block : CIter::children(func)) {
             for(auto instr : CIter::children(block)) {
@@ -267,6 +272,13 @@ void ObjGen::makeShdrTable() {
                     shdr->sh_info = sectionSymbolCount + 1;
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
                     shdr->sh_addralign = 8;
+                });
+            }
+            else if(auto v = dynamic_cast<RelocSectionContent *>(section->getContent())) {
+                deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_info = sectionList.indexOf(v->getTargetSection());
+                    shdr->sh_addralign = 8;
+                    shdr->sh_link = sectionList.indexOf(".symtab");
                 });
             }
         }

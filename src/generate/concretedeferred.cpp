@@ -40,6 +40,10 @@ void SymbolTableContent::add(Symbol *sym, int index) {
 
     auto value = new DeferredType(symbol);
     insertAt(this->begin() + index, sym, value);
+
+    auto i = sym->getSectionIndex();
+    if(i >= sectionSymbols.size()) sectionSymbols.resize(i + 1);
+    sectionSymbols[i] = value;
 }
 
 void SymbolTableContent::add(ElfXX_Sym *symbol) {
@@ -81,6 +85,10 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
     return deferred;
 }
 
+Section2 *RelocSectionContent::getTargetSection() {
+    return outer->get();
+}
+
 RelocSectionContent::DeferredType *RelocSectionContent
     ::add(Chunk *source, Link *link, SymbolTableContent *symtab,
         SectionList *sectionList) {
@@ -110,7 +118,10 @@ RelocSectionContent::DeferredType *RelocSectionContent
         rela->r_offset = address;
         rela->r_addend = destAddress - dest->getAddress();
         deferred->addFunction([symtab, sectionList] (ElfXX_Rela *rela) {
+            LOG(1, "reloc targets section .rodata...");
+            LOG(1, "    " << symtab << ", " << sectionList);
             size_t index = symtab->indexOfSectionSymbol(".rodata", sectionList);
+            LOG(1, "    .rodata index is " << index);
             rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
         });
 
