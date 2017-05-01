@@ -226,17 +226,22 @@ void ObjGen::makeShdrTable() {
     auto shstrtab = sectionList[".shstrtab"]->castAs<DeferredStringList *>();
 
     auto nullSection = new Section2("", static_cast<ElfXX_Word>(SHT_NULL));
-    shdrTable->add(nullSection);
-    shstrtab->add(nullSection->getName(), true);  // include NULL terminator
+    auto nullDeferred = shdrTable->add(nullSection);
+    nullDeferred->getElfPtr()->sh_name
+        = shstrtab->add(nullSection->getName(), true);
 
     for(auto section : sectionList) {
         if(section->hasHeader()) {
             auto deferred = shdrTable->add(section);
-            shstrtab->add(section->getName(), true);  // include NULL terminator
+            deferred->getElfPtr()->sh_name
+                = shstrtab->add(section->getName(), true);
 
             if(dynamic_cast<SymbolTableContent *>(section->getContent())) {
-                deferred->addFunction([shdrTable] (ElfXX_Shdr *shdr) {
-                    shdr->sh_info = shdrTable->getCount();
+                deferred->addFunction([this, shdrTable] (ElfXX_Shdr *shdr) {
+                    //shdr->sh_info = shdrTable->getCount();
+                    shdr->sh_info = sectionSymbolCount + 1;
+                    shdr->sh_entsize = sizeof(ElfXX_Sym);
+                    shdr->sh_addralign = 8;
                 });
             }
         }
@@ -249,6 +254,7 @@ void ObjGen::updateOffsetAndAddress() {
     // every section is written to the file, even those without Headers
     size_t offset = 0;
     for(auto section : sectionList) {
+        LOG(1, "section [" << section->getName() << "] is at offset " << std::dec << offset);
         section->setOffset(offset);
         offset += section->getContent()->getSize();
     }
@@ -259,16 +265,19 @@ void ObjGen::updateSymbolTable() {
     auto shdrTable = sectionList[".shdr_table"]->castAs<ShdrTableContent *>();
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
+    int index = 1;  // skip the NULL symbol at index 0
     for(auto shdr : *shdrTable) {
         auto section = shdrTable->getKey(shdr);
         if(!section->getHeader()) continue;
+        if(section->getHeader()->getShdrType() == SHT_NULL) continue;
 
         auto symbol = new Symbol(0, 0, "",
             Symbol::typeFromElfToInternal(STT_SECTION),
             Symbol::bindFromElfToInternal(STB_LOCAL),
             0, sectionList.indexOf(section));
-        symtab->add(symbol, true);
+        symtab->add(symbol, index ++);
     }
+    sectionSymbolCount = index - 1;
 }
 
 #if 0

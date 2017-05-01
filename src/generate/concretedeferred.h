@@ -14,7 +14,7 @@ public:
 public:
     DeferredType *add(Function *func, Symbol *sym, size_t strndx);
     /** Special-case add used for adding SECTION symbols. */
-    void add(Symbol *sym, bool atFront = false);
+    void add(Symbol *sym, int index);
     void add(ElfXX_Sym *symbol);
 };
 

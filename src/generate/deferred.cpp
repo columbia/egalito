@@ -1,6 +1,7 @@
 #include <ostream>
 #include <cstring>  // for strlen
 #include "deferred.h"
+#include "log/log.h"
 
 std::ostream &operator << (std::ostream &stream, DeferredValue &dv) {
     dv.writeTo(stream);
@@ -8,6 +9,11 @@ std::ostream &operator << (std::ostream &stream, DeferredValue &dv) {
 }
 
 void DeferredValueCString::writeTo(std::ostream &stream) {
+    LOG0(10, "writing " << getSize() << " bytes:");
+    for(size_t i = 0; i < getSize(); i ++) {
+        CLOG0(10, " %02x", int(getPtr()[i]) & 0xff);
+    }
+    LOG(10, "");
     stream.write(getPtr(), getSize());
 }
 

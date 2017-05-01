@@ -13,10 +13,10 @@ void SectionList::addSection(Section2 *section) {
     sections.push_back(section);
 }
 
-void insert(std::vector<Section2 *>::iterator it, Section2 *section) {
+void SectionList::insert(std::vector<Section2 *>::iterator it, Section2 *section) {
     sectionMap[section->getName()] = section;
     sectionIndexMap[section] = sections.size();
-    sections.insert(it, section)
+    sections.insert(it, section);
 }
 
 Section2 *SectionList::operator [] (std::string name) {

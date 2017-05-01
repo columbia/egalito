@@ -22,7 +22,7 @@ SymbolTableContent::DeferredType *SymbolTableContent
     return value;
 }
 
-void SymbolTableContent::add(Symbol *sym, bool atFront) {
+void SymbolTableContent::add(Symbol *sym, int index) {
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = 0;
     symbol->st_info = ELFXX_ST_INFO(
@@ -34,11 +34,7 @@ void SymbolTableContent::add(Symbol *sym, bool atFront) {
     symbol->st_size = 0;
 
     auto value = new DeferredType(symbol);
-    if(!atFront) {
-        DeferredMap<Symbol *, ElfXX_Sym>::add(sym, value);
-    } else {
-        insertAt(this->begin() + 1, sym, value);
-    }
+    insertAt(this->begin() + index, sym, value);
 }
 
 void SymbolTableContent::add(ElfXX_Sym *symbol) {
@@ -52,12 +48,12 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section2 *section) {
 
     auto deferred = new DeferredType(shdr);
 
-    LOG(1, "preparing shdr for section [" << section->getName() << "]");
+    //LOG(1, "preparing shdr for section [" << section->getName() << "]");
 
     deferred->addFunction([this, section] (ElfXX_Shdr *shdr) {
         LOG(1, "generating shdr for section [" << section->getName() << "]");
         auto header = section->getHeader();
-        shdr->sh_name       = 0;
+        //shdr->sh_name       = 0;
         shdr->sh_type       = header->getShdrType();
         shdr->sh_flags      = header->getShdrFlags();
         shdr->sh_addr       = header->getAddress();

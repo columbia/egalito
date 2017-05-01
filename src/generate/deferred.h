@@ -80,9 +80,19 @@ public:
 
     size_t getCount() const { return valueList.size(); }
 
-    virtual size_t getSize() const { return getCount(); }
+    virtual size_t getSize() const;
     virtual void writeTo(std::ostream &stream);
 };
+
+// This getSize implementation assumes that VType is itself a DeferredValue,
+// and that each DeferredValue stored in this list has the same size.
+template <typename VType>
+size_t DeferredListBase<VType>::getSize() const {
+    if(getCount() == 0) return 0;
+
+    auto it = const_cast<DeferredListBase<VType> *>(this)->begin();
+    return getCount() * (*it)->getSize();
+}
 
 template <typename VType>
 void DeferredListBase<VType>::writeTo(std::ostream &stream) {

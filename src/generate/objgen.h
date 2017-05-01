@@ -12,6 +12,7 @@ private:
     MemoryBacking *backing;
     std::string filename;
     SectionList sectionList;
+    int sectionSymbolCount;
 public:
     ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename);
 public:
@@ -31,7 +32,7 @@ private:
     //void updateShdrTable();
     void serialize();
 private:
-    bool blacklistedSymbol(const std::string &name);
+    static bool blacklistedSymbol(const std::string &name);
 };
 
 #endif
