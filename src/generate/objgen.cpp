@@ -162,6 +162,7 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
         // fix addresses for objgen (set base to 0)
         func->getPosition()->set(func->getAddress() - backing->getBase());
 
+        LOG(1, "making symbol for " << func->getName());
         makeSymbolInText(func, textSection);
         makeRelocInText(func, textSection);
 
@@ -176,7 +177,8 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
 
     // add name to string table
     auto index = strtab->add(func->getName(), true);
-    auto value = symtab->add(func, func->getSymbol(), index); value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
+    auto value = symtab->add(func, func->getSymbol(), index);
+    value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
         symbol->st_shndx = sectionList.indexOf(textSection);
     });
 
@@ -188,6 +190,23 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
         value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
             symbol->st_shndx = sectionList.indexOf(textSection);
         });
+    }
+
+    for(auto block : CIter::children(func)) {
+        for(auto instr : CIter::children(block)) {
+            if(auto link = instr->getSemantic()->getLink()) {
+                if(auto sol = dynamic_cast<PLTLink *>(link)) {
+                    auto sym = sol->getPLTTrampoline()->getTargetSymbol();
+                    auto name = std::string(sym->getName());
+                    auto index = strtab->add(name, true);
+                    auto value = symtab->add(nullptr, sym, index);
+                    LOG(1, "got undefined symbol with name " << name);
+                    value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
+                        symbol->st_shndx = SHN_UNDEF;
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -209,6 +228,8 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
                     rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
                 });
                 deferred->addFunction([this, roDataOffset] (ElfXX_Rela *rela) {
+                    // This affects the order in which things are called and breaks
+                    // for other relocations
                     rela->r_addend -= roDataOffset;
                 });
             }
