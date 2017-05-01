@@ -195,11 +195,22 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
     auto reloc = sectionList[".rela" + textSection]->castAs<RelocSectionContent *>();
 
+    auto rodata = elfSpace->getElfMap()->findSection(".rodata")->getHeader();
+    auto roDataOffset = rodata->sh_offset;
     for(auto block : CIter::children(func)) {
         for(auto instr : CIter::children(block)) {
             if(auto link = instr->getSemantic()->getLink()) {
                 LOG(1, "adding relocation at " << instr->getName());
-                reloc->add(elfSpace, instr, link, symtab, &sectionList);
+                auto deferred = reloc->add(instr, link);
+                if(deferred == nullptr)
+                    continue;
+                deferred->addFunction([this, symtab] (ElfXX_Rela *rela) {
+                    size_t index = symtab->indexOfSectionSymbol(".rodata", &sectionList);
+                    rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+                });
+                deferred->addFunction([this, roDataOffset] (ElfXX_Rela *rela) {
+                    rela->r_addend -= roDataOffset;
+                });
             }
         }
     }

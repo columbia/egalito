@@ -47,8 +47,7 @@ public:
 
     Section *getTargetSection();
 
-    DeferredType *add(ElfSpace *space, Chunk *source, Link *link, SymbolTableContent *symtab,
-        SectionList *sectionList);
+    DeferredType *add(Chunk *source, Link *link);
 };
 
 #endif

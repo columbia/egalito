@@ -91,8 +91,7 @@ Section *RelocSectionContent::getTargetSection() {
 }
 
 RelocSectionContent::DeferredType *RelocSectionContent
-    ::add(ElfSpace *space, Chunk *source, Link *link, SymbolTableContent *symtab,
-        SectionList *sectionList) {
+    ::add(Chunk *source, Link *link) {
 
     if(dynamic_cast<DataOffsetLink *>(link)) {
         auto rela = new ElfXX_Rela();
@@ -115,24 +114,14 @@ RelocSectionContent::DeferredType *RelocSectionContent
 #endif
         }
 
-        auto rodata = space->getElfMap()->findSection(".rodata")->getHeader();
-        auto roDataOffset = rodata->sh_offset;
         auto dest = static_cast<DataRegion *>(&*link->getTarget());  // assume != nullptr
         auto destAddress = link->getTargetAddress();
 
         rela->r_offset = address;
-        LOG(1, "addend target " << destAddress << " dest " << dest->getAddress());
-        rela->r_addend = destAddress - dest->getAddress() - roDataOffset
-            + specialAddendOffset;
-        LOG(1, "    addend is " << destAddress << " - " << dest->getAddress() << " - " << roDataOffset);
-        deferred->addFunction([symtab, sectionList] (ElfXX_Rela *rela) {
-            LOG(1, "reloc targets section .rodata...");
-            size_t index = symtab->indexOfSectionSymbol(".rodata", sectionList);
-            LOG(1, "    .rodata index is " << index);
-            rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
-        });
+        rela->r_addend = destAddress - dest->getAddress() + specialAddendOffset;
 
         DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
+        return deferred;
     }
 
     return nullptr;
