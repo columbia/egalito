@@ -100,10 +100,12 @@ RelocSectionContent::DeferredType *RelocSectionContent
         auto deferred = new DeferredType(rela);
 
         auto address = source->getAddress();
+        int specialAddendOffset = 0;
         if(auto instr = dynamic_cast<Instruction *>(source)) {
 #ifdef ARCH_X86_64
             if(auto sem = dynamic_cast<LinkedInstruction *>(instr->getSemantic())) {
                 address += sem->getDispOffset();
+                specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
             }
             else if(auto sem = dynamic_cast<ControlFlowInstruction *>(instr->getSemantic())) {
                 address += sem->getDispOffset();
@@ -120,10 +122,11 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
         rela->r_offset = address;
         LOG(1, "addend target " << destAddress << " dest " << dest->getAddress());
-        rela->r_addend = destAddress - dest->getAddress() - roDataOffset;
+        rela->r_addend = destAddress - dest->getAddress() - roDataOffset
+            + specialAddendOffset;
+        LOG(1, "    addend is " << destAddress << " - " << dest->getAddress() << " - " << roDataOffset);
         deferred->addFunction([symtab, sectionList] (ElfXX_Rela *rela) {
             LOG(1, "reloc targets section .rodata...");
-            LOG(1, "    " << symtab << ", " << sectionList);
             size_t index = symtab->indexOfSectionSymbol(".rodata", sectionList);
             LOG(1, "    .rodata index is " << index);
             rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);

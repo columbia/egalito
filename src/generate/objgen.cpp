@@ -102,8 +102,8 @@ void ObjGen::makeText() {
         textSection->setContent(textValue);
         sectionList.addSection(textSection);
 
-        makeSymbolInfoForText(address, size, name);
-        makeRelocationInfoForText(address, size, name);
+        makeRelocInfo(name);
+        makeSymbolsAndRelocs(address, size, name);
 
         totalSize += size;
         i = j;
@@ -157,14 +157,20 @@ void ObjGen::makeSymbolInfo() {
     sectionList.addSection(symtabSection);
 }
 
-void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
+void ObjGen::makeRelocInfo(const std::string &textSection) {
+    auto reloc = new RelocSectionContent(
+        new SectionRef(&sectionList, textSection));
+    auto relocSection = new Section2(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
+    relocSection->setContent(reloc);
+
+    sectionList.addSection(relocSection);
+}
+
+void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
     const std::string &textSection) {
 
     // Add symbols to the symbol list, but only for those functions
     // which fall into the given range [begin, begin+size).
-
-    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
-    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
     for(auto func : CIter::functions(elfSpace->getModule())) {
         if(blacklistedSymbol(func->getName())) {
@@ -179,63 +185,47 @@ void ObjGen::makeSymbolInfoForText(address_t begin, size_t size,
         // fix addresses for objgen (set base to 0)
         func->getPosition()->set(func->getAddress() - backing->getBase());
 
-        // add name to string table
-        auto index = strtab->add(func->getName(), true);
-        auto value = symtab->add(func, func->getSymbol(), index);
-        value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
-            symbol->st_shndx = sectionList.indexOf(textSection);
-        });
-
-        for(auto alias : func->getSymbol()->getAliases()) {
-            // add name to string table
-            auto name = std::string(alias->getName());
-            auto index = strtab->add(name, true);
-            auto value = symtab->add(func, alias, index);
-            value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
-                symbol->st_shndx = sectionList.indexOf(textSection);
-            });
-        }
+        makeSymbolInText(func, textSection);
+        makeRelocInText(func, textSection);
 
         // undo address fix
         func->getPosition()->set(backing->getBase() + func->getAddress());
     }
 }
 
-void ObjGen::makeRelocationInfoForText(address_t begin, size_t size,
-    const std::string &textSection) {
-
-    auto reloc = new RelocSectionContent(
-        new SectionRef(&sectionList, textSection));
-    auto relocSection = new Section2(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
-    relocSection->setContent(reloc);
-
+void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
+    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
-    for(auto func : CIter::functions(elfSpace->getModule())) {
-        if(blacklistedSymbol(func->getName())) {
-            continue;  // skip relocations for this function
-        }
+    // add name to string table
+    auto index = strtab->add(func->getName(), true);
+    auto value = symtab->add(func, func->getSymbol(), index); value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
+        symbol->st_shndx = sectionList.indexOf(textSection);
+    });
 
-        LOG(1, "    what about " << func->getAddress() << "?");
+    for(auto alias : func->getSymbol()->getAliases()) {
+        // add name to string table
+        auto name = std::string(alias->getName());
+        auto index = strtab->add(name, true);
+        auto value = symtab->add(func, alias, index);
+        value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
+            symbol->st_shndx = sectionList.indexOf(textSection);
+        });
+    }
+}
 
-        if(func->getAddress() < begin
-            || func->getAddress() + func->getSize() >= begin + size) {
-            continue;  // not in this text section
-        }
+void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
+    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+    auto reloc = sectionList[".rela" + textSection]->castAs<RelocSectionContent *>();
 
-        LOG(1, "considering adding relocations for " << func->getName());
-
-        for(auto block : CIter::children(func)) {
-            for(auto instr : CIter::children(block)) {
-                if(auto link = instr->getSemantic()->getLink()) {
-                    LOG(1, "adding relocation at " << instr->getName());
-                    reloc->add(elfSpace, instr, link, symtab, &sectionList);
-                }
+    for(auto block : CIter::children(func)) {
+        for(auto instr : CIter::children(block)) {
+            if(auto link = instr->getSemantic()->getLink()) {
+                LOG(1, "adding relocation at " << instr->getName());
+                reloc->add(elfSpace, instr, link, symtab, &sectionList);
             }
         }
     }
-
-    sectionList.addSection(relocSection);
 }
 
 void ObjGen::makeRoData() {
