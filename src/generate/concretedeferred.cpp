@@ -2,6 +2,7 @@
 #include "concretedeferred.h"
 #include "section.h"
 #include "sectionlist.h"
+#include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "chunk/function.h"
 #include "chunk/dataregion.h"
@@ -90,7 +91,7 @@ Section2 *RelocSectionContent::getTargetSection() {
 }
 
 RelocSectionContent::DeferredType *RelocSectionContent
-    ::add(Chunk *source, Link *link, SymbolTableContent *symtab,
+    ::add(ElfSpace *space, Chunk *source, Link *link, SymbolTableContent *symtab,
         SectionList *sectionList) {
 
     if(dynamic_cast<DataOffsetLink *>(link)) {
@@ -112,11 +113,14 @@ RelocSectionContent::DeferredType *RelocSectionContent
 #endif
         }
 
+        auto rodata = space->getElfMap()->findSection(".rodata")->getHeader();
+        auto roDataOffset = rodata->sh_offset;
         auto dest = static_cast<DataRegion *>(&*link->getTarget());  // assume != nullptr
         auto destAddress = link->getTargetAddress();
 
         rela->r_offset = address;
-        rela->r_addend = destAddress - dest->getAddress();
+        LOG(1, "addend target " << destAddress << " dest " << dest->getAddress());
+        rela->r_addend = destAddress - dest->getAddress() - roDataOffset;
         deferred->addFunction([symtab, sectionList] (ElfXX_Rela *rela) {
             LOG(1, "reloc targets section .rodata...");
             LOG(1, "    " << symtab << ", " << sectionList);

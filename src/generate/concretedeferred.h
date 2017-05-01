@@ -9,6 +9,7 @@ class Section2;
 class SectionRef;
 class Symbol;
 class Function;
+class ElfSpace;
 class Chunk;
 class Link;
 class SectionList;
@@ -46,7 +47,7 @@ public:
 
     Section2 *getTargetSection();
 
-    DeferredType *add(Chunk *source, Link *link, SymbolTableContent *symtab,
+    DeferredType *add(ElfSpace *space, Chunk *source, Link *link, SymbolTableContent *symtab,
         SectionList *sectionList);
 };
 

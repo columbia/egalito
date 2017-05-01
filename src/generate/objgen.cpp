@@ -229,7 +229,7 @@ void ObjGen::makeRelocationInfoForText(address_t begin, size_t size,
             for(auto instr : CIter::children(block)) {
                 if(auto link = instr->getSemantic()->getLink()) {
                     LOG(1, "adding relocation at " << instr->getName());
-                    reloc->add(instr, link, symtab, &sectionList);
+                    reloc->add(elfSpace, instr, link, symtab, &sectionList);
                 }
             }
         }
@@ -278,6 +278,7 @@ void ObjGen::makeShdrTable() {
                 deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
                     shdr->sh_info = sectionList.indexOf(v->getTargetSection());
                     shdr->sh_addralign = 8;
+                    shdr->sh_entsize = sizeof(ElfXX_Rela);
                     shdr->sh_link = sectionList.indexOf(".symtab");
                 });
             }
