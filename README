@@ -8,7 +8,17 @@ including itself. This is important for implementing binary-level security
 schemes since the attacker can easily target the instrumentation framework
 if it is undefended.
 
-To build, run "make" (the only dependency is libcapstone-dev). The src/
-directory contains "loader" which can run examples in from src/ex; the
-test/ directory contains several executables that run correctness tests.
-Documentation is in the doc/ directory.
+Egalito supports x86_64 and aarch64, with upcoming support for 32-bit arm.
+
+To build:
+$ sudo apt-get install libcapstone-dev
+$ make -j 4
+
+To test, try:
+$ cd test && ./runner && cd -
+$ cd src && ./loader ex/hello && cd -
+$ cd app && ./etshell
+
+Other extensions:
+- Python bindings and Python shell: see app/README-python
+- Docker: see test/docker/README.md
