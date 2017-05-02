@@ -92,7 +92,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             return;
         }
         setup->makeLoaderSandbox();
-        setup->moveCodeAssignAddresses();
+        setup->moveCodeAssignAddresses(true);
     }, "allocates a sandbox and assigns functions new addresses");
 
     topLevel->add("generate", [&] (Arguments args) {

@@ -40,7 +40,6 @@ void ChunkDumper::visit(Block *block) {
 }
 
 void ChunkDumper::visit(Instruction *instruction) {
-    auto semantic = instruction->getSemantic();
     int pos = INT_MIN;
     auto parent = instruction->getParent();
     if(parent) {

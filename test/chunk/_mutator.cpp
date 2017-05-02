@@ -3,6 +3,7 @@
 #include "chunk/dump.h"
 #include "operation/mutator.h"
 #include "instr/concrete.h"
+#include "instr/writer.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
 #include "log/registry.h"
@@ -33,11 +34,14 @@ static void ensureValues(Block *block, const std::vector<unsigned char> &values)
     size_t index = 0;
     for(auto ins : CIter::children(block)) {
         CAPTURE(ins->getName());  // debug info, print instr name
+
+        InstrWriterGetData writer;
+        ins->getSemantic()->accept(&writer);
 #ifdef ARCH_X86_64
-        CHECK(ins->getSemantic()->getData()[2] == values[index]);
+        CHECK(writer.get()[2] == values[index]);
 #elif defined(ARCH_AARCH64)
-        unsigned char imm = ((ins->getSemantic()->getData()[1] >> 2)
-            | (ins->getSemantic()->getData()[2] << 6)) & 0xFF;
+        unsigned char imm = ((writer.get()[1] >> 2) | (writer.get()[2] << 6))
+            & 0xFF;
         CHECK(imm == values[index]);
 #endif
         index ++;

@@ -16,5 +16,5 @@ DisassembledStorage &DisassembledStorage::operator = (
 }
 
 std::string DisassembledStorage::getData() const {
-    return std::move(assembly.getBytes());
+    return std::string(assembly.getBytes(), assembly.getSize());
 }
