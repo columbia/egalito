@@ -125,7 +125,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
 #endif
             functionList->getChildren()->add(function);
             function->setParent(functionList);
-            LOG(1, "adding function " << function->getName());
+            LOG(10, "adding function " << function->getName());
         }
     }
     return module;
@@ -165,7 +165,7 @@ void Disassemble::disassembleBlock(Handle &handle,
   
         ChunkMutator(block, false).append(instr);
         if(split) {
-            LOG(1, "split-instr in block: " << j+1);
+            LOG(11, "split-instr in block: " << j+1);
             ChunkMutator(function, false).append(block);
   
             Block *oldBlock = block;
@@ -175,7 +175,7 @@ void Disassemble::disassembleBlock(Handle &handle,
                 positionFactory->makePosition(oldBlock, block, function->getSize()));
         }
         else {
-            LOG(1, "instr in block:" << j+1);
+            LOG(11, "instr in block:" << j+1);
         }
     }
 

@@ -43,15 +43,18 @@ void InstrWriterGetData::visit(LinkedInstruction *linked) {
 // ControlFlow Instruction
 void InstrWriterCString::visit(ControlFlowInstruction *controlFlow) {
     // always use a displacement for direct jumps, unless it's to a PLT entry
-    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements()
+        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
     controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterCppString::visit(ControlFlowInstruction *controlFlow) {
-    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements()
+        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
     controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
-    bool useDisp = (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements()
+        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
     controlFlow->writeTo(data, useDisp);
 }
 
