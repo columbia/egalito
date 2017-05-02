@@ -131,51 +131,55 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     return module;
 }
 
-std::tuple<cs_insn *, size_t> Disassemble::disassembleBlock(Handle &handle, PositionFactory *positionFactory,
-                                                            Function *function, Block **blockRef, address_t readAddress,
-                                                            size_t readSize, address_t virtualAddress) {
-      cs_insn *insn;
-      size_t count = cs_disasm(handle.raw(), (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+void Disassemble::disassembleBlock(Handle &handle,
+    Function *function, Block **blockRef, address_t readAddress,
+    size_t readSize, address_t virtualAddress) {
 
-      Block *block = *blockRef;
+    PositionFactory *positionFactory = PositionFactory::getInstance();
 
-      for(size_t j = 0; j < count; j++) {
+    cs_insn *insn;
+    size_t count = cs_disasm(handle.raw(), (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+
+    Block *block = *blockRef;
+
+    for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
-
+  
         // check if this instruction ends the current basic block
         bool split = shouldSplitBlockAt(ins, handle);
-
+  
         // Create Instruction from cs_insn
         auto instr = Disassemble::instruction(ins, handle, true);
         Chunk *prevChunk = nullptr;
         if(block->getChildren()->getIterable()->getCount() > 0) {
-          prevChunk = block->getChildren()->getIterable()->getLast();
+            prevChunk = block->getChildren()->getIterable()->getLast();
         }
         else if(function->getChildren()->getIterable()->getCount() > 0) {
-          prevChunk = function->getChildren()->getIterable()->getLast();
+            prevChunk = function->getChildren()->getIterable()->getLast();
         }
         else {
-          prevChunk = nullptr;
+            prevChunk = nullptr;
         }
         instr->setPosition(
-                           positionFactory->makePosition(prevChunk, instr, block->getSize()));
-
+            positionFactory->makePosition(prevChunk, instr, block->getSize()));
+  
         ChunkMutator(block, false).append(instr);
         if(split) {
-          LOG(1, "split-instr in block: " << j+1);
-          ChunkMutator(function, false).append(block);
-
-          Block *oldBlock = block;
-          block = new Block();
-          *blockRef = block;
-          block->setPosition(
-                             positionFactory->makePosition(oldBlock, block, function->getSize()));
-        } else {
-          LOG(1, "instr in block:" << j+1);
+            LOG(1, "split-instr in block: " << j+1);
+            ChunkMutator(function, false).append(block);
+  
+            Block *oldBlock = block;
+            block = new Block();
+            *blockRef = block;
+            block->setPosition(
+                positionFactory->makePosition(oldBlock, block, function->getSize()));
         }
-      }
+        else {
+            LOG(1, "instr in block:" << j+1);
+        }
+    }
 
-      return std::make_tuple(insn, count);
+    cs_free(insn, count);
 }
 
 
@@ -187,7 +191,6 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
     Handle handle(true);
-    std::vector<std::tuple<cs_insn *, size_t> > insnList;
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new Function(symbol);
@@ -201,11 +204,11 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
 #endif
 
     function->setPosition(
-                          positionFactory->makeAbsolutePosition(symbolAddress));
+        positionFactory->makeAbsolutePosition(symbolAddress));
 
     Block *block = new Block();
     block->setPosition(
-                       positionFactory->makePosition(nullptr, block, 0));
+        positionFactory->makePosition(nullptr, block, 0));
 
     auto readAddress = section->getReadAddress() + section->convertVAToOffset(symbolAddress);
     auto readSize = symbol->getSize();
@@ -247,20 +250,19 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
           readSize = symbol->getSize() - alreadyDisassembledSize;
         }
 
-        auto insns = disassembleBlock(handle, positionFactory, function, &block, readAddress, readSize, virtualAddress);
-        insnList.push_back(insns);
+        disassembleBlock(handle, function, &block, readAddress, readSize, virtualAddress);
       }
 
       delete mappingSymbolsInRegion;
     }
     else {
       // TODO: Speculative Disassembly needed to determine if ARM, Thumb, AARCH64, data without Mapping Symbols.
-      auto insns = disassembleBlock(handle, positionFactory, function, &block, readAddress, readSize, virtualAddress);
-      insnList.push_back(insns);
+      disassembleBlock(handle, function, &block, readAddress,
+        readSize, virtualAddress);
     }
 #else
-    auto insns = disassembleBlock(handle, positionFactory, function, &block, readAddress, readSize, virtualAddress);
-    insnList.push_back(insns);
+    disassembleBlock(handle, function, &block, readAddress,
+        readSize, virtualAddress);
 #endif
 
     if(block->getSize() == 0) {
@@ -274,10 +276,6 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
 
     {
         ChunkMutator m(function);  // recalculate cached values if necessary
-    }
-
-    for(auto tup : insnList) {
-      cs_free(std::get<0>(tup), std::get<1>(tup));
     }
 
     return function;

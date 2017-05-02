@@ -48,13 +48,9 @@ public:
     static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
 
 private:
-    static std::tuple<cs_insn *, size_t> disassembleBlock(Handle &handle,
-                                                          PositionFactory *positionFactory,
-                                                          Function *function,
-                                                          Block **block,
-                                                          address_t readAddress,
-                                                          size_t readSize,
-                                                          address_t virtualAddress);
+    static void disassembleBlock(Handle &handle,
+        Function *function, Block **block, address_t readAddress,
+        size_t readSize, address_t virtualAddress);
 };
 
 class AARCH64InstructionBinary {
