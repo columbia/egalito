@@ -1,47 +1,48 @@
-#ifndef EGALITO_INSTR_LINKED_AARCH64_H
-#define EGALITO_INSTR_LINKED_AARCH64_H
+#ifndef EGALITO_INSTR_LINKED_ARM_H
+#define EGALITO_INSTR_LINKED_ARM_H
 
 #include "semantic.h"
 #include "isolated.h"
 #include "chunk/chunkfwd.h"
 
-// Defines LinkedInstruction and ControlFlowInstruction for aarch64.
+// Defines LinkedInstruction and ControlFlowInstruction for arm.
 
-#if defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
 class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
 public:
     enum Mode {
-        AARCH64_IM_ADRP = 0,
-        AARCH64_IM_ADDIMM,
-        AARCH64_IM_LDR,
-        AARCH64_IM_BL,
-        AARCH64_IM_B,
-        AARCH64_IM_BCOND,
-        AARCH64_IM_CBZ,
-        AARCH64_IM_CBNZ,
-        AARCH64_IM_TBZ,
-        AARCH64_IM_TBNZ,
-        AARCH64_IM_MAX
+        ARM_IM_ADDIMM,
+        ARM_IM_LDR,
+        ARM_IM_BL,
+        ARM_IM_B,
+        ARM_IM_BLX,
+        ARM_IM_BX,
+        ARM_IM_BXJ,
+        ARM_IM_BCOND,
+        ARM_IM_CBZ,
+        ARM_IM_CBNZ,
+        ARM_IM_MAX
     };
 
 private:
-    struct AARCH64_modeInfo_t {
+    struct ARM_modeInfo_t {
         uint32_t fixedMask;
         uint32_t (*makeImm)(address_t, address_t);
         int immediateIndex;
     };
 
-    const static AARCH64_modeInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
+    const static ARM_modeInfo_t ARM_ImInfo[ARM_IM_MAX];
 
     Instruction *source;
-    const AARCH64_modeInfo_t *modeInfo;
+    const ARM_modeInfo_t *modeInfo;
 
 public:
     LinkedInstruction(Instruction *source,
                       const Assembly &assembly);
 
-    void writeTo(char *target, bool useDisp);
-    void writeTo(std::string &target, bool useDisp);
+    virtual void writeTo(char *target);
+    virtual void writeTo(std::string &target);
+    virtual std::string getData();
 
     void regenerateAssembly();
 
@@ -51,12 +52,11 @@ public:
     Instruction *getSource() const { return source; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
-    const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
+    const ARM_modeInfo_t *getModeInfo() const { return modeInfo; }
     uint32_t getOriginalOffset() const;
 
     uint32_t rebuild();
 
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
     static address_t makeTargetAddress(Instruction *instruction,
@@ -66,8 +66,6 @@ private:
 class ControlFlowInstruction : public LinkedInstruction {
 public:
     using LinkedInstruction::LinkedInstruction;
-
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 #endif
 

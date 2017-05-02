@@ -6,7 +6,7 @@
 #include "log/log.h"
 
 void ReloCheckPass::visit(Module *module) {
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     for(auto r : *relocList) {
         if(0
            || (r->getType() == R_AARCH64_LD_PREL_LO19)          // ld(literal)

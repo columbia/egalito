@@ -6,7 +6,7 @@
 #include "stackextend.h"
 #include "instr/register.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class AARCH64RegisterUsage {
 private:
     Function *function;

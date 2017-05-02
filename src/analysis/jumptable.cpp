@@ -74,7 +74,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
                 TreePatternConstantIs<4>>
         >
     > Form1;
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     typedef TreePatternTerminal<TreeNodeAddress> TreePatternTargetBase;
 
     // base address could have been saved on stack
@@ -114,7 +114,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         d->setScale(4);
         d->setIndexExpr(capture.get(1));
         // indexRegister is not known right now.
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         TreeNode *tableAddress = capture.get(0);
         LOG0(1, "    address of jump table: ");
         IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
@@ -154,7 +154,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
     for(auto state : search->getConditionList()) {
 #ifdef ARCH_X86_64
         auto tree = state->getRegTree(X86_REG_EFLAGS);
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         auto tree = state->getRegTree(ARM64_REG_NZCV);
 #endif
         auto condition = dynamic_cast<TreeNodeComparison *>(tree);
@@ -194,7 +194,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         else if(mnemonic == "js") {
             continue;   // this doesn't seem useful...
         }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(mnemonic == "b.ls") op = OP_LT;
         else if(mnemonic == "b.eq") op = OP_EQ;
         else if(mnemonic == "b.le") op = OP_LE;

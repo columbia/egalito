@@ -46,7 +46,7 @@ std::string SharedLib::getAlternativeSymbolFile() const {
             note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
         }
     }
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     std::ostringstream symbolFile;
     symbolFile << "/usr/lib/debug";
     char realPath[PATH_MAX];

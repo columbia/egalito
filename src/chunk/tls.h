@@ -1,6 +1,7 @@
 #ifndef EGALITO_ELF_TLS_H
 #define EGALITO_ELF_TLS_H
 
+#include "elf/elfxx.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "types.h"
@@ -28,10 +29,10 @@ private:
     class TLSRegion {
     private:
         ElfMap *sourceElf;
-        Elf64_Phdr *phdr;
+        ElfXX_Phdr *phdr;
         address_t address;
     public:
-        TLSRegion(Elf64_Phdr *phdr, ElfMap *elf) : sourceElf(elf), phdr(phdr) {}
+        TLSRegion(ElfXX_Phdr *phdr, ElfMap *elf) : sourceElf(elf), phdr(phdr) {}
         void setAddress(address_t address) { this->address = address; }
         address_t getAddress() const { return address; }
         void loadTo(address_t baseAddress);
@@ -54,5 +55,4 @@ public:
     static void buildTLSList(ElfMap *elf, RelocList *relocList, Module *module);
 
 };
-
 #endif

@@ -26,7 +26,7 @@ typedef
     #define REGISTER_ENDING     ARM64_REG_ENDING
 #endif
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class AARCH64GPRegister {
 public:
     enum ID {
@@ -59,7 +59,7 @@ public:
         : _id(id) { if(!physical) _id = convertToPhysical(id); }
     int id() const { return _id; }
     unsigned int encoding() const { return static_cast<unsigned int>(_id); }
-private:
+    //private:
     int convertToPhysical(int id);
 };
 

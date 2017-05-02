@@ -8,7 +8,7 @@
 
 #define EGALITO_CONTEXT_SIZE    (8*16)
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class SwitchContextPass : public StackExtendPass {
 private:
     const size_t contextSize;

@@ -1,6 +1,6 @@
 #include "register.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 int AARCH64GPRegister::convertToPhysical(int id) {
     static const int mappings[][3] = {
         {ARM64_REG_W0,  ARM64_REG_X0,  R0},

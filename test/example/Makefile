@@ -1,21 +1,23 @@
 # Makefile for test cases
-
-CC = gcc
+include ../../env.mk
 
 CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS = -static
 
 ADDCFLAGS-hi5 = -nostdlib -ffreestanding
 
-P_ARCH := $(shell uname -m)
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
 	STATIC_CFLAGS += -DARCH_AARCH64
 	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
-	STATIC_CFLAGS += -DARCH_X86_64 #-no-pie
+	STATIC_CFLAGS += -DARCH_X86_64
 	BUILDDIR = build_x86_64/
+else ifeq (arm,$(P_ARCH))
+	CFLAGS += -DARCH_ARM
+	STATIC_CFLAGS += -DARCH_ARM
+	BUILDDIR = build_arm/
 else
 $(error Unsupported platform, we only handle aarch64 and x86_64)
 endif

@@ -15,6 +15,8 @@ ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
 else ifeq (x86_64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-x86_64.s
+else ifeq (arm,$(P_ARCH))
+	LOAD_SOURCES += load/bootstrap-aarch64.s
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
@@ -28,9 +30,9 @@ obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
 dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
-    $(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
-    $(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
-    $(OPERATION_SOURCES) load/emulator.cpp
+		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
+		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
+		$(OPERATION_SOURCES) load/emulator.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
@@ -46,7 +48,7 @@ LOADER = $(BUILDDIR)loader
 LIBRARY = $(BUILDDIR)libegalito.a
 SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 
-OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY) $(SHARED_LIBRARY)
+OUTPUTS = $(TARGET) $(LIBRARY) $(SHARED_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
@@ -100,8 +102,8 @@ $(TARGET): $(TARGET_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
-        -nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
-        -Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
+		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
 $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)

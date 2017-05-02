@@ -27,7 +27,7 @@ void *DataLoader::setupMainData(Module *module, address_t baseAddress) {
     if(mem != (void *)baseAddress) throw "Overlapping with other regions?";
 #ifdef ARCH_X86_64
     auto tp = (char *)mem;
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     auto tp = (char *)mem + sizeof(struct my_pthread);
 #endif
     auto addr = reinterpret_cast<address_t>(tp);
@@ -77,7 +77,7 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
     // header is at the end
     address_t tp = tlsBaseAddress + size;
     size += sizeof(struct my_tcbhead_t);  // add space for header
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // header is at the beginning
     address_t tp = tlsBaseAddress + sizeof(struct my_pthread);
     if(offset) *offset += sizeof(struct my_pthread);

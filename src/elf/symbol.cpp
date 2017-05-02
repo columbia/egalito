@@ -105,7 +105,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
         s->setSize(42);  // no really! :)
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         s->setSize(56);  // this does not include embedded following literals
 #endif
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
@@ -140,8 +140,8 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
         // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
         if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
-#ifdef ARCH_AARCH64
-        // skip mapping symbols in AARCH64 ELF
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        // skip mapping symbols
         if(sym->getName()[0] == '$') continue;
 #endif
 
@@ -290,3 +290,99 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     default:            return Symbol::BIND_WEAK;
     }
 }
+
+#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+
+bool MappingSymbol::isMappingSymbol(Symbol *symbol) {
+    return symbol->getBind() == Symbol::BIND_LOCAL
+        && symbol->getType() == Symbol::TYPE_UNKNOWN
+        && symbol->getSectionIndex() != 0
+        && symbol->getName()[0] == '$';
+}
+
+MappingSymbol::MappingType MappingSymbol::mappingFromElfToInternal(unsigned char type) {
+  switch(type) {
+  case 'a': return MappingSymbol::MAPPING_ARM;
+  case 't': return MappingSymbol::MAPPING_THUMB;
+  case 'x': return MappingSymbol::MAPPING_AARCH64;
+  case 'd': return MappingSymbol::MAPPING_DATA;
+  default:  return MappingSymbol::MAPPING_UNKNOWN;
+  }
+}
+
+bool MappingSymbolList::add(MappingSymbol *symbol) {
+  symbolList.push_back(symbol);
+  symbolMap[symbol->getAddress()] = symbol;
+  return true;
+}
+
+MappingSymbol *MappingSymbolList::find(address_t address) {
+  MapType::iterator exact, range;
+
+  exact = symbolMap.find(address);
+  if (exact != symbolMap.end()) {
+    return exact->second;
+  }
+
+  range=symbolMap.lower_bound(address);
+
+  if (range != symbolMap.begin()) {
+    return std::prev(range)->second;
+  }
+
+  return nullptr;
+}
+
+MappingSymbolList::ListType *MappingSymbolList::findSymbolsInRegion(address_t start, address_t end) {
+
+  ListType *symbolsInRegion = new ListType();
+
+  auto startSym = find(start);
+  auto endSym = find(end);
+
+  // If there is only 1 mapping symbol
+  if (startSym == endSym) {
+    symbolsInRegion->push_back(startSym);
+    return symbolsInRegion;
+  }
+
+  MapType::iterator startIt, endIt;
+  startIt = symbolMap.find(startSym->getAddress());
+  endIt = symbolMap.find(endSym->getAddress());
+
+  for(auto it = startIt; it != endIt; it++) {
+    symbolsInRegion->push_back(it->second);
+  }
+
+  return symbolsInRegion;
+}
+
+MappingSymbolList *MappingSymbolList::buildMappingSymbolList(SymbolList *symbolList) {
+
+    MappingSymbolList *list = new MappingSymbolList();
+
+    MappingSymbol *prev = nullptr;
+
+    for(auto sym : *symbolList) {
+      if( MappingSymbol::isMappingSymbol(sym) ) {
+        MappingSymbol *mappingSymbol = new MappingSymbol(sym);
+        LOG(1, "Adding Mapping Symbol @ " << std::hex << mappingSymbol->getAddress() << " Type: " << mappingSymbol->getType());
+        list->add(mappingSymbol);
+        if(prev) {
+          // Sec 4.5.5.1 - Each interval starts at the address defined by the
+          // mapping symbol, and continues up to, but not including, the
+          // address defined by the next (in address order) mapping symbol or
+          // the end of the section.
+          // See: http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044f/IHI0044F_aaelf.pdf
+          size_t regionSize = mappingSymbol->getAddress() - prev->getAddress();
+          // Size will be 0 for last mapping symbol. All subsequent addresses use the last mapping type.
+          prev->setSize(regionSize);
+        }
+
+        prev = mappingSymbol;
+      }
+    }
+
+    return list;
+}
+#endif

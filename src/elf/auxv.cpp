@@ -80,7 +80,7 @@ int removeLoaderFromArgv(void *argv) {
     // move argc, overwriting arguments to be erased, and adjust %rsp
     *(argc + remove_count) = (*argc) - remove_count;
     return sizeof(unsigned long) * remove_count;
-#elif defined(ARCH_AARCH64)
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // AARCH64 ABI requires the stack to be 16 Bytes aligned between calls
     address_t *auxv = findAuxiliaryVector((char **)argv);
     address_t *p;

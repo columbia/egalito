@@ -1,8 +1,13 @@
 # root Makefile for egalito
 # to change settings, see env.mk
 
+ifdef USE_CONFIG
+	include $(USE_CONFIG)
+	export
+endif
+
 .PHONY: all src test app clean realclean
-all: src test app
+all: src test
 src:
 	$(MAKE) -C src
 test: src

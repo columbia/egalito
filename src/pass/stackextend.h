@@ -8,7 +8,7 @@
 #include "analysis/controlflow.h"
 #include "elf/reloc.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class ControlFlowInstruction;
 
 class FrameType {
