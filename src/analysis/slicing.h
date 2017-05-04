@@ -6,11 +6,11 @@
 #include "controlflow.h"
 #include "flow.h"
 #include "instr/register.h"
+#include "chunk/chunklist.h"
 
 class Instruction;
 class TreeNode;
 class SlicingInstructionState;
-class ChunkList;
 
 class SearchState {
 private:
@@ -30,7 +30,7 @@ public:
         : node(node), instruction(instruction), iState(nullptr), regs(REGISTER_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
         : node(other.node), instruction(other.instruction), iState(nullptr), regs(other.regs), jumpTaken(other.jumpTaken) {}
-    ~SearchState();
+    virtual ~SearchState();
 
     ControlFlowNode *getNode() const { return node; }
     Instruction *getInstruction() const { return instruction; }
@@ -58,7 +58,49 @@ public:
 
     void setJumpTaken(bool to) { jumpTaken = to; }
     bool getJumpTaken() const { return jumpTaken; }
+
+    virtual void flow(Register reg1, bool overwriteTarget) = 0;
+    virtual void flow(Register reg1, Register reg2, bool overwriteTarget) = 0;
+    virtual void flow(Register reg1, Register reg2, Register reg3, bool overwriteTarget) = 0;
+    virtual void flow(Register reg1, Register reg2, Register reg3, Register reg4, bool overwriteTarget) = 0;
 };
+
+template <typename FlowType>
+class DirectedSearchState : public SearchState {
+public:
+    DirectedSearchState() : SearchState() {}
+    DirectedSearchState(ControlFlowNode *node, Instruction *instruction)
+        : SearchState(node, instruction) {}
+    DirectedSearchState(const SearchState &other)
+        : SearchState(other) {}
+
+    void flow(Register reg1, bool overwriteTarget) {
+        FlowElement s(reg1, this);
+        FlowType::source(&s, overwriteTarget);
+    }
+    void flow(Register reg1, Register reg2, bool overwriteTarget) {
+        FlowElement s(reg1, this);
+        FlowElement t(reg2, this);
+        FlowType::channel(&s, &t, overwriteTarget);
+    }
+    void flow(Register reg1, Register reg2, Register reg3, bool overwriteTarget) {
+        FlowElement s1(reg1, this);
+        FlowElement s2(reg2, this);
+        FlowElement t(reg3, this);
+        FlowType::confluence(&s1, &s2, &t, overwriteTarget);
+    }
+    void flow(Register reg1, Register reg2, Register reg3, Register reg4,
+              bool overwriteTarget) {
+        FlowElement s1(reg1, this);
+        FlowElement s2(reg2, this);
+        FlowElement s3(reg3, this);
+        FlowElement t(reg4, this);
+        FlowType::confluence(&s1, &s2, &s3, &t, overwriteTarget);
+    }
+};
+
+typedef DirectedSearchState<BackwardFlow> BackwardSearchState;
+typedef DirectedSearchState<ForwardFlow> ForwardSearchState;
 
 class SlicingUtilities {
 public:
@@ -82,45 +124,28 @@ public:
     virtual bool cutoff(SearchState *) = 0;
 };
 
-class FlowFactory;
-
-class SlicingDirection {
-private:
-    int _step;
+class BackwardSlicing {
 public:
-    SlicingDirection(int _step) : _step(_step) {}
-
-    int step() { return _step; }
-    bool isIndexValid(int index, int size) {
-        return (_step < 0 ? index >= 0 : index < size);
-    }
-
-    virtual FlowFactory *getFlowFactory() = 0;
-    virtual void setParent(SearchState *current, SearchState *next) = 0;
+    int step() const { return -1; }
+    bool isIndexValid(int index, int size) { return (index >= 0); }
+    void setParent(SearchState *current, SearchState *next)
+        { current->addParent(next); }
+    SearchState *makeSearchState(ControlFlowNode *node, Instruction *instruction)
+        { return new BackwardSearchState(node, instruction); }
+    SearchState *makeSearchState(const SearchState &other)
+        { return new BackwardSearchState(other); }
 };
 
-class BackwardSlicing : public SlicingDirection {
-private:
-    BackwardFlowFactory factory;
-
+class ForwardSlicing {
 public:
-    BackwardSlicing() : SlicingDirection(-1) {}
-    virtual FlowFactory *getFlowFactory() { return &factory; }
-    virtual void setParent(SearchState *current, SearchState *next) {
-        current->addParent(next);
-    }
-};
-
-class ForwardSlicing : public SlicingDirection {
-private:
-    ForwardFlowFactory factory;
-
-public:
-    ForwardSlicing() : SlicingDirection(1) {}
-    virtual FlowFactory *getFlowFactory() { return &factory; }
-    virtual void setParent(SearchState *current, SearchState *next) {
-        next->addParent(current);
-    }
+    int step() const { return 1; }
+    bool isIndexValid(int index, int size) { return (index < size); }
+    void setParent(SearchState *current, SearchState *next)
+        { next->addParent(current); }
+    SearchState *makeSearchState(ControlFlowNode *node, Instruction *instruction)
+        { return new ForwardSearchState(node, instruction); }
+    SearchState *makeSearchState(const SearchState &other)
+        { return new ForwardSearchState(other); }
 };
 
 class SlicingSearch {
@@ -128,14 +153,12 @@ private:
     ControlFlowGraph *cfg;
     std::vector<SearchState *> stateList;  // history of states
     std::vector<SearchState *> conditions;  // conditional jumps
-    SlicingDirection *direction;
     SlicingHalt *halt;
 
 public:
-    SlicingSearch(ControlFlowGraph *cfg, SlicingDirection *direction,
-        SlicingHalt *halt = nullptr)
-        : cfg(cfg), direction(direction), halt(halt) {}
-    ~SlicingSearch() { for(auto state : stateList) { delete state; } }
+    SlicingSearch(ControlFlowGraph *cfg, SlicingHalt *halt = nullptr)
+        : cfg(cfg), halt(halt) {}
+    virtual ~SlicingSearch() { for(auto state : stateList) { delete state; } }
 
     /** Run search beginning at this instruction. */
     void sliceAt(Instruction *instruction, int reg);
@@ -143,10 +166,6 @@ public:
     SearchState *getInitialState() const { return stateList.front(); }
     const std::vector<SearchState *> &getConditionList() const
         { return conditions; }
-    FlowFactory *getFlowFactory() { return direction->getFlowFactory(); }
-    int getStep() const { return direction->step(); }
-    void setParent(SearchState *current, SearchState *next)
-        { direction->setParent(current, next); }
 
 private:
     void buildStatePass(SearchState *startState);
@@ -158,8 +177,37 @@ private:
     void detectInstruction(SearchState *state, bool firstPass);
     void detectJumpRegTrees(SearchState *state, bool firstPass);
 
-    bool isIndexValid(ChunkList *list, int index);
-    bool isIndexValid(std::vector<SearchState *> &list, int index);
+private:
+    virtual int getStep() const = 0;
+    virtual bool isIndexValid(ChunkList *list, int index) = 0;
+    virtual bool isIndexValid(std::vector<SearchState *> &list, int index) = 0;
+    virtual void setParent(SearchState *current, SearchState *next) = 0;
+    virtual SearchState *makeSearchState(ControlFlowNode *node, Instruction *instruction) = 0;
+    virtual SearchState *makeSearchState(const SearchState& other) = 0;
 };
+
+template <typename SlicingDirector>
+class DirectedSlicingSearch : public SlicingSearch {
+public:
+    DirectedSlicingSearch(ControlFlowGraph *cfg, SlicingHalt *halt = nullptr)
+        : SlicingSearch(cfg, halt) {}
+
+    virtual int getStep() const { return SlicingDirector().step(); }
+    virtual void setParent(SearchState *current, SearchState *next)
+        { SlicingDirector().setParent(current, next); }
+    virtual bool isIndexValid(ChunkList *list, int index)
+        { return SlicingDirector().isIndexValid(index,
+               static_cast<int>(list->genericGetSize())); }
+    virtual bool isIndexValid(std::vector<SearchState *> &list, int index)
+        { return SlicingDirector().isIndexValid(index,
+               static_cast<int>(list.size())); }
+    virtual SearchState *makeSearchState(ControlFlowNode *node, Instruction *instruction)
+        { return SlicingDirector().makeSearchState(node, instruction); }
+    virtual SearchState *makeSearchState(const SearchState& other)
+        { return SlicingDirector().makeSearchState(other); }
+};
+
+typedef DirectedSlicingSearch<ForwardSlicing> ForwardSlicingSearch;
+typedef DirectedSlicingSearch<BackwardSlicing> BackwardSlicingSearch;
 
 #endif

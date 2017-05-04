@@ -3,16 +3,15 @@
 #include "analysis/slicing.h"
 
 TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
-    BackwardFlowFactory factory;
-    SearchState state(nullptr, nullptr);
+    BackwardSearchState state(nullptr, nullptr);
 
-    auto reg1 = factory.makeFlow(1, &state);
-    auto reg2 = factory.makeFlow(2, &state);
-    auto reg3 = factory.makeFlow(3, &state);
-    auto reg4 = factory.makeFlow(4, &state);
+    auto reg1 = FlowElement((Register)1, &state);
+    auto reg2 = FlowElement((Register)2, &state);
+    auto reg3 = FlowElement((Register)3, &state);
+    auto reg4 = FlowElement((Register)4, &state);
 
     SECTION("channel w/o interest (overwriteTarget)") {
-        reg2->channel(reg1, true);
+        BackwardFlow::channel(&reg1, &reg2, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -20,7 +19,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/o interest (no overwriteTarget)") {
-        reg2->channel(reg1, false);
+        BackwardFlow::channel(&reg1, &reg2, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -28,14 +27,14 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg2->channel(reg1, true);
+        reg1.markAsInteresting();
+        BackwardFlow::channel(&reg1, &reg2, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->channel(reg2, true);
+        BackwardFlow::channel(&reg2, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
@@ -43,14 +42,14 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg2->channel(reg1, false);
+        reg1.markAsInteresting();
+        BackwardFlow::channel(&reg1, &reg2, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->channel(reg2, false);
+        BackwardFlow::channel(&reg2, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
@@ -58,7 +57,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/o interest (overwriteTarget)") {
-        reg3->confluence(reg1, reg2, true);
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -66,7 +65,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/o interest (no overwriteTarget)") {
-        reg3->confluence(reg1, reg2, false);
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -74,14 +73,14 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg3->confluence(reg1, reg2, true);
+        reg1.markAsInteresting();
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->confluence(reg2, reg3, true);
+        BackwardFlow::confluence(&reg2, &reg3, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == true);
@@ -89,14 +88,14 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg3->confluence(reg1, reg2, false);
+        reg1.markAsInteresting();
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->confluence(reg2, reg3, false);
+        BackwardFlow::confluence(&reg3, &reg2, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == true);
@@ -104,7 +103,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/o interest (overwriteTarget)") {
-        reg4->confluence(reg1, reg2, reg3, true);
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -112,7 +111,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/o interest (no overwriteTarget)") {
-        reg4->confluence(reg1, reg2, reg3, false);
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -120,14 +119,14 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg4->confluence(reg1, reg2, reg3, true);
+        reg1.markAsInteresting();
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->confluence(reg2, reg3, reg4, true);
+        BackwardFlow::confluence(&reg2, &reg3, &reg4, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == true);
@@ -135,36 +134,31 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg4->confluence(reg1, reg2, reg3, false);
+        reg1.markAsInteresting();
+        BackwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->confluence(reg2, reg3, reg4, false);
+        BackwardFlow::confluence(&reg2, &reg3, &reg4, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == true);
         CHECK(state.getReg(4) == true);
     }
-
-    delete reg1;
-    delete reg2;
-    delete reg3;
 }
 
 TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
-    ForwardFlowFactory factory;
-    SearchState state(nullptr, nullptr);
+    ForwardSearchState state(nullptr, nullptr);
 
-    auto reg1 = factory.makeFlow(1, &state);
-    auto reg2 = factory.makeFlow(2, &state);
-    auto reg3 = factory.makeFlow(3, &state);
-    auto reg4 = factory.makeFlow(4, &state);
+    auto reg1 = FlowElement((Register)1, &state);
+    auto reg2 = FlowElement((Register)2, &state);
+    auto reg3 = FlowElement((Register)3, &state);
+    auto reg4 = FlowElement((Register)4, &state);
 
     SECTION("channel w/o interest (overwriteTarget)") {
-        reg2->channel(reg1, true);
+        ForwardFlow::channel(&reg1, &reg2, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -172,7 +166,7 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/o interest (no overwriteTarget)") {
-        reg2->channel(reg1, false);
+        ForwardFlow::channel(&reg1, &reg2, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -180,14 +174,14 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg2->channel(reg1, true);
+        reg1.markAsInteresting();
+        ForwardFlow::channel(&reg1, &reg2, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->channel(reg3, true);
+        ForwardFlow::channel(&reg3, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
@@ -195,14 +189,14 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("channel w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg2->channel(reg1, false);
+        reg1.markAsInteresting();
+        ForwardFlow::channel(&reg1, &reg2, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
 
-        reg1->channel(reg2, false);
+        ForwardFlow::channel(&reg2, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == true);
         CHECK(state.getReg(3) == false);
@@ -210,7 +204,7 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/o interest (overwriteTarget)") {
-        reg3->confluence(reg1, reg2, true);
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -218,7 +212,7 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/o interest (no overwriteTarget)") {
-        reg3->confluence(reg1, reg2, false);
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -226,15 +220,15 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg3->confluence(reg1, reg2, true);
+        reg1.markAsInteresting();
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == true);
         CHECK(state.getReg(4) == false);
 
-        reg3->forget();
-        reg1->confluence(reg2, reg3, true);
+        reg3.forget();
+        ForwardFlow::confluence(&reg2, &reg3, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -242,15 +236,15 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(2 args) w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg3->confluence(reg1, reg2, false);
+        reg1.markAsInteresting();
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == true);
         CHECK(state.getReg(4) == false);
 
-        reg3->forget();
-        reg1->confluence(reg2, reg3, false);
+        reg3.forget();
+        ForwardFlow::confluence(&reg2, &reg3, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -258,7 +252,7 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/o interest (overwriteTarget)") {
-        reg4->confluence(reg1, reg2, reg3, true);
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -266,7 +260,7 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/o interest (no overwriteTarget)") {
-        reg4->confluence(reg1, reg2, reg3, false);
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, false);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -274,15 +268,15 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/ interest (overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg4->confluence(reg1, reg2, reg3, true);
+        reg1.markAsInteresting();
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, true);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == true);
 
-        reg4->forget();
-        reg1->confluence(reg2, reg3, reg4, true);
+        reg4.forget();
+        ForwardFlow::confluence(&reg2, &reg3, &reg4, &reg1, true);
         CHECK(state.getReg(1) == false);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
@@ -290,22 +284,18 @@ TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
     }
 
     SECTION("confluence(3 args) w/ interest (no overwriteTarget)") {
-        reg1->markAsInteresting();
-        reg4->confluence(reg1, reg2, reg3, false);
+        reg1.markAsInteresting();
+        ForwardFlow::confluence(&reg1, &reg2, &reg3, &reg4, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == true);
 
-        reg4->forget();
-        reg1->confluence(reg2, reg3, reg4, false);
+        reg4.forget();
+        ForwardFlow::confluence(&reg2, &reg3, &reg4, &reg1, false);
         CHECK(state.getReg(1) == true);
         CHECK(state.getReg(2) == false);
         CHECK(state.getReg(3) == false);
         CHECK(state.getReg(4) == false);
     }
-
-    delete reg1;
-    delete reg2;
-    delete reg3;
 }

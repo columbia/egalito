@@ -25,12 +25,11 @@ void JumpTableSearch::search(Module *module) {
 
 void JumpTableSearch::search(Function *function) {
     ControlFlowGraph cfg(function);
-    BackwardSlicing backward;
 
     for(auto b : CIter::children(function)) {
         auto i = b->getChildren()->getIterable()->getLast();
         if(auto j = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
-            SlicingSearch search(&cfg, &backward);
+            BackwardSlicingSearch search(&cfg);
             search.sliceAt(i, j->getRegister());
             LOG(1, "slicing at " << i->getName() << " in " << function->getName());
 

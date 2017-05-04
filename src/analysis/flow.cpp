@@ -1,94 +1,108 @@
 #include "flow.h"
 #include "analysis/slicing.h"
 
-bool Flow::interested() const {
+bool FlowElement::interested() const {
     if(isValid()) {
         return state->getReg(reg);
     }
     return false;
 }
 
-void Flow::markAsInteresting() {
+void FlowElement::markAsInteresting() {
     if(isValid()) {
         state->addReg(reg);
     }
 }
 
-void Flow::forget() {
+void FlowElement::forget() {
     if(isValid()) {
         state->removeReg(reg);
     }
 }
 
-
-void Flow::source(bool overwriteTarget) {
-    if(interested()) {
+void BackwardFlow::source(FlowElement *down, bool overwriteTarget) {
+    if(down->interested()) {
         if(overwriteTarget) {
-            forget();
+            down->forget();
+        }
+    }
+}
+void ForwardFlow::source(FlowElement *down, bool overwriteTarget) {
+    if(down->interested()) {
+        if(overwriteTarget) {
+            down->forget();
         }
     }
 }
 
-void BackwardFlow::channel(Flow *up, bool overwriteTarget) {
-    if(interested()) {
+void BackwardFlow::channel(FlowElement *up, FlowElement *down,
+    bool overwriteTarget) {
+
+    if(down->interested()) {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
         up->markAsInteresting();
     }
 }
-void ForwardFlow::channel(Flow *up, bool overwriteTarget) {
+void ForwardFlow::channel(FlowElement *up, FlowElement *down,
+    bool overwriteTarget) {
+
     if(up->interested()) {
-        markAsInteresting();
+        down->markAsInteresting();
     }
     else {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
     }
 }
 
-void BackwardFlow::confluence(Flow *up1, Flow *up2, bool overwriteTarget) {
-    if(interested()) {
+void BackwardFlow::confluence(FlowElement *up1, FlowElement *up2,
+    FlowElement *down, bool overwriteTarget) {
+
+    if(down->interested()) {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
         up1->markAsInteresting();
         up2->markAsInteresting();
     }
 }
-void ForwardFlow::confluence(Flow *up1, Flow *up2, bool overwriteTarget) {
+void ForwardFlow::confluence(FlowElement *up1, FlowElement *up2,
+    FlowElement *down, bool overwriteTarget) {
+
     if(up1->interested() || up2->interested()) {
-        markAsInteresting();
+        down->markAsInteresting();
     }
     else {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
     }
 }
 
-void BackwardFlow::confluence(Flow *up1, Flow *up2, Flow *up3,
-    bool overwriteTarget) {
+void BackwardFlow::confluence(FlowElement *up1, FlowElement *up2,
+    FlowElement *up3, FlowElement *down, bool overwriteTarget) {
 
-    if(interested()) {
+    if(down->interested()) {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
         up1->markAsInteresting();
         up2->markAsInteresting();
         up3->markAsInteresting();
     }
 }
-void ForwardFlow::confluence(Flow *up1, Flow *up2, Flow *up3,
-    bool overwriteTarget) {
+void ForwardFlow::confluence(FlowElement *up1, FlowElement *up2,
+    FlowElement *up3, FlowElement *down, bool overwriteTarget) {
 
     if(up1->interested() || up2->interested() || up3->interested()) {
-        markAsInteresting();
+        down->markAsInteresting();
     }
     else {
         if(overwriteTarget) {
-            forget();
+            down->forget();
         }
     }
 }
