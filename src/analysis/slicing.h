@@ -94,7 +94,9 @@ public:
     bool isIndexValid(int index, int size) {
         return (_step < 0 ? index >= 0 : index < size);
     }
-    virtual FlowFactory *getFlowFactory() { return nullptr; }
+
+    virtual FlowFactory *getFlowFactory() = 0;
+    virtual void setParent(SearchState *current, SearchState *next) = 0;
 };
 
 class BackwardSlicing : public SlicingDirection {
@@ -104,6 +106,9 @@ private:
 public:
     BackwardSlicing() : SlicingDirection(-1) {}
     virtual FlowFactory *getFlowFactory() { return &factory; }
+    virtual void setParent(SearchState *current, SearchState *next) {
+        current->addParent(next);
+    }
 };
 
 class ForwardSlicing : public SlicingDirection {
@@ -113,6 +118,9 @@ private:
 public:
     ForwardSlicing() : SlicingDirection(1) {}
     virtual FlowFactory *getFlowFactory() { return &factory; }
+    virtual void setParent(SearchState *current, SearchState *next) {
+        next->addParent(current);
+    }
 };
 
 class SlicingSearch {
@@ -137,6 +145,8 @@ public:
         { return conditions; }
     FlowFactory *getFlowFactory() { return direction->getFlowFactory(); }
     int getStep() const { return direction->step(); }
+    void setParent(SearchState *current, SearchState *next)
+        { direction->setParent(current, next); }
 
 private:
     void buildStatePass(SearchState *startState);

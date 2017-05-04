@@ -304,14 +304,14 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 
             if(isIndexValid(insList, index+getStep())) {
                 auto newState = new SearchState(*currentState);
-                currentState->addParent(newState);
+                setParent(currentState, newState);
                 currentState = newState;
             }
         }
 
         if(stillSearching) {
             // find all nodes that link to this one, keep searching there
-            for(auto link : node->backwardLinks()) {
+            for(auto link : node->getLinks(getStep())) {
                 auto newNode = cfg->get(link.getID());
                 if(!visited[newNode->getID()]) {
                     auto offset = link.getOffset();
@@ -324,7 +324,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                     newState->setInstruction(newStart);
                     newState->setJumpTaken(link.getFollowJump());
                     transitionList.push_back(newState);
-                    currentState->addParent(newState);
+                    setParent(currentState, newState);
                 }
             }
         }

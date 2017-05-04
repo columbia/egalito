@@ -48,6 +48,9 @@ public:
     ConcreteIterable<ListType> backwardLinks()
         { return ConcreteIterable<ListType>(reverseLinks); }
 
+    ConcreteIterable<ListType> getLinks(int direction)
+        { return (direction > 0) ? forwardLinks() : backwardLinks(); }
+
     std::string getDescription();
 };
 
