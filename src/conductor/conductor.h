@@ -31,7 +31,7 @@ public:
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
 private:
-    void parse(ElfMap *elf, SharedLib *library, bool isMain);
+    ElfSpace *parse(ElfMap *elf, SharedLib *library);
     void loadTLSData();
 };
 

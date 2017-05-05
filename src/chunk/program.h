@@ -15,8 +15,8 @@ public:
     Program(ElfSpaceList *spaceList);
 
     void add(Module *module);
-    void addMain(Module *module);
-    void addEgalito(Module *module);
+    void setMain(Module *module);
+    void setEgalito(Module *module);
 
     Module *getMain() const { return main; }
     Module *getEgalito() const { return egalito; }

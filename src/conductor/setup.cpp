@@ -88,7 +88,6 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
         }
     }
 
-    generator.pickAddressesInSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
         //LOG(1, "moving code for " << lib->getElfSpace()->getModule()->getName());
@@ -101,7 +100,6 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
     auto module = conductor->getMainSpace()->getModule();
     Generator generator(useDisps);
 
-    generator.copyCodeToSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
         //LOG(1, "copying code for " << lib->getElfSpace()->getModule()->getName());

@@ -10,13 +10,11 @@ void Program::add(Module *module) {
     getChildren()->add(module);
 }
 
-void Program::addMain(Module *module) {
-    add(module);
+void Program::setMain(Module *module) {
     this->main = module;
 }
 
-void Program::addEgalito(Module *module) {
-    add(module);
+void Program::setEgalito(Module *module) {
     this->egalito = module;
 }
 

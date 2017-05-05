@@ -57,8 +57,9 @@ private:
 public:
     ElfSpaceList() : main(nullptr) {}
 
-    void add(ElfSpace *space, bool isMain = false);
-    void addEgalito(ElfSpace *space);
+    void add(ElfSpace *space) { spaceList.push_back(space); }
+    void setMain(ElfSpace *space) { main = space; }
+    void setEgalito(ElfSpace *space) { egalito = space; }
 
     ConcreteIterable<std::vector<ElfSpace *>> iterable()
         { return ConcreteIterable<std::vector<ElfSpace *>>(spaceList); }

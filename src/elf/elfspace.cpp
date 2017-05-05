@@ -122,13 +122,3 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 std::string ElfSpace::getName() const {
     return library ? library->getShortName() : "(executable)";
 }
-
-void ElfSpaceList::add(ElfSpace *space, bool isMain) {
-    spaceList.push_back(space);
-    if(isMain) main = space;
-}
-
-void ElfSpaceList::addEgalito(ElfSpace *space) {
-    spaceList.push_back(space);
-    egalito = space;
-}

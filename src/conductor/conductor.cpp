@@ -22,42 +22,40 @@ Conductor::~Conductor() {
 void Conductor::parseExecutable(ElfMap *elf) {
     auto library = new SharedLib("(executable)", "(executable)", elf);
     getLibraryList()->addToFront(library);
-    parse(elf, library, true);
+    auto space = parse(elf, library);
+
+    program->setMain(space->getModule());
+    getSpaceList()->setMain(space);
 }
 
 void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library);
-    library->setElfSpace(space);
-    space->findDependencies(getLibraryList());
-    space->buildDataStructures();
-    getSpaceList()->addEgalito(space);
-    program->add(space->getModule());
+    auto space = parse(elf, library);
+
+    program->setEgalito(space->getModule());
+    getSpaceList()->setEgalito(space);
 }
 
 void Conductor::parseLibraries() {
     // we use an index here because the list can change as we iterate
     for(size_t i = 0; i < getLibraryList()->getCount(); i ++) {
         auto library = getLibraryList()->get(i);
-        if(library->getElfMap() == getSpaceList()->getEgalito()->getElfMap()) {
-            continue;
-        }
-        parse(library->getElfMap(), library, false);
+        auto space = library->getElfSpace();
+        if(space == getSpaceList()->getEgalito()) continue;
+        if(space == getSpaceList()->getMain()) continue;
+
+        parse(library->getElfMap(), library);
     }
 }
 
-void Conductor::parse(ElfMap *elf, SharedLib *library, bool isMain) {
+ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
     ElfSpace *space = new ElfSpace(elf, library);
     library->setElfSpace(space);
     space->findDependencies(getLibraryList());
     space->buildDataStructures();
-    if(isMain) {
-        program->addMain(space->getModule());
-        getSpaceList()->add(space, true);
-    }
-    else {
-        program->add(space->getModule());
-        getSpaceList()->add(space, false);
-    }
+
+    program->getChildren()->add(space->getModule());
+    getSpaceList()->add(space);
+    return space;
 }
 
 void Conductor::resolvePLTLinks() {
