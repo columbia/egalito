@@ -20,7 +20,9 @@ Conductor::~Conductor() {
 }
 
 void Conductor::parseExecutable(ElfMap *elf) {
-    parse(elf, nullptr);
+    auto library = new SharedLib("(executable)", "(executable)", elf);
+    getLibraryList()->addToFront(library);
+    parse(elf, library, true);
 }
 
 void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
@@ -39,21 +41,22 @@ void Conductor::parseLibraries() {
         if(library->getElfMap() == getSpaceList()->getEgalito()->getElfMap()) {
             continue;
         }
-        parse(library->getElfMap(), library);
+        parse(library->getElfMap(), library, false);
     }
 }
 
-void Conductor::parse(ElfMap *elf, SharedLib *library) {
+void Conductor::parse(ElfMap *elf, SharedLib *library, bool isMain) {
     ElfSpace *space = new ElfSpace(elf, library);
-    if(library) library->setElfSpace(space);
+    library->setElfSpace(space);
     space->findDependencies(getLibraryList());
     space->buildDataStructures();
-    getSpaceList()->add(space, library == nullptr);
-    if(library == nullptr) {
+    if(isMain) {
         program->addMain(space->getModule());
+        getSpaceList()->add(space, true);
     }
     else {
         program->add(space->getModule());
+        getSpaceList()->add(space, false);
     }
 }
 
@@ -68,42 +71,17 @@ void Conductor::resolvePLTLinks() {
 void Conductor::fixDataSections() {
     loadTLSData();
 
-    for(auto module : CIter::children(program)) {
-        fixDataSection(module);
-    }
-}
-
-void Conductor::fixDataSection(Module *module) {
-    RelocDataPass relocData(module->getElfSpace(), this);
-    module->accept(&relocData);
+    RelocDataPass relocData(this);
+    program->accept(&relocData);
 
     FixJumpTablesPass fixJumpTables;
-    module->accept(&fixJumpTables);
+    program->accept(&fixJumpTables);
 
     FixDataRegionsPass fixDataRegions;
-    module->accept(&fixDataRegions);
+    program->accept(&fixDataRegions);
 }
 
 void Conductor::loadTLSData() {
-#if 0
-    auto module = getMainSpace()->getModule();
-    DataLoader loader;
-    mainThreadPointer = loader.setupMainData(module, 0xd0000000);
-
-    int i = 1;
-    for(auto lib : *getLibraryList()) {
-        if(!lib->getElfSpace()) continue;
-        auto t = loader.loadLibraryTLSData(
-            lib->getElfSpace()->getModule(), 0xd0000000 + i*0x1000000);
-        i ++;
-
-#ifdef ARCH_X86_64
-        if(lib == getLibraryList()->getLibc()) {
-            mainThreadPointer = t;
-        }
-#endif
-    }
-#else
     const static address_t base = 0xd0000000;
     DataLoader dataLoader(base);
 
@@ -146,7 +124,6 @@ void Conductor::loadTLSData() {
             tls, offset);
         offset += tls->getSize();
     }
-#endif
 #endif
 }
 

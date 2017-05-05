@@ -66,6 +66,7 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
     for(auto region : CIter::children(this)) {
+        LOG(11, "    does region " << std::hex << region->getAddress() << " contain " << target << "?");
         if(region->contains(target)) {
             auto base = region->getAddress();
             if(isRelative) {

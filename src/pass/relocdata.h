@@ -20,7 +20,8 @@ public:
     /** Tries to resolve the address that the named entity lives at.
         On success, sets address and returns true. On failure, returns false.
     */
-    bool resolveName(const char *name, address_t *address);
+    bool resolveName(const char *name, address_t *address,
+        bool allowInternal = true);
     bool resolveObject(const char *name, address_t *address, size_t *size);
 private:
     bool resolveNameHelper(const char *name, address_t *address,
@@ -40,8 +41,8 @@ private:
     Conductor *conductor;
     Module *module;
 public:
-    RelocDataPass(ElfSpace *elfSpace, Conductor *conductor)
-        : elfSpace(elfSpace), conductor(conductor) {}
+    RelocDataPass(Conductor *conductor) : conductor(conductor) {}
+    virtual void visit(Program *program);
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction) {}
 private:

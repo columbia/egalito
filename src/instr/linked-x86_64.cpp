@@ -86,6 +86,9 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             }
             else {
                 dispLink = LinkFactory::makeDataLink(module, target, true);
+                if(!dispLink) {
+                    dispLink = new UnresolvedLink(target);
+                }
             }
 
             dispIndex = i;

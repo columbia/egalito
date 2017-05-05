@@ -11,12 +11,19 @@
 #define DEBUG_GROUP dloadtime
 #include "log/log.h"
 
-bool FindAnywhere::resolveName(const char *name, address_t *address) {
+bool FindAnywhere::resolveName(const char *name, address_t *address,
+    bool allowInternal) {
+
     if(name) {
-        //LOG(1, "SEARCH for " << name);
+        LOG(1, "SEARCH for " << name << ", internal = " << allowInternal);
+        if(!allowInternal) {
+            LOG(1, "skipping searching in " << elfSpace->getModule()->getName());
+        }
 
         // first check the elfSpace we are resolving relocations for
-        if(resolveNameHelper(name, address, elfSpace)) return true;
+        if(allowInternal && resolveNameHelper(name, address, elfSpace)) {
+            return true;
+        }
 
         for(auto library : *conductor->getLibraryList()) {
             auto space = library->getElfSpace();
@@ -25,10 +32,12 @@ bool FindAnywhere::resolveName(const char *name, address_t *address) {
             }
         }
 
+#if 0
         auto mainSpace = conductor->getMainSpace();
         if(mainSpace != elfSpace) {
             if(resolveNameHelper(name, address, mainSpace)) return true;
         }
+#endif
     }
 
     return false;
@@ -47,10 +56,12 @@ bool FindAnywhere::resolveObject(const char *name, address_t *address,
             }
         }
 
+#if 0
         auto mainSpace = conductor->getMainSpace();
         if(mainSpace != elfSpace) {
             if(resolveObjectHelper(name, address, size, mainSpace)) return true;
         }
+#endif
     }
 
     return false;
@@ -99,7 +110,8 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
 
             // must be a data object, address unchanged
             LOG(1, "    ...found as data ref! at "
-                << std::hex << symbol->getAddress());
+                << std::hex << symbol->getAddress() << " in "
+                << space->getModule()->getName());
             *address = space->getElfMap()->getBaseAddress()
                 + symbol->getAddress();
             return true;
@@ -123,7 +135,8 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
 
             // we found it
             LOG(1, "    ...found data object! at "
-                << std::hex << symbol->getAddress());
+                << std::hex << symbol->getAddress() << " in "
+                << space->getModule()->getName());
             *address = space->getElfMap()->getBaseAddress()
                 + symbol->getAddress();
             *size = symbol->getSize();
@@ -135,7 +148,46 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
 }
 
 
+void RelocDataPass::visit(Program *program) {
+    // resolve relocations in library-depends order (because e.g. COPY relocs)
+
+    std::set<SharedLib *> resolved;
+    for(;;) {
+        bool didWork = false;
+        for(auto module : CIter::children(program)) {
+            auto sharedLib = module->getElfSpace()->getLibrary();
+            if(resolved.find(sharedLib) != resolved.end()) {
+                continue;  // already processed this module
+            }
+
+            bool canResolve = true;
+            for(auto dep : sharedLib->getDependencyList()) {
+                if(resolved.find(dep) == resolved.end()) {
+                    canResolve = false;
+                    break;
+                }
+            }
+
+            if(canResolve) {
+                visit(module);
+                didWork = true;
+                resolved.insert(sharedLib);
+            }
+        }
+        if(!didWork) break;
+    }
+
+    for(auto lib : *conductor->getLibraryList()) {
+        if(resolved.find(lib) == resolved.end()) {
+            LOG(0, "ERROR: did not resolve relocs in "
+                << lib->getShortName() << " due to circular dependencies");
+        }
+    }
+}
+
 void RelocDataPass::visit(Module *module) {
+    LOG(1, "RESOLVING relocs for " << module->getName());
+    this->elfSpace = module->getElfSpace();
     this->module = module;
     for(auto r : *elfSpace->getRelocList()) {
         fixRelocation(r);
@@ -202,14 +254,19 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
     else if(r->getType() == R_X86_64_COPY) {
+        LOG(1, "IT'S A COPY! " << std::hex << update);
         address_t other;
-        size_t otherSize;
-        found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
+        size_t otherSize = (size_t)-1;
+        //found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
+        // do not allow internal references for COPY relocs
+        found = FindAnywhere(conductor, elfSpace).resolveName(name, &other, false);
         if(found) {
             size_t size = std::min(otherSize, r->getSymbol()->getSize());
             LOG(1, "    doing memcpy from " << other
+                << " (" << module->getName() << ")"
                 << " to " << update << " size " << size);
             std::memcpy((void *)update, (void *)other, size);
+            LOG(1, "        copied value " << *(unsigned long *)other);
         }
         found = false;
     }

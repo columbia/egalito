@@ -8,6 +8,9 @@
 #include "types.h"
 #include "elfxx.h"
 
+#define DEBUG_GROUP elf
+#include "log/log.h"
+
 std::string SharedLib::getAlternativeSymbolFile() const {
 #ifdef ARCH_X86_64
     auto buildIdSection = elfMap->findSection(".note.gnu.build-id");
@@ -64,6 +67,16 @@ void LibraryList::add(SharedLib *library) {
 
     libraryMap[library->getFullPath()] = library;
     libraryList.push_back(library);
+}
+
+void LibraryList::addToFront(SharedLib *library) {
+    auto it = libraryMap.find(library->getFullPath());
+    if(it != libraryMap.end()) return;  // already present
+
+    LOG(1, "REALLY INSERTING library " << library->getShortName());
+
+    libraryMap[library->getFullPath()] = library;
+    libraryList.insert(libraryList.begin(), library);
 }
 
 SharedLib *LibraryList::get(const std::string &name) {

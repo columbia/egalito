@@ -20,7 +20,6 @@ public:
 
     void resolvePLTLinks();
     void fixDataSections();
-    void fixDataSection(Module *module);
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);
@@ -32,7 +31,7 @@ public:
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
 private:
-    void parse(ElfMap *elf, SharedLib *library);
+    void parse(ElfMap *elf, SharedLib *library, bool isMain);
     void loadTLSData();
 };
 

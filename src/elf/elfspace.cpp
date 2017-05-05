@@ -46,7 +46,7 @@ ElfSpace::~ElfSpace() {
 
 void ElfSpace::findDependencies(LibraryList *libraryList) {
     ElfDynamic dynamic(libraryList);
-    dynamic.parse(elf);
+    dynamic.parse(elf, library);
 }
 
 void ElfSpace::buildDataStructures(bool hasRelocs) {

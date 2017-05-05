@@ -138,6 +138,8 @@ void Disassemble::disassembleBlock(Handle &handle,
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
     cs_insn *insn;
+    LOG(19, "disassemble 0x" << std::hex << readAddress << " size " << readSize
+        << ", virtual address " << virtualAddress);
     size_t count = cs_disasm(handle.raw(), (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
 
     Block *block = *blockRef;

@@ -13,6 +13,7 @@ void CallInit::callInitFunctions(ElfSpace *space) {
         LOG(1, "invoking init function " << _init->getName());
         // !!! we should actually call this in transformed code...
         ((void (*)())_init->getAddress())();
+        //((void (*)(int, char*, char*))_init->getAddress())(0, nullptr, nullptr);
     }
 
     auto init_array = elf->findSection(".init_array");
@@ -29,6 +30,7 @@ void CallInit::callInitFunctions(ElfSpace *space) {
                 LOG(1, "invoking init function " << chunk->getName());
                 // !!! we should actually call this in transformed code...
                 ((void (*)())chunk->getAddress())();
+                //((void (*)(int, char*, char*))chunk->getAddress())(0, nullptr, nullptr);
             }
         }
     }

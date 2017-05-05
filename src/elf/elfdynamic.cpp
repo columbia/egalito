@@ -10,8 +10,7 @@
 
 #include "log/log.h"
 
-void ElfDynamic::parse(ElfMap *elf) {
-
+void ElfDynamic::parse(ElfMap *elf, SharedLib *sharedLib) {
     auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
     if(!dynamic) return;  // statically linked
     auto strtab = elf->getDynstrtab();
@@ -25,7 +24,7 @@ void ElfDynamic::parse(ElfMap *elf) {
         if(type == DT_NEEDED) {
             auto library = strtab + value;
             LOG(2, "    depends on shared library [" << library << "]");
-            dependencyList.push_back(library);
+            dependencyList.push_back(std::make_pair(library, sharedLib));
         }
         else if(type == DT_RPATH) {
             this->rpath = strtab + value;
@@ -127,10 +126,13 @@ void ElfDynamic::resolveLibraries() {
     searchPath.push_back("/lib64");
     searchPath.push_back("/usr/lib64");
 
-    for(auto &library : dependencyList) {
+    for(auto &pair : dependencyList) {
+        auto library = pair.first;
+        auto sharedLib = pair.second;
         if(library[0] == '/') {
             LOG(3, "    library at [" << library << "]");
-            processLibrary(library, library.substr(library.rfind('/') + 1));
+            processLibrary(library,
+                library.substr(library.rfind('/') + 1), sharedLib);
             continue;
         }
 
@@ -142,7 +144,7 @@ void ElfDynamic::resolveLibraries() {
             if(file.is_open() && isValidElf(file)) {
                 file.close();
                 LOG(2, "    library at [" << fullPath << "]");
-                processLibrary(fullPath, library);
+                processLibrary(fullPath, library, sharedLib);
                 found = true;
                 break;
             }
@@ -154,20 +156,29 @@ void ElfDynamic::resolveLibraries() {
 }
 
 void ElfDynamic::processLibrary(const std::string &fullPath,
-    const std::string &filename) {
+    const std::string &filename, SharedLib *depend) {
 
-    if(libraryList->contains(fullPath)) return;
     if(filename == "ld-linux-x86-64.so.2") {
         LOG(2, "    skipping processing of ld.so for now");
+        return;
+    }
+
+    // don't process this library again if already done
+    if(libraryList->contains(fullPath)) {
+        SharedLib *library = libraryList->get(fullPath);
+        library->addParentDepend(depend);  // but do add dependencies
+        depend->addDependency(library);
         return;
     }
 
     LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
 
     ElfMap *elf = new ElfMap(fullPath.c_str());
-
     auto library = new SharedLib(fullPath, filename, elf);
     libraryList->add(library);
+
+    library->addParentDepend(depend);
+    depend->addDependency(library);
 
     LOG(2, "    added new library [" << filename << "]");
 }

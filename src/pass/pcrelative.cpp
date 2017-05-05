@@ -36,6 +36,7 @@ void PCRelativePass::handlePCRelative(Reloc *r, FunctionList *functionList) {
             auto pcri = new LinkedInstruction(i, *v->getAssembly());
             address_t offset = pcri->getOriginalOffset();
 
+            // !!! what if makeDataLink returns nullptr?
             pcri->setLink(LinkFactory::makeDataLink(module, offset));
             //auto assembly = v->getAssembly();
             //LOG(1, assembly->getMnemonic() << "@" << std::hex << i->getAddress());

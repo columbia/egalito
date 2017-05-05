@@ -78,9 +78,20 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
     auto module = conductor->getMainSpace()->getModule();
     Generator generator(useDisps);
 
+    for(auto lib : *conductor->getLibraryList()) {
+        LOG(1, "lib " << lib->getShortName());
+        for(auto dep : lib->getParentDependList()) {
+            LOG(1, "    parent dep " << dep->getShortName());
+        }
+        for(auto dep : lib->getDependencyList()) {
+            LOG(1, "    dep " << dep->getShortName());
+        }
+    }
+
     generator.pickAddressesInSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
+        //LOG(1, "moving code for " << lib->getElfSpace()->getModule()->getName());
         generator.pickAddressesInSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }
@@ -93,6 +104,7 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
     generator.copyCodeToSandbox(module, sandbox);
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
+        //LOG(1, "copying code for " << lib->getElfSpace()->getModule()->getName());
         generator.copyCodeToSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }

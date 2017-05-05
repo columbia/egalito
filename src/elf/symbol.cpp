@@ -21,7 +21,7 @@ bool Symbol::isFunction() const {
         << ", aliasFor=" << (aliasFor ? aliasFor->getName() : "n/a"));
 #endif
     return (symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC)
-        && size > 0 && index > 0 && !aliasFor;
+        && size > 0 && shndx > 0 && !aliasFor;
 }
 
 bool SymbolList::add(Symbol *symbol, size_t index) {
