@@ -4,15 +4,19 @@
 #include "operation/find2.h"
 #include "log/log.h"
 
+// Note: this is not implemented yet, but in order to call the init functions,
+// we must pass argc, argv, envp. We have to make sure we pass the modified
+// ones, currently this is modified on the stack only, to remove argv[0].
+
 void CallInit::callInitFunctions(ElfSpace *space) {
     auto elf = space->getElfMap();
     auto module = space->getModule();
 
     auto _init = ChunkFind2().findFunctionInModule("_init", module);
     if(_init) {
-        LOG(1, "invoking init function " << _init->getName());
-        // !!! we should actually call this in transformed code...
-        ((void (*)())_init->getAddress())();
+        //LOG(1, "invoking init function " << _init->getName());
+        // !!! we should actually call this from transformed code...
+        //((void (*)())_init->getAddress())();
         //((void (*)(int, char*, char*))_init->getAddress())(0, nullptr, nullptr);
     }
 
@@ -27,9 +31,9 @@ void CallInit::callInitFunctions(ElfSpace *space) {
             if(found) {
                 auto chunk = CIter::named(module->getFunctionList())
                     ->find(found->getName());
-                LOG(1, "invoking init function " << chunk->getName());
-                // !!! we should actually call this in transformed code...
-                ((void (*)())chunk->getAddress())();
+                //LOG(1, "invoking init function " << chunk->getName());
+                // !!! we should actually call this from transformed code...
+                //((void (*)())chunk->getAddress())();
                 //((void (*)(int, char*, char*))chunk->getAddress())(0, nullptr, nullptr);
             }
         }

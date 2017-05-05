@@ -38,7 +38,7 @@ void LoaderEmulator::useArgv(char **argv) {
     while(*environ) environ ++;
     environ ++;
     Emulation::__environ = environ;
-    addSymbol("__environ", Emulation::__environ);
+    addSymbol("__environ", &Emulation::__environ);
 
     addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
 
