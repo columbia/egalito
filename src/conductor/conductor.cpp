@@ -28,7 +28,9 @@ void Conductor::parseExecutable(ElfMap *elf) {
     getSpaceList()->setMain(space);
 }
 
-void Conductor::parseEgalito(ElfMap *elf, SharedLib *library) {
+void Conductor::parseEgalito(ElfMap *elf) {
+    auto library = new SharedLib("(egalito)", "(egalito)", elf);
+    getLibraryList()->add(library);
     auto space = parse(elf, library);
 
     program->setEgalito(space->getModule());

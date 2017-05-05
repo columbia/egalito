@@ -17,7 +17,6 @@
 #define D_main          9
 #define D_operation     9
 #define D_pass          9
-#define D_regression    9
 #define D_transform     9
 
 // Custom groups

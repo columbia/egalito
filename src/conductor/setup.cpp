@@ -13,19 +13,16 @@ address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
 
+    this->conductor = new Conductor();
+
     this->elf = new ElfMap(executable);
     setBaseAddress(elf, 0x4000000);
-
-    this->conductor = new Conductor();
     conductor->parseExecutable(elf);
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
-        setBaseAddress(egalito, 0x8000000l);  // can handle NULL ElfMap
-
-        auto egalitoLib = new SharedLib("(egalito)", "(egalito)", egalito);
-        conductor->getLibraryList()->add(egalitoLib);
-        conductor->parseEgalito(egalito, egalitoLib);
+        //setBaseAddress(egalito, 0x8000000l);  // use address assigned below
+        conductor->parseEgalito(egalito);
     }
 
     if(withSharedLibs) {
@@ -35,7 +32,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     // set base addresses for any shared libraries that were pulled in
     int i = 0;
     for(auto lib : *conductor->getLibraryList()) {
-        //if(lib == egalitoLib) continue;
+        if(lib->getElfMap() == this->elf) continue;
 
         if(setBaseAddress(lib->getElfMap(), 0xa0000000 + i*0x1000000)) {
             i ++;
@@ -75,11 +72,10 @@ void ConductorSetup::moveCode(bool useDisps) {
 }
 
 void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
-    auto module = conductor->getMainSpace()->getModule();
     Generator generator(useDisps);
 
     for(auto lib : *conductor->getLibraryList()) {
-        LOG(1, "lib " << lib->getShortName());
+        LOG(1, "depends for library " << lib->getShortName());
         for(auto dep : lib->getParentDependList()) {
             LOG(1, "    parent dep " << dep->getShortName());
         }
@@ -90,19 +86,16 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
 
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
-        //LOG(1, "moving code for " << lib->getElfSpace()->getModule()->getName());
         generator.pickAddressesInSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }
 }
 
 void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
-    auto module = conductor->getMainSpace()->getModule();
     Generator generator(useDisps);
 
     for(auto lib : *conductor->getLibraryList()) {
         if(!lib->getElfSpace()) continue;
-        //LOG(1, "copying code for " << lib->getElfSpace()->getModule()->getName());
         generator.copyCodeToSandbox(
             lib->getElfSpace()->getModule(), sandbox);
     }

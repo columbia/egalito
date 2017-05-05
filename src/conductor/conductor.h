@@ -15,7 +15,7 @@ public:
     ~Conductor();
 
     void parseExecutable(ElfMap *elf);
-    void parseEgalito(ElfMap *elf, SharedLib *library);
+    void parseEgalito(ElfMap *elf);
     void parseLibraries();
 
     void resolvePLTLinks();

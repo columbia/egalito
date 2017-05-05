@@ -1,13 +1,21 @@
-!chunk
+!analysis
 !break
+!chunk
+!conductor
+!disasm
 !elf
+!generate
+!instr
 !load
-!transform
 !log
 !main
-!regression
+!operation
 !pass
-!disasm
-!conductor
+!transform
 
-!reloc
+!dsymbol
+!dreloc
+!djumptable
+!dplt
+!dloadtime
+!dassign
