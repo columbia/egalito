@@ -107,7 +107,7 @@ RelocSectionContent::DeferredType *RelocSectionContent
 }
 
 RelocSectionContent::DeferredType *RelocSectionContent
-    ::addConcrete(Instruction *source, DataOffsetLink *link) {
+    ::makeDeferredForLink(Instruction *source) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
@@ -128,70 +128,63 @@ RelocSectionContent::DeferredType *RelocSectionContent
     #error "how do we encode relocation offsets in instructions on arm?"
 #endif
 
+    rela->r_offset  = address;
+    rela->r_info    = 0;
+    rela->r_addend  = specialAddendOffset;
+
+    DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
+    return deferred;
+}
+
+RelocSectionContent::DeferredType *RelocSectionContent
+    ::addConcrete(Instruction *source, DataOffsetLink *link) {
+
+    auto deferred = makeDeferredForLink(source);
+    auto rela = deferred->getElfPtr();
+
     auto dest = static_cast<DataRegion *>(&*link->getTarget());  // assume != nullptr
     auto destAddress = link->getTargetAddress();
 
-    rela->r_offset = address;
-    rela->r_addend = destAddress - dest->getAddress() + specialAddendOffset;
+    rela->r_addend += destAddress - dest->getAddress();
+    auto rodata = elfSpace->getElfMap()->findSection(".rodata")->getHeader();
+    rela->r_addend -= rodata->sh_offset;  // offset of original .rodata
 
-    DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab] (ElfXX_Rela *rela) {
+        size_t index = symtab->indexOfSectionSymbol(".rodata", sectionList);
+        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
+    });
+
     return deferred;
 }
 
 RelocSectionContent::DeferredType *RelocSectionContent
     ::addConcrete(Instruction *source, PLTLink *link) {
 
-    auto rela = new ElfXX_Rela();
-    std::memset(rela, 0, sizeof(*rela));
-    auto deferred = new DeferredType(rela);
+    auto deferred = makeDeferredForLink(source);
 
-    auto address = source->getAddress();
-    int specialAddendOffset = 0;
-#ifdef ARCH_X86_64
-    if(auto sem = dynamic_cast<LinkedInstruction *>(source->getSemantic())) {
-        address += sem->getDispOffset();
-        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
-    }
-    else if(auto sem = dynamic_cast<ControlFlowInstruction *>(source->getSemantic())) {
-        address += sem->getDispOffset();
-        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
-    }
-#else
-    #error "how do we encode relocation offsets in instructions on arm?"
-#endif
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
+        auto elfSym = symtab->find(
+            link->getPLTTrampoline()->getTargetSymbol());
+        size_t index = symtab->indexOf(elfSym);
+        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+    });
 
-    rela->r_offset = address;
-    rela->r_addend = specialAddendOffset;
-
-    DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
     return deferred;
 }
 
 RelocSectionContent::DeferredType *RelocSectionContent
     ::addConcrete(Instruction *source, SymbolOnlyLink *link) {
 
-    auto rela = new ElfXX_Rela();
-    std::memset(rela, 0, sizeof(*rela));
-    auto deferred = new DeferredType(rela);
+    auto deferred = makeDeferredForLink(source);
 
-    auto address = source->getAddress();
-    int specialAddendOffset = 0;
-#ifdef ARCH_X86_64
-    if(auto sem = dynamic_cast<LinkedInstruction *>(source->getSemantic())) {
-        address += sem->getDispOffset();
-        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
-    }
-    else if(auto sem = dynamic_cast<ControlFlowInstruction *>(source->getSemantic())) {
-        address += sem->getDispOffset();
-        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
-    }
-#else
-    #error "how do we encode relocation offsets in instructions on arm?"
-#endif
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
+        auto elfSym = symtab->find(link->getSymbol());
+        size_t index = symtab->indexOf(elfSym);
+        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+    });
 
-    rela->r_offset = address;
-    rela->r_addend = specialAddendOffset;
-
-    DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
     return deferred;
 }

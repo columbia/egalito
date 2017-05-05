@@ -43,13 +43,18 @@ public:
     typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
 private:
     SectionRef *outer;
+    SectionList *sectionList;
+    ElfSpace *elfSpace;
 public:
-    RelocSectionContent(SectionRef *outer) : outer(outer) {}
+    RelocSectionContent(SectionRef *outer, SectionList *sectionList,
+        ElfSpace *elfSpace) : outer(outer), sectionList(sectionList),
+        elfSpace(elfSpace) {}
 
     Section *getTargetSection();
 
     DeferredType *add(Chunk *source, Link *link);
 private:
+    DeferredType *makeDeferredForLink(Instruction *source);
     DeferredType *addConcrete(Instruction *source, DataOffsetLink *link);
     DeferredType *addConcrete(Instruction *source, PLTLink *link);
     DeferredType *addConcrete(Instruction *source, SymbolOnlyLink *link);

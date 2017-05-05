@@ -136,7 +136,7 @@ void ObjGen::makeSymbolInfo() {
 
 void ObjGen::makeRelocInfo(const std::string &textSection) {
     auto reloc = new RelocSectionContent(
-        new SectionRef(&sectionList, textSection));
+        new SectionRef(&sectionList, textSection), &sectionList, elfSpace);
     auto relocSection = new Section(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
 
@@ -180,7 +180,7 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 
             // add name to string table
             auto index = strtab->add(sym->getName(), true);
-            auto value = symtab->add(nullptr, sym, index);
+            symtab->add(nullptr, sym, index);
         }
     }
 }
@@ -225,49 +225,13 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
 }
 
 void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
-    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
     auto reloc = sectionList[".rela" + textSection]->castAs<RelocSectionContent *>();
 
-    auto rodata = elfSpace->getElfMap()->findSection(".rodata")->getHeader();
-    auto roDataOffset = rodata->sh_offset;
     for(auto block : CIter::children(func)) {
         for(auto instr : CIter::children(block)) {
             if(auto link = instr->getSemantic()->getLink()) {
                 LOG(1, "adding relocation at " << instr->getName());
-                auto deferred = reloc->add(instr, link);
-                if(deferred == nullptr)
-                    continue;
-
-                if(dynamic_cast<DataOffsetLink *>(link)) {
-                    deferred->addFunction([this, symtab] (ElfXX_Rela *rela) {
-                        size_t index = symtab->indexOfSectionSymbol(".rodata", &sectionList);
-                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PC32);
-                    });
-                    deferred->addFunction([this, roDataOffset] (ElfXX_Rela *rela) {
-                        // This affects the order in which things are called and breaks
-                        // for other relocations
-                        rela->r_addend -= roDataOffset;
-                    });
-                }
-                else if(auto link2 = dynamic_cast<PLTLink *>(link)) {
-                    deferred->addFunction([this, symtab, link2] (ElfXX_Rela *rela) {
-                        auto elfSym = symtab->find(
-                            link2->getPLTTrampoline()->getTargetSymbol());
-                        size_t index = symtab->indexOf(elfSym);
-                        LOG(1, "looks like we're using index " << index);
-                        LOG(1, "...which is for symbol " << symtab->getKey(elfSym)->getName());
-                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
-                    });
-                }
-                else if(auto link2 = dynamic_cast<SymbolOnlyLink *>(link)) {
-                    deferred->addFunction([this, symtab, link2] (ElfXX_Rela *rela) {
-                        auto elfSym = symtab->find(link2->getSymbol());
-                        size_t index = symtab->indexOf(elfSym);
-                        LOG(1, "looks like we're using index " << index);
-                        LOG(1, "...which is for symbol " << symtab->getKey(elfSym)->getName());
-                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
-                    });
-                }
+                reloc->add(instr, link);
             }
         }
     }
@@ -275,7 +239,9 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
 
 void ObjGen::makeRoData() {
     auto elfMap = elfSpace->getElfMap();
-    auto oldRoDataShdr = elfMap->findSection(".rodata")->getHeader();
+    auto oldRoData = elfMap->findSection(".rodata");
+    if(!oldRoData) return;
+    auto oldRoDataShdr = oldRoData->getHeader();
     auto roDataSection = new Section(".rodata", SHT_PROGBITS, SHF_ALLOC);
     const char *address = elfMap->getCharmap() + oldRoDataShdr->sh_offset;
     auto content = new DeferredString(address, oldRoDataShdr->sh_size);
