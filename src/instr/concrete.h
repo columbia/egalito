@@ -33,4 +33,16 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
+class IndirectCallInstruction : public IsolatedInstruction {
+private:
+    Register reg;
+public:
+    IndirectCallInstruction(const Assembly &assembly, Register reg)
+        : IsolatedInstruction(assembly), reg(reg) {}
+
+    register_t getRegister() const { return reg; }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
 #endif

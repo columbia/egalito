@@ -2,7 +2,8 @@
 #include "usage.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
-#include "pass/dumptlsinstr.h"
+#include "pass/stackxor.h"
+#include "pass/detectnullptr.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -41,9 +42,9 @@ int main(int argc, char *argv[]) {
 }
 
 static void otherPasses(ConductorSetup *setup) {
-#if 0
-    DumpTLSInstrPass tlsInstr;
-    setup->getConductor()->acceptInAllModules(&tlsInstr, true);
-    exit(1);
-#endif
+    //StackXOR stackXOR(0x28);
+    //setup->getConductor()->acceptInAllModules(&stackXOR, true);
+
+    //DetectNullPtrPass detectNull;
+    //setup->getConductor()->acceptInAllModules(&detectNull, true);
 }

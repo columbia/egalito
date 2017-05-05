@@ -48,7 +48,10 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         }
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_REG) {
-        if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+        if(ins->id == X86_INS_CALL) {
+            semantic = new IndirectCallInstruction(*ins, op->reg);
+        }
+        else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
             semantic = new IndirectJumpInstruction(
                 *ins, op->reg, ins->mnemonic);
         }
@@ -92,7 +95,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         }
         else {
           semantic = new IndirectJumpInstruction(
-                                               *ins, static_cast<Register>(op->reg), ins->mnemonic);
+            *ins, static_cast<Register>(op->reg), ins->mnemonic);
         }
       }
 

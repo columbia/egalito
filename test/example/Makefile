@@ -31,7 +31,7 @@ TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
 
-LONE_TARGETS = hellocpp
+LONE_TARGETS = hellocpp $(BUILDDIR)detectnull
 
 ALL_TARGETS = $(TARGETS)
 ALL_TARGETS += $(TARGETS-q)
@@ -87,6 +87,9 @@ $(BUILDDIR)%-obj:
 	$(CC) -c $^ -o $@
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
+
+$(BUILDDIR)detectnull: detectnull.c
+	$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: clean
 clean:

@@ -43,18 +43,30 @@ void InstrWriterGetData::visit(LinkedInstruction *linked) {
 // ControlFlow Instruction
 void InstrWriterCString::visit(ControlFlowInstruction *controlFlow) {
     // always use a displacement for direct jumps, unless it's to a PLT entry
-    bool useDisp = useDisplacements()
-        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements();
+    if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
+        && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
+        
+        useDisp = true;
+    }
     controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterCppString::visit(ControlFlowInstruction *controlFlow) {
-    bool useDisp = useDisplacements()
-        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements();
+    if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
+        && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
+        
+        useDisp = true;
+    }
     controlFlow->writeTo(target, useDisp);
 }
 void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
-    bool useDisp = useDisplacements()
-        || (dynamic_cast<PLTLink *>(controlFlow->getLink()) == 0);
+    bool useDisp = useDisplacements();
+    if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
+        && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
+        
+        useDisp = true;
+    }
     controlFlow->writeTo(data, useDisp);
 }
 

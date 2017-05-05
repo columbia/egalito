@@ -99,6 +99,9 @@ RelocSectionContent::DeferredType *RelocSectionContent
     else if(auto v = dynamic_cast<PLTLink *>(link)) {
         return addConcrete(dynamic_cast<Instruction *>(source), v);
     }
+    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
+        return addConcrete(dynamic_cast<Instruction *>(source), v);
+    }
 
     return nullptr;
 }
@@ -137,6 +140,35 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
 RelocSectionContent::DeferredType *RelocSectionContent
     ::addConcrete(Instruction *source, PLTLink *link) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    auto address = source->getAddress();
+    int specialAddendOffset = 0;
+#ifdef ARCH_X86_64
+    if(auto sem = dynamic_cast<LinkedInstruction *>(source->getSemantic())) {
+        address += sem->getDispOffset();
+        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
+    }
+    else if(auto sem = dynamic_cast<ControlFlowInstruction *>(source->getSemantic())) {
+        address += sem->getDispOffset();
+        specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
+    }
+#else
+    #error "how do we encode relocation offsets in instructions on arm?"
+#endif
+
+    rela->r_offset = address;
+    rela->r_addend = specialAddendOffset;
+
+    DeferredMap<address_t, ElfXX_Rela>::add(address, deferred);
+    return deferred;
+}
+
+RelocSectionContent::DeferredType *RelocSectionContent
+    ::addConcrete(Instruction *source, SymbolOnlyLink *link) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));

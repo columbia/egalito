@@ -148,7 +148,6 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 
     // Add symbols to the symbol list, but only for those functions
     // which fall into the given range [begin, begin+size).
-
     for(auto func : CIter::functions(elfSpace->getModule())) {
         if(blacklistedSymbol(func->getName())) {
             continue;  // skip making a symbol for this function
@@ -168,6 +167,21 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 
         // undo address fix
         func->getPosition()->set(backing->getBase() + func->getAddress());
+    }
+
+    // Handle any other types of symbols that need generating.
+    for(auto sym : *elfSpace->getSymbolList()) {
+        if(sym->isFunction()) continue;  // already handled
+        if(blacklistedSymbol(sym->getName())) continue;  // blacklisted
+
+        if(sym->getSectionIndex() == SHT_NULL) {  // undefined symbol
+            auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
+            auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+
+            // add name to string table
+            auto index = strtab->add(sym->getName(), true);
+            auto value = symtab->add(nullptr, sym, index);
+        }
     }
 }
 
@@ -239,6 +253,15 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
                     deferred->addFunction([this, symtab, link2] (ElfXX_Rela *rela) {
                         auto elfSym = symtab->find(
                             link2->getPLTTrampoline()->getTargetSymbol());
+                        size_t index = symtab->indexOf(elfSym);
+                        LOG(1, "looks like we're using index " << index);
+                        LOG(1, "...which is for symbol " << symtab->getKey(elfSym)->getName());
+                        rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+                    });
+                }
+                else if(auto link2 = dynamic_cast<SymbolOnlyLink *>(link)) {
+                    deferred->addFunction([this, symtab, link2] (ElfXX_Rela *rela) {
+                        auto elfSym = symtab->find(link2->getSymbol());
                         size_t index = symtab->indexOf(elfSym);
                         LOG(1, "looks like we're using index " << index);
                         LOG(1, "...which is for symbol " << symtab->getKey(elfSym)->getName());

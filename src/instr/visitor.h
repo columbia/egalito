@@ -14,6 +14,7 @@ class LinkedInstruction;
 class ControlFlowInstruction;
 class ReturnInstruction;
 class IndirectJumpInstruction;
+class IndirectCallInstruction;
 
 class InstructionVisitor {
 public:
@@ -24,6 +25,7 @@ public:
     virtual void visit(ControlFlowInstruction *controlFlow) = 0;
     virtual void visit(ReturnInstruction *retInstr);
     virtual void visit(IndirectJumpInstruction *indirect);
+    virtual void visit(IndirectCallInstruction *indirect);
 };
 
 class InstructionListener : public InstructionVisitor {

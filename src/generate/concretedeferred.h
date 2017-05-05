@@ -52,6 +52,7 @@ public:
 private:
     DeferredType *addConcrete(Instruction *source, DataOffsetLink *link);
     DeferredType *addConcrete(Instruction *source, PLTLink *link);
+    DeferredType *addConcrete(Instruction *source, SymbolOnlyLink *link);
 };
 
 #endif

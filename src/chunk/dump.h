@@ -44,6 +44,7 @@ public:
     virtual void visit(LinkedInstruction *semantic);
     virtual void visit(ControlFlowInstruction *semantic);
     virtual void visit(IndirectJumpInstruction *semantic);
+    virtual void visit(IndirectCallInstruction *semantic);
 private:
     std::string getBytes(InstructionSemantic *semantic);
 };

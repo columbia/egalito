@@ -8,3 +8,7 @@ void InstructionVisitor::visit(ReturnInstruction *retInstr) {
 void InstructionVisitor::visit(IndirectJumpInstruction *indirect) {
     visit(static_cast<IsolatedInstruction *>(indirect));
 }
+
+void InstructionVisitor::visit(IndirectCallInstruction *indirect) {
+    visit(static_cast<IsolatedInstruction *>(indirect));
+}

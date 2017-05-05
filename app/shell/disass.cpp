@@ -11,6 +11,7 @@
 #include "pass/logcalls.h"
 #include "pass/dumptlsinstr.h"
 #include "pass/stackxor.h"
+#include "pass/detectnullptr.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -98,7 +99,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
     topLevel->add("generate", [&] (Arguments args) {
         args.shouldHave(1);
         setup->makeFileSandbox(args.front().c_str());
-        setup->moveCode();  // calls sandbox->finalize()
+        setup->moveCode(false);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
 
     topLevel->add("dumptls", [&] (Arguments args) {
@@ -174,4 +175,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a sorted list of all functions in a module, with addresses");
+
+    topLevel->add("detectnull", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        DetectNullPtrPass detectNull;
+        setup->getConductor()->acceptInAllModules(&detectNull, true);
+    }, "runs DetectNullPtrPass to instrument indirect calls");
 }
