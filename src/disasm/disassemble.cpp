@@ -96,7 +96,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList) {
 #else
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
@@ -111,87 +111,27 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
 
-        if(true
-#if 0
-           || !strcmp(sym->getName(),"main")
-           || !strcmp(sym->getName(),"parse_expression")
-           || !strcmp(sym->getName(),"trecurse")
-#endif
-           ) {
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
-          Function *function = Disassemble::function(elfMap, sym, mappingSymbolList);
+#if defined(ARCH_ARM)
+        Function *function = Disassemble::function(elfMap, sym,
+                                                   mappingSymbolList);
 #else
-          Function *function = Disassemble::function(elfMap, sym);
+        Function *function = Disassemble::function(elfMap, sym);
 #endif
-            functionList->getChildren()->add(function);
-            function->setParent(functionList);
-            LOG(10, "adding function " << function->getName());
-        }
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+        LOG(10, "adding function " << function->getName());
     }
     return module;
 }
 
-void Disassemble::disassembleBlock(Handle &handle,
-    Function *function, Block **blockRef, address_t readAddress,
-    size_t readSize, address_t virtualAddress) {
-
-    PositionFactory *positionFactory = PositionFactory::getInstance();
-
-    cs_insn *insn;
-    LOG(19, "disassemble 0x" << std::hex << readAddress << " size " << readSize
-        << ", virtual address " << virtualAddress);
-    size_t count = cs_disasm(handle.raw(), (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
-
-    Block *block = *blockRef;
-
-    for(size_t j = 0; j < count; j++) {
-        auto ins = &insn[j];
-  
-        // check if this instruction ends the current basic block
-        bool split = shouldSplitBlockAt(ins, handle);
-  
-        // Create Instruction from cs_insn
-        auto instr = Disassemble::instruction(ins, handle, true);
-        Chunk *prevChunk = nullptr;
-        if(block->getChildren()->getIterable()->getCount() > 0) {
-            prevChunk = block->getChildren()->getIterable()->getLast();
-        }
-        else if(function->getChildren()->getIterable()->getCount() > 0) {
-            prevChunk = function->getChildren()->getIterable()->getLast();
-        }
-        else {
-            prevChunk = nullptr;
-        }
-        instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, block->getSize()));
-  
-        ChunkMutator(block, false).append(instr);
-        if(split) {
-            LOG(11, "split-instr in block: " << j+1);
-            ChunkMutator(function, false).append(block);
-  
-            Block *oldBlock = block;
-            block = new Block();
-            *blockRef = block;
-            block->setPosition(
-                positionFactory->makePosition(oldBlock, block, function->getSize()));
-        }
-        else {
-            LOG(11, "instr in block:" << j+1);
-        }
-    }
-
-    cs_free(insn, count);
-}
-
-
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol, MappingSymbolList *mappingSymbolList) {
 #else
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
 #endif
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
+
     Handle handle(true);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
@@ -208,79 +148,190 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol) {
     function->setPosition(
         positionFactory->makeAbsolutePosition(symbolAddress));
 
+#if 0
     Block *block = new Block();
     block->setPosition(
         positionFactory->makePosition(nullptr, block, 0));
+#endif
 
-    auto readAddress = section->getReadAddress() + section->convertVAToOffset(symbolAddress);
+    auto readAddress =
+        section->getReadAddress() +
+        section->convertVAToOffset(symbolAddress);
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
     // If mapping symbols are present use them.
     if(mappingSymbolList) {
-      std::vector<MappingSymbol *> *mappingSymbolsInRegion;
+        std::vector<MappingSymbol *> *mappingSymbolsInRegion;
 
-      if (mappingSymbolList) {
-        mappingSymbolsInRegion = mappingSymbolList->findSymbolsInRegion(symbolAddress, symbolAddress + symbol->getSize());
-      }
-
-      for (auto mappingSymbol : *mappingSymbolsInRegion) {
-
-        if(mappingSymbol->getType() == MappingSymbol::MAPPING_DATA) continue;
-
-#if defined(ARCH_ARM)
-        else if(mappingSymbol->getType() == MappingSymbol::MAPPING_THUMB) {
-          cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
-        }
-        else if(mappingSymbol->getType() == MappingSymbol::MAPPING_ARM) {
-          cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
-        }
-#elif defined(ARCH_AARCH64)
-        // Assumes AARCH64 code will only use 64bit code, hence $x and $d only.
-        else if(mappingSymbol->getType() == MappingSymbol::MAPPING_AARCH64) {
-          // Already in correct mode. Never switches.
-        }
-#endif
-        readAddress = section->getReadAddress() + section->convertVAToOffset(mappingSymbol->getAddress());
-        readSize = mappingSymbol->getSize() > symbol->getSize() ? symbol->getSize() : mappingSymbol->getSize();
-        virtualAddress = mappingSymbol->getAddress();
-
-
-        if (mappingSymbol->isLastMappingSymbol()) {
-          size_t alreadyDisassembledSize = mappingSymbol->getAddress() - symbolAddress;
-          readSize = symbol->getSize() - alreadyDisassembledSize;
+        if(mappingSymbolList) {
+            mappingSymbolsInRegion = mappingSymbolList->findSymbolsInRegion(
+                symbolAddress, symbolAddress + symbol->getSize());
         }
 
-        disassembleBlock(handle, function, &block, readAddress, readSize, virtualAddress);
-      }
+        for(auto mappingSymbol : *mappingSymbolsInRegion) {
+            if(mappingSymbol->getType() == MappingSymbol::MAPPING_DATA) continue;
 
-      delete mappingSymbolsInRegion;
+            else if(mappingSymbol->getType() == MappingSymbol::MAPPING_THUMB) {
+                cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
+            }
+            else if(mappingSymbol->getType() == MappingSymbol::MAPPING_ARM) {
+                cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
+            }
+            readAddress = section->getReadAddress()
+                + section->convertVAToOffset(mappingSymbol->getAddress());
+
+            readSize = mappingSymbol->getSize() > symbol->getSize()
+                ? symbol->getSize() : mappingSymbol->getSize();
+
+            virtualAddress = mappingSymbol->getAddress();
+
+            if(mappingSymbol->isLastMappingSymbol()) {
+                size_t alreadyDisassembledSize =
+                    mappingSymbol->getAddress() - symbolAddress;
+
+                readSize = symbol->getSize() - alreadyDisassembledSize;
+            }
+
+            disassembleBlocks(
+                handle, function, /* &block, */readAddress, readSize, virtualAddress);
+        }
+
+        delete mappingSymbolsInRegion;
     }
     else {
-      // TODO: Speculative Disassembly needed to determine if ARM, Thumb, AARCH64, data without Mapping Symbols.
-      disassembleBlock(handle, function, &block, readAddress,
-        readSize, virtualAddress);
+        // TODO: Speculative Disassembly needed to determine if ARM, Thumb, data
+        // without Mapping Symbols.
+        disassembleBlocks(
+            handle, function, /* &block, */readAddress, readSize, virtualAddress);
     }
 #else
-    disassembleBlock(handle, function, &block, readAddress,
-        readSize, virtualAddress);
+    disassembleBlocks(
+        handle, function, /* &block, */readAddress, readSize, virtualAddress);
 #endif
 
+#if 0
     if(block->getSize() == 0) {
-      delete block;
+        delete block;
     }
-    else {
-        CLOG0(1, "fall-through function [%s]... "
-            "adding basic block\n", symbol->getName());
-        ChunkMutator(function, false).append(block);
-    }
+#endif
 
     {
         ChunkMutator m(function);  // recalculate cached values if necessary
     }
 
     return function;
+}
+
+void Disassemble::disassembleBlocks(Handle &handle,
+    Function *function, /* Block **blockRef, */address_t readAddress,
+    size_t readSize, address_t virtualAddress) {
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    cs_insn *insn;
+    LOG(19, "disassemble 0x" << std::hex << readAddress << " size " << readSize
+        << ", virtual address " << virtualAddress);
+    size_t count = cs_disasm(handle.raw(),
+        (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+
+#if 0
+    Block *block = *blockRef;
+#else
+    Block *block = new Block();
+    block->setPosition(
+        positionFactory->makePosition(nullptr, block, 0));
+#endif
+
+    size_t skipped = 0;
+    for(;;) {
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
+
+            // check if this instruction ends the current basic block
+            bool split = shouldSplitBlockAt(ins, handle);
+
+            // Create Instruction from cs_insn
+            auto instr = Disassemble::instruction(ins, handle, true);
+
+            Chunk *prevChunk = nullptr;
+            if(block->getChildren()->getIterable()->getCount() > 0) {
+                prevChunk = block->getChildren()->getIterable()->getLast();
+            }
+            else if(function->getChildren()->getIterable()->getCount() > 0) {
+                prevChunk = function->getChildren()->getIterable()->getLast();
+            }
+            else {
+                prevChunk = nullptr;
+            }
+            instr->setPosition(
+                positionFactory->makePosition(prevChunk, instr, block->getSize()));
+
+            ChunkMutator(block, false).append(instr);
+            if(split) {
+                LOG(11, "split-instr in block: " << j+1);
+                ChunkMutator(function, false).append(block);
+
+                Block *oldBlock = block;
+                block = new Block();
+                //*blockRef = block;
+                block->setPosition(
+                    positionFactory->makePosition(oldBlock, block,
+                                                  function->getSize() + skipped));
+            }
+        }
+
+        if(block->getSize() > 0) {
+            CLOG0(1, "fall-through function [%s]... "
+                "adding basic block\n", function->getName().c_str());
+            ChunkMutator(function, false).append(block);
+        }
+
+        if(function->getSize() + skipped == readSize) {
+            break;
+        }
+#ifdef ARCH_X86_64
+        // this is due to size estimation error
+        break;
+#endif
+
+        readAddress += function->getSize() + skipped;
+        virtualAddress += function->getSize() + skipped;
+
+        cs_free(insn, count);
+        for(; function->getSize() + skipped < readSize;) {
+            readAddress += 4;
+            virtualAddress += 4;
+            skipped += 4;
+
+            count = cs_disasm(handle.raw(),
+                (const uint8_t *)readAddress,
+                readSize - (function->getSize() + skipped),
+                virtualAddress, 0, &insn);
+            if(count > 0) {
+                break;
+            }
+        }
+
+        if(function->getSize() + skipped == readSize) {
+            break;
+        } else {
+            if(block->getSize() > 0) {
+                Block *oldBlock = block;
+                block = new Block();
+                //*blockRef = block;
+                block->setPosition(
+                    positionFactory->makePosition(oldBlock, block,
+                                                  function->getSize() + skipped));
+            }
+        }
+    }
+    if(block->getSize() == 0) {
+        delete block;
+    }
+
+    cs_free(insn, count);
 }
 
 Assembly Disassemble::makeAssembly(
