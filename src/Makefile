@@ -95,7 +95,7 @@ $(BUILDDIR)load/usage.o: load/usage.cpp load/usage.h
 $(BUILDDIR)main/usage.o: main/usage.cpp main/usage.h
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
-	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
 
 # Programs and libraries
 $(TARGET): $(TARGET_OBJECTS)
