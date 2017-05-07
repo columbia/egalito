@@ -1,5 +1,6 @@
 #include <elf.h>
 #include <stdlib.h>  // for realpath() [ARM]
+#include <libgen.h>  // for dirname() [ARM]
 #include <limits.h>  // for PATH_MAX [ARM]
 #include <iomanip>
 #include <sstream>
@@ -54,7 +55,14 @@ std::string SharedLib::getAlternativeSymbolFile() const {
     symbolFile << "/usr/lib/debug";
     char realPath[PATH_MAX];
     if(realpath(fullPath.c_str(), realPath)) {
-        symbolFile << realPath << ".debug";
+        auto debuglink = elfMap->findSection(".gnu_debuglink");
+        if(debuglink) {
+            auto name = elfMap->getSectionReadPtr<char *>(debuglink);
+            symbolFile << dirname(realPath) << "/" << name;
+        }
+        else {
+            symbolFile << realPath << ".debug";
+        }
         return symbolFile.str();
     }
 #endif
