@@ -29,6 +29,8 @@ public:
     bool overlaps(address_t point) const;
     bool overlaps(const Range &other) const;
 
+    bool endsWith(address_t point) const;
+
     bool operator < (const Range &other) const;
     bool operator == (const Range &other) const;
 

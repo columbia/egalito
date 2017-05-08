@@ -41,6 +41,7 @@ public:
 
     void addVariable(DataVariable *variable);
     bool contains(address_t address);
+    bool endsWith(address_t address);
 
     virtual void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }

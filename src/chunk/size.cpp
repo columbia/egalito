@@ -20,6 +20,10 @@ bool Range::overlaps(const Range &other) const {
     return !(other._start >= getEnd() || other.getEnd() <= _start);
 }
 
+bool Range::endsWith(address_t point) const {
+    return getEnd() == point;
+}
+
 bool Range::operator < (const Range &other) const {
     if(_start < other._start) return true;
     if(_start == other._start) {

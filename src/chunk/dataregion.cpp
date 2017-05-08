@@ -33,6 +33,10 @@ bool DataRegion::contains(address_t address) {
     return getRange().contains(address);
 }
 
+bool DataRegion::endsWith(address_t address) {
+    return getRange().endsWith(address);
+}
+
 void DataRegion::updateAddressFor(address_t baseAddress) {
     LOG(1, "UPDATE address for DataRegion from " << std::hex
         << getAddress() << " to " << (baseAddress + phdr->p_vaddr));
@@ -76,7 +80,20 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
             }
         }
     }
-    LOG(1, "    unable to make link!");
+    /* this case occurs when a pointer is pointing to the next address of a
+     * data region, e.g. a label _end points to the next address of _bss */
+    for(auto region : CIter::children(this)) {
+        if(region->endsWith(target)) {
+            auto base = region->getAddress();
+            if(isRelative) {
+                return new DataOffsetLink(region, target - base);
+            }
+            else {
+                return new AbsoluteDataLink(region, target - base);
+            }
+        }
+    }
+    LOG(1, "    unable to make link! (to 0x" << std::hex << target << ")");
     return nullptr;
 }
 
