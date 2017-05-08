@@ -71,26 +71,23 @@ Symbol *SymbolList::find(address_t address) {
 
 SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
     ElfMap *elfMap = library->getElfMap();
+    auto altFile = library->getAlternativeSymbolFile();
+    if(altFile.size() > 0) {
+        try {
+            // we intentionally do not free this symbolFile; it
+            // needs to stay mapped into memory so strings remain valid
+            ElfMap *symbolFile = new ElfMap(altFile.c_str());
+            return buildSymbolList(symbolFile);
+        }
+        catch(const char *s) {
+            // the debug symbol file does not exist
+        }
+    }
+
     auto section = elfMap->findSection(".symtab");
     if(section && section->getHeader()->sh_type == SHT_SYMTAB) {
         return buildSymbolList(elfMap);
     }
-    else {
-        auto altFile = library->getAlternativeSymbolFile();
-        if(altFile.size() > 0) {
-            try {
-                // we intentionally do not free this symbolFile; it
-                // needs to stay mapped into memory so strings remain valid
-                ElfMap *symbolFile = new ElfMap(altFile.c_str());
-                return buildSymbolList(symbolFile);
-            }
-            catch(const char *s) {
-                // the debug symbol file does not exist
-                return nullptr;
-            }
-        }
-    }
-
     return nullptr;
 }
 
