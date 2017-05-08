@@ -14,15 +14,22 @@ bool Slot::append(uint8_t *data, size_t size) {
 }
 
 MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
-    base = (address_t) mmap((void *)0x40000000, size, PROT_READ | PROT_WRITE,
+#if defined(ARCH_AARCH64)
+    #define _ADDRESS    0x80000000
+#else
+    #define _ADDRESS    0x40000000
+#endif
+    base = (address_t) mmap((void *)_ADDRESS, size, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS
 #ifdef ARCH_X86_64
         | MAP_32BIT
 #endif
         , -1, 0);
+    if(base != _ADDRESS) throw "Overlapping with other regions?";
     if(base == (address_t)-1) {
         throw std::bad_alloc();
     }
+#undef _ADDRESS
 }
 
 void MemoryBacking::finalize() {
