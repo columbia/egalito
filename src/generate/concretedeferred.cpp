@@ -124,6 +124,7 @@ RelocSectionContent::DeferredType *RelocSectionContent
         address += sem->getDispOffset();
         specialAddendOffset = -(sem->getSize() - sem->getDispOffset());
     }
+#elif defined(ARCH_AARCH64)
 #else
     #error "how do we encode relocation offsets in instructions on arm?"
 #endif

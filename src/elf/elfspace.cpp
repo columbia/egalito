@@ -66,7 +66,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     Disassemble::init();
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
     // Not necessary to build MappingSymbolList for other architectures.
     this->mappingSymbolList = MappingSymbolList::buildMappingSymbolList(this->symbolList);
     this->module = Disassemble::module(elf, symbolList, mappingSymbolList);

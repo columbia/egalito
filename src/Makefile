@@ -16,7 +16,7 @@ ifeq (aarch64,$(P_ARCH))
 else ifeq (x86_64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-x86_64.s
 else ifeq (arm,$(P_ARCH))
-	LOAD_SOURCES += load/bootstrap-aarch64.s
+	LOAD_SOURCES += load/bootstrap-arm.s
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)

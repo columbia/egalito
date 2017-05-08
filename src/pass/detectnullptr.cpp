@@ -8,6 +8,7 @@
 #include "log/log.h"
 
 void DetectNullPtrPass::visit(Module *module) {
+#ifdef ARCH_X86_64
     LOG(1, "adding null pointer checks...");
     auto elfSpace = module->getElfSpace();
 
@@ -16,9 +17,11 @@ void DetectNullPtrPass::visit(Module *module) {
         Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, index, 0);
     elfSpace->getSymbolList()->add(failFunc, index);
     recurse(module);
+#endif
 }
 
 void DetectNullPtrPass::visit(Instruction *instruction) {
+#ifdef ARCH_X86_64
     auto sem = instruction->getSemantic();
     if(dynamic_cast<IndirectJumpInstruction *>(sem)
         || dynamic_cast<IndirectCallInstruction *>(sem)) {
@@ -37,4 +40,5 @@ void DetectNullPtrPass::visit(Instruction *instruction) {
         mutator.insertBeforeJumpTo(instruction, Disassemble::instruction(
             {0x48, 0x83, 0xf8, 0x00}));
     }
+#endif
 }

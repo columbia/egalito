@@ -1,5 +1,4 @@
 // Created based on glibc start up file for aarch64.
-#if defined(ARCH_AARCH64)
 #ifdef __LP64__
 # define AARCH64_R(NAME)    R_AARCH64_ ## NAME
 # define PTR_REG(n)     x##n
@@ -139,4 +138,4 @@ __data_start:
 	.long 0
 	.weak data_start
 	data_start = __data_start
-#endif
+

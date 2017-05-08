@@ -11,7 +11,7 @@ TEST_CASE("Build Symbol List", "[elf][symbollist]") {
     CHECK(symbolList->getCount() > 0);
 }
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
 TEST_CASE("Mapping Symbol List ", "[elf][mappingsym]") {
     ElfMap *elf = new ElfMap(TESTDIR "hi5");
 

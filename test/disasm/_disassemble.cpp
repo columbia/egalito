@@ -59,7 +59,7 @@ TEST_CASE("Disassemble Module", "[disasm][module]") {
   SymbolList *symbolList = SymbolList::buildSymbolList(elf);
   Disassemble::init();
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
   MappingSymbolList *mappingSymbolList = MappingSymbolList::buildMappingSymbolList(symbolList);
   Module *module = Disassemble::module(elf, symbolList, mappingSymbolList);
 #else
