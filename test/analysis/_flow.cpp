@@ -3,7 +3,7 @@
 #include "analysis/slicing.h"
 
 TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
-    BackwardSearchState state(nullptr, nullptr);
+    DirectedSearchState<BackwardFlow> state(nullptr, nullptr);
 
     auto reg1 = FlowElement((Register)1, &state);
     auto reg2 = FlowElement((Register)2, &state);
@@ -150,7 +150,7 @@ TEST_CASE("Backward Flow", "[analysis][flow][fast]") {
 }
 
 TEST_CASE("Forward Flow", "[analysis][flow][fast]") {
-    ForwardSearchState state(nullptr, nullptr);
+    DirectedSearchState<ForwardFlow> state(nullptr, nullptr);
 
     auto reg1 = FlowElement((Register)1, &state);
     auto reg2 = FlowElement((Register)2, &state);

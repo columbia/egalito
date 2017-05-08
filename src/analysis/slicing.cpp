@@ -158,14 +158,11 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
             tree = baseTree;
         }
     }
-    if(mem->disp) {
-        if(tree) {
-            tree = new TreeNodeAddition(tree,
-                new TreeNodeConstant(mem->disp));
-        }
-        else {
-            tree = new TreeNodeConstant(mem->disp);
-        }
+    if(tree) {
+        tree = new TreeNodeAddition(tree, new TreeNodeConstant(mem->disp));
+    }
+    else {
+        tree = new TreeNodeConstant(mem->disp);
     }
 
     return new TreeNodeDereference(tree);
@@ -662,7 +659,7 @@ void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
 void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
     convertRegisterSize(a2.reg);
-    getState()->flow(a1.mem->base, a1.mem->index, a2.reg);
+    getState()->flow(Register(a1.mem->base), Register(a1.mem->index), a2.reg);
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     throw "not implemented";
 #endif
@@ -695,8 +692,8 @@ void SlicingInstructionState::defaultDetectRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
-    getState()->flow(static_cast<Register>(a2.extmem.mem->base),
-        static_cast<Register>(a2.extmem.mem->index), a1.reg);
+    getState()->flow(Register(a2.extmem.mem->base),
+                     Register(a2.extmem.mem->index), a1.reg);
 #endif
 }
 void SlicingInstructionState::defaultDetectRegRegImm(bool overwriteTarget) {
@@ -710,8 +707,8 @@ void SlicingInstructionState::defaultDetectRegRegMem(bool overwriteTarget) {
 #ifdef ARCH_X86_64
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
-    getState()->flow(a2.reg, static_cast<Register>(a3.mem->base),
-        static_cast<Register>(a3.mem->index), a1.reg, overwriteTarget);
+    getState()->flow(a2.reg, Register(a3.mem->base), Register(a3.mem->index),
+                     a1.reg, overwriteTarget);
 #endif
 }
 
@@ -999,22 +996,11 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                     }
                 }
 
-                auto parent_source = u.getParentRegTree(state, source);
-                if(auto p = dynamic_cast<TreeNodeConstant *>(parent_source)) {
-                    p->setValue(p->getValue() + extimm.imm);
-                    state->setRegTree(target, p);
-                }
-                else if(auto p = dynamic_cast<TreeNodeAddress *>(parent_source)) {
-                    p->setValue(p->getValue() + extimm.imm);
-                    state->setRegTree(target, p);
-                }
-                else {
-                    tree = new TreeNodeConstant(extimm.imm);
+                tree = new TreeNodeConstant(extimm.imm);
 
-                    state->setRegTree(target, new TreeNodeAddition(
-                        u.getParentRegTree(state, source),
-                        tree));
-                }
+                state->setRegTree(target, new TreeNodeAddition(
+                    u.getParentRegTree(state, source),
+                    tree));
             }
         }
         else {

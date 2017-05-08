@@ -192,6 +192,14 @@ private:
 };
 
 TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
+
+#if 0
+    if(tree) {
+        LOG(10, "reg tree is");
+        IF_LOG(10) tree->print(TreePrinter(2, 0));
+    }
+#endif
+
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternAny>,
         TreePatternCapture<TreePatternAny>
@@ -208,6 +216,7 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
 
     capture.clear();
     if(TreePatternOffset::matches(tree, capture)) {
+        //auto r1 = dynamic_cast<TreeNodeAddress *>(capture.get(0));
         auto r1 = dynamic_cast<TreeNodeRegister *>(capture.get(0));
         auto c2 = dynamic_cast<TreeNodeConstant *>(capture.get(1));
         if(r1 && r1->getRegister() == reg && c2) {
@@ -219,9 +228,35 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
 }
 
 bool RegPointerPredicate::cutoff(SearchState *state) {
+    LOG(10, "looking at state @ 0x" << std::hex << state->getInstruction()->getAddress());
+#if 0
+    Disassemble::Handle handle(true);
+    LOG(10, "--------REG ");
+    const auto &regs = state->getRegs();
+    for(size_t r = 0; r < regs.size(); r ++) {
+        auto tree = state->getRegTree(r);
+        if(!tree) continue;
+
+        LOG0(10, "        REG " << cs_reg_name(handle.raw(), r) << ": ");
+        IF_LOG(10) tree->print(TreePrinter(3, 1));
+        LOG(10, "");
+    }
+    for(auto const &tree : state->getMemTree()) {
+        LOG(10, "--------MEM ");
+        IF_LOG(10) tree.first->print(TreePrinter(3,1));
+        LOG0(10, ": ");
+        IF_LOG(10) tree.second->print(TreePrinter(3, 1));
+        LOG(10, "");
+    }
+#endif
+
     auto tree = getOffsetTree(state->getRegTree(reg));
     if(tree) {
         offsetTree = tree;
+#if 0
+        LOG(10, "found offsetTree: ");
+        IF_LOG(10) tree->print(TreePrinter(2, 0));
+#endif
     }
     else {
         auto v = dynamic_cast<DisassembledInstruction *>(
@@ -248,6 +283,15 @@ bool RegPointerPredicate::cutoff(SearchState *state) {
                     || assembly->getId() == ARM64_INS_STRH
                     ) {
                 for(auto mem : state->getMemTree()) {
+#if 0
+                    LOG(10, "memtree: ");
+                    IF_LOG(10) {
+                        mem.first->print(TreePrinter(2, 0));
+                        LOG(10, "");
+                        mem.second->print(TreePrinter(2, 0));
+                    }
+                    LOG(10, "");
+#endif
                     auto tree = getOffsetTree(mem.first);
                     if(tree) {
                         offsetTree = tree;
@@ -263,16 +307,41 @@ bool RegPointerPredicate::cutoff(SearchState *state) {
 
 address_t RegPointerPredicate::getOffset() {
 #if 0
-    LOG(1, "tree is: ");
+    LOG(10, "tree is: ");
     if(offsetTree) {
-        IF_LOG(1) offsetTree->print(TreePrinter(2, 0));
+        IF_LOG(10) offsetTree->print(TreePrinter(2, 0));
     }
     else {
-        LOG(1, "--------not found------------");
+        LOG(10, "--------not found------------");
     }
-    LOG(1, "");
+    LOG(10, "");
 #endif
     return (offsetTree) ? offsetTree->getValue() : 0;
+}
+
+class CFGFactory {
+private:
+    Function *lastFunction;
+    ControlFlowGraph *cfg;
+
+public:
+    CFGFactory() : lastFunction(nullptr), cfg(nullptr) {}
+    ~CFGFactory() { delete cfg; }
+    ControlFlowGraph *getControlFlowGraph(Function *function);
+
+    static CFGFactory& instance() {
+        static CFGFactory factory;
+        return factory;
+    }
+};
+
+ControlFlowGraph *CFGFactory::getControlFlowGraph(Function *function) {
+    if(lastFunction != function) {
+        delete cfg;
+        lastFunction = function;
+        cfg = new ControlFlowGraph(function);
+    }
+    return cfg;
 }
 
 address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
@@ -284,13 +353,23 @@ address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
     auto reg =
         assembly->getAsmOperands()->getOperands()[regIndex].reg;
 
-    ControlFlowGraph cfg(function);
+    auto factory = CFGFactory::instance();
+    auto cfg = factory.getControlFlowGraph(function);
 
     RegPointerPredicate rpp(reg);
-    ForwardSlicing forward;
-    SlicingSearch search(&cfg, &forward, &rpp);
+    ForwardSlicingSearch search(cfg, &rpp);
     auto next = dynamic_cast<Instruction *>(instruction->getNextSibling());
+
+    LOG(10, "makeTargetAddress for 0x" << std::hex << instruction->getAddress());
     search.sliceAt(next, reg);
+
+#if 0
+    if(rpp.getOffset() == 0) {
+        cfg->dump();
+        LOG(10, "function name = " << function->getName());
+        LOG(10, "function size = " << std::dec << function->getSize());
+    }
+#endif
 
     return assembly->getAsmOperands()->getOperands()[1].imm + rpp.getOffset();
 }
@@ -312,8 +391,8 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         }
         else {
             //LOG(1, " --> data link");
-            auto link = new DataOffsetLink(
-                module->getElfSpace()->getElfMap(), target);
+            auto link = LinkFactory::makeDataLink(module, target, true);
+            if(!link) throw "failed to create link!";
             auto linked = new LinkedInstruction(instruction, *assembly);
             linked->setLink(link);
             return linked;

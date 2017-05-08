@@ -99,8 +99,6 @@ public:
     }
 };
 
-typedef DirectedSearchState<BackwardFlow> BackwardSearchState;
-typedef DirectedSearchState<ForwardFlow> ForwardSearchState;
 
 class SlicingUtilities {
 public:
@@ -125,6 +123,7 @@ public:
 };
 
 class BackwardSlicing {
+    typedef DirectedSearchState<BackwardFlow> BackwardSearchState;
 public:
     int step() const { return -1; }
     bool isIndexValid(int index, int size) { return (index >= 0); }
@@ -137,6 +136,7 @@ public:
 };
 
 class ForwardSlicing {
+    typedef DirectedSearchState<ForwardFlow> ForwardSearchState;
 public:
     int step() const { return 1; }
     bool isIndexValid(int index, int size) { return (index < size); }
@@ -207,7 +207,7 @@ public:
         { return SlicingDirector().makeSearchState(other); }
 };
 
-typedef DirectedSlicingSearch<ForwardSlicing> ForwardSlicingSearch;
 typedef DirectedSlicingSearch<BackwardSlicing> BackwardSlicingSearch;
+typedef DirectedSlicingSearch<ForwardSlicing> ForwardSlicingSearch;
 
 #endif
