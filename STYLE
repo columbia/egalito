@@ -1,0 +1,35 @@
+Indent style:
+- indent 4 spaces
+- use same-line brace placement without cuddled else, i.e.
+    if(something) {
+        code();
+    }
+    else {
+        more_code();
+    }
+- if statements without braces must be on one line:
+    if(x) LOG(1, "error");
+- if code is longer than ~80 characters, wrap and indent 4 chars, e.g.
+    if(this && that && something_else() && ...
+        && ...) {
+
+        // ... code
+    }
+    void long_function_name(arg1, arg2, ...,
+        argN, argN+1) {
+
+        // ... code
+    }
+- for functions in header files, write on one line or wrap at braces:
+    virtual Chunk *getParent() const { return parent; }
+    virtual SpatialChunkList<ChildType> *getSpatial()
+        { if(!spatial) createSpatial(); return spatial; }
+
+
+Other points:
+- consider forward declaring classes to reduce header dependencies
+- all output should go through LOG macros
+- if log/log.h is included in any .cpp file, it should be the last #include
+- all getter functions should be const if possible
+- use address_t for addresses (not void*, unsigned long, etc)
+- wrap arch-specific code in ARCH_* macros, or #error if not supported
