@@ -15,19 +15,17 @@
 
 .global initial_stack
 .global entry
-.global main_tp
 .global _start2
+.global _set_tpidr_el0
 
 .section .bss
 .align 8    //only GOT requires 8-byte alignment?
 initial_stack:
-		.skip   8
+    .skip   8
 saved_x0:
-		.skip   8
+    .skip   8
 entry:
-		.skip   PTR_SIZE
-main_tp:
-		.skip   PTR_SIZE
+    .skip   PTR_SIZE
 
 
 /* This is the canonical entry point, usually the first thing in the text
@@ -109,27 +107,26 @@ _start:
 	bl	abort
 
 _start2:
-		ldr     x1, =main_tp
-		ldr     x1, [x1]
-		msr     tpidr_el0, x1
+    ldr     x1, =initial_stack
+    ldr     x1, [x1]
+    #adrp    x1, :pg_hi21:initial_stack
+    #ldr     x1, [x1, #:lo12:initial_stack]
+    mov     sp, x1
+    ldr     x1, =saved_x0
+    ldr     x0, [x1]
+    #adrp    x1, :pg_hi21:saved_x0
+    #ldr     x0, [x1, #:lo12:saved_x0]
 
-		ldr     x1, =initial_stack
-		ldr     x1, [x1]
-		#adrp    x1, :pg_hi21:initial_stack
-		#ldr     x1, [x1, #:lo12:initial_stack]
-		mov     sp, x1
-		ldr     x1, =saved_x0
-		ldr     x0, [x1]
-		#adrp    x1, :pg_hi21:saved_x0
-		#ldr     x0, [x1, #:lo12:saved_x0]
+    ldr     x1, =entry
+    ldr     x1, [x1]
+    #adrp    x1, :pg_hi21:entry
+    #ldr     x1, [x1, #:lo12:entry]
+    br      x1
+    bl      abort
 
-		ldr     x1, =entry
-		ldr     x1, [x1]
-		#adrp    x1, :pg_hi21:entry
-		#ldr     x1, [x1, #:lo12:entry]
-		br      x1
-		bl      abort
-
+_set_tpidr_el0:
+    msr     tpidr_el0, x0
+    ret
 
 	/* Define a symbol for the first piece of initialized data.  */
 	.data

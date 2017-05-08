@@ -31,6 +31,7 @@ extern Conductor *global_conductor;
 void LoaderEmulator::useArgv(char **argv) {
     Emulation::_dl_argv = argv;
     addSymbol("_dl_argv", Emulation::_dl_argv);
+    // __init_misc() in glibc will overwrite this to argv[1]
     Emulation::__progname_full = argv[0];
     addSymbol("__progname_full", Emulation::__progname_full);
 
@@ -38,6 +39,11 @@ void LoaderEmulator::useArgv(char **argv) {
     while(*environ) environ ++;
     environ ++;
     Emulation::__environ = environ;
+}
+
+LoaderEmulator LoaderEmulator::instance;
+
+LoaderEmulator::LoaderEmulator() {
     addSymbol("__environ", &Emulation::__environ);
 
     addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
@@ -62,11 +68,6 @@ void LoaderEmulator::useArgv(char **argv) {
 
     Emulation::_rtld_global_ro._dl_lookup_symbol_x
         = (void *)&Emulation::function_not_implemented;
-}
-
-LoaderEmulator LoaderEmulator::instance;
-
-LoaderEmulator::LoaderEmulator() {
 }
 
 address_t LoaderEmulator::findSymbol(const std::string &symbol) {

@@ -19,11 +19,7 @@
 
 extern address_t entry;
 extern const char *initial_stack;
-extern address_t main_tp;
 extern "C" void _start2(void);
-#ifdef ARCH_X86_64
-extern "C" void _set_fs(address_t fs);
-#endif
 
 static void mapSegments(ConductorSetup *setup);
 static void otherPasses(ConductorSetup *setup);
@@ -41,8 +37,6 @@ int main(int argc, char *argv[]) {
     GroupRegistry::getInstance()->dumpSettings();
 
     LOG(0, "loading ELF program [" << argv[1] << "]");
-
-    LoaderEmulator::getInstance().useArgv(argv);
 
     try {
         ConductorSetup setup;
@@ -63,6 +57,7 @@ int main(int argc, char *argv[]) {
         // set up execution environment
         adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
         initial_stack += removeLoaderFromArgv(argv);
+        LoaderEmulator::getInstance().useArgv(argv);
 
         auto libc = setup.getConductor()->getLibraryList()->getLibc();
         std::cout.flush();
@@ -71,7 +66,7 @@ int main(int argc, char *argv[]) {
         PrepareTLS::prepare(setup.getConductor());
 
         if(libc && libc->getElfSpace()) {
-            CallInit::callInitFunctions(libc->getElfSpace());
+            CallInit::callInitFunctions(libc->getElfSpace(), argv);
         }
 
         // jump to the interpreter/target program (never returns)

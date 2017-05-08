@@ -1,23 +1,23 @@
 #include "callinit.h"
+#include "emulator.h"
 #include "elf/elfspace.h"
 #include "chunk/concrete.h"
 #include "operation/find2.h"
 #include "log/log.h"
 
-// Note: this is not implemented yet, but in order to call the init functions,
-// we must pass argc, argv, envp. We have to make sure we pass the modified
-// ones, currently this is modified on the stack only, to remove argv[0].
-
-void CallInit::callInitFunctions(ElfSpace *space) {
+void CallInit::callInitFunctions(ElfSpace *space, char **argv) {
     auto elf = space->getElfMap();
     auto module = space->getModule();
 
     auto _init = ChunkFind2().findFunctionInModule("_init", module);
     if(_init) {
-        //LOG(1, "invoking init function " << _init->getName());
-        // !!! we should actually call this from transformed code...
-        //((void (*)())_init->getAddress())();
-        //((void (*)(int, char*, char*))_init->getAddress())(0, nullptr, nullptr);
+        auto argc = *((unsigned long *)argv - 1);
+        auto envp = reinterpret_cast<char **>(
+            LoaderEmulator::getInstance().findSymbol("__environ"));
+
+        LOG(1, "invoking init function " << _init->getName());
+        // !!! we should actually call this in transformed code...
+        ((void (*)(int, char **, char **))_init->getAddress())(argc, argv, envp);
     }
 
     auto init_array = elf->findSection(".init_array");
@@ -35,6 +35,7 @@ void CallInit::callInitFunctions(ElfSpace *space) {
                 // !!! we should actually call this from transformed code...
                 //((void (*)())chunk->getAddress())();
                 //((void (*)(int, char*, char*))chunk->getAddress())(0, nullptr, nullptr);
+                // !!! call the init_array functions
             }
         }
     }

@@ -5,6 +5,8 @@
 
 #ifdef ARCH_X86_64
 extern "C" void _set_fs(address_t fs);
+#elif defined(ARCH_AARCH64)
+extern "C" void _set_tpidr_el0(address_t addr);
 #endif
 
 void PrepareTLS::prepare(Conductor *conductor) {
@@ -20,5 +22,8 @@ void PrepareTLS::prepare(Conductor *conductor) {
 
     LOG(1, "set %""fs to point at " << main_tp);
     _set_fs(main_tp);
+#elif defined(ARCH_AARCH64)
+    auto main_tp = conductor->getMainThreadPointer();
+    _set_tpidr_el0(main_tp);
 #endif
 }
