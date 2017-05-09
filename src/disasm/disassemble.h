@@ -29,7 +29,7 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
+#if defined(ARCH_ARM)
     static Module *module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList=nullptr);
     static Function *function(ElfMap *elfMap, Symbol *symbol, MappingSymbolList *mappingSymbolList=nullptr);
 #else
@@ -48,8 +48,8 @@ public:
     static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
 
 private:
-    static void disassembleBlock(Handle &handle,
-        Function *function, Block **block, address_t readAddress,
+    static void disassembleBlocks(Handle &handle,
+        Function *function, /* Block **block, */ address_t readAddress,
         size_t readSize, address_t virtualAddress);
 };
 
