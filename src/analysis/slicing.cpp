@@ -492,8 +492,7 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
         a1.imm = asmOps->getOperands()[0].imm;
         a2.reg = asmOps->getOperands()[1].reg;
     }
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-
+#elif defined(ARCH_AARCH64)
     if(asmOps->getOpCount() == 2) {
         if(asmOps->getOperands()[0].type == ARM64_OP_REG
            && asmOps->getOperands()[1].type == ARM64_OP_REG) {
@@ -553,6 +552,8 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             a3.mem = &asmOps->getOperands()[2].mem;
         }
     }
+#elif defined(ARCH_ARM)
+    mode = MODE_UNKNOWN;
 #endif
 }
 

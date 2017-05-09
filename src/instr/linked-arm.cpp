@@ -131,17 +131,12 @@ uint32_t LinkedInstruction::getOriginalOffset() const {
     }
 }
 
-void LinkedInstruction::writeTo(char *target) {
+void LinkedInstruction::writeTo(char *target, bool useDisp) {
     *reinterpret_cast<uint32_t *>(target) = rebuild();
 }
-void LinkedInstruction::writeTo(std::string &target) {
+void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     uint32_t data = rebuild();
     target.append(reinterpret_cast<const char *>(&data), getSize());
-}
-std::string LinkedInstruction::getData() {
-    std::string data;
-    writeTo(data);
-    return data;
 }
 
 LinkedInstruction::Mode LinkedInstruction::getMode(
@@ -182,6 +177,7 @@ void LinkedInstruction::regenerateAssembly() {
 }
 
 
+#if 0
 class RegPointerPredicate : public SlicingHalt {
 private:
     int reg;
@@ -278,6 +274,7 @@ address_t RegPointerPredicate::getOffset() {
 #endif
     return (offsetTree) ? offsetTree->getValue() : 0;
 }
+#endif
 
 address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
                                                Assembly *assembly, int regIndex) {
@@ -288,6 +285,7 @@ address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
   auto reg =
     assembly->getAsmOperands()->getOperands()[regIndex].reg;
 
+#if 0
   ControlFlowGraph cfg(function);
 
   RegPointerPredicate rpp(reg);
@@ -297,6 +295,9 @@ address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
   search.sliceAt(next, reg);
 
   return assembly->getAsmOperands()->getOperands()[1].imm + rpp.getOffset();
+#else
+  return assembly->getAsmOperands()->getOperands()[1].imm;
+#endif
 
 }
 

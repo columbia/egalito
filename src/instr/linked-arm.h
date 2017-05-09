@@ -40,9 +40,8 @@ public:
     LinkedInstruction(Instruction *source,
                       const Assembly &assembly);
 
-    virtual void writeTo(char *target);
-    virtual void writeTo(std::string &target);
-    virtual std::string getData();
+    virtual void writeTo(char *target, bool useDisp);
+    virtual void writeTo(std::string &target, bool useDisp);
 
     void regenerateAssembly();
 
@@ -57,6 +56,7 @@ public:
 
     uint32_t rebuild();
 
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
     static address_t makeTargetAddress(Instruction *instruction,
@@ -66,6 +66,8 @@ private:
 class ControlFlowInstruction : public LinkedInstruction {
 public:
     using LinkedInstruction::LinkedInstruction;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 #endif
 
