@@ -56,7 +56,9 @@ int main(int argc, char *argv[]) {
 
         // set up execution environment
         adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
-        initial_stack += removeLoaderFromArgv(argv);
+        auto adjust = removeLoaderFromArgv(argv);
+        initial_stack += adjust;
+        argv = (char **)((char *)argv + adjust);
         LoaderEmulator::getInstance().useArgv(argv);
 
         auto libc = setup.getConductor()->getLibraryList()->getLibc();
