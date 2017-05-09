@@ -660,7 +660,8 @@ void SlicingInstructionState::defaultDetectRegReg(bool overwriteTarget) {
 void SlicingInstructionState::defaultDetectMemReg(bool overwriteTarget) {
 #ifdef ARCH_X86_64
     convertRegisterSize(a2.reg);
-    getState()->flow(Register(a1.mem->base), Register(a1.mem->index), a2.reg);
+    getState()->flow(Register(a1.mem->base), Register(a1.mem->index),
+                     a2.reg, overwriteTarget);
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     throw "not implemented";
 #endif
@@ -694,7 +695,8 @@ void SlicingInstructionState::defaultDetectRegMem(bool overwriteTarget) {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     convertRegisterSize(a1.reg);
     getState()->flow(Register(a2.extmem.mem->base),
-                     Register(a2.extmem.mem->index), a1.reg);
+                     Register(a2.extmem.mem->index),
+                     a1.reg, overwriteTarget);
 #endif
 }
 void SlicingInstructionState::defaultDetectRegRegImm(bool overwriteTarget) {
@@ -750,6 +752,8 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         detectJumpRegTrees(state, firstPass);
         return;
     }
+
+    LOG(11, "@ " << std::hex << state->getInstruction()->getAddress());
 
     SlicingUtilities u;
 
