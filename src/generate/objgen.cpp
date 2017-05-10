@@ -197,6 +197,9 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
     });
 
     for(auto alias : func->getSymbol()->getAliases()) {
+        // skip functions with the same name (due to versioning)
+        if(alias->getName() == func->getName()) continue;
+
         // add name to string table
         auto name = std::string(alias->getName());
         auto index = strtab->add(name, true);
@@ -215,6 +218,7 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
                     auto index = strtab->add(name, true);
                     auto value = symtab->add(nullptr, sym, index);
                     LOG(1, "got undefined symbol with name " << name);
+                    // !!! remove duplicates!
                     value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
                         symbol->st_shndx = SHN_UNDEF;
                     });

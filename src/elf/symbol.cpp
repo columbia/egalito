@@ -159,12 +159,38 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
                 prevSym->addAlias(sym);
             }
             else {
-                CLOG0(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding\n",
+                CLOG(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding",
                     sym->getAddress(), sym->getName());
             }
         }
         else {
             seen[sym->getAddress()] = sym;
+        }
+    }
+
+    std::map<std::string, Symbol *> seenNamed;
+    for(auto sym : *list) {
+        if(!*sym->getName()) continue;  // empty names are fine
+
+        // duplicate names for LOCAL functions (e.g. libm) are fine
+        if(sym->getBind() == Symbol::BIND_LOCAL) continue;
+
+        // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
+        if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
+
+        auto prev = seenNamed.find(sym->getName());
+        if(prev != seenNamed.end()) {
+            auto prevSym = (*prev).second;
+
+            CLOG(0, "SAME NAME symbol [%s] at addresses 0x%lx and 0x%lx",
+                sym->getName(), prevSym->getAddress(), sym->getAddress());
+                
+
+            if(!sym->getAliasFor()) sym->setAliasFor(prevSym);
+            prevSym->addAlias(sym);
+        }
+        else {
+            seenNamed[sym->getName()] = sym;
         }
     }
 

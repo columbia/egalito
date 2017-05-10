@@ -25,8 +25,7 @@ public:
         BIND_GLOBAL,
         BIND_WEAK
     };
-
- private:
+private:
     address_t address;
     size_t size;
     const char *name;
@@ -105,39 +104,39 @@ private:
 // Mapping Symbol Decorator
 class MappingSymbol {
 public:
-  enum MappingType {
-    MAPPING_ARM,
-    MAPPING_THUMB,
-    MAPPING_AARCH64,
-    MAPPING_DATA,
-    MAPPING_UNKNOWN
-  };
+    enum MappingType {
+        MAPPING_ARM,
+        MAPPING_THUMB,
+        MAPPING_AARCH64,
+        MAPPING_DATA,
+        MAPPING_UNKNOWN
+    };
 
 private:
-  MappingType mappingType;
-  Symbol *symbol;
-  address_t address;
-  size_t size;
+    MappingType mappingType;
+    Symbol *symbol;
+    address_t address;
+    size_t size;
 
-  static MappingType mappingFromElfToInternal(unsigned char type);
-  static size_t mappingTypeToWordSize(MappingType type);
+    static MappingType mappingFromElfToInternal(unsigned char type);
+    static size_t mappingTypeToWordSize(MappingType type);
 
 public:
-  MappingSymbol(Symbol *symbol) {
-    this->mappingType = mappingFromElfToInternal(symbol->getName()[1]);
-    this->symbol = symbol;
-    this->address = symbol->getAddress();
-    this->size = symbol->getSize();
-  }
+    MappingSymbol(Symbol *symbol) {
+        this->mappingType = mappingFromElfToInternal(symbol->getName()[1]);
+        this->symbol = symbol;
+        this->address = symbol->getAddress();
+        this->size = symbol->getSize();
+    }
 
-  MappingType getType() const { return mappingType; }
-  Symbol *getSymbol() const { return symbol; }
-  address_t getAddress() const { return address; }
-  size_t getSize() const { return size; }
-  void setSize(size_t size) { this->size = size; }
-  void setMappingType(MappingType type) { this->mappingType = type; }
-  bool isLastMappingSymbol() { return this->size == 0; }
-  static bool isMappingSymbol(Symbol *symbol);
+    MappingType getType() const { return mappingType; }
+    Symbol *getSymbol() const { return symbol; }
+    address_t getAddress() const { return address; }
+    size_t getSize() const { return size; }
+    void setSize(size_t size) { this->size = size; }
+    void setMappingType(MappingType type) { this->mappingType = type; }
+    bool isLastMappingSymbol() { return this->size == 0; }
+    static bool isMappingSymbol(Symbol *symbol);
 };
 
 class MappingSymbolList {
