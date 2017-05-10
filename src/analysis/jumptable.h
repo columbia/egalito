@@ -16,6 +16,7 @@ private:
     Function *function;
     Instruction *instruction;
     address_t address;
+    address_t targetBaseAddress;
     TreeNode *indexExpr;
     Register indexRegister;
     int scale;
@@ -23,12 +24,13 @@ private:
 public:
     JumpTableDescriptor(Function *function, Instruction *instruction)
         : function(function), instruction(instruction),
-        address(0), indexExpr(nullptr), indexRegister(INVALID_REGISTER),
-        scale(1), bound(LONG_MAX) {}
+        address(0), targetBaseAddress(0), indexExpr(nullptr),
+        indexRegister(INVALID_REGISTER), scale(1), bound(LONG_MAX) {}
 
     Function *getFunction() const { return function; }
     Instruction *getInstruction() const { return instruction; }
     address_t getAddress() const { return address; }
+    address_t getTargetBaseAddress() const { return targetBaseAddress; }
     TreeNode *getIndexExpr() const { return indexExpr; }
     Register getIndexRegister() const { return indexRegister; }
     int getScale() const { return scale; }
@@ -37,6 +39,7 @@ public:
     long getEntries() const;
 
     void setAddress(address_t a) { address = a; }
+    void setTargetBaseAddress(address_t a) { targetBaseAddress = a; }
     void setIndexExpr(TreeNode *node) { indexExpr = node; }
     void setIndexRegister(Register r) { indexRegister = r; }
     void setScale(int scale) { this->scale = scale; }

@@ -90,7 +90,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
     > TreePatternTargetOffset;
 
     typedef TreePatternBinary<TreeNodeAddition,
-            TreePatternTargetBase,
+            TreePatternCapture<TreePatternTargetBase>,
             TreePatternTargetOffset
     > Form1;
 #endif
@@ -114,11 +114,13 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         LOG(1, "");
 
         d->setAddress(left->getValue() + right->getValue());
+        // assume relative jump tables
+        d->setTargetBaseAddress(left->getValue() + right->getValue());
         d->setScale(4);
         d->setIndexExpr(capture.get(1));
         // indexRegister is not known right now.
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        TreeNode *tableAddress = capture.get(0);
+        TreeNode *tableAddress = capture.get(1);
         LOG0(1, "    address of jump table: ");
         IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
         LOG(1, "");
@@ -133,7 +135,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         }
         LOG(1, "  => 0x" << std::hex << baseAddresses.front());
 
-        TreeNode *indexExpr = capture.get(1);
+        TreeNode *indexExpr = capture.get(2);
         if (auto p = dynamic_cast<TreeNodeLogicalShiftLeft *>(indexExpr)) {
             indexExpr = p->getLeft();
         }
@@ -141,8 +143,10 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         IF_LOG(1) indexExpr->print(TreePrinter(1, 0));
         LOG(1, "");
 
+        auto targetBase = dynamic_cast<TreeNodeAddress *>(capture.get(0));
 
         d->setAddress(baseAddresses.front());
+        d->setTargetBaseAddress(targetBase->getValue());
         d->setScale(4);
         d->setIndexExpr(indexExpr);
 #endif

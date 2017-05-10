@@ -23,10 +23,10 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
     for(auto descriptor : search.getTableList()) {
         // this constructor automatically creates JumpTableEntry children
 
-        LOG(1, "constructing jump table at "
-            << descriptor->getAddress() << " in ["
+        LOG(1, "constructing jump table at 0x"
+            << std::hex << descriptor->getAddress() << " in ["
             << descriptor->getFunction()->getName() << "] with "
-            << descriptor->getEntries() << " entries");
+            << std::dec << descriptor->getEntries() << " entries");
 
         JumpTable *jumpTable = nullptr;
         int count = -1;
@@ -76,8 +76,11 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
         auto p = elfMap->getCopyBaseAddress() + address;
         auto value = *reinterpret_cast<int *>(p);
-        value += descriptor->getAddress();  // for relative jump tables
-        LOG(2, "    jump table entry " << i << " value " << value);
+#ifdef ARCH_AARCH64
+        value *= 4;
+#endif
+        value += descriptor->getTargetBaseAddress();
+        LOG(2, "    jump table entry " << i << " value 0x" << std::hex << value);
 
         Chunk *inner = ChunkFind().findInnermostInsideInstruction(
             module->getFunctionList(), value);
