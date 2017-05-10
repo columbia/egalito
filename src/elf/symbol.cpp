@@ -113,6 +113,10 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         auto init = elfmap->findSection(".init");
         if(init) s->setSize(init->getHeader()->sh_size);
     }
+    if(auto s = findSizeZero(list, "_fini")) {
+        auto fini = elfmap->findSection(".fini");
+        if(fini) s->setSize(fini->getHeader()->sh_size);
+    }
 
     // for musl only
     if(auto s = list->find("__memcpy_fwd")) {
