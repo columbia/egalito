@@ -95,9 +95,12 @@ public:
 };
 
 class TreeNodeDereference : public TreeNodeUnary {
+private:
+    size_t width;
 public:
-    TreeNodeDereference(TreeNode *node)
-        : TreeNodeUnary(node, "deref") {}
+    TreeNodeDereference(TreeNode *node, size_t width)
+        : TreeNodeUnary(node, "deref"), width(width) {}
+    size_t getWidth() { return width; }
 };
 class TreeNodeJump : public TreeNodeUnary {
 public:

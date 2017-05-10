@@ -26,7 +26,8 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
         LOG(1, "constructing jump table at 0x"
             << std::hex << descriptor->getAddress() << " in ["
             << descriptor->getFunction()->getName() << "] with "
-            << std::dec << descriptor->getEntries() << " entries");
+            << std::dec << descriptor->getEntries() << " entries, each of size "
+            << std::dec << descriptor->getScale());
 
         JumpTable *jumpTable = nullptr;
         int count = -1;
@@ -75,23 +76,35 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
         auto p = elfMap->getCopyBaseAddress() + address;
-        auto value = *reinterpret_cast<int *>(p);
+        ptrdiff_t value;
+        switch(descriptor->getScale()) {
+        case 1:
+            value = *reinterpret_cast<int8_t *>(p);
+            break;
+        case 2:
+            value = *reinterpret_cast<int16_t *>(p);
+            break;
+        case 4:
+        default:
+            value = *reinterpret_cast<int32_t *>(p);
+            break;
+        }
 #ifdef ARCH_AARCH64
         value *= 4;
 #endif
-        value += descriptor->getTargetBaseAddress();
-        LOG(2, "    jump table entry " << i << " value 0x" << std::hex << value);
+        address_t target = descriptor->getTargetBaseAddress() + value;
+        LOG(2, "    jump table entry " << i << " @ 0x" << std::hex << target);
 
         Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-            module->getFunctionList(), value);
+            module->getFunctionList(), target);
         Link *link = nullptr;
         if(inner) {
-            LOG(3, "        resolved to " << inner->getName());
+            LOG(3, "        resolved to 0x" << std::hex << inner->getName());
             link = new NormalLink(inner);
         }
         else {
-            LOG(3, "        unresolved at " << value);
-            link = new UnresolvedLink(value);
+            LOG(3, "        unresolved at 0x" << std::hex << target);
+            link = new UnresolvedLink(target);
         }
         auto entry = new JumpTableEntry(link);
         entry->setPosition(PositionFactory::getInstance()

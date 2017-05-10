@@ -52,13 +52,13 @@ TEST_CASE("TreeNodeRegisterRIP canbe", "[analysis][slicingtree][fast][.]") {
 TEST_CASE("TreeNodeDereference canbe", "[analysis][slicingtree][fast][.]") {
     TreeNodeAddress ta(1);
     TreeNodeAddress tb(1);
-    TreeNodeDereference t1(&ta);
-    TreeNodeDereference t2(&tb);
+    TreeNodeDereference t1(&ta, 4);
+    TreeNodeDereference t2(&tb, 4);
 
     REQUIRE(t1.canbe(&t2) == true);
 
     TreeNodeAddress tc(2);
-    TreeNodeDereference t3(&tc);
+    TreeNodeDereference t3(&tc, 4);
     REQUIRE(t1.canbe(&t3) == false);
 
     REQUIRE(t1.canbe(&tc) == false);

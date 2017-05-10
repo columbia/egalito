@@ -119,6 +119,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
 }
 
 TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
+                                        size_t width,
                                         const arm64_op_mem *mem,
                                         arm64_extender ext,
                                         arm64_shifter sft_type,
@@ -165,7 +166,7 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
         tree = new TreeNodeConstant(mem->disp);
     }
 
-    return new TreeNodeDereference(tree);
+    return new TreeNodeDereference(tree, width);
 }
 
 TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
@@ -1065,10 +1066,6 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         LOG(11, "        sub found");
         break;
     case ARM64_INS_LDR:
-    case ARM64_INS_LDRH:
-    case ARM64_INS_LDRB:
-    case ARM64_INS_LDRSB:
-    case ARM64_INS_LDRSH:
     case ARM64_INS_LDRSW:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
             if(firstPass) {
@@ -1078,18 +1075,96 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
                                           extmem.shift.type, extmem.shift.value);
                 state->setRegTree(reg, tree);
             }
         }
         else {
-            LOG(11, "unknown mode for ldr(h|b|sb|sh|sw)");
+            LOG(11, "unknown mode for ldr(sw)");
         }
-        LOG(11, "        ldr(h|b|sb|sh|sw) found");
+        LOG(11, "        ldr(sw) found");
+        break;
+    case ARM64_INS_LDRH:
+    case ARM64_INS_LDRSH:
+        if(mode == SlicingInstructionState::MODE_REG_MEM) {
+            if(firstPass) {
+                iState->defaultDetectRegMem(true);
+            }
+            else {
+                auto reg = iState->get1()->reg;
+                auto extmem = iState->get2()->extmem;
+
+                auto tree = u.makeMemTree(state, 2, extmem.mem, extmem.ext,
+                                          extmem.shift.type, extmem.shift.value);
+                state->setRegTree(reg, tree);
+            }
+        }
+        else {
+            LOG(11, "unknown mode for ldr(s)h");
+        }
+        LOG(11, "        ldr(s)h found");
+        break;
+    case ARM64_INS_LDRB:
+    case ARM64_INS_LDRSB:
+        if(mode == SlicingInstructionState::MODE_REG_MEM) {
+            if(firstPass) {
+                iState->defaultDetectRegMem(true);
+            }
+            else {
+                auto reg = iState->get1()->reg;
+                auto extmem = iState->get2()->extmem;
+
+                auto tree = u.makeMemTree(state, 1, extmem.mem, extmem.ext,
+                                          extmem.shift.type, extmem.shift.value);
+                state->setRegTree(reg, tree);
+            }
+        }
+        else {
+            LOG(11, "unknown mode for ldr(s)b");
+        }
+        LOG(11, "        ldr(s)b found");
         break;
     case ARM64_INS_STR:
+        if(mode == SlicingInstructionState::MODE_REG_MEM) {
+            if(firstPass) {
+                iState->defaultDetectRegMem(false);
+            }
+            else {
+                auto reg = iState->get1()->reg;
+                auto extmem = iState->get2()->extmem;
+
+                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
+                                          extmem.shift.type, extmem.shift.value);
+
+                state->addMemTree(tree, u.getParentRegTree(state, reg));
+            }
+        }
+        else {
+            LOG(11, "unknown mode for str");
+        }
+        LOG(11, "        str found");
+        break;
     case ARM64_INS_STRH:
+        if(mode == SlicingInstructionState::MODE_REG_MEM) {
+            if(firstPass) {
+                iState->defaultDetectRegMem(false);
+            }
+            else {
+                auto reg = iState->get1()->reg;
+                auto extmem = iState->get2()->extmem;
+
+                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
+                                          extmem.shift.type, extmem.shift.value);
+
+                state->addMemTree(tree, u.getParentRegTree(state, reg));
+            }
+        }
+        else {
+            LOG(11, "unknown mode for strh");
+        }
+        LOG(11, "        strh found");
+        break;
     case ARM64_INS_STRB:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
             if(firstPass) {
@@ -1099,16 +1174,16 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
                                           extmem.shift.type, extmem.shift.value);
 
                 state->addMemTree(tree, u.getParentRegTree(state, reg));
             }
         }
         else {
-            LOG(11, "unknown mode for str(h|b)");
+            LOG(11, "unknown mode for strb");
         }
-        LOG(11, "        str(h|b) found");
+        LOG(11, "        strb found");
         break;
     case ARM64_INS_CMP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {

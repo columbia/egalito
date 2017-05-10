@@ -79,18 +79,19 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
     // base address could have been saved on stack
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternAny>,
-            TreePatternCapture<TreePatternAny>>,
+            TreePatternCapture<TreePatternAny>,                     // 2
+            TreePatternCapture<TreePatternAny>>,                    // 3
         TreePatternConstantIs<0>
     > TreePatternTableEntry;
 
     typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
-        TreePatternUnary<TreeNodeDereference, TreePatternTableEntry>,
+        TreePatternCapture<                                         // 1
+            TreePatternUnary<TreeNodeDereference, TreePatternTableEntry>>,
         TreePatternConstantIs<2>
     > TreePatternTargetOffset;
 
     typedef TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternTargetBase>,
+            TreePatternCapture<TreePatternTargetBase>,              // 0
             TreePatternTargetOffset
     > Form1;
 #endif
@@ -120,7 +121,12 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         d->setIndexExpr(capture.get(1));
         // indexRegister is not known right now.
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        TreeNode *tableAddress = capture.get(1);
+        auto targetBase = dynamic_cast<TreeNodeAddress *>(capture.get(0));
+
+        auto scale = dynamic_cast<TreeNodeDereference *>(capture.get(1))
+            ->getWidth();
+
+        TreeNode *tableAddress = capture.get(2);
         LOG0(1, "    address of jump table: ");
         IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
         LOG(1, "");
@@ -135,7 +141,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         }
         LOG(1, "  => 0x" << std::hex << baseAddresses.front());
 
-        TreeNode *indexExpr = capture.get(2);
+        TreeNode *indexExpr = capture.get(3);
         if (auto p = dynamic_cast<TreeNodeLogicalShiftLeft *>(indexExpr)) {
             indexExpr = p->getLeft();
         }
@@ -143,11 +149,9 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         IF_LOG(1) indexExpr->print(TreePrinter(1, 0));
         LOG(1, "");
 
-        auto targetBase = dynamic_cast<TreeNodeAddress *>(capture.get(0));
-
         d->setAddress(baseAddresses.front());
         d->setTargetBaseAddress(targetBase->getValue());
-        d->setScale(4);
+        d->setScale(scale);
         d->setIndexExpr(indexExpr);
 #endif
         return true;
