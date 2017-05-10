@@ -78,8 +78,10 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
 
     // base address could have been saved on stack
     typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternAny>,
-        TreePatternCapture<TreePatternAny>
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternCapture<TreePatternAny>,
+            TreePatternCapture<TreePatternAny>>,
+        TreePatternConstantIs<0>
     > TreePatternTableEntry;
 
     typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
@@ -96,6 +98,8 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
     TreeCapture capture;
     if(Form1::matches(tree, capture)) {
         LOG(1, "found jump table jump:");
+        IF_LOG(1) tree->print(TreePrinter(1, 0));
+        LOG(1, "");
 
 #ifdef ARCH_X86_64
         LOG0(1, "    address of jump table: ");
@@ -117,6 +121,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         TreeNode *tableAddress = capture.get(0);
         LOG0(1, "    address of jump table: ");
         IF_LOG(1) tableAddress->print(TreePrinter(1, 0));
+        LOG(1, "");
         std::vector<address_t> baseAddresses = getTableAddresses(state,
                                                                  tableAddress);
         if(baseAddresses.size() == 0) {
@@ -155,6 +160,9 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
         auto tree = state->getRegTree(X86_REG_EFLAGS);
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         auto tree = state->getRegTree(ARM64_REG_NZCV);
+        LOG(1, "condition flag:");
+        IF_LOG(1) tree->print(TreePrinter(2, 0));
+        LOG(1, "");
 #endif
         auto condition = dynamic_cast<TreeNodeComparison *>(tree);
         if(!condition) continue;
@@ -249,7 +257,7 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
             return true;
         }
         else {
-            // this single level intepretation seems to be enought for AARCH64
+            // this single level intepretation seems to be enough for AARCH64
             if(auto mult = dynamic_cast<TreeNodeMultipleParents *>(indexExpr)) {
                 for(auto sub : mult->getParents()) {
                     if(leftGeneric == sub
@@ -300,29 +308,15 @@ static TreeNodeConstant *findConstantInParents(SearchState *state, TreeNode *tre
 std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
     TreeNode *tree) {
 
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>,
-            TreePatternCapture<TreePatternAny>
-        >
-    > TreePatternTableBase;
-
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternAny>,
-            TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-        >
-    > TreePatternTableBase2;
-
-    typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>,
-        TreePatternCapture<TreePatternAny>
-    > TreePatternTableBaseAddress;
-
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternAny>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-    > TreePatternTableBaseAddress2;
+    > TreePatternTableBase;
+
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternTableBase
+    > TreePatternTableBaseLoad;
 
     std::vector<address_t> baseAddresses;
 
@@ -339,84 +333,46 @@ std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
         return baseAddresses;
     }
 
-    TreeCapture *cap1, cap11, cap12;
-    int constant_idx1;
-    int any_idx1;
-    if(TreePatternTableBase::matches(tree, cap11)) {
-        constant_idx1 = 0;
-        any_idx1 = 1;
-        cap1 = &cap11;
-    }
-    else if(TreePatternTableBase2::matches(tree, cap12)) {
-        any_idx1 = 0;
-        constant_idx1 = 1;
-        cap1 = &cap12;
-    }
-    else {
-        LOG(1, "this doesn't match the table base pattern");
-        IF_LOG(1) tree->print(TreePrinter(2, 0));
-        LOG(1, "");
+
+    TreeCapture cap1;
+    if(TreePatternTableBase::matches(tree, cap1)) {
+        auto a = dynamic_cast<TreeNodeAddress *>(cap1.get(0));
+        auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(1));
+        if(a && c) {
+            baseAddresses.push_back(a->getValue() + c->getValue());
+        }
         return baseAddresses;
     }
 
-    for(auto const &m : state->getMemTree()) {
-        TreeCapture *cap2, cap21, cap22;
-        int constant_idx2;
-        int any_idx2;
-        if(TreePatternTableBase::matches(m.first, cap21)) {
-            constant_idx2 = 0;
-            any_idx2 = 1;
-            cap2 = &cap21;
-        }
-        else if(TreePatternTableBase2::matches(m.first, cap22)) {
-            any_idx2 = 0;
-            constant_idx2 = 1;
-            cap2 = &cap22;
-        }
-        else {
-            continue;
-        }
-        auto c1 = dynamic_cast<TreeNodeConstant *>(cap1->get(constant_idx1));
-        auto c2 = dynamic_cast<TreeNodeConstant *>(cap2->get(constant_idx2));
-        if(c1->getValue() == c2->getValue()) {
-            if(auto base = dynamic_cast<TreeNodeAddress *>(m.second)) {
-                address_t ba = c1->getValue() + base->getValue();
-                baseAddresses.push_back(ba);
+    cap1.clear();
+    if(TreePatternTableBaseLoad::matches(tree, cap1)) {
+        for(auto const &m : state->getMemTree()) {
+            TreeCapture cap2;
+            if(!TreePatternTableBaseLoad::matches(m.first, cap2)) {
+                continue;
             }
-            else {
-                auto mult = dynamic_cast<TreeNodeMultipleParents *>(
-                    cap2->get(any_idx2));
 
-                if(mult && mult->canbe(cap1->get(any_idx1))) {
+            auto c1 = dynamic_cast<TreeNodeConstant *>(cap1.get(1));
+            auto c2 = dynamic_cast<TreeNodeConstant *>(cap2.get(1));
+            if(c1->getValue() == c2->getValue()) {
+                if(auto base = dynamic_cast<TreeNodeAddress *>(m.second)) {
+                    address_t ba = base->getValue() + c1->getValue();
+                    baseAddresses.push_back(ba);
+                }
+                else if(auto mult =
+                    dynamic_cast<TreeNodeMultipleParents *>(cap2.get(0))) {
 
-                    TreeCapture *cap3, cap31, cap32;
-                    int constant_idx3;
-                    int any_idx3;
-
-                    if(TreePatternTableBaseAddress::matches(m.second, cap31)) {
-                        constant_idx3 = 0;
-                        any_idx3 = 1;
-                        cap3 = &cap31;
-                    }
-                    else if(TreePatternTableBaseAddress2::matches(
-                        m.second, cap32)) {
-
-                        any_idx3 = 0;
-                        constant_idx3 = 1;
-                        cap3 = &cap32;
-                    }
-                    else {
-                        continue;
-                    }
-
-                    if(auto base = findAddressInParents(state,
-                        cap3->get(any_idx3))) {
-
-                        if(auto off = findConstantInParents(state,
-                            cap3->get(constant_idx3))) {
-
-                            address_t addr = base->getValue() + off->getValue();
-                            baseAddresses.push_back(addr);
+                    if(mult->canbe(cap1.get(0))) {
+                        TreeCapture cap3;
+                        if(!TreePatternTableBase::matches(m.second, cap3)) {
+                            continue;
+                        }
+                        if(auto base = findAddressInParents(state, cap3.get(0))) {
+                            if(auto off = findConstantInParents(state,
+                                                                cap3.get(1))) {
+                                address_t ba = base->getValue() + off->getValue();
+                                baseAddresses.push_back(ba);
+                            }
                         }
                     }
                 }
