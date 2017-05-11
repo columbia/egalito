@@ -76,12 +76,14 @@ $(BUILDDIR)python/%.o: python/%.cpp
 $(BUILDDIR)shell/shell.o: shell/shell.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 
-$(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/libegalito.a
+$(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/$(BUILDDIR)libegalito.a
 	$(CXX) $(CXXFLAGS) -fPIC -o $@ $< -l$(BOOST_PYTHON_LIB) -l$(PYTHON_LIB)  $(CLDFLAGS) -shared
 
 # Programs and libraries
-$(ETSHELL): $(ETSHELL_OBJECTS) ../src/libegalito.a
+$(ETSHELL): $(ETSHELL_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
+
+$(ETSHELL): ../src/$(BUILDDIR)libegalito.so
 
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell

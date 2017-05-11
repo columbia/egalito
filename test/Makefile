@@ -67,10 +67,13 @@ DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 -include $(DEPEND_FILES)
 
 # Programs and libraries
-$(ITEST): $(ITEST_OBJECTS) ../src/libegalito.a
+$(ITEST): $(ITEST_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
-$(RUNNER): $(RUNNER_OBJECTS) ../src/libegalito.a
+$(RUNNER): $(RUNNER_OBJECTS) | ../src/libegalito.so
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
+
+$(ITEST): ../src/$(BUILDDIR)libegalito.so
+$(RUNNER): ../src/$(BUILDDIR)libegalito.so
 
 # Other targets
 .PHONY: clean realclean
