@@ -7,6 +7,7 @@
 #include "chunk/tls.h"
 #include "chunk/dataregion.h"
 #include "disasm/disassemble.h"
+#include "pass/fallthrough.h"
 #include "pass/pcrelative.h"
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
@@ -75,6 +76,9 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 #endif
 
     this->module->setElfSpace(this);
+
+    FallThroughFunctionPass fallThrough;
+    module->accept(&fallThrough);
 
     InternalCalls internalCalls;
     module->accept(&internalCalls);
