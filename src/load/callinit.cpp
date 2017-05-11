@@ -12,8 +12,8 @@ void CallInit::callInitFunctions(ElfSpace *space, char **argv) {
     auto _init = ChunkFind2().findFunctionInModule("_init", module);
     if(_init) {
         auto argc = *((unsigned long *)argv - 1);
-        auto envp = reinterpret_cast<char **>(
-            LoaderEmulator::getInstance().findSymbol("__environ"));
+        auto envp = (char **) *(unsigned long *)
+            LoaderEmulator::getInstance().findSymbol("__environ");
 
         LOG(1, "invoking init function " << _init->getName());
         // !!! we should actually call this in transformed code...

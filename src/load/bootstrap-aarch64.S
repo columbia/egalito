@@ -56,16 +56,16 @@ entry:
 	.globl _start
 	.type _start,#function
 _start:
-		# save for _start2
-		add     x2, sp, #0
-		ldr     x1, =initial_stack
-		str     x2, [x1]
-		#adrp    x1, :pg_hi21:initial_stack
-		#str     x2, [x1, #:lo12:initial_stack]
-		ldr     x1, =saved_x0
-		str     x0, [x1]
-		#adrp    x1, :pg_hi21:saved_x0
-		#str     x0, [x1, #:lo12:saved_x0]
+	# save for _start2
+	add     x2, sp, #0
+	ldr     x1, =initial_stack
+	str     x2, [x1]
+	#adrp    x1, :pg_hi21:initial_stack
+	#str     x2, [x1, #:lo12:initial_stack]
+	ldr     x1, =saved_x0
+	str     x0, [x1]
+	#adrp    x1, :pg_hi21:saved_x0
+	#str     x0, [x1, #:lo12:saved_x0]
 
 	/* Create an initial frame with 0 LR and FP */
 	mov	x29, #0
