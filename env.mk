@@ -27,7 +27,7 @@ endif
 endif
 
 OPT_FLAGS       = -g -O2
-DEPFLAGS        = -MT $@ -MMD -MF $(@:.o=.d) -MP
+DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CLDFLAGS        = $(CROSSLD) -lcapstone -Wl,-q
@@ -101,6 +101,6 @@ $(BUILDDIR)%.o: %.c
 $(BUILDDIR)%.o: %.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.so: %.c
-	$(SHORT_CC) -fPIC $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(SHORT_CC) -fPIC $(CFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.so: %.cpp
-	$(SHORT_CXX) -fPIC $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+	$(SHORT_CXX) -fPIC $(CXXFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<

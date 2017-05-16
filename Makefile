@@ -7,7 +7,7 @@ ifdef USE_CONFIG
 endif
 
 .PHONY: all src test app clean realclean
-all: src test
+all: src test app
 src:
 	$(MAKE) -C src
 test: src
