@@ -8,7 +8,13 @@
 class Function;
 class Block;
 
+namespace ControlFlow {
+    typedef int id_t;
+};
+
 class ControlFlowLink {
+public:
+    using id_t = ControlFlow::id_t;
 private:
     id_t id;
     int offset;
@@ -24,7 +30,7 @@ public:
 
 class ControlFlowNode {
 public:
-    typedef int id_t;
+    using id_t = ControlFlow::id_t;
 private:
     id_t id;
     Block *block;
@@ -55,6 +61,8 @@ public:
 };
 
 class ControlFlowGraph {
+public:
+    using id_t = ControlFlow::id_t;
 private:
     std::vector<ControlFlowNode> graph;
     std::map<Block *, ControlFlowNode::id_t> blockMapping;
