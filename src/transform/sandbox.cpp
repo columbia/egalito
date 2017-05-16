@@ -25,10 +25,10 @@ MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
         | MAP_32BIT
 #endif
         , -1, 0);
-    if(base != _ADDRESS) throw "Overlapping with other regions?";
     if(base == (address_t)-1) {
         throw std::bad_alloc();
     }
+    if(base != _ADDRESS) throw "Overlapping with other regions?";
 #undef _ADDRESS
 }
 
