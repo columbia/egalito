@@ -279,6 +279,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 
             currentState->setInstruction(i);
 
+#ifdef ARCH_X86_64
             stillSearching = false;
             for(auto r : currentState->getRegs()) {
                 if(r) {
@@ -287,6 +288,10 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                 }
             }
             if(!stillSearching) break;
+#else
+            // disable early cutoff until memory location flow is
+            // implemented in the first pass
+#endif
 
             buildStateFor(currentState);
             stateList.push_back(currentState);
@@ -307,7 +312,8 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                     Instruction *newStart
                         = newNode->getBlock()->getChildren()->getSpatial()->find(
                             newNode->getBlock()->getAddress() + offset);
-                    LOG(11, "    start at offset " << offset << " -> " << newStart);
+                    LOG(11, "    start at offset " << offset
+                        << " -> " << newStart->getAddress());
                     SearchState *newState = makeSearchState(*currentState);
                     newState->setNode(newNode);
                     newState->setInstruction(newStart);
