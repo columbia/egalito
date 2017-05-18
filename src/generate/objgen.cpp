@@ -110,23 +110,13 @@ void ObjGen::makeText() {
 }
 
 void ObjGen::makeSymbolInfo() {
-    auto symtab = new SymbolTableContent();
+    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
+
+    auto symtab = new SymbolTableContent(strtab);
     auto symtabSection = new Section(".symtab", SHT_SYMTAB);
     symtabSection->setContent(symtab);
 
-    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
-
-    {  // add null symbol
-        auto symbol = new ElfXX_Sym();
-        symbol->st_name = strtab->add("", 1);  // add empty name
-        symbol->st_info = 0;
-        symbol->st_other = STV_DEFAULT;
-        symbol->st_shndx = 0;
-        symbol->st_value = 0;
-        symbol->st_size = 0;
-        symtab->add(symbol);
-    }
-
+    symtab->addNullSymbol();
     // other symbols will be added later
 
     symtabSection->getHeader()->setSectionLink(
@@ -174,24 +164,19 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
         if(sym->isFunction()) continue;  // already handled
         if(blacklistedSymbol(sym->getName())) continue;  // blacklisted
 
-        if(sym->getSectionIndex() == SHT_NULL) {  // undefined symbol
-            auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
+        // undefined symbol
+        if(sym->getSectionIndex() == SHN_UNDEF) {
             auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
-
-            // add name to string table
-            auto index = strtab->add(sym->getName(), true);
-            symtab->add(nullptr, sym, index);
+            symtab->addUndefinedSymbol(sym);
         }
     }
 }
 
 void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
-    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
     // add name to string table
-    auto index = strtab->add(func->getName(), true);
-    auto value = symtab->add(func, func->getSymbol(), index);
+    auto value = symtab->addSymbol(func, func->getSymbol());
     value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
         symbol->st_shndx = sectionList.indexOf(textSection);
     });
@@ -201,9 +186,7 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
         if(alias->getName() == func->getName()) continue;
 
         // add name to string table
-        auto name = std::string(alias->getName());
-        auto index = strtab->add(name, true);
-        auto value = symtab->add(func, alias, index);
+        auto value = symtab->addSymbol(func, alias);
         value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
             symbol->st_shndx = sectionList.indexOf(textSection);
         });
@@ -214,14 +197,8 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
             if(auto link = instr->getSemantic()->getLink()) {
                 if(auto sol = dynamic_cast<PLTLink *>(link)) {
                     auto sym = sol->getPLTTrampoline()->getTargetSymbol();
-                    auto name = std::string(sym->getName());
-                    auto index = strtab->add(name, true);
-                    auto value = symtab->add(nullptr, sym, index);
-                    LOG(1, "got undefined symbol with name " << name);
-                    // !!! remove duplicates!
-                    value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
-                        symbol->st_shndx = SHN_UNDEF;
-                    });
+                    symtab->addUndefinedSymbol(sym);
+                    LOG(1, "undefined symbol with name " << sym->getName());
                 }
             }
         }
@@ -273,8 +250,10 @@ void ObjGen::makeShdrTable() {
 
             if(dynamic_cast<SymbolTableContent *>(section->getContent())) {
                 deferred->addFunction([this, shdrTable] (ElfXX_Shdr *shdr) {
+                    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
                     //shdr->sh_info = shdrTable->getCount();
-                    shdr->sh_info = sectionSymbolCount + 1;
+                    //shdr->sh_info = sectionSymbolCount + 1;
+                    shdr->sh_info = symtab->getFirstGlobalIndex();
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
                     shdr->sh_addralign = 8;
                 });
@@ -299,7 +278,6 @@ void ObjGen::updateSymbolTable() {
     auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
 
     // add section symbols
-    int index = 1;  // skip the NULL symbol at index 0
     for(auto shdr : *shdrTable) {
         auto section = shdrTable->getKey(shdr);
         if(!section->getHeader()) continue;
@@ -309,10 +287,9 @@ void ObjGen::updateSymbolTable() {
             Symbol::typeFromElfToInternal(STT_SECTION),
             Symbol::bindFromElfToInternal(STB_LOCAL),
             0, sectionList.indexOf(section));
-        symtab->add(symbol, index ++);
+        symtab->addSectionSymbol(symbol);
     }
     symtab->recalculateIndices();
-    sectionSymbolCount = index - 1;
 }
 
 void ObjGen::updateOffsets() {

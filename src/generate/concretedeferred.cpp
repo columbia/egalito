@@ -11,24 +11,63 @@
 #include "instr/concrete.h"
 #include "log/log.h"
 
-SymbolTableContent::DeferredType *SymbolTableContent
-    ::add(Function *func, Symbol *sym, size_t strndx) {
+bool SymbolInTable::operator < (const SymbolInTable &other) const {
+    if(type < other.type) return true;
+    if(type > other.type) return false;
 
-    ElfXX_Sym *symbol = new ElfXX_Sym();
-    symbol->st_name = static_cast<ElfXX_Word>(strndx);
-    symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
-    symbol->st_other = STV_DEFAULT;
-    symbol->st_shndx = SHN_UNDEF;
-    symbol->st_value = func ? func->getAddress() : 0;
-    symbol->st_size = func ? func->getSize() : 0;
-    auto value = new DeferredType(symbol);
-    DeferredMap<Symbol *, ElfXX_Sym>::add(sym, value);
-    return value;
+#if 1
+    // NULL symbols are ordered first
+    bool null1 = (sym == nullptr);
+    bool null2 = (other.get() == nullptr);
+    if(null1 && !null2) return true;
+    if(!null1 && null2) return false;
+    if(null1 && null2) return false;  // shouldn't happen
+#endif
+
+#if 0
+    auto address1 = sym->getAddress();
+    auto address2 = other.get()->getAddress();
+    if(!address1 && address2) return true;
+    if(address1 && !address2) return false;
+    if(address1 && address2) {
+        if(address1 < address2) return true;
+        if(address1 > address2) return false;
+    }
+#endif
+
+    int nameCompare = std::strcmp(sym->getName(), other.get()->getName());
+    if(nameCompare < 0) return true;
+    if(nameCompare > 0) return false;
+
+    int section1 = sym->getSectionIndex();
+    int section2 = other.get()->getSectionIndex();
+
+    return section1 < section2;
 }
 
-void SymbolTableContent::add(Symbol *sym, int index) {
+bool SymbolInTable::operator == (const SymbolInTable &other) const {
+    // right now we never copy Symbols, so we can just compare addresses
+    return sym == other.get();
+}
+
+std::string SymbolInTable::getName() const {
+    return sym ? sym->getName() : "(null)";
+}
+
+void SymbolTableContent::addNullSymbol() {
+    auto symbol = new ElfXX_Sym();
+    symbol->st_name = strtab->add("", 1);  // add empty name
+    symbol->st_info = 0;
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = 0;
+    symbol->st_value = 0;
+    symbol->st_size = 0;
+    auto sit = SymbolInTable(SymbolInTable::TYPE_NULL);
+    insertSorted(sit, new DeferredType(symbol));
+    firstGlobalIndex ++;
+}
+
+void SymbolTableContent::addSectionSymbol(Symbol *sym) {
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = 0;
     symbol->st_info = ELFXX_ST_INFO(
@@ -39,17 +78,53 @@ void SymbolTableContent::add(Symbol *sym, int index) {
     symbol->st_value = 0;
     symbol->st_size = 0;
 
+    LOG(1, "added section symbol for " << symbol->st_shndx);
+
     auto value = new DeferredType(symbol);
-    insertAt(this->begin() + index, sym, value);
+    auto sit = SymbolInTable(SymbolInTable::TYPE_SECTION, sym);
+    insertSorted(sit, value);
+    firstGlobalIndex ++;
 
     auto i = sym->getSectionIndex();
     if(i >= sectionSymbols.size()) sectionSymbols.resize(i + 1);
     sectionSymbols[i] = value;
 }
 
-void SymbolTableContent::add(ElfXX_Sym *symbol) {
-    DeferredMap<Symbol *, ElfXX_Sym>::add(nullptr,
-        new DeferredType(symbol));
+SymbolTableContent::DeferredType *SymbolTableContent
+    ::addSymbol(Function *func, Symbol *sym) {
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = SHN_UNDEF;
+    symbol->st_value = func ? func->getAddress() : 0;
+    symbol->st_size = func ? func->getSize() : 0;
+    auto value = new DeferredType(symbol);
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        insertSorted(sit, value);
+        firstGlobalIndex ++;
+    }
+    else {
+        auto sit = SymbolInTable(func
+            ? SymbolInTable::TYPE_GLOBAL
+            : SymbolInTable::TYPE_UNDEF, sym);
+        insertSorted(sit, value);
+    }
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
+    ::addUndefinedSymbol(Symbol *sym) {
+
+    // uses st_shndx = SHN_UNDEF by default
+    return addSymbol(nullptr, sym);
 }
 
 size_t SymbolTableContent::indexOfSectionSymbol(const std::string &section,
@@ -166,9 +241,12 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
     auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
     deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
-        auto elfSym = symtab->find(
+        auto sit = SymbolInTable(SymbolInTable::TYPE_UNDEF,
             link->getPLTTrampoline()->getTargetSymbol());
+        auto elfSym = symtab->find(sit);
         size_t index = symtab->indexOf(elfSym);
+        if(index == (size_t)-1) LOG(1, "ERROR with target "
+            << link->getPLTTrampoline()->getTargetSymbol()->getName());
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
     });
 
@@ -182,7 +260,9 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
     auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
     deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
-        auto elfSym = symtab->find(link->getSymbol());
+        auto sit = SymbolInTable(SymbolInTable::TYPE_UNDEF,
+            link->getSymbol());
+        auto elfSym = symtab->find(sit);
         size_t index = symtab->indexOf(elfSym);
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
     });

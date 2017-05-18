@@ -1,10 +1,12 @@
 #ifndef EGALITO_GENERATE_DEFERRED_H
 #define EGALITO_GENERATE_DEFERRED_H
 
+#include <iostream>  // for debugging
 #include <vector>
 #include <map>
 #include <string>
 #include <functional>
+#include <algorithm>
 #include "types.h"
 
 /** Base class for any output value which may need further computation.
@@ -115,9 +117,34 @@ public:
         { BaseType::add(value); valueMap[key] = value; reverseMap[value] = key; }
     void insertAt(typename BaseType::IteratorType it, KeyType key, ValueType value)
         { BaseType::insertAt(it, value); valueMap[key] = value; reverseMap[value] = key; }
+    bool insertSorted(KeyType key, ValueType value);
+    bool contains(KeyType key) const
+        { return valueMap.find(key) != valueMap.end(); }
     ValueType find(KeyType key) { return valueMap[key]; }
     KeyType getKey(ValueType value) { return reverseMap[value]; }
 };
+
+template <typename BaseType, typename KeyType>
+bool DeferredListMapDecorator<BaseType, KeyType>
+    ::insertSorted(KeyType key, ValueType value) {
+
+    std::cout << "inserting " << key.getName() << "\n";
+
+    if(contains(key)) return false;
+
+    valueMap[key] = value;
+    reverseMap[value] = key;
+
+    auto it = std::upper_bound(this->begin(), this->end(), value,
+        [this] (const ValueType &a, const ValueType &b) {
+            std::cout << "    " << getKey(a).getName()
+                << " vs " << getKey(b).getName() << "\n";
+            return getKey(a) < getKey(b);
+        });
+    std::cout << "insert at index " << it - this->begin() << "\n";
+    BaseType::insertAt(it, value);
+    return true;
+}
 
 template <typename BaseType>
 class DeferredListIndexDecorator : public BaseType {

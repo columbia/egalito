@@ -15,20 +15,49 @@ class ElfSpace;
 class Chunk;
 class SectionList;
 
-class SymbolTableContent : public DeferredMap<Symbol *, ElfXX_Sym> {
+class SymbolInTable {
+public:
+    enum type_t {
+        TYPE_NULL,
+        TYPE_SECTION,
+        TYPE_LOCAL,
+        TYPE_UNDEF,
+        TYPE_GLOBAL
+    };
+private:
+    type_t type;
+    Symbol *sym;
+public:
+    SymbolInTable(type_t type = TYPE_NULL, Symbol *sym = nullptr)
+        : type(type), sym(sym) {}
+    bool operator < (const SymbolInTable &other) const;
+    bool operator == (const SymbolInTable &other) const;
+    Symbol *get() const { return sym; }
+    std::string getName() const;
+};
+
+/** Symbol table, either .strtab or .dynstr. The ordering of symbols
+    is determined by the symbolCompare function.
+*/
+class SymbolTableContent : public DeferredMap<SymbolInTable, ElfXX_Sym> {
 public:
     typedef DeferredValueImpl<ElfXX_Sym> DeferredType;
 private:
+    DeferredStringList *strtab;
     std::vector<DeferredType *> sectionSymbols;
+    int firstGlobalIndex;
 public:
-    DeferredType *add(Function *func, Symbol *sym, size_t strndx);
-    /** Special-case add used for adding SECTION symbols. */
-    void add(Symbol *sym, int index);
-    /** Special-case add to insert NULL symbol. */
-    void add(ElfXX_Sym *symbol);
+    SymbolTableContent(DeferredStringList *strtab)
+        : strtab(strtab), firstGlobalIndex(0) {}
+
+    void addNullSymbol();
+    void addSectionSymbol(Symbol *sym);
+    DeferredType *addSymbol(Function *func, Symbol *sym);
+    DeferredType *addUndefinedSymbol(Symbol *sym);
 
     size_t indexOfSectionSymbol(const std::string &section,
         SectionList *sectionList);
+    int getFirstGlobalIndex() const { return firstGlobalIndex; }
 };
 
 class ShdrTableContent : public DeferredMap<Section *, ElfXX_Shdr> {

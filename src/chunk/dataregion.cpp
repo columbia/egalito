@@ -154,10 +154,10 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         auto sourceRegion = list->findRegionContaining(reloc->getAddress());
         if(sourceRegion) {
             if(auto link = list->resolveVariableLink(reloc)) {
-                LOG(1, "resolving a variable at " << std::hex
+                LOG(10, "resolving a variable at " << std::hex
                     << reloc->getAddress()
                     << " => " << reloc->getAddend());
-                if(sourceRegion == list->getTLS()) LOG(1, "TLS!");
+                if(sourceRegion == list->getTLS()) LOG(11, "TLS!");
                 auto var = new DataVariable(sourceRegion,
                     reloc->getAddress() - sourceRegion->getAddress(), link);
                 sourceRegion->addVariable(var);
