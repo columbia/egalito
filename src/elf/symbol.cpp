@@ -152,7 +152,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             auto prevSym = (*prev).second;
 
             if(prevSym->getSize() == sym->getSize()
-                && prevSym->getBind() == sym->getBind()
+                /* && prevSym->getBind() == sym->getBind() */
                 && prevSym->getSectionIndex() == sym->getSectionIndex()) {
 
                 sym->setAliasFor(prevSym);
