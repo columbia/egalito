@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "flow.h"
 #include "analysis/slicing.h"
 #include "instr/memory.h"
@@ -22,7 +23,8 @@ void FlowRegElement::forget() {
 }
 
 bool FlowMemElement::isValid() const {
-    return (mem->getIndex() == REGISTER_SP || mem->getIndex() == REGISTER_FP);
+    assert(mem->getBase() == REGISTER_SP || mem->getBase() == REGISTER_FP);
+    return (mem->getBase() == REGISTER_SP || mem->getBase() == REGISTER_FP);
 }
 
 bool FlowMemElement::interested() const {
@@ -35,12 +37,16 @@ bool FlowMemElement::interested() const {
 void FlowMemElement::markAsInteresting() {
     if(isValid()) {
         state->addMem(mem->getDisplacement());
+        state->addReg(mem->getBase());
     }
 }
 
 void FlowMemElement::forget() {
     if(isValid()) {
         state->removeMem(mem->getDisplacement());
+        if(state->getMems().size() == 0) {
+            state->removeReg(mem->getBase());
+        }
     }
 }
 
