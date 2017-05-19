@@ -1,5 +1,5 @@
-#ifndef EGALITO_DISASM_REGISTER_H
-#define EGALITO_DISASM_REGISTER_H
+#ifndef EGALITO_INSTR_REGISTER_H
+#define EGALITO_INSTR_REGISTER_H
 
 #include <capstone/capstone.h>
 #ifdef ARCH_X86_64
@@ -20,10 +20,14 @@ typedef
     #define INVALID_REGISTER    X86_REG_INVALID
     #define CONDITION_REGISTER  X86_REG_EFLAGS
     #define REGISTER_ENDING     X86_REG_ENDING
+    #define REGISTER_SP         X86_REG_RSP
+    #define REGISTER_FP         X86_REG_RBP
 #else
     #define INVALID_REGISTER    ARM64_REG_INVALID
     #define CONDITION_REGISTER  ARM64_REG_NZCV
     #define REGISTER_ENDING     ARM64_REG_ENDING
+    #define REGISTER_SP         ARM64_REG_SP
+    #define REGISTER_FP         ARM64_REG_FP
 #endif
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)

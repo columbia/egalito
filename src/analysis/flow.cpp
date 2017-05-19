@@ -1,22 +1,46 @@
 #include "flow.h"
 #include "analysis/slicing.h"
+#include "instr/memory.h"
 
-bool FlowElement::interested() const {
+bool FlowRegElement::interested() const {
     if(isValid()) {
         return state->getReg(reg);
     }
     return false;
 }
 
-void FlowElement::markAsInteresting() {
+void FlowRegElement::markAsInteresting() {
     if(isValid()) {
         state->addReg(reg);
     }
 }
 
-void FlowElement::forget() {
+void FlowRegElement::forget() {
     if(isValid()) {
         state->removeReg(reg);
+    }
+}
+
+bool FlowMemElement::isValid() const {
+    return (mem->getIndex() == REGISTER_SP || mem->getIndex() == REGISTER_FP);
+}
+
+bool FlowMemElement::interested() const {
+    if(isValid()) {
+        return state->getMem(mem->getDisplacement());
+    }
+    return false;
+}
+
+void FlowMemElement::markAsInteresting() {
+    if(isValid()) {
+        state->addMem(mem->getDisplacement());
+    }
+}
+
+void FlowMemElement::forget() {
+    if(isValid()) {
+        state->removeMem(mem->getDisplacement());
     }
 }
 
@@ -73,31 +97,6 @@ void ForwardFlow::confluence(FlowElement *up1, FlowElement *up2,
     FlowElement *down, bool overwriteTarget) {
 
     if(up1->interested() || up2->interested()) {
-        down->markAsInteresting();
-    }
-    else {
-        if(overwriteTarget) {
-            down->forget();
-        }
-    }
-}
-
-void BackwardFlow::confluence(FlowElement *up1, FlowElement *up2,
-    FlowElement *up3, FlowElement *down, bool overwriteTarget) {
-
-    if(down->interested()) {
-        if(overwriteTarget) {
-            down->forget();
-        }
-        up1->markAsInteresting();
-        up2->markAsInteresting();
-        up3->markAsInteresting();
-    }
-}
-void ForwardFlow::confluence(FlowElement *up1, FlowElement *up2,
-    FlowElement *up3, FlowElement *down, bool overwriteTarget) {
-
-    if(up1->interested() || up2->interested() || up3->interested()) {
         down->markAsInteresting();
     }
     else {
