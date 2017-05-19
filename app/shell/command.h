@@ -14,7 +14,9 @@ public:
     void add(const std::string &arg) { args.push_back(arg); }
     Arguments popFront();
     bool asHex(std::size_t index, address_t *address);
+    bool asDec(std::size_t index, unsigned long *value);
     void shouldHave(std::size_t count);
+    void shouldHaveAtLeast(std::size_t count);
 
     std::size_t size() const { return args.size(); }
     std::string front() const { return args.front(); }

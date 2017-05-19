@@ -8,6 +8,7 @@
 #include "disass.h"
 #include "readline.h"
 #include "conductor/setup.h"
+#include "log/registry.h"
 
 void TopLevelCommand::invokeDefault(Arguments args) {
     std::cout << "unknown command, try \"help\"\n";
@@ -57,6 +58,18 @@ void mainLoop() {
         args.shouldHave(1);
         setup.parseElfFiles(args.front().c_str(), true, true);
     }, "parses the given ELF and all its shared libraries");
+
+    topLevel.add("log", [&] (Arguments args) {
+        args.shouldHaveAtLeast(1);
+        unsigned long level;
+        if(args.size() == 1) {
+            level = 20;
+        }
+        else {
+            args.asDec(1, &level);
+        }
+        GroupRegistry::getInstance()->applySetting(args.front().c_str(), level);
+    }, "set the logging level (group [level])");
 
     DisassCommands disassCommands(&setup);
     disassCommands.registerCommands(&topLevel);
