@@ -184,7 +184,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
             CLOG(0, "SAME NAME symbol [%s] at addresses 0x%lx and 0x%lx",
                 sym->getName(), prevSym->getAddress(), sym->getAddress());
-                
+
 
             if(!sym->getAliasFor()) sym->setAliasFor(prevSym);
             prevSym->addAlias(sym);
