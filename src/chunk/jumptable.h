@@ -6,6 +6,7 @@
 
 class JumpTableDescriptor;
 class Function;
+class Instruction;
 class ElfMap;
 
 class JumpTableEntry : public AddressableChunkImpl {
@@ -26,6 +27,7 @@ public:
     JumpTable(ElfMap *elf, JumpTableDescriptor *descriptor);
 
     Function *getFunction() const;
+    Instruction *getInstruction() const;
     long getEntryCount() const;  // returns -1 if not known
     JumpTableDescriptor *getDescriptor() const { return descriptor; }
 

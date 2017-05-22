@@ -58,6 +58,9 @@ void ControlFlowGraph::construct(Block *block) {
                 graph[other].addReverseLink(
                     ControlFlowLink(id,
                         i->getAddress() - i->getParent()->getAddress()));
+#ifdef ARCH_AARCH64
+                throw "this case breaks splitbasicblock pass";
+#endif
             }
             else if(auto v = dynamic_cast<Instruction *>(&*target)) {
                 // Currently, Blocks can have jumps incoming to the middle
@@ -72,11 +75,54 @@ void ControlFlowGraph::construct(Block *block) {
             }
         }
     }
+    else if(auto ij = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
+#ifdef ARCH_X86_64
+        LOG(1, "How should we handle IndirectJumpInstruction for X86_64 CFG?");
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        if(ij->getMnemonic() == "blr") {
+            fallThrough = true;
+        }
+        else {
+            // make a forward link to each target of jump table jumps
+            auto function = dynamic_cast<Function *>(block->getParent());
+            auto module = dynamic_cast<Module *>(
+                function->getParent()->getParent());
+            if(!module) {
+                throw "how do we get module now?";
+            }
+            auto jumptablelist = module->getJumpTableList();
+            for(auto jt : CIter::children(jumptablelist)) {
+                if(jt->getInstruction() == i) {
+                    for(auto entry : CIter::children(jt)) {
+                        auto link =
+                            dynamic_cast<NormalLink *>(entry->getLink());
+                        if(link && link->getTarget()) {
+                            if(auto v = dynamic_cast<Instruction *>(
+                                &*link->getTarget())) {
+
+                                auto parent = dynamic_cast<Block *>(v->getParent());
+                                auto parentID = blockMapping[parent];
+                                auto offset = link->getTargetAddress()
+                                    - parent->getAddress();
+                                graph[id].addLink(ControlFlowLink(parentID,
+                                                                  offset));
+                                graph[parentID].addReverseLink(
+                                    ControlFlowLink(id,
+                                        i->getAddress()
+                                        - i->getParent()->getAddress()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif
+    }
     else if(dynamic_cast<ReturnInstruction *>(i->getSemantic())) {
         // return instruction, no intra-function links
     }
     else {
-        // fall through
+        // fall through (including IndirectCallInstruction)
         fallThrough = true;
     }
 
@@ -115,3 +161,18 @@ void ControlFlowGraph::dump() {
         LOG(10, "");
     }
 }
+
+#if 0
+// only good after Blocks are split to (the finest) basic blocks
+#include <assert.h>
+void ControlFlowGraph::check() {
+    for(auto node : graph) {
+        // the offset of backwardLinks == where it's jumping from
+        // the offset of forwardLinks == where it's jumping to
+        for(auto link : node.forwardLinks()) {
+            assert(link.getOffset() == 0);
+        }
+    }
+    LOG(1, "cfg ok");
+}
+#endif

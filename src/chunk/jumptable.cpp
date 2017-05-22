@@ -19,6 +19,10 @@ Function *JumpTable::getFunction() const {
     return descriptor->getFunction();
 }
 
+Instruction *JumpTable::getInstruction() const {
+    return descriptor->getInstruction();
+}
+
 long JumpTable::getEntryCount() const {
     return descriptor->getEntries();
 }
