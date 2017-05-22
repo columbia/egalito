@@ -14,6 +14,13 @@ public:
         AARCH64_IM_ADRP = 0,
         AARCH64_IM_ADDIMM,
         AARCH64_IM_LDR,
+        AARCH64_IM_LDRH,
+        AARCH64_IM_LDRB,
+        AARCH64_IM_LDRSW,
+        AARCH64_IM_LDRSH,
+        AARCH64_IM_STR,
+        AARCH64_IM_STRH,
+        AARCH64_IM_STRB,
         AARCH64_IM_BL,
         AARCH64_IM_B,
         AARCH64_IM_BCOND,
@@ -27,7 +34,7 @@ public:
 private:
     struct AARCH64_modeInfo_t {
         uint32_t fixedMask;
-        uint32_t (*makeImm)(address_t, address_t);
+        uint32_t (*makeImm)(address_t, address_t, uint32_t);
         int immediateIndex;
     };
 
@@ -59,8 +66,7 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
-    static address_t makeTargetAddress(Instruction *instruction,
-        Assembly *assembly, int regIndex);
+    static Instruction *getNextInstruction(Instruction *instruction);
 };
 
 class ControlFlowInstruction : public LinkedInstruction {

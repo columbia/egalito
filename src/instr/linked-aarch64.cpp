@@ -9,7 +9,11 @@
 #include "disasm/disassemble.h"
 #include "elf/elfspace.h"
 #include "util/streamasstring.h"
+
+#include <cstdio>  // for std::fflush
 #include "log/log.h"
+#include "chunk/dump.h"
+#include "log/registry.h"
 
 #if defined(ARCH_AARCH64)
 LinkedInstruction::LinkedInstruction(Instruction *source,
@@ -22,30 +26,88 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
 
       /* ADRP */
       {0x9000001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - (src & ~0xFFF);
            uint32_t imm = disp >> 12;
            return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3)); },
        1},
       /* ADDIMM (in combination with ADRP) */
       {0xFFC003FF,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest & 0xFFF;
            uint32_t imm = disp << 10;
            return (imm & ~0xFFC003FF); },
        2
       },
-      /* LDR (immediate: unsigned offset) */
+      /* LDR (immediate: unsigned offset, with ADRP) */
       {0xFFE003FF,
-       [] (address_t dest, address_t src) {
-           diff_t disp = dest - src;
-           uint32_t imm = (disp >> 3) << 10;
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           int scale = fixed >> 30;
+           uint32_t imm = (disp >> scale) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* LDRH (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = (disp >> 1) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* LDRB (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = disp << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* LDRSW (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = (disp >> 2) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* LDRSH (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = (disp >> 1) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* STR (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           int scale = fixed >> 30;
+           uint32_t imm = (disp >> scale) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* STRH (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = (disp >> 1) << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* STRB (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = disp << 10;
            return (imm & ~0xFFE003FF); },
        1
       },
       /* BL <label> */
       {0xFC000000,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return (imm & ~0xFC000000); },
@@ -53,7 +115,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       },
       /* B <label> (same as BL; keep it separate for debugging purpose) */
       {0xFC000000,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return (imm & ~0xFC000000); },
@@ -61,7 +123,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       },
       /* B.COND <label> */
       {0xFF00001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return ((imm << 5)& ~0xFF00001F); },
@@ -70,7 +132,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
 
       /* CBZ <Xt>, <label> */
       {0xFF00001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return ((imm << 5)& ~0xFF00001F); },
@@ -78,7 +140,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       },
       /* CBNZ <Xt>, <label> */
       {0xFF00001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return ((imm << 5)& ~0xFF00001F); },
@@ -86,7 +148,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       },
       /* TBZ <Xt>, #<imm>, <label> */
       {0xFFF8001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return ((imm << 5)& ~0xFFF8001F); },
@@ -94,7 +156,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       },
       /* TBNZ <Xt>, #<imm>, <label> */
       {0xFFF8001F,
-       [] (address_t dest, address_t src) {
+       [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
            uint32_t imm = disp >> 2;
            return ((imm << 5)& ~0xFFF8001F); },
@@ -108,7 +170,8 @@ uint32_t LinkedInstruction::rebuild() {
     fixedBytes &= modeInfo->fixedMask;
 
     address_t dest = getLink()->getTargetAddress();
-    uint32_t imm = getModeInfo()->makeImm(dest, getSource()->getAddress());
+    uint32_t imm =
+        getModeInfo()->makeImm(dest, getSource()->getAddress(), fixedBytes);
 #if 0
     LOG(1, "mode: " << getModeInfo() - AARCH64_ImInfo);
     LOG(1, "src: " << getSource()->getAddress());
@@ -140,9 +203,7 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     target.append(reinterpret_cast<const char *>(&data), getSize());
 }
 
-LinkedInstruction::Mode LinkedInstruction::getMode(
-    const Assembly &assembly) {
-
+LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     LinkedInstruction::Mode m;
     switch(assembly.getId()) {
     case ARM64_INS_B:
@@ -153,14 +214,21 @@ LinkedInstruction::Mode LinkedInstruction::getMode(
             m = AARCH64_IM_B;
         }
         break;
-    case ARM64_INS_BL:      m = AARCH64_IM_BL; break;
-    case ARM64_INS_CBZ:     m = AARCH64_IM_CBZ; break;
-    case ARM64_INS_CBNZ:    m = AARCH64_IM_CBNZ; break;
-    case ARM64_INS_TBZ:     m = AARCH64_IM_TBZ; break;
-    case ARM64_INS_TBNZ:    m = AARCH64_IM_TBNZ; break;
-    case ARM64_INS_ADRP:    m = AARCH64_IM_ADRP; break;
-    case ARM64_INS_ADD:     m = AARCH64_IM_ADDIMM; break;
-    case ARM64_INS_LDR:     m = AARCH64_IM_LDR; break;
+    case ARM64_INS_BL:      m = AARCH64_IM_BL;      break;
+    case ARM64_INS_CBZ:     m = AARCH64_IM_CBZ;     break;
+    case ARM64_INS_CBNZ:    m = AARCH64_IM_CBNZ;    break;
+    case ARM64_INS_TBZ:     m = AARCH64_IM_TBZ;     break;
+    case ARM64_INS_TBNZ:    m = AARCH64_IM_TBNZ;    break;
+    case ARM64_INS_ADRP:    m = AARCH64_IM_ADRP;    break;
+    case ARM64_INS_ADD:     m = AARCH64_IM_ADDIMM;  break;
+    case ARM64_INS_LDR:     m = AARCH64_IM_LDR;     break;
+    case ARM64_INS_LDRH:    m = AARCH64_IM_LDRH;    break;
+    case ARM64_INS_LDRB:    m = AARCH64_IM_LDRB;    break;
+    case ARM64_INS_LDRSW:   m = AARCH64_IM_LDRSW;   break;
+    case ARM64_INS_LDRSH:   m = AARCH64_IM_LDRSH;   break;
+    case ARM64_INS_STR:     m = AARCH64_IM_STR;     break;
+    case ARM64_INS_STRH:    m = AARCH64_IM_STRH;    break;
+    case ARM64_INS_STRB:    m = AARCH64_IM_STRB;    break;
     default:
         throw (StreamAsString() << "mnemonic " << assembly.getMnemonic()
             << " not yet implemented in LinkedInstruction")
@@ -180,23 +248,28 @@ void LinkedInstruction::regenerateAssembly() {
 class RegPointerPredicate : public SlicingHalt {
 private:
     int reg;
-    TreeNodeConstant *offsetTree;
+    unsigned long offset;
+    std::vector<Instruction *> offsetInstructionList;
 
 public:
-    RegPointerPredicate(int reg) : reg(reg), offsetTree(nullptr) {}
+    RegPointerPredicate(int reg) : reg(reg), offset(0) {}
     virtual bool cutoff(SearchState *state);
-    address_t getOffset();
+    unsigned long getOffset() const { return offset; }
+    std::vector<Instruction *> getOffsetInstructionList() const
+        { return offsetInstructionList; }
 
 private:
-    TreeNodeConstant *getOffsetTree(TreeNode *node);
+    TreeNodeConstant *getOffsetTree(TreeNode *node, SearchState *state);
 };
 
-TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
+TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree,
+    SearchState *state) {
 
 #if 0
     if(tree) {
         LOG(10, "reg tree is");
         IF_LOG(10) tree->print(TreePrinter(2, 0));
+        LOG(10, "");
     }
 #endif
 
@@ -216,8 +289,15 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
 
     capture.clear();
     if(TreePatternOffset::matches(tree, capture)) {
-        //auto r1 = dynamic_cast<TreeNodeAddress *>(capture.get(0));
         auto r1 = dynamic_cast<TreeNodeRegister *>(capture.get(0));
+        if(!r1) {
+            for(auto m : state->getMemTrees()) {
+                if(m.first->canbe(capture.get(0))) {
+                    r1 = dynamic_cast<TreeNodeRegister *>(m.second);
+                    if(r1) break;
+                }
+            }
+        }
         auto c2 = dynamic_cast<TreeNodeConstant *>(capture.get(1));
         if(r1 && r1->getRegister() == reg && c2) {
             return c2;
@@ -228,95 +308,57 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree) {
 }
 
 bool RegPointerPredicate::cutoff(SearchState *state) {
-    LOG(10, "looking at state @ 0x" << std::hex << state->getInstruction()->getAddress());
-#if 0
-    Disassemble::Handle handle(true);
-    LOG(10, "--------REG ");
-    const auto &regs = state->getRegs();
-    for(size_t r = 0; r < regs.size(); r ++) {
-        auto tree = state->getRegTree(r);
-        if(!tree) continue;
+    TreeNodeConstant *offsetTree = nullptr;
+    //LOG(1, "looking at state @ 0x" << std::hex << state->getInstruction()->getAddress());
 
-        LOG0(10, "        REG " << cs_reg_name(handle.raw(), r) << ": ");
-        IF_LOG(10) tree->print(TreePrinter(3, 1));
-        LOG(10, "");
-    }
-    for(auto const &tree : state->getMemTree()) {
-        LOG(10, "--------MEM ");
-        IF_LOG(10) tree.first->print(TreePrinter(3,1));
-        LOG0(10, ": ");
-        IF_LOG(10) tree.second->print(TreePrinter(3, 1));
-        LOG(10, "");
-    }
-#endif
-
-    auto tree = getOffsetTree(state->getRegTree(reg));
-    if(tree) {
-        offsetTree = tree;
-#if 0
-        LOG(10, "found offsetTree: ");
-        IF_LOG(10) tree->print(TreePrinter(2, 0));
-#endif
-    }
-    else {
-        auto v = dynamic_cast<DisassembledInstruction *>(
-            state->getInstruction()->getSemantic());
-        if(v) {
-            auto assembly = v->getAssembly();
-            if(assembly->getId() == ARM64_INS_ADD
-               || assembly->getId() == ARM64_INS_LDR
-               || assembly->getId() == ARM64_INS_LDRB
-               || assembly->getId() == ARM64_INS_LDRH
-               || assembly->getId() == ARM64_INS_LDRSB
-               || assembly->getId() == ARM64_INS_LDRSH
-               || assembly->getId() == ARM64_INS_LDRSW
-               ) {
-
-                auto r = assembly->getAsmOperands()->getOperands()[0].reg;
-                auto tree = getOffsetTree(state->getRegTree(r));
+    auto v = dynamic_cast<DisassembledInstruction *>(
+        state->getInstruction()->getSemantic());
+    if(v) {
+        auto assembly = v->getAssembly();
+        if(assembly->getId() == ARM64_INS_ADD) {
+            auto r = assembly->getAsmOperands()->getOperands()[0].reg;
+            if(state->getReg(r)) {
+                auto tree = getOffsetTree(state->getRegTree(r), state);
                 if(tree) {
                     offsetTree = tree;
                 }
             }
-            else if(assembly->getId() == ARM64_INS_STR
-                    || assembly->getId() == ARM64_INS_STRB
-                    || assembly->getId() == ARM64_INS_STRH
-                    ) {
-                for(auto mem : state->getMemTree()) {
-#if 0
-                    LOG(10, "memtree: ");
-                    IF_LOG(10) {
-                        mem.first->print(TreePrinter(2, 0));
-                        LOG(10, "");
-                        mem.second->print(TreePrinter(2, 0));
-                    }
-                    LOG(10, "");
-#endif
-                    auto tree = getOffsetTree(mem.first);
-                    if(tree) {
-                        offsetTree = tree;
-                        break;
-                    }
+        } else if(1
+            || assembly->getId() == ARM64_INS_LDR
+            || assembly->getId() == ARM64_INS_LDRB
+            || assembly->getId() == ARM64_INS_LDRH
+            || assembly->getId() == ARM64_INS_LDRSB
+            || assembly->getId() == ARM64_INS_LDRSH
+            || assembly->getId() == ARM64_INS_LDRSW
+            || assembly->getId() == ARM64_INS_STR
+            || assembly->getId() == ARM64_INS_STRB
+            || assembly->getId() == ARM64_INS_STRH
+            ) {
+            if(auto m = state->getMemTree()) {
+                if(auto tree = getOffsetTree(m, state)) {
+                    offsetTree = tree;
                 }
+            }
+            else {
+                LOG(10, "skipping because base is not interesting");
             }
         }
     }
 
-    return (offsetTree != nullptr);
-}
-
-address_t RegPointerPredicate::getOffset() {
-#if 0
-    LOG(10, "tree is: ");
     if(offsetTree) {
-        IF_LOG(10) offsetTree->print(TreePrinter(2, 0));
+        if(offsetInstructionList.size() == 0) {
+            offset = offsetTree->getValue();
+        }
+
+        if(offset == offsetTree->getValue()) {
+            LOG(10, "the offset is given at "
+                << state->getInstruction()->getAddress());
+            offsetInstructionList.push_back(state->getInstruction());
+        }
     }
-    else {
-        LOG(10, "--------not found------------");
-    }
-    LOG(10, "");
-#endif
-    return (offsetTree) ? offsetTree->getValue() : 0;
+
+    /* don't cutoff early: there could be more than one offset instructions */
+    return false;
 }
 
 class CFGFactory {
@@ -344,59 +386,91 @@ ControlFlowGraph *CFGFactory::getControlFlowGraph(Function *function) {
     return cfg;
 }
 
-address_t LinkedInstruction::makeTargetAddress(Instruction *instruction,
-    Assembly *assembly, int regIndex) {
-
-    Function *function = dynamic_cast<Function *>(
-        instruction->getParent()->getParent());
-
-    auto reg =
-        assembly->getAsmOperands()->getOperands()[regIndex].reg;
-
-    auto factory = CFGFactory::instance();
-    auto cfg = factory.getControlFlowGraph(function);
-
-    RegPointerPredicate rpp(reg);
-    ForwardSlicingSearch search(cfg, &rpp);
-    auto next = dynamic_cast<Instruction *>(instruction->getNextSibling());
-
-    LOG(10, "makeTargetAddress for 0x" << std::hex << instruction->getAddress());
-    search.sliceAt(next, reg);
-
-#if 0
-    if(rpp.getOffset() == 0) {
-        cfg->dump();
-        LOG(10, "function name = " << function->getName());
-        LOG(10, "function size = " << std::dec << function->getSize());
+Instruction *LinkedInstruction::getNextInstruction(Instruction *instruction) {
+    Instruction *next = nullptr;
+    next = static_cast<Instruction *>(instruction->getNextSibling());
+    if(!next) {
+        auto nextb = dynamic_cast<Block *>(
+            instruction->getParent()->getNextSibling());
+        next = nextb->getChildren()->getIterable()->get(0);
     }
-#endif
-
-    return assembly->getAsmOperands()->getOperands()[1].imm + rpp.getOffset();
+    return next;
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, Assembly *assembly) {
 
     if(assembly->getId() == ARM64_INS_ADRP) {
-        address_t target = LinkedInstruction::makeTargetAddress(
-            instruction, assembly, 0);
-        //LOG(1, "target: 0x" << std::hex << target);
+        Function *function = dynamic_cast<Function *>(
+            instruction->getParent()->getParent());
+
+        auto reg = assembly->getAsmOperands()->getOperands()[0].reg;
+
+        auto factory = CFGFactory::instance();
+        auto cfg = factory.getControlFlowGraph(function);
+
+        RegPointerPredicate rpp(reg);
+        ForwardSlicingSearch search(cfg, &rpp);
+        auto next = getNextInstruction(instruction);
+
+        LOG(10, "makeLinked for 0x" << std::hex << instruction->getAddress());
+        LOG(10, "    searching from 0x" << std::hex << next->getAddress());
+        search.sliceAt(next, reg);
+
+        address_t target = assembly->getAsmOperands()->getOperands()[1].imm
+            + rpp.getOffset();
+        if(rpp.getOffsetInstructionList().size() == 0) {
+#if 0
+            GroupRegistry::getInstance()->applySetting("analysis", 20);
+            GroupRegistry::getInstance()->applySetting("instr", 20);
+            LOG(1, "function name = " << function->getName());
+            LOG(1, "function size = " << std::dec << function->getSize());
+
+            ChunkDumper dump;
+            function->accept(&dump);
+
+            cfg->dump();
+            std::cout.flush();
+            std::fflush(stdout);
+
+            // redo to get log
+            search.sliceAt(next, reg);
+#endif
+            LOG(1, "Couldn't find the offset instruction for"
+                << function->getName());
+            throw "failed";
+            //return nullptr;
+        }
+
+        LOG(10, "target: 0x" << std::hex << target);
         auto found = CIter::spatial(module->getFunctionList())->find(target);
+        auto linked = new LinkedInstruction(instruction, *assembly);
+        Link *link = nullptr, *link2 = nullptr;
         if(found) {
-            //LOG(1, " ==> " << found->getName());
-            auto link = new ExternalNormalLink(found);
-            auto linked = new LinkedInstruction(instruction, *assembly);
-            linked->setLink(link);
-            return linked;
+            LOG(10, " ==> " << found->getName());
+            link = new ExternalNormalLink(found);
+            link2 = new ExternalNormalLink(found);
         }
         else {
-            //LOG(1, " --> data link");
-            auto link = LinkFactory::makeDataLink(module, target, true);
+            LOG(10, " --> data link");
+            link = LinkFactory::makeDataLink(module, target, true);
             if(!link) throw "failed to create link!";
-            auto linked = new LinkedInstruction(instruction, *assembly);
-            linked->setLink(link);
-            return linked;
+            link2 = LinkFactory::makeDataLink(module, target, true);
         }
+        linked->setLink(link);
+
+        // set link to the offset instruction
+        // !!! Is it really ok to share link2?
+        for(auto offsetInst : rpp.getOffsetInstructionList()) {
+            auto semantic2 = offsetInst->getSemantic();
+            auto assembly2 = semantic2->getAssembly();
+            auto linked2 = new LinkedInstruction(offsetInst, *assembly2);
+            linked2->setLink(link2);
+            offsetInst->setSemantic(linked2);
+            delete semantic2;
+        }
+
+        return linked;
     }
     return nullptr;
 }
