@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include "controlflow.h"
 #include "flow.h"
 #include "instr/register.h"
@@ -10,6 +11,7 @@
 
 class Instruction;
 class TreeNode;
+class Memory;
 class SlicingInstructionState;
 
 class SearchState {
@@ -23,13 +25,19 @@ private:
     std::vector<SearchState *> parents;
     std::map<int, TreeNode *> regTree;
     std::vector<memTreeType> memTree;
+    std::set<int> mems;
     bool jumpTaken;
 public:
-    SearchState() : node(nullptr), instruction(nullptr), iState(nullptr), jumpTaken(false) {}
+    SearchState()
+        : node(nullptr), instruction(nullptr), iState(nullptr),
+          jumpTaken(false) {}
     SearchState(ControlFlowNode *node, Instruction *instruction)
-        : node(node), instruction(instruction), iState(nullptr), regs(REGISTER_ENDING), jumpTaken(false) {}
+        : node(node), instruction(instruction), iState(nullptr),
+          regs(REGISTER_ENDING), jumpTaken(false) {}
     SearchState(const SearchState &other)
-        : node(other.node), instruction(other.instruction), iState(nullptr), regs(other.regs), jumpTaken(other.jumpTaken) {}
+        : node(other.node), instruction(other.instruction),
+          iState(nullptr), regs(other.regs),
+          mems(other.mems), jumpTaken(other.jumpTaken) {}
     virtual ~SearchState();
 
     ControlFlowNode *getNode() const { return node; }
@@ -52,17 +60,25 @@ public:
     TreeNode *getRegTree(int reg);
     void setRegTree(int reg, TreeNode *tree);
 
-    const std::vector<memTreeType> &getMemTree() const { return memTree; }
+    const std::set<int> &getMems() const { return mems; }
+    void addMem(int offset) { mems.insert(offset); }
+    void removeMem(int offset) { mems.erase(offset); }
+    bool getMem(int offset) { return mems.find(offset) != mems.end(); }
+    const std::vector<memTreeType> &getMemTrees() const { return memTree; }
     void addMemTree(TreeNode *memTree, TreeNode *regTree);
     void setMemTree(std::vector<memTreeType> memTree) { this->memTree = memTree; }
+    TreeNode *getMemTree() const;
 
     void setJumpTaken(bool to) { jumpTaken = to; }
     bool getJumpTaken() const { return jumpTaken; }
 
     virtual void flow(Register reg1, bool overwriteTarget) = 0;
     virtual void flow(Register reg1, Register reg2, bool overwriteTarget) = 0;
-    virtual void flow(Register reg1, Register reg2, Register reg3, bool overwriteTarget) = 0;
-    virtual void flow(Register reg1, Register reg2, Register reg3, Register reg4, bool overwriteTarget) = 0;
+    virtual void flow(Register reg1, Register reg2, Register reg3,
+                      bool overwriteTarget) = 0;
+
+    virtual void flow(Register reg1, Memory *mem1, bool overwriteTarget) = 0;
+    virtual void flow(Memory *mem1, Register reg1, bool overwriteTarget) = 0;
 };
 
 template <typename FlowType>
@@ -75,27 +91,30 @@ public:
         : SearchState(other) {}
 
     void flow(Register reg1, bool overwriteTarget) {
-        FlowElement s(reg1, this);
+        FlowRegElement s(reg1, this);
         FlowType::source(&s, overwriteTarget);
     }
     void flow(Register reg1, Register reg2, bool overwriteTarget) {
-        FlowElement s(reg1, this);
-        FlowElement t(reg2, this);
+        FlowRegElement s(reg1, this);
+        FlowRegElement t(reg2, this);
         FlowType::channel(&s, &t, overwriteTarget);
     }
     void flow(Register reg1, Register reg2, Register reg3, bool overwriteTarget) {
-        FlowElement s1(reg1, this);
-        FlowElement s2(reg2, this);
-        FlowElement t(reg3, this);
+        FlowRegElement s1(reg1, this);
+        FlowRegElement s2(reg2, this);
+        FlowRegElement t(reg3, this);
         FlowType::confluence(&s1, &s2, &t, overwriteTarget);
     }
-    void flow(Register reg1, Register reg2, Register reg3, Register reg4,
-              bool overwriteTarget) {
-        FlowElement s1(reg1, this);
-        FlowElement s2(reg2, this);
-        FlowElement s3(reg3, this);
-        FlowElement t(reg4, this);
-        FlowType::confluence(&s1, &s2, &s3, &t, overwriteTarget);
+
+    void flow(Register reg1, Memory *mem1, bool overwriteTarget) {
+        FlowRegElement r(reg1, this);
+        FlowMemElement m(mem1, this);
+        FlowType::channel(&r, &m, overwriteTarget);
+    }
+    void flow(Memory *mem1, Register reg1, bool overwriteTarget) {
+        FlowRegElement r(reg1, this);
+        FlowMemElement m(mem1, this);
+        FlowType::channel(&m, &r, overwriteTarget);
     }
 };
 
@@ -104,6 +123,7 @@ class SlicingUtilities {
 public:
     const char *printReg(int reg);
     void printRegs(SearchState *state, bool withNewline = true);
+    void printMems(SearchState *state, bool withNewline = true);
     void printRegTrees(SearchState *state);
     void printMemTrees(SearchState *state);
     void copyParentRegTrees(SearchState *state);

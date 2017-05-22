@@ -51,6 +51,7 @@ class JumpTableSearch {
 private:
     bool savePartialInfoTables;
     std::vector<JumpTableDescriptor *> tableList;
+    std::vector<Instruction *> possibleMissList;
 public:
     JumpTableSearch(bool savePartialInfoTables = true)
         : savePartialInfoTables(savePartialInfoTables) {}
@@ -60,6 +61,10 @@ public:
 
     const std::vector<JumpTableDescriptor *> &getTableList() const
         { return tableList; }
+    const std::vector<Instruction *> &getPossibleMissList() const
+        { return possibleMissList; }
+    void clearPossibleMissList() { possibleMissList.clear(); }
+
 private:
     bool matchJumpTable(SearchState *state, JumpTableDescriptor *d);
     bool matchJumpTableBounds(SlicingSearch *search, JumpTableDescriptor *d);

@@ -20,6 +20,23 @@ void JumpTablePass::visit(Module *module) {
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
     JumpTableSearch search;
     search.search(module);
+
+    // find all nested ones
+    size_t last, count;
+    count = 0;
+    do {
+        last = count;
+        search.clearPossibleMissList();
+        auto list = search.getPossibleMissList();
+        for(auto i : list) {
+            auto f = dynamic_cast<Function *>(i->getParent()->getParent());
+            LOG(10, "re-searching for a jump table in " << f->getName());
+            if(f) search.search(f);
+        }
+        count = list.size();
+    } while(count != last);
+    LOG(5, "number of jumptables missed in the end: " << count);
+
     for(auto descriptor : search.getTableList()) {
         // this constructor automatically creates JumpTableEntry children
 
