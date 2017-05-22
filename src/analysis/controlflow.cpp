@@ -162,17 +162,3 @@ void ControlFlowGraph::dump() {
     }
 }
 
-#if 0
-// only good after Blocks are split to (the finest) basic blocks
-#include <assert.h>
-void ControlFlowGraph::check() {
-    for(auto node : graph) {
-        // the offset of backwardLinks == where it's jumping from
-        // the offset of forwardLinks == where it's jumping to
-        for(auto link : node.forwardLinks()) {
-            assert(link.getOffset() == 0);
-        }
-    }
-    LOG(1, "cfg ok");
-}
-#endif

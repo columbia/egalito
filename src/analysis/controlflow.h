@@ -76,7 +76,6 @@ public:
     size_t getCount() const { return graph.size(); }
 
     void dump();
-    //void check();
 private:
     void construct(Function *function);
     void construct(Block *block);
