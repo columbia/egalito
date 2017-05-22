@@ -25,6 +25,7 @@ class ChunkList {
 public:
     virtual ~ChunkList() {}
     virtual void genericAdd(Chunk *child) = 0;
+    virtual void genericRemove(Chunk *child) = 0;
     virtual Chunk *genericGetLast() = 0;
     virtual Chunk *genericGetAt(size_t index) = 0;
     virtual void genericInsertAt(size_t index, Chunk *child) = 0;
@@ -51,6 +52,8 @@ public:
 
     virtual void genericAdd(Chunk *child)
         { auto v = dynamic_cast<ChildType *>(child); if(v) add(v); }
+    virtual void genericRemove(Chunk *child)
+        { auto v = dynamic_cast<ChildType *>(child); if(v) remove(v); }
     virtual Chunk *genericGetLast() { return iterable.getLast(); }
     virtual Chunk *genericGetAt(size_t index) { return iterable.get(index); }
     virtual void genericInsertAt(size_t index, Chunk *child)
@@ -61,6 +64,7 @@ public:
     virtual Iterable<Chunk *> genericIterable() { return iterable.genericIterable(); }
 
     virtual void add(ChildType *child);
+    virtual void remove(ChildType *child);
     virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
     virtual SpatialChunkList<ChildType> *getSpatial() { if(!spatial) createSpatial(); return spatial; }
     virtual NamedChunkList<ChildType> *getNamed() { if(!named) createNamed(); return named; }
@@ -76,6 +80,13 @@ void ChunkListImpl<ChildType>::add(ChildType *child) {
     iterable.add(child);
     if(spatial) spatial->add(child);
     if(named) named->add(child);
+}
+
+template <typename ChildType>
+void ChunkListImpl<ChildType>::remove(ChildType *child) {
+    iterable.remove(child);
+    if(spatial) spatial->remove(child);
+    if(named) named->remove(child);
 }
 
 template <typename ChildType>
@@ -102,6 +113,7 @@ public:
         { return Iterable<Chunk *>(new STLIteratorGenerator<ChildListType, Chunk *>(childList)); }
 
     void add(ChildType *child) { childList.push_back(child); }
+    void remove(ChildType *child);
 
     ChildType *get(size_t index) { return childList[index]; }
     ChildType *getLast() { return childList.size() ? childList[childList.size() - 1] : nullptr; }
@@ -110,6 +122,14 @@ public:
     size_t getCount() const { return childList.size(); }
     size_t indexOf(ChildType *child);
 };
+
+template <typename ChildType>
+void IterableChunkList<ChildType>::remove(ChildType *child) {
+    auto i = indexOf(child);
+    if(i != static_cast<size_t>(-1)) {
+        childList.erase(childList.begin() + i);
+    }
+}
 
 template <typename ChildType>
 size_t IterableChunkList<ChildType>::indexOf(ChildType *child) {
@@ -129,6 +149,8 @@ public:
     ConcreteIterable<SpaceMapType, std::pair<address_t, ChildType *>> iterable() { return spaceMap; }
     void add(ChildType *child)
         { spaceMap[child->getAddress()] = child; }
+    void remove(ChildType *child)
+        { spaceMap.erase(child->getAddress()); }
 
     ChildType *find(address_t address);
     ChildType *findContaining(address_t address);
@@ -178,6 +200,8 @@ private:
 public:
     void add(ChildType *child)
         { nameMap[child->getName()] = child; }
+    void remove(ChildType *child)
+        { nameMap.erase(child->getName()); }
 
     ChildType *find(const std::string &name);
 };

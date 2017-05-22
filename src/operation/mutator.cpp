@@ -144,6 +144,64 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     newChunk->setSemantic(sem1);
 }
 
+void ChunkMutator::remove(Chunk *child) {
+    // set sibling pointers
+    auto prev = child->getPreviousSibling();
+    auto next = child->getNextSibling();
+    if(prev) {
+        setNextSibling(prev, next);
+    }
+    if(next) {
+        setPreviousSibling(next, prev);
+    }
+
+    // remove from parent
+    chunk->getChildren()->genericRemove(child);
+
+    // update sizes of parents and grandparents
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        // only if size is tracked
+        if(c->getSize() != 0) {
+            c->addToSize(-child->getSize());
+        }
+    }
+
+    // update authority pointers in positions
+    updateGenerationCounts(child);
+}
+
+void ChunkMutator::splitBlockBefore(Instruction *point) {
+    auto block = dynamic_cast<Block *>(point->getParent());
+    Block *block2 = nullptr;
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    std::vector<Instruction *> moveList;
+    for(auto child : CIter::children(block)) {
+        if(!block2) {
+            if(child == point) {
+                block2 = new Block();
+
+                insertAfter(block, block2);
+            }
+        }
+        if(block2) {
+            moveList.push_back(child);
+        }
+    }
+
+    Chunk *prevChunk = block2;
+    for(auto child : moveList) {
+        ChunkMutator(block).remove(child);
+        delete child->getPosition();
+        child->setPosition(positionFactory->makePosition(
+            prevChunk, child, block2->getSize()));
+
+        ChunkMutator(block2).append(child);
+        prevChunk = child;
+    }
+}
+
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {

@@ -51,6 +51,15 @@ public:
     */
     void insertBeforeJumpTo(Instruction *insertPoint, Instruction *newChunk);
 
+    /** Removes a child. */
+    void remove(Chunk *child);
+
+    /** Splits a block at an instruction
+
+        block cannot be NULL.
+     */
+    void splitBlockBefore(Instruction* point);
+
     /** Sets the position of a Chunk, performs any necessary updates. */
     void setPosition(address_t address);
 
