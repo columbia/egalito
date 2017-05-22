@@ -8,6 +8,7 @@
 #include "chunk/dataregion.h"
 #include "disasm/disassemble.h"
 #include "pass/fallthrough.h"
+#include "pass/splitbasicblock.h"
 #include "pass/pcrelative.h"
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
@@ -103,14 +104,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     PCRelativePass pcrelative(relocList);
     module->accept(&pcrelative);
 
-    InferLinksPass inferLinksPass(elf);
-    module->accept(&inferLinksPass);
-
-    //TLSList::buildTLSList(elf, relocList, module);
-
-    ReloCheckPass checker(relocList);
-    module->accept(&checker);
-
     JumpTablePass jumpTablePass;
     module->accept(&jumpTablePass);
 
@@ -119,6 +112,19 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     JumpTableOverestimate jumpTableOverestimate;
     module->accept(&jumpTableOverestimate);
+
+    // this needs jumptable information and all NormalLinks
+    SplitBasicBlock split;
+    module->accept(&split);
+
+    // this needs basic blocks to be split
+    InferLinksPass inferLinksPass(elf);
+    module->accept(&inferLinksPass);
+
+    //TLSList::buildTLSList(elf, relocList, module);
+
+    ReloCheckPass checker(relocList);
+    module->accept(&checker);
 
     aliasMap = new FunctionAliasMap(module);
 }
