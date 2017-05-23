@@ -112,7 +112,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         args.shouldHave(0);
         StackXOR stackXOR(0x28);
         setup->getConductor()->acceptInAllModules(&stackXOR);
-    }, "shows all instructions that refer to the TLS register");
+    }, "adds XOR to return addresses on the stack");
 
     topLevel->add("modules", [&] (Arguments args) {
         args.shouldHave(0);
