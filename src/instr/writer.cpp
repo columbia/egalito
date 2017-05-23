@@ -46,7 +46,7 @@ void InstrWriterCString::visit(ControlFlowInstruction *controlFlow) {
     bool useDisp = useDisplacements();
     if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
         && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
-        
+
         useDisp = true;
     }
     controlFlow->writeTo(target, useDisp);
@@ -55,7 +55,7 @@ void InstrWriterCppString::visit(ControlFlowInstruction *controlFlow) {
     bool useDisp = useDisplacements();
     if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
         && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
-        
+
         useDisp = true;
     }
     controlFlow->writeTo(target, useDisp);
@@ -64,7 +64,7 @@ void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
     bool useDisp = useDisplacements();
     if(!dynamic_cast<PLTLink *>(controlFlow->getLink())
         && !dynamic_cast<SymbolOnlyLink *>(controlFlow->getLink())) {
-        
+
         useDisp = true;
     }
     controlFlow->writeTo(data, useDisp);
@@ -81,3 +81,15 @@ void InstrWriterMakeReloc::visit(ControlFlowInstruction *controlFlow) {
 
     madeReloc = true;
 }
+
+// LiteralInstruction
+void InstrWriterCString::visit(LiteralInstruction *literal) {
+    visit(static_cast<RawInstruction *>(literal));
+}
+void InstrWriterCppString::visit(LiteralInstruction *literal) {
+    visit(static_cast<RawInstruction *>(literal));
+}
+void InstrWriterGetData::visit(LiteralInstruction *literal) {
+    visit(static_cast<RawInstruction *>(literal));
+}
+

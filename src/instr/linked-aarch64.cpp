@@ -436,7 +436,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             // redo to get log
             search.sliceAt(next, reg);
 #endif
-            LOG(1, "Couldn't find the offset instruction for"
+            LOG(1, "Couldn't find the offset instruction for "
                 << function->getName());
             throw "failed";
             //return nullptr;

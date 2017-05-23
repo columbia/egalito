@@ -171,6 +171,14 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
         semantic->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
 }
 
+void InstrDumper::visit(LiteralInstruction *semantic) {
+    std::string bytes = getBytes(semantic);
+    std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
+
+    DisasmDump::printInstructionRaw(address,
+        pos, "(literal)", "", nullptr, bytes2.c_str(), false);
+}
+
 std::string InstrDumper::getBytes(InstructionSemantic *semantic) {
     InstrWriterGetData writer;
     semantic->accept(&writer);

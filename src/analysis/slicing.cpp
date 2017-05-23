@@ -780,6 +780,13 @@ void SlicingSearch::buildRegTreesFor(SearchState *state) {
 }
 
 void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
+#ifdef ARCH_AARCH64
+    if(dynamic_cast<LiteralInstruction *>(
+        state->getInstruction()->getSemantic())) {
+        return;
+    }
+#endif
+
     auto assembly = state->getInstruction()->getSemantic()->getAssembly();
 #ifdef ARCH_X86_64
     if(!assembly) {

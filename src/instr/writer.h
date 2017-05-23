@@ -21,6 +21,7 @@ public:
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+    virtual void visit(LiteralInstruction *literal);
 };
 
 class InstrWriterCppString : public InstrWriterBase {
@@ -33,6 +34,7 @@ public:
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+    virtual void visit(LiteralInstruction *literal);
 };
 
 class InstrWriterGetData : public InstrWriterBase {
@@ -44,6 +46,7 @@ public:
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+    virtual void visit(LiteralInstruction *literal);
 };
 
 template <typename BaseWriterType>

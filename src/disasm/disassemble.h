@@ -29,15 +29,10 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
-#if defined(ARCH_ARM)
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList, MappingSymbolList *mappingSymbolList=nullptr);
-    static Function *function(ElfMap *elfMap, Symbol *symbol, MappingSymbolList *mappingSymbolList=nullptr);
-#else
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList);
-    static Function *function(ElfMap *elfMap, Symbol *symbol);
-#endif
-    static Assembly makeAssembly(const std::vector<unsigned char> &str,
-        address_t address = 0);
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList,
+        MappingSymbolList *mappingSymbolList = nullptr);
+    static Function *function(ElfMap *elfMap, Symbol *symbol,
+        MappingSymbolList *mappingSymbolList = nullptr);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
     static Instruction *instruction(Handle &handle, const std::vector<unsigned char> &bytes,
@@ -45,12 +40,16 @@ public:
     static Instruction *instruction(cs_insn *ins, Handle &handle,
         bool details = true);
 
-    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
+    static Assembly makeAssembly(const std::vector<unsigned char> &str,
+        address_t address = 0);
 
 private:
-    static void disassembleBlocks(Handle &handle,
-        Function *function, /* Block **block, */ address_t readAddress,
-        size_t readSize, address_t virtualAddress);
+    static void disassembleBlocks(Handle &handle, Function *function,
+        address_t readAddress, size_t readSize, address_t virtualAddress);
+    static void processLiterals(Handle &handle, Function *function,
+        address_t readAddress, size_t readSize, address_t virtualAddress);
+    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
+    static Block *makeBlock(Function *function, Block *prev);
 };
 
 class AARCH64InstructionBinary {
