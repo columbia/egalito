@@ -20,9 +20,6 @@ private:
 private:
     SymbolList *symbolList;
     SymbolList *dynamicSymbolList;
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
-    MappingSymbolList *mappingSymbolList;
-#endif
     RelocList *relocList;
     FunctionAliasMap *aliasMap;
 public:
@@ -41,9 +38,6 @@ public:
 
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
-    MappingSymbolList *getMappingSymbolList() const { return mappingSymbolList; }
-#endif
     RelocList *getRelocList() const { return relocList; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }

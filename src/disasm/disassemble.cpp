@@ -98,9 +98,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
     cs_free(insn, count);
 }
 
-Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
-    MappingSymbolList *mappingSymbolList) {
-
+Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
     module->getChildren()->add(functionList);
@@ -111,8 +109,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
 
-        Function *function = Disassemble::function(elfMap, sym,
-                                                   mappingSymbolList);
+        Function *function = Disassemble::function(elfMap, sym, symbolList);
         functionList->getChildren()->add(function);
         function->setParent(functionList);
         LOG(10, "adding function " << function->getName());
@@ -121,7 +118,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
-    MappingSymbolList *mappingSymbolList) {
+    SymbolList *symbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
@@ -131,13 +128,9 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new Function(symbol);
 
-#if defined(ARCH_ARM)
-    // Thumb symbols have LSBit set to 1. Actual data in LSBit set to 0.
-    bool isThumbSymbol = (symbol->getAddress() & 1) == 1;
-    address_t symbolAddress =
-        isThumbSymbol ? (symbol->getAddress() & ~(1)) : symbol->getAddress();
-#elif defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     address_t symbolAddress = symbol->getAddress();
+#ifdef ARCH_ARM
+    symbolAddress &= ~1;
 #endif
 
     function->setPosition(
@@ -148,43 +141,36 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-    if(mappingSymbolList) {
-        std::vector<MappingSymbol *> *mappingSymbolsInRegion;
-
-        if(mappingSymbolList) {
-            mappingSymbolsInRegion = mappingSymbolList->findSymbolsInRegion(
-                symbolAddress, symbolAddress + symbol->getSize());
+    if(auto mapping = getMappingSymbol(symbol)) {
+        bool literal = processMappingSymbol(handle, mapping);
+        if(literal) {
+            processLiterals(
+                handle, function, readAddress, readSize, virtualAddress);
         }
-
-        for(auto mappingSymbol : *mappingSymbolsInRegion) {
-            if(mappingSymbol->getType() == MappingSymbol::MAPPING_DATA) continue;
-
-            else if(mappingSymbol->getType() == MappingSymbol::MAPPING_THUMB) {
-                cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
-            }
-            else if(mappingSymbol->getType() == MappingSymbol::MAPPING_ARM) {
-                cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
-            }
-            readAddress = section->getReadAddress()
-                + section->convertVAToOffset(mappingSymbol->getAddress());
-
-            readSize = mappingSymbol->getSize() > symbol->getSize()
-                ? symbol->getSize() : mappingSymbol->getSize();
-
-            virtualAddress = mappingSymbol->getAddress();
-
-            if(mappingSymbol->isLastMappingSymbol()) {
-                size_t alreadyDisassembledSize =
-                    mappingSymbol->getAddress() - symbolAddress;
-
-                readSize = symbol->getSize() - alreadyDisassembledSize;
-            }
-
+        else {
             disassembleBlocks(
                 handle, function, readAddress, readSize, virtualAddress);
         }
+        for(auto size = function->getSize();
+            size < readSize;
+            size = function->getSize()) {
 
-        delete mappingSymbolsInRegion;
+            mapping = findMappingSymbol(symbolList, virtualAddress + size);
+            if(!mapping) {
+                LOG(1, "error in handling mapping symbols at 0x"
+                    << std::hex << virtualAddress);
+                throw "mapping symbol error";
+            }
+            literal = processMappingSymbol(handle, mapping);
+            if(literal) {
+                processLiterals(handle, function, readAddress + size,
+                    readSize - size, virtualAddress + size);
+            }
+            else {
+                disassembleBlocks(handle, function, readAddress + size,
+                    readSize - size, virtualAddress + size);
+            }
+        }
     }
     else {
         disassembleBlocks(
@@ -450,4 +436,54 @@ bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
     }
 #endif
       return split;
+}
+
+Symbol *Disassemble::getMappingSymbol(Symbol *symbol) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    for(auto sym : symbol->getAliases()) {
+        if(sym->getName()[0] == '$') {
+            return sym;
+        }
+    }
+#endif
+    return nullptr;
+}
+
+Symbol *Disassemble::findMappingSymbol(SymbolList *symbolList,
+    address_t virtualAddress) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    auto sym = symbolList->find(virtualAddress);
+    if(sym) {
+        if(sym->getName()[0] == '$') {
+            return sym;
+        }
+        else {
+            return getMappingSymbol(sym);
+        }
+    }
+#endif
+    return nullptr;
+}
+
+bool Disassemble::processMappingSymbol(Handle &handle, Symbol *symbol) {
+#ifdef ARCH_X86_64
+    return false;
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    bool literal = false;
+    switch(symbol->getName()[1]) {
+    case 'a':
+        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
+        break;
+    case 't':
+        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
+        break;
+    case 'x':
+        break;
+    case 'd':
+    default:
+        literal = true;
+        break;
+    }
+    return literal;
+#endif
 }

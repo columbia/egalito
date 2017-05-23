@@ -142,10 +142,6 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
         // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
         if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        // skip mapping symbols
-        if(sym->getName()[0] == '$') continue;
-#endif
 
         auto prev = seen.find(sym->getAddress());
         if(prev != seen.end()) {
@@ -155,8 +151,22 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
                 /* && prevSym->getBind() == sym->getBind() */
                 && prevSym->getSectionIndex() == sym->getSectionIndex()) {
 
+                // these are too fragile (depends on the symbol order now)
+#ifdef ARCH_X86_64
                 sym->setAliasFor(prevSym);
                 prevSym->addAlias(sym);
+#else
+                if(sym->getBind() == Symbol::BIND_LOCAL
+                    && sym->getName()[0] == '$') {
+
+                    sym->setAliasFor(prevSym);
+                    prevSym->addAlias(sym);
+                }
+                else {
+                    prevSym->setAliasFor(sym);
+                    sym->addAlias(prevSym);
+                }
+#endif
             }
             else {
                 CLOG(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding",
@@ -319,8 +329,7 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     }
 }
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
-
+#if 0
 bool MappingSymbol::isMappingSymbol(Symbol *symbol) {
     return symbol->getBind() == Symbol::BIND_LOCAL
         && symbol->getType() == Symbol::TYPE_UNKNOWN

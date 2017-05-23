@@ -29,14 +29,14 @@ public:
         address_t realAddress = 0, SymbolList *symbolList = 0);
 
     static void init();
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList,
-        MappingSymbolList *mappingSymbolList = nullptr);
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
-        MappingSymbolList *mappingSymbolList = nullptr);
+        SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
-    static Instruction *instruction(Handle &handle, const std::vector<unsigned char> &bytes,
-                                  bool details = true, address_t address = 0);
+    static Instruction *instruction(Handle &handle,
+        const std::vector<unsigned char> &bytes, bool details = true,
+        address_t address = 0);
     static Instruction *instruction(cs_insn *ins, Handle &handle,
         bool details = true);
 
@@ -48,8 +48,13 @@ private:
         address_t readAddress, size_t readSize, address_t virtualAddress);
     static void processLiterals(Handle &handle, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
-    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
     static Block *makeBlock(Function *function, Block *prev);
+
+    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
+    static Symbol *getMappingSymbol(Symbol *symbol);
+    static Symbol *findMappingSymbol(SymbolList *symbolList,
+        address_t virtualAddress);
+    static bool processMappingSymbol(Handle &handle, Symbol *symbol);
 };
 
 class AARCH64InstructionBinary {

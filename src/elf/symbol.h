@@ -100,8 +100,7 @@ private:
     void sortSymbols();
 };
 
-#if defined(ARCH_ARM) || defined(ARCH_AARCH64)
-// Mapping Symbol Decorator
+#if 0
 class MappingSymbol {
 public:
     enum MappingType {
