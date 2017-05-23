@@ -48,8 +48,8 @@ static void testFunction(Function *f, int expected) {
 TEST_CASE("find some jump tables in libc", "[analysis][full]") {
     GroupRegistry::getInstance()->muteAllSettings();
     //GroupRegistry::getInstance()->applySetting("disasm", 9);
-    GroupRegistry::getInstance()->applySetting("analysis", 12);
-    GroupRegistry::getInstance()->applySetting("djumptable", 9);
+    //GroupRegistry::getInstance()->applySetting("analysis", 12);
+    //GroupRegistry::getInstance()->applySetting("djumptable", 9);
 
     ElfMap elf(TESTDIR "jumptable");
 
