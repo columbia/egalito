@@ -47,6 +47,13 @@ bool GroupRegistry::applySetting(const std::string &name, int value) {
     return true;  // no errors
 }
 
+int GroupRegistry::getSetting(const std::string &name) {
+    auto it = groupMap.find(name);
+    if(it == groupMap.end()) return 0;
+
+    return (*it).second.getValue();
+}
+
 bool SettingsParser::parseEnvVar(const char *var) {
     const char *env = getenv(var);
     if(!env) return true;

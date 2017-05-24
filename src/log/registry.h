@@ -30,7 +30,8 @@ public:
     void dumpSettings();
     bool applySetting(const std::string &name, int value);
     void muteAllSettings();
-    
+    int getSetting(const std::string &name);
+
     static GroupRegistry *getInstance() {
         static GroupRegistry instance;
         return &instance;
