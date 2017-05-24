@@ -1085,8 +1085,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                // !!! FIXME: scale may be 8 for LDR
-                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
+                auto bytes = assembly->getBytes();
+                auto scale = (bytes[3] & 0b01000000) ? 8 : 4;
+                auto tree = u.makeMemTree(state, scale, extmem.mem, extmem.ext,
                                           extmem.shift.type, extmem.shift.value);
                 state->setRegTree(reg, tree);
             }
@@ -1145,8 +1146,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                // !!! FIXME: scale can be 8
-                auto tree = u.makeMemTree(state, 4, extmem.mem, extmem.ext,
+                auto bytes = assembly->getBytes();
+                auto scale = (bytes[3] & 0b01000000) ? 8 : 4;
+                auto tree = u.makeMemTree(state, scale, extmem.mem, extmem.ext,
                                           extmem.shift.type, extmem.shift.value);
 
                 state->addMemTree(tree, u.getParentRegTree(state, reg));
