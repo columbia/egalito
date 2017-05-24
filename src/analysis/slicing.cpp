@@ -405,8 +405,6 @@ void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {
 }
 
 void SlicingUtilities::printMems(SearchState *state, bool withNewline) {
-    LOG(11, "");
-
     std::ostringstream output;
     output << "[";
 
@@ -693,8 +691,8 @@ void SlicingSearch::buildRegTreePass() {
         }
 
         SlicingUtilities u;
-        u.printRegs(state, false);
-        u.printMems(state, false);
+        u.printRegs(state, true);
+        u.printMems(state, true);
 
         u.copyParentMemTrees(state);
         buildRegTreesFor(state);
@@ -935,7 +933,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for mov" << mode);
         }
-        LOG(11, "        mov found");
+        LOG(12, "        mov found");
         break;
     case ARM64_INS_ADRP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -952,7 +950,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for adrp");
         }
-        LOG(11, "        adrp found");
+        LOG(12, "        adrp found");
         break;
     case ARM64_INS_ADR:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -969,7 +967,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for adr");
         }
-        LOG(11, "        adr found");
+        LOG(12, "        adr found");
         break;
     case ARM64_INS_ADD:
         if(mode == SlicingInstructionState::MODE_REG_REG_REG) {
@@ -1022,7 +1020,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for add");
         }
-        LOG(11, "        add found");
+        LOG(12, "        add found");
         break;
     case ARM64_INS_SUB:
         if(mode == SlicingInstructionState::MODE_REG_REG_IMM) {
@@ -1073,7 +1071,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for sub");
         }
-        LOG(11, "        sub found");
+        LOG(12, "        sub found");
         break;
     case ARM64_INS_LDR:
     case ARM64_INS_LDRSW:
@@ -1095,7 +1093,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for ldr(sw)");
         }
-        LOG(11, "        ldr(sw) found");
+        LOG(12, "        ldr(sw) found");
         break;
     case ARM64_INS_LDRH:
     case ARM64_INS_LDRSH:
@@ -1115,7 +1113,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for ldr(s)h");
         }
-        LOG(11, "        ldr(s)h found");
+        LOG(12, "        ldr(s)h found");
         break;
     case ARM64_INS_LDRB:
     case ARM64_INS_LDRSB:
@@ -1135,7 +1133,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for ldr(s)b");
         }
-        LOG(11, "        ldr(s)b found");
+        LOG(12, "        ldr(s)b found");
         break;
     case ARM64_INS_STR:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1157,7 +1155,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for str");
         }
-        LOG(11, "        str found");
+        LOG(12, "        str found");
         break;
     case ARM64_INS_STRH:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1177,7 +1175,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for strh");
         }
-        LOG(11, "        strh found");
+        LOG(12, "        strh found");
         break;
     case ARM64_INS_STRB:
         if(mode == SlicingInstructionState::MODE_REG_MEM) {
@@ -1197,7 +1195,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for strb");
         }
-        LOG(11, "        strb found");
+        LOG(12, "        strb found");
         break;
     case ARM64_INS_CMP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
@@ -1230,7 +1228,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         else {
             LOG(11, "unknown mode for cmp");
         }
-        LOG(11, "        cmp found");
+        LOG(12, "        cmp found");
         break;
 #endif
     default:
