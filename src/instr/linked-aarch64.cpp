@@ -367,14 +367,17 @@ private:
     ControlFlowGraph *cfg;
 
 public:
-    CFGFactory() : lastFunction(nullptr), cfg(nullptr) {}
-    ~CFGFactory() { delete cfg; }
     ControlFlowGraph *getControlFlowGraph(Function *function);
 
     static CFGFactory& instance() {
         static CFGFactory factory;
         return factory;
     }
+private:
+    CFGFactory() : lastFunction(nullptr), cfg(nullptr) {}
+    ~CFGFactory() { delete cfg; }
+    CFGFactory& operator=(const CFGFactory&);
+    CFGFactory(const CFGFactory&);
 };
 
 ControlFlowGraph *CFGFactory::getControlFlowGraph(Function *function) {
@@ -406,8 +409,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
         auto reg = assembly->getAsmOperands()->getOperands()[0].reg;
 
-        auto factory = CFGFactory::instance();
-        auto cfg = factory.getControlFlowGraph(function);
+        auto cfg = CFGFactory::instance().getControlFlowGraph(function);
 
         RegPointerPredicate rpp(reg);
         ForwardSlicingSearch search(cfg, &rpp);
