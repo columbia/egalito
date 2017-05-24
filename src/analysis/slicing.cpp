@@ -937,11 +937,6 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(11, "        mov found");
         break;
-#if 1
-    case ARM64_INS_MOVZ:
-        LOG(11, "        movz found -- ignored");
-        break;
-#endif
     case ARM64_INS_ADRP:
         if(mode == SlicingInstructionState::MODE_REG_IMM) {
             if(firstPass) {
@@ -1234,12 +1229,6 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             LOG(11, "unknown mode for cmp");
         }
         LOG(11, "        cmp found");
-        break;
-    case ARM64_INS_CCMP:
-        LOG(11, "        ccmp found -- HANDLER NOT YET IMPLEMENTED");
-        break;
-    case ARM64_INS_TST:
-        LOG(11, "        tst found -- HANDLER NOT YET IMPLEMENTED");
         break;
 #endif
     default:
