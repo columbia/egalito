@@ -136,3 +136,29 @@ bool TreeNodeMultipleParents::canbe(TreeNode *tree) {
     return false;
 }
 
+TreeFactory& TreeFactory::instance() {
+    static TreeFactory factory;
+    return factory;
+}
+
+TreeNodeRegister *TreeFactory::makeTreeNodeRegister(Register reg) {
+    auto i = regTrees.find(reg);
+    if(i != regTrees.end()) {
+        return i->second;
+    }
+
+    TreeNodeRegister *n = new TreeNodeRegister(reg);
+    regTrees.emplace(reg, n);
+    return n;
+}
+
+void TreeFactory::clean() {
+    for(auto t : trees) { delete t; }
+    trees.clear();
+}
+
+void TreeFactory::cleanAll() {
+    clean();
+    for(auto t : regTrees) { delete t.second; }
+    regTrees.clear();
+}

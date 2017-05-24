@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <vector>
+#include <map>
 #include "instr/register.h"
 #include "types.h"
 
@@ -197,6 +198,38 @@ public:
     const std::vector<TreeNode *> &getParents() const { return parentList; }
     virtual void print(const TreePrinter &p) const;
     virtual bool canbe(TreeNode *tree);
+};
+
+class TreeFactory {
+private:
+    std::vector<TreeNode *> trees;
+    std::map<Register, TreeNodeRegister *> regTrees;
+
+public:
+    static TreeFactory& instance();
+
+    template <typename TreeNodeType, typename... Args>
+    TreeNodeType *make(Args... args) {
+        TreeNodeType *n = new TreeNodeType(args...);
+        trees.push_back(n);
+        return n;
+    }
+
+    void clean();
+    void cleanAll();
+
+private:
+    TreeFactory() {}
+    ~TreeFactory() {}
+    TreeFactory& operator=(const TreeFactory&);
+    TreeFactory(const TreeFactory&);
+
+    TreeNodeRegister *makeTreeNodeRegister(Register reg);
+};
+
+template <>
+inline TreeNodeRegister *TreeFactory::make(Register reg) {
+    return makeTreeNodeRegister(reg);
 };
 
 #endif

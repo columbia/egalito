@@ -182,7 +182,7 @@ private:
 public:
     SlicingSearch(ControlFlowGraph *cfg, SlicingHalt *halt = nullptr)
         : cfg(cfg), halt(halt) {}
-    virtual ~SlicingSearch() { for(auto state : stateList) { delete state; } }
+    virtual ~SlicingSearch();
 
     /** Run search beginning at this instruction. */
     void sliceAt(Instruction *instruction, int reg);

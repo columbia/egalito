@@ -463,16 +463,16 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
     if(mem->index != X86_REG_INVALID) {
         tree = getParentRegTree(state, mem->index);
         if(mem->scale != 1) {
-            tree = new TreeNodeMultiplication(
+            tree = TreeFactory::instance().make<TreeNodeMultiplication>(
                 tree,
-                new TreeNodeConstant(mem->scale));
+                TreeFactory::instance().make<TreeNodeConstant>(mem->scale));
         }
     }
 
     TreeNode *baseTree = getParentRegTree(state, mem->base);
     if(mem->base != X86_REG_INVALID) {
         if(tree) {
-            tree = new TreeNodeAddition(baseTree, tree);
+            tree = TreeFactory::instance().make<TreeNodeAddition>(baseTree, tree);
         }
         else {
             tree = baseTree;
@@ -481,11 +481,11 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
 
     if(mem->disp) {
         if(tree) {
-            tree = new TreeNodeAddition(
-                new TreeNodeAddress(mem->disp), tree);
+            tree = TreeFactory::instance().make<TreeNodeAddition>(
+                TreeFactory::instance().make<TreeNodeAddress>(mem->disp), tree);
         }
         else {
-            tree = new TreeNodeAddress(mem->disp);
+            tree = TreeFactory::instance().make<TreeNodeAddress>(mem->disp);
         }
     }
 
@@ -504,8 +504,9 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
         tree = getParentRegTree(state, mem->index);
         if(sft_type != ARM64_SFT_INVALID) {
             if(sft_type  == ARM64_SFT_LSL) {
-                tree = new TreeNodeLogicalShiftLeft(tree,
-                    new TreeNodeConstant(sft_value));
+                tree = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(
+                    tree,
+                    TreeFactory::instance().make<TreeNodeConstant>(sft_value));
             }
         }
     }
@@ -513,20 +514,22 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
     TreeNode *baseTree = getParentRegTree(state, mem->base);
     if(mem->base != ARM64_REG_INVALID) {    // should be there always
         if(tree) {
-            tree = new TreeNodeAddition(baseTree, tree);
+            tree = TreeFactory::instance().make<TreeNodeAddition>(baseTree, tree);
         }
         else {
             tree = baseTree;
         }
     }
     if(tree) {
-        tree = new TreeNodeAddition(tree, new TreeNodeConstant(mem->disp));
+        tree = TreeFactory::instance().make<TreeNodeAddition>(
+            tree,
+            TreeFactory::instance().make<TreeNodeConstant>(mem->disp));
     }
     else {
-        tree = new TreeNodeConstant(mem->disp);
+        tree = TreeFactory::instance().make<TreeNodeConstant>(mem->disp);
     }
 
-    tree = new TreeNodeDereference(tree, width);
+    tree = TreeFactory::instance().make<TreeNodeDereference>(tree, width);
     state->getIState()->setMemTree(tree);
 
     return tree;
@@ -537,14 +540,15 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
     if(reg == X86_REG_RIP) {
         // evaluate the instruction pointer in-place
         auto i = state->getInstruction();
-        return new TreeNodeRegisterRIP(i->getAddress() + i->getSize());
+        return TreeFactory::instance().make<TreeNodeRegisterRIP>(
+            i->getAddress() + i->getSize());
     }
 #endif
 
     const auto &parents = state->getParents();
     if(parents.size() == 0) {
         // no parents, the register value must have originated here
-        auto tree = new TreeNodeRegister(reg);
+        auto tree = TreeFactory::instance().make<TreeNodeRegister>(reg);
         state->setRegTree(reg, tree);
         return tree;
     }
@@ -553,17 +557,17 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
         auto tree = parents.front()->getRegTree(reg);
         if(!tree) {
             // This should only happen the first time a reg is used.
-            tree = new TreeNodeRegister(reg);   // parent doesn't have this
+            tree = TreeFactory::instance().make<TreeNodeRegister>(reg);
             state->setRegTree(reg, tree);
         }
         return tree;
     }
     else {
         // unusual case: multiple parents, combine with branching node
-        auto tree = new TreeNodeMultipleParents();
+        auto tree = TreeFactory::instance().make<TreeNodeMultipleParents>();
         for(auto p : parents) {
             auto t = p->getRegTree(reg);
-            if(!t) t = new TreeNodeRegister(reg);
+            if(!t) t = TreeFactory::instance().make<TreeNodeRegister>(reg);
             tree->addParent(t);
         }
         state->setRegTree(reg, tree);
@@ -808,9 +812,10 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto source = iState->get1()->reg;
                 auto target = iState->get2()->reg;
 
-                state->setRegTree(target, new TreeNodeAddition(
+                auto tree = TreeFactory::instance().make<TreeNodeAddition>(
                     u.getParentRegTree(state, source),
-                    u.getParentRegTree(state, target)));
+                    u.getParentRegTree(state, target));
+                state->setRegTree(target, tree);
             }
         }
         LOG(11, "        add found");
@@ -910,10 +915,10 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 state->addReg(reg);
             }
             else {
-                state->setRegTree(X86_REG_EFLAGS,
-                    new TreeNodeComparison(
-                        new TreeNodeConstant(imm),
-                        u.getParentRegTree(state, reg)));
+                auto tree = TreeFactory::instance().make<TreeNodeComparison>(
+                    TreeFactory::instance().make<TreeNodeConstant>(imm),
+                    u.getParentRegTree(state, reg));
+                state->setRegTree(X86_REG_EFLAGS, tree);
             }
         }
         break;
@@ -944,7 +949,8 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto imm = iState->get2()->imm;
 
-                state->setRegTree(reg, new TreeNodeAddress(imm));
+                state->setRegTree(reg,
+                    TreeFactory::instance().make<TreeNodeAddress>(imm));
             }
         }
         else {
@@ -961,7 +967,8 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto imm = iState->get2()->imm; //cs adds PC internally
 
-                state->setRegTree(reg, new TreeNodeAddress(imm));
+                state->setRegTree(reg,
+                    TreeFactory::instance().make<TreeNodeAddress>(imm));
             }
         }
         else {
@@ -983,14 +990,17 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 TreeNode *tree = u.getParentRegTree(state, source2);
                 if(extreg->shift.type != ARM64_SFT_INVALID) {
                     if(extreg->shift.type == ARM64_SFT_LSL) {
-                        tree = new TreeNodeLogicalShiftLeft(tree,
-                            new TreeNodeConstant(extreg->shift.value));
+                        auto c = TreeFactory::instance().make<TreeNodeConstant>(
+                            extreg->shift.value);
+                        tree = TreeFactory::instance().make<
+                            TreeNodeLogicalShiftLeft>(tree, c);
                     }
                 }
 
-                state->setRegTree(target, new TreeNodeAddition(
+                tree = TreeFactory::instance().make<TreeNodeAddition>(
                     u.getParentRegTree(state, source1),
-                    tree));
+                    tree);
+                state->setRegTree(target, tree);
             }
         }
         else if(mode == SlicingInstructionState::MODE_REG_REG_IMM) {
@@ -1010,11 +1020,11 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                     }
                 }
 
-                tree = new TreeNodeConstant(extimm.imm);
-
-                state->setRegTree(target, new TreeNodeAddition(
+                tree = TreeFactory::instance().make<TreeNodeConstant>(extimm.imm);
+                tree = TreeFactory::instance().make<TreeNodeAddition>(
                     u.getParentRegTree(state, source),
-                    tree));
+                    tree);
+                state->setRegTree(target, tree);
             }
         }
         else {
@@ -1032,17 +1042,21 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto source = iState->get2()->reg;
                 auto extimm = iState->get3()->extimm;
 
-                TreeNode *tree = new TreeNodeConstant(extimm.imm);
+                TreeNode *tree = TreeFactory::instance().make<TreeNodeConstant>(
+                    extimm.imm);
                 if(extimm.shift.type != ARM64_SFT_INVALID) {
                     if(extimm.shift.type == ARM64_SFT_LSL) {
-                        tree = new TreeNodeLogicalShiftLeft(tree,
-                            new TreeNodeConstant(extimm.shift.value));
+                        auto c = TreeFactory::instance().make<TreeNodeConstant>(
+                            extimm.shift.value);
+                        tree = TreeFactory::instance().make<
+                            TreeNodeLogicalShiftLeft>(tree, c);
                     }
                 }
 
-                state->setRegTree(target, new TreeNodeSubtraction(
+                tree = TreeFactory::instance().make<TreeNodeSubtraction>(
                     u.getParentRegTree(state, source),
-                    tree));
+                    tree);
+                state->setRegTree(target, tree);
             }
         }
         else if(mode == SlicingInstructionState::MODE_REG_REG_REG) {
@@ -1058,14 +1072,17 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 TreeNode *tree = u.getParentRegTree(state, source2);
                 if(extreg->shift.type != ARM64_SFT_INVALID) {
                     if(extreg->shift.type == ARM64_SFT_LSL) {
-                        tree = new TreeNodeLogicalShiftLeft(tree,
-                            new TreeNodeConstant(extreg->shift.value));
+                        auto c = TreeFactory::instance().make<TreeNodeConstant>(
+                            extreg->shift.value);
+                        tree = TreeFactory::instance().make<
+                            TreeNodeLogicalShiftLeft>(tree, c);
                     }
                 }
 
-                state->setRegTree(target, new TreeNodeSubtraction(
+                tree = TreeFactory::instance().make<TreeNodeSubtraction>(
                     u.getParentRegTree(state, source1),
-                    tree));
+                    tree);
+                state->setRegTree(target, tree);
             }
         }
         else {
@@ -1205,10 +1222,10 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             else {
                 auto reg = iState->get1()->reg;
                 auto imm = iState->get2()->imm;
-                state->setRegTree(ARM64_REG_NZCV,
-                    new TreeNodeComparison(
-                        u.getParentRegTree(state, reg),
-                        new TreeNodeConstant(imm)));
+                auto tree = TreeFactory::instance().make<TreeNodeComparison>(
+                    u.getParentRegTree(state, reg),
+                    TreeFactory::instance().make<TreeNodeConstant>(imm));
+                state->setRegTree(ARM64_REG_NZCV, tree);
             }
         }
         else if(mode == SlicingInstructionState::MODE_REG_REG) {
@@ -1218,10 +1235,10 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
             else {
                 auto reg1 = iState->get1()->reg;
                 auto reg2 = iState->get2()->reg;
-                state->setRegTree(ARM64_REG_NZCV,
-                    new TreeNodeComparison(
-                        u.getParentRegTree(state, reg1),
-                        u.getParentRegTree(state, reg2)));
+                auto tree = TreeFactory::instance().make<TreeNodeComparison>(
+                    u.getParentRegTree(state, reg1),
+                    u.getParentRegTree(state, reg2));
+                state->setRegTree(ARM64_REG_NZCV, tree);
             }
 
         }
@@ -1267,6 +1284,13 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
             }
         }
     }
+}
+
+SlicingSearch::~SlicingSearch() {
+    for(auto state : stateList) {
+        delete state;
+    }
+    TreeFactory::instance().clean();
 }
 
 bool BackwardSlicing::shouldContinue(SearchState *currentState) {
