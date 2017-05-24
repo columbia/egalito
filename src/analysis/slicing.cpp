@@ -40,7 +40,6 @@ private:
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     typedef struct extmem {
         const arm64_op_mem *mem;
-        arm64_extender ext;
         struct {
             arm64_shifter type;
             unsigned int value;
@@ -48,7 +47,6 @@ private:
     } extmem_t;
     typedef struct extreg {
         arm64_reg reg;
-        arm64_extender ext;
         struct {
             arm64_shifter type;
             unsigned int value;
@@ -157,7 +155,6 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             mode = MODE_REG_MEM;
             a1.reg = static_cast<arm64_reg>(asmOps->getOperands()[0].reg);
             a2.extmem.mem = &asmOps->getOperands()[1].mem;
-            a2.extmem.ext = asmOps->getOperands()[1].ext;
             a2.extmem.shift.type = asmOps->getOperands()[1].shift.type;
             a2.extmem.shift.value = asmOps->getOperands()[1].shift.value;
         }
@@ -172,7 +169,6 @@ void SlicingInstructionState::determineMode(Assembly *assembly) {
             a2.reg = static_cast<arm64_reg>(asmOps->getOperands()[1].reg);
             a3.extreg.reg = static_cast<arm64_reg>(
                 asmOps->getOperands()[2].reg);
-            a3.extreg.ext = asmOps->getOperands()[2].ext;
             a3.extreg.shift.type = asmOps->getOperands()[2].shift.type;
             a3.extreg.shift.value = asmOps->getOperands()[2].shift.value;
         }
@@ -496,7 +492,6 @@ TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
 TreeNode *SlicingUtilities::makeMemTree(SearchState *state,
                                         size_t width,
                                         const arm64_op_mem *mem,
-                                        arm64_extender ext,
                                         arm64_shifter sft_type,
                                         unsigned int sft_value) {
     TreeNode *tree = nullptr;
@@ -1102,7 +1097,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 
                 auto bytes = assembly->getBytes();
                 auto scale = (bytes[3] & 0b01000000) ? 8 : 4;
-                auto tree = u.makeMemTree(state, scale, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, scale, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
                 state->setRegTree(reg, tree);
             }
@@ -1122,7 +1117,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, 2, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 2, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
                 state->setRegTree(reg, tree);
             }
@@ -1142,7 +1137,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, 1, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 1, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
                 state->setRegTree(reg, tree);
             }
@@ -1163,7 +1158,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 
                 auto bytes = assembly->getBytes();
                 auto scale = (bytes[3] & 0b01000000) ? 8 : 4;
-                auto tree = u.makeMemTree(state, scale, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, scale, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
 
                 state->addMemTree(tree, u.getParentRegTree(state, reg));
@@ -1183,7 +1178,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, 2, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 2, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
 
                 state->addMemTree(tree, u.getParentRegTree(state, reg));
@@ -1203,7 +1198,7 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
                 auto reg = iState->get1()->reg;
                 auto extmem = iState->get2()->extmem;
 
-                auto tree = u.makeMemTree(state, 1, extmem.mem, extmem.ext,
+                auto tree = u.makeMemTree(state, 1, extmem.mem,
                                           extmem.shift.type, extmem.shift.value);
 
                 state->addMemTree(tree, u.getParentRegTree(state, reg));

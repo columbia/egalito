@@ -132,7 +132,6 @@ public:
     TreeNode *makeMemTree(SearchState *state,
                           size_t width,
                           const arm64_op_mem *mem,
-                          arm64_extender ext,
                           arm64_shifter sft_type,
                           unsigned int sft_value);
     TreeNode *getParentRegTree(SearchState *state, int reg);
