@@ -644,20 +644,8 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 
             currentState->setInstruction(i);
 
-#ifdef ARCH_X86_64
-            stillSearching = false;
-            for(auto r : currentState->getRegs()) {
-                if(r) {
-                    stillSearching = true;
-                    break;
-                }
-            }
+            stillSearching = shouldContinue(currentState);
             if(!stillSearching) break;
-#else
-            // disable search cutoff for architectures which require
-            // forward slicing. To cutoff properly in backward slicing,
-            // AARCH64 needs to check the size of mems[].
-#endif
 
             buildStateFor(currentState);
             stateList.push_back(currentState);
@@ -1290,4 +1278,22 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
             }
         }
     }
+}
+
+bool BackwardSlicing::shouldContinue(SearchState *currentState) {
+    //bool stillSearching = true;
+    bool stillSearching = false;
+    for(auto r : currentState->getRegs()) {
+        if(r) {
+            stillSearching = true;
+            break;
+        }
+    }
+    if(!stillSearching) {
+        if(currentState->getMems().size() > 0) {
+            stillSearching = true;
+        }
+    }
+
+    return stillSearching;
 }
