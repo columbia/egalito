@@ -21,6 +21,11 @@
     typedef Elf32_Rela  ElfXX_Rela;
     typedef Elf32_Sym   ElfXX_Sym;
     typedef Elf32_Dyn   ElfXX_Dyn;
+    typedef Elf32_Versym ElfXX_Versym;
+    typedef Elf32_Verdef ElfXX_Verdef;
+    typedef Elf32_Verneed ElfXX_Verneed;
+    typedef Elf32_Verdaux ElfXX_Verdaux;
+    typedef Elf32_Vernaux ElfXX_Vernaux;
 
     // macros
     #define ELFCLASSXX  ELFCLASS32
@@ -49,6 +54,11 @@
     typedef Elf64_Rela  ElfXX_Rela;
     typedef Elf64_Sym   ElfXX_Sym;
     typedef Elf64_Dyn   ElfXX_Dyn;
+    typedef Elf64_Versym ElfXX_Versym;
+    typedef Elf64_Verdef ElfXX_Verdef;
+    typedef Elf64_Verneed ElfXX_Verneed;
+    typedef Elf64_Verdaux ElfXX_Verdaux;
+    typedef Elf64_Vernaux ElfXX_Vernaux;
 
     // macros
     #define ELFCLASSXX  ELFCLASS64
