@@ -7,10 +7,25 @@
 #include "elfmap.h"
 #include "sharedlib.h"
 #include "elfxx.h"
+#include "unionfind.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dsymbol
 #include "log/log.h"
+
+class SymbolAliasFinder : public UnionFind {
+private:
+    std::vector<Symbol *> sortedList;
+
+public:
+    SymbolAliasFinder(SymbolList *list);
+
+    void constructByAddress();
+    Symbol *getSymbol(size_t i) const { return sortedList[i]; }
+
+private:
+    virtual void setEdge(size_t x1, size_t x2);
+};
 
 bool Symbol::isFunction() const {
 #if 0
@@ -135,46 +150,17 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         }
     }
 
-    std::map<address_t, Symbol *> seen;
-    for(auto sym : *list) {
-        // don't alias the null section index 0
-        if (sym->getSectionIndex() == 0) continue;
+    SymbolAliasFinder aliasFinder(list);
+    aliasFinder.constructByAddress();
 
-        // don't alias SECTIONs with other types (e.g. first FUNC in .text) or FILEs with other types
-        if(sym->getType() == Symbol::TYPE_SECTION || sym->getType() == Symbol::TYPE_FILE) continue;
-
-        auto prev = seen.find(sym->getAddress());
-        if(prev != seen.end()) {
-            auto prevSym = (*prev).second;
-
-            if(prevSym->getSize() == sym->getSize()
-                /* && prevSym->getBind() == sym->getBind() */
-                && prevSym->getSectionIndex() == sym->getSectionIndex()) {
-
-                // these are too fragile (depends on the symbol order now)
-#ifdef ARCH_X86_64
-                sym->setAliasFor(prevSym);
-                prevSym->addAlias(sym);
-#else
-                if(sym->getBind() == Symbol::BIND_LOCAL
-                    && sym->getName()[0] == '$') {
-
-                    sym->setAliasFor(prevSym);
-                    prevSym->addAlias(sym);
-                }
-                else {
-                    prevSym->setAliasFor(sym);
-                    sym->addAlias(prevSym);
-                }
-#endif
-            }
-            else {
-                CLOG(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding",
-                    sym->getAddress(), sym->getName());
-            }
-        }
-        else {
-            seen[sym->getAddress()] = sym;
+    for(size_t i = 0; i < list->getCount(); i++) {
+        auto rep = aliasFinder.find(i);
+        if(rep != i) {
+            auto sym = aliasFinder.getSymbol(i);
+            auto repSym = aliasFinder.getSymbol(rep);
+            sym->setAliasFor(repSym);
+            repSym->addAlias(sym);
+            LOG(1, "ALIAS: " << repSym->getName() << " : " << sym->getName());
         }
     }
 
@@ -208,7 +194,19 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 }
 
 SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
-    return buildAnySymbolList(elfmap, ".dynsym", SHT_DYNSYM);
+    auto list = buildAnySymbolList(elfmap, ".dynsym", SHT_DYNSYM);
+
+    SymbolVersionList versionList(elfmap);
+    for(auto sym : *list) {
+        auto index = sym->getIndex();
+        auto verName = versionList.getVersionName(index);
+        bool verHidden = versionList.isHidden(index);
+
+        LOG(10, "symbol " << sym->getName() << " has version " << verName);
+        sym->setVersion(new SymbolVersion(verName, verHidden));
+    }
+
+    return list;
 }
 
 SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
@@ -236,6 +234,7 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         size_t size = sym->st_size;
         const char *name = strtab + sym->st_name;
 
+#if 0
         // Symbol versioning: some functions have @@GLIBC.* appended to the
         // name (exported functions?), others only have one '@'.
         auto specialVersion = strstr(name, "@@GLIBC");
@@ -247,16 +246,16 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
             newName[len] = 0;
             name = newName;
         }
-
+#endif
 
         // sym->st_shndx will be 0 for load-time relocations in dynsym
         auto shndx = sym->st_shndx;
 
-        if (elfmap->isObjectFile()) {
+        if(elfmap->isObjectFile()) {
             LOG0(1, "symbol name: " << sym->st_name << " shndx " << shndx);
             auto symSection = elfmap->findSection(shndx);
             // will be null if COM section...
-            if (symSection) {
+            if(symSection) {
                 // Convert Offset to Virtual address.
                 address += symSection->getVirtualAddress();
             }
@@ -267,8 +266,6 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
             (int)list->symbolList.size(), j, name);
         list->add(symbol, (size_t)j);
     }
-
-    list->sortSymbols();
 
     return list;
 }
@@ -281,14 +278,6 @@ size_t SymbolList::estimateSizeOf(Symbol *symbol) {
     }
 
     return 0;
-}
-
-void SymbolList::sortSymbols() {
-    sortedSymbolList = symbolList;
-    std::sort(sortedSymbolList.begin(), sortedSymbolList.end(),
-        [](Symbol *a, Symbol *b) {
-            return a->getAddress() < b->getAddress();
-        });
 }
 
 unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
@@ -326,6 +315,230 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     case STB_LOCAL:     return Symbol::BIND_LOCAL;
     case STB_GLOBAL:    return Symbol::BIND_GLOBAL;
     default:            return Symbol::BIND_WEAK;
+    }
+}
+
+const char *SymbolVersionList::getVersionName(size_t symbolIndex) const {
+    auto it = nameList.find(getVersionIndex(symbolIndex));
+    if(it != nameList.end()) {
+        return it->second;
+    }
+    return "";
+}
+
+void SymbolVersionList::dump() const {
+    LOG(1, "Number of version symbols: " << std::dec << verList.size());
+    LOG(1, "Number of versions: " << nameList.size());
+    for(auto n : nameList) {
+        LOG(1, "name[" << n.first << "] " << n.second);
+    }
+}
+
+SymbolVersionList::SymbolVersionList(ElfMap *elfmap) {
+    auto ver_section = elfmap->findSection(".gnu.version");
+    if(!ver_section) {
+        return;
+    }
+
+    const char *strtab = elfmap->getDynstrtab();
+
+    auto versym = elfmap->getSectionReadPtr<ElfXX_Versym *>(ver_section);
+    auto s = ver_section->getHeader();
+    int count = s->sh_size / s->sh_entsize;
+    LOG(10, "Section .gnu.version has " << count << " entries");
+
+    for(int i = 0; i < count; i++, versym++) {
+        addVersion(*versym);
+    }
+    addName(0, "");
+    addName(1, "");
+
+    auto d_section = elfmap->findSection(".gnu.version_d");
+    if(d_section) {
+        auto verdef = elfmap->getSectionReadPtr<ElfXX_Verdef *>(d_section);
+        auto s = d_section->getHeader();
+        size_t size = s->sh_size;
+        LOG(10, "Section .gnu.version_d has " << size << " bytes");
+        size_t offset = 0;
+        do {
+            CLOG(10, "flags: %04x, ndx: %04x, cnt: %04x, hash: %08x, aux: %08x, next: %08x",
+                 verdef->vd_flags, verdef->vd_ndx, verdef->vd_cnt,
+                 verdef->vd_hash, verdef->vd_aux, verdef->vd_next);
+            auto aux = reinterpret_cast<ElfXX_Verdaux *>(
+                (char *)verdef + verdef->vd_aux);
+            addName(verdef->vd_ndx, strtab + aux->vda_name);
+
+            size_t aoffset = 0;
+            // the first one (j = 0) is the name of this version and the second
+            // one (j = 1) is the name of the parent
+            for(size_t j = 0; j < verdef->vd_cnt; j++) {
+                CLOG(10, "name: %08x, next: %08x", aux->vda_name, aux->vda_next);
+                CLOG(10, "name in strtab: %s", strtab + aux->vda_name);
+                aoffset = aux->vda_next;
+                aux = reinterpret_cast<ElfXX_Verdaux *>((char *)aux + aoffset);
+            }
+
+
+            offset = verdef->vd_next;
+            verdef = reinterpret_cast<ElfXX_Verdef *>((char *)verdef + offset);
+        } while (offset > 0);
+    }
+
+    auto r_section = elfmap->findSection(".gnu.version_r");
+    if(r_section) {
+        auto verneed = elfmap->getSectionReadPtr<ElfXX_Verneed *>(r_section);
+        auto s = r_section->getHeader();
+        size_t size = s->sh_size;
+        LOG(10, "Section .gnu.version_r has " << size << " bytes");
+        size_t offset = 0;
+        do {
+            CLOG(10, "version: %04x, cnt: %04x, file: %08x, aux: %08x, next: %08x",
+                 verneed->vn_version, verneed->vn_cnt, verneed->vn_file,
+                 verneed->vn_aux, verneed->vn_next);
+            auto aux = reinterpret_cast<ElfXX_Vernaux *>(
+                (char *)verneed + verneed->vn_aux);
+            size_t aoffset = 0;
+            for(size_t j = 0; j < verneed->vn_cnt; j++) {
+                addName(aux->vna_other, strtab + aux->vna_name);
+
+                // 'other' seemed to be decoded as Version
+                CLOG(10, "hash: %08x, flags: %04x, other(unused): %04x, name: %08x, next: %08x",
+                     aux->vna_hash, aux->vna_flags, aux->vna_other,
+                     aux->vna_name, aux->vna_next);
+                CLOG(10, "name in strtab: %s", strtab + aux->vna_name);
+                aoffset = aux->vna_next;
+                aux = reinterpret_cast<ElfXX_Vernaux *>((char *)aux + aoffset);
+            }
+
+            offset = verneed->vn_next;
+            verneed = reinterpret_cast<ElfXX_Verneed *>((char *)verneed + offset);
+        } while (offset > 0);
+    }
+
+    dump();
+}
+
+SymbolAliasFinder::SymbolAliasFinder(SymbolList *list)
+    : UnionFind(list->getCount()), sortedList(list->begin(), list->end()) {
+    std::sort(sortedList.begin(), sortedList.end(),
+        [](Symbol *a, Symbol *b) {
+            return a->getAddress() < b->getAddress();
+        });
+}
+
+void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
+    auto s1 = sortedList[x1];
+    auto s2 = sortedList[x2];
+
+    bool done = false;
+
+    // normal symbol > mapping symbol
+    if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
+        parent[x1] = x2;
+        done = true;
+    }
+    else if(s2->getBind() == Symbol::BIND_LOCAL && s2->getName()[0] == '$') {
+        parent[x2] = x1;
+        done = true;
+    }
+
+    // this seems to be a good heuristic
+    if(!done) {
+        if(strstr(s1->getName(), s2->getName())) {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(strstr(s2->getName(), s1->getName())) {
+            parent[x2] = x1;
+            done = true;
+        }
+    }
+
+    if(!done) {
+        if(strstr(s1->getName(), "@@")) {
+            parent[x2] = x1;
+            done = true;
+        }
+        else if(strstr(s2->getName(), "@@")) {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(strstr(s1->getName(), "@")) {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(strstr(s2->getName(), "@")) {
+            parent[x2] = x1;
+            done = true;
+        }
+    }
+
+    if(!done) {
+        if(s1->getBind() != s2->getBind()) {
+            // weak symbols are the symbols that are usually used
+            if(s1->getBind() == Symbol::BIND_LOCAL) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s2->getBind() == Symbol::BIND_LOCAL) {
+                parent[x2] = x1;
+                done = true;
+            }
+            else if(s1->getBind() == Symbol::BIND_GLOBAL) {
+                parent[x2] = x1;
+                done = true;
+            }
+            else if(s2->getBind() == Symbol::BIND_GLOBAL) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s1->getBind() == Symbol::BIND_WEAK) {
+                parent[x2] = x1;
+                done = true;
+            }
+            else if(s2->getBind() == Symbol::BIND_WEAK) {
+                parent[x1] = x2;
+                done = true;
+            }
+        }
+    }
+
+#if 1
+    // we might need a DB of standard API names
+    if(!done) {
+        LOG(1, "setting an alias ARBITRARILY ("
+            << s2->getName() << "->" << s1->getName() << ")");
+        parent[x1] = x2;
+    }
+#endif
+}
+
+void SymbolAliasFinder::constructByAddress() {
+    for(size_t i = 0; i < sortedList.size(); i++) {
+        auto sym = sortedList[i];
+        if(sym->getSectionIndex() == SHN_UNDEF) continue;
+        if(sym->getType() == Symbol::TYPE_SECTION) continue;
+        if(sym->getType() == Symbol::TYPE_FILE) continue;
+
+        for(size_t j = i + 1; j < sortedList.size(); j++) {
+            auto sym2 = sortedList[j];
+            if(sym->getAddress() != sym2->getAddress()) {
+                break;
+            }
+            /* if(sym2->getSectionIndex() == SHN_UNDEF) continue; */
+            if(sym2->getType() == Symbol::TYPE_SECTION) continue;
+            if(sym2->getType() == Symbol::TYPE_FILE) continue;
+
+            if(sym->getSectionIndex() == sym2->getSectionIndex()) {
+                if(sym->getSize() == sym2->getSize()) {
+                    join(i, j);
+                }
+                else {
+                    CLOG(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding",
+                        sym->getAddress(), sym->getName());
+                }
+            }
+        }
     }
 }
 

@@ -20,7 +20,7 @@ public:
     /** Tries to resolve the address that the named entity lives at.
         On success, sets address and returns true. On failure, returns false.
     */
-    bool resolveName(const char *name, address_t *address,
+    bool resolveName(const Symbol *symbol, address_t *address,
         bool allowInternal = true);
     bool resolveObject(const char *name, address_t *address, size_t *size);
 private:

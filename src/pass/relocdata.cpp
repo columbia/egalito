@@ -11,24 +11,50 @@
 #define DEBUG_GROUP dloadtime
 #include "log/log.h"
 
-bool FindAnywhere::resolveName(const char *name, address_t *address,
+bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     bool allowInternal) {
 
-    if(name) {
+    if(symbol) {
+        const char *name = symbol->getName();
         LOG(1, "SEARCH for " << name << ", internal = " << allowInternal);
+
+        std::string versionedName;
+        if(auto ver = symbol->getVersion()) {
+            versionedName.append(name);
+            versionedName.push_back('@');
+            if(!ver->isHidden()) versionedName.push_back('@');
+            versionedName.append(ver->getName());
+        }
+
         if(!allowInternal) {
             LOG(1, "skipping searching in " << elfSpace->getModule()->getName());
         }
 
         // first check the elfSpace we are resolving relocations for
-        if(allowInternal && resolveNameHelper(name, address, elfSpace)) {
-            return true;
+        if(allowInternal) {
+            if(resolveNameHelper(name, address, elfSpace)) {
+                return true;
+            }
+            else if(versionedName.size() > 0) {
+                LOG(1, "trying versioned name " << versionedName.c_str());
+                if(resolveNameHelper(versionedName.c_str(), address, elfSpace)) {
+                    return true;
+                }
+            }
         }
 
         for(auto library : *conductor->getLibraryList()) {
             auto space = library->getElfSpace();
             if(space && space != elfSpace) {
-                if(resolveNameHelper(name, address, space)) return true;
+                if(resolveNameHelper(name, address, space)) {
+                    return true;
+                }
+                else if(versionedName.size() > 0) {
+                    LOG(1, "trying versioned name " << versionedName.c_str());
+                    if(resolveNameHelper(versionedName.c_str(), address, space)) {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -196,14 +222,19 @@ void RelocDataPass::visit(Module *module) {
 
 void RelocDataPass::fixRelocation(Reloc *r) {
     const char *name = 0;
+    Symbol *symbol = nullptr;
     if(r->getSymbol() && *r->getSymbol()->getName()) {
         name = r->getSymbol()->getName();
+        symbol = r->getSymbol();
     }
     else {
         // If the symbols are split into a separate file, the relocation
         // may not know its name, but we can find it.
         auto otherSym = elfSpace->getSymbolList()->find(r->getAddend());
-        if(otherSym) name = otherSym->getName();
+        if(otherSym) {
+            name = otherSym->getName();
+            symbol = otherSym;
+        }
     }
 
     LOG(1, "trying to fix " << (name ? name : "???")
@@ -217,15 +248,15 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     bool found = false;
 
     if(r->getType() == R_X86_64_GLOB_DAT) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_X86_64_JUMP_SLOT) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_X86_64_PLT32) {
         // don't update refs to original PLT entries in original code
 #if 0
-        if(FindAnywhere(conductor, elfSpace).resolveName(name, &dest)) {
+        if(FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest)) {
             LOG(1, "    fix address " << std::hex << update
                 << " to point at " << dest);
             *(unsigned int *)update = dest;
@@ -236,10 +267,10 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         // don't update function pointers in original code
     }
     else if(r->getType() == R_X86_64_64) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_X86_64_RELATIVE) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
         if(!found) {
             dest = elfMap->getBaseAddress() + r->getAddend();
             found = true;
@@ -259,7 +290,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         size_t otherSize = (size_t)-1;
         //found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
         // do not allow internal references for COPY relocs
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &other, false);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &other, false);
         if(found) {
             size_t size = std::min(otherSize, r->getSymbol()->getSize());
             LOG(1, "    doing memcpy from " << other
@@ -285,13 +316,13 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     bool found = false;
 
     if(r->getType() == R_AARCH64_GLOB_DAT) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_AARCH64_JUMP_SLOT) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_AARCH64_RELATIVE) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
         if(!found) {
             dest = elfMap->getBaseAddress() + r->getAddend();
             found = true;
@@ -308,7 +339,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         dest = r->getAddend();
     }
     else if(r->getType() == R_AARCH64_ABS64) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(name, &dest);
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else {
         LOG(1, "    NOT fixing because type is " << r->getType());
