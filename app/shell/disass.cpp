@@ -52,6 +52,30 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
     }, "disassembles a single function (like the GDB command)");
 
+    topLevel->add("disass2", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(2);
+
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+
+        if(module) {
+            Function *func = ChunkFind2()
+                .findFunctionInModule(args.get(1).c_str(), module);
+            if(func) {
+                ChunkDumper dump;
+                func->accept(&dump);
+            }
+            else {
+                std::cout << "can't find function \"" << args.front() << "\"\n";
+            }
+        }
+
+    }, "disassembles a single function (like the GDB command) in the given module");
+
     topLevel->add("x/i", [&] (Arguments args) {
         if(!setup->getConductor()) {
             std::cout << "no ELF files loaded\n";

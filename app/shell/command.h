@@ -20,6 +20,7 @@ public:
 
     std::size_t size() const { return args.size(); }
     std::string front() const { return args.front(); }
+    std::string get(size_t i) const { return (i < args.size() ? args[i] : ""); }
 
     std::vector<std::string>::iterator begin() { return args.begin(); }
     std::vector<std::string>::const_iterator begin() const { return args.begin(); }
