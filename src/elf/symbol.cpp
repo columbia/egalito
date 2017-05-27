@@ -13,7 +13,7 @@
 #define DEBUG_GROUP dsymbol
 #include "log/log.h"
 
-class SymbolAliasFinder : public UnionFind {
+class SymbolAliasFinder : private UnionFind {
 private:
     std::vector<Symbol *> sortedList;
 
@@ -22,6 +22,7 @@ public:
 
     void constructByAddress();
     Symbol *getSymbol(size_t i) const { return sortedList[i]; }
+    size_t getRepresentativeIndex(size_t i) { return find(i); }
 
 private:
     virtual void setEdge(size_t x1, size_t x2);
@@ -154,7 +155,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     aliasFinder.constructByAddress();
 
     for(size_t i = 0; i < list->getCount(); i++) {
-        auto rep = aliasFinder.find(i);
+        auto rep = aliasFinder.getRepresentativeIndex(i);
         if(rep != i) {
             auto sym = aliasFinder.getSymbol(i);
             auto repSym = aliasFinder.getSymbol(rep);
