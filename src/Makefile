@@ -83,7 +83,7 @@ $(GEN_TIMESTAMP): gencode | $(BUILDTREE)
 	@touch $@
 
 gencode:
-	$(MAKE) -C dep/rtld P_ARCH=$(P_ARCH)
+	$(MAKE) -C dep/rtld
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
