@@ -36,7 +36,7 @@ OUTPUTS = $(ITEST) $(RUNNER)
 
 # Default target
 .PHONY: all
-all: test-all symlinks
+all: test-all .symlinks
 
 test-all: $(OUTPUTS) | rebuild-src
 
@@ -48,16 +48,11 @@ $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
-symlinks: $(OUTPUTS) .symlinks
+.symlinks: $(OUTPUTS)
+	@touch .symlinks
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)itest
 	@ln -sf $(BUILDDIR)runner
-
-.symlinks:
-	@touch .symlinks
-
-.PHONY: relink
-relink: symlinks
 
 .PHONY: rebuild-src
 rebuild-src:

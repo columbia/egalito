@@ -36,7 +36,7 @@ OUTPUTS = $(ETSHELL)
 
 # Default target
 .PHONY: all
-all: app-all symlinks
+all: app-all .symlinks
 
 app-all: $(OUTPUTS) | rebuild-src
 
@@ -51,15 +51,10 @@ $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
 
-symlinks: $(OUTPUTS) .symlinks
+.symlinks: $(OUTPUTS)
+	@touch .symlinks
 	@echo making symlinks...
 	@ln -sf $(ETSHELL)
-
-.symlinks:
-	@touch .symlinks
-
-.PHONY: relink
-relink: symlinks
 
 .PHONY: rebuild-src
 rebuild-src:

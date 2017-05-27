@@ -55,7 +55,7 @@ GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
 
 # Default target
 .PHONY: all
-all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks
+all: $(GEN_TIMESTAMP) $(OUTPUTS) .symlinks
 
 $(BUILDDIR)load/emulator.o $(BUILDDIR)transform/data.o: | $(GEN_TIMESTAMP)
 $(ALL_OBJECTS): | $(BUILDTREE)
@@ -65,7 +65,8 @@ $(BUILDTREE): ../config/config.h
 ../config/config.h:
 	$(MAKE) -C ../config
 
-symlinks: $(OUTPUTS) .symlinks
+.symlinks: $(OUTPUTS)
+	@touch .symlinks
 	@echo making symlinks...
 	@ln -sf $(BUILDDIR)egalito
 	@ln -sf $(BUILDDIR)loader
@@ -75,12 +76,6 @@ symlinks: $(OUTPUTS) .symlinks
 	ln -s ../test/example example
 	@rm -f ex; \
 	ln -s ../test/example/$(BUILDDIR) ex
-
-.symlinks:
-	@touch .symlinks
-
-.PHONY: relink
-relink: symlinks
 
 $(GEN_TIMESTAMP): gencode | $(BUILDTREE)
 	@touch $@
