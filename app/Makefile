@@ -48,8 +48,11 @@ Makefile: rebuild-src
 endif
 
 $(ALL_OBJECTS): | $(BUILDTREE)
-$(BUILDTREE):
+$(BUILDTREE): ../config/config.h
 	@mkdir -p $@
+
+../config/config.h:
+	$(MAKE) -C ../config
 
 .symlinks: $(OUTPUTS)
 	@touch .symlinks

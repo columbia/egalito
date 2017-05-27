@@ -11,6 +11,8 @@
 
 /* app */
 
+#define PROMPT_COLOR    C_GREEN
+
 /* test */
 
 #endif

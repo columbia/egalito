@@ -1,4 +1,5 @@
 #include "readline.h"
+#include "config.h"
 
 #define HAVE_READLINE
 
@@ -34,7 +35,9 @@ Readline::~Readline() {
 
 #define C_WHITE "37"
 #define C_GREEN "32"
+#ifndef PROMPT_COLOR
 #define PROMPT_COLOR C_WHITE
+#endif
 
 #define UNPRINTABLE(text) "\001" text "\002"
 
