@@ -6,9 +6,9 @@ ifdef USE_CONFIG
 	export
 endif
 
-.PHONY: all src test app clean realclean
+.PHONY: all config src test app clean realclean
 all: src test app
-src:
+src: | config
 	$(MAKE) -C src
 test: src
 	$(MAKE) -C test
@@ -16,7 +16,12 @@ test: src
 app: src | test
 	$(MAKE) -C app
 
+
+config:
+	$(MAKE) -C config
+
 clean realclean:
 	$(MAKE) -C src clean
 	$(MAKE) -C test $@
 	$(MAKE) -C test/example clean
+	$(MAKE) -C config clean

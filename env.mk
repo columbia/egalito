@@ -39,15 +39,16 @@ ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
 endif
 
 ifneq ($(CROSS),)
-	P_ARCH=$(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
+	P_ARCH = $(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
 else
-	P_ARCH=$(shell uname -m)
-	ifeq (armv7l, $(P_ARCH))
+	P_ARCH = $(shell uname -m)
+	ifeq (armv7l,$(P_ARCH))
 		P_ARCH = arm
 	endif
+	DISTRO = $(word 3,$(shell lsb_release -i))
 endif
 
-$(info "Building for $(P_ARCH)")
+$(info "Building for $(P_ARCH) $(DISTRO)")
 
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
