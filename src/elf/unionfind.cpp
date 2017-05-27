@@ -14,6 +14,7 @@ void UnionFind::join(size_t x1, size_t x2) {
 
 size_t UnionFind::find(size_t x) {
     while(parent[x] != x) { x = parent[x]; }
+    parent[x] = x;  // path compression
     return x;
 }
 
