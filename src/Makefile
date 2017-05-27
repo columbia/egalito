@@ -55,12 +55,15 @@ GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
 
 # Default target
 .PHONY: all
-all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks
+all: $(GEN_TIMESTAMP) $(OUTPUTS) symlinks | ../config/config.h
 
 $(BUILDDIR)load/emulator.o $(BUILDDIR)transform/data.o: | $(GEN_TIMESTAMP)
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE):
 	@mkdir -p $@
+
+../config/config.h:
+	$(MAKE) -C ../config
 
 symlinks: $(OUTPUTS) .symlinks
 	@echo making symlinks...
