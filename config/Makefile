@@ -7,16 +7,21 @@ DIFF = $(if $(wildcard config.h),$(shell diff $(PLATFORM_CONFIG_FILE) config.h))
 
 all: config.h
 
-config.h:
-	@if [ -e $(CONFIG_FILE) ]; then \
-		cp $(PLATFORM_CONFIG_FILE) config.h; \
-	else \
-		echo "Please add a configuration file for $(P_ARCH) $(DISTRO)."; \
+config.h: $(PLATFORM_CONFIG_FILE)
+	@if [ -e $(PLATFORM_CONFIG_FILE) ]; then \
+		if [ ! -e config.h ]; then \
+			cp $(PLATFORM_CONFIG_FILE) config.h; \
+		else \
+			echo "default config is updated: please remove config.h to apply."; \
+		fi \
 	fi
+
+$(PLATFORM_CONFIG_FILE):
+	@echo "Please add a new configuration file ($(PLATFORM_CONFIG_FILE))."
 
 clean:
 	@if [ "$(DIFF)" != "" ]; then \
-		echo "config.h was modified. Please remove manually."; \
+		echo "config.h was modified: please remove manually."; \
 		diff $(PLATFORM_CONFIG_FILE) config.h; \
 	else \
 		rm -f config.h; \
