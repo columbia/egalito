@@ -93,4 +93,4 @@ $(BUILDDIR)detectnull: detectnull.c
 
 .PHONY: clean
 clean:
-	-$(RM) -rf $(BUILDDIR) hellocpp
+	-@rm -rf $(BUILDDIR) hellocpp

@@ -6,6 +6,8 @@ CXX     = $(CROSS)g++
 AS      = $(CC)
 LINK    = $(CXX)
 
+AR      = ar
+
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 
 ifneq ($(CROSS),)
@@ -48,7 +50,7 @@ else
 	DISTRO = $(word 3,$(shell lsb_release -i))
 endif
 
-$(info "Building for $(P_ARCH) $(DISTRO)")
+$(if $(VERBOSE),$(info "Building for $(P_ARCH)"))
 
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
