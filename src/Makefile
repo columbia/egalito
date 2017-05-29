@@ -66,16 +66,19 @@ $(BUILDTREE): ../config/config.h
 	$(MAKE) -C ../config
 
 .symlinks: $(OUTPUTS)
-	@touch .symlinks
-	@echo making symlinks...
-	@ln -sf $(BUILDDIR)egalito
-	@ln -sf $(BUILDDIR)loader
-	@ln -sf $(BUILDDIR)libegalito.a
-	@ln -sf $(BUILDDIR)libegalito.so
-	@rm -f example; \
-	ln -s ../test/example example
-	@rm -f ex; \
-	ln -s ../test/example/$(BUILDDIR) ex
+	@touch $@
+	if [ "$(P_ARCH)" != "`cat $@`" ]; then \
+		echo making symlinks...; \
+		echo $(P_ARCH) > $@; \
+		ln -sf $(BUILDDIR)egalito; \
+		ln -sf $(BUILDDIR)loader; \
+		ln -sf $(BUILDDIR)libegalito.a; \
+		ln -sf $(BUILDDIR)libegalito.so; \
+		rm -f example; \
+		ln -s ../test/example example; \
+		rm -f ex; \
+		ln -s ../test/example/$(BUILDDIR) ex; \
+	fi
 
 $(GEN_TIMESTAMP): gencode | $(BUILDTREE)
 	@touch $@
