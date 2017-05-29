@@ -1288,8 +1288,7 @@ SlicingSearch::~SlicingSearch() {
     TreeFactory::instance().clean();
 }
 
-bool BackwardSlicing::shouldContinue(SearchState *currentState) {
-    //bool stillSearching = true;
+bool SlicingSearch::shouldContinue(SearchState *currentState) {
     bool stillSearching = false;
     for(auto r : currentState->getRegs()) {
         if(r) {
@@ -1305,3 +1304,4 @@ bool BackwardSlicing::shouldContinue(SearchState *currentState) {
 
     return stillSearching;
 }
+

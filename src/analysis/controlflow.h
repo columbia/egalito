@@ -65,11 +65,12 @@ public:
     using id_t = ControlFlow::id_t;
 private:
     std::vector<ControlFlowNode> graph;
-    std::map<Block *, ControlFlowNode::id_t> blockMapping;
+    std::map<Block *, id_t> blockMapping;
 public:
     ControlFlowGraph(Function *function);
+    virtual ~ControlFlowGraph() {}
 
-    ControlFlowNode *get(ControlFlowNode::id_t id)
+    ControlFlowNode *get(id_t id)
         { return &graph[id]; }
     ControlFlowNode *get(Block *block)
         { return &graph[blockMapping[block]]; }

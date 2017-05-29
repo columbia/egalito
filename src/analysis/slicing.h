@@ -153,7 +153,6 @@ public:
         { return new BackwardSearchState(node, instruction); }
     SearchState *makeSearchState(const SearchState &other)
         { return new BackwardSearchState(other); }
-    bool shouldContinue(SearchState *currentState);
 };
 
 class ForwardSlicing {
@@ -167,8 +166,6 @@ public:
         { return new ForwardSearchState(node, instruction); }
     SearchState *makeSearchState(const SearchState &other)
         { return new ForwardSearchState(other); }
-    bool shouldContinue(SearchState *currentState)
-        { return true; }
 };
 
 class SlicingSearch {
@@ -200,6 +197,8 @@ private:
     void detectInstruction(SearchState *state, bool firstPass);
     void detectJumpRegTrees(SearchState *state, bool firstPass);
 
+    bool shouldContinue(SearchState *currentState);
+
 private:
     virtual int getStep() const = 0;
     virtual bool isIndexValid(ChunkList *list, int index) = 0;
@@ -207,7 +206,6 @@ private:
     virtual void setParent(SearchState *current, SearchState *next) = 0;
     virtual SearchState *makeSearchState(ControlFlowNode *node, Instruction *instruction) = 0;
     virtual SearchState *makeSearchState(const SearchState& other) = 0;
-    virtual bool shouldContinue(SearchState *currentState) = 0;
 };
 
 template <typename SlicingDirector>
@@ -230,8 +228,6 @@ private:
         { return SlicingDirector().makeSearchState(node, instruction); }
     virtual SearchState *makeSearchState(const SearchState& other)
         { return SlicingDirector().makeSearchState(other); }
-    virtual bool shouldContinue(SearchState *currentState)
-        { return SlicingDirector().shouldContinue(currentState); }
 };
 
 typedef DirectedSlicingSearch<BackwardSlicing> BackwardSlicingSearch;
