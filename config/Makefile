@@ -12,7 +12,10 @@ config.h: $(PLATFORM_CONFIG_FILE)
 		if [ ! -e config.h ]; then \
 			cp $(PLATFORM_CONFIG_FILE) config.h; \
 		else \
-			echo "default config is updated: please remove config.h to apply."; \
+			if [ "$(DIFF)" != "" ]; then \
+				echo "default config is updated: please remove config.h to apply."; \
+				diff $(PLATFORM_CONFIG_FILE) config.h; \
+			fi \
 		fi \
 	fi
 
