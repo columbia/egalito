@@ -20,3 +20,68 @@ void AssemblyOperands::overrideCapstone(const cs_insn &insn) {
     }
 }
 #endif
+
+AssemblyOperands::OperandsMode AssemblyOperands::getMode() const {
+    OperandsMode mode = MODE_UNKNOWN;
+#ifdef ARCH_X86_64
+    if(op_count == 2
+        && operands[0].type == X86_OP_REG
+        && operands[1].type == X86_OP_REG) {
+
+        mode = MODE_REG_REG;
+    }
+    if(op_count == 2
+        && operands[0].type == X86_OP_MEM
+        && operands[1].type == X86_OP_REG) {
+
+        mode = MODE_MEM_REG;
+    }
+    if(op_count == 2
+        && operands[0].type == X86_OP_IMM
+        && operands[1].type == X86_OP_REG) {
+
+        mode = MODE_IMM_REG;
+    }
+#elif defined(ARCH_AARCH64)
+    if(op_count == 2) {
+        if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_REG) {
+
+            mode = MODE_REG_REG;
+        }
+        else if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_IMM) {
+
+            mode = MODE_REG_IMM;
+        }
+        else if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_MEM) {
+
+            mode = MODE_REG_MEM;
+        }
+    }
+    else if(op_count == 3) {
+        if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_REG
+            && operands[2].type == ARM64_OP_REG) {
+
+            mode = MODE_REG_REG_REG;
+        }
+        else if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_REG
+            && operands[2].type == ARM64_OP_IMM) {
+
+            mode = MODE_REG_REG_IMM;
+        }
+        else if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_REG
+            && operands[2].type == ARM64_OP_MEM) {
+
+            mode = MODE_REG_REG_MEM;
+        }
+    }
+#elif defined(ARCH_ARM)
+    mode = MODE_UNKNOWN;
+#endif
+    return mode;
+}

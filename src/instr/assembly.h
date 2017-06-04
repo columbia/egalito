@@ -8,6 +8,19 @@
 #include <capstone/capstone.h>
 
 class AssemblyOperands {
+public:
+    enum OperandsMode {
+        MODE_UNKNOWN = -1,
+        MODE_REG_REG = 0,
+        MODE_MEM_REG,
+        MODE_IMM_REG,
+        MODE_REG_REG_REG,
+        MODE_REG_IMM,
+        MODE_REG_MEM,
+        MODE_REG_REG_IMM,
+        MODE_REG_REG_MEM,
+    };
+
 private:
     uint8_t op_count;
 
@@ -54,17 +67,16 @@ public:
 public:
     AssemblyOperands() {}
     size_t getOpCount() const { return op_count; }
+    OperandsMode getMode() const;
 };
 
 class Assembly {
-#if defined(ARCH_ARM)
 public:
-    enum ModeType {
+    enum ExecutionMode {
         MODE_ARM,
         MODE_THUMB,
         MODE_UNKNOWN
     };
-#endif
 
 private:
     unsigned int id;
@@ -77,9 +89,6 @@ private:
     std::vector<uint8_t> regs_read;     // effectively?
     size_t regs_write_count;
     std::vector<uint8_t> regs_write;
-#if defined(ARCH_ARM)
-    ModeType modeType;
-#endif
 
 public:
     Assembly() {}
@@ -93,21 +102,7 @@ public:
                      insn.detail->regs_read + insn.detail->regs_read_count),
           regs_write_count(insn.detail->regs_write_count),
           regs_write(insn.detail->regs_write,
-                     insn.detail->regs_write + insn.detail->regs_write_count) {
-#if defined(ARCH_ARM)
-            modeType = ModeType::MODE_UNKNOWN;
-            for(int i = 0; i < insn.detail->groups_count; i++) {
-                if(insn.detail->groups[i] == ARM_GRP_THUMB) {
-                    modeType = ModeType::MODE_THUMB;
-                    break;
-                }
-                else if(insn.detail->groups[i] == ARM_GRP_ARM) {
-                    modeType = ModeType::MODE_ARM;
-                    break;
-                }
-            }
-#endif
-    }
+                     insn.detail->regs_write + insn.detail->regs_write_count) { }
 
     unsigned int getId() const { return id; }
     size_t getSize() const { return bytes.size(); }
@@ -121,8 +116,8 @@ public:
     size_t getImplicitRegsWriteCount() const { return regs_write_count; }
     const uint8_t *getImplicitRegsWrite() const { return regs_write.data(); }
 
-#if defined(ARCH_ARM)
-    ModeType getModeType() const { return modeType; }
+#ifdef ARCH_ARM
+    ExecutionMode getExecutionMode() const { return insn.size == 2 ? MODE_THUMB : MODE_ARM; }
 #endif
 
 };
