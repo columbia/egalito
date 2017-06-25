@@ -80,6 +80,14 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
            return (imm & ~0xFFE003FF); },
        1
       },
+      /* LDRSB (immediate: unsigned offset, with ADRP) */
+      {0xFFE003FF,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFF;
+           uint32_t imm = disp << 10;
+           return (imm & ~0xFFE003FF); },
+       1
+      },
       /* STR (immediate: unsigned offset, with ADRP) */
       {0xFFE003FF,
        [] (address_t dest, address_t src, uint32_t fixed) {
@@ -224,6 +232,7 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     case ARM64_INS_LDR:     m = AARCH64_IM_LDR;     break;
     case ARM64_INS_LDRH:    m = AARCH64_IM_LDRH;    break;
     case ARM64_INS_LDRB:    m = AARCH64_IM_LDRB;    break;
+    case ARM64_INS_LDRSB:   m = AARCH64_IM_LDRSB;   break;
     case ARM64_INS_LDRSW:   m = AARCH64_IM_LDRSW;   break;
     case ARM64_INS_LDRSH:   m = AARCH64_IM_LDRSH;   break;
     case ARM64_INS_STR:     m = AARCH64_IM_STR;     break;
@@ -244,11 +253,10 @@ void LinkedInstruction::regenerateAssembly() {
     getStorage().setAssembly(std::move(assembly));
 }
 
-
 class RegPointerPredicate : public SlicingHalt {
 private:
     int reg;
-    unsigned long offset;
+    long int offset;
     std::vector<Instruction *> offsetInstructionList;
 
 public:
@@ -267,7 +275,7 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree,
 
 #if 0
     if(tree) {
-        LOG(10, "reg tree is");
+        LOG(10, "tree is");
         IF_LOG(10) tree->print(TreePrinter(2, 0));
         LOG(10, "");
     }
@@ -300,9 +308,12 @@ TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree,
         }
         auto c2 = dynamic_cast<TreeNodeConstant *>(capture.get(1));
         if(r1 && r1->getRegister() == reg && c2) {
+            LOG(10, "offset found");
             return c2;
         }
     }
+
+    LOG(10, "didn't match");
 
     return nullptr;
 }
@@ -425,6 +436,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 #if 0
             GroupRegistry::getInstance()->applySetting("analysis", 20);
             GroupRegistry::getInstance()->applySetting("instr", 20);
+            GroupRegistry::getInstance()->applySetting("disasm", 9);
             LOG(1, "function name = " << function->getName());
             LOG(1, "function size = " << std::dec << function->getSize());
 

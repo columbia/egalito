@@ -18,6 +18,7 @@ public:
         AARCH64_IM_LDRB,
         AARCH64_IM_LDRSW,
         AARCH64_IM_LDRSH,
+        AARCH64_IM_LDRSB,
         AARCH64_IM_STR,
         AARCH64_IM_STRH,
         AARCH64_IM_STRB,
