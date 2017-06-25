@@ -1,7 +1,9 @@
 #include <sstream>
 #include <iomanip>
+#include <regex>
 #include "controlflow.h"
 #include "chunk/concrete.h"
+#include "elf/symbol.h"
 #include "instr/concrete.h"
 #include "pass/chunkpass.h"
 #include "log/log.h"
@@ -46,6 +48,16 @@ void ControlFlowGraph::construct(Block *block) {
         }
 
         auto link = i->getSemantic()->getLink();
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        if(cfi->getMnemonic() == "bl") {
+            if(auto plt = dynamic_cast<PLTLink *>(link)) {
+                if(!doesPLTReturn(plt->getPLTTrampoline())) fallThrough = false;
+            }
+            else if(auto func = dynamic_cast<Function *>(&*link->getTarget())) {
+                if(!doesReturn(func)) fallThrough = false;
+            }
+        }
+#endif
 #ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "callq" && link && link->getTarget()) {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
@@ -93,10 +105,12 @@ void ControlFlowGraph::construct(Block *block) {
             auto jumptablelist = module->getJumpTableList();
             for(auto jt : CIter::children(jumptablelist)) {
                 if(jt->getInstruction() == i) {
+                    LOG(10, "jumptable targeting to...");
                     for(auto entry : CIter::children(jt)) {
                         auto link =
                             dynamic_cast<NormalLink *>(entry->getLink());
                         if(link && link->getTarget()) {
+                            LOG(10, "" << link->getTarget()->getName());
                             if(auto v = dynamic_cast<Instruction *>(
                                 &*link->getTarget())) {
 
@@ -141,24 +155,78 @@ void ControlFlowGraph::construct(Block *block) {
     }
 }
 
-void ControlFlowGraph::dump() {
-    LOG(10, "Control flow graph:");
-    for(auto node : graph) {
-        LOG(10, "    " << node.getDescription());
-        LOG0(10, "        forward edges:");
-        for(auto link : node.forwardLinks()) {
-            LOG0(10, " " << link.getID() << " ("
-                << graph[link.getID()].getBlock()->getName()
-                << ") + " << std::dec << link.getOffset() << ";");
-        }
-        LOG(10, "");
-        LOG0(10, "        backward edges:");
-        for(auto link : node.backwardLinks()) {
-            LOG0(10, " " << link.getID() << " ("
-                << graph[link.getID()].getBlock()->getName()
-                << ") + " << std::dec << link.getOffset() << ";");
-        }
-        LOG(10, "");
+bool ControlFlowGraph::doesReturn(Function *function) {
+    static const std::vector<std::string> noreturns = {
+        "__GI___libc_fatal", "__GI___assert_fail", "__stack_chk_fail",
+        "__malloc_assert"
+    };
+
+    for(auto fn : noreturns) {
+        if(function->getName() == fn) return false;
     }
+    for(auto s : function->getSymbol()->getAliases()) {
+        for(auto fn : noreturns) {
+            if(std::string(s->getName()) == fn) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
+    static const std::vector<std::string> PLTnoreturns = {
+        "__cxa_throw@plt"
+    };
+
+    for(auto plt : PLTnoreturns) {
+        if(pltTrampoline->getName() == plt) return false;
+    }
+
+    return true;
+}
+
+void ControlFlowGraph::dump() {
+    LOG(9, "Control flow graph:");
+    for(auto node : graph) {
+        LOG(9, "    " << node.getDescription());
+        LOG0(9, "        forward links:");
+        for(auto link : node.forwardLinks()) {
+            LOG0(9, " " << link.getID() << " ("
+                << graph[link.getID()].getBlock()->getName()
+                << ") + " << std::dec << link.getOffset() << ";");
+        }
+        LOG(9, "");
+        LOG0(9, "        backward links:");
+        for(auto link : node.backwardLinks()) {
+            LOG0(9, " " << link.getID() << " ("
+                << graph[link.getID()].getBlock()->getName()
+                << ") + " << std::dec << link.getOffset() << ";");
+        }
+        LOG(9, "");
+    }
+}
+
+void ControlFlowGraph::dumpDot() {
+    std::regex e("bb\\+([0-9]+)");
+
+    LOG(9, "Control flow graph (DOT):");
+    LOG(9, "digraph G {");
+    for(auto node : graph) {
+        std::smatch match1, match2;
+
+        auto nodeName = node.getBlock()->getName();
+        std::regex_search(nodeName, match1, e);
+
+        for(auto link : node.forwardLinks()) {
+            auto linkName = graph[link.getID()].getBlock()->getName();
+            std::regex_search(linkName, match2, e);
+
+            LOG(9, " \"" << node.getID() << "(" << match1[9] << ")\""
+                << " -> \"" << link.getID() << "(" << match2[9] << ")\"");
+        }
+    }
+    LOG(9, "}");
 }
 

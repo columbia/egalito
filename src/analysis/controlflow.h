@@ -7,6 +7,7 @@
 
 class Function;
 class Block;
+class PLTTrampoline;
 
 namespace ControlFlow {
     typedef int id_t;
@@ -77,9 +78,12 @@ public:
     size_t getCount() const { return graph.size(); }
 
     void dump();
+    void dumpDot();
 private:
     void construct(Function *function);
     void construct(Block *block);
+    bool doesReturn(Function *function);
+    bool doesPLTReturn(PLTTrampoline *pltTrampoline);
 };
 
 #endif
