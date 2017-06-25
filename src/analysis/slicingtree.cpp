@@ -14,7 +14,7 @@ void TreePrinter::indent() const {
 }
 
 void TreeNodeConstant::print(const TreePrinter &p) const {
-    p.stream() << value;
+    p.stream() << std::dec << value;
 }
 
 void TreeNodeAddress::print(const TreePrinter &p) const {
@@ -23,11 +23,15 @@ void TreeNodeAddress::print(const TreePrinter &p) const {
 
 void TreeNodeRegister::print(const TreePrinter &p) const {
     Disassemble::Handle handle(true);
-    p.stream() << "%" << cs_reg_name(handle.raw(), reg);
+    p.stream() << "%" << std::dec << cs_reg_name(handle.raw(), reg);
 }
 
 void TreeNodeRegisterRIP::print(const TreePrinter &p) const {
     p.stream() << "%rip=0x" << std::hex << value;
+}
+
+void TreeNodePhysicalRegister::print(const TreePrinter &p) const {
+    p.stream() << "%" << std::dec << reg;
 }
 
 void TreeNodeUnary::print(const TreePrinter &p) const {
@@ -40,6 +44,12 @@ bool TreeNodeUnary::canbe(TreeNode *tree) {
     auto t = dynamic_cast<TreeNodeUnary *>(tree);
     return t && !strcmp(name, t->getName()) &&
         getChild()->canbe(t->getChild());
+}
+
+bool TreeNodeUnary::equal(TreeNode *tree) {
+    auto t = dynamic_cast<TreeNodeUnary *>(tree);
+    return t && !strcmp(name, t->getName()) &&
+        getChild()->equal(t->getChild());
 }
 
 void TreeNodeBinary::print(const TreePrinter &p) const {
@@ -69,6 +79,16 @@ bool TreeNodeBinary::canbe(TreeNode *tree) {
          ||
         (getRight()->canbe(t->getLeft()) &&
           getLeft()->canbe(t->getRight())));
+}
+
+bool TreeNodeBinary::equal(TreeNode *tree) {
+    auto t = dynamic_cast<TreeNodeBinary *>(tree);
+    return t && !strcmp(op, t->getOperator()) && (
+        (getLeft()->equal(t->getLeft()) &&
+         getRight()->equal(t->getRight()))
+         ||
+        (getRight()->equal(t->getLeft()) &&
+          getLeft()->equal(t->getRight())));
 }
 
 void TreeNodeComparison::print(const TreePrinter &p) const {
@@ -136,18 +156,39 @@ bool TreeNodeMultipleParents::canbe(TreeNode *tree) {
     return false;
 }
 
+bool TreeNodeMultipleParents::equal(TreeNode *tree) {
+    auto t = dynamic_cast<TreeNodeMultipleParents *>(tree);
+    if(t) {
+        auto p1 = t->getParents();
+        auto p2 = getParents();
+        if(p1.size() != p2.size()) {
+            return false;
+        }
+
+        for(auto t1 = p1.begin(), t2 = p2.begin(); t1 != p1.end(); ++t1, ++t2) {
+            if(!(*t1)->equal(*t2)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 TreeFactory& TreeFactory::instance() {
     static TreeFactory factory;
     return factory;
 }
 
-TreeNodeRegister *TreeFactory::makeTreeNodeRegister(Register reg) {
+TreeNodePhysicalRegister *TreeFactory::makeTreeNodePhysicalRegister(
+    Register reg, int width) {
+
     auto i = regTrees.find(reg);
     if(i != regTrees.end()) {
         return i->second;
     }
 
-    TreeNodeRegister *n = new TreeNodeRegister(reg);
+    TreeNodePhysicalRegister *n = new TreeNodePhysicalRegister(reg, width);
     regTrees.emplace(reg, n);
     return n;
 }
