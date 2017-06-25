@@ -13,9 +13,7 @@ void AARCH64RegBits::encode(char *bytes) {
     bytes[3] = bin >> 24 & 0xFF;
 }
 
-bool AARCH64RegBits::isReading(
-    PhysicalRegister<AARCH64GPRegister>& reg) {
-
+bool AARCH64RegBits::isReading(PhysicalRegister<AARCH64GPRegister>& reg) {
     auto list = getRegPositionList();
     for(auto rpos : list.first) {
         uint32_t rr = bin >> rpos & regMask;
@@ -26,9 +24,7 @@ bool AARCH64RegBits::isReading(
     return false;
 }
 
-bool AARCH64RegBits::isWriting(
-    PhysicalRegister<AARCH64GPRegister>& reg) {
-
+bool AARCH64RegBits::isWriting(PhysicalRegister<AARCH64GPRegister>& reg) {
     auto list = getRegPositionList();
     for(auto wpos : list.second) {
         uint32_t wr = bin >> wpos & regMask;
@@ -188,6 +184,7 @@ void AARCH64RegBits::makeLDST_RegPositionList() {
             source.push_back(5);
             source.push_back(16);
             destination.push_back(0);
+            break;
         case 0: case 4: case 6: //ST
             source.push_back(0);
             source.push_back(5);

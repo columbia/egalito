@@ -75,6 +75,7 @@ std::string PromoteJumpsPass::getWiderOpcode(unsigned int id) {
     case X86_INS_JECXZ:
         // TODO: handle properly
         LOG(1, "Can't promote JRCXZ or JECXZ right now, always short.");
+        break;
     default:
         LOG(1, "Unknown jump opcode id encountered: " << id);
         break;

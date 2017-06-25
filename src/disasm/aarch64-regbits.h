@@ -18,12 +18,12 @@ private:
 
 public:
     AARCH64RegBits() : regMask(0x1F), cached(false) {}
-    virtual void decode(const char *bytes);
-    virtual void encode(char *bytes);
-    virtual bool isReading(PhysicalRegister<AARCH64GPRegister> &reg);
-    virtual bool isWriting(PhysicalRegister<AARCH64GPRegister> &reg);
-    virtual void replaceRegister(PhysicalRegister<AARCH64GPRegister>& oldReg,
-                                 PhysicalRegister<AARCH64GPRegister>& newReg);
+    void decode(const char *bytes);
+    void encode(char *bytes);
+    bool isReading(PhysicalRegister<AARCH64GPRegister> &reg);
+    bool isWriting(PhysicalRegister<AARCH64GPRegister> &reg);
+    void replaceRegister(PhysicalRegister<AARCH64GPRegister>& oldReg,
+                         PhysicalRegister<AARCH64GPRegister>& newReg);
 
 private:
     RegPositionsList getRegPositionList();
