@@ -10,6 +10,7 @@ private:
 public:
     void add(TreeNode *node) { captureList.push_back(node); }
     TreeNode *get(int index) const { return captureList[index]; }
+    size_t getCount() const { return captureList.size(); }
     void clear() { captureList.clear(); }
 };
 
@@ -55,6 +56,23 @@ bool TreePatternBinary<Type, LeftType, RightType>::matches(
         && RightType::matches(b->getRight(), capture);
 }
 
+template <typename Type, typename LeftType, typename RightType>
+class TreePatternRecursiveBinary {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type, typename LeftType, typename RightType>
+bool TreePatternRecursiveBinary<Type, LeftType, RightType>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    auto b = dynamic_cast<Type *>(node);
+    return b != nullptr
+        && (TreePatternRecursiveBinary<
+                Type, LeftType, RightType>::matches(b->getLeft(), capture)
+            || LeftType::matches(b->getLeft(), capture))
+        && RightType::matches(b->getRight(), capture);
+}
+
 template <typename Type = TreePatternAny>
 class TreePatternCapture {
 public:
@@ -73,6 +91,15 @@ class TreePatternRegisterIs {
 public:
     static bool matches(TreeNode *node, TreeCapture &capture) {
         auto v = dynamic_cast<TreeNodeRegister *>(node);
+        return v && v->getRegister() == Wanted;
+    }
+};
+
+template <int Wanted>
+class TreePatternPhysicalRegisterIs {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture) {
+        auto v = dynamic_cast<TreeNodePhysicalRegister *>(node);
         return v && v->getRegister() == Wanted;
     }
 };
