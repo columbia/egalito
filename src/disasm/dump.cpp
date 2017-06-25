@@ -23,8 +23,8 @@ void DisasmDump::printInstruction(address_t address, Assembly *instr, int offset
     // show disassembly of each instruction
     std::string rawDisasm = formatBytes(instr->getBytes(), instr->getSize());
 
-    printInstructionRaw(address, offset, instr->getMnemonic(),
-        instr->getOpStr(), name, rawDisasm, false);
+    printInstructionRaw(address, offset, instr->getMnemonic().c_str(),
+        instr->getOpStr().c_str(), name, rawDisasm, false);
 }
 
 void DisasmDump::printInstructionCalculated(address_t address, Assembly *instr,
@@ -37,8 +37,8 @@ void DisasmDump::printInstructionCalculated(address_t address, Assembly *instr,
 
     char targetString[64];
     sprintf(targetString, "0x%lx", target);
-    printInstructionRaw(address, offset, instr->getMnemonic(),
-        instr->getOpStr(), targetString, rawDisasm, true);
+    printInstructionRaw(address, offset, instr->getMnemonic().c_str(),
+        instr->getOpStr().c_str(), targetString, rawDisasm, true);
 }
 
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,

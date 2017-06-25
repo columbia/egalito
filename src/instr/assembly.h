@@ -11,7 +11,10 @@ class AssemblyOperands {
 public:
     enum OperandsMode {
         MODE_UNKNOWN = -1,
-        MODE_REG_REG = 0,
+        MODE_NONE = 0,
+        MODE_REG,
+        MODE_IMM,
+        MODE_REG_REG,
         MODE_MEM_REG,
         MODE_IMM_REG,
         MODE_REG_REG_REG,
@@ -19,6 +22,8 @@ public:
         MODE_REG_MEM,
         MODE_REG_REG_IMM,
         MODE_REG_REG_MEM,
+        MODE_REG_MEM_IMM,
+        MODE_REG_REG_MEM_IMM,
     };
 
 private:
@@ -102,24 +107,32 @@ public:
                      insn.detail->regs_read + insn.detail->regs_read_count),
           regs_write_count(insn.detail->regs_write_count),
           regs_write(insn.detail->regs_write,
-                     insn.detail->regs_write + insn.detail->regs_write_count) { }
+                     insn.detail->regs_write + insn.detail->regs_write_count)
+        { overrideCapstone(insn); }
 
     unsigned int getId() const { return id; }
     size_t getSize() const { return bytes.size(); }
     const char *getBytes() const
         { return reinterpret_cast<const char *>(bytes.data()); }
-    const char *getMnemonic() const { return mnemonic.c_str(); }
-    const char *getOpStr() const { return operandString.c_str(); }
+    const std::string &getMnemonic() const { return mnemonic; }
+    const std::string &getOpStr() const { return operandString; }
     const AssemblyOperands *getAsmOperands() const { return &operands; }
     size_t getImplicitRegsReadCount() const { return regs_read_count; }
     const uint8_t *getImplicitRegsRead() const { return regs_read.data(); }
     size_t getImplicitRegsWriteCount() const { return regs_write_count; }
     const uint8_t *getImplicitRegsWrite() const { return regs_write.data(); }
 
+#ifdef ARCH_AARCH64
+    bool isPreIndex() const;
+    bool isPostIndex() const;
+#endif
 #ifdef ARCH_ARM
-    ExecutionMode getExecutionMode() const { return insn.size == 2 ? MODE_THUMB : MODE_ARM; }
+    ExecutionMode getExecutionMode() const
+        { return insn.size == 2 ? MODE_THUMB : MODE_ARM; }
 #endif
 
+private:
+    void overrideCapstone(const cs_insn &insn);
 };
 
 #endif

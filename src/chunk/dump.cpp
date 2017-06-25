@@ -159,7 +159,8 @@ void InstrDumper::visit(IndirectJumpInstruction *semantic) {
 
     DisasmDump::printInstructionRaw(address,
         pos, name.str().c_str(),
-        semantic->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
+        semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+        false);
 }
 
 void InstrDumper::visit(IndirectCallInstruction *semantic) {
@@ -168,7 +169,8 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
 
     DisasmDump::printInstructionRaw(address,
         pos, "(CALL*)",
-        semantic->getAssembly()->getOpStr(), nullptr, bytes2.c_str(), false);
+        semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+        false);
 }
 
 void InstrDumper::visit(LiteralInstruction *semantic) {
