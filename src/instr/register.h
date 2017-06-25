@@ -40,6 +40,11 @@ public:
         R16, R17, R18, R19, R20, R21, R22, R23,
         R24, R25, R26, R27, R28, R29, R30, R31,
 
+        V0, V1, V2, V3, V4, V5, V6, V7,
+        V8,  V9,  V10, V11, V12, V13, V14, V15,
+        V16, V17, V18, V19, V20, V21, V22, V23,
+        V24, V25, V26, V27, V28, V29, V30, V31,
+
         REGISTER_NUMBER,
 
         IP0 = R16,
@@ -53,18 +58,29 @@ public:
         R_CALLEE_SAVED_END = R28,
         // R8 is indirect result location register
         R_TEMPORARY_BEGIN = R9,
-        R_TEMPORARY_END = R18
+        R_TEMPORARY_END = R18,
+
+        NZCV = REGISTER_NUMBER
     };
 
 private:
     int _id;
+    const static int mappings[R31 - R0 + 1 + 1][3]; // last one for NZCV
+    const static int fpMappings[V31 - V0 + 1][6];
+
 public:
     AARCH64GPRegister(int id, bool physical)
         : _id(id) { if(!physical) _id = convertToPhysical(id); }
     int id() const { return _id; }
     unsigned int encoding() const { return static_cast<unsigned int>(_id); }
-    //private:
-    int convertToPhysical(int id);
+
+    static int convertToPhysical(int id);
+    static size_t getWidth(int pid, int id);
+    static int isInteger(int pid) { return (R0 <= pid && pid <= R31); }
+
+private:
+    static int convertToPhysicalINT(int id);
+    static int convertToPhysicalFP(int id);
 };
 
 inline AARCH64GPRegister::ID& operator++(AARCH64GPRegister::ID &orig) {
@@ -81,8 +97,8 @@ public:
     PhysicalRegister(int id, bool physical) : reg(id, physical) {}
     int id() const { return reg.id(); }
     unsigned int encoding() const { return reg.encoding(); }
-    inline bool operator==(const PhysicalRegister& rhs) {
-        return id() == rhs.id(); }
+    bool operator==(const PhysicalRegister& rhs)
+        { return id() == rhs.id(); }
 };
 #endif
 
