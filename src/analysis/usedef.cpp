@@ -173,8 +173,8 @@ void RegMemState::dumpMemState() const {
 }
 
 
-UseDefConfiguration::UseDefConfiguration(int level,
-    ControlFlowGraph *cfg, const std::vector<int> &idList)
+UDConfiguration::UDConfiguration(int level, ControlFlowGraph *cfg,
+    const std::vector<int> &idList)
     : level(level), cfg(cfg) {
 
     for(auto id : idList) {
@@ -182,7 +182,7 @@ UseDefConfiguration::UseDefConfiguration(int level,
     }
 }
 
-bool UseDefConfiguration::isEnabled(int id) const {
+bool UDConfiguration::isEnabled(int id) const {
     auto it = enabled.find(id);
     if(it != enabled.end()) {
         return true;
@@ -191,7 +191,7 @@ bool UseDefConfiguration::isEnabled(int id) const {
 }
 
 
-void UseDefWorkSet::transitionTo(ControlFlowNode *node) {
+void UDWorkingSet::transitionTo(ControlFlowNode *node) {
     regSet = &nodeExposedRegSetList[node->getID()];
     memSet = &nodeExposedMemSetList[node->getID()];
     regSet->clear();
@@ -207,7 +207,7 @@ void UseDefWorkSet::transitionTo(ControlFlowNode *node) {
     }
 }
 
-void UseDefWorkSet::copyFromMemSetFor(
+void UDWorkingSet::copyFromMemSetFor(
     UDState *state, int reg, TreeNode *place) {
 
     MemLocation loc1(place);
@@ -219,12 +219,29 @@ void UseDefWorkSet::copyFromMemSetFor(
     }
 }
 
-void UseDefWorkSet::dumpSet() const {
+void UDWorkingSet::dumpSet() const {
     LOG(9, "REG SET");
     regSet->dump();
 
     LOG(9, "MEM SET");
     memSet->dump();
+}
+
+UDRegMemWorkingSet::UDRegMemWorkingSet(
+    Function *function, ControlFlowGraph *cfg)
+    : UDWorkingSet(cfg), function(function) {
+
+    for(auto block : CIter::children(function)) {
+        auto node = cfg->get(block);
+        for(auto instr: CIter::children(block)) {
+            stateList.emplace_back(node, instr);
+        }
+    }
+}
+
+UDState *UDRegMemWorkingSet::getState(Instruction *instruction) {
+    address_t offset = instruction->getAddress() - function->getAddress();
+    return &stateList[offset / 4];
 }
 
 
@@ -291,12 +308,12 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
 
     for(auto nodeId : order) {
         auto node = config->getCFG()->get(nodeId);
-        work->transitionTo(node);
+        working->transitionTo(node);
 
         auto blockList = CIter::children(node->getBlock());
 
         for(auto it = blockList.begin(); it != blockList.end(); ++it) {
-            auto state = work->getState(*it);
+            auto state = working->getState(*it);
 
             LOG(9, "analyzing state @ 0x" << std::hex
                 << state->getInstruction()->getAddress());
@@ -311,7 +328,7 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
 
         LOG(9, "");
         LOG(9, "final set for node " << std::dec << nodeId);
-        work->dumpSet();
+        working->dumpSet();
         LOG(9, "");
     }
 }
@@ -343,19 +360,19 @@ void UseDef::fillState(UDState *state) {
     bool handled = callIfEnabled(state, assembly);
     if(handled) {
         state->dumpState();
-        work->dumpSet();
+        working->dumpSet();
     }
 }
 
 void UseDef::defReg(UDState *state, int reg, TreeNode *tree) {
     if(reg != -1) {
         state->addRegDef(reg, tree);
-        work->setAsRegSet(reg, state);
+        working->setAsRegSet(reg, state);
     }
 }
 
 void UseDef::useReg(UDState *state, int reg) {
-    auto origins = work->getRegSet(reg);
+    auto origins = working->getRegSet(reg);
     if(origins) {
         for(auto o : *origins) {
             state->addRegRef(reg, o);
@@ -365,11 +382,11 @@ void UseDef::useReg(UDState *state, int reg) {
 
 void UseDef::defMem(UDState *state, TreeNode *place, int reg) {
     state->addMemDef(reg, place);
-    work->setAsMemSet(place, state);
+    working->setAsMemSet(place, state);
 }
 
 void UseDef::useMem(UDState *state, TreeNode *place, int reg) {
-    work->copyFromMemSetFor(state, reg, place);
+    working->copyFromMemSetFor(state, reg, place);
 }
 
 TreeNode *UseDef::shiftExtend(TreeNode *tree, arm64_shifter type,

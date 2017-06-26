@@ -7,6 +7,7 @@
 #include "slicingmatch.h"
 #include "instr/register.h"
 
+class Function;
 class Instruction;
 class TreeNode;
 class Assembly;
@@ -171,14 +172,14 @@ private:
     void dumpMemState() const;
 };
 
-class UseDefConfiguration {
+class UDConfiguration {
 private:
     int level;
     ControlFlowGraph *cfg;
     std::map<int, bool> enabled;
 
 public:
-    UseDefConfiguration(int level, ControlFlowGraph *cfg,
+    UDConfiguration(int level, ControlFlowGraph *cfg,
         const std::vector<int> &idList);
 
     int getLevel() const { return level; }
@@ -186,7 +187,7 @@ public:
     bool isEnabled(int id) const;
 };
 
-class UseDefWorkSet {
+class UDWorkingSet {
 private:
     std::vector<RefList> nodeExposedRegSetList;
     std::vector<MemOriginList> nodeExposedMemSetList;
@@ -195,7 +196,7 @@ private:
     MemOriginList *memSet;
 
 public:
-    UseDefWorkSet(ControlFlowGraph *cfg)
+    UDWorkingSet(ControlFlowGraph *cfg)
         : nodeExposedRegSetList(cfg->getCount()),
           nodeExposedMemSetList(cfg->getCount()),
           regSet(nullptr), memSet(nullptr) {}
@@ -225,19 +226,31 @@ public:
         { return nullptr; }
 };
 
+// only works for fixed size instructions
+class UDRegMemWorkingSet : public UDWorkingSet {
+private:
+    Function *function;
+    std::vector<RegMemState> stateList;
+public:
+    UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg);
+    virtual UDState *getState(Instruction *instruction);
+    const std::vector<RegMemState> &getStateList() const
+        { return stateList; }
+};
+
 class UseDef {
 public:
     typedef void (UseDef::*HandlerType)(UDState *state, Assembly *assembly);
 
 private:
-    UseDefConfiguration *config;
-    UseDefWorkSet *work;
+    UDConfiguration *config;
+    UDWorkingSet *working;
 
     const static std::map<int, HandlerType> handlers;
 
 public:
-    UseDef(UseDefConfiguration *config, UseDefWorkSet *work)
-        : config(config), work(work) {}
+    UseDef(UDConfiguration *config, UDWorkingSet *working)
+        : config(config), working(working) {}
 
     void analyze(const std::vector<std::vector<int>>& order);
 
