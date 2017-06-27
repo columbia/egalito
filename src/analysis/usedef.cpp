@@ -174,15 +174,22 @@ void RegMemState::dumpMemState() const {
 
 
 UDConfiguration::UDConfiguration(int level, ControlFlowGraph *cfg,
-    const std::vector<int> &idList)
-    : level(level), cfg(cfg) {
+    const std::vector<int> &idList) : level(level), cfg(cfg) {
 
-    for(auto id : idList) {
-        enabled[id] = true;
+    if(idList.size() == 0) {
+        allEnabled = true;
+    }
+    else {
+        allEnabled = false;
+        for(auto id : idList) {
+            enabled[id] = true;
+        }
     }
 }
 
 bool UDConfiguration::isEnabled(int id) const {
+    if(allEnabled) return true;
+
     auto it = enabled.find(id);
     if(it != enabled.end()) {
         return true;
@@ -336,11 +343,14 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
 bool UseDef::callIfEnabled(UDState *state, Assembly *assembly) {
     bool handled = false;
     if(config->isEnabled(assembly->getId())) {
-        auto f = handlers.find(assembly->getId())->second;
-        (this->*f)(state, assembly);
-        handled = true;
+        auto it = handlers.find(assembly->getId());
+        if(it != handlers.end()) {
+            auto f = it->second;
+            (this->*f)(state, assembly);
+            handled = true;
+        }
     }
-    else {
+    if(!handled) {
         LOG(9, "handler disabled (or not found): " << assembly->getMnemonic());
         LOG(9, "mode: " << assembly->getAsmOperands()->getMode());
     }

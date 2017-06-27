@@ -212,7 +212,6 @@ void PointerDetection::checkLink(Instruction *instruction, address_t target) {
 
 void PointerPageNodeDetection::detectFor(UDState *state, int reg) {
     list.clear();
-
     if(auto regref = state->getRegRef(reg)) {
         for(auto s : *regref) {
             detectHelper(s, reg);
@@ -222,7 +221,6 @@ void PointerPageNodeDetection::detectFor(UDState *state, int reg) {
         LOG(5, "not in regref " << std::dec << reg);
     }
 }
-
 
 void PointerPageNodeDetection::detectHelper(UDState *state, int reg) {
     LOG(5, "  looking in 0x" << std::hex

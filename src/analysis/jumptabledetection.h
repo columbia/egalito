@@ -1,7 +1,6 @@
 #ifndef EGALITO_ANALYSIS_JUMPTABLEDETECTION_H
 #define EGALITO_ANALYSIS_JUMPTABLEDETECTION_H
 
-#include "analysis/walker.h"
 #include "analysis/usedef.h"
 #include "analysis/jumptable.h"
 
