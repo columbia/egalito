@@ -449,30 +449,36 @@ void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
-    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
 
     auto mem = assembly->getAsmOperands()->getOperands()[1].mem;
     auto base = AARCH64GPRegister::convertToPhysical(mem.base);
     size_t widthB = AARCH64GPRegister::getWidth(base, mem.base);
     useReg(state, base);
 
+    auto baseTree
+        = TreeFactory::instance().make<TreeNodePhysicalRegister>(base, widthB);
+    TreeNode *memTree = nullptr;
     if(mem.index != INVALID_REGISTER) {
-        LOG(9, "NYI: index register");
-        defReg(state,
-            reg0,
-            TreeFactory::instance().make<
-                TreeNodePhysicalRegister>(reg0, width0));
-        return;
+        auto regI = AARCH64GPRegister::convertToPhysical(mem.index);
+        size_t widthI = AARCH64GPRegister::getWidth(regI, mem.index);
+        TreeNode *indexTree = TreeFactory::instance().make<
+            TreeNodePhysicalRegister>(regI, widthI);
+        auto shift = assembly->getAsmOperands()->getOperands()[1].shift;
+        indexTree = shiftExtend(indexTree, shift.type, shift.value);
+        memTree = TreeFactory::instance().make<TreeNodeAddition>(
+            baseTree,
+            indexTree);
     }
+    else {
+        memTree = TreeFactory::instance().make<TreeNodeAddition>(
+            baseTree,
+            TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
 
-    auto memTree = TreeFactory::instance().make<TreeNodeAddition>(
-        TreeFactory::instance().make<TreeNodePhysicalRegister>(base, widthB),
-        TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
+        if(assembly->isPreIndex()) {
+            defReg(state, base, memTree);
+        }
+    }
     useMem(state, memTree, reg0);
-
-    if(assembly->isPreIndex()) {
-        defReg(state, base, memTree);
-    }
 
     auto derefTree
         = TreeFactory::instance().make<TreeNodeDereference>(memTree, width);
@@ -1079,6 +1085,10 @@ void MemLocation::extract(TreeNode *tree) {
                 reg = t;
             }
         }
+    }
+    else {
+        reg = tree;
+        offset = 0;
     }
 }
 

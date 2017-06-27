@@ -89,10 +89,11 @@ public:
     virtual void addRegRef(int reg, UDState *origin) = 0;
     virtual void delRegRef(int reg) = 0;
     virtual const std::vector<UDState *> *getRegRef(int reg) const = 0;
+    virtual const RefList& getRegRefList() const = 0;
 
     virtual void addMemDef(int reg, TreeNode *tree) = 0;
     virtual TreeNode *getMemDef(int reg) const = 0;
-    virtual const DefList &getMemDefList() const = 0;
+    virtual const DefList& getMemDefList() const = 0;
     virtual void addMemRef(int reg, UDState *origin) = 0;
     virtual void delMemRef(int reg) = 0;
     virtual const std::vector<UDState *> *getMemRef(int reg) const = 0;
@@ -127,6 +128,8 @@ public:
         { regRefList.del(reg); }
     virtual const std::vector<UDState *> *getRegRef(int reg) const
         { return regRefList.get(reg); }
+    virtual const RefList& getRegRefList() const
+        { return regRefList; }
 
     virtual void addMemDef(int reg, TreeNode *tree) {}
     virtual TreeNode *getMemDef(int reg) const
@@ -318,7 +321,7 @@ private:
 
 class MemLocation {
 private:
-    TreeNodePhysicalRegister *reg;
+    TreeNode *reg;
     long int offset;
 
     typedef TreePatternRecursiveBinary<TreeNodeAddition,
@@ -328,8 +331,6 @@ private:
 
 public:
     MemLocation(TreeNode *tree) : reg(nullptr), offset(0) { extract(tree); }
-    TreeNodePhysicalRegister *getReg() const { return reg; }
-    long int getOffset() const { return offset; }
     bool operator==(const MemLocation& other)
         { return this->reg->equal(other.reg) && this->offset == other.offset; }
 private:
