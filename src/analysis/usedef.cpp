@@ -852,9 +852,15 @@ void UseDef::fillAdrp(UDState *state, Assembly *assembly) {
 }
 void UseDef::fillAnd(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
-    assert(mode == AssemblyOperands::MODE_REG_REG_IMM);
-
-    fillRegImmToReg(state, assembly);
+    if(mode == AssemblyOperands::MODE_REG_REG_IMM) {
+        fillRegImmToReg(state, assembly);
+    }
+    else if(mode == AssemblyOperands::MODE_REG_REG_REG) {
+        fillRegRegToReg(state, assembly);
+    }
+    else {
+        LOG(9, "skipping mode " << mode);
+    }
 }
 void UseDef::fillB(UDState *state, Assembly *assembly) {
 }
