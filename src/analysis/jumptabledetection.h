@@ -2,6 +2,7 @@
 #define EGALITO_ANALYSIS_JUMPTABLEDETECTION_H
 
 #include "analysis/usedef.h"
+#include "analysis/usedefutil.h"
 #include "analysis/jumptable.h"
 
 class ControlFlowGraph;
@@ -14,38 +15,6 @@ private:
 
     bool checkFlag;
 
-
-    typedef TreePatternTerminal<TreeNodeAddress> BaseAddressForm;
-
-    typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-        TreePatternTerminal<TreeNodeConstant>
-    > MakeBaseAddressForm;
-
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-            TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-        >
-    > LoadBaseAddressForm;
-
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
-        >
-    > TableOffsetForm1;
-
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternBinary<TreeNodeAddition,
-            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-            TreePatternBinary<TreeNodeLogicalShiftLeft,
-                TreePatternCapture<
-                    TreePatternTerminal<TreeNodePhysicalRegister>>,
-                TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-            >
-        >
-    > TableOffsetForm2;
 
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
@@ -70,10 +39,9 @@ public:
 private:
     void detectAt(UDState *state);
 
-    bool parseTableBase(UDState *state, int reg);
-    bool parseMakeBase(UDState *state, int reg);
-    bool parseTableOffset(UDState *state, int reg);
-    bool parseLoadBase(UDState *state, int reg);
+    bool parseBaseAddress(UDState *state, int reg);
+    bool parseJumpOffset(UDState *state, int reg);
+    bool parseTableIndex(const std::vector<std::vector<FlowMatchResult>>& list);
 
     bool containsIndirectJump() const;
 

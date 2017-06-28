@@ -7,42 +7,7 @@
 #include "log/log.h"
 
 void PointerDetection::detect() {
-    const std::vector<int> idList = {
-        ARM64_INS_ADD,
-        ARM64_INS_ADRP,
-        ARM64_INS_RET,
-        ARM64_INS_ADR,
-        ARM64_INS_ADRP,
-        ARM64_INS_B,
-        ARM64_INS_BL,
-        ARM64_INS_BLR,
-        ARM64_INS_BR,
-        ARM64_INS_CBZ,
-        ARM64_INS_CBNZ,
-        ARM64_INS_CMP,
-        ARM64_INS_CSEL,
-        ARM64_INS_LDAXR,
-        ARM64_INS_LDP,
-        ARM64_INS_LDR,
-        ARM64_INS_LDRH,
-        ARM64_INS_LDRB,
-        ARM64_INS_LDRSW,
-        ARM64_INS_LDRSH,
-        ARM64_INS_LDRSB,
-        ARM64_INS_LDUR,
-        ARM64_INS_LSL,
-        ARM64_INS_MOV,
-        ARM64_INS_NOP,
-        ARM64_INS_RET,
-        ARM64_INS_STP,
-        ARM64_INS_STR,
-        ARM64_INS_STRB,
-        ARM64_INS_STRH,
-        ARM64_INS_SUB,
-        ARM64_INS_SXTW,
-    };
-
-    UDConfiguration config(1, &cfg, idList);
+    UDConfiguration config(1, &cfg);
     UDRegMemWorkingSet working(function, &cfg);
     UseDef usedef(&config, &working);
 
