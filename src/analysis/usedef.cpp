@@ -9,6 +9,7 @@
 #include "chunk/dump.h"
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 void DefList::set(int reg, TreeNode *tree) {
     list[reg] = tree;
 }
@@ -1160,4 +1161,4 @@ void MemLocation::extract(TreeNode *tree) {
     }
 }
 
-
+#endif

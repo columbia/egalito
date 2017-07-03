@@ -5,6 +5,7 @@
 
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 void JumptableDetection::detect() {
     if(containsIndirectJump()) {
         UDConfiguration config(1, &cfg);
@@ -278,4 +279,4 @@ void JumptableDetection::check(Instruction *instruction, bool found) const {
             << " 0x" << std::hex << instruction->getAddress());
     }
 }
-
+#endif

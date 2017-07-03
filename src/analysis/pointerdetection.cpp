@@ -9,6 +9,7 @@
 
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 void PointerDetection::detect() {
     UDConfiguration config(1, &cfg);
     UDRegMemWorkingSet working(function, &cfg);
@@ -287,3 +288,4 @@ bool PageOffsetList::detectOffsetAfterPush(UDState *state, int reg) {
     }
     return found;
 }
+#endif
