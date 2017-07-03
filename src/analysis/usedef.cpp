@@ -22,9 +22,9 @@ TreeNode *DefList::get(int reg) const {
 }
 
 void DefList::dump() const {
-    for(auto it = list.cbegin(); it != list.cend(); it++) {
-        LOG0(9, "R" << std::dec << it->first << ":  ");
-        if(auto tree = it->second) {
+    for(auto d : list) {
+        LOG0(9, "R" << std::dec << d.first << ":  ");
+        if(auto tree = d.second) {
             IF_LOG(9) tree->print(TreePrinter(0, 0));
         }
         LOG(9, "");
@@ -70,18 +70,55 @@ void RefList::clear() {
     list.clear();
 }
 
-const std::vector<UDState *> *RefList::get(int reg) const {
+const std::vector<UDState *>& RefList::get(int reg) const {
     auto it = list.find(reg);
     if(it != list.end()) {
-        return &it->second;
+        return it->second;
     }
-    return nullptr;
+    static std::vector<UDState *> emptyList;
+    return emptyList;
 }
 
 void RefList::dump() const {
-    for(auto it = list.cbegin(); it != list.cend(); it++) {
-        LOG0(9, "R" << std::dec << it->first << " <[");
-        for(auto o : it->second) {
+    for(const auto& r : list) {
+        LOG0(9, "R" << std::dec << r.first << " <[");
+        for(auto o : r.second) {
+            LOG0(9, " 0x" << std::hex << o->getInstruction()->getAddress());
+        }
+        LOG(9, " ]");
+    }
+}
+
+void UseList::add(int reg, UDState *state) {
+    bool duplicate = false;
+    auto it = list.find(reg);
+    if(it != list.end()) {
+        for(auto s : it->second) {
+            if(s == state) {
+                duplicate = true;
+                break;
+            }
+        }
+    }
+    if(!duplicate) {
+        list[reg].push_back(state);
+    }
+}
+
+const std::vector<UDState *>& UseList::get(int reg) const {
+    auto it = list.find(reg);
+    if(it != list.end()) {
+        return it->second;
+    }
+    static std::vector<UDState *> emptyList;
+    return emptyList;
+}
+
+
+void UseList::dump() const {
+    for(const auto& u : list) {
+        LOG0(9, "R" << std::dec << u.first << " <[");
+        for(auto o : u.second) {
             LOG0(9, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
         LOG(9, " ]");
@@ -128,8 +165,8 @@ void MemOriginList::add(TreeNode *place, UDState *origin) {
 }
 
 void MemOriginList::addList(const MemOriginList& other) {
-    for(auto it = other.cbegin(); it != other.cend(); ++it) {
-        add(it->place, it->origin);
+    for(const auto& m : other) {
+        add(m.place, m.origin);
     }
 }
 
@@ -162,6 +199,10 @@ void RegState::dumpRegState() const {
 
     LOG(9, "reg reference list:");
     regRefList.dump();
+
+    // this is empty for the first pass
+    LOG(9, "reg use list:");
+    regUseList.dump();
 }
 
 void RegMemState::dumpMemState() const {
@@ -170,6 +211,10 @@ void RegMemState::dumpMemState() const {
 
     LOG(9, "mem reference list:");
     memRefList.dump();
+
+    // this is empty for the first pass
+    LOG(9, "mem use list:");
+    memUseList.dump();
 }
 
 
@@ -222,6 +267,15 @@ void UDWorkingSet::copyFromMemSetFor(
         MemLocation loc2(m.place);
         if(loc1 == loc2) {
             state->addMemRef(reg, m.origin);
+            // register may be different
+            // e.g. str x0, [x29, #16] -> ldr x1, [x29, #16]
+            for(const auto& mdef : m.origin->getMemDefList()) {
+                if(m.place->equal(mdef.second)) {
+                    m.origin->addMemUse(mdef.first, state);
+                    break;
+                }
+            }
+
         }
     }
 }
@@ -382,11 +436,9 @@ void UseDef::defReg(UDState *state, int reg, TreeNode *tree) {
 }
 
 void UseDef::useReg(UDState *state, int reg) {
-    auto origins = working->getRegSet(reg);
-    if(origins) {
-        for(auto o : *origins) {
-            state->addRegRef(reg, o);
-        }
+    for(auto o : working->getRegSet(reg)) {
+        state->addRegRef(reg, o);
+        o->addRegUse(reg, state);
     }
 }
 

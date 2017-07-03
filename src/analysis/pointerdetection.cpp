@@ -1,5 +1,8 @@
+#include <stdint.h>
 #include "pointerdetection.h"
 #include "analysis/slicingtree.h"
+#include "analysis/usedef.h"
+#include "analysis/walker.h"
 #include "chunk/concrete.h"
 #include "instr/isolated.h"
 #include "instr/linked-aarch64.h"
@@ -23,17 +26,15 @@ void PointerDetection::detect() {
     for(auto s : working.getStateList()) {
         LOG(5, "state = 0x" << std::hex << s.getInstruction()->getAddress());
 
-        auto regList = s.getRegDefList();
-        for(auto it = regList.cbegin(); it != regList.cend(); ++it) {
-            if(it->second) {
-                detectPointers(&s, it->second);
+        auto semantic = s.getInstruction()->getSemantic();
+        if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
+            auto assembly = v->getAssembly();
+            if(!assembly) continue;
+            if(assembly->getId() == ARM64_INS_ADR) {
+                detectAtADR(&s);
             }
-        }
-
-        auto memList = s.getMemDefList();
-        for(auto it = memList.cbegin(); it != memList.cend(); ++it) {
-            if(it->second) {
-                detectPointers(&s, it->second);
+            else if(assembly->getId() == ARM64_INS_ADRP) {
+                detectAtADRP(&s);
             }
         }
     }
@@ -53,7 +54,7 @@ void PointerDetection::detect() {
                     LOG(5, "link at 0x" << std::hex << instr->getAddress());
                     auto it = found.find(instr);
                     if(it == found.end()) {
-                        LOG(5, "MISMATCH: not found: 0x"
+                        LOG(1, "MISMATCH: not found: 0x"
                             << std::hex << link->getTargetAddress()
                             << " at 0x" << std::hex << instr->getAddress());
                     }
@@ -64,88 +65,9 @@ void PointerDetection::detect() {
     }
     if(found.size() > 0) {
         for(auto f : found) {
-            LOG(5, "MISMATCH: (was not found): 0x" << std::hex << f.second
+            LOG(1, "MISMATCH: (was not found): 0x" << std::hex << f.second
                 << " at 0x" << f.first->getAddress());
         }
-    }
-}
-
-void PointerDetection::detectPointers(UDState *state, TreeNode *tree) {
-    TreeCapture cap;
-    int reg;
-    TreeNodeConstant *offset = nullptr;
-
-    LOG(5, "considering");
-    IF_LOG(5) tree->print(TreePrinter(0, 0));
-    LOG(5, "");
-
-    bool matched = false;
-    if(PointerForm::matches(tree, cap)) {
-        LOG(5, "PointerForm");
-        if(auto r = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0))) {
-            if(r->getWidth() == 8) {
-                reg = r->getRegister();
-                if(AARCH64GPRegister::isInteger(reg)) {
-                    offset = dynamic_cast<TreeNodeConstant *>(cap.get(1));
-                    matched = true;
-                }
-            }
-        }
-    }
-    else {
-        cap.clear();
-        if(PointerDerefForm::matches(tree, cap)) {
-            LOG(5, "PointerDerefForm");
-            if(auto r = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1))) {
-                if(r->getWidth() == 8) {
-                    reg = r->getRegister();
-                    if(AARCH64GPRegister::isInteger(reg)) {
-                        offset = dynamic_cast<TreeNodeConstant *>(cap.get(2));
-                        matched = true;
-                    }
-                }
-            }
-        }
-    }
-    if(!matched) return;
-    LOG(5, "reg = " << std::dec << reg);
-
-    PointerPageNodeDetection pageDetector;
-    pageDetector.detectFor(state, reg);
-
-    bool first = true;
-    address_t pageAddr = 0;
-    std::vector<Instruction *> pages;
-
-    for(const auto& page : pageDetector.getList()) {
-        if(first) {
-            pageAddr = page.tree->getValue();
-            first = false;
-        }
-        else {
-            if(pageAddr != page.tree->getValue()) {
-                LOG(5, "0x" << std::hex << pageAddr
-                    << " vs 0x" << page.tree->getValue());
-                throw("page address mismatch!");
-                break;
-            }
-        }
-        pages.push_back(page.owner->getInstruction());
-    }
-
-    if(pages.size() > 0) {
-        LOG(5, "pointer found at 0x"
-            << std::hex << state->getInstruction()->getAddress());
-
-        address_t addr = pageAddr + offset->getValue();
-        LOG(5, "address 0x" << std::hex << addr);
-
-        for(auto p : pages) {
-            checkLink(p, addr);
-            found[p] = addr;
-        }
-        checkLink(state->getInstruction(), addr);
-        found[state->getInstruction()] = addr;
     }
 }
 
@@ -156,7 +78,7 @@ void PointerDetection::checkLink(Instruction *instruction, address_t target) {
             LOG(5, "original NORMAL link pointing to : 0x"
                 << std::hex << link->getTargetAddress());
             if(link->getTargetAddress() != target) {
-                LOG(5, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
+                LOG(1, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
                     << " vs 0x" << target
                     << " at 0x" << instruction->getAddress());
             }
@@ -165,7 +87,7 @@ void PointerDetection::checkLink(Instruction *instruction, address_t target) {
             LOG(5, "original DATA link pointing to : 0x"
                 << std::hex << link->getTargetAddress());
             if(link->getTargetAddress() != target) {
-                LOG(5, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
+                LOG(1, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
                     << " vs 0x" << target
                     << " at 0x" << instruction->getAddress());
             }
@@ -174,78 +96,194 @@ void PointerDetection::checkLink(Instruction *instruction, address_t target) {
 
 }
 
-
-void PointerPageNodeDetection::detectFor(UDState *state, int reg) {
-    list.clear();
-    if(auto regref = state->getRegRef(reg)) {
-        for(auto s : *regref) {
-            detectHelper(s, reg);
+void PointerDetection::detectAtADR(UDState *state) {
+    for(auto& def : state->getRegDefList()) {
+        if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            auto addr = tree->getValue();
+            checkLink(state->getInstruction(), addr);
+            found[state->getInstruction()] = addr;
         }
-    }
-    else {
-        LOG(5, "not in regref " << std::dec << reg);
+        break;  // there should be only one
     }
 }
 
-void PointerPageNodeDetection::detectHelper(UDState *state, int reg) {
-    LOG(5, "  looking in 0x" << std::hex
-        << state->getInstruction()->getAddress()
-        << " for definition of " << std::dec << reg);
+void PointerDetection::detectAtADRP(UDState *state) {
+    //TemporaryLogLevel temp("analysis", 9);
+    IF_LOG(5) state->dumpState();
+
+    for(auto& def : state->getRegDefList()) {
+        auto reg = def.first;
+        if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            auto page = tree->getValue();
+
+            PageOffsetList offsetList;
+            offsetList.detectOffset(state, reg);
+            int64_t offset = 0;
+            for(auto& o : offsetList.getList()) {
+                if(offset == 0) {
+                    offset = o.second;
+                }
+                else {
+                    if(offset != o.second) {
+                        throw "inconsistent offset value";
+                    }
+                }
+                checkLink(o.first->getInstruction(), page + o.second);
+                found[o.first->getInstruction()] = page + o.second;
+            }
+            if(offsetList.getCount() > 0) {
+                checkLink(state->getInstruction(), page + offset);
+                found[state->getInstruction()] = page + offset;
+            }
+        }
+        break;  // there should be only one
+    }
+}
+
+bool PageOffsetList::detectOffset(UDState *state, int reg) {
+    LOG(5, "==== detectOffset state 0x" << std::hex
+        << state->getInstruction()->getAddress() << " ====");
+    IF_LOG(5) state->dumpState();
 
     for(auto r : seen[state]) {
         if(r == reg) {
             LOG(5, "  seen already");
-            return;
+            return false;
         }
     }
     seen[state].push_back(reg);
 
-    auto tree = state->getRegDef(reg);
-    if(!tree) return;
+    bool gFound = false;
+    for(auto s : state->getRegUse(reg)) {
+        bool found = false;
+        found = findInAdd(s, reg);
+        if(found) { gFound = true; continue; }
 
-    LOG0(5, "  ");
-    IF_LOG(5) tree->print(TreePrinter(0, 0));
-    LOG(5, "");
+        found = findInLoad(s, reg);
+        if(found) { gFound = true; continue; }
 
-    if(auto page = dynamic_cast<TreeNodeAddress *>(tree)) {
-        LOG(5, "found page address");
-        list.emplace_back(page, state);
+        found = findInStore(s, reg);
+        if(found) { gFound = true; continue; }
+
+        found = detectOffsetAfterCopy(s, reg);
+        if(found) { gFound = true; continue; }
+
+        found = detectOffsetAfterPush(s, reg);
+        if(found) { gFound = true; }
     }
-    else if(auto regtree = dynamic_cast<TreeNodePhysicalRegister *>(tree)) {
-        if(auto regref = state->getRegRef(regtree->getRegister())) {
-            for(auto mov : *regref) {
-                detectHelper(mov, regtree->getRegister());
+
+    return gFound;
+}
+
+bool PageOffsetList::findInAdd(UDState *state, int reg) {
+    bool found = false;
+    for(auto def : state->getRegDefList()) {
+        auto tree = def.second;
+
+        TreeCapture cap;
+        if(OffsetAdditionForm::matches(tree, cap)) {
+            auto base = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+            if(base->getRegister() == reg && base->getWidth() == 8) {
+                auto offset = dynamic_cast<TreeNodeConstant *>(
+                    cap.get(1))->getValue();
+                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                    << " found addition " << std::dec << offset);
+                addToList(state, offset);
+                found = true;
+                break;
             }
         }
     }
-    else if(auto deref = dynamic_cast<TreeNodeDereference *>(tree)) {
-        MemLocation loadLoc(deref->getChild());
-        if(auto memref = state->getMemRef(reg)) {
-            for(auto store : *memref) {
-                for(auto it = store->getMemDefList().cbegin();
-                    it != store->getMemDefList().cend();
-                    ++it) {
-                    MemLocation storeLoc(it->second);
-                    if(loadLoc == storeLoc) {
-                        LOG(5, "  stored in 0x" << std::hex
-                            << store->getInstruction()->getAddress());
+    return found;
+}
 
-                        if(auto regref = store->getRegRef(it->first)) {
-                            for(auto load : *regref) {
-                                detectHelper(load, it->first);
-                            }
-                        }
-                        else {
-                            LOG(5, " not in regref " << std::dec << it->first);
-                        }
+bool PageOffsetList::findInLoad(UDState *state, int reg) {
+    bool found = false;
+    for(auto def : state->getRegDefList()) {
+        auto tree = def.second;
+
+        TreeCapture cap;
+        if(PointerLoadForm::matches(tree, cap)) {
+            auto base = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+            if(base->getRegister() == reg) {
+                auto offset = dynamic_cast<TreeNodeConstant *>(
+                    cap.get(1))->getValue();
+                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                    << " found addition in load " << std::dec << offset);
+                addToList(state, offset);
+                found = true;
+                break;
+            }
+        }
+    }
+    return found;
+}
+
+bool PageOffsetList::findInStore(UDState *state, int reg) {
+    bool found = false;
+    for(auto mem : state->getMemDefList()) {
+        auto tree = mem.second;
+        TreeCapture cap;
+        if(OffsetAdditionForm::matches(tree, cap)) {
+            auto base = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+            if(base->getRegister() == reg) {
+                auto offset = dynamic_cast<TreeNodeConstant *>(
+                    cap.get(1))->getValue();
+                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                    << " found addition in store " << std::dec << offset);
+                addToList(state, offset);
+                found = true;
+                break;
+            }
+        }
+    }
+    return found;
+}
+
+bool PageOffsetList::detectOffsetAfterCopy(UDState *state, int reg) {
+    typedef TreePatternCapture<
+        TreePatternTerminal<TreeNodePhysicalRegister>
+    > CopyForm;
+
+    for(auto def : state->getRegDefList()) {
+        auto tree = def.second;
+
+        TreeCapture cap;
+        if(CopyForm::matches(tree, cap)) {
+            auto regSrc = dynamic_cast<TreeNodePhysicalRegister *>(
+                cap.get(0))->getRegister();
+            if(regSrc == reg) {
+                auto regDst = def.first;
+                LOG(5, "mov, recurse with " << std::dec << regDst);
+                return detectOffset(state, regDst);
+            }
+        }
+    }
+    return false;
+}
+
+bool PageOffsetList::detectOffsetAfterPush(UDState *state, int reg) {
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternCapture<TreePatternAny>
+    > DerefForm;
+
+    bool found = false;
+    if(auto memTree = state->getMemDef(reg)) {
+        MemLocation store(memTree);
+        for(auto loadState : state->getMemUse(reg)) {
+            for(auto def : loadState->getRegDefList()) {
+                auto tree = def.second;
+
+                TreeCapture cap;
+                if(DerefForm::matches(tree, cap)) {
+                    MemLocation load(cap.get(0));
+                    if(store == load) {
+                        found = detectOffset(loadState, def.first);
+                        break;
                     }
                 }
             }
         }
-        else {
-            LOG(5, " not in memref " << std::dec << reg);
-        }
     }
+    return found;
 }
-
-

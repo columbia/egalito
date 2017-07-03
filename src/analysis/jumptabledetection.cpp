@@ -29,56 +29,68 @@ void JumptableDetection::detect() {
 }
 
 void JumptableDetection::detectAt(UDState *state) {
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
+    > MakeJumpTargetForm1;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+            TreePatternBinary<TreeNodeLogicalShiftLeft,
+                TreePatternCapture<
+                    TreePatternTerminal<TreeNodePhysicalRegister>>,
+                TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+            >
+    > MakeJumpTargetForm2;
+
     checkFlag = false;
-    LOG(1, "indirect jump at 0x" << std::hex
+    LOG(5, "indirect jump at 0x" << std::hex
         << state->getInstruction()->getAddress());
 
     auto regRefList = state->getRegRefList();
     auto it = regRefList.cbegin();
     if(it != regRefList.cend()) {   // may not be found if producer was skipped
         auto reg = it->first;
-        LOG(1, " reg = " << std::dec << reg);
+        LOG0(9, " reg = " << std::dec << reg);
         for(auto s : it->second) {
-            LOG(1, " defined in parent state = 0x" << std::hex
-                << s->getInstruction()->getAddress());
             auto def = s->getRegDef(reg);
             if(!def) {
-                LOG(1, " definition not found");
+                LOG(9, " definition not found");
                 continue;
             }
 
-            LOG0(1, " as: ");
-            IF_LOG(1) def->print(TreePrinter(0, 0));
-            LOG(1, "");
+            LOG0(9, " defined as: ");
+            IF_LOG(9) def->print(TreePrinter(0, 0));
+            LOG(9, "");
 
             TreeCapture cap1, cap2;
             if(MakeJumpTargetForm1::matches(def, cap1)) {
-                LOG(1, "matches jump target form1!");
+                LOG(9, "matches jump target form1!");
                 auto regTree1
                     = dynamic_cast<TreeNodePhysicalRegister *>(cap1.get(0));
                 auto regTree2
                     = dynamic_cast<TreeNodePhysicalRegister *>(cap1.get(1));
 
                 if(parseBaseAddress(s, regTree1->getRegister())) {
-                    LOG(1, "index 0: matches table base form");
+                    LOG(9, "index 0: matches table base form");
                     checkFlag =
                         parseJumpOffset(s, regTree2->getRegister());
                 }
                 else if(parseBaseAddress(s, regTree2->getRegister())) {
-                    LOG(1, "index 1: matches table base form");
+                    LOG(9, "index 1: matches table base form");
                     checkFlag =
                         parseJumpOffset(s, regTree1->getRegister());
                 }
             }
             else if(MakeJumpTargetForm2::matches(def, cap2)) {
-                LOG(1, "matches jump target form2!");
+                LOG(9, "matches jump target form2!");
                 auto regTree1
                     = dynamic_cast<TreeNodePhysicalRegister *>(cap2.get(0));
                 auto regTree2
                     = dynamic_cast<TreeNodePhysicalRegister *>(cap2.get(1));
 
                 if(parseBaseAddress(s, regTree1->getRegister())) {
-                    LOG(1, "index 0: matches table base form");
+                    LOG(9, "index 0: matches table base form");
                     checkFlag =
                         parseJumpOffset(s, regTree2->getRegister());
                 }
@@ -89,7 +101,7 @@ void JumptableDetection::detectAt(UDState *state) {
                 if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
                     if(auto assembly = v->getAssembly()) {
                         if(assembly->getId() == ARM64_INS_ADD) {
-                            throw "missed?";
+                            throw "unknown form of table jump?";
                         }
                     }
                 }
@@ -110,37 +122,71 @@ bool JumptableDetection::parseBaseAddress(UDState *state, int reg) {
     > BaseAddressForm;
 
     FlowPatternMatch<BaseAddressForm> pm;
-    BackFlow::collectUpDef(state, reg, pm);
+    FlowUtil::collectUpDef(state, reg, pm);
     for(auto& capList : pm.getList()) {
         auto pageTree = dynamic_cast<TreeNodeAddress *>(capList[0].tree);
-        LOG(1, "address 0x" << std::hex << pageTree->getValue());
+        LOG(5, "address 0x" << std::hex << pageTree->getValue());
     }
     if(pm.getList().size() > 0) return true;
 
+    if(parseComputedAddress(state, reg)) {
+        return true;
+    }
+    return parseSavedAddress(state, reg);
+}
+
+bool JumptableDetection::parseComputedAddress(UDState *state, int reg) {
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternTerminal<TreeNodeConstant>
     > MakeBaseAddressForm;
 
-    bool found = false;
-    FlowPatternDeepMatch<MakeBaseAddressForm> deep1;
-    BackFlow::collectUpDef(state, reg, deep1);
-    if(deep1.getCount() > 0) {
-        LOG(1, "deep match1");
-        for(auto capList : deep1.getList()) {
-            auto upState = capList[0].state;
-            auto regTree
-                = dynamic_cast<TreeNodePhysicalRegister *>(capList[0].tree);
+    FlowPatternMatch<MakeBaseAddressForm> pm;
+    FlowUtil::collectUpDef(state, reg, pm);
 
-            LOG(9, "    state = 0x"
-                << std::hex << upState->getInstruction()->getAddress());
-            LOG0(9, "    regTree: ");
-            IF_LOG(9) regTree->print(TreePrinter(0, 0));
-            LOG(9, "");
-            found |= parseBaseAddress(upState, regTree->getRegister());
+    if(pm.getCount() > 0) {
+        LOG(9, "match compute address");
+    }
+    for(auto capList : pm.getList()) {
+        auto upState = capList[0].state;
+        auto regTree
+            = dynamic_cast<TreeNodePhysicalRegister *>(capList[0].tree);
+        if(parseBaseAddress(upState, regTree->getRegister())) {
+            return true;
         }
     }
-    return found;
+    return false;
+}
+
+bool JumptableDetection::parseSavedAddress(UDState *state, int reg) {
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternCapture<TreePatternBinary<TreeNodeAddition,
+            TreePatternTerminal<TreeNodePhysicalRegister>,
+            TreePatternTerminal<TreeNodeConstant>>
+        >
+    > LoadForm;
+
+    FlowPatternMatch<LoadForm> pm;
+    FlowUtil::collectUpDef(state, reg, pm);
+    for(auto capList : pm.getList()) {
+        auto upState = capList[0].state;
+        auto target = capList[0].reg;
+
+        if(target != reg) continue;
+
+        MemLocation load(capList[0].tree);
+        for(auto& s : upState->getMemRef(reg)) {
+            for(const auto& mem : s->getMemDefList()) {
+                MemLocation store(mem.second);
+                if(load == store) {
+                    if(parseBaseAddress(s, mem.first)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 bool JumptableDetection::parseJumpOffset(UDState *state, int reg) {
@@ -162,21 +208,21 @@ bool JumptableDetection::parseJumpOffset(UDState *state, int reg) {
         >
     > TableOffsetForm2;
 
-    LOG(1, "[JumpOffset] looking for reference in 0x" << std::hex
+    LOG(5, "[JumpOffset] looking for reference in 0x" << std::hex
         << state->getInstruction()->getAddress()
         << " register " << std::dec << reg);
 
     FlowPatternMatch<TableOffsetForm1> pm1;
-    BackFlow::collectUpDef(state, reg, pm1);
+    FlowUtil::collectUpDef(state, reg, pm1);
     if(pm1.getList().size() > 0) {
-        LOG(1, "table offset form1!");
+        LOG(9, "table offset form1!");
         return parseTableIndex(pm1.getList());
     }
 
     FlowPatternMatch<TableOffsetForm2> pm2;
-    BackFlow::collectUpDef(state, reg, pm2);
+    FlowUtil::collectUpDef(state, reg, pm2);
     if(pm2.getList().size() > 0) {
-        LOG(1, "table offset form2!");
+        LOG(9, "table offset form2!");
         return parseTableIndex(pm2.getList());
     }
 
@@ -186,7 +232,6 @@ bool JumptableDetection::parseJumpOffset(UDState *state, int reg) {
 bool JumptableDetection::parseTableIndex(
     const std::vector<std::vector<FlowMatchResult>>& list) {
 
-    bool found = false;
     for(auto& capList : list) {
         auto upState = capList[0].state;
         auto regTree1
@@ -195,13 +240,13 @@ bool JumptableDetection::parseTableIndex(
             = dynamic_cast<TreeNodePhysicalRegister *>(capList[0].tree);
 
         if(parseBaseAddress(upState, regTree1->getRegister())) {
-            LOG(1, "[TableIndex]: FOUND!");
-            LOG(1, "with index reg of " << std::dec <<
+            LOG(5, "[TableIndex]: FOUND!");
+            LOG(9, "with index reg of " << std::dec <<
                 regTree2->getRegister());
-            found = true;
+            return true;
         }
     }
-    return found;
+    return false;
 }
 
 bool JumptableDetection::containsIndirectJump() const {

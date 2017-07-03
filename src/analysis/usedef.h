@@ -26,6 +26,8 @@ public:
 
     ListType::iterator begin() { return list.begin(); }
     ListType::iterator end() { return list.end(); }
+    ListType::const_iterator begin() const { return list.cbegin(); }
+    ListType::const_iterator end() const { return list.cend(); }
     ListType::const_iterator cbegin() const { return list.cbegin(); }
     ListType::const_iterator cend() const { return list.cend(); }
     void dump() const;
@@ -42,15 +44,37 @@ public:
     bool addIfExist(int reg, UDState *origin);
     void del(int reg);
     void clear();
-    const std::vector<UDState *> *get(int reg) const;
+    const std::vector<UDState *>& get(int reg) const;
 
     ListType::iterator begin() { return list.begin(); }
     ListType::iterator end() { return list.end(); }
+    ListType::const_iterator begin() const { return list.cbegin(); }
+    ListType::const_iterator end() const { return list.cend(); }
     ListType::const_iterator cbegin() const { return list.cbegin(); }
     ListType::const_iterator cend() const { return list.cend(); }
     size_t getCount() const { return list.size(); }
     void dump() const;
 };
+
+// May
+class UseList {
+private:
+    typedef std::map<int, std::vector<UDState *>> ListType;
+    ListType list;
+public:
+    void add(int reg, UDState *state);
+    const std::vector<UDState *>& get(int reg) const;
+
+    ListType::iterator begin() { return list.begin(); }
+    ListType::iterator end() { return list.end(); }
+    ListType::const_iterator begin() const { return list.cbegin(); }
+    ListType::const_iterator end() const { return list.cend(); }
+    ListType::const_iterator cbegin() const { return list.cbegin(); }
+    ListType::const_iterator cend() const { return list.cend(); }
+    size_t getCount() const { return list.size(); }
+    void dump() const;
+};
+
 
 class MemOriginList {
 private:
@@ -73,6 +97,8 @@ public:
 
     ListType::iterator begin() { return list.begin(); }
     ListType::iterator end() { return list.end(); }
+    ListType::const_iterator begin() const { return list.cbegin(); }
+    ListType::const_iterator end() const { return list.cend(); }
     ListType::const_iterator cbegin() const { return list.cbegin(); }
     ListType::const_iterator cend() const { return list.cend(); }
     void dump() const;
@@ -88,15 +114,19 @@ public:
     virtual const DefList &getRegDefList() const = 0;
     virtual void addRegRef(int reg, UDState *origin) = 0;
     virtual void delRegRef(int reg) = 0;
-    virtual const std::vector<UDState *> *getRegRef(int reg) const = 0;
+    virtual const std::vector<UDState *>& getRegRef(int reg) const = 0;
     virtual const RefList& getRegRefList() const = 0;
+    virtual void addRegUse(int reg, UDState *state) = 0;
+    virtual const std::vector<UDState *>& getRegUse(int reg) const = 0;
 
     virtual void addMemDef(int reg, TreeNode *tree) = 0;
     virtual TreeNode *getMemDef(int reg) const = 0;
     virtual const DefList& getMemDefList() const = 0;
     virtual void addMemRef(int reg, UDState *origin) = 0;
     virtual void delMemRef(int reg) = 0;
-    virtual const std::vector<UDState *> *getMemRef(int reg) const = 0;
+    virtual const std::vector<UDState *>& getMemRef(int reg) const = 0;
+    virtual void addMemUse(int reg, UDState *state) = 0;
+    virtual const std::vector<UDState *>& getMemUse(int reg) const = 0;
 
     virtual void dumpState() const {}
 };
@@ -108,6 +138,7 @@ private:
 
     DefList regList;
     RefList regRefList;
+    UseList regUseList;
 
 public:
     RegState(ControlFlowNode *node, Instruction *instruction)
@@ -126,10 +157,14 @@ public:
         { regRefList.add(reg, origin); }
     virtual void delRegRef(int reg)
         { regRefList.del(reg); }
-    virtual const std::vector<UDState *> *getRegRef(int reg) const
+    virtual const std::vector<UDState *>& getRegRef(int reg) const
         { return regRefList.get(reg); }
     virtual const RefList& getRegRefList() const
         { return regRefList; }
+    virtual void addRegUse(int reg, UDState *state)
+        { regUseList.add(reg, state); }
+    virtual const std::vector<UDState *>& getRegUse(int reg) const
+        { return regUseList.get(reg); }
 
     virtual void addMemDef(int reg, TreeNode *tree) {}
     virtual TreeNode *getMemDef(int reg) const
@@ -138,8 +173,11 @@ public:
         { static DefList emptyList; return emptyList; }
     virtual void addMemRef(int reg, UDState *origin) {}
     virtual void delMemRef(int reg) {}
-    virtual const std::vector<UDState *> *getMemRef(int reg) const
-        { return nullptr; }
+    virtual const std::vector<UDState *>& getMemRef(int reg) const
+        { static std::vector<UDState *> emptyList; return emptyList; }
+    virtual void addMemUse(int reg, UDState *state) {}
+    virtual const std::vector<UDState *>& getMemUse(int reg) const
+        { static std::vector<UDState *> emptyList; return emptyList; }
 
     virtual void dumpState() const { dumpRegState(); }
 
@@ -151,6 +189,7 @@ class RegMemState : public RegState {
 private:
     DefList memList;
     RefList memRefList;
+    UseList memUseList;
 
 public:
     RegMemState(ControlFlowNode *node, Instruction *instruction)
@@ -166,8 +205,13 @@ public:
         { memRefList.add(reg, origin); }
     virtual void delMemRef(int reg)
         { memRefList.del(reg); }
-    virtual const std::vector<UDState *> *getMemRef(int reg) const
+    virtual const std::vector<UDState *>& getMemRef(int reg) const
         { return memRefList.get(reg); }
+    virtual void addMemUse(int reg, UDState *state)
+        { memUseList.add(reg, state); }
+    virtual const std::vector<UDState *>& getMemUse(int reg) const
+        { return memUseList.get(reg); }
+
     virtual void dumpState() const
         { dumpRegState(); dumpMemState(); }
 
@@ -211,7 +255,7 @@ public:
         { regSet->set(reg, origin); }
     void addToRegSet(int reg, UDState *origin)
         { regSet->add(reg, origin); }
-    const std::vector<UDState *> *getRegSet(int reg) const
+    const std::vector<UDState *>& getRegSet(int reg) const
         { return regSet->get(reg); }
     const RefList& getExposedRegSet(int id) const
         { return nodeExposedRegSetList[id]; }
