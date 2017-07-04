@@ -8,7 +8,7 @@
 #ifdef ARCH_AARCH64
 void JumptableDetection::detect() {
     if(containsIndirectJump()) {
-        UDConfiguration config(1, &cfg);
+        UDConfiguration config(&cfg);
         UDRegMemWorkingSet working(function, &cfg);
         UseDef usedef(&config, &working);
 

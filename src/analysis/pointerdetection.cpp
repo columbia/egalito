@@ -11,7 +11,7 @@
 
 #ifdef ARCH_AARCH64
 void PointerDetection::detect() {
-    UDConfiguration config(1, &cfg);
+    UDConfiguration config(&cfg);
     UDRegMemWorkingSet working(function, &cfg);
     UseDef usedef(&config, &working);
 

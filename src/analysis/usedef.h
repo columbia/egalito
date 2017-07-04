@@ -221,16 +221,13 @@ private:
 
 class UDConfiguration {
 private:
-    int level;
     ControlFlowGraph *cfg;
     bool allEnabled;
     std::map<int, bool> enabled;
 
 public:
-    UDConfiguration(int level, ControlFlowGraph *cfg,
-        const std::vector<int> &idList = {});
+    UDConfiguration(ControlFlowGraph *cfg, const std::vector<int> &idList = {});
 
-    int getLevel() const { return level; }
     ControlFlowGraph *getCFG() const { return cfg; }
     bool isEnabled(int id) const;
 };

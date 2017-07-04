@@ -219,8 +219,8 @@ void RegMemState::dumpMemState() const {
 }
 
 
-UDConfiguration::UDConfiguration(int level, ControlFlowGraph *cfg,
-    const std::vector<int> &idList) : level(level), cfg(cfg) {
+UDConfiguration::UDConfiguration(ControlFlowGraph *cfg,
+    const std::vector<int> &idList) : cfg(cfg) {
 
     if(idList.size() == 0) {
         allEnabled = true;
@@ -918,8 +918,11 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
 void UseDef::fillB(UDState *state, Assembly *assembly) {
 }
 void UseDef::fillBl(UDState *state, Assembly *assembly) {
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < 9; i++) {
         useReg(state, i);
+        defReg(state, i, nullptr);
+    }
+    for(int i = 9; i < 19; i++) {
         defReg(state, i, nullptr);
     }
 }
@@ -928,8 +931,11 @@ void UseDef::fillBlr(UDState *state, Assembly *assembly) {
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     useReg(state, reg0);
 
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < 9; i++) {
         useReg(state, i);
+        defReg(state, i, nullptr);
+    }
+    for(int i = 9; i < 19; i++) {
         defReg(state, i, nullptr);
     }
 }
