@@ -31,7 +31,7 @@ void GroupRegistry::dumpSettings() {
 }
 
 void GroupRegistry::muteAllSettings() {
-    for(auto group : groupMap) {
+    for(auto& group : groupMap) {
         group.second.setValue(-1);
     }
 }
