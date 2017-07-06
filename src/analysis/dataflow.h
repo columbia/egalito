@@ -18,6 +18,9 @@ public:
     void addUseDefFor(Function *function);
     void adjustCallUse(LiveRegister *live, Function *function, Module *module);
     UDRegMemWorkingSet *getWorkingSet(Function *function);
+
+private:
+    bool isTlsdescResolveCall(UDState *state, Module *module);
 };
 
 #endif
