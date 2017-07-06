@@ -4,6 +4,7 @@
 #include "analysis/usedef.h"
 #include "analysis/liveregister.h"
 
+#ifdef ARCH_AARCH64
 class Module;
 
 class DataFlow {
@@ -22,5 +23,6 @@ public:
 private:
     bool isTlsdescResolveCall(UDState *state, Module *module);
 };
+#endif
 
 #endif

@@ -9,6 +9,7 @@
 
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 LiveInfo LiveRegister::getInfo(Function *function) {
     auto it = list.find(function);
     if(it == list.end()) {
@@ -78,3 +79,4 @@ void LiveInfo::live(int reg) {
         regs[reg] = 1;
     }
 }
+#endif

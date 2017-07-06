@@ -10,6 +10,7 @@
 
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 void DataFlow::addUseDefFor(Function *function) {
     auto graph = new ControlFlowGraph(function);
     auto config = new UDConfiguration(graph);
@@ -143,3 +144,4 @@ DataFlow::~DataFlow() {
         delete g;
     }
 }
+#endif

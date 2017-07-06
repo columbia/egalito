@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#ifdef ARCH_AARCH64
 class Function;
 class UDState;
 class UDRegMemWorkingSet;
@@ -16,5 +17,6 @@ private:
     void detectMakeFrame(const UDState& state);
     void detectSaveRegister(const UDState& state, std::vector<int>& list);
 };
+#endif
 
 #endif

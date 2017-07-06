@@ -11,6 +11,8 @@
 
 #include "log/registry.h"
 
+#ifdef ARCH_AARCH64
+
 std::vector<int> SavedRegister::getList(Function *function) {
     ControlFlowGraph cfg(function);
     UDConfiguration config(&cfg);
@@ -78,3 +80,4 @@ void SavedRegister::detectSaveRegister(const UDState& state,
         }
     }
 }
+#endif

@@ -5,6 +5,7 @@
 #include <map>
 #include "analysis/usedef.h"
 
+#ifdef ARCH_AARCH64
 class Function;
 class UDState;
 
@@ -31,5 +32,6 @@ public:
     void detect(Function *function);
     void detect(UDRegMemWorkingSet *working);
 };
+#endif
 
 #endif
