@@ -10,38 +10,44 @@
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
-void PointerDetection::detect() {
-    UDConfiguration config(&cfg);
-    UDRegMemWorkingSet working(function, &cfg);
+void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
+    UDConfiguration config(cfg);
+    UDRegMemWorkingSet working(function, cfg);
     UseDef usedef(&config, &working);
 
-    cfg.dump();
-    cfg.dumpDot();
+    cfg->dump();
+    cfg->dumpDot();
 
-    SccOrder order(&cfg);
+    SccOrder order(cfg);
     order.genFull(0);
     usedef.analyze(order.get());
 
+    detect(&working);
+}
+
+void PointerDetection::detect(UDRegMemWorkingSet *working) {
+    found.clear();
     LOG(5, "");
     LOG(5, "searching for pointers... (checking soundness)");
-    for(auto s : working.getStateList()) {
-        LOG(5, "state = 0x" << std::hex << s.getInstruction()->getAddress());
 
-        auto semantic = s.getInstruction()->getSemantic();
-        if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
-            auto assembly = v->getAssembly();
-            if(!assembly) continue;
-            if(assembly->getId() == ARM64_INS_ADR) {
-                detectAtADR(&s);
-            }
-            else if(assembly->getId() == ARM64_INS_ADRP) {
-                detectAtADRP(&s);
+    for(auto block : CIter::children(working->getFunction())) {
+        for(auto instr : CIter::children(block)) {
+            auto semantic = instr->getSemantic();
+            if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
+                auto assembly = v->getAssembly();
+                if(!assembly) continue;
+                if(assembly->getId() == ARM64_INS_ADR) {
+                    detectAtADR(working->getState(instr));
+                }
+                else if(assembly->getId() == ARM64_INS_ADRP) {
+                    detectAtADRP(working->getState(instr));
+                }
             }
         }
     }
 
     LOG(5, "checking completeness");
-    for(auto block : CIter::children(function)) {
+    for(auto block : CIter::children(working->getFunction())) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
             if(dynamic_cast<ControlFlowInstruction *>(semantic)) {
@@ -109,7 +115,6 @@ void PointerDetection::detectAtADR(UDState *state) {
 }
 
 void PointerDetection::detectAtADRP(UDState *state) {
-    //TemporaryLogLevel temp("analysis", 9);
     IF_LOG(5) state->dumpState();
 
     for(auto& def : state->getRegDefList()) {

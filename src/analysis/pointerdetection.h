@@ -10,18 +10,17 @@
 class Function;
 class Instruction;
 class UDState;
+class UDRegMemWorkingSet;
 
 class PointerDetection {
 private:
-    Function *function;
-    ControlFlowGraph cfg;
-
     // just for comparing against slicing
     std::map<Instruction *, address_t> found;
 
 public:
-    PointerDetection(Function *function) : function(function), cfg(function) {}
-    void detect();
+    PointerDetection() {}
+    void detect(Function *function, ControlFlowGraph *cfg);
+    void detect(UDRegMemWorkingSet *working);
 
 private:
     void detectAtADR(UDState *state);

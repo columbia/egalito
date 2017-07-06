@@ -5,14 +5,16 @@
 
 class Function;
 class UDState;
+class UDRegMemWorkingSet;
 
 class SavedRegister {
 public:
-    std::vector<int> makeList(Function *function);
+    std::vector<int> getList(Function *function);
+    std::vector<int> getList(UDRegMemWorkingSet *working);
 
 private:
-    bool detectMakeFrame(const UDState *state);
-    bool detectSaveRegister(const UDState *state);
+    void detectMakeFrame(const UDState& state);
+    void detectSaveRegister(const UDState& state, std::vector<int>& list);
 };
 
 #endif

@@ -103,7 +103,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     SplitBasicBlock split;
     module->accept(&split);
 
-    // this needs basic blocks to be split
+    // this needs all blocks to be split to basic blocks
     InferLinksPass inferLinksPass(elf);
     module->accept(&inferLinksPass);
 

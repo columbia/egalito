@@ -14,6 +14,10 @@ void DefList::set(int reg, TreeNode *tree) {
     list[reg] = tree;
 }
 
+void DefList::del(int reg) {
+    list.erase(reg);
+}
+
 TreeNode *DefList::get(int reg) const {
     auto it = list.find(reg);
     if(it != list.end()) {
@@ -24,11 +28,11 @@ TreeNode *DefList::get(int reg) const {
 
 void DefList::dump() const {
     for(auto d : list) {
-        LOG0(9, "R" << std::dec << d.first << ":  ");
+        LOG0(5, "R" << std::dec << d.first << ":  ");
         if(auto tree = d.second) {
-            IF_LOG(9) tree->print(TreePrinter(0, 0));
+            IF_LOG(5) tree->print(TreePrinter(0, 0));
         }
-        LOG(9, "");
+        LOG(5, "");
     }
 }
 
@@ -82,11 +86,11 @@ const std::vector<UDState *>& RefList::get(int reg) const {
 
 void RefList::dump() const {
     for(const auto& r : list) {
-        LOG0(9, "R" << std::dec << r.first << " <[");
+        LOG0(5, "R" << std::dec << r.first << " <[");
         for(auto o : r.second) {
-            LOG0(9, " 0x" << std::hex << o->getInstruction()->getAddress());
+            LOG0(5, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
-        LOG(9, " ]");
+        LOG(5, " ]");
     }
 }
 
@@ -106,6 +110,18 @@ void UseList::add(int reg, UDState *state) {
     }
 }
 
+void UseList::del(int reg, UDState *state) {
+    auto it = list.find(reg);
+    if(it != list.end()) {
+        for(auto& s : it->second) {
+            if(s == state) {
+                s = it->second.back();
+                it->second.pop_back();
+            }
+        }
+    }
+}
+
 const std::vector<UDState *>& UseList::get(int reg) const {
     auto it = list.find(reg);
     if(it != list.end()) {
@@ -118,11 +134,11 @@ const std::vector<UDState *>& UseList::get(int reg) const {
 
 void UseList::dump() const {
     for(const auto& u : list) {
-        LOG0(9, "R" << std::dec << u.first << " <[");
+        LOG0(5, "R" << std::dec << u.first << " <[");
         for(auto o : u.second) {
-            LOG0(9, " 0x" << std::hex << o->getInstruction()->getAddress());
+            LOG0(5, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
-        LOG(9, " ]");
+        LOG(5, " ]");
     }
 }
 
@@ -188,33 +204,33 @@ void MemOriginList::clear() {
 
 void MemOriginList::dump() const {
     for(const auto &m : list) {
-        IF_LOG(9) m.place->print(TreePrinter(0, 0));
-        LOG(9, " : 0x"
+        IF_LOG(5) m.place->print(TreePrinter(0, 0));
+        LOG(5, " : 0x"
              << std::hex << m.origin->getInstruction()->getAddress());
     }
 }
 
 void RegState::dumpRegState() const {
-    LOG(9, "reg definition list:");
+    LOG(5, "reg definition list:");
     regList.dump();
 
-    LOG(9, "reg reference list:");
+    LOG(5, "reg reference list:");
     regRefList.dump();
 
     // this is empty for the first pass
-    LOG(9, "reg use list:");
+    LOG(5, "reg use list:");
     regUseList.dump();
 }
 
 void RegMemState::dumpMemState() const {
-    LOG(9, "mem definition list:");
+    LOG(5, "mem definition list:");
     memList.dump();
 
-    LOG(9, "mem reference list:");
+    LOG(5, "mem reference list:");
     memRefList.dump();
 
     // this is empty for the first pass
-    LOG(9, "mem use list:");
+    LOG(5, "mem use list:");
     memUseList.dump();
 }
 
@@ -283,10 +299,10 @@ void UDWorkingSet::copyFromMemSetFor(
 
 void UDWorkingSet::dumpSet() const {
     LOG(9, "REG SET");
-    regSet->dump();
+    IF_LOG(9) regSet->dump();
 
     LOG(9, "MEM SET");
-    memSet->dump();
+    IF_LOG(9) memSet->dump();
 }
 
 UDRegMemWorkingSet::UDRegMemWorkingSet(
@@ -390,7 +406,7 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
 
         LOG(9, "");
         LOG(9, "final set for node " << std::dec << nodeId);
-        working->dumpSet();
+        IF_LOG(9) working->dumpSet();
         LOG(9, "");
     }
 }
@@ -424,8 +440,8 @@ void UseDef::fillState(UDState *state) {
 
     bool handled = callIfEnabled(state, assembly);
     if(handled) {
-        state->dumpState();
-        working->dumpSet();
+        IF_LOG(9) state->dumpState();
+        IF_LOG(9) working->dumpSet();
     }
 }
 
@@ -441,6 +457,18 @@ void UseDef::useReg(UDState *state, int reg) {
         state->addRegRef(reg, o);
         o->addRegUse(reg, state);
     }
+}
+
+void UseDef::cancelUseDefReg(UDState *state, int reg) {
+    for(auto o : state->getRegRef(reg)) {
+        o->delRegUse(reg, state);
+        for(auto u : state->getRegUse(reg)) {
+            o->addRegUse(reg, u);
+            u->addRegRef(reg, o);
+        }
+    }
+    state->delRegDef(reg);
+    state->delRegRef(reg);
 }
 
 void UseDef::defMem(UDState *state, TreeNode *place, int reg) {
@@ -918,11 +946,10 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
 void UseDef::fillB(UDState *state, Assembly *assembly) {
 }
 void UseDef::fillBl(UDState *state, Assembly *assembly) {
-    for(int i = 0; i < 9; i++) {
+    // anything other than callee-saved, FP, LR, SP
+    // we need link to upstream at this stage for later refinement
+    for(int i = 0; i < 19; i++) {
         useReg(state, i);
-        defReg(state, i, nullptr);
-    }
-    for(int i = 9; i < 19; i++) {
         defReg(state, i, nullptr);
     }
 }

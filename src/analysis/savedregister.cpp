@@ -11,7 +11,7 @@
 
 #include "log/registry.h"
 
-std::vector<int> SavedRegister::makeList(Function *function) {
+std::vector<int> SavedRegister::getList(Function *function) {
     ControlFlowGraph cfg(function);
     UDConfiguration config(&cfg);
     UDRegMemWorkingSet working(function, &cfg);
@@ -21,61 +21,60 @@ std::vector<int> SavedRegister::makeList(Function *function) {
     order.genFull(0);
     usedef.analyze(order.get());
 
-    TemporaryLogLevel tll("analysis", 5);
-
-    for(auto& s : working.getStateList()) {
-        detectMakeFrame(&s);
-        detectSaveRegister(&s);
-    }
-
-    return {};
+    return getList(&working);
 }
 
-bool SavedRegister::detectMakeFrame(const UDState *state) {
+std::vector<int> SavedRegister::getList(UDRegMemWorkingSet *working) {
+    std::vector<int> list;
+    for(auto& s : working->getStateList()) {
+        detectMakeFrame(s);
+        detectSaveRegister(s, list);
+    }
+
+    return list;
+}
+
+void SavedRegister::detectMakeFrame(const UDState& state) {
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > MakeFrameForm;
 
     IF_LOG(9) {
-        auto semantic = state->getInstruction()->getSemantic();
+        auto semantic = state.getInstruction()->getSemantic();
         if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
             if(v->getAssembly()->getId() == ARM64_INS_STP) {
-                state->dumpState();
+                state.dumpState();
             }
         }
     }
 
-    for(auto def : state->getRegDefList()) {
+    for(auto def : state.getRegDefList()) {
         TreeCapture cap;
         if(MakeFrameForm::matches(def.second, cap)) {
             auto sz = dynamic_cast<TreeNodeConstant *>(cap.get(0))->getValue();
-            LOG(1, "detected frame creation [" << std::dec << sz << "]");
-
-            //detectSaveRegister(state);
-
-            return true;
+            LOG(5, "detected frame creation [" << std::dec << sz << "]");
         }
     }
-    return false;
 }
 
-bool SavedRegister::detectSaveRegister(const UDState *state) {
+void SavedRegister::detectSaveRegister(const UDState& state,
+    std::vector<int>& list) {
+
     typedef TreePatternRecursiveBinary<TreeNodeAddition,
-        TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>,
+        TreePatternCapture<
+            TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>>,
         TreePatternTerminal<TreeNodeConstant>
     > PushForm;
 
-    bool found = false;
-    for(auto mem : state->getMemDefList()) {
+    for(auto mem : state.getMemDefList()) {
         TreeCapture cap;
         if(PushForm::matches(mem.second, cap)) {
             //use MemLocation to simply get offset?
 
-            LOG(1, "detected register save: " << std::dec << mem.first);
-            found = true;
+            LOG(5, "detected register save: " << std::dec << mem.first);
+            auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+            list.push_back(regTree->getRegister());
         }
     }
-
-    return found;
 }

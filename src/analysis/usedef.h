@@ -22,6 +22,7 @@ private:
     ListType list;
 public:
     void set(int reg, TreeNode *tree);
+    void del(int reg);
     TreeNode *get(int reg) const;
 
     ListType::iterator begin() { return list.begin(); }
@@ -63,6 +64,7 @@ private:
     ListType list;
 public:
     void add(int reg, UDState *state);
+    void del(int reg, UDState *state);
     const std::vector<UDState *>& get(int reg) const;
 
     ListType::iterator begin() { return list.begin(); }
@@ -111,12 +113,14 @@ public:
 
     virtual void addRegDef(int reg, TreeNode *tree) = 0;
     virtual TreeNode *getRegDef(int reg) const = 0;
+    virtual void delRegDef(int reg) = 0;
     virtual const DefList &getRegDefList() const = 0;
     virtual void addRegRef(int reg, UDState *origin) = 0;
     virtual void delRegRef(int reg) = 0;
     virtual const std::vector<UDState *>& getRegRef(int reg) const = 0;
     virtual const RefList& getRegRefList() const = 0;
     virtual void addRegUse(int reg, UDState *state) = 0;
+    virtual void delRegUse(int reg, UDState *state) = 0;
     virtual const std::vector<UDState *>& getRegUse(int reg) const = 0;
 
     virtual void addMemDef(int reg, TreeNode *tree) = 0;
@@ -151,6 +155,8 @@ public:
         { regList.set(reg, tree); }
     virtual TreeNode *getRegDef(int reg) const
         { return regList.get(reg); }
+    virtual void delRegDef(int reg)
+        { regList.del(reg); }
     virtual const DefList &getRegDefList() const
         { return regList; }
     virtual void addRegRef(int reg, UDState *origin)
@@ -163,6 +169,8 @@ public:
         { return regRefList; }
     virtual void addRegUse(int reg, UDState *state)
         { regUseList.add(reg, state); }
+    virtual void delRegUse(int reg, UDState *state)
+        { regUseList.del(reg, state); }
     virtual const std::vector<UDState *>& getRegUse(int reg) const
         { return regUseList.get(reg); }
 
@@ -245,6 +253,7 @@ public:
         : nodeExposedRegSetList(cfg->getCount()),
           nodeExposedMemSetList(cfg->getCount()),
           regSet(nullptr), memSet(nullptr) {}
+    virtual ~UDWorkingSet() {}
 
     void transitionTo(ControlFlowNode *node);
 
@@ -278,9 +287,12 @@ private:
     std::vector<RegMemState> stateList;
 public:
     UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg);
+    virtual ~UDRegMemWorkingSet() {}
+
     virtual UDState *getState(Instruction *instruction);
     const std::vector<RegMemState> &getStateList() const
         { return stateList; }
+    Function *getFunction() const { return function; }
 };
 
 class UseDef {
@@ -298,6 +310,12 @@ public:
         : config(config), working(working) {}
 
     void analyze(const std::vector<std::vector<int>>& order);
+
+    template <typename ActualType>
+    ActualType *getWorkingSet() const
+        { return dynamic_cast<ActualType *>(working); }
+
+    void cancelUseDefReg(UDState *state, int reg);
 
 private:
     void analyzeGraph(const std::vector<int>& order);
