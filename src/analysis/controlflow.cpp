@@ -1,6 +1,7 @@
 #include <sstream>
 #include <iomanip>
 #include <regex>
+#include <set>
 #include "controlflow.h"
 #include "chunk/concrete.h"
 #include "elf/symbol.h"
@@ -95,7 +96,6 @@ void ControlFlowGraph::construct(Block *block) {
             fallThrough = true;
         }
         else {
-            // make a forward link to each target of jump table jumps
             auto function = dynamic_cast<Function *>(block->getParent());
             auto module = dynamic_cast<Module *>(
                 function->getParent()->getParent());
@@ -106,15 +106,21 @@ void ControlFlowGraph::construct(Block *block) {
             for(auto jt : CIter::children(jumptablelist)) {
                 if(jt->getInstruction() == i) {
                     LOG(10, "jumptable targeting to...");
+                    std::set<address_t> added;
                     for(auto entry : CIter::children(jt)) {
                         auto link =
                             dynamic_cast<NormalLink *>(entry->getLink());
                         if(link && link->getTarget()) {
+                            auto it = added.find(link->getTargetAddress());
+                            if(it != added.end()) continue;
+
+                            added.insert(link->getTargetAddress());
                             LOG(10, "" << link->getTarget()->getName());
                             if(auto v = dynamic_cast<Instruction *>(
                                 &*link->getTarget())) {
 
-                                auto parent = dynamic_cast<Block *>(v->getParent());
+                                auto parent
+                                    = dynamic_cast<Block *>(v->getParent());
                                 auto parentID = blockMapping[parent];
                                 auto offset = link->getTargetAddress()
                                     - parent->getAddress();
