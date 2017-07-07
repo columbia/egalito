@@ -7,19 +7,14 @@
 #include "analysis/jumptable.h"
 
 class Function;
+class UDRegMemWorkingSet;
 
 class JumptableDetection {
-private:
-    Function *function;
-    ControlFlowGraph cfg;
-
-    bool checkFlag;
-
 public:
-    JumptableDetection(Function *function)
-        : function(function), cfg(function) {}
+    JumptableDetection() {}
 
-    void detect();
+    void detect(Function *function);
+    void detect(UDRegMemWorkingSet *working);
 
 private:
     void detectAt(UDState *state);
@@ -31,8 +26,9 @@ private:
 
     bool parseTableIndex(const std::vector<std::vector<FlowMatchResult>>& list);
 
-    bool containsIndirectJump() const;
+    bool containsIndirectJump(Function *function) const;
 
+private:
     void check(Instruction *instruction, bool) const;
 };
 

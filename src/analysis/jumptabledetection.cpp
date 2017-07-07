@@ -1,13 +1,15 @@
 #include "jumptabledetection.h"
 #include "analysis/walker.h"
+#include "analysis/usedef.h"
 #include "chunk/concrete.h"
 #include "instr/concrete.h"
 
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
-void JumptableDetection::detect() {
-    if(containsIndirectJump()) {
+void JumptableDetection::detect(Function *function) {
+    if(containsIndirectJump(function)) {
+        ControlFlowGraph cfg(function);
         UDConfiguration config(&cfg);
         UDRegMemWorkingSet working(function, &cfg);
         UseDef usedef(&config, &working);
@@ -19,12 +21,16 @@ void JumptableDetection::detect() {
         order.genFull(0);
         usedef.analyze(order.get());
 
-        for(auto block : CIter::children(function)) {
-            auto instr = block->getChildren()->getIterable()->getLast();
-            auto s = instr->getSemantic();
-            if(dynamic_cast<IndirectJumpInstruction *>(s)) {
-                detectAt(working.getState(instr));
-            }
+        detect(&working);
+    }
+}
+
+void JumptableDetection::detect(UDRegMemWorkingSet *working) {
+    for(auto block : CIter::children(working->getFunction())) {
+        auto instr = block->getChildren()->getIterable()->getLast();
+        auto s = instr->getSemantic();
+        if(dynamic_cast<IndirectJumpInstruction *>(s)) {
+            detectAt(working->getState(instr));
         }
     }
 }
@@ -44,7 +50,7 @@ void JumptableDetection::detectAt(UDState *state) {
             >
     > MakeJumpTargetForm2;
 
-    checkFlag = false;
+    bool checkFlag = false;
     LOG(5, "indirect jump at 0x" << std::hex
         << state->getInstruction()->getAddress());
 
@@ -250,7 +256,7 @@ bool JumptableDetection::parseTableIndex(
     return false;
 }
 
-bool JumptableDetection::containsIndirectJump() const {
+bool JumptableDetection::containsIndirectJump(Function *function) const {
     for(auto block : CIter::children(function)) {
         auto instr = block->getChildren()->getIterable()->getLast();
         auto s = instr->getSemantic();
@@ -262,10 +268,11 @@ bool JumptableDetection::containsIndirectJump() const {
 }
 
 void JumptableDetection::check(Instruction *instruction, bool found) const {
-    bool wasFound = false;
-    auto module = dynamic_cast<Module *>(function->getParent()->getParent());
-    if(!module) throw "no module?";
 
+    auto function = instruction->getParent()->getParent();
+    auto module = dynamic_cast<Module *>(function->getParent()->getParent());
+
+    bool wasFound = false;
     auto jumptablelist = module->getJumpTableList();
     for(auto jt : CIter::children(jumptablelist)) {
         if(jt->getInstruction() == instruction) {
@@ -275,7 +282,8 @@ void JumptableDetection::check(Instruction *instruction, bool found) const {
     }
 
     if(found != wasFound) {
-        LOG(1, "MISMATCH: " << (found ? "(was not found)" : "(not found)")
+        LOG(1, "JumpTable MISMATCH: "
+            << (found ? "(was not found)" : "(not found)")
             << " 0x" << std::hex << instruction->getAddress());
     }
 }
