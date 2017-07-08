@@ -60,7 +60,8 @@ public:
         R_TEMPORARY_BEGIN = R9,
         R_TEMPORARY_END = R18,
 
-        NZCV = REGISTER_NUMBER
+        NZCV = REGISTER_NUMBER,
+        ONETIME_NZCV
     };
 
 private:

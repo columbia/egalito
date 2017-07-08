@@ -552,6 +552,8 @@ void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
     if(mem.index != INVALID_REGISTER) {
         auto regI = AARCH64GPRegister::convertToPhysical(mem.index);
         size_t widthI = AARCH64GPRegister::getWidth(regI, mem.index);
+        useReg(state, regI);
+
         TreeNode *indexTree = TreeFactory::instance().make<
             TreeNodePhysicalRegister>(regI, widthI);
         auto shift = assembly->getAsmOperands()->getOperands()[1].shift;
@@ -682,17 +684,30 @@ void UseDef::fillRegToMem(UDState *state, Assembly *assembly, size_t width) {
     size_t widthB = AARCH64GPRegister::getWidth(base, mem.base);
     useReg(state, base);
 
+    auto baseTree
+        = TreeFactory::instance().make<TreeNodePhysicalRegister>(base, widthB);
+    TreeNode *memTree = nullptr;
     if(mem.index != INVALID_REGISTER) {
-        LOG(9, "NYI: index register");
-        return;
+        auto regI = AARCH64GPRegister::convertToPhysical(mem.index);
+        size_t widthI = AARCH64GPRegister::getWidth(regI, mem.index);
+        useReg(state, regI);
+
+        TreeNode *indexTree = TreeFactory::instance().make<
+            TreeNodePhysicalRegister>(regI, widthI);
+        auto shift = assembly->getAsmOperands()->getOperands()[1].shift;
+        indexTree = shiftExtend(indexTree, shift.type, shift.value);
+        memTree = TreeFactory::instance().make<TreeNodeAddition>(
+            baseTree,
+            indexTree);
     }
+    else {
+        memTree = TreeFactory::instance().make<TreeNodeAddition>(
+            baseTree,
+            TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
 
-    auto memTree = TreeFactory::instance().make<TreeNodeAddition>(
-        TreeFactory::instance().make<TreeNodePhysicalRegister>(base, widthB),
-        TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
-
-    if(assembly->isPreIndex()) {
-        defReg(state, base, memTree);
+        if(assembly->isPreIndex()) {
+            defReg(state, base, memTree);
+        }
     }
 
     defMem(state, memTree, reg0);
@@ -904,14 +919,6 @@ void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
     defReg(state, base, wbTree);
 }
 
-void UseDef::fillCompareImmThenJump(UDState *state, Assembly *assembly) {
-    // CBZ, CBNZ do not update NZCV, but this information may be useful for
-    // jumptable detection
-}
-
-void UseDef::fillCondJump(UDState *state, Assembly *assembly) {
-}
-
 
 void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -970,15 +977,33 @@ void UseDef::fillBr(UDState *state, Assembly *assembly) {
     fillReg(state, assembly);
 }
 void UseDef::fillCbz(UDState *state, Assembly *assembly) {
-    fillCompareImmThenJump(state, assembly);
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    useReg(state, reg0);
+
+    auto tree = TreeFactory::instance().make<TreeNodeComparison>(
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0),
+        TreeFactory::instance().make<TreeNodeConstant>(0));
+    defReg(state, AARCH64GPRegister::ONETIME_NZCV, tree);
 }
 void UseDef::fillCbnz(UDState *state, Assembly *assembly) {
-    fillCompareImmThenJump(state, assembly);
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    useReg(state, reg0);
+
+    auto tree = TreeFactory::instance().make<TreeNodeComparison>(
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0),
+        TreeFactory::instance().make<TreeNodeConstant>(0));
+    defReg(state, AARCH64GPRegister::ONETIME_NZCV, tree);
 }
 void UseDef::fillCmp(UDState *state, Assembly *assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    useReg(state, reg0);
+
     auto imm = assembly->getAsmOperands()->getOperands()[1].imm;
     auto tree = TreeFactory::instance().make<TreeNodeComparison>(
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0),

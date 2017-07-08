@@ -335,8 +335,6 @@ private:
     void fillMemToRegReg(UDState *state, Assembly *assembly);
     void fillRegRegImmToMem(UDState *state, Assembly *assembly);
     void fillMemImmToRegReg(UDState *state, Assembly *assembly);
-    void fillCompareImmThenJump(UDState *state, Assembly *assembly);
-    void fillCondJump(UDState *state, Assembly *assembly);
 
     void defReg(UDState *state, int reg, TreeNode *tree);
     void useReg(UDState *state, int reg);
