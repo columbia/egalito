@@ -30,6 +30,26 @@ public:
             collectMemDef(s, fn);
         }
     }
+
+
+    template <
+        typename PatternType,
+        typename StateType,
+        typename ActionType,
+        typename... Args
+    >
+    static void searchUpDef(StateType *state, int reg, ActionType& fn,
+        Args... args) {
+
+        for(auto& s : state->getRegRef(reg)) {
+            if(auto def = s->getRegDef(reg)) {
+                TreeCapture cap;
+                if(PatternType::matches(def, cap)) {
+                    if(fn(s, cap, args...)) break;
+                }
+            }
+        }
+    }
 };
 
 struct FlowMatchResult {
@@ -43,36 +63,32 @@ struct FlowMatchResult {
 
 class FlowPatternStore {
 public:
-    static void action(UDState *state, int reg,
-        std::vector<std::vector<FlowMatchResult>> *store,
-        const TreeCapture& capture) {
+    typedef std::vector<std::vector<FlowMatchResult>> ResultType;
+
+    static bool action(UDState *state, int reg,
+        const TreeCapture& capture, ResultType *store) {
 
         store->emplace_back(std::vector<FlowMatchResult> {});
         for(size_t i = 0; i < capture.getCount(); ++i) {
             store->back().emplace_back(state, reg, capture.get(i));
         }
+        return false;   // collects all matches
     }
 };
 
 template <typename PatternType, typename ActionType=FlowPatternStore>
 class FlowPatternMatch {
 private:
-    std::vector<std::vector<FlowMatchResult>> list;
+    typename ActionType::ResultType result;
 public:
     bool operator()(UDState *state, int reg, TreeNode *tree) {
         TreeCapture cap;
         if(PatternType::matches(tree, cap)) {
-            ActionType::action(state, reg, &list, cap);
-            return true;
+            return ActionType::action(state, reg, cap, &result);
         }
         return false;
     }
-    std::vector<std::vector<FlowMatchResult>>& getList()
-        { return list; }
-    void clearList() { list.clear(); }
-    size_t getCount() const { return list.size(); }
-    const std::vector<FlowMatchResult>& get(int n) const
-        { return list[n]; }
+    typename ActionType::ResultType& getResult() { return result; }
 };
 
 #endif

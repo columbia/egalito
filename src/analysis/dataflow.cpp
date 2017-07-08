@@ -101,7 +101,7 @@ bool DataFlow::isTlsdescResolveCall(UDState *state, Module *module) {
 
     FlowPatternMatch<MakePointerForm> pm;
     FlowUtil::collectUpDef(state, AARCH64GPRegister::R0, pm);
-    for(auto& capList : pm.getList()) {
+    for(auto& capList : pm.getResult()) {
         auto upState = capList[0].state;
         auto reg = dynamic_cast<TreeNodePhysicalRegister *>(capList[0].tree)
             ->getRegister();
@@ -115,7 +115,7 @@ bool DataFlow::isTlsdescResolveCall(UDState *state, Module *module) {
 
         FlowPatternMatch<PointerPageForm> pm2;
         FlowUtil::collectUpDef(upState, reg, pm2);
-        for(auto& capList2 : pm2.getList()) {
+        for(auto& capList2 : pm2.getResult()) {
             auto page = dynamic_cast<TreeNodeAddress *>(capList2[0].tree)
                 ->getValue();
 
