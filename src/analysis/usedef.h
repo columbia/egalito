@@ -108,7 +108,7 @@ public:
 
 class UDState {
 public:
-    virtual const ControlFlowNode *getNode() const = 0;
+    virtual ControlFlowNode *getNode() = 0;
     virtual Instruction *getInstruction() const = 0;
 
     virtual void addRegDef(int reg, TreeNode *tree) = 0;
@@ -148,7 +148,7 @@ public:
     RegState(ControlFlowNode *node, Instruction *instruction)
         : UDState(), node(node), instruction(instruction) {}
 
-    virtual const ControlFlowNode *getNode() const { return node; }
+    virtual ControlFlowNode *getNode() { return node; }
     virtual Instruction *getInstruction() const { return instruction; }
 
     virtual void addRegDef(int reg, TreeNode *tree)
@@ -284,6 +284,7 @@ public:
 class UDRegMemWorkingSet : public UDWorkingSet {
 private:
     Function *function;
+    ControlFlowGraph *cfg;
     std::vector<RegMemState> stateList;
 public:
     UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg);
@@ -293,6 +294,7 @@ public:
     const std::vector<RegMemState> &getStateList() const
         { return stateList; }
     Function *getFunction() const { return function; }
+    ControlFlowGraph *getCFG() const { return cfg; }
 };
 
 class UseDef {

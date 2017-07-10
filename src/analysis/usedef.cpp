@@ -307,7 +307,7 @@ void UDWorkingSet::dumpSet() const {
 
 UDRegMemWorkingSet::UDRegMemWorkingSet(
     Function *function, ControlFlowGraph *cfg)
-    : UDWorkingSet(cfg), function(function) {
+    : UDWorkingSet(cfg), function(function), cfg(cfg) {
 
     for(auto block : CIter::children(function)) {
         auto node = cfg->get(block);
@@ -951,6 +951,9 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
     }
 }
 void UseDef::fillB(UDState *state, Assembly *assembly) {
+    if(assembly->getMnemonic() != "b") {
+        useReg(state, AARCH64GPRegister::NZCV);
+    }
 }
 void UseDef::fillBl(UDState *state, Assembly *assembly) {
     // anything other than callee-saved, FP, LR, SP
