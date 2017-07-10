@@ -194,31 +194,31 @@ bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
 }
 
 void ControlFlowGraph::dump() {
-    LOG(9, "Control flow graph:");
+    LOG(1, "Control flow graph:");
     for(auto node : graph) {
-        LOG(9, "    " << node.getDescription());
-        LOG0(9, "        forward links:");
+        LOG(1, "    " << node.getDescription());
+        LOG0(1, "        forward links:");
         for(auto link : node.forwardLinks()) {
-            LOG0(9, " " << link.getID() << " ("
+            LOG0(1, " " << link.getID() << " ("
                 << graph[link.getID()].getBlock()->getName()
                 << ") + " << std::dec << link.getOffset() << ";");
         }
-        LOG(9, "");
-        LOG0(9, "        backward links:");
+        LOG(1, "");
+        LOG0(1, "        backward links:");
         for(auto link : node.backwardLinks()) {
-            LOG0(9, " " << link.getID() << " ("
+            LOG0(1, " " << link.getID() << " ("
                 << graph[link.getID()].getBlock()->getName()
                 << ") + " << std::dec << link.getOffset() << ";");
         }
-        LOG(9, "");
+        LOG(1, "");
     }
 }
 
 void ControlFlowGraph::dumpDot() {
     std::regex e("bb\\+([0-9]+)");
 
-    LOG(9, "Control flow graph (DOT):");
-    LOG(9, "digraph G {");
+    LOG(1, "Control flow graph (DOT):");
+    LOG(1, "digraph G {");
     for(auto node : graph) {
         std::smatch match1, match2;
 
@@ -229,10 +229,10 @@ void ControlFlowGraph::dumpDot() {
             auto linkName = graph[link.getID()].getBlock()->getName();
             std::regex_search(linkName, match2, e);
 
-            LOG(9, " \"" << node.getID() << "(" << match1[9] << ")\""
+            LOG(1, " \"" << node.getID() << "(" << match1[9] << ")\""
                 << " -> \"" << link.getID() << "(" << match2[9] << ")\"");
         }
     }
-    LOG(9, "}");
+    LOG(1, "}");
 }
 
