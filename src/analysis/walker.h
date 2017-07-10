@@ -122,7 +122,6 @@ public:
     }
 };
 
-#include <iostream>
 template <int Direction, typename VisitType, typename FinishType>
 class SccCollection {
 private:
@@ -255,5 +254,19 @@ typedef OrderOnCFG<
 typedef OrderOnCFG<
     -1, PostorderVisitor, ReverseFinisher, SccCollection
 > ReverseSccOrder;
+
+
+// this should better be implemented with iterator to walk tree
+template <typename OrderType>
+bool isReachable(ControlFlowGraph *cfg, int src, int dest) {
+    OrderType walker(cfg);
+    walker.gen(src);
+    for(auto n : walker.get()[0]) {
+        if(n == dest) {
+            return true;
+        }
+    }
+    return false;
+}
 
 #endif
