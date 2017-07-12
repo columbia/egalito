@@ -8,6 +8,12 @@
 #include "log/log.h"
 
 #ifdef ARCH_AARCH64
+void JumptableDetection::detect(Module *module) {
+    for(auto f : CIter::functions(module)) {
+        detect(f);
+    }
+}
+
 void JumptableDetection::detect(Function *function) {
     if(containsIndirectJump(function)) {
         ControlFlowGraph cfg(function);

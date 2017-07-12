@@ -5,7 +5,15 @@
 
 void InferLinksPass::visit(Module *module) {
     this->module = module;
+#ifdef ARCH_AARCH64
+    LinkedInstruction::makeAllLinked(module);
+#else
     recurse(module);
+#endif
+}
+
+void InferLinksPass::visit(Function *function) {
+    recurse(function);
 }
 
 void InferLinksPass::visit(Instruction *instruction) {
@@ -23,7 +31,7 @@ void InferLinksPass::visit(Instruction *instruction) {
             instruction->setSemantic(linked);
             delete v;
         }
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(ARCH_ARM)
         auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
         if(linked) {
             instruction->setSemantic(linked);

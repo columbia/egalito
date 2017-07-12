@@ -12,6 +12,7 @@ class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
 public:
     enum Mode {
         AARCH64_IM_ADRP = 0,
+        AARCH64_IM_ADR,
         AARCH64_IM_ADDIMM,
         AARCH64_IM_LDR,
         AARCH64_IM_LDRH,
@@ -53,9 +54,6 @@ public:
 
     void regenerateAssembly();
 
-    static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, Assembly *assembly);
-
     Instruction *getSource() const { return source; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
@@ -64,10 +62,11 @@ public:
 
     uint32_t rebuild();
 
+    static void makeAllLinked(Module *module);
+
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
-    static Instruction *getNextInstruction(Instruction *instruction);
 };
 
 class ControlFlowInstruction : public LinkedInstruction {

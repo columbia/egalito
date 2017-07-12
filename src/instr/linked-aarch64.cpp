@@ -5,15 +5,18 @@
 #include "analysis/controlflow.h"
 #include "analysis/slicing.h"
 #include "analysis/slicingmatch.h"
+#include "analysis/dataflow.h"
+#include "analysis/liveregister.h"
+#include "analysis/pointerdetection.h"
+#include "chunk/concrete.h"
 #include "chunk/link.h"
 #include "disasm/disassemble.h"
 #include "elf/elfspace.h"
+#include "operation/find.h"
 #include "util/streamasstring.h"
 
-#include <cstdio>  // for std::fflush
 #include "log/log.h"
-#include "chunk/dump.h"
-#include "log/registry.h"
+#include "log/temp.h"
 
 #if defined(ARCH_AARCH64)
 LinkedInstruction::LinkedInstruction(Instruction *source,
@@ -28,6 +31,13 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       {0x9000001F,
        [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - (src & ~0xFFF);
+           uint32_t imm = disp >> 12;
+           return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3)); },
+       1},
+      /* ADR */
+      {0x9F00001F,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest - src;
            uint32_t imm = disp >> 12;
            return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3)); },
        1},
@@ -228,6 +238,7 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     case ARM64_INS_TBZ:     m = AARCH64_IM_TBZ;     break;
     case ARM64_INS_TBNZ:    m = AARCH64_IM_TBNZ;    break;
     case ARM64_INS_ADRP:    m = AARCH64_IM_ADRP;    break;
+    case ARM64_INS_ADR:     m = AARCH64_IM_ADR;     break;
     case ARM64_INS_ADD:     m = AARCH64_IM_ADDIMM;  break;
     case ARM64_INS_LDR:     m = AARCH64_IM_LDR;     break;
     case ARM64_INS_LDRH:    m = AARCH64_IM_LDRH;    break;
@@ -253,239 +264,56 @@ void LinkedInstruction::regenerateAssembly() {
     getStorage().setAssembly(std::move(assembly));
 }
 
-class RegPointerPredicate : public SlicingHalt {
-private:
-    int reg;
-    long int offset;
-    std::vector<Instruction *> offsetInstructionList;
-
-public:
-    RegPointerPredicate(int reg) : reg(reg), offset(0) {}
-    virtual bool cutoff(SearchState *state);
-    unsigned long getOffset() const { return offset; }
-    std::vector<Instruction *> getOffsetInstructionList() const
-        { return offsetInstructionList; }
-
-private:
-    TreeNodeConstant *getOffsetTree(TreeNode *node, SearchState *state);
-};
-
-TreeNodeConstant *RegPointerPredicate::getOffsetTree(TreeNode *tree,
-    SearchState *state) {
-
-#if 0
-    if(tree) {
-        LOG(10, "tree is");
-        IF_LOG(10) tree->print(TreePrinter(2, 0));
-        LOG(10, "");
+void LinkedInstruction::makeAllLinked(Module *module) {
+    DataFlow df;
+    LiveRegister live;
+    PointerDetection pd;
+    for(auto func : CIter::functions(module)) {
+        df.addUseDefFor(func);
     }
-#endif
-
-    typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternAny>,
-        TreePatternCapture<TreePatternAny>
-    > TreePatternOffset;
-
-    typedef TreePatternUnary<TreeNodeDereference,
-        TreePatternCapture<TreePatternOffset>
-    > TreePatternOffset2;
-
-    TreeCapture capture;
-    if(TreePatternOffset2::matches(tree, capture)) {
-        tree = capture.get(0);
+    for(auto func : CIter::functions(module)) {
+        live.detect(func);
+    }
+    for(auto func : CIter::functions(module)) {
+        df.adjustCallUse(&live, func, module);
+    }
+    for(auto func : CIter::functions(module)) {
+        pd.detect(df.getWorkingSet(func));
     }
 
-    capture.clear();
-    if(TreePatternOffset::matches(tree, capture)) {
-        auto r1 = dynamic_cast<TreeNodeRegister *>(capture.get(0));
-        if(!r1) {
-            for(auto m : state->getMemTrees()) {
-                if(m.first->canbe(capture.get(0))) {
-                    r1 = dynamic_cast<TreeNodeRegister *>(m.second);
-                    if(r1) break;
-                }
-            }
-        }
-        auto c2 = dynamic_cast<TreeNodeConstant *>(capture.get(1));
-        if(r1 && r1->getRegister() == reg && c2) {
-            LOG(10, "offset found");
-            return c2;
-        }
-    }
-
-    LOG(10, "didn't match");
-
-    return nullptr;
-}
-
-bool RegPointerPredicate::cutoff(SearchState *state) {
-    TreeNodeConstant *offsetTree = nullptr;
-    //LOG(1, "looking at state @ 0x" << std::hex << state->getInstruction()->getAddress());
-
-    auto v = dynamic_cast<DisassembledInstruction *>(
-        state->getInstruction()->getSemantic());
-    if(v) {
-        auto assembly = v->getAssembly();
-        if(assembly->getId() == ARM64_INS_ADD) {
-            auto r = assembly->getAsmOperands()->getOperands()[0].reg;
-            if(state->getReg(r)) {
-                auto tree = getOffsetTree(state->getRegTree(r), state);
-                if(tree) {
-                    offsetTree = tree;
-                }
-            }
-        } else if(1
-            || assembly->getId() == ARM64_INS_LDR
-            || assembly->getId() == ARM64_INS_LDRB
-            || assembly->getId() == ARM64_INS_LDRH
-            || assembly->getId() == ARM64_INS_LDRSB
-            || assembly->getId() == ARM64_INS_LDRSH
-            || assembly->getId() == ARM64_INS_LDRSW
-            || assembly->getId() == ARM64_INS_STR
-            || assembly->getId() == ARM64_INS_STRB
-            || assembly->getId() == ARM64_INS_STRH
-            ) {
-            if(auto m = state->getMemTree()) {
-                if(auto tree = getOffsetTree(m, state)) {
-                    offsetTree = tree;
-                }
-            }
-            else {
-                LOG(10, "skipping because base is not interesting");
-            }
-        }
-    }
-
-    if(offsetTree) {
-        if(offsetInstructionList.size() == 0) {
-            offset = offsetTree->getValue();
-        }
-
-        if(offset == offsetTree->getValue()) {
-            LOG(10, "the offset is given at "
-                << state->getInstruction()->getAddress());
-            offsetInstructionList.push_back(state->getInstruction());
-        }
-    }
-
-    /* don't cutoff early: there could be more than one offset instructions */
-    return false;
-}
-
-class CFGFactory {
-private:
-    Function *lastFunction;
-    ControlFlowGraph *cfg;
-
-public:
-    ControlFlowGraph *getControlFlowGraph(Function *function);
-
-    static CFGFactory& instance() {
-        static CFGFactory factory;
-        return factory;
-    }
-private:
-    CFGFactory() : lastFunction(nullptr), cfg(nullptr) {}
-    ~CFGFactory() { delete cfg; }
-    CFGFactory& operator=(const CFGFactory&);
-    CFGFactory(const CFGFactory&);
-};
-
-ControlFlowGraph *CFGFactory::getControlFlowGraph(Function *function) {
-    if(lastFunction != function) {
-        delete cfg;
-        lastFunction = function;
-        cfg = new ControlFlowGraph(function);
-    }
-    return cfg;
-}
-
-Instruction *LinkedInstruction::getNextInstruction(Instruction *instruction) {
-    Instruction *next = nullptr;
-    next = static_cast<Instruction *>(instruction->getNextSibling());
-    if(!next) {
-        auto nextb = dynamic_cast<Block *>(
-            instruction->getParent()->getNextSibling());
-        next = nextb->getChildren()->getIterable()->get(0);
-    }
-    return next;
-}
-
-LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
-    Instruction *instruction, Assembly *assembly) {
-
-    if(assembly->getId() == ARM64_INS_ADRP) {
-        Function *function = dynamic_cast<Function *>(
-            instruction->getParent()->getParent());
-
-        auto reg = assembly->getAsmOperands()->getOperands()[0].reg;
-
-        auto cfg = CFGFactory::instance().getControlFlowGraph(function);
-
-        RegPointerPredicate rpp(reg);
-        ForwardSlicingSearch search(cfg, &rpp);
-        auto next = getNextInstruction(instruction);
-
-        LOG(10, "makeLinked for 0x" << std::hex << instruction->getAddress());
-        LOG(10, "    searching from 0x" << std::hex << next->getAddress());
-        search.sliceAt(next, reg);
-
-        address_t target = assembly->getAsmOperands()->getOperands()[1].imm
-            + rpp.getOffset();
-        if(rpp.getOffsetInstructionList().size() == 0) {
-#if 0
-            GroupRegistry::getInstance()->applySetting("analysis", 20);
-            GroupRegistry::getInstance()->applySetting("instr", 20);
-            GroupRegistry::getInstance()->applySetting("disasm", 9);
-            LOG(1, "function name = " << function->getName());
-            LOG(1, "function size = " << std::dec << function->getSize());
-
-            ChunkDumper dump;
-            function->accept(&dump);
-
-            cfg->dump();
-            std::cout.flush();
-            std::fflush(stdout);
-
-            // redo to get log
-            search.sliceAt(next, reg);
-#endif
-            LOG(1, "Couldn't find the offset instruction for "
-                << function->getName());
-            throw "failed";
-            //return nullptr;
-        }
-
-        LOG(10, "target: 0x" << std::hex << target);
-        auto found = CIter::spatial(module->getFunctionList())->find(target);
+    //TemporaryLogLevel tll("instr", 10);
+    for(auto [instruction, address] : pd.getList()) {
+        LOG(9, "pointer at 0x" << std::hex << instruction->getAddress()
+            << " pointing to 0x" << address);
+        auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction, *assembly);
-        Link *link = nullptr, *link2 = nullptr;
+
+        Chunk *found = CIter::spatial(module->getFunctionList())->find(address);
+        Link *link = nullptr;
         if(found) {
             LOG(10, " ==> " << found->getName());
             link = new ExternalNormalLink(found);
-            link2 = new ExternalNormalLink(found);
         }
         else {
-            LOG(10, " --> data link");
-            link = LinkFactory::makeDataLink(module, target, true);
-            if(!link) throw "failed to create link!";
-            link2 = LinkFactory::makeDataLink(module, target, true);
+            auto f = dynamic_cast<Function *>(
+                instruction->getParent()->getParent());
+
+            found = ChunkFind().findInnermostAt(f, address);
+            if(found) {
+                link = new NormalLink(found);
+            }
+            else {
+                LOG(10, " --> data link");
+                link = LinkFactory::makeDataLink(module, address, true);
+                if(!link) {
+                    throw "failed to create link!";
+                }
+            }
         }
         linked->setLink(link);
-
-        // set link to the offset instruction
-        // !!! Is it really ok to share link2?
-        for(auto offsetInst : rpp.getOffsetInstructionList()) {
-            auto semantic2 = offsetInst->getSemantic();
-            auto assembly2 = semantic2->getAssembly();
-            auto linked2 = new LinkedInstruction(offsetInst, *assembly2);
-            linked2->setLink(link2);
-            offsetInst->setSemantic(linked2);
-            delete semantic2;
-        }
-
-        return linked;
+        auto v = instruction->getSemantic();
+        instruction->setSemantic(linked);
+        delete v;
     }
-    return nullptr;
 }
 #endif

@@ -14,19 +14,19 @@ class UDRegMemWorkingSet;
 
 class PointerDetection {
 private:
-    // just for comparing against slicing
-    std::map<Instruction *, address_t> found;
+    std::map<Instruction *, address_t> pointerList;
 
 public:
     PointerDetection() {}
     void detect(Function *function, ControlFlowGraph *cfg);
     void detect(UDRegMemWorkingSet *working);
 
+    const std::map<Instruction *, address_t> getList() const
+        { return pointerList; }
+
 private:
     void detectAtADR(UDState *state);
     void detectAtADRP(UDState *state);
-
-    void checkLink(Instruction *instruction, address_t target);
 };
 
 class PageOffsetList {

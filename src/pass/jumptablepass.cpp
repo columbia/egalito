@@ -1,6 +1,7 @@
 #include <algorithm>
 #include "jumptablepass.h"
 #include "analysis/jumptable.h"
+#include "analysis/jumptabledetection.h"
 #include "chunk/jumptable.h"
 #include "operation/find.h"
 #include "elf/elfspace.h"
@@ -18,24 +19,13 @@ void JumpTablePass::visit(Module *module) {
 }
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
+#if defined(ARCH_X86_64) || defined(ARCH_ARM)
     JumpTableSearch search;
     search.search(module);
-
-    // find all nested ones
-    size_t last, count;
-    count = 0;
-    do {
-        last = count;
-        search.clearPossibleMissList();
-        auto list = search.getPossibleMissList();
-        for(auto i : list) {
-            auto f = dynamic_cast<Function *>(i->getParent()->getParent());
-            LOG(10, "re-searching for a jump table in " << f->getName());
-            if(f) search.search(f);
-        }
-        count = list.size();
-    } while(count != last);
-    LOG(5, "number of jumptables missed in the end: " << count);
+#elif defined(ARCH_AARCH64)
+    JumptableDetection search;
+    search.detect(module);
+#endif
 
     for(auto descriptor : search.getTableList()) {
         // this constructor automatically creates JumpTableEntry children

@@ -34,8 +34,11 @@ private:
     std::vector<JumpTableDescriptor *> tableList;
 
 public:
+    void detect(Module *module);
     void detect(Function *function);
     void detect(UDRegMemWorkingSet *working);
+    const std::vector<JumpTableDescriptor *> &getTableList() const
+        { return tableList; }
 
 private:
     bool containsIndirectJump(Function *function) const;

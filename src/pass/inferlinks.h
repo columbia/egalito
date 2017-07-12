@@ -9,8 +9,9 @@ private:
     ElfMap *elf;
     Module *module;
 public:
-    InferLinksPass(ElfMap *elf) : elf(elf) {}
+    InferLinksPass(ElfMap *elf) : elf(elf), module(nullptr) {}
     virtual void visit(Module *module);
+    virtual void visit(Function *function);
     virtual void visit(Instruction *instruction);
 };
 

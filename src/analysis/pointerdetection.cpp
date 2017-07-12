@@ -26,10 +26,6 @@ void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
 }
 
 void PointerDetection::detect(UDRegMemWorkingSet *working) {
-    found.clear();
-    LOG(5, "");
-    LOG(5, "searching for pointers... (checking soundness)");
-
     for(auto block : CIter::children(working->getFunction())) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
@@ -45,70 +41,13 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
             }
         }
     }
-
-    LOG(5, "checking completeness");
-    for(auto block : CIter::children(working->getFunction())) {
-        for(auto instr : CIter::children(block)) {
-            auto semantic = instr->getSemantic();
-            if(dynamic_cast<ControlFlowInstruction *>(semantic)) {
-                continue;
-            }
-            if(auto linked = dynamic_cast<LinkedInstruction *>(semantic)) {
-                auto link = linked->getLink();
-                if(dynamic_cast<NormalLink *>(link)
-                    || dynamic_cast<DataOffsetLink *>(link)) {
-
-                    LOG(5, "link at 0x" << std::hex << instr->getAddress());
-                    auto it = found.find(instr);
-                    if(it == found.end()) {
-                        LOG(1, "MISMATCH: not found: 0x"
-                            << std::hex << link->getTargetAddress()
-                            << " at 0x" << std::hex << instr->getAddress());
-                    }
-                    found.erase(instr);
-                }
-            }
-        }
-    }
-    if(found.size() > 0) {
-        for(auto f : found) {
-            LOG(1, "MISMATCH: (was not found): 0x" << std::hex << f.second
-                << " at 0x" << f.first->getAddress());
-        }
-    }
-}
-
-void PointerDetection::checkLink(Instruction *instruction, address_t target) {
-    auto semantic = instruction->getSemantic();
-    if(auto linked = dynamic_cast<LinkedInstruction *>(semantic)) {
-        if(auto link = dynamic_cast<NormalLink *>(linked->getLink())) {
-            LOG(5, "original NORMAL link pointing to : 0x"
-                << std::hex << link->getTargetAddress());
-            if(link->getTargetAddress() != target) {
-                LOG(1, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
-                    << " vs 0x" << target
-                    << " at 0x" << instruction->getAddress());
-            }
-        }
-        else if(auto link = dynamic_cast<DataOffsetLink *>(linked->getLink())) {
-            LOG(5, "original DATA link pointing to : 0x"
-                << std::hex << link->getTargetAddress());
-            if(link->getTargetAddress() != target) {
-                LOG(1, "MISMATCH: 0x" << std::hex << link->getTargetAddress()
-                    << " vs 0x" << target
-                    << " at 0x" << instruction->getAddress());
-            }
-        }
-    }
-
 }
 
 void PointerDetection::detectAtADR(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
             auto addr = tree->getValue();
-            checkLink(state->getInstruction(), addr);
-            found[state->getInstruction()] = addr;
+            pointerList[state->getInstruction()] = addr;
         }
         break;  // there should be only one
     }
@@ -134,12 +73,10 @@ void PointerDetection::detectAtADRP(UDState *state) {
                         throw "inconsistent offset value";
                     }
                 }
-                checkLink(o.first->getInstruction(), page + o.second);
-                found[o.first->getInstruction()] = page + o.second;
+                pointerList[o.first->getInstruction()] = page + o.second;
             }
             if(offsetList.getCount() > 0) {
-                checkLink(state->getInstruction(), page + offset);
-                found[state->getInstruction()] = page + offset;
+                pointerList[state->getInstruction()] = page + offset;
             }
         }
         break;  // there should be only one
