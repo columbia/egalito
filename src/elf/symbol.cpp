@@ -273,8 +273,14 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
 
 size_t SymbolList::estimateSizeOf(Symbol *symbol) {
     auto it = spaceMap.upper_bound(symbol->getAddress());
-    if(it != spaceMap.end()) {
+    while(it != spaceMap.end()) {
         Symbol *other = (*it).second;
+        // for AARCH64, if the next symbol is mapping symbol, then it is
+        // still part of the same function
+        if(!strcmp(other->getName(), "$d")) {
+            ++it;
+            continue;
+        }
         return other->getAddress() - symbol->getAddress();
     }
 

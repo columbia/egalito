@@ -157,11 +157,13 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
 
             mapping = findMappingSymbol(symbolList, virtualAddress + size);
             if(!mapping) {
-                LOG(1, "error in handling mapping symbols at 0x"
-                    << std::hex << virtualAddress);
-                throw "mapping symbol error";
+                // this is actually not literal if it is pointing to the
+                // gap between the text and literal, but it's ok for now
+                literal = true;
             }
-            literal = processMappingSymbol(handle, mapping);
+            else {
+                literal = processMappingSymbol(handle, mapping);
+            }
             if(literal) {
                 processLiterals(handle, function, readAddress + size,
                     readSize - size, virtualAddress + size);

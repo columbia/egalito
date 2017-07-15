@@ -39,7 +39,6 @@ void StackExtendPass::visit(Function *function) {
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
-
     auto firstB = function->getChildren()->getIterable()->get(0);
     auto bin_sub = AARCH64InstructionBinary(
         0xD1000000 | extendSize << 10 | 31 << 5 | 31);
