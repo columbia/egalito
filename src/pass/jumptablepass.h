@@ -18,6 +18,10 @@ public:
         Note: relies on this->module being set.
     */
     void makeChildren(JumpTable *jumpTable, int count);
+
+private:
+    void saveToFile() const;
+    bool loadFromFile(JumpTableList *jumpTableList);
 };
 
 #endif

@@ -1,9 +1,12 @@
 #include <algorithm>
+#include <fstream>
 #include "jumptablepass.h"
 #include "analysis/jumptable.h"
 #include "analysis/jumptabledetection.h"
+#include "config.h"
 #include "chunk/jumptable.h"
 #include "operation/find.h"
+#include "operation/find2.h"
 #include "elf/elfspace.h"
 
 #undef DEBUG_GROUP
@@ -15,7 +18,10 @@ void JumpTablePass::visit(Module *module) {
     auto jumpTableList = new JumpTableList();
     module->getChildren()->add(jumpTableList);
     module->setJumpTableList(jumpTableList);
-    visit(jumpTableList);
+    if(!loadFromFile(jumpTableList)) {
+        visit(jumpTableList);
+        saveToFile();
+    }
 }
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
@@ -119,3 +125,76 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         jumpTable->getChildren()->add(entry);
     }
 }
+
+void JumpTablePass::saveToFile() const {
+    if(module->getName() == "module-(executable)") return;
+    if(module->getName() == "module-(egalito)") return;
+
+    std::string filename(CACHE_DIR "/");
+    filename += module->getName() + "-jumptable";
+    std::ofstream f(filename.c_str(), std::ios::out);
+
+    // keep it ascii now for debugging
+    auto jumptablelist = module->getJumpTableList();
+    for(auto& jt : CIter::children(jumptablelist)) {
+        auto d = jt->getDescriptor();
+        f << d->getInstruction()->getAddress() << '\n';
+        f << d->getAddress() << '\n';
+        f << d->getTargetBaseAddress() << '\n';
+        f << d->getScale() << '\n';
+        f << d->getEntries() << '\n';
+    }
+
+    f.close();
+}
+
+bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
+    if(module->getName() == "module-(executable)") return false;
+    if(module->getName() == "module-(egalito)") return false;
+
+    std::string filename(CACHE_DIR "/");
+    filename += module->getName() + "-jumptable";
+    std::ifstream f(filename.c_str(), std::ios::in);
+
+    bool loaded = false;
+    char line[128];
+    // the only way to get Function * is by address; name can not be used,
+    // because there may be multiple local functions with the same name.
+    for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
+        auto brAddr = std::stoll(line);
+        LOG(5, "instruction at 0x" << std::hex << brAddr);
+        auto fn =
+            CIter::spatial(module->getFunctionList())->findContaining(brAddr);
+        auto instr = dynamic_cast<Instruction *>(
+            ChunkFind().findInnermostAt(fn, brAddr));
+        if(!instr) {
+            LOG(1, "JumpTablePass: instruction not found");
+        }
+
+        f.getline(line, 128);
+        auto addr = std::stoll(line);
+        LOG(5, "address 0x" << std::hex << addr);
+        f.getline(line, 128);
+        auto targetBase = std::stoll(line);
+        LOG(5, "target address 0x" << std::hex << targetBase);
+        f.getline(line, 128);
+        auto scale = std::stoi(line);
+        LOG(5, "scale " << scale);
+        f.getline(line, 128);
+        auto entries = std::stoi(line);
+        LOG(5, "entries " << entries);
+
+        auto d = new JumpTableDescriptor(fn, instr);
+        d->setAddress(addr);
+        d->setTargetBaseAddress(targetBase);
+        d->setScale(scale);
+        d->setEntries(entries);
+        auto jumpTable = new JumpTable(module->getElfSpace()->getElfMap(), d);
+        jumpTableList->getChildren()->add(jumpTable);
+        makeChildren(jumpTable, entries);
+        loaded = true;
+    }
+
+    return loaded;
+}
+

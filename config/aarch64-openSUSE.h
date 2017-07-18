@@ -7,6 +7,7 @@
 
 /* src */
 
+#define CACHE_DIR "_cache"
 #define SANDBOX_BASE_ADDRESS    0x80000000
 
 /* app */
