@@ -80,7 +80,7 @@ void AARCH64RegBits::makeDPImm_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
-    if(1
+    if(0
         || (bin & 0x1F000000) == 0x11000000     //C4.2.1 Add/subtract (immediate)
         || (bin & 0x1F800000) == 0x13000000     //C4.2.2 Bitfield
         || (bin & 0x1F800000) == 0x12000000     //C4.2.4 Logical (immediate)
@@ -93,7 +93,7 @@ void AARCH64RegBits::makeDPImm_RegPositionList() {
         source.push_back(16);
         destination.push_back(0);
     }
-    else if(1
+    else if(0
         || (bin & 0x1F800000) == 0x12800000     //C4.2.5 Move wide (immediate)
         || (bin & 0x1F000000) == 0x10000000     //C4.2.6 PC-rel. addressing
            ) {
@@ -107,7 +107,7 @@ void AARCH64RegBits::makeBranch_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
-    if(1
+    if(0
         || (bin & 0xFE000000) == 0x34000000     //C4.3.1 Compare & branch (imm)
         || (bin & 0x7E000000) == 0x36000000     //C4.3.5 Test & branch (immediate)
       ) {
@@ -151,7 +151,7 @@ void AARCH64RegBits::makeLDST_RegPositionList() {
       ) {
        destination.push_back(0);
     }
-    else if(1
+    else if(0
         || (bin & 0x3B200C00) == 0x38000400     //C4.4.8 LD/ST (imm post)
         || (bin & 0x3B200C00) == 0x38000C00     //C4.4.9 LD/ST (imm pre)
         || (bin & 0x3B200C00) == 0x38000800     //C4.4.11 LD/ST (unprivileged)
@@ -194,7 +194,7 @@ void AARCH64RegBits::makeLDST_RegPositionList() {
             break;
         }
     }
-    else if(1
+    else if(0
         || (bin & 0x3BC00000) == 0x28000000     //C4.4.7 LD/ST no-a pair (offset)
         || (bin & 0x3B800000) == 0x29000000     //C4.4.14 LD/ST pair (offset)
         || (bin & 0x3B800000) == 0x28800000     //C4.4.15 LD/ST pair (post)
@@ -227,7 +227,7 @@ void AARCH64RegBits::makeDPIReg_RegPositionList() {
     RegPositions source;
     RegPositions destination;
 
-    if(1
+    if(0
         || (bin & 0x1F200000) == 0x0B200000     //C4.5.1 Add/subtract (extended)
         || (bin & 0x1F200000) == 0x0B000000     //C4.5.2 Add/subtract (shifted)
         || (bin & 0x1FE00000) == 0x1A000000     //C4.5.3 Add/subtract (w/ carry)
@@ -239,25 +239,25 @@ void AARCH64RegBits::makeDPIReg_RegPositionList() {
         source.push_back(16);
         destination.push_back(0);
     }
-    else if(1
+    else if(0
         || (bin & 0x1FE00800) == 0x1A400800     //C4.5.4 Conditional compare (imm)
       ) {
         source.push_back(5);
     }
-    else if(1
+    else if(0
         || (bin & 0x1FE00000) == 0x1A800000     //C4.5.6 Conditional select
       ) {
         source.push_back(5);
         source.push_back(16);
         destination.push_back(0);
     }
-    else if(1
+    else if(0
         || (bin & 0x3FE00000) == 0x3AC00000     //C4.5.7 Data-processing (1 src)
       ) {
         source.push_back(5);
         destination.push_back(0);
     }
-    else if(1
+    else if(0
         || (bin & 0x1F000000) == 0x1A000000     //C4.5.9 Data-processing (3 src)
       ) {
         source.push_back(5);
