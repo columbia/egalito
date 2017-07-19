@@ -25,7 +25,6 @@ class TreeNode {
 public:
     virtual ~TreeNode() {}
     virtual void print(const TreePrinter &p) const = 0;
-    virtual bool canbe(TreeNode *) = 0;
     virtual bool equal(TreeNode *) = 0;
 };
 
@@ -37,10 +36,6 @@ public:
     long int getValue() const { return value; }
     void setValue(long int value) { this->value = value; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodeConstant *>(tree);
-        return t && getValue() == t->getValue();
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodeConstant *>(tree);
         return t && getValue() == t->getValue();
@@ -55,10 +50,6 @@ public:
     address_t getValue() const { return address; }
     void setValue(address_t address) { this->address = address; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodeAddress *>(tree);
-        return t && getValue() == t->getValue();
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodeAddress *>(tree);
         return t && getValue() == t->getValue();
@@ -72,10 +63,6 @@ public:
     TreeNodeRegister(int reg) : reg(Register(reg)) {}
     int getRegister() const { return reg; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodeRegister *>(tree);
-        return t && getRegister() == t->getRegister();
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodeRegister *>(tree);
         return t && getRegister() == t->getRegister();
@@ -89,10 +76,6 @@ public:
         : TreeNodeRegister(X86_REG_RIP), value(value) {}
     address_t getValue() const { return value; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodeRegisterRIP *>(tree);
-        return t && getValue() == t->getValue();
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodeRegisterRIP *>(tree);
         return t && getValue() == t->getValue();
@@ -108,10 +91,6 @@ public:
     int getRegister() const { return reg; }
     size_t getWidth() const { return width; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodePhysicalRegister *>(tree);
-        return t && getRegister() == t->getRegister();
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodePhysicalRegister *>(tree);
         return t && getRegister() == t->getRegister();
@@ -128,7 +107,6 @@ public:
     TreeNode *getChild() const { return node; }
     const char *getName() const { return name; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree);
     virtual bool equal(TreeNode *tree);
 };
 
@@ -179,7 +157,6 @@ public:
     const char *getOperator() const { return op; }
 
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree);
     virtual bool equal(TreeNode *tree);
 };
 
@@ -243,16 +220,6 @@ public:
     TreeNode *getRight() const { return right; }
 
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree) {
-        auto t = dynamic_cast<TreeNodeComparison *>(tree);
-        return t && (
-            (getLeft()->canbe(t->getLeft()) &&
-             getRight()->canbe(t->getRight()))
-             ||
-            (getRight()->canbe(t->getLeft()) &&
-              getLeft()->canbe(t->getRight())));
-
-    }
     virtual bool equal(TreeNode *tree) {
         auto t = dynamic_cast<TreeNodeComparison *>(tree);
         return t && (
@@ -273,7 +240,6 @@ public:
 
     const std::vector<TreeNode *> &getParents() const { return parentList; }
     virtual void print(const TreePrinter &p) const;
-    virtual bool canbe(TreeNode *tree);
     virtual bool equal(TreeNode *tree);
 };
 

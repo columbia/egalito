@@ -40,12 +40,6 @@ void TreeNodeUnary::print(const TreePrinter &p) const {
     p.stream() << ")";
 }
 
-bool TreeNodeUnary::canbe(TreeNode *tree) {
-    auto t = dynamic_cast<TreeNodeUnary *>(tree);
-    return t && !strcmp(name, t->getName()) &&
-        getChild()->canbe(t->getChild());
-}
-
 bool TreeNodeUnary::equal(TreeNode *tree) {
     auto t = dynamic_cast<TreeNodeUnary *>(tree);
     return t && !strcmp(name, t->getName()) &&
@@ -69,16 +63,6 @@ void TreeNodeBinary::print(const TreePrinter &p) const {
         right->print(p);
         p.stream () << ")";
     }
-}
-
-bool TreeNodeBinary::canbe(TreeNode *tree) {
-    auto t = dynamic_cast<TreeNodeBinary *>(tree);
-    return t && !strcmp(op, t->getOperator()) && (
-        (getLeft()->canbe(t->getLeft()) &&
-         getRight()->canbe(t->getRight()))
-         ||
-        (getRight()->canbe(t->getLeft()) &&
-          getLeft()->canbe(t->getRight())));
 }
 
 bool TreeNodeBinary::equal(TreeNode *tree) {
@@ -129,31 +113,6 @@ void TreeNodeMultipleParents::print(const TreePrinter &p) const {
         }
         p.stream () << ")";
     }
-}
-
-bool TreeNodeMultipleParents::canbe(TreeNode *tree) {
-    auto t = dynamic_cast<TreeNodeMultipleParents *>(tree);
-    for(auto p : getParents()) {
-        if(p->canbe(t)) {
-            //LOG(1, "this includes arg");
-            return true;
-        }
-    }
-    if(t) {
-        for(auto p1 : t->getParents()) {
-            if(p1->canbe(this)) {
-                //LOG(1, "arg includes this");
-                return true;
-            }
-            for(auto p2 : getParents()) {
-                if(p2->canbe(p1)) {
-                    //LOG(1, "arg children includes this children");
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
 }
 
 bool TreeNodeMultipleParents::equal(TreeNode *tree) {
