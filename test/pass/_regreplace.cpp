@@ -27,15 +27,19 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
     // expects glibc
     auto module = libc->getElfSpace()->getModule();
     auto f = dynamic_cast<Function *>(
-        CIter::named(module->getFunctionList())->find("__offtime"));
+        //CIter::named(module->getFunctionList())->find("__offtime"));
+        CIter::named(module->getFunctionList())->find("_des_crypt"));
+
+    GroupRegistry::getInstance()->applySetting("disasm", 9);
+    GroupRegistry::getInstance()->applySetting("pass", 9);
+
+    ChunkDumper dumper;
+    f->accept(&dumper);
 
     REQUIRE(f != nullptr);
     f->accept(&replacer);
 
-    GroupRegistry::getInstance()->applySetting("disasm", 9);
-
-    //ChunkDumper dumper;
-    //f->accept(&dumper);
+    f->accept(&dumper);
 
     AARCH64RegBits rb;
     PhysicalRegister<AARCH64GPRegister> r18(AARCH64GPRegister::R18, true);
@@ -43,8 +47,8 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
         for(auto instr : CIter::children(block)) {
             CAPTURE(instr->getAddress());
             rb.decode(instr->getSemantic()->getAssembly()->getBytes());
-            CHECK(!rb.isReading(r18));
-            CHECK(!rb.isWriting(r18));
+            REQUIRE(!rb.isReading(r18));
+            REQUIRE(!rb.isWriting(r18));
         }
     }
 #else
@@ -56,7 +60,10 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
         for(auto block : CIter::children(f)) {
             for(auto instr : CIter::children(block)) {
                 CAPTURE(instr->getAddress());
-                rb.decode(instr->getSemantic()->getAssembly()->getBytes());
+                CAPTURE(instr->getSemantic()->getAssembly()->getMnemonic());
+                auto bytes = instr->getSemantic()->getAssembly()->getBytes();
+                INFO("raw bytes: 0x" << std::hex << *(uint32_t *)(bytes));
+                rb.decode(bytes);
                 CHECK(!rb.isReading(r18));
                 CHECK(!rb.isWriting(r18));
             }

@@ -157,6 +157,10 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
     AARCH64RegBits regbits;
     for(auto ins : regUsage->getInstructionList()) {
         auto assembly = ins->getSemantic()->getAssembly();
+
+        LOG(1, "replacing " << assembly->getMnemonic()
+            << " at 0x" << std::hex << ins->getAddress());
+
         if(!assembly) throw "Register replacement pass needs Assembly";
         if(assembly->getId() == ARM64_INS_BR) {
             throw "this case is not handled yet";
@@ -241,12 +245,22 @@ AARCH64RegisterUsage::AARCH64RegisterUsage(Function *function,
             if(auto assembly = ins->getSemantic()->getAssembly()) {
                 auto asmOps = assembly->getAsmOperands();
                 for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
-                    if(asmOps->getOperands()[i].type == ARM64_OP_REG
-                       && (AARCH64GPRegister(asmOps->getOperands()[i].reg,
-                                             false).id() == id)) {
-
-                        xList.push_back(ins);
-                        break;
+                    auto& op = asmOps->getOperands()[i];
+                    if(op.type == ARM64_OP_REG) {
+                        if(AARCH64GPRegister(op.mem.base, false).id() == id) {
+                            xList.push_back(ins);
+                            break;
+                        }
+                    }
+                    if(op.type == ARM64_OP_MEM) {
+                        if(AARCH64GPRegister(op.mem.base, false).id() == id) {
+                            xList.push_back(ins);
+                            break;
+                        }
+                        if(AARCH64GPRegister(op.mem.index, false).id() == id) {
+                            xList.push_back(ins);
+                            break;
+                        }
                     }
                 }
             }

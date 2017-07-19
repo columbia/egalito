@@ -31,6 +31,8 @@ private:
     void makeBranch_RegPositionList();
     void makeLDST_RegPositionList();
     void makeDPIReg_RegPositionList();
+
+    void invalidateCache();
 };
 #endif
 

@@ -1,9 +1,16 @@
 #include "disasm/aarch64-regbits.h"
+#include "log/log.h"
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+void AARCH64RegBits::invalidateCache() {
+    cached = false;
+    list.first.clear();
+    list.second.clear();
+}
+
 void AARCH64RegBits::decode(const char *bytes) {
     bin = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
-    cached = false;
+    invalidateCache();
 }
 
 void AARCH64RegBits::encode(char *bytes) {
@@ -54,7 +61,7 @@ void AARCH64RegBits::replaceRegister(
             bin = (bin & ~(regMask << wpos)) | (newReg.encoding() << wpos);
         }
     }
-    cached = false;
+    invalidateCache();
 }
 
 AARCH64RegBits::RegPositionsList AARCH64RegBits::getRegPositionList() {
@@ -67,7 +74,8 @@ AARCH64RegBits::RegPositionsList AARCH64RegBits::getRegPositionList() {
         else if((op0 & 0b0111) == 0b0101) makeDPIReg_RegPositionList();
 #if 1
         else {
-            throw "unhandled instruction category";
+            LOG(1, "unhandled instruction category");
+            return list;
         }
 #endif
         cached = true;
@@ -144,7 +152,8 @@ void AARCH64RegBits::makeLDST_RegPositionList() {
 
     auto op1 = bin >> 28 & 0x3;
     if(op1 == 0) {
-        throw "unhandled SIMD and LD exclusive instructions";
+        LOG(1, "unhandled SIMD and LD exclusive instructions");
+        return;
     }
 
     if((bin & 0x3B000000)== 0x18000000          //C4.4.5 Load (literal)
