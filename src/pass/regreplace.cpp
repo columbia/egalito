@@ -140,7 +140,7 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
         true);
     PhysicalRegister<AARCH64GPRegister> dualReg(dualID, true);
 
-    LOG(1, "dualID = " << dualID);
+    LOG(5, "dualID = " << dualID);
 
     auto bin_str0 = AARCH64InstructionBinary(0xF9000000
         | 0/8 << 10 | baseReg.encoding() << 5 | dualReg.encoding());
@@ -158,10 +158,13 @@ void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
     for(auto ins : regUsage->getInstructionList()) {
         auto assembly = ins->getSemantic()->getAssembly();
 
-        LOG(1, "replacing " << assembly->getMnemonic()
+        LOG(5, "replacing " << assembly->getMnemonic()
             << " at 0x" << std::hex << ins->getAddress());
 
-        if(!assembly) throw "Register replacement pass needs Assembly";
+        if(!assembly) {
+            LOG(1, "Register replacement pass needs Assembly");
+            continue;
+        }
         if(assembly->getId() == ARM64_INS_BR) {
             throw "this case is not handled yet";
         }
@@ -289,7 +292,7 @@ std::vector<int> AARCH64RegisterUsage::getAllUseCounts() {
                 }
             }
             else {
-                throw "RegReplacePass needs Assembly!";
+                LOG(1, "RegReplacePass needs Assembly!");
             }
         }
     }
