@@ -23,7 +23,14 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
 
     int jumpTableCount = (int)jt.getTableList().size();
     CAPTURE(jumpTableCount);
+#ifdef ARCH_X86_64
     REQUIRE(jumpTableCount == 1);
+#elif defined(ARCH_AARCH64)
+    // gcc7 for AARCH64 does NOT generate jump table for this
+    REQUIRE(jumpTableCount == 0);
+#else
+# error "check the disassembly"
+#endif
 }
 
 static void testFunction(Function *f, int expected) {

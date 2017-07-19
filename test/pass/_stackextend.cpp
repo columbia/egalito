@@ -80,7 +80,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
     SECTION("frame with stack arguments") {
         auto f = CIter::named(module->getFunctionList())->find("func__");
         CAPTURE(f->getSize() - funcsize[f]);
-        CHECK(f->getSize() == funcsize[f] + 4 + 4 + 4 + numberOfEpilogue(f) * 4);
+        CHECK(f->getSize() == funcsize[f] + 4 + 4 + numberOfEpilogue(f) * 4);
     }
 #endif
 }

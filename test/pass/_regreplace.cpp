@@ -17,7 +17,7 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
 
     AARCH64RegReplacePass replacer(AARCH64GPRegister::R18, 0x10);
 
-#if 0
+#if 1
     // expects glibc
     auto module = libc->getElfSpace()->getModule();
     auto f = module->getChildren()->getNamed()->find("__offtime");
