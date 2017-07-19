@@ -84,6 +84,7 @@ void SplitBasicBlock::visit(Function *function) {
         //LOG(1, "    split at 0x" << std::hex << instr->getAddress());
         m.splitBlockBefore(instr);
     }
+    function->getChildren()->clearSpatial();
 
 #if 0
     if(splitPoints.size() > 0) {
