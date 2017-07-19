@@ -116,9 +116,13 @@ void AARCH64RegReplacePass::replacePerFunction(Function *function,
     AARCH64RegBits regbits;
     for(auto ins: regUsage->getInstructionList()) {
         auto assembly = ins->getSemantic()->getAssembly();
-        if(!assembly) throw "Register replacement pass needs Assembly";
-
-        // actually replace register(s)
+        if(!assembly) {
+            LOG(1, "Register replacement pass needs Assembly");
+            return;
+        }
+    }
+    for(auto ins: regUsage->getInstructionList()) {
+        auto assembly = ins->getSemantic()->getAssembly();
         regbits.decode(assembly->getBytes());
         regbits.replaceRegister(regX, dualReg);
         char data[assembly->getSize()];
