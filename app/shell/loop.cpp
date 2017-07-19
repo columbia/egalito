@@ -59,6 +59,10 @@ void mainLoop() {
         setup.parseElfFiles(args.front().c_str(), true, true);
     }, "parses the given ELF and all its shared libraries");
 
+    topLevel.add("mute", [&] (Arguments args) {
+        args.shouldHave(0);
+        GroupRegistry::getInstance()->muteAllSettings();
+    }, "mute all logging output");
     topLevel.add("log", [&] (Arguments args) {
         args.shouldHaveAtLeast(1);
         unsigned long level;
