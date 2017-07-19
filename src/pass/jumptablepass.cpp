@@ -127,6 +127,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
 }
 
 void JumpTablePass::saveToFile() const {
+#ifdef CACHE_DIR
     if(module->getName() == "module-(executable)") return;
     if(module->getName() == "module-(egalito)") return;
 
@@ -146,9 +147,11 @@ void JumpTablePass::saveToFile() const {
     }
 
     f.close();
+#endif
 }
 
 bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
+#ifdef CACHE_DIR
     if(module->getName() == "module-(executable)") return false;
     if(module->getName() == "module-(egalito)") return false;
 
@@ -196,5 +199,8 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
     }
 
     return loaded;
+#else
+    return false;
+#endif
 }
 
