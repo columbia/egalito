@@ -7,9 +7,11 @@
 #include <cstdio>  // for std::fflush
 #include "chunk/dump.h"
 #include "log/log.h"
-#include "log/registry.h"
+#include "log/temp.h"
 
 void SplitBasicBlock::visit(Function *function) {
+    //TemporaryLogLevel tll("pass", 20);
+
     std::set<Instruction *> splitPoints;
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
@@ -74,6 +76,7 @@ void SplitBasicBlock::visit(Function *function) {
 #if 0
     size_t org = function->getSize();
     if(splitPoints.size() > 0) {
+        LOG(1, "function in org: " << function->getName());
         ChunkDumper dump;
         function->accept(&dump);
     }
@@ -88,22 +91,19 @@ void SplitBasicBlock::visit(Function *function) {
 
 #if 0
     if(splitPoints.size() > 0) {
+        TemporaryLogLevel tll("analysis", 10);
         m.updatePositions();
 
-        GroupRegistry::getInstance()->applySetting("analysis", 20);
-
-        //ChunkDumper dump;
-        //function->accept(&dump);
+        LOG(1, "function: " << function->getName());
+        ChunkDumper dump;
+        function->accept(&dump);
 
         ControlFlowGraph cfg(function);
-        //cfg.dump();
+        cfg.dump();
         std::cout.flush();
         std::fflush(stdout);
-        cfg.check();
 
         assert(org == function->getSize());
-
-        GroupRegistry::getInstance()->applySetting("analysis", 9);
     }
 #endif
 }
