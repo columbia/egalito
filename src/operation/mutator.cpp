@@ -181,8 +181,6 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
         if(!block2) {
             if(child == point) {
                 block2 = new Block();
-
-                insertAfter(block, block2);
             }
         }
         if(block2) {
@@ -190,15 +188,24 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
         }
     }
 
-    Chunk *prevChunk = block2;
     for(auto child : moveList) {
         ChunkMutator(block).remove(child);
         delete child->getPosition();
+    }
+    insertAfter(block, block2);
+    Chunk *prevChunk = block;
+    for(auto child : moveList) {
         child->setPosition(positionFactory->makePosition(
             prevChunk, child, block2->getSize()));
 
         ChunkMutator(block2).append(child);
         prevChunk = child;
+    }
+    if(auto block3 = dynamic_cast<Block *>(block2->getNextSibling())) {
+        auto instr = block3->getChildren()->getIterable()->get(0);
+        delete instr->getPosition();
+        instr->setPosition(positionFactory->makePosition(
+            block2, instr, block2->getSize()));
     }
 }
 

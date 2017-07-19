@@ -311,7 +311,7 @@ UDRegMemWorkingSet::UDRegMemWorkingSet(
 
     for(auto block : CIter::children(function)) {
         auto node = cfg->get(block);
-        for(auto instr: CIter::children(block)) {
+        for(auto instr : CIter::children(block)) {
             stateList.emplace_back(node, instr);
         }
     }
