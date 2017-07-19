@@ -1,6 +1,8 @@
 #include <cstring>  // for memcpy
+#include <fstream>
 #include "linked-aarch64.h"
-#include "instr.h"
+#include "config.h"
+#include "instr/instr.h"
 #include "analysis/slicingtree.h"
 #include "analysis/controlflow.h"
 #include "analysis/slicing.h"
@@ -13,6 +15,7 @@
 #include "disasm/disassemble.h"
 #include "elf/elfspace.h"
 #include "operation/find.h"
+#include "operation/find2.h"
 #include "util/streamasstring.h"
 
 #include "log/log.h"
@@ -265,24 +268,37 @@ void LinkedInstruction::regenerateAssembly() {
 }
 
 void LinkedInstruction::makeAllLinked(Module *module) {
-    DataFlow df;
-    LiveRegister live;
-    PointerDetection pd;
-    for(auto func : CIter::functions(module)) {
-        df.addUseDefFor(func);
-    }
-    for(auto func : CIter::functions(module)) {
-        live.detect(func);
-    }
-    for(auto func : CIter::functions(module)) {
-        df.adjustCallUse(&live, func, module);
-    }
-    for(auto func : CIter::functions(module)) {
-        pd.detect(df.getWorkingSet(func));
-    }
+    std::vector<std::pair<Instruction *, address_t>>&& list
+        = loadFromFile(module);
 
-    //TemporaryLogLevel tll("instr", 10);
-    for(auto [instruction, address] : pd.getList()) {
+    if(list.size() > 0) {
+        resolveLinks(module, list);
+    } else {
+        DataFlow df;
+        LiveRegister live;
+        PointerDetection pd;
+        for(auto func : CIter::functions(module)) {
+            df.addUseDefFor(func);
+        }
+        for(auto func : CIter::functions(module)) {
+            live.detect(func);
+        }
+        for(auto func : CIter::functions(module)) {
+            df.adjustCallUse(&live, func, module);
+        }
+        for(auto func : CIter::functions(module)) {
+            pd.detect(df.getWorkingSet(func));
+        }
+
+        resolveLinks(module, pd.getList());
+        saveToFile(module, pd.getList());
+    }
+}
+
+void LinkedInstruction::resolveLinks(Module *module,
+    const std::vector<std::pair<Instruction *, address_t>>& list) {
+
+    for(auto [instruction, address] : list) {
         LOG(9, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
@@ -315,5 +331,56 @@ void LinkedInstruction::makeAllLinked(Module *module) {
         instruction->setSemantic(linked);
         delete v;
     }
+}
+
+void LinkedInstruction::saveToFile(Module *module,
+    const std::vector<std::pair<Instruction *, address_t>>& list) {
+
+    if(module->getName() == "module-(executable)") return;
+    if(module->getName() == "module-(egalito)") return;
+
+    std::string filename(CACHE_DIR "/");
+    filename += module->getName() + "-inferredpointers";
+    std::ofstream f(filename.c_str(), std::ios::out);
+    for(auto [instruction, address] : list) {
+        f << instruction->getAddress() << '\n';
+        f << address << '\n';
+    }
+
+    f.close();
+}
+
+std::vector<std::pair<Instruction *, address_t>>
+LinkedInstruction::loadFromFile(Module *module) {
+    std::vector<std::pair<Instruction *, address_t>> list;
+
+    if(module->getName() == "module-(executable)") return list;
+    if(module->getName() == "module-(egalito)") return list;
+
+    std::string filename(CACHE_DIR "/");
+    filename += module->getName() + "-inferredpointers";
+    std::ifstream f(filename.c_str(), std::ios::in);
+
+    char line[128];
+    for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
+        auto addr = std::stoll(line);
+        LOG(5, "instruction at 0x" << std::hex << addr);
+        auto fn =
+            CIter::spatial(module->getFunctionList())->findContaining(addr);
+        if(!fn) {
+            LOG(1, "LinkedInstruction: function not found");
+        }
+        auto instr = dynamic_cast<Instruction *>(
+            ChunkFind().findInnermostAt(fn, addr));
+        if(!instr) {
+            LOG(1, "LinkedInstruction: instruction not found");
+        }
+
+        f.getline(line, 128);
+        auto value = std::stoll(line);
+        LOG(5, "pointer to 0x" << std::hex << value);
+        list.emplace_back(instr, value);
+    }
+    return list;
 }
 #endif

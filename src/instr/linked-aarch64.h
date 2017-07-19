@@ -1,6 +1,7 @@
 #ifndef EGALITO_INSTR_LINKED_AARCH64_H
 #define EGALITO_INSTR_LINKED_AARCH64_H
 
+#include <vector>
 #include "semantic.h"
 #include "isolated.h"
 #include "chunk/chunkfwd.h"
@@ -67,6 +68,13 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
+    static void resolveLinks(Module *module,
+        const std::vector<std::pair<Instruction *, address_t>> &list);
+
+    static void saveToFile(Module *module,
+        const std::vector<std::pair<Instruction *, address_t>>& list);
+    static std::vector<std::pair<Instruction *, address_t>> loadFromFile(
+        Module *module);
 };
 
 class ControlFlowInstruction : public LinkedInstruction {

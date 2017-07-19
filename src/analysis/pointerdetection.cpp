@@ -47,7 +47,7 @@ void PointerDetection::detectAtADR(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
             auto addr = tree->getValue();
-            pointerList[state->getInstruction()] = addr;
+            pointerList.emplace_back(state->getInstruction(), addr);
         }
         break;  // there should be only one
     }
@@ -73,10 +73,12 @@ void PointerDetection::detectAtADRP(UDState *state) {
                         throw "inconsistent offset value";
                     }
                 }
-                pointerList[o.first->getInstruction()] = page + o.second;
+                pointerList.emplace_back(
+                    o.first->getInstruction(), page + o.second);
             }
             if(offsetList.getCount() > 0) {
-                pointerList[state->getInstruction()] = page + offset;
+                pointerList.emplace_back(
+                    state->getInstruction(), page + offset);
             }
         }
         break;  // there should be only one

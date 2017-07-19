@@ -14,14 +14,14 @@ class UDRegMemWorkingSet;
 
 class PointerDetection {
 private:
-    std::map<Instruction *, address_t> pointerList;
+    std::vector<std::pair<Instruction *, address_t>> pointerList;
 
 public:
     PointerDetection() {}
     void detect(Function *function, ControlFlowGraph *cfg);
     void detect(UDRegMemWorkingSet *working);
 
-    const std::map<Instruction *, address_t> getList() const
+    const std::vector<std::pair<Instruction *, address_t>> getList() const
         { return pointerList; }
 
 private:
