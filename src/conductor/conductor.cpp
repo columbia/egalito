@@ -141,7 +141,7 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
 
 void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
     for(auto module : CIter::children(program)) {
-        if(inEgalito && module == program->getEgalito()) continue;
+        if(!inEgalito && module == program->getEgalito()) continue;
 
         module->accept(visitor);
     }
