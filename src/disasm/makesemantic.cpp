@@ -7,12 +7,6 @@
 #include "chunk/link.h"
 #include "log/log.h"
 
-#if defined(ARCH_X86_64)
-    #define PLAT_RET X86_INS_RET
-#elif defined(ARCH_AARCH64)
-    #define PLAT_RET ARM64_INS_RET
-#endif
-
 InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, cs_insn *ins) {
 
@@ -56,6 +50,9 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
                 *ins, op->reg, ins->mnemonic);
         }
     }
+    else if(ins->id == X86_INS_RET) {
+        semantic = new ReturnInstruction(DisassembledStorage(*ins));
+    }
 #elif defined(ARCH_AARCH64)
     cs_arm64 *x = &ins->detail->arm64;
     cs_arm64_op *op = &x->operands[0];
@@ -74,51 +71,48 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         i->setLink(new UnresolvedLink(i->getOriginalOffset()));
         semantic = i;
     }
+    else if(ins->id == ARM64_INS_RET) {
+        semantic = new ReturnInstruction(DisassembledStorage(*ins));
+    }
 #elif defined(ARCH_ARM)
     cs_arm *x = &ins->detail->arm;
     cs_arm_op *op = &x->operands[0];
 
     if(cs_insn_group(handle.raw(), ins, ARM_GRP_JUMP)
-       || ins->id == ARM_INS_B
-       || ins->id == ARM_INS_BX
-       || ins->id == ARM_INS_BL
-       || ins->id == ARM_INS_BLX
-       || ins->id == ARM_INS_BXJ
-       || ins->id == ARM_INS_CBZ
-       || ins->id == ARM_INS_CBNZ) {
+        || ins->id == ARM_INS_B
+        || ins->id == ARM_INS_BX
+        || ins->id == ARM_INS_BL
+        || ins->id == ARM_INS_BLX
+        || ins->id == ARM_INS_BXJ
+        || ins->id == ARM_INS_CBZ
+        || ins->id == ARM_INS_CBNZ) {
 
-      if (x->op_count > 0 && op->type == ARM_OP_IMM) {
-        auto i = new ControlFlowInstruction(instruction, *ins);
-        i->setLink(new UnresolvedLink(i->getOriginalOffset()));
-        semantic = i;
-      }
-      else if(x->op_count > 0 && op->type == ARM_OP_REG) {
-        // bx lr or b lr are return instructions
-        if(std::strcmp(cs_reg_name(handle.raw(), op->reg), "lr") == 0)  {
-          semantic = new ReturnInstruction(DisassembledStorage(*ins));
+        if (x->op_count > 0 && op->type == ARM_OP_IMM) {
+            auto i = new ControlFlowInstruction(instruction, *ins);
+            i->setLink(new UnresolvedLink(i->getOriginalOffset()));
+            semantic = i;
         }
-        else {
-          semantic = new IndirectJumpInstruction(
-            *ins, static_cast<Register>(op->reg), ins->mnemonic);
+        else if(x->op_count > 0 && op->type == ARM_OP_REG) {
+            // bx lr or b lr are return instructions
+            if(std::strcmp(cs_reg_name(handle.raw(), op->reg), "lr") == 0)  {
+                semantic = new ReturnInstruction(DisassembledStorage(*ins));
+            }
+            else {
+                semantic = new IndirectJumpInstruction(
+                    *ins, static_cast<Register>(op->reg), ins->mnemonic);
+            }
         }
-      }
-
     }
-#endif
-
-#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
-    else if(ins->id == PLAT_RET) {
-      semantic = new ReturnInstruction(DisassembledStorage(*ins));
-    }
-#elif defined(ARCH_ARM)
     else if(ins->id == ARM_INS_POP) {
-      // if pc in pop instruction then considered a return instruction.
-      for(int i = 0; i < x->op_count; i++) {
-        if(std::strcmp(cs_reg_name(handle.raw(), (&x->operands[i])->reg), "pc") == 0) {
-          semantic = new ReturnInstruction(DisassembledStorage(*ins));
-          break;
+        // if pc in pop instruction then considered a return instruction.
+        for(int i = 0; i < x->op_count; i++) {
+            if(std::strcmp(cs_reg_name(handle.raw(), (&x->operands[i])->reg),
+                "pc") == 0) {
+
+                semantic = new ReturnInstruction(DisassembledStorage(*ins));
+                break;
+            }
         }
-      }
     }
 #endif
 
