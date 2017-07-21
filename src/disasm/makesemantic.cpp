@@ -74,6 +74,9 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     else if(ins->id == ARM64_INS_RET) {
         semantic = new ReturnInstruction(DisassembledStorage(*ins));
     }
+    else if(ins->id == ARM64_INS_BRK || ins->id == ARM64_INS_HLT) {
+        semantic = new BreakInstruction(DisassembledStorage(*ins));
+    }
 #elif defined(ARCH_ARM)
     cs_arm *x = &ins->detail->arm;
     cs_arm_op *op = &x->operands[0];

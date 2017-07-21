@@ -45,4 +45,12 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
+// brk and hlt
+class BreakInstruction : public IsolatedInstruction {
+public:
+    using IsolatedInstruction::IsolatedInstruction;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
 #endif

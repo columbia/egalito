@@ -33,6 +33,7 @@ typedef
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class AARCH64GPRegister {
 public:
+    // the IDs must be consecutive for the ones with the same prefix
     enum ID {
         INVALID = -1,
         R0 = 0, R1, R2, R3, R4, R5, R6, R7,
@@ -73,6 +74,7 @@ public:
     AARCH64GPRegister(int id, bool physical)
         : _id(id) { if(!physical) _id = convertToPhysical(id); }
     int id() const { return _id; }
+    // this doesn't work for FP registers
     unsigned int encoding() const { return static_cast<unsigned int>(_id); }
 
     static int convertToPhysical(int id);

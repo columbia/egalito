@@ -141,6 +141,9 @@ void ControlFlowGraph::construct(Block *block) {
     else if(dynamic_cast<ReturnInstruction *>(i->getSemantic())) {
         // return instruction, no intra-function links
     }
+    else if(dynamic_cast<BreakInstruction *>(i->getSemantic())) {
+        // break instruction, no intra-funtion links
+    }
     else {
         // fall through (including IndirectCallInstruction)
         fallThrough = true;
@@ -229,8 +232,8 @@ void ControlFlowGraph::dumpDot() {
             auto linkName = graph[link.getID()].getBlock()->getName();
             std::regex_search(linkName, match2, e);
 
-            LOG(1, " \"" << node.getID() << "(" << match1[9] << ")\""
-                << " -> \"" << link.getID() << "(" << match2[9] << ")\"");
+            LOG(1, " \"" << node.getID() << "(" << match1[1] << ")\""
+                << " -> \"" << link.getID() << "(" << match2[1] << ")\"");
         }
     }
     LOG(1, "}");
