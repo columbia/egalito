@@ -3,6 +3,7 @@
 #include <cstdio>  // for std::fflush
 #include "generator.h"
 #include "operation/mutator.h"
+#include "pass/clearspatial.h"
 #include "instr/semantic.h"
 #include "instr/writer.h"
 
@@ -47,6 +48,9 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
 
         region->updateAddressFor(baseAddress);
     }
+
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
 }
 
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
