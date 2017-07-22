@@ -56,14 +56,17 @@ $(if $(VERBOSE),$(info "Building for $(P_ARCH)"))
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
 	CXXFLAGS += -DARCH_AARCH64
+	AFLAGS += -DARCH_AARCH64
 	BUILDDIR = build_aarch64/
 else ifeq (x86_64,$(P_ARCH))
 	CFLAGS += -DARCH_X86_64
 	CXXFLAGS += -DARCH_X86_64
+	AFLAGS += -DARCH_X86_64
 	BUILDDIR = build_x86_64/
 else ifeq (arm,$(P_ARCH))
 	CFLAGS += -DARCH_ARM
 	CXXFLAGS += -DARCH_ARM
+	AFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
 else
 	$(error "Unsupported platform, we only handle aarch32, aarch64, and x86_64")
@@ -99,11 +102,13 @@ endif
 $(BUILDDIR)%.o: %.s
 	$(SHORT_AS) -fPIC -c $< -o $@
 $(BUILDDIR)%.o: %.S
-	$(SHORT_AS) -fPIC $(DEPFLAGS) -c $< -o $@
+	$(SHORT_AS) -fPIC $(AFLAGS) $(DEPFLAGS) -c $< -o $@
 $(BUILDDIR)%.o: %.c
 	$(SHORT_CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.o: %.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.S
+	$(SHORT_AS) -fPIC $(AFLAGS) -c -o $@ $<
 $(BUILDDIR)%.so: %.c
 	$(SHORT_CC) -fPIC $(CFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.so: %.cpp
