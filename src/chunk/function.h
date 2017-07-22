@@ -14,6 +14,7 @@ public:
 
     Symbol *getSymbol() const { return symbol; }
     std::string getName() const;
+    bool hasName(std::string name) const;
 
     virtual void accept(ChunkVisitor *visitor);
 };
