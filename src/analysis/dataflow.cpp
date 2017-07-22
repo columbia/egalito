@@ -38,6 +38,8 @@ UDRegMemWorkingSet *DataFlow::getWorkingSet(Function *function) {
 void DataFlow::adjustCallUse(
     LiveRegister *live, Function *function, Module *module) {
 
+    //LOG(1, "adjusting callUse for " << function->getName());
+
     for(auto block : CIter::children(function)) {
         for(auto instr: CIter::children(block)) {
             auto s = instr->getSemantic();
@@ -56,13 +58,6 @@ void DataFlow::adjustCallUse(
                 auto state = working->getState(instr);
 
                 auto info = live->getInfo(func);
-                LOG0(9, "live registers for " << func->getName());
-                for(size_t i = 0; i < 32; i++) {
-                    if(info.get(i)) {
-                        LOG0(9, " " << i);
-                    }
-                }
-                LOG(9, "");
 
                 //R0 - R18
                 auto ud = flowList[function];
@@ -79,7 +74,7 @@ void DataFlow::adjustCallUse(
                 auto state = working->getState(instr);
                 LOG(5, "BLR 0x" << std::hex << instr->getAddress());
                 IF_LOG(5) state->dumpState();
-                if(isTlsdescResolveCall(state, module)) {
+                if(isTLSdescResolveCall(state, module)) {
                     auto ud = flowList[function];
                     // reg0 holds the TLS offset after return
                     for(int i = 1; i < 19; i++) {
@@ -92,7 +87,7 @@ void DataFlow::adjustCallUse(
     }
 }
 
-bool DataFlow::isTlsdescResolveCall(UDState *state, Module *module) {
+bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
     // this always comes in the form of page + offset
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,

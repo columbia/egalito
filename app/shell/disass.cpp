@@ -73,7 +73,6 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
                 std::cout << "can't find function \"" << args.front() << "\"\n";
             }
         }
-
     }, "disassembles a single function (like the GDB command) in the given module");
 
     topLevel->add("x/i", [&] (Arguments args) {

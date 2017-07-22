@@ -43,6 +43,7 @@ void LiveRegister::detect(UDRegMemWorkingSet *working) {
     Function *function = working->getFunction();
     LiveInfo &info = list[function];
 
+    LOG(9, "LiveRegister " << function->getName());
     for(const auto& s : working->getStateList()) {
         for(const auto& def : s.getRegDefList()) {
             info.kill(def.first);
@@ -59,13 +60,13 @@ void LiveRegister::detect(UDRegMemWorkingSet *working) {
 #endif
     }
 
-    LOG0(1, "live registers:");
+    LOG0(9, "live registers:");
     for(size_t i = 0; i < 32; i++) {
         if(info.get(i)) {
-            LOG0(1, " " << i);
+            LOG0(9, " " << i);
         }
     }
-    LOG(1, "");
+    LOG(9, "");
 }
 
 void LiveInfo::kill(int reg) {

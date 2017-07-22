@@ -21,7 +21,7 @@ public:
     UDRegMemWorkingSet *getWorkingSet(Function *function);
 
 private:
-    bool isTlsdescResolveCall(UDState *state, Module *module);
+    bool isTLSdescResolveCall(UDState *state, Module *module);
 };
 #endif
 

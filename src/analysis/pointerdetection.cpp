@@ -8,6 +8,7 @@
 #include "instr/linked-aarch64.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 
 #ifdef ARCH_AARCH64
 void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
@@ -70,6 +71,12 @@ void PointerDetection::detectAtADRP(UDState *state) {
                 }
                 else {
                     if(offset != o.second) {
+                        TemporaryLogLevel tll("analysis", 1);
+                        LOG(1, "for page " << std::hex << page);
+                        for(auto& o2 : offsetList.getList()) {
+                            LOG(1, "offset " << o2.second << " at "
+                                << o2.first->getInstruction()->getAddress());
+                        }
                         throw "inconsistent offset value";
                     }
                 }

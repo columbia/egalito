@@ -359,15 +359,15 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
 };
 
 void UseDef::analyze(const std::vector<std::vector<int>>& order) {
-    LOG(10, "full order:");
+    LOG(9, "full order:");
     for(auto o : order) {
-        LOG0(10, "{");
+        LOG0(9, "{");
         for(auto n : o) {
-            LOG0(10, " " << std::dec << n);
+            LOG0(9, " " << std::dec << n);
         }
-        LOG0(10, " }");
+        LOG0(9, " }");
     }
-    LOG(10, "");
+    LOG(9, "");
 
     for(auto o : order) {
         analyzeGraph(o);
@@ -378,11 +378,11 @@ void UseDef::analyze(const std::vector<std::vector<int>>& order) {
 }
 
 void UseDef::analyzeGraph(const std::vector<int>& order) {
-    LOG(10, "order:");
+    LOG(9, "order:");
     for(auto o : order) {
-        LOG0(10, " " << std::dec << o);
+        LOG0(9, " " << std::dec << o);
     }
-    LOG(10, "");
+    LOG(9, "");
 
     for(auto nodeId : order) {
         auto node = config->getCFG()->get(nodeId);
@@ -404,10 +404,10 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
             fillState(state);
         }
 
-        LOG(9, "");
-        LOG(9, "final set for node " << std::dec << nodeId);
-        IF_LOG(9) working->dumpSet();
-        LOG(9, "");
+        LOG(10, "");
+        LOG(10, "final set for node " << std::dec << nodeId);
+        IF_LOG(10) working->dumpSet();
+        LOG(10, "");
     }
 }
 
