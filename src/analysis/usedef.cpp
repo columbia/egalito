@@ -440,8 +440,8 @@ void UseDef::fillState(UDState *state) {
 
     bool handled = callIfEnabled(state, assembly);
     if(handled) {
-        IF_LOG(9) state->dumpState();
-        IF_LOG(9) working->dumpSet();
+        IF_LOG(10) state->dumpState();
+        IF_LOG(10) working->dumpSet();
     }
 }
 

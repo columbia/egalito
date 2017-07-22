@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <string>
 #include "stackextend.h"
+#include "analysis/jumptable.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
@@ -122,6 +123,9 @@ FrameType::FrameType(Function *function)
         }
     }
 
+    auto module = dynamic_cast<Module *>(function->getParent()->getParent());
+    if(!module) LOG(1, "no module?");
+
     for(auto b : function->getChildren()->getIterable()->iterable()) {
         for(auto ins : b->getChildren()->getIterable()->iterable()) {
             if(dynamic_cast<ReturnInstruction *>(ins->getSemantic())) {
@@ -144,6 +148,16 @@ FrameType::FrameType(Function *function)
                         continue;
                     }
                 }
+            }
+            else if(dynamic_cast<IndirectJumpInstruction *>(
+                ins->getSemantic())) {
+
+                for(auto jt : CIter::children(module->getJumpTableList())) {
+                    if(ins == jt->getDescriptor()->getInstruction()) {
+                        continue;
+                    }
+                }
+                epilogueInstrs.push_back(ins);
             }
         }
     }
