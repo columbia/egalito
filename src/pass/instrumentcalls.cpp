@@ -25,7 +25,7 @@ void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {
 void InstrumentCallsPass::addEntryAdvice(Function *function, FrameType *frame) {
     auto block = function->getChildren()->getIterable()->get(0);
     auto ins = block->getChildren()->getIterable()->get(0);
-    addAdvice(ins, entry, true);
+    addAdvice(ins, entry, false);
 }
 
 void InstrumentCallsPass::addExitAdvice(Function *function, FrameType *frame) {

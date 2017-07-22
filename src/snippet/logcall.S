@@ -9,7 +9,7 @@ egalito_log_function:
     str     x1, [x0, #:lo12:inside_egalito_log_code]
 
     stp     x29, x30, [sp, #-0x10]!
-    sub     x0, x30, #12
+    sub     x0, x30, #8
     mov     x1, #1
     bl      egalito_log_function_name
     ldp     x29, x30, [sp], #0x10
