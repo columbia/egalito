@@ -5,7 +5,9 @@
 
 /* The assumption is that the advice is transformed by SwitchContextPass. */
 
-#define FUNCTIONCALL_CONTEXT_SIZE   (1*16)
+// This should be zero so that it will still survive even when the number of
+// entry and exit don't match
+#define FUNCTIONCALL_CONTEXT_SIZE   0//(1*16)
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class InstrumentCallsPass : public StackExtendPass {
@@ -18,17 +20,19 @@ private:
     predicate_t predicate;
 
 public:
-    InstrumentCallsPass(Function *entry, Function *exit)
-        : StackExtendPass(FUNCTIONCALL_CONTEXT_SIZE),
-          entry(entry), exit(exit), predicate(nullptr) {}
+    InstrumentCallsPass()
+        : StackExtendPass(FUNCTIONCALL_CONTEXT_SIZE, false),
+          entry(nullptr), exit(nullptr), predicate(nullptr) {}
     void setPredicate(predicate_t predicate) { this->predicate = predicate; }
+    void setEntryAdvice(Function *entry) { this->entry = entry; }
+    void setExitAdvice(Function *exit) { this->exit = exit; }
 
 private:
-    void useStack(Function *function, FrameType *frame);
+    virtual void useStack(Function *function, FrameType *frame);
     void addEntryAdvice(Function *function, FrameType *frame);
     void addExitAdvice(Function *function, FrameType *frame);
     void addAdvice(Instruction *point, Function *advice, bool before);
-    bool shouldApply(Function *function) {
+    virtual bool shouldApply(Function *function) {
         return function != entry && function != exit
             && (predicate ? predicate(function) : true); }
 };

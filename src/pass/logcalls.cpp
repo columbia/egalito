@@ -6,29 +6,34 @@
 #include "operation/mutator.h"
 #include "disasm/disassemble.h"
 #include "cminus/print.h"
+#include "pass/switchcontext.h"
 #include "log/log.h"
 
 static int indent = 0;
 Conductor *global_conductor;
 
-static void egalito_log_function_name(unsigned long address, const char *dir) {
+extern "C"
+void egalito_log_function_name(unsigned long address, int dir) {
+    indent += dir;
     //for(int i = 0; i < indent; i ++) egalito_printf("    ");
     egalito_printf("%d ", indent);
 
+    auto arrow = dir > 0 ? "->" : "<-";
     auto func = ChunkFind2(global_conductor).findFunctionContaining(address);
     if(func) {
-        egalito_printf("%s %lx [%s+%lu]\n", dir, address,
+        // the offset is given in the transformed binary...
+        egalito_printf("%s %lx [%s+%lu]\n", arrow, address,
             func->getName().c_str(), address - func->getAddress());
     }
     else {
-        egalito_printf("%s %lx\n", dir, address);
+        egalito_printf("%s %lx\n", arrow, address);
     }
 }
 
+#ifdef ARCH_X86_64
 static bool inside_egalito_log_code = false;
 
 extern "C" void egalito_log_function(void) {
-#ifdef ARCH_X86_64
     __asm__ (
         "push   %rax\n"
         "push   %rcx\n"
@@ -49,8 +54,7 @@ extern "C" void egalito_log_function(void) {
         );
         address -= 5;
         //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-        egalito_log_function_name(address, "->");
-        indent ++;
+        egalito_log_function_name(address, 1);
         inside_egalito_log_code = false;
     }
 
@@ -65,11 +69,9 @@ extern "C" void egalito_log_function(void) {
         "pop    %rcx\n"
         "pop    %rax\n"
     );
-#endif
 }
 
 extern "C" void egalito_log_function_ret(void) {
-#ifdef ARCH_X86_64
     __asm__ (
         "push   %rax\n"
         "push   %rcx\n"
@@ -90,8 +92,7 @@ extern "C" void egalito_log_function_ret(void) {
         );
         address -= 5;
         //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-        indent --;
-        egalito_log_function_name(address, "<-");
+        egalito_log_function_name(address, -1);
         inside_egalito_log_code = false;
     }
 
@@ -106,8 +107,8 @@ extern "C" void egalito_log_function_ret(void) {
         "pop    %rcx\n"
         "pop    %rax\n"
     );
-#endif
 }
+#endif
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
     global_conductor = conductor;
@@ -122,9 +123,30 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
     if(!loggingBegin || !loggingEnd) {
         throw "LogCallsPass can't find log functions";
     }
+
+#ifdef ARCH_AARCH64
+    SwitchContextPass switcher;
+    loggingBegin->accept(&switcher);
+    loggingEnd->accept(&switcher);
+
+    instrument.setEntryAdvice(loggingBegin);
+    instrument.setExitAdvice(loggingEnd);
+    instrument.setPredicate([](Function *function) {
+        return !function->hasName("egalito_log_function")
+            && !function->hasName("egalito_log_function_ret")
+            && !function->hasName("egalito_log_function_name")
+
+            && !function->hasName("__GI___libc_write")
+            && !function->hasName("__write_nocancel")
+
+            && !function->hasName("__GI__IO_file_doallocate")
+        ;
+    });
+#endif
 }
 
 void LogCallsPass::visit(Function *function) {
+#ifdef ARCH_X86_64
     if(function->getName() == "egalito_log_function") return;
     if(function->getName() == "egalito_log_function_ret") return;
     if(function->getName() == "__GI___libc_write") return;
@@ -136,8 +158,12 @@ void LogCallsPass::visit(Function *function) {
     addEntryInstructionsAt(function->getChildren()->getIterable()->get(0));
 
     recurse(function);
+#else
+    function->accept(&instrument);
+#endif
 }
 
+#ifdef ARCH_X86_64
 void LogCallsPass::visit(Instruction *instruction) {
     auto s = instruction->getSemantic();
     if(dynamic_cast<ReturnInstruction *>(s)) {
@@ -153,22 +179,19 @@ void LogCallsPass::visit(Instruction *instruction) {
 }
 
 void LogCallsPass::addEntryInstructionsAt(Block *block) {
-#ifdef ARCH_X86_64
     auto callIns = new Instruction();
     auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingBegin));
     callIns->setSemantic(callSem);
     ChunkMutator(block).prepend(callIns);
-#endif
 }
 
 void LogCallsPass::addExitInstructionsAt(Instruction *instruction) {
-#ifdef ARCH_X86_64
     auto callIns = new Instruction();
     auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
     callSem->setLink(new NormalLink(loggingEnd));
     callIns->setSemantic(callSem);
     ChunkMutator(instruction->getParent())
         .insertBefore(instruction, callIns);
-#endif
 }
+#endif

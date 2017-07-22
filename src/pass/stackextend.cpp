@@ -11,11 +11,14 @@
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void StackExtendPass::visit(Module *module) {
-    if(extendSize >= 4096) {
-        LOG(1, "can't extend over 4096");
+    if(extendSize >= 504) { // due to stp limitation
+        LOG(1, "can't extend over 504");
+    }
+    else if(extendSize & 0x7) {
+        LOG(1, "extend size must be multiple of 8");
     }
     else {
-        LOG(1, "extending by " << extendSize);
+        LOG(5, "extending by " << extendSize);
         recurse(module);
     }
 }
@@ -26,31 +29,36 @@ void StackExtendPass::visit(Function *function) {
     FrameType frame(function);
     frame.dump();
 
-    addExtendStack(function, &frame);
-    addShrinkStack(function, &frame);
-    ChunkMutator(function).updatePositions();
+    if(extendSize > 0) {
+        addExtendStack(function, &frame);
+        addShrinkStack(function, &frame);
+        ChunkMutator(function).updatePositions();
+    }
     useStack(function, &frame);
-
-#if 0
-    LOG(1, "modified:");
-    ChunkDumper dumper;
-    function->accept(&dumper);
-#endif
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
     auto firstB = function->getChildren()->getIterable()->get(0);
-    auto bin_sub = AARCH64InstructionBinary(
-        0xD1000000 | extendSize << 10 | 31 << 5 | 31);
-    auto instr_sub = Disassemble::instruction(bin_sub.getVector());
-    ChunkMutator(firstB).prepend(instr_sub);
+    if(withSave) {
+        // STP X29, X30, [SP, #-extendSize/8]
+        auto enc = 0xA9800000 | (-extendSize/8 & 0x7F) << 15
+            | reg2 << 10 | 31 << 5 | reg1;
+        auto bin_stp = AARCH64InstructionBinary(enc);
+        auto instr_stp = Disassemble::instruction(bin_stp.getVector());
+        ChunkMutator(firstB).prepend(instr_stp);
+    }
+    else {
+        auto bin_sub = AARCH64InstructionBinary(
+            0xD1000000 | extendSize << 10 | 31 << 5 | 31);
+        auto instr_sub = Disassemble::instruction(bin_sub.getVector());
+        ChunkMutator(firstB).prepend(instr_sub);
+    }
 
     auto bin_add = AARCH64InstructionBinary(
         0x91000000 | extendSize << 10 | 29 << 5 | 29);
     auto instr_add = Disassemble::instruction(bin_add.getVector());
     if(auto ins = frame->getSetBPInstr()) {
-        auto block = dynamic_cast<Block *>(ins->getParent());
-        ChunkMutator(block).insertAfter(ins, instr_add);
+        ChunkMutator(ins->getParent()).insertAfter(ins, instr_add);
         frame->setSetBPInstr(instr_add);
     }
 }
@@ -59,18 +67,29 @@ void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
     for(auto ins : frame->getResetSPInstrs()) {
         auto bin_sub = AARCH64InstructionBinary(
             0xD1000000 | extendSize << 10 | 29 << 5 | 29);
-        auto block = dynamic_cast<Block *>(ins->getParent());
         auto instr_sub = Disassemble::instruction(bin_sub.getVector());
-        ChunkMutator(block).insertBefore(ins, instr_sub);
+        ChunkMutator(ins->getParent()).insertBefore(ins, instr_sub);
     }
 
-    for(auto ins : frame->getEpilogueInstrs()) {
-        auto bin_add = AARCH64InstructionBinary(
-            0x91000000 | extendSize << 10 | 31 << 5 | 31);
-        auto block = dynamic_cast<Block *>(ins->getParent());
-        auto instr_add = Disassemble::instruction(bin_add.getVector());
-        ChunkMutator(block).insertBefore(ins, instr_add);
-        frame->fixEpilogue(ins, instr_add);
+    if(withSave) {
+        for(auto ins : frame->getEpilogueInstrs()) {
+            // LDP X29, X30, [SP], #extendSize/8
+            auto enc = 0xA8C00000 | extendSize/8 << 15
+                | reg2 << 10 | 31 << 5 | reg1;
+            auto bin_ldp = AARCH64InstructionBinary(enc);
+            auto instr_ldp = Disassemble::instruction(bin_ldp.getVector());
+            ChunkMutator(ins->getParent()).insertBefore(ins, instr_ldp);
+            frame->fixEpilogue(ins, instr_ldp);
+        }
+    }
+    else {
+        for(auto ins : frame->getEpilogueInstrs()) {
+            auto bin_add = AARCH64InstructionBinary(
+                0x91000000 | extendSize << 10 | 31 << 5 | 31);
+            auto instr_add = Disassemble::instruction(bin_add.getVector());
+            ChunkMutator(ins->getParent()).insertBefore(ins, instr_add);
+            frame->fixEpilogue(ins, instr_add);
+        }
     }
 }
 
@@ -114,9 +133,15 @@ FrameType::FrameType(Function *function)
                 if(cfi->getMnemonic() == std::string("b")
                    || cfi->getMnemonic().find("b.", 0) != std::string::npos) {
 
-                    auto link = dynamic_cast<NormalLink *>(cfi->getLink());
-                    if(link && dynamic_cast<Function *>(&*link->getTarget())) {
+                    if(auto link = dynamic_cast<NormalLink *>(cfi->getLink())) {
+                        if(dynamic_cast<Function *>(&*link->getTarget())) {
+                            epilogueInstrs.push_back(ins);
+                        }
+                        continue;
+                    }
+                    if(dynamic_cast<PLTLink *>(cfi->getLink())) {
                         epilogueInstrs.push_back(ins);
+                        continue;
                     }
                 }
             }

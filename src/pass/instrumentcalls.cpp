@@ -4,8 +4,15 @@
 #include "instr/semantic.h"
 #include "operation/mutator.h"
 
+#include "log/log.h"
+#include "log/temp.h"
+
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {
+    //TemporaryLogLevel tll("pass", 9);
+    LOG(9, "instrumenting " << function->getName() << " in "
+        << function->getParent()->getParent()->getName());
+
     if(entry) {
         addEntryAdvice(function, frame);
     }
@@ -24,6 +31,10 @@ void InstrumentCallsPass::addEntryAdvice(Function *function, FrameType *frame) {
 void InstrumentCallsPass::addExitAdvice(Function *function, FrameType *frame) {
     for(auto ins : frame->getEpilogueInstrs()) {
         addAdvice(ins, exit, false);
+        if(auto block = dynamic_cast<Block *>(ins->getParent())) {
+            auto top = block->getChildren()->getIterable()->get(0);
+            frame->fixEpilogue(ins, top);
+        }
     }
 }
 
@@ -39,15 +50,13 @@ void InstrumentCallsPass::addAdvice(
     const PhysicalRegister<AARCH64GPRegister> rFP(
         AARCH64GPRegister::FP, true);
 
-    auto bin_stp = AARCH64InstructionBinary(0xA9000000 | 0 << 15 |
-                                            rLR.encoding() << 10 |
-                                            rSP.encoding() << 5 |
-                                            rFP.encoding());
+    auto bin_stp = AARCH64InstructionBinary(
+        0xA9800000 | (-16/8 & 0x7F) << 15
+        | rLR.encoding() << 10 | rSP.encoding() << 5 | rFP.encoding());
     auto bin_bl = AARCH64InstructionBinary(0x94000000);
-    auto bin_ldp = AARCH64InstructionBinary(0xA9400000 | 0 << 15 |
-                                            rLR.encoding() << 10 |
-                                            rSP.encoding() << 5 |
-                                            rFP.encoding());
+    auto bin_ldp = AARCH64InstructionBinary(
+        0xA8C00000 | (16/8 & 0x7F) << 15
+        | rLR.encoding() << 10 | rSP.encoding() << 5 | rFP.encoding());
     auto ins_stp = Disassemble::instruction(bin_stp.getVector());
     auto ins_bl = Disassemble::instruction(bin_bl.getVector());
     ins_bl->getSemantic()->setLink(new NormalLink(advice));

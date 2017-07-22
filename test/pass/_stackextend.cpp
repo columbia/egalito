@@ -17,9 +17,15 @@ static size_t numberOfEpilogue(Function *f) {
 
                 if(cfi->getMnemonic() == std::string("b")
                    || cfi->getMnemonic().find("b.", 0) != std::string::npos) {
-                    auto link = dynamic_cast<NormalLink *>(cfi->getLink());
-                    if(link && dynamic_cast<Function *>(&*link->getTarget())) {
+                    if(auto link = dynamic_cast<NormalLink *>(cfi->getLink())) {
+                        if(dynamic_cast<Function *>(&*link->getTarget())) {
+                            n ++;
+                        }
+                        continue;
+                    }
+                    if(auto link = dynamic_cast<PLTLink *>(cfi->getLink())) {
                         n ++;
+                        continue;
                     }
                 }
             }
@@ -45,11 +51,16 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
         funcsize[f] = f->getSize();
     }
 
-    StackExtendPass extender(0x10);
+    StackExtendPass extender(0x10, false);
     module->accept(&extender);
 
+    SECTION("tail") {
+        auto f = CIter::named(module->getFunctionList())->find("tail");
+        CAPTURE(f->getSize() - funcsize[f]);
+        CHECK(f->getSize() == funcsize[f] + 4 + numberOfEpilogue(f) * 4);
+    }
+
     SECTION("without frame") {
-        // tail-call
         auto f = CIter::named(module->getFunctionList())->find("func");
         CAPTURE(f->getSize() - funcsize[f]);
         CHECK(f->getSize() == funcsize[f] + 4 + numberOfEpilogue(f) * 4);
@@ -102,7 +113,7 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
     auto f = CIter::named(module->getFunctionList())->find("__offtime");
     REQUIRE(f != nullptr);
 
-    StackExtendPass extender(0x10);
+    StackExtendPass extender(0x10, false);
     f->accept(&extender);
 #endif
 }

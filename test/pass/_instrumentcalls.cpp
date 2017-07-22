@@ -3,6 +3,7 @@
 #include "pass/switchcontext.h"
 #include "conductor/conductor.h"
 
+#include "log/temp.h"
 #include "chunk/dump.h"
 
 #ifdef ARCH_AARCH64
@@ -44,14 +45,19 @@ TEST_CASE("instrument a function", "[pass][fast][aarch64]") {
     entry->accept(&switcher);
     exit->accept(&switcher);
 
-    InstrumentCallsPass instrumenter(entry, exit);
+    InstrumentCallsPass instrumenter;
+    instrumenter.setEntryAdvice(entry);
+    instrumenter.setExitAdvice(exit);
     instrumenter.setPredicate([](Function *function) {
-        return (function->getName() != "__libc_csu_init"); });
+        return (function->getName() == "main"); });
     module->accept(&instrumenter);
 
-
+#if 0
+    TemporaryLogLevel tll("chunk", 5);
+    TemporaryLogLevel tll2("disasm", 10);
     ChunkDumper dumper;
     module->accept(&dumper);
+#endif
 
     struct {
         const char *name;

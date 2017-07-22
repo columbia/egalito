@@ -13,77 +13,74 @@ void SwitchContextPass::useStack(Function *function, FrameType *frame) {
 }
 
 void SwitchContextPass::addSaveContextAt(Function *function, FrameType *frame) {
-    /* Add something like this:
-        __asm__ (
-            "stp    x15, x14, [sp, #-(8*16)]!\n"
-            "stp    x13, x12, [sp, #(1*16)]\n"
-            "stp    x11, x10, [sp, #(2*16)]\n"
-            "stp    x9,  x8,  [sp, #(3*16)]\n"
-            "stp    x7,  x6,  [sp, #(4*16)]\n"
-            "stp    x5,  x4,  [sp, #(5*16)]\n"
-            "stp    x3,  x2,  [sp, #(6*16)]\n"
-            "stp    x1,  x0,  [sp, #(7*16)]\n"
-        );
-    */
     const PhysicalRegister<AARCH64GPRegister> rSP(
         AARCH64GPRegister::R31, true);
 
     Block *block = function->getChildren()->getIterable()->get(0);
     Instruction *point = block->getChildren()->getIterable()->get(0);
 
-    size_t pos = 0;
-    for(auto r = AARCH64GPRegister::R0; r < AARCH64GPRegister::R16; ++r, ++pos) {
-        auto firstR = PhysicalRegister<AARCH64GPRegister>(r, true);
-        ++r;
-        auto secondR = PhysicalRegister<AARCH64GPRegister>(r, true);
+    auto bin_mrs = AARCH64InstructionBinary(0xD53B4200  // NZCV
+        | PhysicalRegister<AARCH64GPRegister>(
+            AARCH64GPRegister::R19, true).encoding());
+    auto ins_mrs = Disassemble::instruction(bin_mrs.getVector());
+    ChunkMutator(point->getParent()).insertAfter(point, ins_mrs);
 
+    auto bin_mrs2 = AARCH64InstructionBinary(0xD53B4420 // FPSR
+        | PhysicalRegister<AARCH64GPRegister>(
+            AARCH64GPRegister::R20, true).encoding());
+    auto ins_mrs2 = Disassemble::instruction(bin_mrs2.getVector());
+    ChunkMutator(point->getParent()).insertAfter(point, ins_mrs2);
+
+    // R0 and R1 are saved by StackExtendPass
+    size_t pos = 10;
+    for(int r = AARCH64GPRegister::R21; r > AARCH64GPRegister::R2; r -= 2) {
         auto bin_stp = AARCH64InstructionBinary(0xA9000000 |
             pos << 1 << 15 |
-            secondR.encoding() << 10 |
+            PhysicalRegister<AARCH64GPRegister>(r, true).encoding() << 10 |
             rSP.encoding() << 5 |
-            firstR.encoding());
+            PhysicalRegister<AARCH64GPRegister>(r-1, true).encoding());
 
         auto ins_stp = Disassemble::instruction(bin_stp.getVector());
         ChunkMutator(point->getParent()).insertAfter(point, ins_stp);
+        --pos;
     }
 }
 
 void SwitchContextPass::addRestoreContextAt(
     Instruction *instruction, FrameType *frame) {
-    /* Add something like this:
-        __asm__ (
-            "ldp    x1,  x0,  [sp, #(7*16)]\n"
-            "ldp    x3,  x2,  [sp, #(6*16)]\n"
-            "ldp    x5,  x4,  [sp, #(5*16)]\n"
-            "ldp    x7,  x6,  [sp, #(4*16)]\n"
-            "ldp    x9,  x8,  [sp, #(3*16)]\n"
-            "ldp    x11, x10, [sp, #(2*16)]\n"
-            "ldp    x13, x12, [sp, #(1*16)]\n"
-            "ldp    x15, x14, [sp],#-(8*16)\n"
-        );
-    */
 
     const PhysicalRegister<AARCH64GPRegister> rSP(
         AARCH64GPRegister::R31, true);
 
-    Instruction *top;
+    auto bin_msr = AARCH64InstructionBinary(0xD51B4200  // NZCV
+        | PhysicalRegister<AARCH64GPRegister>(
+            AARCH64GPRegister::R19, true).encoding());
+    auto ins_msr = Disassemble::instruction(bin_msr.getVector());
+    ChunkMutator(instruction->getParent()).insertBefore(instruction, ins_msr);
 
-    size_t pos = 0;
-    for(auto r = AARCH64GPRegister::R0; r < AARCH64GPRegister::R16; ++r, ++pos) {
-        auto firstR = PhysicalRegister<AARCH64GPRegister>(r, true);
-        ++r;
-        auto secondR = PhysicalRegister<AARCH64GPRegister>(r, true);
+    auto bin_msr2 = AARCH64InstructionBinary(0xD51B4420 // FPSR
+        | PhysicalRegister<AARCH64GPRegister>(
+            AARCH64GPRegister::R20, true).encoding());
+    auto ins_msr2 = Disassemble::instruction(bin_msr2.getVector());
+    ChunkMutator(instruction->getParent()).insertBefore(instruction, ins_msr2);
 
+    // R0 and R1 are restored by StackExtendPass
+    //Instruction *top = nullptr;
+    size_t pos = 1;
+    for(int r = AARCH64GPRegister::R2; r < AARCH64GPRegister::R21; r += 2) {
         auto bin_ldp = AARCH64InstructionBinary(0xA9400000 |
             pos << 1 << 15 |
-            secondR.encoding() << 10 |
+            PhysicalRegister<AARCH64GPRegister>(r+1, true).encoding() << 10 |
             rSP.encoding() << 5 |
-            firstR.encoding());
+            PhysicalRegister<AARCH64GPRegister>(r, true).encoding());
 
         auto ins_ldp = Disassemble::instruction(bin_ldp.getVector());
-        top = ins_ldp;
-        ChunkMutator(instruction->getParent()).insertBefore(instruction, ins_ldp);
+        //if(!top) top = ins_ldp;
+        ChunkMutator(instruction->getParent()).insertBefore(
+            instruction, ins_ldp);
+        ++pos;
     }
-    frame->fixEpilogue(instruction, top);
+
+    frame->fixEpilogue(instruction, ins_msr);
 }
 #endif

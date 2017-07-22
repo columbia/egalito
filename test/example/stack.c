@@ -88,10 +88,16 @@ int __attribute__((noinline)) func(int a, int b)
     return (a == 1) ? 1 : func2(b);
 }
 
+int __attribute__((noinline)) tail(int a)
+{
+    return func2(a);
+}
+
 /* ---------------------------------------------------------------- */
 
 int main(int argc, char **argv)
 {
+    tail(argc);
     funcA(argc);
     func_(argc, argc + 1, argc + 2, argc + 3,
           argc + 4, argc + 5, argc + 6, argc + 7, argc + 8);
