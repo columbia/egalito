@@ -28,11 +28,11 @@ TreeNode *DefList::get(int reg) const {
 
 void DefList::dump() const {
     for(auto d : list) {
-        LOG0(5, "R" << std::dec << d.first << ":  ");
+        LOG0(1, "R" << std::dec << d.first << ":  ");
         if(auto tree = d.second) {
-            IF_LOG(5) tree->print(TreePrinter(0, 0));
+            IF_LOG(1) tree->print(TreePrinter(0, 0));
         }
-        LOG(5, "");
+        LOG(1, "");
     }
 }
 
@@ -86,11 +86,11 @@ const std::vector<UDState *>& RefList::get(int reg) const {
 
 void RefList::dump() const {
     for(const auto& r : list) {
-        LOG0(5, "R" << std::dec << r.first << " <[");
+        LOG0(1, "R" << std::dec << r.first << " <[");
         for(auto o : r.second) {
-            LOG0(5, " 0x" << std::hex << o->getInstruction()->getAddress());
+            LOG0(1, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
-        LOG(5, " ]");
+        LOG(1, " ]");
     }
 }
 
@@ -134,11 +134,11 @@ const std::vector<UDState *>& UseList::get(int reg) const {
 
 void UseList::dump() const {
     for(const auto& u : list) {
-        LOG0(5, "R" << std::dec << u.first << " <[");
+        LOG0(1, "R" << std::dec << u.first << " <[");
         for(auto o : u.second) {
-            LOG0(5, " 0x" << std::hex << o->getInstruction()->getAddress());
+            LOG0(1, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
-        LOG(5, " ]");
+        LOG(1, " ]");
     }
 }
 
@@ -204,33 +204,33 @@ void MemOriginList::clear() {
 
 void MemOriginList::dump() const {
     for(const auto &m : list) {
-        IF_LOG(5) m.place->print(TreePrinter(0, 0));
-        LOG(5, " : 0x"
+        IF_LOG(1) m.place->print(TreePrinter(0, 0));
+        LOG(1, " : 0x"
              << std::hex << m.origin->getInstruction()->getAddress());
     }
 }
 
 void RegState::dumpRegState() const {
-    LOG(5, "reg definition list:");
+    LOG(1, "reg definition list:");
     regList.dump();
 
-    LOG(5, "reg reference list:");
+    LOG(1, "reg reference list:");
     regRefList.dump();
 
     // this is empty for the first pass
-    LOG(5, "reg use list:");
+    LOG(1, "reg use list:");
     regUseList.dump();
 }
 
 void RegMemState::dumpMemState() const {
-    LOG(5, "mem definition list:");
+    LOG(1, "mem definition list:");
     memList.dump();
 
-    LOG(5, "mem reference list:");
+    LOG(1, "mem reference list:");
     memRefList.dump();
 
     // this is empty for the first pass
-    LOG(5, "mem use list:");
+    LOG(1, "mem use list:");
     memUseList.dump();
 }
 
@@ -298,11 +298,11 @@ void UDWorkingSet::copyFromMemSetFor(
 }
 
 void UDWorkingSet::dumpSet() const {
-    LOG(9, "REG SET");
-    IF_LOG(9) regSet->dump();
+    LOG(10, "REG SET");
+    IF_LOG(10) regSet->dump();
 
-    LOG(9, "MEM SET");
-    IF_LOG(9) memSet->dump();
+    LOG(10, "MEM SET");
+    IF_LOG(10) memSet->dump();
 }
 
 UDRegMemWorkingSet::UDRegMemWorkingSet(
@@ -359,15 +359,15 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
 };
 
 void UseDef::analyze(const std::vector<std::vector<int>>& order) {
-    LOG(9, "full order:");
+    LOG(10, "full order:");
     for(auto o : order) {
-        LOG0(9, "{");
+        LOG0(10, "{");
         for(auto n : o) {
-            LOG0(9, " " << std::dec << n);
+            LOG0(10, " " << std::dec << n);
         }
-        LOG0(9, " }");
+        LOG0(10, " }");
     }
-    LOG(9, "");
+    LOG(10, "");
 
     for(auto o : order) {
         analyzeGraph(o);
@@ -378,11 +378,11 @@ void UseDef::analyze(const std::vector<std::vector<int>>& order) {
 }
 
 void UseDef::analyzeGraph(const std::vector<int>& order) {
-    LOG(9, "order:");
+    LOG(10, "order:");
     for(auto o : order) {
-        LOG0(9, " " << std::dec << o);
+        LOG0(10, " " << std::dec << o);
     }
-    LOG(9, "");
+    LOG(10, "");
 
     for(auto nodeId : order) {
         auto node = config->getCFG()->get(nodeId);
@@ -393,7 +393,7 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
         for(auto it = blockList.begin(); it != blockList.end(); ++it) {
             auto state = working->getState(*it);
 
-            LOG(9, "analyzing state @ 0x" << std::hex
+            LOG(10, "analyzing state @ 0x" << std::hex
                 << state->getInstruction()->getAddress());
 
             if(dynamic_cast<LiteralInstruction *>(
@@ -404,10 +404,10 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
             fillState(state);
         }
 
-        LOG(10, "");
-        LOG(10, "final set for node " << std::dec << nodeId);
-        IF_LOG(10) working->dumpSet();
-        LOG(10, "");
+        LOG(11, "");
+        LOG(11, "final set for node " << std::dec << nodeId);
+        IF_LOG(11) working->dumpSet();
+        LOG(11, "");
     }
 }
 
@@ -422,8 +422,8 @@ bool UseDef::callIfEnabled(UDState *state, Assembly *assembly) {
         }
     }
     if(!handled) {
-        LOG(9, "handler disabled (or not found): " << assembly->getMnemonic());
-        LOG(9, "mode: " << assembly->getAsmOperands()->getMode());
+        LOG(10, "handler disabled (or not found): " << assembly->getMnemonic());
+        LOG(10, "mode: " << assembly->getAsmOperands()->getMode());
     }
 
     return handled;
@@ -431,7 +431,7 @@ bool UseDef::callIfEnabled(UDState *state, Assembly *assembly) {
 
 void UseDef::fillState(UDState *state) {
     ChunkDumper dumper;
-    state->getInstruction()->accept(&dumper);
+    IF_LOG(11) state->getInstruction()->accept(&dumper);
 
     auto assembly = state->getInstruction()->getSemantic()->getAssembly();
     if(assembly->getId() == ARM64_INS_AT) {
@@ -440,8 +440,8 @@ void UseDef::fillState(UDState *state) {
 
     bool handled = callIfEnabled(state, assembly);
     if(handled) {
-        IF_LOG(10) state->dumpState();
-        IF_LOG(10) working->dumpSet();
+        IF_LOG(11) state->dumpState();
+        IF_LOG(11) working->dumpSet();
     }
 }
 
@@ -632,7 +632,7 @@ void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
         break;
     default:
         tree = nullptr;
-        LOG(9, "NYI: " << assembly->getMnemonic());
+        LOG(10, "NYI: " << assembly->getMnemonic());
         break;
     }
     defReg(state, reg0, tree);
@@ -749,7 +749,7 @@ void UseDef::fillRegImmToReg(UDState *state, Assembly *assembly) {
         break;
     default:
         tree = nullptr;
-        LOG(9, "NYI: " << assembly->getMnemonic());
+        LOG(10, "NYI: " << assembly->getMnemonic());
         break;
     }
     defReg(state, reg0, tree);
@@ -929,7 +929,7 @@ void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
         fillRegRegToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillAdr(UDState *state, Assembly *assembly) {
@@ -947,7 +947,7 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
         fillRegRegToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillB(UDState *state, Assembly *assembly) {
@@ -1020,7 +1020,7 @@ void UseDef::fillCsel(UDState *state, Assembly *assembly) {
     defReg(state,
         reg0,
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
-    LOG(9, "NYI: " << assembly->getMnemonic());
+    LOG(10, "NYI: " << assembly->getMnemonic());
 }
 void UseDef::fillLdaxr(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -1054,7 +1054,7 @@ void UseDef::fillLdr(UDState *state, Assembly *assembly) {
         fillMemImmToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdrh(UDState *state, Assembly *assembly) {
@@ -1063,7 +1063,7 @@ void UseDef::fillLdrh(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, 2);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdrb(UDState *state, Assembly *assembly) {
@@ -1072,7 +1072,7 @@ void UseDef::fillLdrb(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, 1);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdrsw(UDState *state, Assembly *assembly) {
@@ -1081,7 +1081,7 @@ void UseDef::fillLdrsw(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, 4);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdrsh(UDState *state, Assembly *assembly) {
@@ -1090,7 +1090,7 @@ void UseDef::fillLdrsh(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, 2);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdrsb(UDState *state, Assembly *assembly) {
@@ -1099,7 +1099,7 @@ void UseDef::fillLdrsb(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, 1);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLdur(UDState *state, Assembly *assembly) {
@@ -1109,7 +1109,7 @@ void UseDef::fillLdur(UDState *state, Assembly *assembly) {
         fillMemToReg(state, assembly, width);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillLsl(UDState *state, Assembly *assembly) {
@@ -1121,7 +1121,7 @@ void UseDef::fillLsl(UDState *state, Assembly *assembly) {
         fillRegRegToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillNop(UDState *state, Assembly *assembly) {
@@ -1136,7 +1136,7 @@ void UseDef::fillMov(UDState *state, Assembly *assembly) {
         fillImmToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillMrs(UDState *state, Assembly *assembly) {
@@ -1171,7 +1171,7 @@ void UseDef::fillStr(UDState *state, Assembly *assembly) {
         fillRegToMem(state, assembly, width);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillStrb(UDState *state, Assembly *assembly) {
@@ -1180,7 +1180,7 @@ void UseDef::fillStrb(UDState *state, Assembly *assembly) {
         fillRegToMem(state, assembly, 1);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillStrh(UDState *state, Assembly *assembly) {
@@ -1189,17 +1189,17 @@ void UseDef::fillStrh(UDState *state, Assembly *assembly) {
         fillRegToMem(state, assembly, 2);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 void UseDef::fillSxtw(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
-        LOG(9, "NYI fully: " << assembly->getMnemonic());
+        LOG(10, "NYI fully: " << assembly->getMnemonic());
         fillRegToReg(state, assembly);
     }
     else {
-        LOG(9, "skipping mode " << mode);
+        LOG(10, "skipping mode " << mode);
     }
 }
 

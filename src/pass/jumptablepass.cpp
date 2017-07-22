@@ -165,7 +165,7 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
     // because there may be multiple local functions with the same name.
     for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
         auto brAddr = std::stoll(line);
-        LOG(5, "instruction at 0x" << std::hex << brAddr);
+        LOG(10, "instruction at 0x" << std::hex << brAddr);
         auto fn =
             CIter::spatial(module->getFunctionList())->findContaining(brAddr);
         auto instr = dynamic_cast<Instruction *>(
@@ -176,16 +176,16 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
 
         f.getline(line, 128);
         auto addr = std::stoll(line);
-        LOG(5, "address 0x" << std::hex << addr);
+        LOG(10, "address 0x" << std::hex << addr);
         f.getline(line, 128);
         auto targetBase = std::stoll(line);
-        LOG(5, "target address 0x" << std::hex << targetBase);
+        LOG(10, "target address 0x" << std::hex << targetBase);
         f.getline(line, 128);
         auto scale = std::stoi(line);
-        LOG(5, "scale " << scale);
+        LOG(10, "scale " << scale);
         f.getline(line, 128);
         auto entries = std::stoi(line);
-        LOG(5, "entries " << entries);
+        LOG(10, "entries " << entries);
 
         auto d = new JumpTableDescriptor(fn, instr);
         d->setAddress(addr);

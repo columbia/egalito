@@ -16,8 +16,8 @@ void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
     UDRegMemWorkingSet working(function, cfg);
     UseDef usedef(&config, &working);
 
-    cfg->dump();
-    cfg->dumpDot();
+    IF_LOG(10) cfg->dump();
+    IF_LOG(10) cfg->dumpDot();
 
     SccOrder order(cfg);
     order.genFull(0);
@@ -27,6 +27,8 @@ void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
 }
 
 void PointerDetection::detect(UDRegMemWorkingSet *working) {
+    IF_LOG(10) working->getCFG()->dumpDot();
+
     for(auto block : CIter::children(working->getFunction())) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
@@ -55,7 +57,7 @@ void PointerDetection::detectAtADR(UDState *state) {
 }
 
 void PointerDetection::detectAtADRP(UDState *state) {
-    IF_LOG(5) state->dumpState();
+    IF_LOG(10) state->dumpState();
 
     for(auto& def : state->getRegDefList()) {
         auto reg = def.first;
@@ -72,7 +74,8 @@ void PointerDetection::detectAtADRP(UDState *state) {
                 else {
                     if(offset != o.second) {
                         TemporaryLogLevel tll("analysis", 1);
-                        LOG(1, "for page " << std::hex << page);
+                        LOG(1, "for page " << std::hex << page << " at 0x"
+                            << state->getInstruction()->getAddress());
                         for(auto& o2 : offsetList.getList()) {
                             LOG(1, "offset " << o2.second << " at "
                                 << o2.first->getInstruction()->getAddress());
@@ -93,9 +96,9 @@ void PointerDetection::detectAtADRP(UDState *state) {
 }
 
 bool PageOffsetList::detectOffset(UDState *state, int reg) {
-    LOG(5, "==== detectOffset state 0x" << std::hex
+    LOG(10, "==== detectOffset state 0x" << std::hex
         << state->getInstruction()->getAddress() << " ====");
-    IF_LOG(5) state->dumpState();
+    IF_LOG(10) state->dumpState();
 
     for(auto r : seen[state]) {
         if(r == reg) {
@@ -138,7 +141,7 @@ bool PageOffsetList::findInAdd(UDState *state, int reg) {
             if(base->getRegister() == reg && base->getWidth() == 8) {
                 auto offset = dynamic_cast<TreeNodeConstant *>(
                     cap.get(1))->getValue();
-                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                LOG(10, "0x" << std::hex << state->getInstruction()->getAddress()
                     << " found addition " << std::dec << offset);
                 addToList(state, offset);
                 found = true;
@@ -160,7 +163,7 @@ bool PageOffsetList::findInLoad(UDState *state, int reg) {
             if(base->getRegister() == reg) {
                 auto offset = dynamic_cast<TreeNodeConstant *>(
                     cap.get(1))->getValue();
-                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                LOG(10, "0x" << std::hex << state->getInstruction()->getAddress()
                     << " found addition in load " << std::dec << offset);
                 addToList(state, offset);
                 found = true;
@@ -206,7 +209,7 @@ bool PageOffsetList::detectOffsetAfterCopy(UDState *state, int reg) {
                 cap.get(0))->getRegister();
             if(regSrc == reg) {
                 auto regDst = def.first;
-                LOG(5, "mov, recurse with " << std::dec << regDst);
+                LOG(10, "MOV, recurse with " << std::dec << regDst);
                 return detectOffset(state, regDst);
             }
         }

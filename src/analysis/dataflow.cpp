@@ -63,25 +63,24 @@ void DataFlow::adjustCallUse(
                 auto ud = flowList[function];
                 for(int i = 0; i < 19; i++) {
                     if(info.get(i)) {
-                        LOG(5, "canceling use of " << std::dec << i);
+                        LOG(10, "canceling use of " << std::dec << i);
                         ud->cancelUseDefReg(state, i);
                     }
                 }
-                IF_LOG(5) state->dumpState();
+                IF_LOG(11) state->dumpState();
             }
             else if(assembly->getId() == ARM64_INS_BLR) {
                 auto working = getWorkingSet(function);
                 auto state = working->getState(instr);
-                LOG(5, "BLR 0x" << std::hex << instr->getAddress());
-                IF_LOG(5) state->dumpState();
                 if(isTLSdescResolveCall(state, module)) {
                     auto ud = flowList[function];
                     // reg0 holds the TLS offset after return
                     for(int i = 1; i < 19; i++) {
-                        LOG(5, "canceling use of " << std::dec << i);
+                        LOG(10, "canceling use of " << std::dec << i);
                         ud->cancelUseDefReg(state, i);
                     }
                 }
+                IF_LOG(11) state->dumpState();
             }
         }
     }
@@ -103,7 +102,7 @@ bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
         auto offset = dynamic_cast<TreeNodeConstant *>(capList[1].tree)
             ->getValue();
 
-        LOG(9, "arg0 offset = 0x" << std::hex << offset);
+        LOG(10, "arg0 offset = 0x" << std::hex << offset);
         typedef TreePatternCapture<
             TreePatternTerminal<TreeNodeAddress>
         > PointerPageForm;
@@ -114,10 +113,9 @@ bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
             auto page = dynamic_cast<TreeNodeAddress *>(capList2[0].tree)
                 ->getValue();
 
-            LOG(9, "arg0 addr = 0x" << std::hex << (page + offset));
+            LOG(10, "arg0 addr = 0x" << std::hex << (page + offset));
             auto r = module->getElfSpace()->getRelocList()->find(page + offset);
             if(r && r->getType() == R_AARCH64_TLSDESC) {
-                LOG(1, "the argument has relocation of TLSDESC type!");
                 return true;
             }
         }

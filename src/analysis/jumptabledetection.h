@@ -58,9 +58,6 @@ private:
     bool getBoundFromMove(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromIndexTable(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromArgument(UDState *state, int reg, JumptableInfo *info);
-
-private:
-    void check(Instruction *instruction, bool) const;
 };
 
 #endif

@@ -299,7 +299,7 @@ void LinkedInstruction::resolveLinks(Module *module,
     const std::vector<std::pair<Instruction *, address_t>>& list) {
 
     for(auto [instruction, address] : list) {
-        LOG(9, "pointer at 0x" << std::hex << instruction->getAddress()
+        LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction, *assembly);
@@ -364,7 +364,7 @@ LinkedInstruction::loadFromFile(Module *module) {
     char line[128];
     for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
         auto addr = std::stoll(line);
-        LOG(5, "instruction at 0x" << std::hex << addr);
+        LOG(10, "instruction at 0x" << std::hex << addr);
         auto fn =
             CIter::spatial(module->getFunctionList())->findContaining(addr);
         if(!fn) {
@@ -378,7 +378,7 @@ LinkedInstruction::loadFromFile(Module *module) {
 
         f.getline(line, 128);
         auto value = std::stoll(line);
-        LOG(5, "pointer to 0x" << std::hex << value);
+        LOG(10, "pointer to 0x" << std::hex << value);
         list.emplace_back(instr, value);
     }
     return list;

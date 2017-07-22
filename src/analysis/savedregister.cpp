@@ -42,7 +42,7 @@ void SavedRegister::detectMakeFrame(const UDState& state) {
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > MakeFrameForm;
 
-    IF_LOG(9) {
+    IF_LOG(10) {
         auto semantic = state.getInstruction()->getSemantic();
         if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
             if(v->getAssembly()->getId() == ARM64_INS_STP) {
@@ -55,7 +55,7 @@ void SavedRegister::detectMakeFrame(const UDState& state) {
         TreeCapture cap;
         if(MakeFrameForm::matches(def.second, cap)) {
             auto sz = dynamic_cast<TreeNodeConstant *>(cap.get(0))->getValue();
-            LOG(5, "detected frame creation [" << std::dec << sz << "]");
+            LOG(10, "detected frame creation [" << std::dec << sz << "]");
         }
     }
 }
@@ -74,7 +74,7 @@ void SavedRegister::detectSaveRegister(const UDState& state,
         if(PushForm::matches(mem.second, cap)) {
             //use MemLocation to simply get offset?
 
-            LOG(5, "detected register save: " << std::dec << mem.first);
+            LOG(10, "detected register save: " << std::dec << mem.first);
             auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
             list.push_back(regTree->getRegister());
         }
