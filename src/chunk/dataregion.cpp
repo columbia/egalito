@@ -121,6 +121,12 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc) {
     if(reloc->getType() == R_AARCH64_RELATIVE) {
         return createDataLink(reloc->getAddend(), true);
     }
+    // can't resolve the address yet, because a link may point to a TLS
+    // in another module e.g. errno referred from libm
+    if(reloc->getType() == R_AARCH64_TLS_TPREL) {
+        return new TLSDataOffsetLink(
+            getTLS(), reloc->getSymbol(), reloc->getAddend());
+    }
 #endif
     return nullptr;
 }

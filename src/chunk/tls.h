@@ -21,6 +21,7 @@
  *  - it has to provide their address through __tls_get_addr().
  */
 
+#if 0
 class ElfMap;
 class RelocList;
 
@@ -55,4 +56,5 @@ public:
     static void buildTLSList(ElfMap *elf, RelocList *relocList, Module *module);
 
 };
+#endif
 #endif

@@ -104,8 +104,8 @@ void Conductor::loadTLSData() {
 
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
-            LOG(1, "copying in TLS for " << module->getName() << " at "
-                << offset << " size " << tls->getSize());
+            LOG(1, "copying in TLS for " << module->getName() << " at 0x"
+                << std::hex << offset << " size 0x" << tls->getSize());
             tls->setTLSOffset((base + offset) - mainThreadPointer);
             dataLoader.copyTLSData(module->getElfSpace()->getElfMap(),
                 tls, offset);
