@@ -34,6 +34,14 @@ address_t DataOffsetLink::getTargetAddress() const {
     return region->getAddress() + target;
 }
 
+ChunkRef TLSDataOffsetLink::getTarget() const {
+    return tls;
+}
+
+address_t TLSDataOffsetLink::getTargetAddress() const {
+    return tls->getTLSOffset() + target;
+}
+
 Link *LinkFactory::makeNormalLink(ChunkRef target, bool isRelative,
     bool isExternal) {
 

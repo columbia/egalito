@@ -109,7 +109,8 @@ private:
     Symbol *symbol;
     address_t target;
 public:
-    SymbolOnlyLink(Symbol *symbol, address_t target) : symbol(symbol), target(target) {}
+    SymbolOnlyLink(Symbol *symbol, address_t target)
+        : symbol(symbol), target(target) {}
 
     Symbol *getSymbol() const { return symbol; }
     virtual ChunkRef getTarget() const { return nullptr; }
@@ -135,6 +136,22 @@ public:
 class AbsoluteDataLink : public DataOffsetLink {
 public:
     using DataOffsetLink::DataOffsetLink;
+};
+
+class TLSDataRegion;
+class TLSDataOffsetLink : public Link {
+private:
+    TLSDataRegion *tls;
+    Symbol *symbol;
+    address_t target;
+public:
+    TLSDataOffsetLink(TLSDataRegion *tls, Symbol *symbol, address_t target)
+        : tls(tls), symbol(symbol), target(target) {}
+
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+    Symbol *getSymbol() const { return symbol; }
+    void setTLSRegion(TLSDataRegion *tls) { this->tls = tls; }
 };
 
 
