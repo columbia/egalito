@@ -138,8 +138,17 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 
 address_t ConductorSetup::getEntryPoint() {
 #if 1
-    return CIter::named(conductor->getMainSpace()->getModule()->getFunctionList())
-        ->find("_start")->getAddress();
+    auto module = conductor->getMainSpace()->getModule();
+    if(auto f = CIter::named(module->getFunctionList())->find("_start")) {
+        return f->getAddress();
+    }
+    if(auto f = CIter::named(module->getFunctionList())
+        ->find("_rt0_arm64_linux")) {
+
+        return f->getAddress();
+    }
+    LOG(0, "entry point not found");
+    return 0;
 #else
     // this is the original entry point address
     return elf->getEntryPoint() + elf->getBaseAddress();

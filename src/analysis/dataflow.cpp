@@ -49,8 +49,12 @@ void DataFlow::adjustCallUse(
                 auto v = dynamic_cast<ControlFlowInstruction *>(s);
                 Function *func = nullptr;
                 if(auto target = v->getLink()->getTarget()) {
-                    func = ChunkFind2().findFunctionInModule(
-                        target->getName().c_str(), module);
+                    // in some cases (like Go binary), it jumps to the
+                    // middle of a function (runtime.duffzero)
+                    if(auto f = dynamic_cast<Function *>(&*target)) {
+                        func = ChunkFind2().findFunctionInModule(
+                            f->getName().c_str(), module);
+                    }
                 }
                 if(!func) continue;
 
