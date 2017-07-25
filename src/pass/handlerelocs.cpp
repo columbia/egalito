@@ -18,7 +18,7 @@ void HandleRelocsPass::visit(Module *module) {
             r->getSymbol()->getName());
 
         if(!target) {
-            if (module->getElfSpace()->getElfMap()->isObjectFile()) {
+            if(module->getElfSpace()->getElfMap()->isObjectFile()) {
                 handleRelocation(r, functionList, r->getSymbol());
             }
             continue;
@@ -32,7 +32,9 @@ void HandleRelocsPass::visit(Module *module) {
 void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
     Function *target) {
 
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+        functionList, r->getAddress());
+
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         LOG0(2, "reloc inside " << i->getName() << " at "
             << r->getAddress() << " targets [" << target->getName() << "]");
@@ -83,11 +85,13 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
 }
 
 void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
-                                    Symbol *symbol) {
+    Symbol *symbol) {
 
 #ifdef ARCH_X86_64
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(functionList, r->getAddress());
-    if (inner){
+    Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+        functionList, r->getAddress());
+
+    if(inner){
         if(auto i = dynamic_cast<Instruction *>(inner)) {
             if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
                 auto oldLink = v->getLink();
@@ -114,7 +118,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
                     op < linked->getAssembly()->getAsmOperands()->getOpCount();
                     op ++) {
                     int opOffset = MakeSemantic::getDispOffset(linked->getAssembly(), op);
-                    if (r->getAddress() - i->getAddress() == (address_t)opOffset) {
+                    if(r->getAddress() - i->getAddress() == (address_t)opOffset) {
                         linked->setIndex(op);
                     }
                 }

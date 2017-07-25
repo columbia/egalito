@@ -20,9 +20,7 @@ private:
     void handleRelocation(Reloc *r, FunctionList *functionList,
         Function *target);
     void handleRelocation(Reloc *r, FunctionList *functionList,
-                                        Symbol *symbol);
-
-
+        Symbol *symbol);
 };
 
 #endif

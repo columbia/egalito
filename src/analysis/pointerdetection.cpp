@@ -184,7 +184,7 @@ bool PageOffsetList::findInStore(UDState *state, int reg) {
             if(base->getRegister() == reg) {
                 auto offset = dynamic_cast<TreeNodeConstant *>(
                     cap.get(1))->getValue();
-                LOG(5, "0x" << std::hex << state->getInstruction()->getAddress()
+                LOG(10, "0x" << std::hex << state->getInstruction()->getAddress()
                     << " found addition in store " << std::dec << offset);
                 addToList(state, offset);
                 found = true;

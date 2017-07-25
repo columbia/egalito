@@ -9,7 +9,7 @@ void FixDataRegionsPass::visit(Program *program) {
 }
 
 void FixDataRegionsPass::visit(Module *module) {
-    LOG(1, "Fixing variables in regions for module " << module->getName());
+    LOG(1, "Fixing variables in regions for " << module->getName());
     this->module = module;
     visit(module->getDataRegionList());
 }
@@ -45,7 +45,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
         }
 
         auto target = var->getDest()->getTargetAddress();
-        LOG(1, "set variable " << std::hex << address << " => " << target
+        LOG(10, "set variable " << std::hex << address << " => " << target
             << " inside " << dataRegion->getName());
         *reinterpret_cast<address_t *>(address) = target;
     }
