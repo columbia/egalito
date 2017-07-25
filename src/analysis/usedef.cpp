@@ -346,6 +346,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_LDRSB,   &UseDef::fillLdrsb},
     {ARM64_INS_LDUR,    &UseDef::fillLdur},
     {ARM64_INS_LSL,     &UseDef::fillLsl},
+    {ARM64_INS_MADD,    &UseDef::fillMadd},
     {ARM64_INS_MOV,     &UseDef::fillMov},
     {ARM64_INS_MRS,     &UseDef::fillMrs},
     {ARM64_INS_NOP,     &UseDef::fillNop},
@@ -603,7 +604,7 @@ void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
     size_t width1 = AARCH64GPRegister::getWidth(reg1, op1);
     auto op2 = assembly->getAsmOperands()->getOperands()[2].reg;
     int reg2 = AARCH64GPRegister::convertToPhysical(op2);
-    size_t width2 = AARCH64GPRegister::getWidth(reg2, op1);
+    size_t width2 = AARCH64GPRegister::getWidth(reg2, op2);
 
     useReg(state, reg1);
     useReg(state, reg2);
@@ -919,6 +920,46 @@ void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
     defReg(state, base, wbTree);
 }
 
+void UseDef::fillRegRegRegToReg(UDState *state, Assembly *assembly) {
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
+    int reg1 = AARCH64GPRegister::convertToPhysical(op1);
+    size_t width1 = AARCH64GPRegister::getWidth(reg1, op1);
+    auto op2 = assembly->getAsmOperands()->getOperands()[2].reg;
+    int reg2 = AARCH64GPRegister::convertToPhysical(op2);
+    size_t width2 = AARCH64GPRegister::getWidth(reg2, op2);
+    auto op3 = assembly->getAsmOperands()->getOperands()[3].reg;
+    int reg3 = AARCH64GPRegister::convertToPhysical(op3);
+    size_t width3 = AARCH64GPRegister::getWidth(reg3, op3);
+
+    useReg(state, reg1);
+    useReg(state, reg2);
+    useReg(state, reg3);
+
+    TreeNode *reg1tree
+        = TreeFactory::instance().make<TreeNodePhysicalRegister>(reg1, width1);
+    TreeNode *reg2tree
+        = TreeFactory::instance().make<TreeNodePhysicalRegister>(reg2, width2);
+    TreeNode *reg3tree
+        = TreeFactory::instance().make<TreeNodePhysicalRegister>(reg3, width3);
+
+    TreeNode *tree = nullptr;
+    switch(assembly->getId()) {
+    case ARM64_INS_MADD: {
+        auto subtree = TreeFactory::instance().make<
+            TreeNodeMultiplication>(reg1tree, reg2tree);
+        tree = TreeFactory::instance().make<
+            TreeNodeAddition>(subtree, reg3tree);
+        break;
+    }
+    default:
+        tree = nullptr;
+        LOG(10, "NYI: " << assembly->getMnemonic());
+        break;
+    }
+    defReg(state, reg0, tree);
+}
 
 void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -1122,6 +1163,15 @@ void UseDef::fillLsl(UDState *state, Assembly *assembly) {
     }
     else {
         LOG(10, "skipping mode " << mode);
+    }
+}
+void UseDef::fillMadd(UDState *state, Assembly *assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_REG_REG_REG_REG) {
+        fillRegRegRegToReg(state, assembly);
+    }
+    else {
+        throw "unknown mode for Madd";
     }
 }
 void UseDef::fillNop(UDState *state, Assembly *assembly) {

@@ -34,7 +34,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
                     << sym->getAddress());
 
                 for(auto m : CIter::children(program)) {
-                    if(auto d = m->getElfSpace()->getSymbolList()
+                    if(m->getElfSpace()->getSymbolList()
                         ->find(sym->getName())) {
 
                         LOG(1, "found the target in " << m->getName());

@@ -167,7 +167,7 @@ void ControlFlowGraph::construct(Block *block) {
 bool ControlFlowGraph::doesReturn(Function *function) {
     static const std::vector<std::string> noreturns = {
         "__GI___libc_fatal", "__GI___assert_fail", "__stack_chk_fail",
-        "__malloc_assert"
+        "__malloc_assert", "_exit"
     };
 
     for(auto fn : noreturns) {

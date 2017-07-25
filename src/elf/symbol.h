@@ -92,9 +92,7 @@ public:
     SymbolVersionList(ElfMap *elfmap);
 
     const char *getVersionName(size_t symbolIndex) const;
-
-    bool isHidden(size_t symbolIndex) const
-        { return verList[symbolIndex] & 0x8000; }
+    bool isHidden(size_t symbolIndex) const;
 
     void dump() const;
 
@@ -105,6 +103,7 @@ private:
         { nameList.emplace(i, name); }
     size_t getVersionIndex(size_t symbolIndex) const
         { return verList.at(symbolIndex) & ~0x8000; }
+    bool hasVersionInfo() const { return verList.size() > 0; }
 };
 
 class SymbolList {

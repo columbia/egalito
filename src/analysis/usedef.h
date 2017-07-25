@@ -336,6 +336,7 @@ private:
     void fillRegRegToMem(UDState *state, Assembly *assembly);
     void fillMemToRegReg(UDState *state, Assembly *assembly);
     void fillRegRegImmToMem(UDState *state, Assembly *assembly);
+    void fillRegRegRegToReg(UDState *state, Assembly *assembly);
     void fillMemImmToRegReg(UDState *state, Assembly *assembly);
 
     void defReg(UDState *state, int reg, TreeNode *tree);
@@ -368,6 +369,7 @@ private:
     void fillLdrsb(UDState *state, Assembly *assembly);
     void fillLdur(UDState *state, Assembly *assembly);
     void fillLsl(UDState *state, Assembly *assembly);
+    void fillMadd(UDState *state, Assembly *assembly);
     void fillMov(UDState *state, Assembly *assembly);
     void fillMrs(UDState *state, Assembly *assembly);
     void fillNop(UDState *state, Assembly *assembly);

@@ -125,6 +125,7 @@ void ElfDynamic::resolveLibraries() {
     searchPath.push_back("/usr/lib");
     searchPath.push_back("/lib64");
     searchPath.push_back("/usr/lib64");
+    searchPath.push_back("/usr/local/musl/lib");
 
     for(auto &pair : dependencyList) {
         auto library = pair.first;

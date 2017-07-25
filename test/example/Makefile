@@ -1,6 +1,8 @@
 # Makefile for test cases
 include ../../env.mk
 
+MUSLCC = /usr/local/musl/bin/musl-gcc
+
 CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS = -static
 
@@ -30,6 +32,7 @@ TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
+TARGETS-musl = $(addprefix $(BUILDDIR), hello-musl)
 
 LONE_TARGETS = hellocpp $(BUILDDIR)detectnull
 
@@ -38,6 +41,7 @@ ALL_TARGETS += $(TARGETS-q)
 ALL_TARGETS += $(TARGETS-strip)
 ALL_TARGETS += $(TARGETS-static)
 ALL_TARGETS += $(TARGETS-obj)
+ALL_TARGETS += $(TARGETS-musl)
 ALL_TARGETS += $(LONE_TARGETS)
 
 .PHONY: all targets targets-q targets-strip targets-static
@@ -53,12 +57,14 @@ targets-q: $(TARGETS-q)
 targets-strip: $(TARGETS-strip)
 targets-static: $(TARGETS-static)
 targets-obj: $(TARGETS-obj)
+targets-musl: $(TARGETS-musl)
 
 define dep_rule
 $$(BUILDDIR)$1: $2
 $$(BUILDDIR)$1-q: $2
 $$(BUILDDIR)$1-strip: $2
 $$(BUILDDIR)$1-static: $2
+$$(BUILDDIR)$1-musl: $2
 endef
 
 $(eval $(call dep_rule,hello,hello.c))
@@ -86,6 +92,8 @@ $(BUILDDIR)%-q:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
 $(BUILDDIR)%-obj:
 	$(CC) -c $^ -o $@
+$(BUILDDIR)%-musl:
+	$(MUSLCC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 

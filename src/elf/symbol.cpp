@@ -325,10 +325,19 @@ Symbol::BindingType Symbol::bindFromElfToInternal(unsigned char type) {
     }
 }
 
+bool SymbolVersionList::isHidden(size_t symbolIndex) const {
+    if(hasVersionInfo()) {
+        return verList[symbolIndex] & 0x8000;
+    }
+    return false;
+}
+
 const char *SymbolVersionList::getVersionName(size_t symbolIndex) const {
-    auto it = nameList.find(getVersionIndex(symbolIndex));
-    if(it != nameList.end()) {
-        return it->second;
+    if(hasVersionInfo()) {
+        auto it = nameList.find(getVersionIndex(symbolIndex));
+        if(it != nameList.end()) {
+            return it->second;
+        }
     }
     return "";
 }
