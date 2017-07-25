@@ -65,8 +65,8 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
         // This can happen when a shared object is statically linked.
         if(!currentSymbolList) continue;
 
-        ElfXX_Rela *data = reinterpret_cast<ElfXX_Rela *>
-            (elf->getCharmap() + s->sh_offset);
+        ElfXX_Rela *data = reinterpret_cast<ElfXX_Rela *>(
+            elf->getCharmap() + s->sh_offset);
 
         size_t count = s->sh_size / sizeof(*data);
         for(size_t i = 0; i < count; i ++) {
