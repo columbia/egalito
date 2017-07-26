@@ -26,7 +26,7 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
     int prot = 0;
     if(phdr->p_flags & PF_R) prot |= PROT_READ;
     if(phdr->p_flags & PF_W) prot |= PROT_WRITE;
-    if(phdr->p_flags & PF_X) prot |= PROT_EXEC;
+    //if(phdr->p_flags & PF_X) prot |= PROT_EXEC;
 
     prot |= PROT_WRITE;  // !!! hack for updating jump tables
 
