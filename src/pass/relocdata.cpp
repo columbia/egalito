@@ -315,28 +315,14 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     address_t dest = 0;
     bool found = false;
 
+    // There is a data variable for the ones whose type is
+    // R_AARCH64_RELATIVE or R_AARCH64_TLS_TPREL
+
     if(r->getType() == R_AARCH64_GLOB_DAT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
     else if(r->getType() == R_AARCH64_JUMP_SLOT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
-    }
-    else if(r->getType() == R_AARCH64_RELATIVE) {
-        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
-        if(!found) {
-            dest = elfMap->getBaseAddress() + r->getAddend();
-            found = true;
-        }
-    }
-    else if(r->getType() == R_AARCH64_PREL32) {
-        LOG(1, "PREL32 isn't handled yet");
-    }
-#ifdef R_AARCH64_TLS_TPREL64
-    else if(r->getType() == R_AARCH64_TLS_TPREL64) {
-#else
-    else if(r->getType() == R_AARCH64_TLS_TPREL) {
-#endif
-        dest = r->getAddend();
     }
     else if(r->getType() == R_AARCH64_ABS64) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);

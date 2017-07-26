@@ -111,18 +111,29 @@ DataRegion *DataRegionList::findRegionContaining(address_t target) {
     return nullptr;
 }
 
-Link *DataRegionList::resolveVariableLink(Reloc *reloc) {
+Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 #ifdef ARCH_X86_64
     // this is the only reloc type we've seen in TLS
     if(reloc->getType() == R_X86_64_RELATIVE) {
         return createDataLink(reloc->getAddend(), true);
     }
 #else
+#if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
+    #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
+#endif
     if(reloc->getType() == R_AARCH64_RELATIVE) {
-        return createDataLink(reloc->getAddend(), true);
+        if(auto f = CIter::spatial(module->getFunctionList())->findContaining(
+            reloc->getAddend())) {
+
+            return new NormalLink(f);
+        }
+        else {
+            return createDataLink(reloc->getAddend(), true);
+        }
     }
-    // can't resolve the address yet, because a link may point to a TLS
-    // in another module e.g. errno referred from libm
+
+    // We can't resolve the address yet, because a link may point to a TLS
+    // in another module e.g. errno referred from libm (tls can be nullptr)
     if(reloc->getType() == R_AARCH64_TLS_TPREL) {
         return new TLSDataOffsetLink(
             getTLS(), reloc->getSymbol(), reloc->getAddend());
@@ -159,11 +170,11 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         // source region (will be different from the link's dest region)
         auto sourceRegion = list->findRegionContaining(reloc->getAddress());
         if(sourceRegion) {
-            if(auto link = list->resolveVariableLink(reloc)) {
+            if(auto link = list->resolveVariableLink(reloc, module)) {
                 LOG(10, "resolving a variable at " << std::hex
                     << reloc->getAddress()
                     << " => " << reloc->getAddend());
-                if(sourceRegion == list->getTLS()) LOG(11, "TLS!");
+                if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion,
                     reloc->getAddress() - sourceRegion->getAddress(), link);
                 sourceRegion->addVariable(var);

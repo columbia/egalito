@@ -86,7 +86,7 @@ public:
 
     Link *createDataLink(address_t target, bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
-    Link *resolveVariableLink(Reloc *reloc);
+    Link *resolveVariableLink(Reloc *reloc, Module *module);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
 };
