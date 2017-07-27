@@ -33,6 +33,7 @@ TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
 TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
 TARGETS-musl = $(addprefix $(BUILDDIR), hello-musl)
+TARGETS-musl-static = $(addprefix $(BUILDDIR), hello-musl-static)
 
 LONE_TARGETS = hellocpp $(BUILDDIR)detectnull
 
@@ -42,6 +43,7 @@ ALL_TARGETS += $(TARGETS-strip)
 ALL_TARGETS += $(TARGETS-static)
 ALL_TARGETS += $(TARGETS-obj)
 ALL_TARGETS += $(TARGETS-musl)
+ALL_TARGETS += $(TARGETS-musl-static)
 ALL_TARGETS += $(LONE_TARGETS)
 
 .PHONY: all targets targets-q targets-strip targets-static
@@ -58,6 +60,7 @@ targets-strip: $(TARGETS-strip)
 targets-static: $(TARGETS-static)
 targets-obj: $(TARGETS-obj)
 targets-musl: $(TARGETS-musl)
+targets-musl-static: $(TARGETS-musl-static)
 
 define dep_rule
 $$(BUILDDIR)$1: $2
@@ -65,6 +68,7 @@ $$(BUILDDIR)$1-q: $2
 $$(BUILDDIR)$1-strip: $2
 $$(BUILDDIR)$1-static: $2
 $$(BUILDDIR)$1-musl: $2
+$$(BUILDDIR)$1-musl-static: $2
 endef
 
 $(eval $(call dep_rule,hello,hello.c))
@@ -94,6 +98,8 @@ $(BUILDDIR)%-obj:
 	$(CC) -c $^ -o $@
 $(BUILDDIR)%-musl:
 	$(MUSLCC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
+$(BUILDDIR)%-musl-static:
+	$(MUSLCC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 
