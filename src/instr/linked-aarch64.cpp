@@ -267,6 +267,30 @@ void LinkedInstruction::regenerateAssembly() {
     getStorage().setAssembly(std::move(assembly));
 }
 
+LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
+    Instruction *instruction, Assembly *assembly, Reloc *reloc) {
+
+    if(!reloc->getSymbol()) return nullptr;
+
+    Function *target = CIter::findChild(module->getFunctionList(),
+        reloc->getSymbol()->getName());
+    auto linked = new LinkedInstruction(instruction, *assembly);
+    if(target) {
+        linked->setLink(new NormalLink(target));
+    }
+    else {
+        //auto address = linked->getOriginalOffset();
+        auto address = reloc->getAddend();
+        auto dataLink = LinkFactory::makeDataLink(module, address, true);
+        if(!dataLink) {
+            dataLink = new UnresolvedLink(address);
+        }
+        linked->setLink(dataLink);
+    }
+
+    return linked;
+}
+
 void LinkedInstruction::makeAllLinked(Module *module) {
     std::vector<std::pair<Instruction *, address_t>>&& list
         = loadFromFile(module);

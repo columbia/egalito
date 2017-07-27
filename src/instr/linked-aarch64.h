@@ -9,6 +9,8 @@
 // Defines LinkedInstruction and ControlFlowInstruction for aarch64.
 
 #if defined(ARCH_AARCH64)
+class Reloc;
+
 class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
 public:
     enum Mode {
@@ -63,6 +65,8 @@ public:
 
     uint32_t rebuild();
 
+    static LinkedInstruction *makeLinked(Module *module,
+        Instruction *instruction, Assembly *assembly, Reloc *reloc);
     static void makeAllLinked(Module *module);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }

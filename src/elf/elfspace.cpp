@@ -9,7 +9,6 @@
 #include "disasm/disassemble.h"
 #include "pass/fallthrough.h"
 #include "pass/splitbasicblock.h"
-#include "pass/pcrelative.h"
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
@@ -86,9 +85,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         ExternalCalls externalCalls(module->getPLTList());
         module->accept(&externalCalls);
     }
-
-    PCRelativePass pcrelative(relocList);
-    module->accept(&pcrelative);
 
     JumpTablePass jumpTablePass;
     module->accept(&jumpTablePass);
