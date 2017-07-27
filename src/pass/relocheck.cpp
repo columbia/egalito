@@ -48,7 +48,7 @@ void ReloCheckPass::visit(Module *module) {
 void ReloCheckPass::checkSemantic(Reloc *r, FunctionList *list) {
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(list, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
-        if(dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
+        if(!dynamic_cast<LinkedInstruction *>(i->getSemantic())) {
             LOG(0, i->getName() << " is still a normal DisassembledInstruction :(");
         }
     }
