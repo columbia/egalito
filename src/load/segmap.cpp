@@ -81,5 +81,9 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
             offset);
         if(mem == (void *)-1) throw "Out of memory?";
         if(mem != (void *)address) throw "Overlapping with other regions?";
+        if(filesz_orig != filesz_pages) {
+            std::memset(static_cast<char *>(mem) + filesz_orig,
+                0, filesz_pages - filesz_orig);
+        }
     }
 }
