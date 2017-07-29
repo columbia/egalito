@@ -4,7 +4,7 @@ include ../../env.mk
 MUSLCC = /usr/local/musl/bin/musl-gcc
 
 CFLAGS	= -fPIE -pie -O2
-STATIC_CFLAGS = -static
+STATIC_CFLAGS = -static -O2
 
 ADDCFLAGS-hi5 = -nostdlib -ffreestanding
 
@@ -31,9 +31,11 @@ TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
 TARGETS-static = $(filter-out hi5-static,$(addsuffix -static,$(TARGETS)))
+TARGETS-static-q = $(addprefix $(BUILDDIR), hello-static-q)
 TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
 TARGETS-musl = $(addprefix $(BUILDDIR), hello-musl)
 TARGETS-musl-static = $(addprefix $(BUILDDIR), hello-musl-static)
+TARGETS-musl-static-q = $(addprefix $(BUILDDIR), hello-musl-static-q)
 
 LONE_TARGETS = hellocpp $(BUILDDIR)detectnull
 
@@ -41,12 +43,15 @@ ALL_TARGETS = $(TARGETS)
 ALL_TARGETS += $(TARGETS-q)
 ALL_TARGETS += $(TARGETS-strip)
 ALL_TARGETS += $(TARGETS-static)
+ALL_TARGETS += $(TARGETS-static-q)
 ALL_TARGETS += $(TARGETS-obj)
 ALL_TARGETS += $(TARGETS-musl)
 ALL_TARGETS += $(TARGETS-musl-static)
+ALL_TARGETS += $(TARGETS-musl-static-q)
 ALL_TARGETS += $(LONE_TARGETS)
 
 .PHONY: all targets targets-q targets-strip targets-static
+.PHONY: targets-musl targets-musl-static targets-musl-static-q
 
 all: $(ALL_TARGETS)
 
@@ -58,17 +63,21 @@ targets: $(TARGETS)
 targets-q: $(TARGETS-q)
 targets-strip: $(TARGETS-strip)
 targets-static: $(TARGETS-static)
+targets-static-q: $(TARGETS-static-q)
 targets-obj: $(TARGETS-obj)
 targets-musl: $(TARGETS-musl)
 targets-musl-static: $(TARGETS-musl-static)
+targets-musl-static-q: $(TARGETS-musl-static-q)
 
 define dep_rule
 $$(BUILDDIR)$1: $2
 $$(BUILDDIR)$1-q: $2
 $$(BUILDDIR)$1-strip: $2
 $$(BUILDDIR)$1-static: $2
+$$(BUILDDIR)$1-static-q: $2
 $$(BUILDDIR)$1-musl: $2
 $$(BUILDDIR)$1-musl-static: $2
+$$(BUILDDIR)$1-musl-static-q: $2
 endef
 
 $(eval $(call dep_rule,hello,hello.c))
@@ -90,6 +99,8 @@ addcflags = $(ADDCFLAGS-$(firstword $(subst -, ,$1)))
 
 $(BUILDDIR)%-static:
 	$(CC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
+$(BUILDDIR)%-static-q:
+	$(CC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
 $(BUILDDIR)%-strip:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -s
 $(BUILDDIR)%-q:
@@ -100,6 +111,8 @@ $(BUILDDIR)%-musl:
 	$(MUSLCC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%-musl-static:
 	$(MUSLCC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
+$(BUILDDIR)%-musl-static-q:
+	$(MUSLCC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 
