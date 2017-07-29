@@ -68,7 +68,11 @@ Symbol *SymbolList::get(size_t index) {
 Symbol *SymbolList::find(const char *name) {
     auto it = symbolMap.find(name);
     if(it != symbolMap.end()) {
-        return (*it).second;
+        auto sym = (*it).second;
+        if(sym->getAliasFor()) {
+            sym = sym->getAliasFor();
+        }
+        return sym;
     }
     else {
         return nullptr;
@@ -78,7 +82,11 @@ Symbol *SymbolList::find(const char *name) {
 Symbol *SymbolList::find(address_t address) {
     auto it = spaceMap.find(address);
     if(it != spaceMap.end()) {
-        return (*it).second;
+        auto sym = (*it).second;
+        if(sym->getAliasFor()) {
+            sym = sym->getAliasFor();
+        }
+        return sym;
     }
     else {
         return nullptr;
@@ -448,14 +456,38 @@ void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
 
     bool done = false;
 
-    // normal symbol > mapping symbol
-    if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
-        parent[x1] = x2;
-        done = true;
+    // section vs others
+    if(s1->getType() != s2->getType()) {
+        if(s1->getType() == Symbol::TYPE_SECTION) {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(s2->getType() == Symbol::TYPE_SECTION) {
+            parent[x2] = x1;
+            done = true;
+        }
+        else if(s1->getType() == Symbol::TYPE_FILE) {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(s2->getType() == Symbol::TYPE_FILE) {
+            parent[x2] = x1;
+            done = true;
+        }
     }
-    else if(s2->getBind() == Symbol::BIND_LOCAL && s2->getName()[0] == '$') {
-        parent[x2] = x1;
-        done = true;
+
+    // normal symbol > mapping symbol
+    if(!done) {
+        if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
+            parent[x1] = x2;
+            done = true;
+        }
+        else if(s2->getBind() == Symbol::BIND_LOCAL
+            && s2->getName()[0] == '$') {
+
+            parent[x2] = x1;
+            done = true;
+        }
     }
 
     // this seems to be a good heuristic
