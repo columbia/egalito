@@ -15,11 +15,9 @@ public:
     HandleRelocsPass(ElfMap *elf, RelocList *relocList)
         : elf(elf), relocList(relocList), module(nullptr) {}
     virtual void visit(Module *module);
-    virtual void visit(Instruction *instruction) {}
 private:
-    void handleRelocation(Reloc *r, FunctionList *functionList,
-        Function *target);
-    void handleRelocation(Reloc *r, FunctionList *functionList,
+    void handleRelocation(Reloc *r, Instruction *instruction);
+    void handleRelocation(Reloc *r, Instruction *instruction,
         Symbol *symbol);
 };
 

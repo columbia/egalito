@@ -14,100 +14,105 @@ void HandleRelocsPass::visit(Module *module) {
     for(auto r : *relocList) {
         if(!r->getSymbol()) continue;
 
+        Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+            functionList, r->getAddress());
+        auto instruction = dynamic_cast<Instruction *>(inner);
+        if(!instruction) continue;
+
+#ifdef ARCH_X86_64
         Function *target = CIter::findChild(functionList,
             r->getSymbol()->getName());
 
         if(!target) {
             if(module->getElfSpace()->getElfMap()->isObjectFile()) {
-                handleRelocation(r, functionList, r->getSymbol());
+                handleRelocation(r, instruction, r->getSymbol());
             }
             continue;
         }
 
         // we know r is inside this module, but we don't know where yet
-        handleRelocation(r, functionList, target);
-    }
-}
-
-void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
-    Function *target) {
-
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-        functionList, r->getAddress());
-
-    if(auto i = dynamic_cast<Instruction *>(inner)) {
-        if(dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
-            // we don't need to do anything here because the InternalCalls pass
-            // and ExternalCalls pass deal with it
-            return;
-        }
-
-        LOG(2, "reloc inside " << i->getName() << " at "
+        LOG(2, "reloc inside " << instruction->getName() << " at "
             << r->getAddress() << " targets [" << target->getName() << "]");
-        if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-            auto assembly = v->getAssembly();
-            if(!assembly) return;
-#ifdef ARCH_X86_64
-            auto linked = LinkedInstruction::makeLinked(module, i, assembly);
-#else
-            auto linked = LinkedInstruction::makeLinked(module, i, assembly, r);
 #endif
-            if(linked) {
-                i->setSemantic(linked);
-                delete v;
-            }
+
+        handleRelocation(r, instruction);
+    }
+}
+
+void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
+    if(dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
+        // we don't need to do anything here because the InternalCalls pass
+        // and ExternalCalls pass deal with it
+        return;
+    }
+
+    if(auto v = dynamic_cast<DisassembledInstruction *>(
+        instruction->getSemantic())) {
+
+        auto assembly = v->getAssembly();
+        if(!assembly) return;
+#ifdef ARCH_X86_64
+        auto linked
+            = LinkedInstruction::makeLinked(module, instruction, assembly);
+#else
+        auto linked
+            = LinkedInstruction::makeLinked(module, instruction, assembly, r);
+#endif
+        if(linked) {
+            instruction->setSemantic(linked);
+            delete v;
         }
     }
 }
 
-void HandleRelocsPass::handleRelocation(Reloc *r, FunctionList *functionList,
+void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
     Symbol *symbol) {
 
 #ifdef ARCH_X86_64
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-        functionList, r->getAddress());
+    if(auto v = dynamic_cast<ControlFlowInstruction *>(
+        instruction->getSemantic())) {
 
-    if(inner){
-        if(auto i = dynamic_cast<Instruction *>(inner)) {
-            if(auto v = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
-                auto oldLink = v->getLink();
+        auto oldLink = v->getLink();
 
-                // Symbol Only links should only be formed with relocations for object files where symbol is in UND section (0)
-                if(symbol->getSectionIndex() == 0) {
-                    auto newLink = new SymbolOnlyLink(symbol, r->getAddress());
-                    v->setLink(newLink);
-                    LOG(2, " -> CREATED SYMBOL ONLY LINK");
-                    delete oldLink;
-                }
-            }
-            else if(auto v = dynamic_cast<DisassembledInstruction *>(i->getSemantic())) {
-                auto assembly = v->getAssembly();
-                if(!assembly) return;
+        // Symbol Only links should only be formed with relocations for object
+        // files where symbol is in UND section (0)
+        if(symbol->getSectionIndex() == 0) {
+            auto newLink = new SymbolOnlyLink(symbol, r->getAddress());
+            v->setLink(newLink);
+            LOG(2, " -> CREATED SYMBOL ONLY LINK");
+            delete oldLink;
+        }
+    }
+    else if(auto v = dynamic_cast<DisassembledInstruction *>(
+        instruction->getSemantic())) {
 
-                auto linked = new LinkedInstruction(i, *assembly);
-                i->setSemantic(linked);
-                delete v;
+        auto assembly = v->getAssembly();
+        if(!assembly) return;
 
-                auto targetAddress = r->getSymbol()->getAddress() + r->getAddend();
+        auto linked = new LinkedInstruction(instruction, *assembly);
+        instruction->setSemantic(linked);
+        delete v;
 
-                for(size_t op = 0;
-                    op < linked->getAssembly()->getAsmOperands()->getOpCount();
-                    op ++) {
-                    int opOffset = MakeSemantic::getDispOffset(linked->getAssembly(), op);
-                    if(r->getAddress() - i->getAddress() == (address_t)opOffset) {
-                        linked->setIndex(op);
-                    }
-                }
+        auto targetAddress = r->getSymbol()->getAddress() + r->getAddend();
 
-                bool isRelative = MakeSemantic::isRIPRelative(
-                    linked->getAssembly(), linked->getIndex());
-                auto newLink = module->getDataRegionList()->createDataLink(
-                    targetAddress, isRelative);
-                linked->setLink(newLink);
+        for(size_t op = 0;
+            op < linked->getAssembly()->getAsmOperands()->getOpCount();
+            op ++) {
+            int opOffset = MakeSemantic::getDispOffset(linked->getAssembly(), op);
+            if(r->getAddress() - instruction->getAddress()
+                == (address_t)opOffset) {
 
-                LOG(2, " -> CREATED DATA LINK");
+                linked->setIndex(op);
             }
         }
+
+        bool isRelative = MakeSemantic::isRIPRelative(
+            linked->getAssembly(), linked->getIndex());
+        auto newLink = module->getDataRegionList()->createDataLink(
+            targetAddress, isRelative);
+        linked->setLink(newLink);
+
+        LOG(2, " -> CREATED DATA LINK");
     }
 #endif
 }
