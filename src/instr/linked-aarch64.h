@@ -23,6 +23,8 @@ public:
         AARCH64_IM_LDRSW,
         AARCH64_IM_LDRSH,
         AARCH64_IM_LDRSB,
+        AARCH64_IM_MOV,
+        AARCH64_IM_MOVK,
         AARCH64_IM_STR,
         AARCH64_IM_STRH,
         AARCH64_IM_STRB,

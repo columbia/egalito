@@ -101,6 +101,22 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
            return (imm & ~0xFFE003FF); },
        1
       },
+      /* MOV (wide immediate) */
+      {0xFFE0001F,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFFF;
+           uint32_t imm = disp << 5;
+           return (imm & ~0xFFE0001F); },
+       1
+      },
+      /* MOVK */
+      {0xFFE0001F,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = dest & 0xFFFF;
+           uint32_t imm = disp << 5;
+           return (imm & ~0xFFE0001F); },
+       1
+      },
       /* STR (immediate: unsigned offset, with ADRP) */
       {0xFFE003FF,
        [] (address_t dest, address_t src, uint32_t fixed) {
@@ -249,6 +265,8 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     case ARM64_INS_LDRSB:   m = AARCH64_IM_LDRSB;   break;
     case ARM64_INS_LDRSW:   m = AARCH64_IM_LDRSW;   break;
     case ARM64_INS_LDRSH:   m = AARCH64_IM_LDRSH;   break;
+    case ARM64_INS_MOV:     m = AARCH64_IM_MOV;     break;
+    case ARM64_INS_MOVK:    m = AARCH64_IM_MOVK;    break;
     case ARM64_INS_STR:     m = AARCH64_IM_STR;     break;
     case ARM64_INS_STRH:    m = AARCH64_IM_STRH;    break;
     case ARM64_INS_STRB:    m = AARCH64_IM_STRB;    break;
