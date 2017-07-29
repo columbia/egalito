@@ -274,16 +274,30 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
     Function *target = CIter::findChild(module->getFunctionList(),
         reloc->getSymbol()->getName());
+
+    LOG0(9, "reloc " << std::hex << reloc->getAddress() << " ");
     auto linked = new LinkedInstruction(instruction, *assembly);
     if(target) {
+        if(reloc->getAddend() > 0) {
+            auto address = target->getAddress() + reloc->getAddend();
+            target = CIter::spatial(module->getFunctionList())->findContaining(
+                address);
+        }
+
         linked->setLink(new NormalLink(target));
+        LOG(9, "created function link --> " << target->getName());
     }
     else {
-        //auto address = linked->getOriginalOffset();
-        auto address = reloc->getAddend();
+        auto address = reloc->getSymbol()->getAddress() + reloc->getAddend();
         auto dataLink = LinkFactory::makeDataLink(module, address, true);
         if(!dataLink) {
+            LOG(9, "unresolved link! at "
+                << std::hex << instruction->getAddress()
+                << " to " << std::hex << address);
             dataLink = new UnresolvedLink(address);
+        }
+        else {
+            LOG(9, "created data link --> " << address);
         }
         linked->setLink(dataLink);
     }

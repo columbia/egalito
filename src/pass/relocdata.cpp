@@ -10,6 +10,7 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dloadtime
 #include "log/log.h"
+#include "log/registry.h"
 
 bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     bool allowInternal) {
@@ -36,7 +37,7 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
                 return true;
             }
             else if(versionedName.size() > 0) {
-                LOG(1, "trying versioned name " << versionedName.c_str());
+                LOG(10, "trying versioned name " << versionedName.c_str());
                 if(resolveNameHelper(versionedName.c_str(), address, elfSpace)) {
                     return true;
                 }
@@ -50,7 +51,7 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
                     return true;
                 }
                 else if(versionedName.size() > 0) {
-                    LOG(1, "trying versioned name " << versionedName.c_str());
+                    LOG(10, "trying versioned name " << versionedName.c_str());
                     if(resolveNameHelper(versionedName.c_str(), address, space)) {
                         return true;
                     }
@@ -222,10 +223,9 @@ void RelocDataPass::visit(Module *module) {
 
 void RelocDataPass::fixRelocation(Reloc *r) {
     const char *name = 0;
-    Symbol *symbol = nullptr;
+    Symbol *symbol = r->getSymbol(); // we need symbol even if it has no name
     if(r->getSymbol() && *r->getSymbol()->getName()) {
         name = r->getSymbol()->getName();
-        symbol = r->getSymbol();
     }
     else {
         // If the symbols are split into a separate file, the relocation
@@ -238,6 +238,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
 
     LOG(1, "trying to fix " << (name ? name : "???")
+        << "(" << r->getAddress() << ")"
         << " reloc type " << std::dec << (int)r->getType());
 
     auto elfMap = elfSpace->getElfMap();
@@ -314,9 +315,23 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     address_t update = elfMap->getBaseAddress() + r->getAddress();
     address_t dest = 0;
     bool found = false;
+    bool dontcare = false;
+    size_t destOffset = 0;
 
-    // There is a data variable for the ones whose type is
-    // R_AARCH64_RELATIVE or R_AARCH64_TLS_TPREL
+    // There is a data variable for R_AARCH64_RELATIVE and R_AARCH64_TLS_TPREL
+
+    if(r->getAddend() > 0) {
+        auto addr = symbol->getAddress() + r->getAddend();
+        // we haven't seen any case that points to outside the module with
+        // a positive addend
+        if(auto s = module->getElfSpace()->getSymbolList()->find(addr)) {
+            symbol = s;
+        }
+        else {
+            // pointing into the middle of an internal data object
+            destOffset = r->getAddend();
+        }
+    }
 
     if(r->getType() == R_AARCH64_GLOB_DAT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
@@ -326,18 +341,27 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
     else if(r->getType() == R_AARCH64_ABS64) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
+        if(!found) {
+            if(symbol->getType() == Symbol::TYPE_SECTION) {
+                dest = symbol->getAddress();
+                found = true;
+            }
+        }
     }
     else {
-        LOG(1, "    NOT fixing because type is " << r->getType());
+        dontcare = true;
+        LOG(10, "    NOT fixing because type is " << r->getType());
     }
     if(found) {
-        LOG(1, "    fix address " << std::hex << update
-            << " to point at " << dest
+        LOG(10, "    fix address " << std::hex << update
+            << " to point at " << dest << " + " << destOffset
             << " which was " << std::hex << *(unsigned long *)update);
-        *(unsigned long *)update = dest;
+        *(unsigned long *)update = dest + destOffset;
     }
-    else {
+    else if(!dontcare) {
         LOG(1, "    not found!");
+        LOG(1, "        offset " << std::hex << r->getAddress()
+            << " addend " << r->getAddend());
     }
 #endif
 }
