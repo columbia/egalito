@@ -32,7 +32,10 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
     for(auto block : CIter::children(working->getFunction())) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
+            if(dynamic_cast<LinkedInstruction *>(semantic)) continue;
             if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
+                auto link = v->getLink();
+                if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
                 auto assembly = v->getAssembly();
                 if(!assembly) continue;
                 if(assembly->getId() == ARM64_INS_ADR) {
