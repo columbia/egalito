@@ -1,7 +1,8 @@
 # Makefile for test cases
 include ../../env.mk
 
-MUSLCC = /usr/local/musl/bin/musl-gcc
+MUSLCC_BIN = $(wildcard /usr/local/musl/bin/musl-gcc)
+MUSLCC = $(if $(MUSLCC_BIN),$(MUSLCC_BIN),touch $@;echo "--skipping")
 
 CFLAGS	= -fPIE -pie -O2
 STATIC_CFLAGS = -static -O2
