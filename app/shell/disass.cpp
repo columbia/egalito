@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "disass.h"
 
+#include "analysis/controlflow.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
 #include "chunk/dump.h"
