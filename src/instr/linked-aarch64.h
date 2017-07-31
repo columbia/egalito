@@ -63,7 +63,7 @@ public:
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
     const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
-    uint32_t getOriginalOffset() const;
+    int64_t getOriginalOffset() const;
 
     uint32_t rebuild();
 

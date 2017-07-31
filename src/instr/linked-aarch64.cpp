@@ -220,7 +220,7 @@ uint32_t LinkedInstruction::rebuild() {
     return fixedBytes | imm;
 }
 
-uint32_t LinkedInstruction::getOriginalOffset() const {
+int64_t LinkedInstruction::getOriginalOffset() const {
     auto operands = const_cast<LinkedInstruction *>(this)
         ->getAssembly()->getAsmOperands()->getOperands();
     if(operands[modeInfo->immediateIndex].type == ARM64_OP_IMM) {
