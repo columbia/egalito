@@ -99,6 +99,34 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
     }, "disassembles a single instruction");
 
+    topLevel->add("cfgdot", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(1);
+
+        Function *func = nullptr;
+        address_t addr;
+        if(args.asHex(0, &addr)) {
+            func = ChunkFind2(setup->getConductor())
+                .findFunctionContaining(addr);
+        }
+        else {
+            func = ChunkFind2(setup->getConductor())
+                .findFunction(args.front().c_str());
+        }
+
+        if(func) {
+            ControlFlowGraph cfg(func);
+            cfg.dumpDot();
+        }
+        else {
+            std::cout << "can't find function or address \"" << args.front() << "\"\n";
+        }
+
+    }, "prints CFG in dot");
+
     topLevel->add("logcalls", [&] (Arguments args) {
         if(!setup->getConductor()) {
             std::cout << "no ELF files loaded\n";
