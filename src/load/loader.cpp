@@ -21,7 +21,6 @@ extern address_t entry;
 extern const char *initial_stack;
 extern "C" void _start2(void);
 
-static void mapSegments(ConductorSetup *setup);
 static void otherPasses(ConductorSetup *setup);
 
 int main(int argc, char *argv[]) {
@@ -42,7 +41,7 @@ int main(int argc, char *argv[]) {
         ConductorSetup setup;
 
         setup.parseElfFiles(argv[1], true, true);
-        mapSegments(&setup);
+        SegMap::mapAllSegments(&setup);
         setup.makeLoaderSandbox();
         otherPasses(&setup);
         setup.moveCode();
@@ -82,26 +81,6 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
-}
-
-static void mapSegments(ConductorSetup *setup) {
-    auto elf = setup->getElfMap();
-    auto egalito = setup->getEgalitoElfMap();
-
-    // map PT_LOAD sections into memory
-    if(elf) {
-        SegMap::mapSegments(*elf, elf->getBaseAddress());
-    }
-    if(egalito) {
-        SegMap::mapSegments(*egalito, egalito->getBaseAddress());
-    }
-
-    for(auto lib : *setup->getConductor()->getLibraryList()) {
-        auto map = lib->getElfMap();
-        if(map && map != elf && map != egalito) {
-            SegMap::mapSegments(*map, map->getBaseAddress());
-        }
-    }
 }
 
 static void otherPasses(ConductorSetup *setup) {

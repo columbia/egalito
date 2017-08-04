@@ -5,10 +5,32 @@
 #include <elf.h>
 
 #include "segmap.h"
+#include "conductor/setup.h"
+#include "conductor/conductor.h"
 #include "log/log.h"
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
+
+void SegMap::mapAllSegments(ConductorSetup *setup) {
+    auto elf = setup->getElfMap();
+    auto egalito = setup->getEgalitoElfMap();
+
+    // map PT_LOAD sections into memory
+    if(elf) {
+        SegMap::mapSegments(*elf, elf->getBaseAddress());
+    }
+    if(egalito) {
+        SegMap::mapSegments(*egalito, egalito->getBaseAddress());
+    }
+
+    for(auto lib : *setup->getConductor()->getLibraryList()) {
+        auto map = lib->getElfMap();
+        if(map && map != elf && map != egalito) {
+            SegMap::mapSegments(*map, map->getBaseAddress());
+        }
+    }
+}
 
 void SegMap::mapSegments(ElfMap &elf, address_t baseAddress) {
     auto segmentList = elf.getSegmentList();
