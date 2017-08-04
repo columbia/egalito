@@ -7,6 +7,8 @@
 #include "conductor/conductor.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
+#include "generate/bingen.h"
+#include "load/segmap.h"
 #include "operation/find.h"
 #include "operation/find2.h"
 #include "pass/logcalls.h"
@@ -153,6 +155,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->makeFileSandbox(args.front().c_str());
         setup->moveCode(false);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
+
+    topLevel->add("bin", [&] (Arguments args) {
+        args.shouldHave(1);
+        SegMap::mapAllSegments(setup);
+        setup->getConductor()->fixDataSections();
+        BinGen(setup->getConductor()->getMainSpace(),
+            args.front().c_str()).generate();
+    }, "writes out the current image to a binary file");
 
     topLevel->add("dumptls", [&] (Arguments args) {
         args.shouldHave(0);
