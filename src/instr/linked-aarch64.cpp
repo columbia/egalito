@@ -293,7 +293,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Function *target = CIter::findChild(module->getFunctionList(),
         reloc->getSymbol()->getName());
 
-    LOG0(9, "reloc " << std::hex << reloc->getAddress() << " ");
+    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
     auto linked = new LinkedInstruction(instruction, *assembly);
     if(target) {
         if(reloc->getAddend() > 0) {
@@ -303,7 +303,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         }
 
         linked->setLink(new NormalLink(target));
-        LOG(9, "created function link --> " << target->getName());
+        LOG(10, "created function link --> " << target->getName());
     }
     else {
         auto address = reloc->getSymbol()->getAddress() + reloc->getAddend();
@@ -315,7 +315,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             dataLink = new UnresolvedLink(address);
         }
         else {
-            LOG(9, "created data link --> " << address);
+            LOG(10, "created data link --> " << address);
         }
         linked->setLink(dataLink);
     }

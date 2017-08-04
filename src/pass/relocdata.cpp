@@ -17,7 +17,7 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
 
     if(symbol) {
         const char *name = symbol->getName();
-        LOG(1, "SEARCH for " << name << ", internal = " << allowInternal);
+        LOG(10, "SEARCH for " << name << ", internal = " << allowInternal);
 
         std::string versionedName;
         if(auto ver = symbol->getVersion()) {
@@ -28,7 +28,7 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
         }
 
         if(!allowInternal) {
-            LOG(1, "skipping searching in " << elfSpace->getModule()->getName());
+            LOG(10, "skipping searching in " << elfSpace->getModule()->getName());
         }
 
         // first check the elfSpace we are resolving relocations for
@@ -104,7 +104,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     auto f = CIter::named(space->getModule()->getFunctionList())
         ->find(name);
     if(f) {
-        LOG(1, "    ...found as function! at "
+        LOG(10, "    ...found as function! at "
             << std::hex << f->getAddress());
         *address = f->getAddress();
         return true;
@@ -113,7 +113,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     // Also, check if this is an alias for a known function.
     auto alias = space->getAliasMap()->find(name);
     if(alias) {
-        LOG(1, "    ...found as alias! at "
+        LOG(10, "    ...found as alias! at "
             << std::hex << alias->getAddress());
         *address = alias->getAddress();
         return true;
@@ -122,7 +122,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     // Maybe this is normally supplied by the system loader and
     // we're supplying it instead.
     if(auto a = LoaderEmulator::getInstance().findSymbol(name)) {
-        LOG(1, "    ...found via emulation! at " << std::hex << a);
+        LOG(10, "    ...found via emulation! at " << std::hex << a);
         *address = a;
         return true;
     }
@@ -136,7 +136,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
             && symbol->getType() != Symbol::TYPE_IFUNC) {
 
             // must be a data object, address unchanged
-            LOG(1, "    ...found as data ref! at "
+            LOG(10, "    ...found as data ref! at "
                 << std::hex << symbol->getAddress() << " in "
                 << space->getModule()->getName());
             *address = space->getElfMap()->getBaseAddress()
@@ -161,7 +161,7 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
             && symbol->getType() != Symbol::TYPE_IFUNC) {
 
             // we found it
-            LOG(1, "    ...found data object! at "
+            LOG(10, "    ...found data object! at "
                 << std::hex << symbol->getAddress() << " in "
                 << space->getModule()->getName());
             *address = space->getElfMap()->getBaseAddress()
@@ -213,7 +213,7 @@ void RelocDataPass::visit(Program *program) {
 }
 
 void RelocDataPass::visit(Module *module) {
-    LOG(1, "RESOLVING relocs for " << module->getName());
+    LOG(10, "RESOLVING relocs for " << module->getName());
     this->elfSpace = module->getElfSpace();
     this->module = module;
     for(auto r : *elfSpace->getRelocList()) {
@@ -237,7 +237,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
 
-    LOG(1, "trying to fix " << (name ? name : "???")
+    LOG(10, "trying to fix " << (name ? name : "???")
         << "(" << r->getAddress() << ")"
         << " reloc type " << std::dec << (int)r->getType());
 
@@ -286,7 +286,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
     else if(r->getType() == R_X86_64_COPY) {
-        LOG(1, "IT'S A COPY! " << std::hex << update);
+        LOG(10, "IT'S A COPY! " << std::hex << update);
         address_t other;
         size_t otherSize = (size_t)-1;
         //found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
@@ -294,20 +294,20 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &other, false);
         if(found) {
             size_t size = std::min(otherSize, r->getSymbol()->getSize());
-            LOG(1, "    doing memcpy from " << other
+            LOG(10, "    doing memcpy from " << other
                 << " (" << module->getName() << ")"
                 << " to " << update << " size " << size);
             std::memcpy((void *)update, (void *)other, size);
-            LOG(1, "        copied value " << *(unsigned long *)other);
+            LOG(10, "        copied value " << *(unsigned long *)other);
         }
         found = false;
     }
     else {
-        LOG(1, "    NOT fixing because type is " << r->getType());
+        LOG(10, "    NOT fixing because type is " << r->getType());
     }
 
     if(found) {
-        LOG(1, "    fix address " << std::hex << update
+        LOG(10, "    fix address " << std::hex << update
             << " to point at " << dest);
         *(unsigned long *)update = dest;
     }
@@ -359,8 +359,8 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         *(unsigned long *)update = dest + destOffset;
     }
     else if(!dontcare) {
-        LOG(1, "    not found!");
-        LOG(1, "        offset " << std::hex << r->getAddress()
+        LOG(10, "    not found!");
+        LOG(10, "        offset " << std::hex << r->getAddress()
             << " addend " << r->getAddend());
     }
 #endif
