@@ -83,15 +83,19 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
     if(offset) *offset += sizeof(struct my_pthread);
 #endif
 
-    LOG(1, "mapping TLS region into memory at 0x" << std::hex << tlsBaseAddress
-        << ", size 0x" << size);
-    void *mem = mmap((void *)tlsBaseAddress,
-        ROUND_UP(size),
-        PROT_READ | PROT_WRITE,
-        MAP_ANONYMOUS | MAP_PRIVATE,
-        -1, 0);
-    if(mem == (void *)-1) throw "Out of memory?";
-    if(mem != (void *)tlsBaseAddress) throw "Overlapping with other regions?";
+    if(size > 0) {
+        LOG(1, "mapping TLS region into memory at 0x"
+            << std::hex << tlsBaseAddress << ", size 0x" << size);
+        void *mem = mmap((void *)tlsBaseAddress,
+            ROUND_UP(size),
+            PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE,
+            -1, 0);
+        if(mem == (void *)-1) throw "Out of memory?";
+        if(mem != (void *)tlsBaseAddress) {
+            throw "Overlapping with other regions?";
+        }
+    }
 
     return tp;
 }
