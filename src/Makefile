@@ -12,12 +12,16 @@ ELF_SOURCES         = $(wildcard elf/*.cpp)
 GENERATE_SOURCES    = $(wildcard generate/*.cpp)
 INSTR_SOURCES       = $(wildcard instr/*.cpp)
 LOAD_SOURCES        = $(wildcard load/*.cpp)
+BINLOAD_SOURCES     = $(wildcard binload/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
+	BINLOAD_SOURCES += load/bootstrap-aarch64.S
 else ifeq (x86_64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-x86_64.s
+	BINLOAD_SOURCES += load/bootstrap-x86_64.s
 else ifeq (arm,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-arm.s
+	BINLOAD_SOURCES += load/bootstrap-arm.s
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 MAIN_SOURCES        = $(wildcard main/*.cpp)
@@ -39,17 +43,20 @@ TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
-ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES))
+BINLOADER_SOURCES = $(TYPICAL_SOURCES) $(BINLOAD_SOURCES)
+BINLOADER_OBJECTS = $(call obj-filename,$(BINLOADER_SOURCES))
+ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
 TARGET = $(BUILDDIR)egalito
 LOADER = $(BUILDDIR)loader
+BINLOADER = $(BUILDDIR)binloader
 LIBRARY = $(BUILDDIR)libegalito.a
 SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 
-OUTPUTS = $(TARGET) $(LOADER) $(LIBRARY) $(SHARED_LIBRARY)
+OUTPUTS = $(TARGET) $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
@@ -103,6 +110,10 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 $(TARGET): $(TARGET_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
+	$(SHORT_LINK) -static -o $@ -pg \
+		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
+		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+$(BINLOADER): $(BINLOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
 		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
