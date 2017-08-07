@@ -21,6 +21,7 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
 #else
     auto tableSection = module->getElfSpace()->getElfMap()
         ->findSection(".rodata");
+    if(!tableSection) return;
     auto tableReadPtr = module->getElfSpace()->getElfMap()
         ->getSectionReadPtr<unsigned char *>(tableSection);
 #endif

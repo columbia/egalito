@@ -105,14 +105,16 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     module->setFunctionList(functionList);
     functionList->setParent(module);
 
-    for(auto sym : *symbolList) {
-        // skip Symbols that we don't think represent functions
-        if(!sym->isFunction()) continue;
+    if(symbolList) {
+        for(auto sym : *symbolList) {
+            // skip Symbols that we don't think represent functions
+            if(!sym->isFunction()) continue;
 
-        Function *function = Disassemble::function(elfMap, sym, symbolList);
-        functionList->getChildren()->add(function);
-        function->setParent(functionList);
-        LOG(10, "adding function " << function->getName());
+            Function *function = Disassemble::function(elfMap, sym, symbolList);
+            functionList->getChildren()->add(function);
+            function->setParent(functionList);
+            LOG(10, "adding function " << function->getName());
+        }
     }
     return module;
 }
