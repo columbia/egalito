@@ -55,7 +55,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         this->symbolList = SymbolList::buildSymbolList(elf);
     }
 
-    if (elf->isDynamic()) {
+    if(elf->isDynamic()) {
         this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
     }
 

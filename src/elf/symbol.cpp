@@ -51,7 +51,11 @@ bool SymbolList::add(Symbol *symbol, size_t index) {
     if(symbolMap.find(symbol->getName()) == symbolMap.end()) {
         symbolMap[symbol->getName()] = symbol;
     }
-    spaceMap[symbol->getAddress()] = symbol;
+    if(symbol->getType() != Symbol::TYPE_SECTION
+        && symbol->getName()[0] != '$') {
+
+        spaceMap[symbol->getAddress()] = symbol;
+    }
     return true;
 }
 
@@ -271,8 +275,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         }
 
         Symbol *symbol = new Symbol(address, size, name, type, bind, j, shndx);
-        CLOG0(1, "%s symbol #%d, index %d, [%s]\n", sectionName,
-            (int)list->symbolList.size(), j, name);
+        CLOG0(1, "%s symbol #%d, index %d, [%s] %lx\n", sectionName,
+            (int)list->symbolList.size(), j, name, address);
         list->add(symbol, (size_t)j);
     }
 
@@ -565,7 +569,7 @@ void SymbolAliasFinder::constructByAddress() {
     for(size_t i = 0; i < sortedList.size(); i++) {
         auto sym = sortedList[i];
         if(sym->getSectionIndex() == SHN_UNDEF) continue;
-        if(sym->getType() == Symbol::TYPE_SECTION) continue;
+        //if(sym->getType() == Symbol::TYPE_SECTION) continue;
         if(sym->getType() == Symbol::TYPE_FILE) continue;
 
         for(size_t j = i + 1; j < sortedList.size(); j++) {
@@ -578,13 +582,12 @@ void SymbolAliasFinder::constructByAddress() {
             if(sym2->getType() == Symbol::TYPE_FILE) continue;
 
             if(sym->getSectionIndex() == sym2->getSectionIndex()) {
-                if(sym->getSize() == sym2->getSize()) {
-                    join(i, j);
-                }
-                else {
-                    CLOG(0, "OVERLAPPING symbol, address 0x%lx [%s], not adding",
-                        sym->getAddress(), sym->getName());
-                }
+                // we have to make an alias for this case too; otherwise
+                // there is no way of getting to this symbol by address.
+                // This is needed to get an object symbol from section
+                // symbol obtained from a relocation
+                //if(sym->getSize() == sym2->getSize())
+                join(i, j);
             }
         }
     }
