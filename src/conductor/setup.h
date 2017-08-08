@@ -28,6 +28,7 @@ public:
         sandbox(nullptr) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
+    void injectLibrary(const char *filename);
     void makeLoaderSandbox();
     void makeFileSandbox(const char *outputFile);
     void moveCode(bool useDisps = true);

@@ -17,6 +17,7 @@ public:
     void parseExecutable(ElfMap *elf);
     void parseEgalito(ElfMap *elf);
     void parseLibraries();
+    void parseAddOnLibrary(ElfMap *elf);
 
     void resolvePLTLinks();
     void fixDataSections();

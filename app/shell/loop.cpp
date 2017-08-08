@@ -59,6 +59,11 @@ void mainLoop() {
         setup.parseElfFiles(args.front().c_str(), true, true);
     }, "parses the given ELF and all its shared libraries");
 
+    topLevel.add("inject", [&] (Arguments args) {
+        args.shouldHave(1);
+        setup.injectLibrary(args.front().c_str());
+    }, "parse and inject the given library");
+
     topLevel.add("mute", [&] (Arguments args) {
         args.shouldHave(0);
         GroupRegistry::getInstance()->muteAllSettings();

@@ -44,6 +44,30 @@ void ConductorSetup::parseElfFiles(const char *executable,
     }
 }
 
+#define ROUND_DOWN(x)   ((x) & ~0xfff)
+#define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
+
+void ConductorSetup::injectLibrary(const char *filename) {
+    if(auto elfmap = new ElfMap(filename)) {
+        conductor->parseAddOnLibrary(elfmap);
+        setBaseAddress(elfmap, 0xb0000000);
+
+        Module *module = nullptr;
+        for(auto space : conductor->getSpaceList()->iterable()) {
+            if(space->getElfMap() == elfmap) {
+                module = space->getModule();
+                break;
+            }
+        }
+
+        for(auto region : CIter::regions(module)) {
+            if(region == module->getDataRegionList()->getTLS()) continue;
+
+            region->updateAddressFor(elfmap->getBaseAddress());
+        }
+    }
+}
+
 void ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
     this->sandbox = new SandboxImpl<MemoryBacking,

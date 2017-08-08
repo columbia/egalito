@@ -49,6 +49,12 @@ void Conductor::parseLibraries() {
     }
 }
 
+void Conductor::parseAddOnLibrary(ElfMap *elf) {
+    auto library = new SharedLib("(addon)", "(addon)", elf);
+    getLibraryList()->add(library);
+    parse(elf, library);
+}
+
 ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
     ElfSpace *space = new ElfSpace(elf, library);
     library->setElfSpace(space);
