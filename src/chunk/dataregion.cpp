@@ -7,6 +7,7 @@
 #include "elf/elfspace.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 std::string DataRegion::getName() const {
     StreamAsString stream;
@@ -23,6 +24,15 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     setPosition(new AbsolutePosition(phdr->p_vaddr));
     setSize(phdr->p_memsz);
     originalAddress = getAddress();
+    startOffset = 0;
+    if(!writable()) {
+        if(auto sec = elfMap->findSection(".rodata")) {
+            startOffset = sec->getVirtualAddress() - getOriginalAddress();
+        }
+        else {
+            startOffset = getSize();
+        }
+    }
 }
 
 void DataRegion::addVariable(DataVariable *variable) {
@@ -143,6 +153,7 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 }
 
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
+    //TemporaryLogLevel tll("chunk", 10);
     auto list = new DataRegionList();
 
     for(void *s : elfMap->getSegmentList()) {

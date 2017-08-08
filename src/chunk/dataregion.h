@@ -31,6 +31,7 @@ private:
     VariableListType variableList;
     ElfXX_Phdr *phdr;
     address_t originalAddress;
+    size_t startOffset;
 public:
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
@@ -42,9 +43,12 @@ public:
     void addVariable(DataVariable *variable);
     bool contains(address_t address);
     bool endsWith(address_t address);
+    bool writable() const { return phdr->p_flags & PF_W; }
+    bool bss() const { return phdr->p_filesz == 0; }
 
     virtual void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
+    size_t getStartOffset() const { return startOffset; }
 
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
