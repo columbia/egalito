@@ -2,8 +2,8 @@
 
 include ../env.mk
 
-SNIPPET_SOURCES     = $(wildcard snippet/*.S)
 ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
+BINLOAD_SOURCES     = $(wildcard binload/*.cpp)
 BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 CONDUCTOR_SOURCES   = $(wildcard conductor/*.cpp)
@@ -12,7 +12,6 @@ ELF_SOURCES         = $(wildcard elf/*.cpp)
 GENERATE_SOURCES    = $(wildcard generate/*.cpp)
 INSTR_SOURCES       = $(wildcard instr/*.cpp)
 LOAD_SOURCES        = $(wildcard load/*.cpp)
-BINLOAD_SOURCES     = $(wildcard binload/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-aarch64.S
 	BINLOAD_SOURCES += load/bootstrap-aarch64.S
@@ -29,6 +28,7 @@ OPERATION_SOURCES   = $(wildcard operation/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 CMINUS_SOURCES      = $(wildcard cminus/*.c)
+SNIPPET_SOURCES     = $(wildcard snippet/*.S snippet/*.c)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -37,7 +37,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
 		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
-		$(OPERATION_SOURCES) $(SNIPPET_SOURCES) load/emulator.cpp load/segmap.cpp
+		$(OPERATION_SOURCES) snippet/logcall.S load/emulator.cpp load/segmap.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
@@ -45,6 +45,8 @@ LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
 BINLOADER_SOURCES = $(TYPICAL_SOURCES) $(BINLOAD_SOURCES)
 BINLOADER_OBJECTS = $(call obj-filename,$(BINLOADER_SOURCES))
+ADDON_SOURCES = $(SNIPPET_SOURCES)
+ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
 ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
@@ -55,8 +57,10 @@ LOADER = $(BUILDDIR)loader
 BINLOADER = $(BUILDDIR)binloader
 LIBRARY = $(BUILDDIR)libegalito.a
 SHARED_LIBRARY = $(BUILDDIR)libegalito.so
+ADDON_LIBRARY = $(BUILDDIR)libaddon.so
 
-OUTPUTS = $(TARGET) $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY)
+OUTPUTS = $(TARGET) $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
+		$(ADDON_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
@@ -80,8 +84,10 @@ $(BUILDTREE): ../config/config.h
 		echo $(P_ARCH) > $@; \
 		ln -sf $(BUILDDIR)egalito; \
 		ln -sf $(BUILDDIR)loader; \
+		ln -sf $(BUILDDIR)binloader; \
 		ln -sf $(BUILDDIR)libegalito.a; \
 		ln -sf $(BUILDDIR)libegalito.so; \
+		ln -sf $(BUILDDIR)libaddon.so; \
 		rm -f example; \
 		ln -s ../test/example example; \
 		rm -f ex; \
@@ -121,6 +127,8 @@ $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
+$(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
+	$(SHORT_LINK) -nostdlib -shared -fPIC -Wl,-soname,libaddon.so $^ -o $@
 
 # Other targets
 .PHONY: clean
