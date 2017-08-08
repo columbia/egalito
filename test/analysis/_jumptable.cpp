@@ -73,7 +73,13 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
         const char *name;
         int expected;
     } testCase[] = {
+#ifdef ARCH_X86_64
         {"parse_expression", 2},
+#elif defined(ARCH_AARCH64)
+        {"parse_expression", 1},
+#else
+# error "check the disassembly"
+#endif
         {"trecurse", 0}  // this has a tail-recursive call
     };
     for(size_t i = 0; i < sizeof(testCase)/sizeof(*testCase); i ++) {
