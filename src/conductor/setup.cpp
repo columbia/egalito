@@ -66,6 +66,7 @@ void ConductorSetup::injectLibrary(const char *filename) {
             region->updateAddressFor(elfmap->getBaseAddress());
         }
     }
+    conductor->resolvePLTLinks();
 }
 
 void ConductorSetup::makeLoaderSandbox() {

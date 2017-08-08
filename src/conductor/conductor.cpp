@@ -70,8 +70,10 @@ void Conductor::resolvePLTLinks() {
     ResolvePLTPass resolvePLT(program);
     program->accept(&resolvePLT);
 
-    LibcHacksPass libcHacks(program);
-    getLibraryList()->getLibc()->getElfSpace()->getModule()->accept(&libcHacks);
+    if(auto libc = getLibraryList()->getLibc()) {
+        LibcHacksPass libcHacks(program);
+        libc->getElfSpace()->getModule()->accept(&libcHacks);
+    }
 }
 
 void Conductor::fixDataSections() {
