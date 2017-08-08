@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <fstream>
+#include <cstring>
 
 #include "types.h"
 
@@ -21,49 +22,17 @@ extern "C" void _start2(void);
 
 // these has to be adjusted manually
 #define DEFAULT_ENTRY_ADDRESS   0x400170
-#define TOP_ADDRESS             0x400120
+#define TOP_ADDRESS             0x400000
 
 #define MAP_START_ADDRESS       (ROUND_DOWN(TOP_ADDRESS))
 #define MAP_OFFSET              (TOP_ADDRESS - MAP_START_ADDRESS)
-
-static void makeTempFile(const char *filename) {
-    std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if(!in) {
-        LOG(1, "failed to open bin file");
-        return;
-    }
-
-    std::ofstream out(TEMPORARY_FILE,
-        std::ios::out | std::ios::binary | std::ios::trunc);
-    if(!out) {
-        LOG(1, "failed to open tmp file");
-        return;
-    }
-
-    std::string toppad(MAP_OFFSET, 0);
-    out << toppad;
-
-    in.seekg(0, in.end);
-    auto len = in.tellg();
-    in.seekg(0, in.beg);
-
-    auto buf = new char [len];
-    in.read(buf, len);
-    out.write(buf, len);
-    delete[] buf;
-
-    out.close();
-    in.close();
-}
 
 int main(int argc, char **argv) {
     if(argc < 2) {
         return -1;
     }
 
-    makeTempFile(argv[1]);
-
-    int fd = open(TEMPORARY_FILE, O_RDONLY);
+    int fd = open(argv[1], O_RDONLY);
     auto length = lseek(fd, 0, SEEK_END);
     lseek(fd, 0, SEEK_SET);
 
@@ -77,6 +46,21 @@ int main(int argc, char **argv) {
         return -1;
     }
     if(map != (void *)MAP_START_ADDRESS) {
+        LOG(1, "overlapping with other regions");
+        return -1;
+    }
+
+    auto sz = size - (length + MAP_OFFSET);
+    std::memset(static_cast<char *>(map) + length + MAP_OFFSET, 0, sz);
+
+    // For the actual boot loader, we should adjust the linker symbols.
+    auto bss = mmap((void *)(MAP_START_ADDRESS + size), 0x10000,
+        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(bss == (void *)-1) {
+        LOG(1, "out of memory?");
+        return -1;
+    }
+    if(bss != (void *)(MAP_START_ADDRESS + size)) {
         LOG(1, "overlapping with other regions");
         return -1;
     }
