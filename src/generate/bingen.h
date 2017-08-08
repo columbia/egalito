@@ -11,6 +11,7 @@ class Module;
 class BinGen {
 private:
     ConductorSetup *setup;
+    Module *mainModule;
     Module *addon;
     std::ofstream fs;
 public:
@@ -20,10 +21,12 @@ public:
     int generate();
 
 private:
+    void applyAdditionalTransform();
+    void addCallLogging();
+    void dePLT();
+    address_t reassignFunctionAddress();
     address_t makeImageBox();
     void changeMapAddress(Module *module, address_t address);
-    size_t getTextSize(Module *module);
-    void adjustAddOnCodeAddress(address_t pos);
     void interleaveData(address_t pos);
     address_t copyInData(Module *module, address_t pos, bool writable);
     void writeOut(address_t pos);

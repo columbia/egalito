@@ -20,8 +20,9 @@ extern "C" void _start2(void);
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
-// these has to be adjusted manually
-#define DEFAULT_ENTRY_ADDRESS   0x400170
+// these has to be adjusted manually (because these are usually fixed for
+// flat binary image loader)
+#define DEFAULT_ENTRY_ADDRESS   0x4001b4//0x4001a8//0x400170
 #define TOP_ADDRESS             0x400000
 
 #define MAP_START_ADDRESS       (ROUND_DOWN(TOP_ADDRESS))
