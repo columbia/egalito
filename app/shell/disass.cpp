@@ -8,7 +8,6 @@
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
 #include "generate/bingen.h"
-#include "load/segmap.h"
 #include "operation/find.h"
 #include "operation/find2.h"
 #include "pass/logcalls.h"
@@ -158,10 +157,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("bin", [&] (Arguments args) {
         args.shouldHave(1);
-        SegMap::mapAllSegments(setup);
-        setup->getConductor()->fixDataSections();
-        BinGen(setup->getConductor()->getMainSpace(),
-            args.front().c_str()).generate();
+        BinGen(setup, args.front().c_str()).generate();
     }, "writes out the current image to a binary file");
 
     topLevel->add("dumptls", [&] (Arguments args) {

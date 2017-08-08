@@ -74,6 +74,7 @@ public:
     address_t getBaseAddress() const { return baseAddress; }
     address_t getCopyBaseAddress() const { return copyBase; }
     address_t getRWCopyBaseAddress() const { return rwCopyBase; }
+    size_t getLength() const { return length; }
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
     const char *getSHStrtab() const { return shstrtab; }
