@@ -130,6 +130,7 @@ void JumpTablePass::saveToFile() const {
 #ifdef CACHE_DIR
     if(module->getName() == "module-(executable)") return;
     if(module->getName() == "module-(egalito)") return;
+    if(module->getName() == "module-(addon)") return;
 
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-jumptable";
@@ -154,6 +155,7 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
 #ifdef CACHE_DIR
     if(module->getName() == "module-(executable)") return false;
     if(module->getName() == "module-(egalito)") return false;
+    if(module->getName() == "module-(addon)") return false;
 
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-jumptable";

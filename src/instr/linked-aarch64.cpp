@@ -394,6 +394,7 @@ void LinkedInstruction::saveToFile(Module *module,
 
     if(module->getName() == "module-(executable)") return;
     if(module->getName() == "module-(egalito)") return;
+    if(module->getName() == "module-(addon)") return;
 
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-inferredpointers";
@@ -412,6 +413,7 @@ LinkedInstruction::loadFromFile(Module *module) {
 
     if(module->getName() == "module-(executable)") return list;
     if(module->getName() == "module-(egalito)") return list;
+    if(module->getName() == "module-(addon)") return list;
 
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-inferredpointers";
