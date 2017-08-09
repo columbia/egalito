@@ -62,13 +62,14 @@ address_t BinGen::reassignFunctionAddress() {
         address += func->getSize();
     }
 
-    // we need to handle PLT too for shared libraries
-    list = makeSortedFunctionList(addon);
-    for(auto func : list) {
-        LOG(1, func->getName() << " : "
-            << func->getAddress() << " -> " << address);
-        ChunkMutator(func).setPosition(address);
-        address += func->getSize();
+    if(addon) {
+        list = makeSortedFunctionList(addon);
+        for(auto func : list) {
+            LOG(1, func->getName() << " : "
+                << func->getAddress() << " -> " << address);
+            ChunkMutator(func).setPosition(address);
+            address += func->getSize();
+        }
     }
 
     return list.back()->getAddress() + list.back()->getSize();
@@ -99,6 +100,7 @@ void BinGen::dePLT(void) {
 }
 
 void BinGen::addCallLogging() {
+#if defined(ARCH_AARCH64)
     if(!addon) return;
 
     auto funcEntry = CIter::named(addon->getFunctionList())
@@ -134,6 +136,7 @@ void BinGen::addCallLogging() {
     instrument.setEntryAdvice(nullptr);
     instrument.setExitAdvice(prologue);
     mainFunc->accept(&instrument);
+#endif
 }
 
 void BinGen::applyAdditionalTransform() {
