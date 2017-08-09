@@ -20,16 +20,14 @@ extern "C" void _start2(void);
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
-// these has to be adjusted manually (because these are usually fixed for
-// flat binary image loader)
-#define DEFAULT_ENTRY_ADDRESS   0x4001b4//0x4001a8//0x400170
+// this has to be adjusted manually
 #define TOP_ADDRESS             0x400000
 
 #define MAP_START_ADDRESS       (ROUND_DOWN(TOP_ADDRESS))
 #define MAP_OFFSET              (TOP_ADDRESS - MAP_START_ADDRESS)
 
 int main(int argc, char **argv) {
-    if(argc < 2) {
+    if(argc < 3) {
         return -1;
     }
 
@@ -39,7 +37,7 @@ int main(int argc, char **argv) {
 
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
 
-    entry = DEFAULT_ENTRY_ADDRESS;
+    entry = strtol(argv[2], NULL, 0);
     auto size = ROUND_UP(length + MAP_OFFSET);
     auto map = mmap((void *)MAP_START_ADDRESS, size, prot, MAP_PRIVATE, fd, 0);
     if(map == (void *)-1) {
