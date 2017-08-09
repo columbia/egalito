@@ -2,6 +2,7 @@
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 void FixDataRegionsPass::visit(Program *program) {
     this->program = program;
@@ -9,6 +10,7 @@ void FixDataRegionsPass::visit(Program *program) {
 }
 
 void FixDataRegionsPass::visit(Module *module) {
+    //TemporaryLogLevel tll("pass", 10);
     LOG(1, "Fixing variables in regions for " << module->getName());
     this->module = module;
     visit(module->getDataRegionList());
@@ -46,7 +48,8 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 
         auto target = var->getDest()->getTargetAddress();
         LOG(10, "set variable " << std::hex << address << " => " << target
-            << " inside " << dataRegion->getName());
+            << " inside " << dataRegion->getName()
+            << " at " << dataRegion->getAddress());
         *reinterpret_cast<address_t *>(address) = target;
     }
 }
