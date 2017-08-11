@@ -1,70 +1,62 @@
+#include <sstream>
 #include "relocheck.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
+#include "elf/elfspace.h"
 #include "instr/concrete.h"
 #include "operation/find.h"
 #include "log/log.h"
 
 void ReloCheckPass::visit(Module *module) {
+    LOG(1, "-- checking relocation for module " << module->getName());
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    for(auto r : *relocList) {
-        if(0
-            || (r->getType() == R_AARCH64_LD_PREL_LO19)         // ld(literal)
-            || (r->getType() == R_AARCH64_ADR_PREL_LO21)        // adr -- not yet implemented
-            || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21)     // adrp
-            || (r->getType() == R_AARCH64_ADR_PREL_PG_HI21_NC)  // adrp
-            || (r->getType() == R_AARCH64_ADR_GOT_PAGE)         // adrp for GOT
-            || (r->getType() == R_AARCH64_JUMP26)               // (usually) tail call
-            || (r->getType() == R_AARCH64_CALL26)               // bl
-
-            || (r->getType() == R_AARCH64_ABS64)                // function pointer data
-
-            || (r->getType() == R_AARCH64_ADD_ABS_LO12_NC)      // pointers to data
-            || (r->getType() == R_AARCH64_LDST8_ABS_LO12_NC)
-            || (r->getType() == R_AARCH64_LDST16_ABS_LO12_NC)
-            || (r->getType() == R_AARCH64_LDST32_ABS_LO12_NC)
-            || (r->getType() == R_AARCH64_LDST64_ABS_LO12_NC)
-            || (r->getType() == R_AARCH64_LD64_GOT_LO12_NC)
-           ) {
-            if(module->getName() == "module-(executable)")
-            checkSemantic(r, module->getFunctionList());
-        }
-        else {
-            if (1
-                //related to GOT & PLT
-                && (r->getType() != R_AARCH64_GLOB_DAT)
-                && (r->getType() != R_AARCH64_JUMP_SLOT)
-                && (r->getType() != R_AARCH64_RELATIVE)
-
-                //seems to be only used in .eh_frame
-                && (r->getType() != R_AARCH64_PREL32)
-               ) {
-                LOG(1, "unhandled reloc type " << std::dec << r->getType()
-                    << " at 0x" << std::hex << r->getAddress());
-            }
+    if(auto relocList = module->getElfSpace()->getRelocList()) {
+        for(auto r : *relocList) {
+            check(r, module);
         }
     }
 #endif
+    LOG(1, "-- end");
 }
 
-void ReloCheckPass::checkSemantic(Reloc *r, FunctionList *list) {
-    Chunk *inner = ChunkFind().findInnermostInsideInstruction(list, r->getAddress());
+void ReloCheckPass::check(Reloc *r, Module *module) {
+    std::stringstream ss;
+
+    ss << "relocation at " << std::hex << r->getAddress();
+    auto flist = module->getFunctionList();
+    Chunk *inner
+        = ChunkFind().findInnermostInsideInstruction(flist, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<LinkedInstruction *>(i->getSemantic())) {
-            LOG0(10, "relocation at " << std::hex << r->getAddress());
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG(1, " NOT resolved! addend " << r->getAddend());
+                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
             }
             else {
-                LOG(10, " resolved to " << v->getLink()->getTarget()->getName()
+                LOG(10, ss.str()
+                    << " resolved to " << v->getLink()->getTarget()->getName()
                     << " (" << v->getLink()->getTargetAddress() << ")");
             }
         }
         else {
-            LOG(0, i->getName() << " is still a normal DisassembledInstruction :(");
+            LOG(1, i->getName() << " is still DisassembledInstruction");
         }
     }
     else {
-        //LOG(1, "address (0x" << r->getAddress() << ") points to a local symbol or data");
+        auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
+            + r->getAddress();
+        auto dlist = module->getDataRegionList();
+        if(auto region = dlist->findRegionContaining(addr)) {
+            if(auto var = region->findVariable(addr)) {
+                LOG(10, ss.str() << " resolved to a data variable pointing to "
+                    << var->getDest()->getTarget()->getName()
+                    << " at " << var->getDest()->getTargetAddress());
+            }
+            else {
+                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
+            }
+        }
+        else {
+            LOG(1, "region not found for " << addr);
+        }
     }
 }

@@ -28,7 +28,7 @@ void StackExtendPass::visit(Function *function) {
     if(!shouldApply(function)) return;
 
     FrameType frame(function);
-    frame.dump();
+    IF_LOG(10) frame.dump();
 
     if(extendSize > 0) {
         addExtendStack(function, &frame);

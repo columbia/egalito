@@ -13,7 +13,6 @@
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
 #include "pass/inferlinks.h"
-#include "pass/relocheck.h"
 #include "pass/relocdata.h"
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
@@ -104,9 +103,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     module->accept(&inferLinksPass);
 
     //TLSList::buildTLSList(elf, relocList, module);
-
-    ReloCheckPass checker(relocList);
-    module->accept(&checker);
 
     aliasMap = new FunctionAliasMap(module);
 }
