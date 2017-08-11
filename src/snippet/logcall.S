@@ -48,4 +48,6 @@ egalito_log_function_ret:
     .global egalito_inside_log_code
 egalito_inside_log_code:
     .long 0
+    .type egalito_inside_log_code, STT_OBJECT
+    .size egalito_inside_log_code, .-egalito_inside_log_code
 #endif
