@@ -317,6 +317,7 @@ Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
     case STT_OBJECT:   return Symbol::TYPE_OBJECT;
     case STT_SECTION:  return Symbol::TYPE_SECTION;
     case STT_FILE:     return Symbol::TYPE_FILE;
+    case STT_NOTYPE:   return Symbol::TYPE_NOTYPE;
     default:           return Symbol::TYPE_UNKNOWN;
     }
 }
