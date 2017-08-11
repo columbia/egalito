@@ -29,6 +29,7 @@ public:
     void setReadAddress(address_t address) { readAddress = address; }
     address_t convertOffsetToVA(size_t offset);
     address_t convertVAToOffset(address_t va);
+    size_t getSize() const { return shdr->sh_size; }
 };
 
 class ElfMap {
