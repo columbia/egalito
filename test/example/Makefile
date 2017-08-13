@@ -37,6 +37,7 @@ TARGETS-obj = $(addprefix $(BUILDDIR), hello-obj)
 TARGETS-musl = $(addprefix $(BUILDDIR), hello-musl)
 TARGETS-musl-static = $(addprefix $(BUILDDIR), hello-musl-static)
 TARGETS-musl-static-q = $(addprefix $(BUILDDIR), hello-musl-static-q)
+TARGETS-firmware = $(addprefix $(BUILDDIR), firmware)
 
 LONE_TARGETS = hellocpp $(BUILDDIR)detectnull
 
@@ -49,10 +50,11 @@ ALL_TARGETS += $(TARGETS-obj)
 ALL_TARGETS += $(TARGETS-musl)
 ALL_TARGETS += $(TARGETS-musl-static)
 ALL_TARGETS += $(TARGETS-musl-static-q)
+ALL_TARGETS += $(TARGETS-firmware)
 ALL_TARGETS += $(LONE_TARGETS)
 
 .PHONY: all targets targets-q targets-strip targets-static
-.PHONY: targets-musl targets-musl-static targets-musl-static-q
+.PHONY: targets-musl targets-musl-static targets-musl-static-q targets-firmware
 
 all: $(ALL_TARGETS)
 
@@ -69,6 +71,7 @@ targets-obj: $(TARGETS-obj)
 targets-musl: $(TARGETS-musl)
 targets-musl-static: $(TARGETS-musl-static)
 targets-musl-static-q: $(TARGETS-musl-static-q)
+targets-firmware: $(TARGETS-firmware)
 
 define dep_rule
 $$(BUILDDIR)$1: $2
@@ -79,6 +82,7 @@ $$(BUILDDIR)$1-static-q: $2
 $$(BUILDDIR)$1-musl: $2
 $$(BUILDDIR)$1-musl-static: $2
 $$(BUILDDIR)$1-musl-static-q: $2
+$$(BUILDDIR)$1-firmware: $2
 endef
 
 $(eval $(call dep_rule,hello,hello.c))
@@ -93,6 +97,7 @@ $(eval $(call dep_rule,hellocpp,hellocpp.cpp))
 $(eval $(call dep_rule,islower,islower.c))
 $(eval $(call dep_rule,getenv,getenv.c))
 $(eval $(call dep_rule,cfg,cfg.c))
+$(eval $(call dep_rule,firmware,firmware.c))
 
 $(BUILDDIR)hello-obj: hello-obj.c
 
@@ -114,6 +119,8 @@ $(BUILDDIR)%-musl-static:
 	$(MUSLCC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 $(BUILDDIR)%-musl-static-q:
 	$(MUSLCC) $(STATIC_CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q
+$(BUILDDIR)firmware:
+	$(MUSLCC) $(STATIC_CFLAGS) -Wl,-z,max-page-size=4096 -Wl,-Ttext-segment=0xC400000 -Wl,--gc-sections -Wl,-verbose -Wl,--print-map $(call addcflags,$(notdir $@)) $^ -o $@ -Wl,-q > $@.map
 $(BUILDDIR)%:
 	$(CC) $(CFLAGS) $(call addcflags,$(notdir $@)) $^ -o $@
 
