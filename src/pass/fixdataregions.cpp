@@ -46,7 +46,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
             }
         }
 
-        auto target = var->getDest()->getTargetAddress();
+        auto target = var->getDest()->getTargetAddress() + var->getAddend();
         LOG(10, "set variable " << std::hex << address << " => " << target
             << " inside " << dataRegion->getName()
             << " at " << dataRegion->getAddress());

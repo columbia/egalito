@@ -330,7 +330,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
 
-    LOG(10, "trying to fix " << (name ? name : "???")
+    LOG(1, "trying to fix " << (name ? name : "???")
         << "(" << std::hex << r->getAddress() << ")"
         << " reloc type " << std::dec << (int)r->getType());
 
@@ -449,12 +449,15 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         LOG(10, "    NOT fixing because type is " << r->getType());
     }
     if(link) {
-        LOG(10, "    make link to " << link->getTarget()->getName());
+        LOG(1, "    make link to " << link->getTarget()->getName());
         auto list = module->getDataRegionList();
         auto sourceRegion = list->findRegionContaining(update);
         auto var = new DataVariable(sourceRegion,
             update - sourceRegion->getAddress(), link);
         sourceRegion->addVariable(var);
+        if(destOffset > 0) {
+            var->setAddend(destOffset);
+        }
     }
     else if(found) {
         LOG(10, "    fix address " << std::hex << update

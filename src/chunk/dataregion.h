@@ -16,13 +16,17 @@ private:
     DataRegion *region;
     address_t offset;
     Link *dest;
+    size_t addend;
 public:
     DataVariable(DataRegion *region, address_t offset, Link *dest)
-        : region(region), offset(offset), dest(dest) {}
+        : region(region), offset(offset), dest(dest), addend(0) {}
 
     address_t getAddress();
     address_t getOffset() const { return offset; }
     Link *getDest() const { return dest; }
+
+    void setAddend(size_t addend) { this->addend = addend; }
+    size_t getAddend() const { return addend; }
 };
 
 class DataRegion : public ComputedSizeDecorator<AddressableChunkImpl> {
@@ -44,7 +48,10 @@ public:
     bool contains(address_t address);
     bool endsWith(address_t address);
     bool writable() const { return phdr->p_flags & PF_W; }
-    bool bss() const { return phdr->p_filesz == 0; }
+    bool bssOnly() const { return phdr->p_filesz == 0; }
+    size_t getDataSize() const { return phdr->p_filesz - startOffset; }
+    size_t getBssSize() const { return phdr->p_memsz - phdr->p_filesz; }
+    size_t getAlignment() const { return phdr->p_align; }
 
     virtual void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
@@ -52,6 +59,7 @@ public:
 
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
+    DataVariable *findVariable(address_t address) const;
 
     virtual void accept(ChunkVisitor *visitor);
 };

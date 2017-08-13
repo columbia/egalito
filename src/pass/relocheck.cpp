@@ -47,7 +47,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         auto dlist = module->getDataRegionList();
         if(auto region = dlist->findRegionContaining(addr)) {
             if(auto var = region->findVariable(addr)) {
-                LOG(10, ss.str() << " resolved to a data variable pointing to "
+                LOG(1, ss.str() << " resolved to a data variable pointing to "
                     << var->getDest()->getTarget()->getName()
                     << " at " << var->getDest()->getTargetAddress());
             }

@@ -53,6 +53,15 @@ void DataRegion::updateAddressFor(address_t baseAddress) {
     getPosition()->set(baseAddress + phdr->p_vaddr);
 }
 
+DataVariable *DataRegion::findVariable(address_t address) const {
+    for(auto var : variableList) {
+        if(var->getAddress() == address) {
+            return var;
+        }
+    }
+    return nullptr;
+}
+
 void DataRegion::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
