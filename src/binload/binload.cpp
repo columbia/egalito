@@ -21,7 +21,7 @@ extern "C" void _start2(void);
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
 // this has to be adjusted manually
-#define TOP_ADDRESS             0x400000
+#define TOP_ADDRESS             0xC400000
 
 #define MAP_START_ADDRESS       (ROUND_DOWN(TOP_ADDRESS))
 #define MAP_OFFSET              (TOP_ADDRESS - MAP_START_ADDRESS)
@@ -49,22 +49,9 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    auto sz = size - (length + MAP_OFFSET);
-    std::memset(static_cast<char *>(map) + length + MAP_OFFSET, 0, sz);
+    // bss should be really cleared by the target binary,
+    // but for this fake loader, we may need to map extra pages
 
-    // For the actual boot loader, we should adjust the linker symbols.
-    auto bss = mmap((void *)(MAP_START_ADDRESS + size), 0x10000,
-        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(bss == (void *)-1) {
-        LOG(1, "out of memory?");
-        return -1;
-    }
-    if(bss != (void *)(MAP_START_ADDRESS + size)) {
-        LOG(1, "overlapping with other regions");
-        return -1;
-    }
-
-    // jump to the target program
     _start2();
 
     return 0;
