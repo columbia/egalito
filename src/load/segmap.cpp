@@ -79,19 +79,21 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
             -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
         if(mem != (void *)address) throw "Overlapping with other regions?";
-        munmap(mem, filesz_pages);
-        mem = mmap(mem, filesz_pages, prot,
-            MAP_PRIVATE,
-            elf.getFileDescriptor(),
-            offset);
-        // the last page from the file might need zeroing, in case
-        // we mapped too much data in by rounding up to a page
-        if(filesz_orig != filesz_pages) {
-            std::memset(static_cast<char *>(mem) + filesz_orig,
-                0, filesz_pages - filesz_orig);
+        if(filesz_pages > 0) {
+            munmap(mem, filesz_pages);
+            mem = mmap(mem, filesz_pages, prot,
+                MAP_PRIVATE,
+                elf.getFileDescriptor(),
+                offset);
+            // the last page from the file might need zeroing, in case
+            // we mapped too much data in by rounding up to a page
+            if(filesz_orig != filesz_pages) {
+                std::memset(static_cast<char *>(mem) + filesz_orig,
+                    0, filesz_pages - filesz_orig);
+            }
+            if(mem == (void *)-1) throw "Out of memory?";
+            if(mem != (void *)address) throw "Overlapping with other regions?";
         }
-        if(mem == (void *)-1) throw "Out of memory?";
-        if(mem != (void *)address) throw "Overlapping with other regions?";
     }
     else {
         // in this case there are no extra zero pages
