@@ -586,7 +586,8 @@ void UseDef::fillImmToReg(UDState *state, Assembly *assembly) {
     auto op1 = assembly->getAsmOperands()->getOperands()[1].imm;
     TreeNode *tree1 = nullptr;
     if(assembly->getId() == ARM64_INS_ADR
-        || assembly->getId() == ARM64_INS_ADRP) {
+        || assembly->getId() == ARM64_INS_ADRP
+        || assembly->getId() == ARM64_INS_LDR) {
 
         tree1 = TreeFactory::instance().make<TreeNodeAddress>(op1);
     }
@@ -1093,6 +1094,9 @@ void UseDef::fillLdr(UDState *state, Assembly *assembly) {
     }
     else if(mode == AssemblyOperands::MODE_REG_MEM_IMM) {
         fillMemImmToReg(state, assembly);
+    }
+    else if(mode == AssemblyOperands::MODE_REG_IMM) {
+        fillImmToReg(state, assembly);
     }
     else {
         LOG(10, "skipping mode " << mode);

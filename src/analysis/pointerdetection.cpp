@@ -38,7 +38,12 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
                 auto assembly = v->getAssembly();
                 if(!assembly) continue;
-                if(assembly->getId() == ARM64_INS_ADR) {
+                if(assembly->getId() == ARM64_INS_LDR) {
+                    if((assembly->getBytes()[3] & 0xBF) == 0x18) {
+                        detectAtLDR(working->getState(instr));
+                    }
+                }
+                else if(assembly->getId() == ARM64_INS_ADR) {
                     detectAtADR(working->getState(instr));
                 }
                 else if(assembly->getId() == ARM64_INS_ADRP) {
@@ -46,6 +51,16 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 }
             }
         }
+    }
+}
+
+void PointerDetection::detectAtLDR(UDState *state) {
+    for(auto& def : state->getRegDefList()) {
+        if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            auto addr = tree->getValue();
+            pointerList.emplace_back(state->getInstruction(), addr);
+        }
+        break;  // there should be only one
     }
 }
 

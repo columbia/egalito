@@ -25,6 +25,7 @@ public:
         { return pointerList; }
 
 private:
+    void detectAtLDR(UDState *state);
     void detectAtADR(UDState *state);
     void detectAtADRP(UDState *state);
 };
