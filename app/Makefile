@@ -79,7 +79,7 @@ $(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/$(BUILDDIR)libegalito.a
 
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS)
-	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline -Wl,-rpath=$(abspath ../src)
 
 $(ETSHELL): ../src/$(BUILDDIR)libegalito.so
 

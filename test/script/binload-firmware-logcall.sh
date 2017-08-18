@@ -2,7 +2,7 @@
 
 date
 
-timeout 1600 env EGALITO_DEBUG=/dev/null LD_LIBRARY_PATH=../../src ../../app/etshell >& firmware2.txt <<EOF
+timeout 1600 env EGALITO_DEBUG=/dev/null ../../app/etshell >& firmware2.txt <<EOF
 parse ../../src/ex/firmware
 inject ../../src/libaddon.so
 log generate 1

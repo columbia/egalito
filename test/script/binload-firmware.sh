@@ -2,7 +2,7 @@
 
 date
 
-timeout 1600 env EGALITO_DEBUG=/dev/null LD_LIBRARY_PATH=../../src ../../app/etshell >& firmware.txt <<EOF
+timeout 1600 env EGALITO_DEBUG=/dev/null ../../app/etshell >& firmware.txt <<EOF
 parse ../../src/ex/firmware
 log generate 1
 bin firmware.bin
