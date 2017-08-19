@@ -72,6 +72,14 @@ protected:
     virtual Chunk *getDependency() const;
 };
 
+class AbsoluteOffsetPosition : public OffsetPosition {
+    friend class PositionDump;
+public:
+    AbsoluteOffsetPosition(ChunkRef chunk, address_t offset)
+        : OffsetPosition(chunk, offset) {}
+    virtual void recalculate() {}
+};
+
 /** Represents a Chunk that immediately follows another.
 
     The afterThis Chunk can be the immediately prior sibling, or the

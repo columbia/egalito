@@ -10,26 +10,23 @@
 class Link;
 class ElfMap;
 
-// perhaps this should be a Chunk
-class DataVariable {
+class DataVariable : public AddressableChunkImpl {
 private:
     DataRegion *region;
-    address_t offset;
     Link *dest;
     size_t addend;
 public:
-    DataVariable(DataRegion *region, address_t offset, Link *dest)
-        : region(region), offset(offset), dest(dest), addend(0) {}
+    DataVariable(DataRegion *region, address_t offset, Link *dest);
 
-    address_t getAddress();
-    address_t getOffset() const { return offset; }
     Link *getDest() const { return dest; }
 
     void setAddend(size_t addend) { this->addend = addend; }
     size_t getAddend() const { return addend; }
+
+    virtual void accept(ChunkVisitor *visitor) {}
 };
 
-class DataRegion : public ComputedSizeDecorator<AddressableChunkImpl> {
+class DataRegion : public CompositeChunkImpl<DataVariable> {
 private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
@@ -48,6 +45,7 @@ public:
     bool contains(address_t address);
     bool endsWith(address_t address);
     bool writable() const { return phdr->p_flags & PF_W; }
+    bool executable() const { return phdr->p_flags & PF_X; }
     bool bssOnly() const { return phdr->p_filesz == 0; }
     size_t getDataSize() const { return phdr->p_filesz - startOffset; }
     size_t getBssSize() const { return phdr->p_memsz - phdr->p_filesz; }

@@ -5,6 +5,7 @@
 #include "concrete.h"
 #include "visitor.h"
 #include "elf/elfspace.h"
+#include "operation/mutator.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -15,8 +16,11 @@ std::string DataRegion::getName() const {
     return stream;
 }
 
-address_t DataVariable::getAddress() {
-    return region->getAddress() + offset;
+DataVariable::DataVariable(DataRegion *region, address_t offset, Link *dest)
+    : region(region), dest(dest), addend(0) {
+
+    this->setPosition(new AbsoluteOffsetPosition(this, offset));
+    ChunkMutator(region).append(this);
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
