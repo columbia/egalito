@@ -123,6 +123,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
                 auto sec = elfMap->findSection(sym->getSectionIndex());
                 if(!sec) continue;  // ABS
                 if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;
+                if(sec->getName() == ".plt") continue;
                 if(CIter::spatial(functionList)->findContaining(
                     sym->getAddress())) {
 
@@ -132,7 +133,8 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
                     = Disassemble::function(elfMap, sym, symbolList);
                 functionList->getChildren()->add(function);
                 function->setParent(functionList);
-                LOG(1, "adding literal only function " << function->getName());
+                LOG(1, "adding literal only function " << function->getName()
+                    << " at " << function->getAddress());
             }
         }
 #endif

@@ -175,9 +175,7 @@ bool ControlFlowGraph::doesReturn(Function *function) {
     }
     for(auto s : function->getSymbol()->getAliases()) {
         for(auto fn : noreturns) {
-            if(std::string(s->getName()) == fn) {
-                return false;
-            }
+            if(std::string(s->getName()) == fn) return false;
         }
     }
 

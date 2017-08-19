@@ -29,28 +29,34 @@ void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
 void PointerDetection::detect(UDRegMemWorkingSet *working) {
     IF_LOG(10) working->getCFG()->dumpDot();
 
-    for(auto block : CIter::children(working->getFunction())) {
-        for(auto instr : CIter::children(block)) {
-            auto semantic = instr->getSemantic();
-            if(dynamic_cast<LinkedInstruction *>(semantic)) continue;
-            if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
-                auto link = v->getLink();
-                if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
-                auto assembly = v->getAssembly();
-                if(!assembly) continue;
-                if(assembly->getId() == ARM64_INS_LDR) {
-                    if((assembly->getBytes()[3] & 0xBF) == 0x18) {
-                        detectAtLDR(working->getState(instr));
+    try {
+        for(auto block : CIter::children(working->getFunction())) {
+            for(auto instr : CIter::children(block)) {
+                auto semantic = instr->getSemantic();
+                if(dynamic_cast<LinkedInstruction *>(semantic)) continue;
+                if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
+                    auto link = v->getLink();
+                    if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
+                    auto assembly = v->getAssembly();
+                    if(!assembly) continue;
+                    if(assembly->getId() == ARM64_INS_LDR) {
+                        if((assembly->getBytes()[3] & 0xBF) == 0x18) {
+                            detectAtLDR(working->getState(instr));
+                        }
                     }
-                }
-                else if(assembly->getId() == ARM64_INS_ADR) {
-                    detectAtADR(working->getState(instr));
-                }
-                else if(assembly->getId() == ARM64_INS_ADRP) {
-                    detectAtADRP(working->getState(instr));
+                    else if(assembly->getId() == ARM64_INS_ADR) {
+                        detectAtADR(working->getState(instr));
+                    }
+                    else if(assembly->getId() == ARM64_INS_ADRP) {
+                        detectAtADRP(working->getState(instr));
+                    }
                 }
             }
         }
+    }
+    catch(const char *s) {
+        working->getCFG()->dumpDot();
+        throw "pointer detection error";
     }
 }
 

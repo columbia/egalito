@@ -406,6 +406,7 @@ void LinkedInstruction::resolveLinks(Module *module,
 
         Link *link = nullptr;
         if(auto found = ChunkFind().findInnermostAt(f, address)) {
+            LOG(10, " ==> inside the same function");
             link = new NormalLink(found);
         }
         else if(auto found
