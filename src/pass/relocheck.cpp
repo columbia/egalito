@@ -37,7 +37,10 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                     << " (" << v->getLink()->getTargetAddress() << ")");
             }
         }
-        else if(auto v = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {
+#ifdef ARCH_AARCH64
+        else if(auto v
+            = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {
+
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
                 LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
             }
@@ -47,6 +50,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                     << " (" << v->getLink()->getTargetAddress() << ")");
             }
         }
+#endif
         else {
             LOG(1, i->getName() << " is still DisassembledInstruction");
         }

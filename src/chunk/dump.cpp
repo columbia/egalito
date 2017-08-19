@@ -182,6 +182,7 @@ void InstrDumper::visit(LiteralInstruction *semantic) {
 }
 
 void InstrDumper::visit(LinkedLiteralInstruction *semantic) {
+#ifdef ARCH_AARCH64
     auto link = semantic->getLink();
     std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
@@ -192,6 +193,7 @@ void InstrDumper::visit(LinkedLiteralInstruction *semantic) {
         link ? link->getTargetAddress() : 0,
         nullptr,
         bytes2.c_str());
+#endif
 }
 
 std::string InstrDumper::getBytes(InstructionSemantic *semantic) {

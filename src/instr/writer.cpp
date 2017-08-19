@@ -95,12 +95,18 @@ void InstrWriterGetData::visit(LiteralInstruction *literal) {
 
 // LinkedLiteralInstruction
 void InstrWriterCString::visit(LinkedLiteralInstruction *linked) {
+#ifdef ARCH_AARCH64
     linked->writeTo(target);
+#endif
 }
 void InstrWriterCppString::visit(LinkedLiteralInstruction *linked) {
+#ifdef ARCH_AARCH64
     linked->writeTo(target);
+#endif
 }
 void InstrWriterGetData::visit(LinkedLiteralInstruction *linked) {
+#ifdef ARCH_AARCH64
     linked->writeTo(data);
+#endif
 }
 
