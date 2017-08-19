@@ -115,6 +115,27 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
             function->setParent(functionList);
             LOG(10, "adding function " << function->getName());
         }
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        for(auto sym : *symbolList) {
+            if(!sym->isFunction()) {
+                if(sym->getAliasFor()) continue;
+                if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
+                auto sec = elfMap->findSection(sym->getSectionIndex());
+                if(!sec) continue;  // ABS
+                if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;
+                if(CIter::spatial(functionList)->findContaining(
+                    sym->getAddress())) {
+
+                    continue;
+                }
+                Function *function
+                    = Disassemble::function(elfMap, sym, symbolList);
+                functionList->getChildren()->add(function);
+                function->setParent(functionList);
+                LOG(1, "adding literal only function " << function->getName());
+            }
+        }
+#endif
     }
     return module;
 }
