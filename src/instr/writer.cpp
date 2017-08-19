@@ -93,3 +93,14 @@ void InstrWriterGetData::visit(LiteralInstruction *literal) {
     visit(static_cast<RawInstruction *>(literal));
 }
 
+// LinkedLiteralInstruction
+void InstrWriterCString::visit(LinkedLiteralInstruction *linked) {
+    linked->writeTo(target);
+}
+void InstrWriterCppString::visit(LinkedLiteralInstruction *linked) {
+    linked->writeTo(target);
+}
+void InstrWriterGetData::visit(LinkedLiteralInstruction *linked) {
+    linked->writeTo(data);
+}
+

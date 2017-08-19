@@ -22,6 +22,42 @@
 #include "log/temp.h"
 
 #if defined(ARCH_AARCH64)
+static Link *makeLink(Module *module, Reloc *reloc) {
+    Function *target = CIter::findChild(module->getFunctionList(),
+        reloc->getSymbol()->getName());
+
+    if(target) {
+        if(reloc->getAddend() > 0) {
+            auto address = target->getAddress() + reloc->getAddend();
+            target = CIter::spatial(module->getFunctionList())->findContaining(
+                address);
+        }
+
+        LOG(10, "created function link --> " << target->getName());
+        return new NormalLink(target);
+    }
+
+    auto address = reloc->getSymbol()->getAddress() + reloc->getAddend();
+    if(auto chunk = ChunkFind().findInnermostInsideInstruction(
+        module->getFunctionList(), address)) {
+
+        LOG(10, "created instruction(literal?) link --> " << chunk->getName());
+        return new NormalLink(chunk);
+    }
+
+    auto dataLink = LinkFactory::makeDataLink(module, address, true);
+    if(!dataLink) {
+        LOG(9, "unresolved link! " << std::hex << address);
+        dataLink = new UnresolvedLink(address);
+    }
+    else {
+        LOG(10, "created data link --> " << address);
+    }
+    return dataLink;
+}
+
+
+
 LinkedInstruction::LinkedInstruction(Instruction *source,
     const Assembly &assembly)
     : LinkDecorator<DisassembledInstruction>(assembly), source(source),
@@ -99,6 +135,14 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
            diff_t disp = dest & 0xFFF;
            uint32_t imm = disp << 10;
            return (imm & ~0xFFE003FF); },
+       1
+      },
+      /* LDR (literal) */
+      {0xFF00001F,
+       [] (address_t dest, address_t src, uint32_t fixed) {
+           diff_t disp = (dest - src) & 0x7FFFF;
+           uint32_t imm = (disp >> 2) << 5;
+           return (imm & ~0xFF00001F); },
        1
       },
       /* MOV (wide immediate) */
@@ -259,7 +303,14 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     case ARM64_INS_ADRP:    m = AARCH64_IM_ADRP;    break;
     case ARM64_INS_ADR:     m = AARCH64_IM_ADR;     break;
     case ARM64_INS_ADD:     m = AARCH64_IM_ADDIMM;  break;
-    case ARM64_INS_LDR:     m = AARCH64_IM_LDR;     break;
+    case ARM64_INS_LDR:
+        if((assembly.getBytes()[3] & 0xBF) == 0xB9) {
+            m = AARCH64_IM_LDRIMM;
+        }
+        else {
+            m = AARCH64_IM_LDRLIT;
+        }
+        break;
     case ARM64_INS_LDRH:    m = AARCH64_IM_LDRH;    break;
     case ARM64_INS_LDRB:    m = AARCH64_IM_LDRB;    break;
     case ARM64_INS_LDRSB:   m = AARCH64_IM_LDRSB;   break;
@@ -290,35 +341,25 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
     if(!reloc->getSymbol()) return nullptr;
 
-    Function *target = CIter::findChild(module->getFunctionList(),
-        reloc->getSymbol()->getName());
+    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
+
+    auto linked = new LinkedInstruction(instruction, *assembly);
+    auto link = makeLink(module, reloc);
+    linked->setLink(link);
+
+    return linked;
+}
+
+LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
+    Instruction *instruction, std::string raw, Reloc *reloc) {
+
+    if(!reloc->getSymbol()) return nullptr;
 
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
-    auto linked = new LinkedInstruction(instruction, *assembly);
-    if(target) {
-        if(reloc->getAddend() > 0) {
-            auto address = target->getAddress() + reloc->getAddend();
-            target = CIter::spatial(module->getFunctionList())->findContaining(
-                address);
-        }
 
-        linked->setLink(new NormalLink(target));
-        LOG(10, "created function link --> " << target->getName());
-    }
-    else {
-        auto address = reloc->getSymbol()->getAddress() + reloc->getAddend();
-        auto dataLink = LinkFactory::makeDataLink(module, address, true);
-        if(!dataLink) {
-            LOG(9, "unresolved link! at "
-                << std::hex << instruction->getAddress()
-                << " to " << std::hex << address);
-            dataLink = new UnresolvedLink(address);
-        }
-        else {
-            LOG(10, "created data link --> " << address);
-        }
-        linked->setLink(dataLink);
-    }
+    auto linked = new LinkedLiteralInstruction(instruction, raw);
+    auto link = makeLink(module, reloc);
+    linked->setLink(link);
 
     return linked;
 }
@@ -360,26 +401,30 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction, *assembly);
 
-        Chunk *found = CIter::spatial(module->getFunctionList())->find(address);
+        auto f = dynamic_cast<Function *>(
+            instruction->getParent()->getParent());
+
         Link *link = nullptr;
-        if(found) {
+        if(auto found = ChunkFind().findInnermostAt(f, address)) {
+            link = new NormalLink(found);
+        }
+        else if(auto found
+            = CIter::spatial(module->getFunctionList())->find(address)) {
+
             LOG(10, " ==> " << found->getName());
             link = new ExternalNormalLink(found);
         }
-        else {
-            auto f = dynamic_cast<Function *>(
-                instruction->getParent()->getParent());
+        else if(auto chunk = ChunkFind().findInnermostInsideInstruction(
+            module->getFunctionList(), address)) {
 
-            found = ChunkFind().findInnermostAt(f, address);
-            if(found) {
-                link = new NormalLink(found);
-            }
-            else {
-                LOG(10, " --> data link");
-                link = LinkFactory::makeDataLink(module, address, true);
-                if(!link) {
-                    throw "failed to create link!";
-                }
+            LOG(10, "--> instruction(literal?) " << chunk->getName());
+            link = new NormalLink(chunk);
+        }
+        else {
+            LOG(10, " --> data link");
+            link = LinkFactory::makeDataLink(module, address, true);
+            if(!link) {
+                throw "failed to create link!";
             }
         }
         linked->setLink(link);
@@ -441,4 +486,18 @@ LinkedInstruction::loadFromFile(Module *module) {
     }
     return list;
 }
+
+void LinkedLiteralInstruction::writeTo(char *target) {
+    *reinterpret_cast<uint32_t *>(target) = relocate();
+}
+
+void LinkedLiteralInstruction::writeTo(std::string &target) {
+    uint32_t data = relocate();
+    target.append(reinterpret_cast<const char *>(&data), getSize());
+}
+
+uint32_t LinkedLiteralInstruction::relocate() {
+    return getLink()->getTargetAddress();
+}
+
 #endif

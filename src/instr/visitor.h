@@ -16,6 +16,7 @@ class ReturnInstruction;
 class IndirectJumpInstruction;
 class IndirectCallInstruction;
 class LiteralInstruction;
+class LinkedLiteralInstruction;
 
 class InstructionVisitor {
 public:
@@ -28,6 +29,7 @@ public:
     virtual void visit(IndirectJumpInstruction *indirect);
     virtual void visit(IndirectCallInstruction *indirect);
     virtual void visit(LiteralInstruction *literal) = 0;
+    virtual void visit(LinkedLiteralInstruction *literal) = 0;
 };
 
 class InstructionListener : public InstructionVisitor {

@@ -17,13 +17,14 @@ public:
         AARCH64_IM_ADRP = 0,
         AARCH64_IM_ADR,
         AARCH64_IM_ADDIMM,
-        AARCH64_IM_LDR,
+        AARCH64_IM_LDRIMM,
         AARCH64_IM_LDRH,
         AARCH64_IM_LDRB,
         AARCH64_IM_LDRSW,
         AARCH64_IM_LDRSH,
         AARCH64_IM_LDRSB,
-        AARCH64_IM_MOV,
+        AARCH64_IM_LDRLIT,
+        AARCH64_IM_MOV,     /* 10 */
         AARCH64_IM_MOVK,
         AARCH64_IM_STR,
         AARCH64_IM_STRH,
@@ -33,7 +34,7 @@ public:
         AARCH64_IM_BCOND,
         AARCH64_IM_CBZ,
         AARCH64_IM_CBNZ,
-        AARCH64_IM_TBZ,
+        AARCH64_IM_TBZ,     /* 20 */
         AARCH64_IM_TBNZ,
         AARCH64_IM_MAX
     };
@@ -74,6 +75,7 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
+    //static Link *makeLink(Module *module, Reloc *reloc);
     static void resolveLinks(Module *module,
         const std::vector<std::pair<Instruction *, address_t>> &list);
 
@@ -88,6 +90,22 @@ public:
     using LinkedInstruction::LinkedInstruction;
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+class LinkedLiteralInstruction : public LinkDecorator<LiteralInstruction> {
+public:
+    LinkedLiteralInstruction(Instruction *source, const std::string rawData)
+        : LinkDecorator<LiteralInstruction>(rawData) {}
+
+    static LinkedLiteralInstruction *makeLinked(Module *module,
+        Instruction *instruction, std::string raw, Reloc *reloc);
+
+    void writeTo(char *target);
+    void writeTo(std::string &target);
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+private:
+    uint32_t relocate();
 };
 #endif
 
