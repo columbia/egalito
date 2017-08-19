@@ -37,6 +37,16 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                     << " (" << v->getLink()->getTargetAddress() << ")");
             }
         }
+        else if(auto v = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {
+            if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
+                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
+            }
+            else {
+                LOG(10, ss.str()
+                    << " resolved to " << v->getLink()->getTarget()->getName()
+                    << " (" << v->getLink()->getTargetAddress() << ")");
+            }
+        }
         else {
             LOG(1, i->getName() << " is still DisassembledInstruction");
         }
@@ -47,7 +57,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         auto dlist = module->getDataRegionList();
         if(auto region = dlist->findRegionContaining(addr)) {
             if(auto var = region->findVariable(addr)) {
-                LOG(1, ss.str() << " resolved to a data variable pointing to "
+                LOG(1, ss.str() << " resolved as a data variable pointing to "
                     << var->getDest()->getTarget()->getName()
                     << " at " << var->getDest()->getTargetAddress());
             }

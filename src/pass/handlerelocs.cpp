@@ -46,9 +46,8 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         return;
     }
 
-    if(auto v = dynamic_cast<DisassembledInstruction *>(
-        instruction->getSemantic())) {
-
+    auto semantic = instruction->getSemantic();
+    if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
         auto assembly = v->getAssembly();
         if(!assembly) return;
 #ifdef ARCH_X86_64
@@ -63,6 +62,17 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
             delete v;
         }
     }
+#ifdef ARCH_AARCH64
+    else if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
+        auto raw = v->getStorage().getData();
+        auto linked
+            = LinkedLiteralInstruction::makeLinked(module, instruction, raw, r);
+        if(linked) {
+            instruction->setSemantic(linked);
+            delete v;
+        }
+    }
+#endif
 }
 
 void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
