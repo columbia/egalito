@@ -18,6 +18,7 @@
 #include "pass/relocheck.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 #include "chunk/dump.h"
 
 #define ROUND_DOWN(x)       ((x) & ~0xfff)
@@ -101,7 +102,6 @@ int BinGen::generate() {
     auto endOfText = reassignFunctionAddress();
 
     address_t pos = makeImageBox();
-    //mainModule->getElfSpace()->getElfMap()->setBaseAddress(0);
     interleaveData(endOfText);
 
     FixDataRegionsPass fixDataRegions;
@@ -126,10 +126,12 @@ void BinGen::applyAdditionalTransform() {
 
 address_t BinGen::reassignFunctionAddress() {
     auto list = makeSortedFunctionList(mainModule);
+
     auto address = list.front()->getAddress();
     for(auto func : list) {
         LOG(1, func->getName() << " : " << std::hex
-            << func->getAddress() << " -> " << address);
+            << func->getAddress() << " -> " << address
+            << " - " << (address + func->getSize()));
         ChunkMutator(func).setPosition(address);
         address += func->getSize();
     }
@@ -174,9 +176,11 @@ void BinGen::addCallLogging() {
     InstrumentCallsPass instrument;
     instrument.setEntryAdvice(funcEntry);
     instrument.setExitAdvice(funcExit);
-#if 0
+#if 1
     instrument.setPredicate([](Function *function) {
-        return !function->hasName("egalito_log_function_transition");
+        return !function->hasName("_start")
+            && !function->hasName("__start_ram1")
+            && !function->hasName("__start_master");
     });
 #endif
     mainModule->accept(&instrument);
@@ -257,9 +261,13 @@ address_t BinGen::makeImageBox() {
 }
 
 void BinGen::interleaveData(address_t pos) {
+    LOG(1, "code ends at " << pos);
+
     LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, 8));
     pos = ROUND_UP_BY(pos, 8);
-    LOG(1, "data should start at " << pos);
+
+    LOG(1, "data starts at " << pos);
+
     pos = copyInData(mainModule, pos, false);
     if(addon) {
         LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, 8));
@@ -284,7 +292,7 @@ void BinGen::interleaveData(address_t pos) {
 }
 
 address_t BinGen::copyInData(Module *module, address_t pos, bool writable) {
-    LOG(1, "copying in " << module->getName() << (writable ? "rw" : "ro")
+    LOG(1, "copying in " << module->getName() << (writable ? " rw" : " ro")
         << "data");
     for(auto region : CIter::children(module->getDataRegionList())) {
         if(region->writable() != writable) continue;
@@ -351,17 +359,11 @@ void BinGen::writeOut(address_t pos) {
     LOG(1, "final pos = " << pos);
 }
 
-// this needs to write out PLT too (if addon is a library)
+// this needs to write out PLT too (if addon is a library), unless dePLT()
+// can handle that
 address_t BinGen::writeOutCode(Module *module, address_t pos) {
     const int ll = 10;
-    std::vector<Function *> list;
-    for(auto func : CIter::functions(module)) {
-        list.push_back(func);
-    }
-    std::sort(list.begin(), list.end(),
-        [](Function *a, Function *b) {
-            return a->getAddress() < b->getAddress();
-        });
+    auto list = makeSortedFunctionList(module);
 
     for(auto func : list) {
         LOG(ll, "writing out " << func->getName()
