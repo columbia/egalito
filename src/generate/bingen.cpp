@@ -64,8 +64,10 @@ void BinGen::addBssClear() {
         ->find("egalito_clear_addon_bss");
     if(!clearFunction) return;
 
+//#define EARLIEST_FUNCTION_AFTER_SPSET   "_start"
+#define EARLIEST_FUNCTION_AFTER_SPSET   "main"
     auto startFunction = CIter::named(mainModule->getFunctionList())
-        ->find("_start");
+        ->find(EARLIEST_FUNCTION_AFTER_SPSET);
     if(!startFunction) return;
 
     SwitchContextPass switcher;
