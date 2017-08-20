@@ -178,9 +178,17 @@ void BinGen::addCallLogging() {
     instrument.setExitAdvice(funcExit);
 #if 1
     instrument.setPredicate([](Function *function) {
-        return !function->hasName("_start")
-            && !function->hasName("__start_ram1")
-            && !function->hasName("__start_master");
+        if(function->hasName("_start")) return false;
+        if(function->hasName("__start_ram1")) return false;
+        if(function->hasName("__start_master")) return false;
+        for(auto block : CIter::children(function)) {
+            for(auto instr : CIter::children(block)) {
+                auto semantic = instr->getSemantic();
+                if(dynamic_cast<LiteralInstruction *>(semantic)) return false;
+                break;
+            }
+        }
+        return true;
     });
 #endif
     mainModule->accept(&instrument);
