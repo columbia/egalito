@@ -19,8 +19,9 @@ for line in p.stdout.readlines():
         a[int(m.group(1), 16)] = m.group(3)
 
 address = collections.OrderedDict(sorted(a.iteritems()))
-#print address
-#print sizes
+#for k,v in address.items():
+#    print(hex(k), v)
+#    print(hex(k + sizes[k]))
 
 for line in sys.stdin:
     m = re.search('(\w+)\s+([><])\s([_\w]+)', line)
@@ -29,6 +30,7 @@ for line in sys.stdin:
         else: print '<--',
         a = int(m.group(3), 16)
         #print format(a, 'X'),
-        ind = bisect.bisect_left(address.keys(), a)
-        #print ind,
-        print address.values()[ind]
+        ind = bisect.bisect_right(address.keys(), a)
+        if ind:
+            #print ind,
+            print address.values()[ind - 1], format(a, 'x')
