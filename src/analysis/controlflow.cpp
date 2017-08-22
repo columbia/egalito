@@ -184,7 +184,7 @@ bool ControlFlowGraph::doesReturn(Function *function) {
 
 bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
     static const std::vector<std::string> PLTnoreturns = {
-        "__cxa_throw@plt"
+        "__cxa_throw@plt", "exit@plt"
     };
 
     for(auto plt : PLTnoreturns) {
