@@ -151,7 +151,9 @@ public:
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
     Symbol *getSymbol() const { return symbol; }
+    TLSDataRegion *getTLSRegion() const { return tls; }
     void setTLSRegion(TLSDataRegion *tls) { this->tls = tls; }
+    void setTarget(address_t target) { this->target = target; }
 };
 
 
