@@ -20,6 +20,7 @@ void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {
 }
 
 void FixJumpTablesPass::visit(JumpTable *jumpTable) {
+#ifdef ARCH_X86_64
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
 
@@ -49,4 +50,7 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
             break;
         }
     }
+#elif defined(ARCH_AARCH64)
+    // we only need to fix table entries when we modify the function
+#endif
 }
