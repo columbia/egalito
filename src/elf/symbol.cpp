@@ -137,13 +137,17 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
     }
 
-    if(auto s = findSizeZero(list, "_init")) {
+    //if(auto s = findSizeZero(list, "_init")) {
+    if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
         auto init = elfmap->findSection(".init");
         if(init) s->setSize(init->getHeader()->sh_size);
+        if(init) LOG(1, "setting the size of _init to " << init->getHeader()->sh_size);
     }
-    if(auto s = findSizeZero(list, "_fini")) {
+    //if(auto s = findSizeZero(list, "_fini")) {
+    if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
         auto fini = elfmap->findSection(".fini");
         if(fini) s->setSize(fini->getHeader()->sh_size);
+        if(fini) LOG(1, "setting the size of _init to " << fini->getHeader()->sh_size);
     }
 
     // for musl only
@@ -293,7 +297,13 @@ size_t SymbolList::estimateSizeOf(Symbol *symbol) {
             ++it;
             continue;
         }
-        return other->getAddress() - symbol->getAddress();
+        if(other->getSectionIndex() == symbol->getSectionIndex()) {
+            return other->getAddress() - symbol->getAddress();
+        }
+        else {
+            // maybe we can do better if we really need to
+            return 0;
+        }
     }
 
     return 0;
