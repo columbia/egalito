@@ -126,7 +126,7 @@ bool PageOffsetList::detectOffset(UDState *state, int reg) {
 
     for(auto r : seen[state]) {
         if(r == reg) {
-            LOG(5, "  seen already");
+            LOG(10, "  seen already");
             return false;
         }
     }

@@ -77,7 +77,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       {0x9F00001F,
        [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest - src;
-           uint32_t imm = disp >> 12;
+           uint32_t imm = disp;
            return (((imm & 0x3) << 29) | ((imm & 0x1FFFFC) << 3)); },
        1},
       /* ADDIMM (in combination with ADRP) */
@@ -254,12 +254,13 @@ uint32_t LinkedInstruction::rebuild() {
     uint32_t imm =
         getModeInfo()->makeImm(dest, getSource()->getAddress(), fixedBytes);
 #if 0
-    LOG(1, "mode: " << getModeInfo() - AARCH64_ImInfo);
-    LOG(1, "src: " << getSource()->getAddress());
-    LOG(1, "dest: " << dest);
-    LOG(1, "fixedBytes: " << fixedBytes);
-    LOG(1, "imm: " << imm);
-    LOG(1, "result: " << (fixedBytes | imm));
+    const int ll = 10;
+    LOG(ll, "mode: " << getModeInfo() - AARCH64_ImInfo);
+    LOG(ll, "src: " << getSource()->getAddress());
+    LOG(ll, "dest: " << dest);
+    LOG(ll, "fixedBytes: " << fixedBytes);
+    LOG(ll, "imm: " << imm);
+    LOG(ll, "result: " << (fixedBytes | imm));
 #endif
     return fixedBytes | imm;
 }
@@ -395,6 +396,7 @@ void LinkedInstruction::makeAllLinked(Module *module) {
 void LinkedInstruction::resolveLinks(Module *module,
     const std::vector<std::pair<Instruction *, address_t>>& list) {
 
+    //TemporaryLogLevel tll("instr", 10);
     for(auto [instruction, address] : list) {
         LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);

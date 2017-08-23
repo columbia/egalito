@@ -11,6 +11,7 @@
 #include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 #include "chunk/dump.h"
 
@@ -105,6 +106,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     module->setFunctionList(functionList);
     functionList->setParent(module);
 
+    //TemporaryLogLevel tll("disasm", 10);
     if(symbolList) {
         for(auto sym : *symbolList) {
             // skip Symbols that we don't think represent functions
@@ -113,11 +115,14 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
             Function *function = Disassemble::function(elfMap, sym, symbolList);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
-            LOG(10, "adding function " << function->getName());
+            LOG(10, "adding function " << function->getName()
+                << " at " << std::hex << function->getAddress()
+                << " size " << function->getSize());
         }
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
         for(auto sym : *symbolList) {
             if(!sym->isFunction()) {
+                if(sym->getSize() == 0) continue;
                 if(sym->getAliasFor()) continue;
                 if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
                 auto sec = elfMap->findSection(sym->getSectionIndex());
@@ -134,7 +139,8 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
                 functionList->getChildren()->add(function);
                 function->setParent(functionList);
                 LOG(1, "adding literal only function " << function->getName()
-                    << " at " << function->getAddress());
+                    << " at " << std::hex << function->getAddress()
+                    << " size " << function->getSize());
             }
         }
 #endif
