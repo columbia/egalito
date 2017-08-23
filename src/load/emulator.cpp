@@ -45,6 +45,7 @@ LoaderEmulator LoaderEmulator::instance;
 
 LoaderEmulator::LoaderEmulator() {
     addSymbol("__environ", &Emulation::__environ);
+    addSymbol("environ", &Emulation::__environ);
 
     addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
 
