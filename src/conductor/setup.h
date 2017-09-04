@@ -6,6 +6,7 @@
 
 class Conductor;
 class Sandbox;
+class Symbol;
 
 /** Main setup class for Egalito.
 
@@ -23,6 +24,7 @@ private:
     ElfMap *egalito;
     Conductor *conductor;
     Sandbox *sandbox;
+    Symbol *entrySymbol;
 public:
     ConductorSetup() : elf(nullptr), egalito(nullptr), conductor(nullptr),
         sandbox(nullptr) {}

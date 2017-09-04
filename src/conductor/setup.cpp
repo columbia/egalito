@@ -19,6 +19,9 @@ void ConductorSetup::parseElfFiles(const char *executable,
     setBaseAddress(elf, 0x4000000);
     conductor->parseExecutable(elf);
 
+    entrySymbol = conductor->getMainSpace()->getSymbolList()->find(
+        elf->getEntryPoint() + elf->getBaseAddress());
+
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
         //setBaseAddress(egalito, 0x8000000l);  // use address assigned below
@@ -162,7 +165,7 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 }
 
 address_t ConductorSetup::getEntryPoint() {
-#if 1
+#if 0
     auto module = conductor->getMainSpace()->getModule();
     if(auto f = CIter::named(module->getFunctionList())->find("_start")) {
         return f->getAddress();
@@ -175,8 +178,15 @@ address_t ConductorSetup::getEntryPoint() {
     LOG(0, "entry point not found");
     return 0;
 #else
-    // this is the original entry point address
-    return elf->getEntryPoint() + elf->getBaseAddress();
+    auto module = conductor->getMainSpace()->getModule();
+    if(auto f = CIter::named(module->getFunctionList())->find(
+        entrySymbol->getName())) {
+
+        return f->getAddress();
+    }
+
+    LOG(0, "entry point not found");
+    return 0;
 #endif
 }
 
