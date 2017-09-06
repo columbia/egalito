@@ -30,6 +30,7 @@ public:
     address_t convertOffsetToVA(size_t offset);
     address_t convertVAToOffset(address_t va);
     size_t getSize() const { return shdr->sh_size; }
+    size_t getAlignment() const { return shdr->sh_addralign; }
 };
 
 class ElfMap {
@@ -90,6 +91,7 @@ public:
     T getSectionReadPtr(const char *name);
 
     std::vector<void *> findSectionsByType(int type);
+    std::vector<void *> findSectionsByFlag(long flag);
 
     bool hasInterpreter() const { return interpreter != nullptr; }
     const char *getInterpreter() const { return interpreter; }
