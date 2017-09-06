@@ -156,7 +156,8 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       /* MOVK */
       {0xFFE0001F,
        [] (address_t dest, address_t src, uint32_t fixed) {
-           diff_t disp = dest & 0xFFFF;
+           auto hw = (fixed >> 21u) & 0x3u;
+           diff_t disp = (dest >> (hw << 4)) & 0xFFFF;
            uint32_t imm = disp << 5;
            return (imm & ~0xFFE0001F); },
        1
