@@ -13,3 +13,7 @@ void ClearSpatialPass::visit(Function *function) {
 void ClearSpatialPass::visit(Block *block) {
     block->getChildren()->clearSpatial();
 }
+
+void ClearSpatialPass::visit(DataRegion *region) {
+    region->getChildren()->clearSpatial();
+}

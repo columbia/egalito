@@ -9,6 +9,7 @@ public:
     virtual void visit(FunctionList *functionList);
     virtual void visit(Function *function);
     virtual void visit(Block *block);
+    virtual void visit(DataRegion *region);
 };
 
 #endif
