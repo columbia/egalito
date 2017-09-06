@@ -381,14 +381,14 @@ Instruction *Disassemble::instruction(
 Instruction *Disassemble::instruction(Handle &handle,
     const std::vector<unsigned char> &bytes, bool details, address_t address) {
 
-  cs_insn *ins;
-  if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
-               address, 0, &ins) != 1) {
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
+        address, 0, &ins) != 1) {
 
-    throw "Invalid instruction opcode string provided\n";
-  }
+        throw "Invalid instruction opcode string provided\n";
+    }
 
-  return instruction(ins, handle, details);
+    return instruction(ins, handle, details);
 }
 
 Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details) {
