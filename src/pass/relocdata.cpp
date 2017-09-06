@@ -14,12 +14,24 @@
 #include "log/registry.h"
 #include "log/temp.h"
 
+static Symbol *findSymbol(ElfSpace *elfSpace, const char *name) {
+    auto symbolList = elfSpace->getSymbolList();
+    return symbolList ? symbolList->find(name) : nullptr;
+}
+
+static Symbol *findSymbol(ElfSpace *elfSpace, address_t address) {
+    auto symbolList = elfSpace->getSymbolList();
+    return symbolList ? symbolList->find(address) : nullptr;
+}
+
 bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     bool allowInternal) {
 
     if(symbol) {
         const char *name = symbol->getName();
         LOG(10, "SEARCH for " << name << ", internal = " << allowInternal);
+
+        if(!*name) return false;  // No use searching for an empty name.
 
         std::string versionedName;
         if(auto ver = symbol->getVersion()) {
@@ -182,8 +194,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
 
     // Lastly, see if this is a data object; if so, use the original
     // address (but add the new load address as a base address).
-    auto symbol = space->getSymbolList()->find(name);
-    if(symbol) {
+    if(auto symbol = findSymbol(elfSpace, name)) {
         if(symbol->getAddress() > 0
             && symbol->getType() != Symbol::TYPE_FUNC
             && symbol->getType() != Symbol::TYPE_IFUNC) {
@@ -207,8 +218,7 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     assert(name != nullptr);
 
     // Check if we have a data object.
-    auto symbol = space->getSymbolList()->find(name);
-    if(symbol) {
+    if(auto symbol = findSymbol(elfSpace, name)) {
         if(symbol->getAddress() > 0
             && symbol->getType() != Symbol::TYPE_FUNC
             && symbol->getType() != Symbol::TYPE_IFUNC) {
@@ -249,8 +259,7 @@ Link *FindAnywhere::resolveAsLinkHelper(const char *name, ElfSpace *space) {
         return nullptr;
     }
 
-    auto symbol = space->getSymbolList()->find(name);
-    if(symbol) {
+    if(auto symbol = findSymbol(elfSpace, name)) {
         if(symbol->getAddress() > 0
             && symbol->getType() != Symbol::TYPE_FUNC
             && symbol->getType() != Symbol::TYPE_IFUNC) {
@@ -323,8 +332,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     else {
         // If the symbols are split into a separate file, the relocation
         // may not know its name, but we can find it.
-        auto otherSym = elfSpace->getSymbolList()->find(r->getAddend());
-        if(otherSym) {
+        if(auto otherSym = findSymbol(elfSpace, r->getAddend())) {
             name = otherSym->getName();
             symbol = otherSym;
         }
@@ -417,7 +425,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     if(r->getAddend() > 0) {
         auto addr = symbol->getAddress() + r->getAddend();
         // usually an offset from a section start address, or ...
-        if(auto s = module->getElfSpace()->getSymbolList()->find(addr)) {
+        if(auto s = findSymbol(module->getElfSpace(), addr)) {
             symbol = s;
         }
         else {
