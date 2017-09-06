@@ -9,7 +9,6 @@ public:
     virtual void visit(Program *program) = 0;
     virtual void visit(Module *function) = 0;
     virtual void visit(FunctionList *functionList) = 0;
-    virtual void visit(BlockSoup *functionList) = 0;
     virtual void visit(PLTList *pltList) = 0;
     virtual void visit(JumpTableList *jumpTableList) = 0;
     virtual void visit(DataRegionList *dataRegionList) = 0;
@@ -26,7 +25,6 @@ public:
     virtual void visit(Program *program) {}
     virtual void visit(Module *function) {}
     virtual void visit(FunctionList *functionList) {}
-    virtual void visit(BlockSoup *functionList) {}
     virtual void visit(PLTList *pltList) {}
     virtual void visit(JumpTableList *jumpTableList) {}
     virtual void visit(DataRegionList *dataRegionList) {}

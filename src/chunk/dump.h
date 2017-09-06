@@ -19,7 +19,6 @@ public:
     virtual void visit(Program *program) {}
     virtual void visit(Module *module);
     virtual void visit(FunctionList *functionList);
-    virtual void visit(BlockSoup *blockSoup);
     virtual void visit(PLTList *pltList);
     virtual void visit(JumpTableList *jumpTableList);
     virtual void visit(DataRegionList *dataRegionList);

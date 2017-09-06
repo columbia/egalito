@@ -16,9 +16,6 @@ void ChunkDumper::visit(Module *module) {
 void ChunkDumper::visit(FunctionList *functionList) {
     recurse(functionList);
 }
-void ChunkDumper::visit(BlockSoup *blockSoup) {
-    recurse(blockSoup);
-}
 void ChunkDumper::visit(PLTList *pltList) {
     recurse(pltList);
 }

@@ -4,7 +4,6 @@
 class Program;
 class Module;
 class FunctionList;
-class BlockSoup;
 class PLTList;
 class JumpTableList;
 class DataRegionList;

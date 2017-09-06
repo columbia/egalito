@@ -12,11 +12,4 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class BlockSoup : public CollectionChunkImpl<Block> {
-public:
-    virtual void setSize(size_t newSize) {}  // ignored
-    virtual void addToSize(diff_t add) {}  // ignored
-    virtual void accept(ChunkVisitor *visitor);
-};
-
 #endif

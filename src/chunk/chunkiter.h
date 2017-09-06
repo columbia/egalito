@@ -53,8 +53,6 @@ public:
 
     static CIterChildren<FunctionList> functions(Module *module)
         { return CIterChildren<FunctionList>(module->getFunctionList()); }
-    static CIterChildren<BlockSoup> blocksInSoup(Module *module)
-        { return CIterChildren<BlockSoup>(module->getBlockSoup()); }
     static CIterChildren<PLTList> plts(Module *module)
         { return CIterChildren<PLTList>(module->getPLTList()); }
     static CIterChildren<DataRegionList> regions(Module *module)

@@ -17,7 +17,6 @@ public:
     virtual void visit(Program *program) { recurse(program); }
     virtual void visit(Module *module) { recurse(module); }
     virtual void visit(FunctionList *functionList) { recurse(functionList); }
-    virtual void visit(BlockSoup *blockSoup) { recurse(blockSoup); }
     virtual void visit(PLTList *pltList) { recurse(pltList); }
     virtual void visit(JumpTableList *jumpTableList) { recurse(jumpTableList); }
     virtual void visit(DataRegionList *dataRegionList) { recurse(dataRegionList); }
