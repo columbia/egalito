@@ -10,25 +10,57 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+DataSection::DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
+    : size(shdr->sh_size), align(shdr->sh_addralign),
+      bss(shdr->sh_type == SHT_NOBITS) {
+
+    address_t offset = shdr->sh_addr - phdr->p_vaddr;
+    this->setPosition(new AbsoluteOffsetPosition(this, offset));
+    originalOffset = offset;
+}
+
+std::string DataSection::getName() const {
+    StreamAsString stream;
+    stream << "section-+0x" << std::hex << originalOffset;
+    return stream;
+}
+
 std::string DataRegion::getName() const {
     StreamAsString stream;
     stream << "region-0x" << std::hex << originalAddress;
     return stream;
 }
 
-DataVariable::DataVariable(DataRegion *region, address_t offset, Link *dest)
-    : region(region), dest(dest), addend(0) {
+DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
+    : dest(dest), addend(0) {
 
+    auto section = CIter::spatial(region)->findContaining(address);
+    if(!section) {
+        LOG(1, "in " << region->getName() << ", address " << address);
+        throw "no section contains this variable!";
+    }
+
+    auto offset = address - section->getAddress();
     this->setPosition(new AbsoluteOffsetPosition(this, offset));
-    ChunkMutator(region).append(this);
+    ChunkMutator(section).append(this);
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
+    for(auto v : elfMap->findSectionsByFlag(SHF_ALLOC)) {
+        auto shdr = static_cast<ElfXX_Shdr *>(v);
+        if(shdr->sh_flags & SHF_EXECINSTR) continue;
+        if(shdr->sh_addr < phdr->p_vaddr) continue;
+        if(phdr->p_vaddr + phdr->p_memsz < shdr->sh_addr) continue;
+        auto ds = new DataSection(phdr, shdr);
+        ChunkMutator(this).append(ds);
+    }
+
     this->phdr = phdr;
     setPosition(new AbsolutePosition(phdr->p_vaddr));
     setSize(phdr->p_memsz);
     originalAddress = getAddress();
     startOffset = 0;
+    mappedAddress = 0;
     if(!writable()) {
         if(auto sec = elfMap->findSection(".rodata")) {
             startOffset = sec->getVirtualAddress() - getOriginalAddress();
@@ -55,6 +87,7 @@ void DataRegion::updateAddressFor(address_t baseAddress) {
     LOG(1, "UPDATE address for DataRegion from " << std::hex
         << getAddress() << " to " << (baseAddress + phdr->p_vaddr));
     getPosition()->set(baseAddress + phdr->p_vaddr);
+    mappedAddress = baseAddress + phdr->p_vaddr;
 }
 
 DataVariable *DataRegion::findVariable(address_t address) const {
@@ -94,30 +127,27 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
         << ", relative? " << isRelative);
     for(auto region : CIter::children(this)) {
         if(region->contains(target)) {
-            auto base = region->getAddress();
-            if(isRelative) {
-                return new DataOffsetLink(region, target - base);
-            }
-            else {
-                return new AbsoluteDataLink(region, target - base);
-            }
-        }
-    }
-    /* this case occurs when a pointer is pointing to the next address of a
-     * data region, e.g. a label _end points to the next address of _bss */
-    for(auto region : CIter::children(this)) {
-        if(region->endsWith(target)) {
-            auto base = region->getAddress();
-            if(isRelative) {
-                return new DataOffsetLink(region, target - base);
-            }
-            else {
-                return new AbsoluteDataLink(region, target - base);
+            auto dsec = CIter::spatial(region)->findContaining(target);
+            if(dsec) {
+                auto base = dsec->getAddress();
+                LOG(10, "" << target << " has offset " << (target - base));
+                if(isRelative) {
+                    return new DataOffsetLink(dsec, target - base);
+                }
+                else {
+                    return new AbsoluteDataLink(dsec, target - base);
+                }
             }
         }
     }
+
+#ifdef ARCH_X86_64
     LOG(1, "    unable to make link! (to 0x" << std::hex << target << ")");
     return nullptr;
+#else
+    LOG(1, "must be defined in the linker script: " << target);
+    return new UnresolvedLink(target);
+#endif
 }
 
 DataRegion *DataRegionList::findRegionContaining(address_t target) {
@@ -195,12 +225,11 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         auto sourceRegion = list->findRegionContaining(reloc->getAddress());
         if(sourceRegion) {
             if(auto link = list->resolveVariableLink(reloc, module)) {
-                LOG(10, "resolving a variable at " << std::hex
-                    << reloc->getAddress()
-                    << " => " << reloc->getAddend());
+                auto addr = reloc->getAddress();
+                LOG(1, "resolving a variable at " << std::hex
+                    << addr << " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
-                auto var = new DataVariable(sourceRegion,
-                    reloc->getAddress() - sourceRegion->getAddress(), link);
+                auto var = new DataVariable(sourceRegion, addr, link);
                 sourceRegion->addVariable(var);
             }
         }

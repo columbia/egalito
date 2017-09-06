@@ -10,15 +10,17 @@
 class Link;
 class ElfMap;
 
+class DataRegion;
+
 class DataVariable : public AddressableChunkImpl {
 private:
-    DataRegion *region;
     Link *dest;
     size_t addend;
 public:
-    DataVariable(DataRegion *region, address_t offset, Link *dest);
+    DataVariable(DataRegion *region, address_t address, Link *dest);
 
     Link *getDest() const { return dest; }
+    void setDest(Link *dest) { this->dest = dest; }
 
     void setAddend(size_t addend) { this->addend = addend; }
     size_t getAddend() const { return addend; }
@@ -26,13 +28,31 @@ public:
     virtual void accept(ChunkVisitor *visitor) {}
 };
 
-class DataRegion : public CompositeChunkImpl<DataVariable> {
+class DataSection : public CompositeChunkImpl<DataVariable> {
+private:
+    size_t size;
+    size_t align;
+    address_t originalOffset;
+    bool bss;
+
+public:
+    DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr);
+    virtual size_t getSize() const { return size; }
+    size_t getAlignment() const { return align; }
+    address_t getOriginalOffset() const { return originalOffset; }
+    bool isBss() const { return bss; }
+    virtual std::string getName() const;
+    virtual void accept(ChunkVisitor *visitor) {}
+};
+
+class DataRegion : public CompositeChunkImpl<DataSection> {
 private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
     ElfXX_Phdr *phdr;
     address_t originalAddress;
     size_t startOffset;
+    address_t mappedAddress;
 public:
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
@@ -54,6 +74,7 @@ public:
     virtual void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
     size_t getStartOffset() const { return startOffset; }
+    address_t getMapBaseAddress() const { return mappedAddress; }
 
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
