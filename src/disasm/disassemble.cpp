@@ -413,6 +413,9 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
 }
 
 bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
+    // Note: we split on all explicit control flow changes like jumps, rets,
+    // etc, but not on conditional moves or instructions that generate OS
+    // interrupts/exceptions/traps.
     bool split = false;
 #ifdef ARCH_X86_64
     if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
@@ -424,51 +427,32 @@ bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
     else if(cs_insn_group(handle.raw(), ins, X86_GRP_RET)) {
         split = true;
     }
-    /*else if(cs_insn_group(handle.raw(), ins, X86_GRP_INT)) {
-    }
-    else if(cs_insn_group(handle.raw(), ins, X86_GRP_IRET)) {
-    }*/
 #elif defined(ARCH_AARCH64)
-    if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) { //only branches
+    if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {  // only branches
         split = true;
     }
-    else if(ins->id == ARM64_INS_BL) {
+    else if(ins->id == ARM64_INS_BL
+        || ins->id == ARM64_INS_BLR
+        || ins->id == ARM64_INS_RET) {
+
         split = true;
     }
-    else if(ins->id == ARM64_INS_BLR) {
-        split = true;
-    }
-    else if(ins->id == ARM64_INS_RET) {
-        split = true;
-    }
-    //exception generation instructions don't require split
 #elif defined(ARCH_ARM)
     if(cs_insn_group(handle.raw(), ins, ARM_GRP_JUMP)) {
-      split = true;
+        split = true;
     }
-    else if(ins->id == ARM_INS_B) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_BX) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_BL) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_BLX) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_BXJ) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_CBZ) {
-      split = true;
-    }
-    else if(ins->id == ARM_INS_CBNZ) {
-      split = true;
+    else if(ins->id == ARM_INS_B
+        || ins->id == ARM_INS_BX
+        || ins->id == ARM_INS_BL
+        || ins->id == ARM_INS_BLX
+        || ins->id == ARM_INS_BXJ
+        || ins->id == ARM_INS_CBZ
+        || ins->id == ARM_INS_CBNZ) {
+
+        split = true;
     }
 #endif
-      return split;
+    return split;
 }
 
 Symbol *Disassemble::getMappingSymbol(Symbol *symbol) {
