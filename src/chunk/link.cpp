@@ -27,11 +27,11 @@ address_t JumpTableLink::getTargetAddress() const {
 }
 
 ChunkRef DataOffsetLink::getTarget() const {
-    return region;
+    return section;
 }
 
 address_t DataOffsetLink::getTargetAddress() const {
-    return region->getAddress() + target;
+    return section->getAddress() + target;
 }
 
 ChunkRef TLSDataOffsetLink::getTarget() const {

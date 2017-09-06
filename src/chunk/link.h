@@ -120,14 +120,14 @@ public:
 
 // --- data links ---
 
-class DataRegion;
+class DataSection;
 class DataOffsetLink : public Link {
 private:
-    DataRegion *region;
+    DataSection *section;
     address_t target;
 public:
-    DataOffsetLink(DataRegion *region, address_t target)
-        : region(region), target(target) {}
+    DataOffsetLink(DataSection *section, address_t target)
+        : section(section), target(target) {}
 
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
