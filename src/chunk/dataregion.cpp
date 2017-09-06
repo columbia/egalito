@@ -204,14 +204,14 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
 
         if(phdr->p_type == PT_LOAD /*&& phdr->p_flags == (PF_R | PF_W)*/) {
             auto region = new DataRegion(elfMap, phdr);
-            LOG(1, "Found data region at 0x"
+            LOG(9, "Found data region at 0x"
                 << std::hex << region->getAddress()
                 << " size 0x" << region->getSize());
             list->getChildren()->add(region);
         }
         else if(phdr->p_type == PT_TLS) {
             auto region = new TLSDataRegion(elfMap, phdr);
-            LOG(1, "Found TLS data region at 0x"
+            LOG(9, "Found TLS data region at 0x"
                 << std::hex << region->getAddress()
                 << " size 0x" << region->getSize());
             list->getChildren()->add(region);
@@ -226,7 +226,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         if(sourceRegion) {
             if(auto link = list->resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
-                LOG(1, "resolving a variable at " << std::hex
+                LOG(10, "resolving a variable at " << std::hex
                     << addr << " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion, addr, link);
