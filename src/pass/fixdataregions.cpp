@@ -26,7 +26,7 @@ void FixDataRegionsPass::visit(DataRegionList *dataRegionList) {
 
 void FixDataRegionsPass::visit(DataRegion *dataRegion) {
     if(!dataRegion) return;
-    auto mapBase = dataRegion->getMapBaseAddress();
+    auto isTLS = dynamic_cast<TLSDataRegion *>(dataRegion);
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
             if(auto tlsLink
@@ -38,8 +38,12 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
             }
 
             auto target = var->getDest()->getTargetAddress() + var->getAddend();
-            auto address = var->getAddress() - dsec->getAddress()
-                + dsec->getOriginalOffset() + mapBase;
+            address_t address = var->getAddress();
+            if(!isTLS) {
+                address += dataRegion->getMapBaseAddress()
+                    - dsec->getAddress()
+                    + dsec->getOriginalOffset();
+            }
             LOG(1, "set variable " << std::hex << address << " => " << target);
             *reinterpret_cast<address_t *>(address) = target;
         }

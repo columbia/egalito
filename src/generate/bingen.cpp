@@ -12,7 +12,6 @@
 #include "load/segmap.h"
 #include "operation/find.h"
 #include "operation/mutator.h"
-#include "pass/clearspatial.h"
 #include "pass/relocdata.h"
 #include "pass/fixdataregions.h"
 #include "pass/instrumentcalls.h"
@@ -127,17 +126,6 @@ void BinGen::extractMarkers() {
 int BinGen::generate() {
     changeMapAddress(mainModule, 0xa0000000);
     SegMap::mapAllSegments(setup);
-    ClearSpatialPass clearSpatial;
-    mainModule->accept(&clearSpatial);
-    for(auto region : CIter::regions(mainModule)) {
-        region->accept(&clearSpatial);
-    }
-    if(addon) {
-        addon->accept(&clearSpatial);
-        for(auto region : CIter::regions(addon)) {
-            region->accept(&clearSpatial);
-        }
-    }
 
     RelocDataPass relocData(setup->getConductor());
     setup->getConductor()->getProgram()->accept(&relocData);

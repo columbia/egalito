@@ -4,6 +4,7 @@
 #include "position.h"
 #include "concrete.h"
 #include "visitor.h"
+#include "chunk/dump.h"
 #include "elf/elfspace.h"
 #include "operation/mutator.h"
 #include "util/streamasstring.h"
@@ -37,6 +38,8 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
     auto section = CIter::spatial(region)->findContaining(address);
     if(!section) {
         LOG(1, "in " << region->getName() << ", address " << address);
+        ChunkDumper dumper;
+        region->accept(&dumper);
         throw "no section contains this variable!";
     }
 
@@ -227,7 +230,8 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
             if(auto link = list->resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
                 LOG(10, "resolving a variable at " << std::hex
-                    << addr << " => " << reloc->getAddend());
+                    << addr << " => " << reloc->getSymbol()->getName()
+                    << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion, addr, link);
                 sourceRegion->addVariable(var);

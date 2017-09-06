@@ -7,6 +7,7 @@
 #include "segmap.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
+#include "pass/clearspatial.h"
 #include "log/log.h"
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
@@ -24,10 +25,16 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
         SegMap::mapSegments(*egalito, egalito->getBaseAddress());
     }
 
+    ClearSpatialPass clearSpatial;
     for(auto lib : *setup->getConductor()->getLibraryList()) {
         auto map = lib->getElfMap();
         if(map && map != elf && map != egalito) {
             SegMap::mapSegments(*map, map->getBaseAddress());
+        }
+    }
+    for(auto module : CIter::children(setup->getConductor()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            region->accept(&clearSpatial);
         }
     }
 }
