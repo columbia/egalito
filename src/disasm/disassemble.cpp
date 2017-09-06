@@ -7,6 +7,7 @@
 #include "disassemble.h"
 #include "dump.h"
 #include "makesemantic.h"
+#include "splitfunctions.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "operation/mutator.h"
@@ -169,6 +170,8 @@ Module *Disassemble::makeModuleFromScratch(ElfMap *elfMap) {
     functionList->getChildren()->add(function);
     function->setParent(functionList);
 
+    SplitFunctions::splitByDirectCall(module);
+
     return module;
 }
 
@@ -178,13 +181,13 @@ Function *Disassemble::linearDisassembly(ElfMap *elfMap,
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
-    Handle handle(true);
-    Function *function = new Function(nullptr);
-
     address_t virtualAddress = section->getVirtualAddress();
     address_t readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
+
+    Handle handle(true);
+    Function *function = new FuzzyFunction(virtualAddress);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     function->setPosition(
@@ -209,7 +212,7 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     Handle handle(true);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
-    Function *function = new Function(symbol);
+    Function *function = new FunctionFromSymbol(symbol);
 
     address_t symbolAddress = symbol->getAddress();
 #ifdef ARCH_ARM

@@ -7,16 +7,35 @@
 
 class Symbol;
 class Function : public CompositeChunkImpl<Block> {
+public:
+    virtual Symbol *getSymbol() const = 0;
+    virtual std::string getName() const = 0;
+    virtual bool hasName(std::string name) const = 0;
+
+    virtual void accept(ChunkVisitor *visitor);
+};
+
+class FunctionFromSymbol : public Function {
 private:
     Symbol *symbol;
 public:
-    Function(Symbol *symbol) : symbol(symbol) {}
+    FunctionFromSymbol(Symbol *symbol) : symbol(symbol) {}
 
-    Symbol *getSymbol() const { return symbol; }
-    std::string getName() const;
-    bool hasName(std::string name) const;
+    virtual Symbol *getSymbol() const { return symbol; }
+    virtual std::string getName() const;
+    virtual bool hasName(std::string name) const;
+};
 
-    virtual void accept(ChunkVisitor *visitor);
+class FuzzyFunction : public Function {
+private:
+    std::string name;
+public:
+    FuzzyFunction(address_t originalAddress);
+
+    virtual Symbol *getSymbol() const { return nullptr; }
+    virtual std::string getName() const { return name; }
+    virtual bool hasName(std::string name) const
+        { return name == this->name; }
 };
 
 class FunctionList : public CompositeChunkImpl<Function> {

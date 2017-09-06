@@ -45,6 +45,9 @@ public:
         { return base->getChildren()->getNamed()->find(name); }
 
     template <typename BaseType>
+    static IterableChunkList<typename BaseType::ChunkChildType> *
+        iterable(BaseType *base) { return base->getChildren()->getIterable(); }
+    template <typename BaseType>
     static NamedChunkList<typename BaseType::ChunkChildType> *
         named(BaseType *base) { return base->getChildren()->getNamed(); }
     template <typename BaseType>

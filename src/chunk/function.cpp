@@ -1,12 +1,18 @@
+#include <sstream>
+#include <iomanip>
 #include "function.h"
 #include "visitor.h"
 #include "elf/symbol.h"
 
-std::string Function::getName() const {
+void Function::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
+std::string FunctionFromSymbol::getName() const {
     return symbol->getName();
 }
 
-bool Function::hasName(std::string name) const {
+bool FunctionFromSymbol::hasName(std::string name) const {
     if(symbol->getName() == name) return true;
     for(auto s : getSymbol()->getAliases()) {
         if(std::string(s->getName()) == name) {
@@ -17,8 +23,10 @@ bool Function::hasName(std::string name) const {
     return false;
 }
 
-void Function::accept(ChunkVisitor *visitor) {
-    visitor->visit(this);
+FuzzyFunction::FuzzyFunction(address_t originalAddress) {
+    std::ostringstream stream;
+    stream << "fuzzyfunc-0x" << std::hex << originalAddress;
+    name = stream.str();
 }
 
 void FunctionList::accept(ChunkVisitor *visitor) {

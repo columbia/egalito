@@ -155,6 +155,7 @@ public:
     ChildType *find(address_t address);
     ChildType *findContaining(address_t address);
     std::vector<ChildType *> findAllContaining(address_t address);
+    std::vector<ChildType *> findAllWithin(Range range);
 };
 
 template <typename ChildType>
@@ -189,6 +190,23 @@ std::vector<ChildType *> SpatialChunkList<ChildType>
         auto c = (*it).second;
         if(c->getRange().contains(address)) found.push_back(c);
     }
+    return std::move(found);
+}
+
+template <typename ChildType>
+std::vector<ChildType *> SpatialChunkList<ChildType>
+    ::findAllWithin(Range range) {
+
+    std::vector<ChildType *> found;
+    auto it = spaceMap.upper_bound(range.getStart());
+    for( ; it != spaceMap.end(); ++it) {
+        auto chunk = (*it).second;
+        if(range.contains(chunk->getRange())) {
+            found.push_back(chunk);
+        }
+        else break;
+    }
+
     return std::move(found);
 }
 
