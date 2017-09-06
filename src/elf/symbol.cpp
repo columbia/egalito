@@ -160,6 +160,9 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
     for(auto sym : *list) {
         if(sym->getSize() == 0 && sym->getAddress() > 0) {
+#ifdef ARCH_AARCH64
+            if(sym->getType() != Symbol::TYPE_FUNC) continue;
+#endif
             size_t estimate = list->estimateSizeOf(sym);
             LOG(1, "estimate size of symbol ["
                 << sym->getName() << "] to be " << std::dec << estimate);
@@ -471,37 +474,46 @@ void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
 
     bool done = false;
 
-    // section vs others
-    if(s1->getType() != s2->getType()) {
-        if(s1->getType() == Symbol::TYPE_SECTION) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getType() == Symbol::TYPE_SECTION) {
-            parent[x2] = x1;
-            done = true;
-        }
-        else if(s1->getType() == Symbol::TYPE_FILE) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getType() == Symbol::TYPE_FILE) {
-            parent[x2] = x1;
-            done = true;
-        }
+    // normal symbol > mapping symbol
+    // mapping symbol names shouldn't be used at all
+    if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
+        parent[x1] = x2;
+        done = true;
+    }
+    else if(s2->getBind() == Symbol::BIND_LOCAL
+        && s2->getName()[0] == '$') {
+
+        parent[x2] = x1;
+        done = true;
     }
 
-    // normal symbol > mapping symbol
+    // section vs others
     if(!done) {
-        if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getBind() == Symbol::BIND_LOCAL
-            && s2->getName()[0] == '$') {
-
-            parent[x2] = x1;
-            done = true;
+        if(s1->getType() != s2->getType()) {
+            if(s1->getType() == Symbol::TYPE_SECTION) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s2->getType() == Symbol::TYPE_SECTION) {
+                parent[x2] = x1;
+                done = true;
+            }
+            else if(s1->getType() == Symbol::TYPE_FILE) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s2->getType() == Symbol::TYPE_FILE) {
+                parent[x2] = x1;
+                done = true;
+            }
+            else if(s1->getType() == Symbol::TYPE_NOTYPE) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s2->getType() == Symbol::TYPE_NOTYPE) {
+                parent[x2] = x1;
+                done = true;
+            }
         }
     }
 
@@ -566,6 +578,19 @@ void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
         }
     }
 
+    if(!done) {
+        if(s1->getSize() != s2->getSize()) {
+            if(s1->getSize() == 0) {
+                parent[x1] = x2;
+                done = true;
+            }
+            else if(s2->getSize() == 0) {
+                parent[x2] = x2;
+                done = true;
+            }
+        }
+    }
+
 #if 1
     // we might need a DB of standard API names
     if(!done) {
@@ -579,7 +604,7 @@ void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
 void SymbolAliasFinder::constructByAddress() {
     for(size_t i = 0; i < sortedList.size(); i++) {
         auto sym = sortedList[i];
-        if(sym->getSectionIndex() == SHN_UNDEF) continue;
+        //if(sym->getSectionIndex() == SHN_UNDEF) continue;
         //if(sym->getType() == Symbol::TYPE_SECTION) continue;
         if(sym->getType() == Symbol::TYPE_FILE) continue;
 
@@ -589,7 +614,7 @@ void SymbolAliasFinder::constructByAddress() {
                 break;
             }
             /* if(sym2->getSectionIndex() == SHN_UNDEF) continue; */
-            if(sym2->getType() == Symbol::TYPE_SECTION) continue;
+            //if(sym2->getType() == Symbol::TYPE_SECTION) continue;
             if(sym2->getType() == Symbol::TYPE_FILE) continue;
 
             if(sym->getSectionIndex() == sym2->getSectionIndex()) {
