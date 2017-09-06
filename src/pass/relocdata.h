@@ -30,7 +30,9 @@ private:
         ElfSpace *space);
     bool resolveObjectHelper(const char *name, address_t *address,
         size_t *size, ElfSpace *space);
-    Link *resolveAsLinkHelper(const char *name, ElfSpace *space);
+
+    Link *resolveAsLinkByName(const Symbol *symbol);
+    Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
 };
 
 /** Fixes relocations in the data section prior to running code.

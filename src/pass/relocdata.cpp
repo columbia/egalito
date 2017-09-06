@@ -7,6 +7,7 @@
 #include "chunk/link.h"
 #include "conductor/conductor.h"
 #include "load/emulator.h"
+#include "operation/find.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dloadtime
@@ -96,57 +97,6 @@ bool FindAnywhere::resolveObject(const char *name, address_t *address,
     return false;
 }
 
-Link *FindAnywhere::resolveAsLink(const Symbol *symbol) {
-    if(symbol) {
-        if(symbol->getType() == Symbol::TYPE_SECTION) {
-            if(auto sym = symbol->getAliasFor()) {
-                symbol = sym;
-            }
-        }
-        const char *name = symbol->getName();
-        LOG(10, "SEARCH for " << name);
-
-        std::string versionedName;
-        if(auto ver = symbol->getVersion()) {
-            versionedName.append(name);
-            versionedName.push_back('@');
-            if(!ver->isHidden()) versionedName.push_back('@');
-            versionedName.append(ver->getName());
-        }
-
-        if(auto link = resolveAsLinkHelper(name, elfSpace)) {
-            return link;
-        }
-        else if(versionedName.size() > 0) {
-            LOG(10, "trying versioned name " << versionedName.c_str());
-            if(auto link = resolveAsLinkHelper(versionedName.c_str(),
-                elfSpace)) {
-
-                return link;
-            }
-        }
-
-        for(auto library : *conductor->getLibraryList()) {
-            auto space = library->getElfSpace();
-            if(space && space != elfSpace) {
-                if(auto link = resolveAsLinkHelper(name, space)) {
-                    return link;
-                }
-                else if(versionedName.size() > 0) {
-                    LOG(10, "trying versioned name " << versionedName.c_str());
-                    if(auto link = resolveAsLinkHelper(versionedName.c_str(),
-                        space)) {
-
-                        return link;
-                    }
-                }
-            }
-        }
-    }
-
-    return nullptr;
-}
-
 bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     ElfSpace *space) {
 
@@ -227,7 +177,86 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     return false;
 }
 
-Link *FindAnywhere::resolveAsLinkHelper(const char *name, ElfSpace *space) {
+Link *FindAnywhere::resolveAsLink(const Symbol *symbol) {
+    if(!symbol) return nullptr;
+
+    if(symbol->getBind() == Symbol::BIND_LOCAL) {
+        auto addr = symbol->getAddress();
+        auto func = CIter::spatial(elfSpace->getModule()->getFunctionList())
+            ->findContaining(addr);
+        if(func) {
+            if(func->getAddress() == addr) {
+                LOG(10, "must be pointing to a function");
+                return new NormalLink(func);
+            }
+            else {
+                LOG(10, "addr " << addr << " points inside " << func->getName());
+                Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+                    func, addr);
+                auto instruction = dynamic_cast<Instruction *>(inner);
+                return new NormalLink(instruction);
+            }
+        }
+
+        addr += elfSpace->getElfMap()->getBaseAddress();
+        auto region = CIter::spatial(elfSpace->getModule()->getDataRegionList())
+            ->findContaining(addr);
+        if(!region) {
+            LOG(1, "region NOT found");
+        }
+        else {
+            return LinkFactory::makeDataLink(elfSpace->getModule(), addr, true);
+        }
+    }
+
+    return resolveAsLinkByName(symbol);
+}
+
+Link *FindAnywhere::resolveAsLinkByName(const Symbol *symbol) {
+    const char *name = symbol->getName();
+    LOG(10, "SEARCH for " << name);
+
+    std::string versionedName;
+    if(auto ver = symbol->getVersion()) {
+        versionedName.append(name);
+        versionedName.push_back('@');
+        if(!ver->isHidden()) versionedName.push_back('@');
+        versionedName.append(ver->getName());
+    }
+
+    if(auto link = resolveNameAsLinkHelper(name, elfSpace)) {
+        return link;
+    }
+    else if(versionedName.size() > 0) {
+        LOG(10, "trying versioned name " << versionedName.c_str());
+        if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
+            elfSpace)) {
+
+            return link;
+        }
+    }
+
+    for(auto library : *conductor->getLibraryList()) {
+        auto space = library->getElfSpace();
+        if(space && space != elfSpace) {
+            if(auto link = resolveNameAsLinkHelper(name, space)) {
+                return link;
+            }
+            else if(versionedName.size() > 0) {
+                LOG(10, "trying versioned name " << versionedName.c_str());
+                if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
+                    space)) {
+
+                    return link;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+Link *FindAnywhere::resolveNameAsLinkHelper(const char *name, ElfSpace *space) {
     auto f = CIter::named(space->getModule()->getFunctionList())
         ->find(name);
     if(f) {
@@ -330,8 +359,8 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
 
-    LOG(1, "trying to fix " << (name ? name : "???")
-        << "(" << std::hex << r->getAddress() << ")"
+    LOG(10, "trying to fix " << (name ? name : "???")
+        << " (" << std::hex << r->getAddress() << ")"
         << " reloc type " << std::dec << (int)r->getType());
 
     auto elfMap = elfSpace->getElfMap();
@@ -449,11 +478,13 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         LOG(10, "    NOT fixing because type is " << r->getType());
     }
     if(link) {
-        LOG(1, "    make link to " << link->getTarget()->getName());
+        LOG0(1, "    make link: " << std::hex << update << " -> "
+             << link->getTargetAddress());
+        if(link->getTarget()) LOG(1, " " <<  link->getTarget()->getName());
+        else LOG(1, "");
         auto list = module->getDataRegionList();
         auto sourceRegion = list->findRegionContaining(update);
-        auto var = new DataVariable(sourceRegion,
-            update - sourceRegion->getAddress(), link);
+        auto var = new DataVariable(sourceRegion, update, link);
         sourceRegion->addVariable(var);
         if(destOffset > 0) {
             var->setAddend(destOffset);
@@ -469,8 +500,8 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         *(unsigned long *)update = dest + destOffset;
     }
     else if(!dontcare) {
-        LOG(10, "    not found!");
-        LOG(10, "        offset " << std::hex << r->getAddress()
+        LOG(1, "    not found!");
+        LOG(1, "        offset " << std::hex << r->getAddress()
             << " addend " << r->getAddend());
     }
 #endif

@@ -19,17 +19,24 @@ void ReloCheckPass::visit(Module *module) {
     LOG(1, "-- end");
 }
 
+/*
+ * there are two cases for unresolved:
+ * (1) a symbol is defined in linker script which is outside the data regions
+ * (2) a symbol is weak but not defined
+ */
 void ReloCheckPass::check(Reloc *r, Module *module) {
     std::stringstream ss;
 
-    ss << "relocation at " << std::hex << r->getAddress();
+    ss << "relocation at " << std::hex << r->getAddress() << " with addend "
+        << r->getAddend();
     auto flist = module->getFunctionList();
     Chunk *inner
         = ChunkFind().findInnermostInsideInstruction(flist, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<LinkedInstruction *>(i->getSemantic())) {
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
+                LOG(1, ss.str() << " NOT resolved!! " << std::hex
+                    << r->getSymbol()->getAddress());
             }
             else {
                 LOG(10, ss.str()
@@ -42,7 +49,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {
 
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
+                LOG(1, ss.str() << " NOT resolved!");
             }
             else {
                 LOG(10, ss.str()
@@ -61,12 +68,18 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         auto dlist = module->getDataRegionList();
         if(auto region = dlist->findRegionContaining(addr)) {
             if(auto var = region->findVariable(addr)) {
-                LOG(1, ss.str() << " resolved as a data variable pointing to "
-                    << var->getDest()->getTarget()->getName()
-                    << " at " << var->getDest()->getTargetAddress());
+                if(var->getDest()->getTarget()) {
+                    LOG(10, ss.str() << " resolved as a data variable pointing to "
+                        << var->getDest()->getTarget()->getName()
+                        << " at " << var->getDest()->getTargetAddress());
+                }
+                else {
+                    LOG(1, ss.str() << " NOT resolved!!!");
+                }
             }
             else {
-                LOG(1, ss.str() << " NOT resolved! addend " << r->getAddend());
+                LOG(1, ss.str() << " NOT resolved! " << std::hex
+                    << r->getSymbol()->getAddress());
             }
         }
         else {

@@ -26,19 +26,23 @@ void FixDataRegionsPass::visit(DataRegionList *dataRegionList) {
 
 void FixDataRegionsPass::visit(DataRegion *dataRegion) {
     if(!dataRegion) return;
-    for(auto var : dataRegion->variableIterable()) {
-        auto address = var->getAddress();
-        if(auto tlsLink = dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
-            if(!tlsLink->getTarget()) {
-                resolveTLSLink(tlsLink);
-            }
-        }
+    auto mapBase = dataRegion->getMapBaseAddress();
+    for(auto dsec : CIter::children(dataRegion)) {
+        for(auto var : CIter::children(dsec)) {
+            if(auto tlsLink
+                = dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
 
-        auto target = var->getDest()->getTargetAddress() + var->getAddend();
-        LOG(10, "set variable " << std::hex << address << " => " << target
-            << " inside " << dataRegion->getName()
-            << " at " << dataRegion->getAddress());
-        *reinterpret_cast<address_t *>(address) = target;
+                if(!tlsLink->getTarget()) {
+                    resolveTLSLink(tlsLink);
+                }
+            }
+
+            auto target = var->getDest()->getTargetAddress() + var->getAddend();
+            auto address = var->getAddress() - dsec->getAddress()
+                + dsec->getOriginalOffset() + mapBase;
+            LOG(1, "set variable " << std::hex << address << " => " << target);
+            *reinterpret_cast<address_t *>(address) = target;
+        }
     }
 }
 
