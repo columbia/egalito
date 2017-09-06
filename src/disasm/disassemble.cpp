@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <cassert>
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
@@ -100,52 +101,103 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 }
 
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
+    if(symbolList) {
+        return makeModuleFromSymbols(elfMap, symbolList);
+    }
+    else {
+        return makeModuleFromScratch(elfMap);
+    }
+}
+
+Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
+    SymbolList *symbolList) {
+
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
     functionList->setParent(module);
 
-    //TemporaryLogLevel tll("disasm", 10);
-    if(symbolList) {
-        for(auto sym : *symbolList) {
-            // skip Symbols that we don't think represent functions
-            if(!sym->isFunction()) continue;
+    for(auto sym : *symbolList) {
+        // skip Symbols that we don't think represent functions
+        if(!sym->isFunction()) continue;
 
-            Function *function = Disassemble::function(elfMap, sym, symbolList);
+        Function *function = Disassemble::function(elfMap, sym, symbolList);
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+        LOG(10, "adding function " << function->getName()
+            << " at " << std::hex << function->getAddress()
+            << " size " << function->getSize());
+    }
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    for(auto sym : *symbolList) {
+        if(!sym->isFunction()) {
+            if(sym->getSize() == 0) continue;
+            if(sym->getAliasFor()) continue;
+            if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
+            auto sec = elfMap->findSection(sym->getSectionIndex());
+            if(!sec) continue;  // ABS
+            if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;
+            if(sec->getName() == ".plt") continue;
+            if(CIter::spatial(functionList)->findContaining(
+                sym->getAddress())) {
+
+                continue;
+            }
+            Function *function
+                = Disassemble::function(elfMap, sym, symbolList);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
-            LOG(10, "adding function " << function->getName()
+            LOG(1, "adding literal only function " << function->getName()
                 << " at " << std::hex << function->getAddress()
                 << " size " << function->getSize());
         }
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        for(auto sym : *symbolList) {
-            if(!sym->isFunction()) {
-                if(sym->getSize() == 0) continue;
-                if(sym->getAliasFor()) continue;
-                if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
-                auto sec = elfMap->findSection(sym->getSectionIndex());
-                if(!sec) continue;  // ABS
-                if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;
-                if(sec->getName() == ".plt") continue;
-                if(CIter::spatial(functionList)->findContaining(
-                    sym->getAddress())) {
-
-                    continue;
-                }
-                Function *function
-                    = Disassemble::function(elfMap, sym, symbolList);
-                functionList->getChildren()->add(function);
-                function->setParent(functionList);
-                LOG(1, "adding literal only function " << function->getName()
-                    << " at " << std::hex << function->getAddress()
-                    << " size " << function->getSize());
-            }
-        }
-#endif
     }
+#endif
+
     return module;
+}
+
+Module *Disassemble::makeModuleFromScratch(ElfMap *elfMap) {
+    Module *module = new Module();
+    FunctionList *functionList = new FunctionList();
+    module->getChildren()->add(functionList);
+    module->setFunctionList(functionList);
+    functionList->setParent(module);
+
+    auto function = linearDisassembly(elfMap, ".text");
+    functionList->getChildren()->add(function);
+    function->setParent(functionList);
+
+    return module;
+}
+
+Function *Disassemble::linearDisassembly(ElfMap *elfMap,
+    const char *sectionName) {
+
+    auto section = elfMap->findSection(sectionName);
+    if(!section) return nullptr;
+
+    Handle handle(true);
+    Function *function = new Function(nullptr);
+
+    address_t virtualAddress = section->getVirtualAddress();
+    address_t readAddress = section->getReadAddress()
+        + section->convertVAToOffset(virtualAddress);
+    size_t readSize = section->getSize();
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(virtualAddress));
+
+    disassembleBlocks(
+        handle, function, readAddress, readSize, virtualAddress);
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
+    }
+
+    return function;
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,

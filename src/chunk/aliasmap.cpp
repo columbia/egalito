@@ -7,6 +7,8 @@
 FunctionAliasMap::FunctionAliasMap(Module *module) {
     for(auto func : CIter::functions(module)) {
         auto sym = func->getSymbol();
+        if(!sym) continue;
+
         for(auto aliasSym : sym->getAliases()) {
             if(aliasSym->getType() != Symbol::TYPE_FUNC) continue;
             auto alias = aliasSym->getName();

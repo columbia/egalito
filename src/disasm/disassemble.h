@@ -30,6 +30,8 @@ public:
 
     static void init();
     static Module *module(ElfMap *elfMap, SymbolList *symbolList);
+    static Function *linearDisassembly(ElfMap *elfMap,
+        const char *sectionName);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
@@ -44,6 +46,9 @@ public:
         address_t address = 0);
 
 private:
+    static Module *makeModuleFromSymbols(ElfMap *elfMap,
+        SymbolList *symbolList);
+    static Module *makeModuleFromScratch(ElfMap *elfMap);
     static void disassembleBlocks(Handle &handle, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
     static void processLiterals(Handle &handle, Function *function,
