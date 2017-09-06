@@ -234,6 +234,16 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
     }, "shows a sorted list of all functions in a module, with addresses");
 
+    topLevel->add("regions", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            ChunkDumper dumper;
+            module->getDataRegionList()->accept(&dumper);
+        }
+    }, "shows a list of all functions in a module");
+
     topLevel->add("detectnull", [&] (Arguments args) {
         if(!setup->getConductor()) {
             std::cout << "no ELF files loaded\n";
