@@ -20,7 +20,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     conductor->parseExecutable(elf);
 
     entrySymbol = conductor->getMainSpace()->getSymbolList()->find(
-        elf->getEntryPoint() + elf->getBaseAddress());
+        elf->getEntryPoint());
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
