@@ -13,6 +13,8 @@ void SplitFunctions::splitByDirectCall(Module *module) {
     // automatically discard duplicates.
     std::set<address_t> splitPoints;
 
+    address_t maxFinalAddress = 0;
+
     LOG(1, "Finding function split points at direct calls");
     for(auto function : CIter::functions(module)) {
         splitPoints.insert(function->getAddress());
@@ -41,49 +43,47 @@ void SplitFunctions::splitByDirectCall(Module *module) {
                 }
             }
         }
+
+        address_t finalAddress = function->getAddress() + function->getSize();
+        if(finalAddress > maxFinalAddress) maxFinalAddress = finalAddress;
     }
 
     // Add marker at the end of the last function.
-    auto last = CIter::iterable(module->getFunctionList())->getLast();
-    splitPoints.insert(last->getAddress() + last->getSize());
+    if(maxFinalAddress) {
+        splitPoints.insert(maxFinalAddress);
+    }
 
     LOG(1, "Splitting functions according to direct calls");
 
     FunctionList *newFunctionList = new FunctionList();
-    std::set<address_t>::iterator i = splitPoints.begin();
-    std::set<address_t>::iterator next = i;
-    next ++;
-    while(next != splitPoints.end()) {
-        address_t address = (*i);
-        size_t size = (*next) - address;
 
-        LOG(5, "    function at [0x" << std::hex << address << ",0x"
-            << address + size << "]");
-
-        // We assume here that we are only splitting functions into even
-        // finer chunks and not combining them -- so we only need to look
-        // in one function for our basic blocks.
-        auto originalFunction = CIter::spatial(module->getFunctionList())
-            ->findContaining(address);
-        if(originalFunction) {
-            LOG(8, "    looks like the source function is " << originalFunction->getName());
-            auto relevantBlocks = CIter::spatial(originalFunction)
-                ->findAllWithin(Range(address, size));
-
-            auto newFunction = new FuzzyFunction(address);
-            {
-                ChunkMutator mutator(newFunction, true);
-                for(auto block : relevantBlocks) {
-                    mutator.append(block);
-                }
+    std::set<address_t>::iterator it = splitPoints.begin();
+    address_t address = (*it);
+    Function *newFunction = new FuzzyFunction(address);
+    newFunction->setPosition(
+        positionFactory->makeAbsolutePosition(address));
+    newFunctionList->getChildren()->add(newFunction);
+    newFunction->setParent(newFunctionList);
+    LOG(5, "    new function at 0x" << std::hex << address);
+    for(auto function : CIter::functions(module)) {
+        for(auto block : CIter::children(function)) {
+            std::set<address_t>::iterator next = it;
+            ++next;
+            while(block->getAddress() >= (*next)) {
+                ++it, ++next;
+                address = (*it);
+                newFunction = new FuzzyFunction(address);
+                newFunction->setPosition(
+                    positionFactory->makeAbsolutePosition(address));
+                newFunctionList->getChildren()->add(newFunction);
+                newFunction->setParent(newFunctionList);
+                LOG(5, "    new function at 0x" << std::hex << address);
             }
-            newFunction->setPosition(
-                positionFactory->makeAbsolutePosition(address));
-            newFunctionList->getChildren()->add(newFunction);
-            newFunction->setParent(newFunctionList);
-        }
 
-        ++i, ++next;
+            LOG(6, "        add block " << block->getName());
+
+            ChunkMutator(newFunction, true).append(block);
+        }
     }
 
     useFunctionList(module, newFunctionList);
