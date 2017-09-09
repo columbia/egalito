@@ -4,6 +4,7 @@
 #include <climits>  // for INT_MIN
 #include <capstone/capstone.h>
 #include "types.h"
+#include "handle.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
@@ -14,16 +15,6 @@ class Symbol;
 class SymbolList;
 
 class Disassemble {
-public:
-    class Handle {
-    private:
-        csh handle;
-    public:
-        Handle(bool detailed = false);
-        ~Handle();
-
-        csh &raw() { return handle; }
-    };
 public:
     static void debug(const uint8_t *code, size_t length,
         address_t realAddress = 0, SymbolList *symbolList = 0);
@@ -36,10 +27,10 @@ public:
         SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
-    static Instruction *instruction(Handle &handle,
+    static Instruction *instruction(DisasmHandle &handle,
         const std::vector<unsigned char> &bytes, bool details = true,
         address_t address = 0);
-    static Instruction *instruction(cs_insn *ins, Handle &handle,
+    static Instruction *instruction(cs_insn *ins, DisasmHandle &handle,
         bool details = true);
 
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
@@ -49,17 +40,22 @@ private:
     static Module *makeModuleFromSymbols(ElfMap *elfMap,
         SymbolList *symbolList);
     static Module *makeModuleFromScratch(ElfMap *elfMap);
-    static void disassembleBlocks(Handle &handle, Function *function,
+    static void disassembleBlocks(DisasmHandle &handle, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
-    static void processLiterals(Handle &handle, Function *function,
+    static void processLiterals(DisasmHandle &handle, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
     static Block *makeBlock(Function *function, Block *prev);
 
-    static bool shouldSplitBlockAt(cs_insn *ins, Handle &handle);
+    static bool shouldSplitBlockAt(cs_insn *ins, DisasmHandle &handle);
     static Symbol *getMappingSymbol(Symbol *symbol);
     static Symbol *findMappingSymbol(SymbolList *symbolList,
         address_t virtualAddress);
-    static bool processMappingSymbol(Handle &handle, Symbol *symbol);
+    static bool processMappingSymbol(DisasmHandle &handle, Symbol *symbol);
+};
+
+class DebugDisassemble {
+public:
+    static const char *getRegisterName(int reg);
 };
 
 class AARCH64InstructionBinary {

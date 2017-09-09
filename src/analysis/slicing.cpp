@@ -375,8 +375,7 @@ TreeNode *SearchState::getMemTree() const {
 }
 
 const char *SlicingUtilities::printReg(int reg) {
-    Disassemble::Handle handle(true);
-    return cs_reg_name(handle.raw(), reg);
+    return DebugDisassemble::getRegisterName(reg);
 }
 
 void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {

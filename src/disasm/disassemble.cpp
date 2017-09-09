@@ -17,31 +17,6 @@
 
 #include "chunk/dump.h"
 
-Disassemble::Handle::Handle(bool detailed) {
-#ifdef ARCH_X86_64
-    if(cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
-        throw "Can't initialize capstone handle!";
-    }
-#elif defined(ARCH_AARCH64)
-    if(cs_open(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN, &handle) != CS_ERR_OK) {
-        throw "Can't initialize capstone handle!";
-    }
-#elif defined(ARCH_ARM)
-    if(cs_open(CS_ARCH_ARM, CS_MODE_ARM, &handle) != CS_ERR_OK) {
-        throw "Can't initialize capstone handle!";
-    }
-#endif
-
-    cs_option(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);  // AT&T syntax
-    if(detailed) {
-        cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
-    }
-}
-
-Disassemble::Handle::~Handle() {
-    cs_close(&handle);
-}
-
 void Disassemble::init() {
     if(PositionFactory::getInstance()) return;
 
@@ -58,7 +33,7 @@ void Disassemble::init() {
 void Disassemble::debug(const uint8_t *code, size_t length,
     address_t realAddress, SymbolList *symbolList) {
 
-    Handle handle(symbolList != 0);
+    DisasmHandle handle(symbolList != 0);
     cs_insn *insn;
     size_t count = cs_disasm(handle.raw(), code, length, realAddress, 0, &insn);
     if(count == 0) {
@@ -102,7 +77,7 @@ void Disassemble::debug(const uint8_t *code, size_t length,
 }
 
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
-    if(symbolList) {
+    if(true || symbolList) {
         return makeModuleFromSymbols(elfMap, symbolList);
     }
     else {
@@ -118,6 +93,8 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
     functionList->setParent(module);
+
+    if(!symbolList) return module;
 
     for(auto sym : *symbolList) {
         // skip Symbols that we don't think represent functions
@@ -186,7 +163,7 @@ Function *Disassemble::linearDisassembly(ElfMap *elfMap,
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
-    Handle handle(true);
+    DisasmHandle handle(true);
     Function *function = new FuzzyFunction(virtualAddress);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
@@ -209,7 +186,7 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
 
-    Handle handle(true);
+    DisasmHandle handle(true);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new FunctionFromSymbol(symbol);
@@ -291,7 +268,7 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     return function;
 }
 
-void Disassemble::disassembleBlocks(Handle &handle, Function *function,
+void Disassemble::disassembleBlocks(DisasmHandle &handle, Function *function,
     address_t readAddress, size_t readSize, address_t virtualAddress) {
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
@@ -347,7 +324,7 @@ void Disassemble::disassembleBlocks(Handle &handle, Function *function,
     cs_free(insn, count);
 }
 
-void Disassemble::processLiterals(Handle &handle, Function *function,
+void Disassemble::processLiterals(DisasmHandle &handle, Function *function,
     address_t readAddress, size_t readSize, address_t virtualAddress) {
 
     LOG(10, "literals embedded in " << function->getName()
@@ -412,7 +389,7 @@ Block *Disassemble::makeBlock(Function *function, Block *prev) {
 Assembly Disassemble::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 
-    Handle handle(true);
+    DisasmHandle handle(true);
 
     cs_insn *insn;
     if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
@@ -428,12 +405,12 @@ Assembly Disassemble::makeAssembly(
 Instruction *Disassemble::instruction(
     const std::vector<unsigned char> &bytes, bool details, address_t address) {
 
-    Handle handle(true);
+    DisasmHandle handle(true);
 
     return instruction(handle, bytes, details, address);
 }
 
-Instruction *Disassemble::instruction(Handle &handle,
+Instruction *Disassemble::instruction(DisasmHandle &handle,
     const std::vector<unsigned char> &bytes, bool details, address_t address) {
 
     cs_insn *ins;
@@ -446,7 +423,9 @@ Instruction *Disassemble::instruction(Handle &handle,
     return instruction(ins, handle, details);
 }
 
-Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details) {
+Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
+    bool details) {
+
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
@@ -467,7 +446,7 @@ Instruction *Disassemble::instruction(cs_insn *ins, Handle &handle, bool details
     return instr;
 }
 
-bool Disassemble::shouldSplitBlockAt(cs_insn *ins, Handle &handle) {
+bool Disassemble::shouldSplitBlockAt(cs_insn *ins, DisasmHandle &handle) {
     // Note: we split on all explicit control flow changes like jumps, rets,
     // etc, but not on conditional moves or instructions that generate OS
     // interrupts/exceptions/traps.
@@ -537,7 +516,7 @@ Symbol *Disassemble::findMappingSymbol(SymbolList *symbolList,
     return nullptr;
 }
 
-bool Disassemble::processMappingSymbol(Handle &handle, Symbol *symbol) {
+bool Disassemble::processMappingSymbol(DisasmHandle &handle, Symbol *symbol) {
 #ifdef ARCH_X86_64
     return false;
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
@@ -558,4 +537,9 @@ bool Disassemble::processMappingSymbol(Handle &handle, Symbol *symbol) {
     }
     return literal;
 #endif
+}
+
+const char *DebugDisassemble::getRegisterName(int reg) {
+    DisasmHandle handle(true);
+    return cs_reg_name(handle.raw(), reg);
 }

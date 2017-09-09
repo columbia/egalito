@@ -11,7 +11,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, cs_insn *ins) {
 
     InstructionSemantic *semantic = nullptr;
-    Disassemble::Handle handle(true);
+    DisasmHandle handle(true);
 
 #if defined(ARCH_X86_64)
     cs_x86 *x = &ins->detail->x86;

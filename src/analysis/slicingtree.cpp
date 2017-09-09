@@ -22,8 +22,7 @@ void TreeNodeAddress::print(const TreePrinter &p) const {
 }
 
 void TreeNodeRegister::print(const TreePrinter &p) const {
-    Disassemble::Handle handle(true);
-    p.stream() << "%" << std::dec << cs_reg_name(handle.raw(), reg);
+    p.stream() << "%" << std::dec << DebugDisassemble::getRegisterName(reg);
 }
 
 void TreeNodeRegisterRIP::print(const TreePrinter &p) const {
