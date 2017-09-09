@@ -82,6 +82,14 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
             << (sec->getAddress() + sec->getSize())
             << ") " << sec->getName());
     }
+    for(auto var : dataRegion->variableIterable()) {
+        auto target = var->getDest()->getTarget();
+        LOG0(10, "var: " << var->getAddress());
+        if(target) {
+            LOG(10, " --> " << target->getName());
+        }
+        else LOG(10, "");
+    }
 }
 
 void InstrDumper::visit(RawInstruction *semantic) {

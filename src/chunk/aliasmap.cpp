@@ -13,17 +13,14 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
             //LOG(1, alias << " is an alias for " << func->getName());
             aliasMap[alias] = func;
 
-#if 1
             auto specialVersion = std::strstr(alias, "@@GLIBC");
             if(specialVersion) {
                 std::string splice(alias, specialVersion - alias);
                 aliasMap[splice] = func;
                 LOG(1, "alias [" << splice << "] to [" << alias << "]");
             }
-#endif
         }
 
-#if 1
         auto name = sym->getName();
         auto specialVersion = std::strstr(name, "@@GLIBC");
         if(specialVersion) {
@@ -31,7 +28,6 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
             aliasMap[splice] = func;
             LOG(1, "alias [" << splice << "] to [" << name << "]");
         }
-#endif
     }
 }
 
