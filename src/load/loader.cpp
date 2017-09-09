@@ -50,10 +50,8 @@ int main(int argc, char *argv[]) {
         setup.getConductor()->fixDataSections();
         setup.getConductor()->writeDebugElf("symbols.elf");
 
-#ifdef ARCH_AARCH64
         ReloCheckPass checker;
         setup.getConductor()->acceptInAllModules(&checker, true);
-#endif
 
         entry = setup.getEntryPoint();
 

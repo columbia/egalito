@@ -357,6 +357,14 @@ void RelocDataPass::fixRelocation(Reloc *r) {
             found = true;
         }
     }
+    else if(r->getType() == R_X86_64_IRELATIVE) {
+        LOG(1, "IRELATIVE " << symbol->getName());
+        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
+        if(!found) {
+            dest = elfMap->getBaseAddress() + r->getAddend();
+            found = true;
+        }
+    }
     else if(r->getType() == R_X86_64_TPOFF64) {
         // stores an index into the thread-local storage table at %fs
         auto tls = module->getDataRegionList()->getTLS();
@@ -390,6 +398,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         LOG(10, "    fix address " << std::hex << update
             << " to point at " << dest);
         *(unsigned long *)update = dest;
+    }
+    else {
+        LOG(1, "    FAILED FIXING relocation at " << std::hex << r->getAddress());
     }
 #else
     address_t update = elfMap->getBaseAddress() + r->getAddress();

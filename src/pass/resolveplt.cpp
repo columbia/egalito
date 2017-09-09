@@ -3,6 +3,8 @@
 #include "chunk/program.h"
 #include "operation/find2.h"
 
+#include "log/log.h"
+
 void ResolvePLTPass::visit(Module *module) {
     this->module = module;
     recurse(module);
@@ -21,5 +23,9 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
 
     if(found) {
         pltTrampoline->setTarget(found);
+    }
+    else {
+        LOG(1, "unresolved pltTrampoline target "
+            << symbol->getName() << " unused?");
     }
 }

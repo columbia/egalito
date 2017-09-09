@@ -59,7 +59,7 @@ BinGen::~BinGen() {
     fs.close();
 }
 
-// may be this should be a pass
+// maybe this should be a pass
 void BinGen::extractMarkers() {
     LOG(1, "extracting marker symbols");
 

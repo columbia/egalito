@@ -27,17 +27,17 @@ public:
         }
         else {
             unresolved ++, total ++;
-#if 0
+#if 1
             std::cout << "unresolved link at "
                 << std::hex << instruction->getAddress()
                 << " in "
                 << instruction->getParent()->getParent()->getName()
                 << '\n';
             if(dynamic_cast<UnresolvedLink *>(link)) {
-                std::cout << "unresolve link!\n";
-                std::cout << "target: " << link->getTargetAddress() << '\n';
+                std::cout << "UnresolveLink to "
+                    << link->getTargetAddress() << '\n';
             }
-            exit(1);
+            //exit(1);
 #endif
         }
     }
@@ -70,7 +70,7 @@ void LibcResolve::run() {
             return;
         }
         if(pass.getUnresolved() > 0) {
-            std::cout << "TEST FAILED: " << pass.getUnresolved()
+            std::cout << "TEST FAILED: " << std::dec << pass.getUnresolved()
                 << " unresolved out of " << pass.getTotal() << " links\n";
             return;
         }
