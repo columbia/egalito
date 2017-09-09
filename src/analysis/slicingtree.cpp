@@ -4,7 +4,7 @@
 #include <string>
 #include <cstring>
 #include "slicingtree.h"
-#include "disasm/disassemble.h"
+#include "disasm/dump.h"
 
 std::ostream &TreePrinter::stream() const {
     return std::cout;
@@ -22,7 +22,7 @@ void TreeNodeAddress::print(const TreePrinter &p) const {
 }
 
 void TreeNodeRegister::print(const TreePrinter &p) const {
-    p.stream() << "%" << std::dec << DebugDisassemble::getRegisterName(reg);
+    p.stream() << "%" << std::dec << DisasmDump::getRegisterName(reg);
 }
 
 void TreeNodeRegisterRIP::print(const TreePrinter &p) const {

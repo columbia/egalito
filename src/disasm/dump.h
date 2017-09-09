@@ -4,6 +4,7 @@
 #include <climits>
 #include <string>
 #include "types.h"
+#include "elf/symbol.h"
 
 class Assembly;
 
@@ -22,6 +23,10 @@ public:
         int offset, const char *opcode, const char *args,
         const char *name, const std::string &rawDisasm,
         bool calculatedStyle);
+
+    static void printInstructionList(const uint8_t *code, size_t length,
+        address_t realAddress = 0, SymbolList *symbolList = 0);
+    static const char *getRegisterName(int reg);
 };
 
 #endif

@@ -6,7 +6,7 @@
 #include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "instr/memory.h"
-#include "disasm/disassemble.h"
+#include "disasm/dump.h"
 #include "log/log.h"
 
 class SlicingInstructionState {
@@ -375,7 +375,7 @@ TreeNode *SearchState::getMemTree() const {
 }
 
 const char *SlicingUtilities::printReg(int reg) {
-    return DebugDisassemble::getRegisterName(reg);
+    return DisasmDump::getRegisterName(reg);
 }
 
 void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {

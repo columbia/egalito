@@ -1,4 +1,5 @@
 #include "dump.h"
+#include "handle.h"
 #include "instr/assembly.h"
 #include "log/log.h"
 
@@ -93,3 +94,54 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
     std::printf("%s\n", buffer);
 }
 #undef APPEND
+
+void DisasmDump::printInstructionList(const uint8_t *code, size_t length,
+    address_t realAddress, SymbolList *symbolList) {
+
+    DisasmHandle handle(symbolList != 0);
+    cs_insn *insn;
+    size_t count = cs_disasm(handle.raw(), code, length, realAddress, 0, &insn);
+    if(count == 0) {
+        CLOG(3, "# empty");
+        return;
+    }
+    for(size_t j = 0; j < count; j++) {
+        const char *name = 0;
+#ifdef ARCH_X86_64
+        if(symbolList && insn[j].id == X86_INS_CALL) {
+            cs_x86_op *op = &insn[j].detail->x86.operands[0];
+            if(op->type == X86_OP_IMM) {
+                unsigned long imm = op->imm;
+                auto sym = symbolList->find(imm);
+                if(sym) {
+                    name = sym->getName();
+                }
+            }
+        }
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+        if(symbolList && insn[j].id == ARM64_INS_BL) {
+            cs_arm64_op *op = &insn[j].detail->arm64.operands[0];
+            if(op->type == ARM64_OP_IMM) {
+                unsigned long imm = op->imm;
+                auto sym = symbolList->find(imm);
+                if(sym) {
+                    name = sym->getName();
+                }
+            }
+        }
+#endif
+
+        IF_LOG(3) {
+            Assembly assembly(insn[j]);
+            DisasmDump::printInstruction(
+                insn[j].address, &assembly, INT_MIN, name);
+        }
+    }
+
+    cs_free(insn, count);
+}
+
+const char *DisasmDump::getRegisterName(int reg) {
+    DisasmHandle handle(true);
+    return cs_reg_name(handle.raw(), reg);
+}

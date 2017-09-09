@@ -16,9 +16,6 @@ class SymbolList;
 
 class Disassemble {
 public:
-    static void debug(const uint8_t *code, size_t length,
-        address_t realAddress = 0, SymbolList *symbolList = 0);
-
     static void init();
     static Module *module(ElfMap *elfMap, SymbolList *symbolList);
     static Function *linearDisassembly(ElfMap *elfMap,
@@ -53,11 +50,6 @@ private:
     static bool processMappingSymbol(DisasmHandle &handle, Symbol *symbol);
 };
 
-class DebugDisassemble {
-public:
-    static const char *getRegisterName(int reg);
-};
-
 class AARCH64InstructionBinary {
 private:
     std::vector<unsigned char> v;
@@ -69,4 +61,5 @@ public:
              static_cast<unsigned char>(bin >> 24 & 0xff)}) {}
     std::vector<unsigned char> getVector() { return v; }
 };
+
 #endif
