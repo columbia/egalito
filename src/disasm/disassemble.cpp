@@ -324,20 +324,20 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-    if(auto mapping = getMappingSymbol(symbol)) {
-        bool literal = processMappingSymbol(mapping);
-        if(literal) {
-            processLiterals(
-                function, readAddress, readSize, virtualAddress);
+    auto mapping = getMappingSymbol(symbol);
+    bool hasMappingSymbol = mapping != nullptr;
+    bool literal = hasMappingSymbol ? processMappingSymbol(mapping) : false;
+
+    disassembleBlocks(literal, function, readAddress, readSize,
+        virtualAddress);
+    for(auto size = function->getSize();
+        size < readSize;
+        size = function->getSize()) {
+
+        if(!hasMappingSymbol) {
+            literal = !literal;
         }
         else {
-            disassembleBlocks(
-                function, readAddress, readSize, virtualAddress);
-        }
-        for(auto size = function->getSize();
-            size < readSize;
-            size = function->getSize()) {
-
             mapping = findMappingSymbol(symbolList, virtualAddress + size);
             if(!mapping) {
                 // this is actually not literal if it is pointing to the
@@ -347,38 +347,9 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
             else {
                 literal = processMappingSymbol(mapping);
             }
-            if(literal) {
-                processLiterals(function, readAddress + size,
-                    readSize - size, virtualAddress + size);
-            }
-            else {
-                disassembleBlocks(function, readAddress + size,
-                    readSize - size, virtualAddress + size);
-            }
         }
-    }
-    else {
-        disassembleBlocks(
-            function, readAddress, readSize, virtualAddress);
-#ifdef ARCH_X86_64
-        // no literals embedded -- it must be function size estimation error
-#elif defined(ARCH_AARCH64)
-        bool literal = true;
-        for(auto size = function->getSize();
-            size < readSize;
-            size = function->getSize()) {
-
-            if(literal) {
-                processLiterals(function, readAddress + size,
-                    readSize - size, virtualAddress + size);
-            }
-            else {
-                disassembleBlocks(function, readAddress + size,
-                    readSize - size, virtualAddress + size);
-            }
-            literal = !literal;
-        }
-#endif
+        disassembleBlocks(literal, function, readAddress + size,
+            readSize - size, virtualAddress + size);
     }
 
     {
@@ -393,6 +364,18 @@ Function *DisassembleAARCH64Function::linearDisassembly(
 
     // !!! Not yet implemented!
     return nullptr;
+}
+
+void DisassembleAARCH64Function::disassembleBlocks(bool literal, Function *function,
+    address_t readAddress, size_t readSize, address_t virtualAddress) {
+
+    if(literal) {
+        processLiterals(function, readAddress, readSize, virtualAddress);
+    }
+    else {
+        DisassembleFunctionBase::disassembleBlocks(
+            function, readAddress, readSize, virtualAddress);
+    }
 }
 
 void DisassembleAARCH64Function::processLiterals(Function *function,

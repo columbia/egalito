@@ -69,6 +69,8 @@ public:
     Function *function(Symbol *symbol, SymbolList *symbolList);
     Function *linearDisassembly(const char *sectionName);
 private:
+    void disassembleBlocks(bool literal, Function *function,
+        address_t readAddress, size_t readSize, address_t virtualAddress);
     void processLiterals(Function *function, address_t readAddress,
         size_t readSize, address_t virtualAddress);
 
