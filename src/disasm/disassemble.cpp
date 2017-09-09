@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <set>
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
@@ -31,7 +32,7 @@ void Disassemble::init() {
 }
 
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
-    if(true || symbolList) {
+    if(symbolList) {
         return makeModuleFromSymbols(elfMap, symbolList);
     }
     else {
@@ -115,21 +116,18 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
 
 Module *Disassemble::makeModuleFromScratch(ElfMap *elfMap) {
     Module *module = new Module();
-    FunctionList *functionList = new FunctionList();
+
+    FunctionList *functionList = linearDisassembly(elfMap, ".text");
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
     functionList->setParent(module);
 
-    auto function = linearDisassembly(elfMap, ".text");
-    functionList->getChildren()->add(function);
-    function->setParent(functionList);
-
-    SplitFunctions::splitByDirectCall(module);
+    //SplitFunctions::splitByDirectCall(module);
 
     return module;
 }
 
-Function *Disassemble::linearDisassembly(ElfMap *elfMap,
+FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
     const char *sectionName) {
 
     DisasmHandle handle(true);
@@ -274,7 +272,7 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     return function;
 }
 
-Function *DisassembleX86Function::linearDisassembly(const char *sectionName) {
+FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName) {
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
@@ -283,21 +281,63 @@ Function *DisassembleX86Function::linearDisassembly(const char *sectionName) {
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
-    DisasmHandle handle(true);
-    Function *function = new FuzzyFunction(virtualAddress);
-
-    PositionFactory *positionFactory = PositionFactory::getInstance();
-    function->setPosition(
-        positionFactory->makeAbsolutePosition(virtualAddress));
-
-    disassembleBlocks(
-        function, readAddress, readSize, virtualAddress);
-
+    std::set<address_t> splitPoints;
     {
-        ChunkMutator m(function);  // recalculate cached values if necessary
+        cs_insn *insn;
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
+
+            address_t target = 0;
+            if(shouldSplitFunctionDueTo(ins, &target)) {
+                splitPoints.insert(target);
+            }
+        }
+
+        if(count > 0) {
+            cs_free(insn, count);
+        }
     }
 
-    return function;
+    FunctionList *functionList = new FunctionList();
+
+    for(std::set<address_t>::iterator it = splitPoints.begin();
+        it != splitPoints.end(); it ++) {
+
+        address_t functionOffset = (*it) - virtualAddress;
+        std::set<address_t>::iterator next = it;
+        next ++;
+        address_t functionSize;
+        if(next != splitPoints.end()) {
+            functionSize = (*next) - (*it);
+        }
+        else {
+            functionSize = readSize - functionOffset;
+        }
+
+        LOG(1, "Split into function [0x" << std::hex << (*it) << ",+"
+            << functionSize << ")");
+
+        Function *function = new FuzzyFunction(virtualAddress + functionOffset);
+
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+        function->setPosition(
+            positionFactory->makeAbsolutePosition(
+                virtualAddress + functionOffset));
+
+        disassembleBlocks(function, readAddress + functionOffset,
+            functionSize, virtualAddress + functionOffset);
+
+        {
+            ChunkMutator m(function);  // recalculate cached values if necessary
+        }
+
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+    }
+
+    return functionList;
 }
 
 // --- AARCH64 disassembly code
@@ -359,15 +399,16 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     return function;
 }
 
-Function *DisassembleAARCH64Function::linearDisassembly(
+FunctionList *DisassembleAARCH64Function::linearDisassembly(
     const char *sectionName) {
 
     // !!! Not yet implemented!
     return nullptr;
 }
 
-void DisassembleAARCH64Function::disassembleBlocks(bool literal, Function *function,
-    address_t readAddress, size_t readSize, address_t virtualAddress) {
+void DisassembleAARCH64Function::disassembleBlocks(bool literal,
+    Function *function, address_t readAddress, size_t readSize,
+    address_t virtualAddress) {
 
     if(literal) {
         processLiterals(function, readAddress, readSize, virtualAddress);
@@ -534,4 +575,24 @@ bool DisassembleFunctionBase::shouldSplitBlockAt(cs_insn *ins) {
     }
 #endif
     return split;
+}
+
+bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
+    address_t *target) {
+
+#ifdef ARCH_X86_64
+    if(cs_insn_group(handle.raw(), ins, X86_GRP_CALL)) {
+        cs_x86 *x = &ins->detail->x86;
+        cs_x86_op *op = &x->operands[0];
+        if(x->op_count > 0 && op->type == X86_OP_IMM) {
+            *target = op->imm;
+            return true;
+        }
+    }
+#elif defined(ARCH_AARCH64)
+    #error "Not yet implemented"
+#elif defined(ARCH_ARM)
+    #error "Not yet implemented"
+#endif
+    return false;
 }

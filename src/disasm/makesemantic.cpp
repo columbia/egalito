@@ -90,7 +90,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         || ins->id == ARM_INS_CBZ
         || ins->id == ARM_INS_CBNZ) {
 
-        if (x->op_count > 0 && op->type == ARM_OP_IMM) {
+        if(x->op_count > 0 && op->type == ARM_OP_IMM) {
             auto i = new ControlFlowInstruction(instruction, *ins);
             i->setLink(new UnresolvedLink(i->getOriginalOffset()));
             semantic = i;

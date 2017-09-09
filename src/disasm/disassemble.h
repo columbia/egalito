@@ -18,7 +18,7 @@ class Disassemble {
 public:
     static void init();
     static Module *module(ElfMap *elfMap, SymbolList *symbolList);
-    static Function *linearDisassembly(ElfMap *elfMap,
+    static FunctionList *linearDisassembly(ElfMap *elfMap,
         const char *sectionName);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList);
@@ -52,6 +52,7 @@ protected:
         size_t readSize, address_t virtualAddress);
 
     bool shouldSplitBlockAt(cs_insn *ins);
+    bool shouldSplitFunctionDueTo(cs_insn *ins, address_t *target);
 };
 
 class DisassembleX86Function : public DisassembleFunctionBase {
@@ -59,7 +60,7 @@ public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
-    Function *linearDisassembly(const char *sectionName);
+    FunctionList *linearDisassembly(const char *sectionName);
 };
 
 class DisassembleAARCH64Function : public DisassembleFunctionBase {
@@ -67,7 +68,7 @@ public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
-    Function *linearDisassembly(const char *sectionName);
+    FunctionList *linearDisassembly(const char *sectionName);
 private:
     void disassembleBlocks(bool literal, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
