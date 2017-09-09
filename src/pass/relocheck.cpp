@@ -5,11 +5,17 @@
 #include "elf/elfspace.h"
 #include "instr/concrete.h"
 #include "operation/find.h"
+
 #include "log/log.h"
+#include "chunk/dump.h"
 
 void ReloCheckPass::visit(Module *module) {
     LOG(1, "-- checking relocation for module " << module->getName());
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    ChunkDumper dumper;
+    for(auto region : CIter::regions(module)) {
+        region->accept(&dumper);
+    }
     if(auto relocList = module->getElfSpace()->getRelocList()) {
         for(auto r : *relocList) {
             check(r, module);
@@ -35,8 +41,12 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<LinkedInstruction *>(i->getSemantic())) {
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG(1, ss.str() << " NOT resolved!! " << std::hex
-                    << r->getSymbol()->getAddress());
+                LOG0(1, ss.str() << " NOT resolved!! ");
+                if(r->getSymbol()) {
+                    LOG(1, std::hex << r->getSymbol()->getAddress()
+                        << "(" << r->getSymbol()->getName() << ")");
+                }
+                else LOG(1, "");
             }
             else {
                 LOG(10, ss.str()
@@ -49,7 +59,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {
 
             if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG(1, ss.str() << " NOT resolved!");
+                LOG(1, ss.str() << " NOT resolved! (unresolved link)");
             }
             else {
                 LOG(10, ss.str()
@@ -63,8 +73,17 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         }
     }
     else {
-        auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
-            + r->getAddress();
+        address_t addr = r->getAddress();
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls &&
+           Range(tls->getOriginalAddress(), tls->getSize()).contains(addr)) {
+
+            addr += tls->getAddress() - tls->getOriginalAddress();
+        }
+        else {
+            addr += module->getElfSpace()->getElfMap()->getBaseAddress();
+        }
+
         auto dlist = module->getDataRegionList();
         if(auto region = dlist->findRegionContaining(addr)) {
             if(auto var = region->findVariable(addr)) {
@@ -78,8 +97,17 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                 }
             }
             else {
-                LOG(1, ss.str() << " NOT resolved! " << std::hex
-                    << r->getSymbol()->getAddress());
+                LOG0(1, ss.str() << " NOT resolved! (no variable)");
+                if(auto sym = r->getSymbol()) {
+                    if(sym->getBind() == Symbol::BIND_WEAK) {
+                        LOG(1, "WEAK");
+                    }
+                    else {
+                        LOG(1, std::hex << r->getSymbol()->getAddress()
+                            << "(" << r->getSymbol()->getName() << ")");
+                    }
+                }
+                else LOG(1, "");
             }
         }
         else {

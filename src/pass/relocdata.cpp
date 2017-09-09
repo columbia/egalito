@@ -14,6 +14,7 @@
 #include "log/log.h"
 #include "log/registry.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     bool allowInternal) {
@@ -177,44 +178,11 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     return false;
 }
 
-Link *FindAnywhere::resolveAsLink(const Symbol *symbol) {
+Link *FindAnywhere::resolveAsLink(Symbol *symbol) {
     if(!symbol) return nullptr;
 
-    if(symbol->getBind() == Symbol::BIND_LOCAL) {
-        auto addr = symbol->getAddress();
-        auto func = CIter::spatial(elfSpace->getModule()->getFunctionList())
-            ->findContaining(addr);
-        if(func) {
-            if(func->getAddress() == addr) {
-                LOG(10, "must be pointing to a function");
-                return new NormalLink(func);
-            }
-            else {
-                LOG(10, "addr " << addr << " points inside " << func->getName());
-                Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-                    func, addr);
-                auto instruction = dynamic_cast<Instruction *>(inner);
-                return new NormalLink(instruction);
-            }
-        }
-
-        addr += elfSpace->getElfMap()->getBaseAddress();
-        auto region = CIter::spatial(elfSpace->getModule()->getDataRegionList())
-            ->findContaining(addr);
-        if(!region) {
-            LOG(1, "region NOT found");
-        }
-        else {
-            return LinkFactory::makeDataLink(elfSpace->getModule(), addr, true);
-        }
-    }
-
-    return resolveAsLinkByName(symbol);
-}
-
-Link *FindAnywhere::resolveAsLinkByName(const Symbol *symbol) {
     const char *name = symbol->getName();
-    LOG(10, "SEARCH for " << name);
+    LOG(1, "(link) SEARCH for " << name);
 
     std::string versionedName;
     if(auto ver = symbol->getVersion()) {
@@ -224,26 +192,21 @@ Link *FindAnywhere::resolveAsLinkByName(const Symbol *symbol) {
         versionedName.append(ver->getName());
     }
 
-    if(auto link = resolveNameAsLinkHelper(name, elfSpace)) {
-        return link;
-    }
-    else if(versionedName.size() > 0) {
-        LOG(10, "trying versioned name " << versionedName.c_str());
-        if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
-            elfSpace)) {
-
-            return link;
-        }
+    // we cannot make a useful link to emulator symbol yet
+    if(auto addr = LoaderEmulator::getInstance().findSymbol(name)) {
+        LOG(1, "    symbol only link to emulator! at " << std::hex << addr);
+        return new SymbolOnlyLink(symbol, addr);
     }
 
     for(auto library : *conductor->getLibraryList()) {
         auto space = library->getElfSpace();
         if(space && space != elfSpace) {
+            //LOG(1, "searching in " << library->getShortName());
             if(auto link = resolveNameAsLinkHelper(name, space)) {
                 return link;
             }
             else if(versionedName.size() > 0) {
-                LOG(10, "trying versioned name " << versionedName.c_str());
+                //LOG(1, "versionedName = " << versionedName.c_str());
                 if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
                     space)) {
 
@@ -253,6 +216,7 @@ Link *FindAnywhere::resolveAsLinkByName(const Symbol *symbol) {
         }
     }
 
+    LOG(1, "NOT FOUND: failed to make link to " << name);
     return nullptr;
 }
 
@@ -270,12 +234,6 @@ Link *FindAnywhere::resolveNameAsLinkHelper(const char *name, ElfSpace *space) {
         LOG(10, "    ...found as alias! " << alias->getName()
             << " at " << std::hex << alias->getAddress());
         return new NormalLink(alias);
-    }
-
-    // we cannot make a link to emulator symbol yet
-    if(auto a = LoaderEmulator::getInstance().findSymbol(name)) {
-        LOG(10, "    ...found via emulation! at " << std::hex << a);
-        return nullptr;
     }
 
     auto symbol = space->getSymbolList()->find(name);
@@ -435,33 +393,57 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
 #else
     address_t update = elfMap->getBaseAddress() + r->getAddress();
-    address_t dest = 0;
     Link *link = nullptr;
-    bool found = false;
-    bool dontcare = false;
-    size_t destOffset = 0;
+    //size_t destOffset = 0;
 
-    // There is a data variable for R_AARCH64_RELATIVE and R_AARCH64_TLS_TPREL
+#if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
+    #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
+#endif
+    if(r->getType() == R_AARCH64_TLS_TPREL
+        || r->getType() == R_AARCH64_TLSDESC) {
+
+        return; // will be handled in FixDataRegions
+    }
+
+    auto list = module->getDataRegionList();
+    auto sourceRegion = list->findRegionContaining(update);
+    if(!sourceRegion) {
+        return;
+    }
+    auto sourceSection = sourceRegion->findDataSectionContaining(update);
+    if(!sourceSection) {
+        return;
+    }
+    auto variable = sourceRegion->findVariable(update);
+    if(variable && variable->getDest()->getTarget()) {
+        return;
+    }
 
     if(r->getAddend() > 0) {
         auto addr = symbol->getAddress() + r->getAddend();
-        // usually an offset from a section start address, or ...
         if(auto s = module->getElfSpace()->getSymbolList()->find(addr)) {
             symbol = s;
         }
+#if 0
         else {
             // pointing into the middle of an internal data object
             destOffset = r->getAddend();
         }
+#endif
     }
+
+    link = FindAnywhere(conductor, elfSpace).resolveAsLink(symbol);
+
+    // these shouldn't be necessary as long as if relocations are available
+#if 0
+    address_t dest = 0;
+    bool found = false;
 
     if(r->getType() == R_AARCH64_GLOB_DAT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
-        link = FindAnywhere(conductor, elfSpace).resolveAsLink(symbol);
     }
     else if(r->getType() == R_AARCH64_JUMP_SLOT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
-        link = FindAnywhere(conductor, elfSpace).resolveAsLink(symbol);
     }
     else if(r->getType() == R_AARCH64_ABS64) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
@@ -471,25 +453,27 @@ void RelocDataPass::fixRelocation(Reloc *r) {
                 found = true;
             }
         }
-        link = FindAnywhere(conductor, elfSpace).resolveAsLink(symbol);
     }
-    else {
-        dontcare = true;
-        LOG(10, "    NOT fixing because type is " << r->getType());
-    }
+#endif
+
     if(link) {
-        LOG0(1, "    make link: " << std::hex << update << " -> "
+        LOG0(10, "    make link: " << std::hex << update << " -> "
              << link->getTargetAddress());
-        if(link->getTarget()) LOG(1, " " <<  link->getTarget()->getName());
-        else LOG(1, "");
+        if(link->getTarget()) LOG(10, " " <<  link->getTarget()->getName());
+        else LOG(10, "");
         auto list = module->getDataRegionList();
         auto sourceRegion = list->findRegionContaining(update);
-        auto var = new DataVariable(sourceRegion, update, link);
-        sourceRegion->addVariable(var);
-        if(destOffset > 0) {
-            var->setAddend(destOffset);
+        if(variable) {
+            auto oldLink = variable->getDest();
+            variable->setDest(link);
+            delete oldLink;
+        }
+        else {
+            variable = new DataVariable(sourceRegion, update, link);
+            sourceRegion->addVariable(variable);
         }
     }
+#if 0
     else if(found) {
         LOG(10, "    fix address " << std::hex << update
             << " to point at " << dest << " + " << destOffset
@@ -499,8 +483,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         LOG(1, "     data may not be moved: " << module->getName());
         *(unsigned long *)update = dest + destOffset;
     }
-    else if(!dontcare) {
-        LOG(1, "    not found!");
+#endif
+    else {
+        LOG(1, "    link not made!");
         LOG(1, "        offset " << std::hex << r->getAddress()
             << " addend " << r->getAddend());
     }

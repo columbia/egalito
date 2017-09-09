@@ -71,7 +71,11 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
         size_t count = s->sh_size / sizeof(*data);
         for(size_t i = 0; i < count; i ++) {
             ElfXX_Rela *r = &data[i];
-            Symbol *sym = currentSymbolList->get(ELFXX_R_SYM(r->r_info));
+            auto symbolIndex = ELFXX_R_SYM(r->r_info);
+            Symbol *sym = nullptr;
+            if(symbolIndex > 0) {
+                sym = currentSymbolList->get(symbolIndex);
+            }
 
             address_t address = r->r_offset;
             auto type = ELFXX_R_TYPE(r->r_info);

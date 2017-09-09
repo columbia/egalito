@@ -4,8 +4,10 @@
 #include "position.h"
 #include "concrete.h"
 #include "visitor.h"
+#include "chunk/aliasmap.h"
 #include "chunk/dump.h"
 #include "elf/elfspace.h"
+#include "operation/find.h"
 #include "operation/mutator.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
@@ -26,6 +28,10 @@ std::string DataSection::getName() const {
     return stream;
 }
 
+bool DataSection::contains(address_t address) {
+    return getRange().contains(address);
+}
+
 std::string DataRegion::getName() const {
     StreamAsString stream;
     stream << "region-0x" << std::hex << originalAddress;
@@ -33,11 +39,11 @@ std::string DataRegion::getName() const {
 }
 
 DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
-    : dest(dest), addend(0) {
+    : dest(dest) {
 
     auto section = CIter::spatial(region)->findContaining(address);
     if(!section) {
-        LOG(1, "in " << region->getName() << ", address " << address);
+        LOG(10, "in " << region->getName() << ", address " << address);
         ChunkDumper dumper;
         region->accept(&dumper);
         throw "no section contains this variable!";
@@ -49,15 +55,6 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
-    for(auto v : elfMap->findSectionsByFlag(SHF_ALLOC)) {
-        auto shdr = static_cast<ElfXX_Shdr *>(v);
-        if(shdr->sh_flags & SHF_EXECINSTR) continue;
-        if(shdr->sh_addr < phdr->p_vaddr) continue;
-        if(phdr->p_vaddr + phdr->p_memsz < shdr->sh_addr) continue;
-        auto ds = new DataSection(phdr, shdr);
-        ChunkMutator(this).append(ds);
-    }
-
     this->phdr = phdr;
     setPosition(new AbsolutePosition(phdr->p_vaddr));
     setSize(phdr->p_memsz);
@@ -148,7 +145,7 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
     LOG(1, "    unable to make link! (to 0x" << std::hex << target << ")");
     return nullptr;
 #else
-    LOG(1, "must be defined in the linker script: " << target);
+    LOG(1, "    possibly defined in the linker script: " << std::hex << target);
     return new UnresolvedLink(target);
 #endif
 }
@@ -157,6 +154,10 @@ DataRegion *DataRegionList::findRegionContaining(address_t target) {
     // check for TLS region first, since it will overlap another LOAD segment
     if(tls && tls->containsData(target)) return tls;
 
+    return findNonTLSRegionContaining(target);
+}
+
+DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
     for(auto region : CIter::children(this)) {
         if(region == tls) continue;
 
@@ -173,29 +174,56 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
     if(reloc->getType() == R_X86_64_RELATIVE) {
         return createDataLink(reloc->getAddend(), true);
     }
+    return nullptr;
 #else
+    // We can't resolve the address yet, because a link may point to a TLS
+    // in another module e.g. errno referred from libm (tls can be nullptr)
 #if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
     #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
 #endif
-    if(reloc->getType() == R_AARCH64_RELATIVE) {
-        if(auto f = CIter::spatial(module->getFunctionList())->findContaining(
-            reloc->getAddend())) {
+    Symbol *symbol = reloc->getSymbol();
+    if(reloc->getType() == R_AARCH64_TLS_TPREL
+        || reloc->getType() == R_AARCH64_TLSDESC) {
 
-            return new NormalLink(f);
+        auto tls = getTLS();
+        if(symbol && symbol->getSectionIndex() == 0) {
+            tls = nullptr;
+        }
+        return new TLSDataOffsetLink(
+            tls, reloc->getSymbol(), reloc->getAddend());
+    }
+
+    auto addr = reloc->getAddend();
+    if(symbol) {
+        addr += symbol->getAddress();
+        if(symbol->getSectionIndex() == 0) {
+            LOG(10, "relocation target for " << reloc->getAddress()
+                << " points to an external module");
+            return nullptr;
+        }
+    }
+
+    return resolveInternally(addr, module);
+#endif
+}
+
+Link *DataRegionList::resolveInternally(address_t address, Module *module) {
+    auto func = CIter::spatial(module->getFunctionList())
+        ->findContaining(address);
+    if(func) {
+        if(func->getAddress() == address) {
+            return new NormalLink(func);
         }
         else {
-            return createDataLink(reloc->getAddend(), true);
+            Chunk *inner = ChunkFind().findInnermostInsideInstruction(
+                func, address);
+            auto instruction = dynamic_cast<Instruction *>(inner);
+            return new NormalLink(instruction);
         }
     }
 
-    // We can't resolve the address yet, because a link may point to a TLS
-    // in another module e.g. errno referred from libm (tls can be nullptr)
-    if(reloc->getType() == R_AARCH64_TLS_TPREL) {
-        return new TLSDataOffsetLink(
-            getTLS(), reloc->getSymbol(), reloc->getAddend());
-    }
-#endif
-    return nullptr;
+    address += module->getElfSpace()->getElfMap()->getBaseAddress();
+    return createDataLink(address, true);
 }
 
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
@@ -222,16 +250,39 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         }
     }
 
+    for(auto v : elfMap->findSectionsByFlag(SHF_ALLOC)) {
+        auto shdr = static_cast<ElfXX_Shdr *>(v);
+        if(shdr->sh_flags & SHF_EXECINSTR) continue;
+        DataRegion *region = nullptr;
+        if(shdr->sh_flags & SHF_TLS) {
+            region = list->getTLS();
+        }
+        else {
+            region = list->findNonTLSRegionContaining(shdr->sh_addr);
+        }
+        LOG(10, "sh_addr " << shdr->sh_addr);
+        auto ds = new DataSection(region->getPhdr(), shdr);
+        ChunkMutator(region).append(ds);
+    }
+
     // make variables for all relocations located inside the regions
     for(auto reloc : *module->getElfSpace()->getRelocList()) {
         // source region (will be different from the link's dest region)
         auto sourceRegion = list->findRegionContaining(reloc->getAddress());
         if(sourceRegion) {
+#ifdef ARCH_AARCH64
+            if(!sourceRegion->findDataSectionContaining(reloc->getAddress())) {
+                continue;
+            }
+#endif
             if(auto link = list->resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
-                LOG(10, "resolving a variable at " << std::hex
-                    << addr << " => " << reloc->getSymbol()->getName()
-                    << reloc->getAddend());
+                LOG0(10, "resolving a variable at " << std::hex << addr);
+                if(auto sym = reloc->getSymbol()) {
+                    LOG(10, " => " << sym->getName()
+                        << " + " << reloc->getAddend());
+                }
+                else LOG(10, " no symbol");  // must resolve by address here
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion, addr, link);
                 sourceRegion->addVariable(var);
@@ -240,4 +291,13 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     }
 
     module->setDataRegionList(list);
+}
+
+DataSection *DataRegion::findDataSectionContaining(address_t address) {
+    for(auto ds : CIter::children(this)) {
+        if(ds->contains(address)) {
+            return ds;
+        }
+    }
+    return nullptr;
 }

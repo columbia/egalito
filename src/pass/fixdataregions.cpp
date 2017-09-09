@@ -11,7 +11,7 @@ void FixDataRegionsPass::visit(Program *program) {
 
 void FixDataRegionsPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10);
-    LOG(1, "Fixing variables in regions for " << module->getName());
+    LOG(10, "Fixing variables in regions for " << module->getName());
     this->module = module;
     visit(module->getDataRegionList());
 }
@@ -37,14 +37,14 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
                 }
             }
 
-            auto target = var->getDest()->getTargetAddress() + var->getAddend();
+            auto target = var->getDest()->getTargetAddress();
             address_t address = var->getAddress();
             if(!isTLS) {
                 address += dataRegion->getMapBaseAddress()
                     - dsec->getAddress()
                     + dsec->getOriginalOffset();
             }
-            LOG(1, "set variable " << std::hex << address << " => " << target);
+            LOG(10, "set variable " << std::hex << address << " => " << target);
             *reinterpret_cast<address_t *>(address) = target;
         }
     }

@@ -482,45 +482,45 @@ void BinGen::fixMarkerSymbols() {
         LOG(1, "fixing marker symbol: " << name);
 
         auto chunk = m.getChunk();
-        if(!chunk) { LOG(1, "no chunk!"); throw "error"; }
+
         /*** These are target dependent: must be tailored ***/
 #if TARGET_IS_MAGENTA
         if(!std::strcmp(name, "_end")) {
-            // magenta: end of bss aligned up by 4096
+            // end of bss aligned up by 4096
             auto addr = ROUND_UP(endOfBss);
             LOG(1, "should point to " << addr);
             resolveLinkerSymbol(chunk, addr);
         }
         else if(!std::strcmp(name, "__code_end")) {
-            // magenta: end of text
+            // end of text
             LOG(1, "should point to " << endOfCode);
             resolveLinkerSymbol(chunk, endOfCode);
         }
         else if(!std::strcmp(name, "__data_end")) {
-            // magenta: end of all initialized data including init and fini
+            // end of all initialized data including init and fini
             LOG(1, "should point to " << endOfData);
             resolveLinkerSymbol(chunk, endOfData);
         }
         else if(!std::strcmp(name, "__bss_end")) {
-            // magenta: end of bss segment aligned up by 16
+            // end of bss segment aligned up by 16
             auto addr = ROUND_UP_BY(endOfBss, 16);
             LOG(1, "should point to " << addr);
             resolveLinkerSymbol(chunk, addr);
         }
         else if(!std::strcmp(name, "__build_id_note_end")) {
-            // magenta: next address of the end of .note.gnu.build-id
+            // next address of the end of .note.gnu.build-id
             auto sec = mainModule->getElfSpace()->getElfMap()
                 ->findSection(".note.gnu.build-id");
             fixLinkToSectionEnd(chunk, sec);
         }
         else if(!std::strcmp(name, "__init_array_end")) {
-            // magenta: next address of the end of .init_array
+            // next address of the end of .init_array
             auto sec = mainModule->getElfSpace()->getElfMap()
                 ->findSection(".init_array");
             fixLinkToSectionEnd(chunk, sec);
         }
         else if(!std::strcmp(name, "__stop_lk_init")) {
-            // magenta: next address of the end of lk_init
+            // next address of the end of lk_init
             auto sec = mainModule->getElfSpace()->getElfMap()
                 ->findSection("lk_init");
             fixLinkToSectionEnd(chunk, sec);

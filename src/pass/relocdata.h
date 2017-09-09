@@ -24,14 +24,13 @@ public:
     bool resolveName(const Symbol *symbol, address_t *address,
         bool allowInternal = true);
     bool resolveObject(const char *name, address_t *address, size_t *size);
-    Link *resolveAsLink(const Symbol *symbol);
+    Link *resolveAsLink(Symbol *symbol);
 private:
     bool resolveNameHelper(const char *name, address_t *address,
         ElfSpace *space);
     bool resolveObjectHelper(const char *name, address_t *address,
         size_t *size, ElfSpace *space);
 
-    Link *resolveAsLinkByName(const Symbol *symbol);
     Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
 };
 
