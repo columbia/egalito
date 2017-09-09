@@ -39,6 +39,29 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
     }
 }
 
+Instruction *Disassemble::instruction(const std::vector<unsigned char> &bytes,
+    bool details, address_t address) {
+
+    DisasmHandle handle(true);
+    return instruction(handle, bytes, details, address);
+}
+Instruction *Disassemble::instruction(DisasmHandle &handle,
+    const std::vector<unsigned char> &bytes, bool details, address_t address) {
+
+    return DisassembleInstruction(handle, details).instruction(bytes, address);
+}
+Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
+    bool details) {
+
+    return DisassembleInstruction(handle, details).instruction(ins);
+}
+Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
+    address_t address) {
+
+    DisasmHandle handle(true);
+    return DisassembleInstruction(handle, true).makeAssembly(str, address);
+}
+
 Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
     SymbolList *symbolList) {
 
@@ -109,6 +132,149 @@ Module *Disassemble::makeModuleFromScratch(ElfMap *elfMap) {
 Function *Disassemble::linearDisassembly(ElfMap *elfMap,
     const char *sectionName) {
 
+    DisasmHandle handle(true);
+    DisassembleFunction disassembler(handle, elfMap);
+    return disassembler.linearDisassembly(sectionName);
+}
+
+Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
+    SymbolList *symbolList) {
+
+    DisasmHandle handle(true);
+    DisassembleFunction disassembler(handle, elfMap);
+    return disassembler.function(symbol, symbolList);
+}
+
+Symbol *DisassembleAARCH64Function::getMappingSymbol(Symbol *symbol) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    for(auto sym : symbol->getAliases()) {
+        if(sym->getName()[0] == '$') {
+            return sym;
+        }
+    }
+#endif
+    return nullptr;
+}
+
+Symbol *DisassembleAARCH64Function::findMappingSymbol(SymbolList *symbolList,
+    address_t virtualAddress) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    auto sym = symbolList->find(virtualAddress);
+    if(sym) {
+        if(sym->getName()[0] == '$') {
+            return sym;
+        }
+        else {
+            return getMappingSymbol(sym);
+        }
+    }
+#endif
+    return nullptr;
+}
+
+bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
+#ifdef ARCH_X86_64
+    return false;
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    bool literal = false;
+    switch(symbol->getName()[1]) {
+    case 'a':
+        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
+        break;
+    case 't':
+        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
+        break;
+    case 'x':
+        break;
+    case 'd':
+    default:
+        literal = true;
+        break;
+    }
+    return literal;
+#endif
+}
+
+Instruction *DisassembleInstruction::instruction(
+    const std::vector<unsigned char> &bytes, address_t address) {
+
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
+        address, 0, &ins) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    return instruction(ins);
+}
+
+Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
+    auto instr = new Instruction();
+    InstructionSemantic *semantic = nullptr;
+
+    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
+
+    if(!semantic) {
+        if(details) {
+            semantic = new DisassembledInstruction(Assembly(*ins));
+        }
+        else {
+            std::string raw;
+            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            semantic = new RawInstruction(raw);
+        }
+    }
+    instr->setSemantic(semantic);
+
+    return instr;
+}
+
+Assembly DisassembleInstruction::makeAssembly(
+    const std::vector<unsigned char> &str, address_t address) {
+
+    cs_insn *insn;
+    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
+        address, 0, &insn) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+    Assembly assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
+// --- X86_64 disassembly code
+
+Function *DisassembleX86Function::function(Symbol *symbol,
+    SymbolList *symbolList) {
+
+    auto sectionIndex = symbol->getSectionIndex();
+    auto section = elfMap->findSection(sectionIndex);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    Function *function = new FunctionFromSymbol(symbol);
+
+    address_t symbolAddress = symbol->getAddress();
+
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(symbolAddress));
+
+    auto readAddress =
+        section->getReadAddress() + section->convertVAToOffset(symbolAddress);
+    auto readSize = symbol->getSize();
+    auto virtualAddress = symbol->getAddress();
+
+    disassembleBlocks(
+        function, readAddress, readSize, virtualAddress);
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
+    }
+
+    return function;
+}
+
+Function *DisassembleX86Function::linearDisassembly(const char *sectionName) {
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
@@ -125,7 +291,7 @@ Function *Disassemble::linearDisassembly(ElfMap *elfMap,
         positionFactory->makeAbsolutePosition(virtualAddress));
 
     disassembleBlocks(
-        handle, function, readAddress, readSize, virtualAddress);
+        function, readAddress, readSize, virtualAddress);
 
     {
         ChunkMutator m(function);  // recalculate cached values if necessary
@@ -134,13 +300,13 @@ Function *Disassemble::linearDisassembly(ElfMap *elfMap,
     return function;
 }
 
-Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
+// --- AARCH64 disassembly code
+
+Function *DisassembleAARCH64Function::function(Symbol *symbol,
     SymbolList *symbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
-
-    DisasmHandle handle(true);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new FunctionFromSymbol(symbol);
@@ -159,14 +325,14 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     auto virtualAddress = symbol->getAddress();
 
     if(auto mapping = getMappingSymbol(symbol)) {
-        bool literal = processMappingSymbol(handle, mapping);
+        bool literal = processMappingSymbol(mapping);
         if(literal) {
             processLiterals(
-                handle, function, readAddress, readSize, virtualAddress);
+                function, readAddress, readSize, virtualAddress);
         }
         else {
             disassembleBlocks(
-                handle, function, readAddress, readSize, virtualAddress);
+                function, readAddress, readSize, virtualAddress);
         }
         for(auto size = function->getSize();
             size < readSize;
@@ -179,21 +345,21 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
                 literal = true;
             }
             else {
-                literal = processMappingSymbol(handle, mapping);
+                literal = processMappingSymbol(mapping);
             }
             if(literal) {
-                processLiterals(handle, function, readAddress + size,
+                processLiterals(function, readAddress + size,
                     readSize - size, virtualAddress + size);
             }
             else {
-                disassembleBlocks(handle, function, readAddress + size,
+                disassembleBlocks(function, readAddress + size,
                     readSize - size, virtualAddress + size);
             }
         }
     }
     else {
         disassembleBlocks(
-            handle, function, readAddress, readSize, virtualAddress);
+            function, readAddress, readSize, virtualAddress);
 #ifdef ARCH_X86_64
         // no literals embedded -- it must be function size estimation error
 #elif defined(ARCH_AARCH64)
@@ -203,11 +369,11 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
             size = function->getSize()) {
 
             if(literal) {
-                processLiterals(handle, function, readAddress + size,
+                processLiterals(function, readAddress + size,
                     readSize - size, virtualAddress + size);
             }
             else {
-                disassembleBlocks(handle, function, readAddress + size,
+                disassembleBlocks(function, readAddress + size,
                     readSize - size, virtualAddress + size);
             }
             literal = !literal;
@@ -222,7 +388,58 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     return function;
 }
 
-void Disassemble::disassembleBlocks(DisasmHandle &handle, Function *function,
+Function *DisassembleAARCH64Function::linearDisassembly(
+    const char *sectionName) {
+
+    // !!! Not yet implemented!
+    return nullptr;
+}
+
+void DisassembleAARCH64Function::processLiterals(Function *function,
+    address_t readAddress, size_t readSize, address_t virtualAddress) {
+
+    LOG(10, "literals embedded in " << function->getName()
+        << " at address 0x" << std::hex << virtualAddress);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    Block *block = makeBlock(function, nullptr);
+
+    Chunk *prevChunk = nullptr;
+    if(function->getChildren()->getIterable()->getCount() > 0) {
+        prevChunk = function->getChildren()->getIterable()->getLast();
+    }
+
+    for(size_t sz = 0; sz < readSize; sz += 4) {
+        cs_insn *insn;
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress + sz,
+            readSize - sz, virtualAddress + sz, 0, &insn);
+
+        if(count > 0) {
+            cs_free(insn, count);
+            break;
+        }
+
+        auto instr = new Instruction();
+        std::string raw;
+        raw.assign(reinterpret_cast<char *>(readAddress + sz), 4);
+        auto li = new LiteralInstruction(raw);
+        instr->setSemantic(li);
+        instr->setPosition(
+            positionFactory->makePosition(prevChunk, instr, block->getSize()));
+        prevChunk = instr;
+        ChunkMutator(block, false).append(instr);
+    }
+    if(block->getSize() > 0) {
+        ChunkMutator(function, false).append(block);
+    }
+    else {
+        delete block;
+    }
+}
+
+void DisassembleFunctionBase::disassembleBlocks(Function *function,
     address_t readAddress, size_t readSize, address_t virtualAddress) {
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
@@ -239,7 +456,7 @@ void Disassemble::disassembleBlocks(DisasmHandle &handle, Function *function,
         auto ins = &insn[j];
 
         // check if this instruction ends the current basic block
-        bool split = shouldSplitBlockAt(ins, handle);
+        bool split = shouldSplitBlockAt(ins);
 
         // Create Instruction from cs_insn
         auto instr = Disassemble::instruction(ins, handle, true);
@@ -278,54 +495,7 @@ void Disassemble::disassembleBlocks(DisasmHandle &handle, Function *function,
     cs_free(insn, count);
 }
 
-void Disassemble::processLiterals(DisasmHandle &handle, Function *function,
-    address_t readAddress, size_t readSize, address_t virtualAddress) {
-
-    LOG(10, "literals embedded in " << function->getName()
-        << " at address 0x" << std::hex << virtualAddress);
-
-    PositionFactory *positionFactory = PositionFactory::getInstance();
-
-    Block *block = makeBlock(function, nullptr);
-
-    Chunk *prevChunk = nullptr;
-    if(function->getChildren()->getIterable()->getCount() > 0) {
-        prevChunk = function->getChildren()->getIterable()->getLast();
-    }
-
-    for(size_t sz = 0; sz < readSize; sz += 4) {
-        cs_insn *insn;
-        size_t count = cs_disasm(handle.raw(),
-                                 (const uint8_t *)readAddress + sz,
-                                 readSize - sz,
-                                 virtualAddress + sz,
-                                 0,
-                                 &insn);
-
-        if(count > 0) {
-            cs_free(insn, count);
-            break;
-        }
-
-        auto instr = new Instruction();
-        std::string raw;
-        raw.assign(reinterpret_cast<char *>(readAddress + sz), 4);
-        auto li = new LiteralInstruction(raw);
-        instr->setSemantic(li);
-        instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, block->getSize()));
-        prevChunk = instr;
-        ChunkMutator(block, false).append(instr);
-    }
-    if(block->getSize() > 0) {
-        ChunkMutator(function, false).append(block);
-    }
-    else {
-        delete block;
-    }
-}
-
-Block *Disassemble::makeBlock(Function *function, Block *prev) {
+Block *DisassembleFunctionBase::makeBlock(Function *function, Block *prev) {
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
     if(prev == nullptr) {
@@ -340,67 +510,7 @@ Block *Disassemble::makeBlock(Function *function, Block *prev) {
     return block;
 }
 
-Assembly Disassemble::makeAssembly(
-    const std::vector<unsigned char> &str, address_t address) {
-
-    DisasmHandle handle(true);
-
-    cs_insn *insn;
-    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
-        address, 0, &insn) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
-    Assembly assembly(*insn);
-    cs_free(insn, 1);
-    return assembly;
-}
-
-Instruction *Disassemble::instruction(
-    const std::vector<unsigned char> &bytes, bool details, address_t address) {
-
-    DisasmHandle handle(true);
-
-    return instruction(handle, bytes, details, address);
-}
-
-Instruction *Disassemble::instruction(DisasmHandle &handle,
-    const std::vector<unsigned char> &bytes, bool details, address_t address) {
-
-    cs_insn *ins;
-    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
-        address, 0, &ins) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
-
-    return instruction(ins, handle, details);
-}
-
-Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
-    bool details) {
-
-    auto instr = new Instruction();
-    InstructionSemantic *semantic = nullptr;
-
-    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
-
-    if(!semantic) {
-        if(details) {
-            semantic = new DisassembledInstruction(Assembly(*ins));
-        }
-        else {
-            std::string raw;
-            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
-            semantic = new RawInstruction(raw);
-        }
-    }
-    instr->setSemantic(semantic);
-
-    return instr;
-}
-
-bool Disassemble::shouldSplitBlockAt(cs_insn *ins, DisasmHandle &handle) {
+bool DisassembleFunctionBase::shouldSplitBlockAt(cs_insn *ins) {
     // Note: we split on all explicit control flow changes like jumps, rets,
     // etc, but not on conditional moves or instructions that generate OS
     // interrupts/exceptions/traps.
@@ -441,54 +551,4 @@ bool Disassemble::shouldSplitBlockAt(cs_insn *ins, DisasmHandle &handle) {
     }
 #endif
     return split;
-}
-
-Symbol *Disassemble::getMappingSymbol(Symbol *symbol) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    for(auto sym : symbol->getAliases()) {
-        if(sym->getName()[0] == '$') {
-            return sym;
-        }
-    }
-#endif
-    return nullptr;
-}
-
-Symbol *Disassemble::findMappingSymbol(SymbolList *symbolList,
-    address_t virtualAddress) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    auto sym = symbolList->find(virtualAddress);
-    if(sym) {
-        if(sym->getName()[0] == '$') {
-            return sym;
-        }
-        else {
-            return getMappingSymbol(sym);
-        }
-    }
-#endif
-    return nullptr;
-}
-
-bool Disassemble::processMappingSymbol(DisasmHandle &handle, Symbol *symbol) {
-#ifdef ARCH_X86_64
-    return false;
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    bool literal = false;
-    switch(symbol->getName()[1]) {
-    case 'a':
-        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_ARM);
-        break;
-    case 't':
-        cs_option(handle.raw(), CS_OPT_MODE, CS_MODE_THUMB);
-        break;
-    case 'x':
-        break;
-    case 'd':
-    default:
-        literal = true;
-        break;
-    }
-    return literal;
-#endif
 }

@@ -37,17 +37,67 @@ private:
     static Module *makeModuleFromSymbols(ElfMap *elfMap,
         SymbolList *symbolList);
     static Module *makeModuleFromScratch(ElfMap *elfMap);
-    static void disassembleBlocks(DisasmHandle &handle, Function *function,
-        address_t readAddress, size_t readSize, address_t virtualAddress);
-    static void processLiterals(DisasmHandle &handle, Function *function,
-        address_t readAddress, size_t readSize, address_t virtualAddress);
-    static Block *makeBlock(Function *function, Block *prev);
+};
 
-    static bool shouldSplitBlockAt(cs_insn *ins, DisasmHandle &handle);
-    static Symbol *getMappingSymbol(Symbol *symbol);
-    static Symbol *findMappingSymbol(SymbolList *symbolList,
+class DisassembleFunctionBase {
+protected:
+    DisasmHandle &handle;
+    ElfMap *elfMap;
+public:
+    DisassembleFunctionBase(DisasmHandle &handle, ElfMap *elfMap)
+        : handle(handle), elfMap(elfMap) {}
+protected:
+    Block *makeBlock(Function *function, Block *prev);
+    void disassembleBlocks(Function *function, address_t readAddress,
+        size_t readSize, address_t virtualAddress);
+
+    bool shouldSplitBlockAt(cs_insn *ins);
+};
+
+class DisassembleX86Function : public DisassembleFunctionBase {
+public:
+    using DisassembleFunctionBase::DisassembleFunctionBase;
+
+    Function *function(Symbol *symbol, SymbolList *symbolList);
+    Function *linearDisassembly(const char *sectionName);
+};
+
+class DisassembleAARCH64Function : public DisassembleFunctionBase {
+public:
+    using DisassembleFunctionBase::DisassembleFunctionBase;
+
+    Function *function(Symbol *symbol, SymbolList *symbolList);
+    Function *linearDisassembly(const char *sectionName);
+private:
+    void processLiterals(Function *function, address_t readAddress,
+        size_t readSize, address_t virtualAddress);
+
+    Symbol *getMappingSymbol(Symbol *symbol);
+    Symbol *findMappingSymbol(SymbolList *symbolList,
         address_t virtualAddress);
-    static bool processMappingSymbol(DisasmHandle &handle, Symbol *symbol);
+    bool processMappingSymbol(Symbol *symbol);
+};
+
+#ifdef ARCH_X86_64
+typedef DisassembleX86Function DisassembleFunction;
+#else
+typedef DisassembleAARCH64Function DisassembleFunction;
+#endif
+
+class DisassembleInstruction {
+private:
+    DisasmHandle &handle;
+    bool details;
+public:
+    DisassembleInstruction(DisasmHandle &handle, bool details = true)
+        : handle(handle), details(details) {}
+
+    Instruction *instruction(const std::vector<unsigned char> &bytes,
+        address_t address = 0);
+    Instruction *instruction(cs_insn *ins);
+
+    Assembly makeAssembly(const std::vector<unsigned char> &str,
+        address_t address = 0);
 };
 
 class AARCH64InstructionBinary {
