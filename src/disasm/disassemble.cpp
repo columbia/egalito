@@ -8,7 +8,6 @@
 #include "disassemble.h"
 #include "dump.h"
 #include "makesemantic.h"
-#include "splitfunctions.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "operation/mutator.h"
