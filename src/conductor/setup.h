@@ -45,6 +45,7 @@ public:
     void dumpElfSpace(ElfSpace *space);
     void dumpFunction(const char *function, ElfSpace *space = nullptr);
     address_t getEntryPoint();
+    Function *getEntryFunction();
 private:
     bool setBaseAddress(ElfMap *map, address_t base);
 };

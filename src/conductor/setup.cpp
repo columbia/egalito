@@ -172,12 +172,20 @@ address_t ConductorSetup::getEntryPoint() {
 
         return f->getAddress();
     }
-    LOG(0, "entry point not found");
+
+    LOG(0, "WARNING: entry point not found!");
     return 0;
 #else
     // this is the original entry point address
     return elf->getEntryPoint() + elf->getBaseAddress();
 #endif
+}
+
+Function *ConductorSetup::getEntryFunction() {
+    auto module = conductor->getMainSpace()->getModule();
+    address_t elfEntry = elf->getEntryPoint();// + elf->getBaseAddress();
+    LOG(0, "search for entry function at 0x" << std::hex << elfEntry);
+    return CIter::spatial(module->getFunctionList())->find(elfEntry);
 }
 
 bool ConductorSetup::setBaseAddress(ElfMap *map, address_t base) {

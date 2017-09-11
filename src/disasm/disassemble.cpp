@@ -281,6 +281,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
     size_t readSize = section->getSize();
 
     std::set<address_t> splitPoints;
+    splitPoints.insert(elfMap->getEntryPoint());
     {
         cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),

@@ -44,12 +44,19 @@ int main(int argc, char *argv[]) {
         SegMap::mapAllSegments(&setup);
         setup.makeLoaderSandbox();
         otherPasses(&setup);
+        Function *entryFunction = setup.getEntryFunction();
         setup.moveCode();
 
         setup.getConductor()->fixDataSections();
         setup.getConductor()->writeDebugElf("symbols.elf");
 
         entry = setup.getEntryPoint();
+
+        if(entry == 0 && entryFunction != nullptr) {
+            entry = entryFunction->getAddress();
+            LOG(0, "Using entry function [" << entryFunction->getName()
+                << "]");
+        }
 
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
