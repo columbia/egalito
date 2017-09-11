@@ -4,6 +4,7 @@
 #include "jumptable.h"
 #include "dataregion.h"
 #include "module.h"
+#include "marker.h"
 #include "elf/reloc.h"
 
 address_t NormalLink::getTargetAddress() const {
@@ -24,6 +25,10 @@ ChunkRef JumpTableLink::getTarget() const {
 
 address_t JumpTableLink::getTargetAddress() const {
     return jumpTable->getAddress();
+}
+
+address_t MarkerLink::getTargetAddress() const {
+    return marker->getAddress();
 }
 
 ChunkRef DataOffsetLink::getTarget() const {
@@ -66,5 +71,6 @@ Link *LinkFactory::makeNormalLink(ChunkRef target, bool isRelative,
 Link *LinkFactory::makeDataLink(Module *module, address_t target,
     bool isRelative) {
 
-    return module->getDataRegionList()->createDataLink(target, isRelative);
+    return module->getDataRegionList()->createDataLink(
+        target, module, nullptr, isRelative);
 }

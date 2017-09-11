@@ -15,7 +15,7 @@
 
 DataSection::DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
     : size(shdr->sh_size), align(shdr->sh_addralign),
-      bss(shdr->sh_type == SHT_NOBITS) {
+      code(shdr->sh_flags & SHF_EXECINSTR), bss(shdr->sh_type == SHT_NOBITS) {
 
     address_t offset = shdr->sh_addr - phdr->p_vaddr;
     this->setPosition(new AbsoluteOffsetPosition(this, offset));
@@ -122,13 +122,19 @@ void DataRegionList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
 
-Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
+Link *DataRegionList::createDataLink(address_t target, Module *module,
+    Symbol *symbol, bool isRelative) {
+
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
     for(auto region : CIter::children(this)) {
         if(region->contains(target)) {
             auto dsec = CIter::spatial(region)->findContaining(target);
             if(dsec) {
+                if(dsec->isCode()) {
+                    LOG(1, "is this LITERAL? or a hand-crafted table?");
+                    return nullptr;
+                }
                 auto base = dsec->getAddress();
                 LOG(10, "" << target << " has offset " << (target - base));
                 if(isRelative) {
@@ -141,13 +147,29 @@ Link *DataRegionList::createDataLink(address_t target, bool isRelative) {
         }
     }
 
-#ifdef ARCH_X86_64
-    LOG(1, "    unable to make link! (to 0x" << std::hex << target << ")");
+    // For inferred pointers, we don't have relocations, sometimes nor
+    // symbols.
+    if(!symbol) {
+        symbol = module->getElfSpace()->getSymbolList()->find(target);
+    }
+
+    if(symbol) {
+        LOG(1, "    markerLink to " << std::hex << target
+            << "(" << symbol->getName() << ")");
+        return MarkerList::makeMarkerLink(module, symbol);
+    }
+
+    if(auto region = findNonTLSRegionContaining(target)) {
+        for(auto dsec : CIter::children(region)) {
+            if(dsec->getAddress() + dsec->getSize() == target) {
+                LOG(1, "    markerLink to " << std::hex << target);
+                return MarkerList::makeMarkerLink(module, dsec, 1);
+            }
+        }
+    }
+
+    LOG(1, "    unable to make link!! (to " << std::hex << target << ")");
     return nullptr;
-#else
-    LOG(1, "    possibly defined in the linker script: " << std::hex << target);
-    return new UnresolvedLink(target);
-#endif
 }
 
 DataRegion *DataRegionList::findRegionContaining(address_t target) {
@@ -172,7 +194,7 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 #ifdef ARCH_X86_64
     // this is the only reloc type we've seen in TLS
     if(reloc->getType() == R_X86_64_RELATIVE) {
-        return createDataLink(reloc->getAddend(), true);
+        return resolveInternally(reloc, module);
     }
     return nullptr;
 #else
@@ -193,37 +215,38 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
             tls, reloc->getSymbol(), reloc->getAddend());
     }
 
-    auto addr = reloc->getAddend();
-    if(symbol) {
-        addr += symbol->getAddress();
+    return resolveInternally(reloc, module);
+#endif
+}
+
+Link *DataRegionList::resolveInternally(Reloc *reloc, Module *module) {
+    address_t addr = reloc->getAddend();
+    if(auto symbol = reloc->getSymbol()) {
         if(symbol->getSectionIndex() == 0) {
             LOG(10, "relocation target for " << reloc->getAddress()
                 << " points to an external module");
             return nullptr;
         }
+        addr += symbol->getAddress();
     }
 
-    return resolveInternally(addr, module);
-#endif
-}
-
-Link *DataRegionList::resolveInternally(address_t address, Module *module) {
-    auto func = CIter::spatial(module->getFunctionList())
-        ->findContaining(address);
+    auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
     if(func) {
-        if(func->getAddress() == address) {
+        if(func->getAddress() == addr) {
             return new NormalLink(func);
         }
         else {
             Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-                func, address);
+                func, addr);
             auto instruction = dynamic_cast<Instruction *>(inner);
             return new NormalLink(instruction);
         }
     }
 
-    address += module->getElfSpace()->getElfMap()->getBaseAddress();
-    return createDataLink(address, true);
+    //this might break magenta...
+    //addr += module->getElfSpace()->getElfMap()->getBaseAddress();
+    LOG(1, "createDataLink for " << reloc->getAddress());
+    return createDataLink(addr, module, reloc->getSymbol(), true);
 }
 
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
@@ -252,7 +275,6 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
 
     for(auto v : elfMap->findSectionsByFlag(SHF_ALLOC)) {
         auto shdr = static_cast<ElfXX_Shdr *>(v);
-        if(shdr->sh_flags & SHF_EXECINSTR) continue;
         DataRegion *region = nullptr;
         if(shdr->sh_flags & SHF_TLS) {
             region = list->getTLS();
@@ -270,11 +292,13 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         // source region (will be different from the link's dest region)
         auto sourceRegion = list->findRegionContaining(reloc->getAddress());
         if(sourceRegion) {
-#ifdef ARCH_AARCH64
-            if(!sourceRegion->findDataSectionContaining(reloc->getAddress())) {
+            auto sourceSection
+                = sourceRegion->findDataSectionContaining(reloc->getAddress());
+            if(!sourceSection || sourceSection->isCode()) {
                 continue;
             }
-#endif
+
+            LOG(10, "sourceRegion is " << sourceRegion->getName());
             if(auto link = list->resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
                 LOG0(10, "resolving a variable at " << std::hex << addr);

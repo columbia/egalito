@@ -59,7 +59,7 @@ BinGen::~BinGen() {
     fs.close();
 }
 
-// maybe this should be a pass
+// maybe this should be a pass to create a special type of links?
 void BinGen::extractMarkers() {
     LOG(1, "extracting marker symbols");
 
@@ -92,8 +92,7 @@ void BinGen::extractMarkers() {
             if(resolved) continue;
 
             // it's usually the 'end' symbols, because the 'start' symbols
-            // can be resolved as a DataVariable. It also should have an
-            // alignment restriction.
+            // can be resolved as a DataVariable.
             Chunk *chunk = nullptr;
             if(auto inner = ChunkFind().findInnermostInsideInstruction(
                 mainModule->getFunctionList(), r->getAddress())) {

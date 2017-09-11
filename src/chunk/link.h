@@ -117,6 +117,17 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
+class Marker;
+class MarkerLink : public Link {
+private:
+    Marker *marker;
+public:
+    MarkerLink(Marker *marker) : marker(marker) {}
+
+    Marker *getMarker() const { return marker; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const;
+};
 
 // --- data links ---
 

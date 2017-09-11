@@ -29,6 +29,7 @@ private:
     size_t size;
     size_t align;
     address_t originalOffset;
+    bool code;
     bool bss;
 
 public:
@@ -37,6 +38,7 @@ public:
     bool contains(address_t address);
     size_t getAlignment() const { return align; }
     address_t getOriginalOffset() const { return originalOffset; }
+    bool isCode() const { return code; }
     bool isBss() const { return bss; }
     virtual std::string getName() const;
     virtual void accept(ChunkVisitor *visitor) {}
@@ -116,7 +118,8 @@ public:
 
     virtual void accept(ChunkVisitor *visitor);
 
-    Link *createDataLink(address_t target, bool isRelative = true);
+    Link *createDataLink(address_t target, Module *module, Symbol *symbol,
+        bool isRelative=true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
     Link *resolveVariableLink(Reloc *reloc, Module *module);
@@ -124,7 +127,7 @@ public:
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
 
 private:
-    Link *resolveInternally(address_t address, Module *module);
+    Link *resolveInternally(Reloc *reloc, Module *module);
 };
 
 #endif

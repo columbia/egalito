@@ -28,6 +28,7 @@ public:
     virtual void visit(JumpTable *jumpTable) { recurse(jumpTable); }
     virtual void visit(JumpTableEntry *jumpTableEntry) {}
     virtual void visit(DataRegion *dataRegion) {}
+    virtual void visit(MarkerList *markerList) {}
 };
 
 #endif

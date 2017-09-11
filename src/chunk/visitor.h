@@ -20,6 +20,7 @@ public:
     virtual void visit(JumpTable *jumpTable) = 0;
     virtual void visit(JumpTableEntry *jumpTableEntry) = 0;
     virtual void visit(DataRegion *dataRegion) = 0;
+    virtual void visit(MarkerList *markerList) = 0;
 };
 class ChunkListener {
 public:

@@ -358,7 +358,6 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
     else if(r->getType() == R_X86_64_IRELATIVE) {
-        LOG(1, "IRELATIVE " << symbol->getName());
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
         if(!found) {
             dest = elfMap->getBaseAddress() + r->getAddend();

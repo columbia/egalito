@@ -119,7 +119,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
         bool isRelative = MakeSemantic::isRIPRelative(
             linked->getAssembly(), linked->getIndex());
         auto newLink = module->getDataRegionList()->createDataLink(
-            targetAddress, isRelative);
+            targetAddress, module, symbol, isRelative);
         linked->setLink(newLink);
 
         LOG(2, " -> CREATED DATA LINK");

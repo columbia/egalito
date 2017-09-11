@@ -13,16 +13,18 @@ class Symbol;
 class Chunk;
 class ElfSection;
 
-class Marker {
+#if 1
+class SymbolMarker {
 private:
     Chunk *chunk;
     Symbol *symbol;
 
 public:
-    Marker(Chunk *chunk, Symbol *symbol) : chunk(chunk), symbol(symbol) {}
+    SymbolMarker(Chunk *chunk, Symbol *symbol) : chunk(chunk), symbol(symbol) {}
     Chunk *getChunk() const { return chunk; }
     Symbol *getTargetSymbol() const { return symbol; }
 };
+#endif
 
 class BinGen {
 private:
@@ -31,7 +33,7 @@ private:
     Module *addon;
     std::vector<Module *> moduleList;
     std::ofstream fs;
-    std::vector<Marker> markerList;
+    std::vector<SymbolMarker> markerList;
     address_t endOfCode;
     address_t endOfRoData;
     address_t endOfData;

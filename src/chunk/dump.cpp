@@ -92,6 +92,13 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
     }
 }
 
+void ChunkDumper::visit(MarkerList *markerList) {
+    LOG(1, "--[markers]--");
+    for(auto marker : CIter::children(markerList)) {
+        LOG(1, marker->getSymbol()->getName());
+    }
+}
+
 void InstrDumper::visit(RawInstruction *semantic) {
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());

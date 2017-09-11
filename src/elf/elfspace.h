@@ -4,6 +4,7 @@
 #include "symbol.h"
 #include "reloc.h"
 #include "chunk/plt.h"
+#include "chunk/marker.h"
 #include "chunk/concrete.h"  // for Module
 #include "util/iter.h"
 
@@ -21,6 +22,7 @@ private:
     SymbolList *symbolList;
     SymbolList *dynamicSymbolList;
     RelocList *relocList;
+    MarkerList *markerList;
     FunctionAliasMap *aliasMap;
 public:
     ElfSpace(ElfMap *elf, SharedLib *library);
@@ -39,6 +41,7 @@ public:
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
     RelocList *getRelocList() const { return relocList; }
+    MarkerList *getMarkerList() const { return markerList; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }
 };

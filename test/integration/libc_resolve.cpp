@@ -22,6 +22,9 @@ public:
         else if(dynamic_cast<DataOffsetLink *>(link)) {
             total ++;
         }
+        else if(dynamic_cast<MarkerLink *>(link)) {
+            total ++;
+        }
         else if(link->getTarget()) {
             total ++;
         }

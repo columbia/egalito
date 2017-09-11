@@ -15,5 +15,9 @@ class PLTTrampoline;
 class JumpTable;
 class JumpTableEntry;
 class DataRegion;
+class DataSection;
+class DataVariable;
+class MarkerList;
+class Marker;
 
 #endif
