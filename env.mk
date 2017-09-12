@@ -1,7 +1,7 @@
 # Setup for egalito compilation environment
 
-CC      = $(CROSS)gcc
-CXX     = $(CROSS)g++
+CC      = $(EGALITO_CCACHE) $(CROSS)gcc
+CXX     = $(EGALITO_CCACHE) $(CROSS)g++
 
 AS      = $(CC)
 LINK    = $(CXX)
