@@ -25,6 +25,7 @@ public:
     size_t getRepresentativeIndex(size_t i) { return find(i); }
 
 private:
+    int edgeComparator(size_t x1, size_t x2);
     virtual void setEdge(size_t x1, size_t x2);
 };
 
@@ -465,115 +466,62 @@ SymbolAliasFinder::SymbolAliasFinder(SymbolList *list)
         });
 }
 
-void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
+// Returning -1 means set parent[x1] = x2;
+// returning +1 means set parent[x2] = x1.
+int SymbolAliasFinder::edgeComparator(size_t x1, size_t x2) {
     auto s1 = sortedList[x1];
     auto s2 = sortedList[x2];
 
-    bool done = false;
-
     // section vs others
     if(s1->getType() != s2->getType()) {
-        if(s1->getType() == Symbol::TYPE_SECTION) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getType() == Symbol::TYPE_SECTION) {
-            parent[x2] = x1;
-            done = true;
-        }
-        else if(s1->getType() == Symbol::TYPE_FILE) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getType() == Symbol::TYPE_FILE) {
-            parent[x2] = x1;
-            done = true;
-        }
+        if(s1->getType() == Symbol::TYPE_SECTION) return -1;
+        if(s2->getType() == Symbol::TYPE_SECTION) return +1;
+        if(s1->getType() == Symbol::TYPE_FILE) return -1;
+        if(s2->getType() == Symbol::TYPE_FILE) return +1;
     }
 
     // normal symbol > mapping symbol
-    if(!done) {
-        if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(s2->getBind() == Symbol::BIND_LOCAL
-            && s2->getName()[0] == '$') {
-
-            parent[x2] = x1;
-            done = true;
-        }
-    }
+    if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') return -1;
+    if(s2->getBind() == Symbol::BIND_LOCAL && s2->getName()[0] == '$') return +1;
 
     // this seems to be a good heuristic
-    if(!done) {
-        if(strstr(s1->getName(), s2->getName())) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(strstr(s2->getName(), s1->getName())) {
-            parent[x2] = x1;
-            done = true;
-        }
+    if(strstr(s1->getName(), s2->getName())) return -1;
+    if(strstr(s2->getName(), s1->getName())) return +1;
+
+    // treat single "@" as canonical over double "@@"
+    if(strstr(s1->getName(), "@@")) return +1;
+    if(strstr(s2->getName(), "@@")) return -1;
+    if(strstr(s1->getName(), "@")) return -1;
+    if(strstr(s2->getName(), "@")) return +1;
+
+    if(s1->getBind() != s2->getBind()) {
+        // weak symbols are the symbols that are usually used
+        if(s1->getBind() == Symbol::BIND_LOCAL) return -1;
+        if(s2->getBind() == Symbol::BIND_LOCAL) return +1;
+        if(s1->getBind() == Symbol::BIND_GLOBAL) return +1;
+        if(s2->getBind() == Symbol::BIND_GLOBAL) return -1;
+        if(s1->getBind() == Symbol::BIND_WEAK) return +1;
+        if(s2->getBind() == Symbol::BIND_WEAK) return -1;
     }
 
-    if(!done) {
-        if(strstr(s1->getName(), "@@")) {
-            parent[x2] = x1;
-            done = true;
-        }
-        else if(strstr(s2->getName(), "@@")) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(strstr(s1->getName(), "@")) {
-            parent[x1] = x2;
-            done = true;
-        }
-        else if(strstr(s2->getName(), "@")) {
-            parent[x2] = x1;
-            done = true;
-        }
-    }
-
-    if(!done) {
-        if(s1->getBind() != s2->getBind()) {
-            // weak symbols are the symbols that are usually used
-            if(s1->getBind() == Symbol::BIND_LOCAL) {
-                parent[x1] = x2;
-                done = true;
-            }
-            else if(s2->getBind() == Symbol::BIND_LOCAL) {
-                parent[x2] = x1;
-                done = true;
-            }
-            else if(s1->getBind() == Symbol::BIND_GLOBAL) {
-                parent[x2] = x1;
-                done = true;
-            }
-            else if(s2->getBind() == Symbol::BIND_GLOBAL) {
-                parent[x1] = x2;
-                done = true;
-            }
-            else if(s1->getBind() == Symbol::BIND_WEAK) {
-                parent[x2] = x1;
-                done = true;
-            }
-            else if(s2->getBind() == Symbol::BIND_WEAK) {
-                parent[x1] = x2;
-                done = true;
-            }
-        }
-    }
-
-#if 1
     // we might need a DB of standard API names
-    if(!done) {
-        LOG(1, "setting an alias ARBITRARILY ("
-            << s2->getName() << "->" << s1->getName() << ")");
+    LOG(5, "setting an alias ARBITRARILY ("
+        << s2->getName() << "->" << s1->getName() << ")");
+    return -1;
+}
+
+void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
+    int comparator = edgeComparator(x1, x2);
+
+    if(comparator < 0) {
         parent[x1] = x2;
     }
-#endif
+    else if(comparator > 0) {
+        parent[x2] = x1;
+    }
+    else {
+        LOG(1, "WARNING: attempting to alias nearly identical symbols, skipping");
+    }
 }
 
 void SymbolAliasFinder::constructByAddress() {
