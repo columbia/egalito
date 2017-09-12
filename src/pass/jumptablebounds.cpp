@@ -1,6 +1,9 @@
 #include "jumptablebounds.h"
 #include "elf/elfspace.h"
 #include "analysis/jumptable.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP djumptable
 #include "log/log.h"
 
 void JumpTableBounds::visit(Module *module) {

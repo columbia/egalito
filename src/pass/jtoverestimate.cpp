@@ -3,6 +3,9 @@
 #include "elf/elfspace.h"
 #include "analysis/jumptable.h"
 #include "jumptablepass.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP djumptable
 #include "log/log.h"
 
 void JumpTableOverestimate::visit(Module *module) {
@@ -66,7 +69,7 @@ void JumpTableOverestimate::visit(JumpTable *jumpTable) {
 }
 
 void JumpTableOverestimate::setEntries(JumpTable *jumpTable, int count) {
-    LOG(1, "APPARENTLY, table " << std::hex << jumpTable->getAddress()
+    LOG(5, "APPARENTLY, table " << std::hex << jumpTable->getAddress()
             << " in [" << jumpTable->getFunction()->getName()
             << "] has " << std::dec << count << " entries");
     jumpTable->getDescriptor()->setEntries(count);

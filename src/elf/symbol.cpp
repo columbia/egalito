@@ -141,13 +141,13 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
         auto init = elfmap->findSection(".init");
         if(init) s->setSize(init->getHeader()->sh_size);
-        if(init) LOG(1, "setting the size of _init to " << init->getHeader()->sh_size);
+        if(init) LOG(6, "setting the size of _init to " << init->getHeader()->sh_size);
     }
     //if(auto s = findSizeZero(list, "_fini")) {
     if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
         auto fini = elfmap->findSection(".fini");
         if(fini) s->setSize(fini->getHeader()->sh_size);
-        if(fini) LOG(1, "setting the size of _init to " << fini->getHeader()->sh_size);
+        if(fini) LOG(6, "setting the size of _init to " << fini->getHeader()->sh_size);
     }
 
     // for musl only
@@ -161,7 +161,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     for(auto sym : *list) {
         if(sym->getSize() == 0 && sym->getAddress() > 0) {
             size_t estimate = list->estimateSizeOf(sym);
-            LOG(1, "estimate size of symbol ["
+            LOG(5, "estimate size of symbol ["
                 << sym->getName() << "] to be " << std::dec << estimate);
             sym->setSize(estimate);
         }
@@ -177,7 +177,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
             auto repSym = aliasFinder.getSymbol(rep);
             sym->setAliasFor(repSym);
             repSym->addAlias(sym);
-            LOG(1, "ALIAS: " << repSym->getName() << " : " << sym->getName());
+            LOG(6, "ALIAS: " << repSym->getName() << " : " << sym->getName());
         }
     }
 
@@ -269,7 +269,7 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         auto shndx = sym->st_shndx;
 
         if(elfmap->isObjectFile()) {
-            LOG0(1, "symbol name: " << sym->st_name << " shndx " << shndx);
+            LOG0(5, "symbol name: " << sym->st_name << " shndx " << shndx);
             auto symSection = elfmap->findSection(shndx);
             // will be null if COM section...
             if(symSection) {
@@ -279,7 +279,7 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         }
 
         Symbol *symbol = new Symbol(address, size, name, type, bind, j, shndx);
-        CLOG0(1, "%s symbol #%d, index %d, [%s] %lx\n", sectionName,
+        CLOG0(5, "%s symbol #%d, index %d, [%s] %lx\n", sectionName,
             (int)list->symbolList.size(), j, name, address);
         list->add(symbol, (size_t)j);
     }
