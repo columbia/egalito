@@ -92,6 +92,14 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                         << var->getDest()->getTarget()->getName()
                         << " at " << var->getDest()->getTargetAddress());
                 }
+                else if(dynamic_cast<MarkerLink *>(var->getDest())) {
+                    LOG(10, ss.str()
+                        << " resolved as a data variable pointing to a marker");
+                }
+                else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
+                    LOG(10, ss.str()
+                        << " resolved as a data variable pointing to loader emulator");
+                }
                 else {
                     LOG(1, ss.str() << " NOT resolved!!!");
                 }
