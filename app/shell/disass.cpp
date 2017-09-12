@@ -242,7 +242,17 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             ChunkDumper dumper;
             module->getDataRegionList()->accept(&dumper);
         }
-    }, "shows a list of all functions in a module");
+    }, "shows a list of all data regions in a module");
+
+    topLevel->add("markers", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            ChunkDumper dumper;
+            module->getMarkerList()->accept(&dumper);
+        }
+    }, "shows a list of all markers in a module");
 
     topLevel->add("detectnull", [&] (Arguments args) {
         if(!setup->getConductor()) {
