@@ -40,6 +40,11 @@ bool Symbol::isFunction() const {
         && size > 0 && shndx > 0 && !aliasFor;
 }
 
+bool Symbol::isMarker() const {
+    return symbolType == TYPE_NOTYPE && bindingType == BIND_GLOBAL
+        && shndx > 0;
+}
+
 bool SymbolList::add(Symbol *symbol, size_t index) {
     // Can't check just by name since it may not be unique
     //auto it = symbolMap.find(symbol->getName());
