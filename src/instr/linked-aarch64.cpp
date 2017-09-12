@@ -22,42 +22,6 @@
 #include "log/temp.h"
 
 #if defined(ARCH_AARCH64)
-static Link *makeLink(Module *module, Reloc *reloc) {
-    Function *target = CIter::findChild(module->getFunctionList(),
-        reloc->getSymbol()->getName());
-
-    if(target) {
-        if(reloc->getAddend() > 0) {
-            auto address = target->getAddress() + reloc->getAddend();
-            target = CIter::spatial(module->getFunctionList())->findContaining(
-                address);
-        }
-
-        LOG(10, "created function link --> " << target->getName());
-        return new NormalLink(target);
-    }
-
-    auto address = reloc->getSymbol()->getAddress() + reloc->getAddend();
-    if(auto chunk = ChunkFind().findInnermostInsideInstruction(
-        module->getFunctionList(), address)) {
-
-        LOG(10, "created instruction(literal?) link --> " << chunk->getName());
-        return new NormalLink(chunk);
-    }
-
-    auto dataLink = LinkFactory::makeDataLink(module, address, true);
-    if(!dataLink) {
-        LOG(9, "unresolved link! " << std::hex << address);
-        dataLink = new UnresolvedLink(address);
-    }
-    else {
-        LOG(10, "created data link --> " << address);
-    }
-    return dataLink;
-}
-
-
-
 LinkedInstruction::LinkedInstruction(Instruction *source,
     const Assembly &assembly)
     : LinkDecorator<DisassembledInstruction>(assembly), source(source),
@@ -255,7 +219,7 @@ uint32_t LinkedInstruction::rebuild() {
     uint32_t imm =
         getModeInfo()->makeImm(dest, getSource()->getAddress(), fixedBytes);
 #if 0
-    const int ll = 10;
+    const int ll = 1;
     LOG(ll, "mode: " << getModeInfo() - AARCH64_ImInfo);
     LOG(ll, "src: " << getSource()->getAddress());
     LOG(ll, "dest: " << dest);
@@ -346,7 +310,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
     auto linked = new LinkedInstruction(instruction, *assembly);
-    auto link = makeLink(module, reloc);
+    auto link = PerfectLinkResolver::resolveInternally(reloc, module);
     linked->setLink(link);
 
     return linked;
@@ -360,7 +324,7 @@ LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
     auto linked = new LinkedLiteralInstruction(instruction, raw);
-    auto link = makeLink(module, reloc);
+    auto link = PerfectLinkResolver::resolveInternally(reloc, module);
     linked->setLink(link);
 
     return linked;
@@ -404,33 +368,10 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction, *assembly);
 
-        auto f = dynamic_cast<Function *>(
-            instruction->getParent()->getParent());
+        auto link = PerfectLinkResolver::resolveInferred(
+            address, instruction, module);
 
-        Link *link = nullptr;
-        if(auto found = ChunkFind().findInnermostAt(f, address)) {
-            LOG(10, " ==> inside the same function");
-            link = new NormalLink(found);
-        }
-        else if(auto found
-            = CIter::spatial(module->getFunctionList())->find(address)) {
-
-            LOG(10, " ==> " << found->getName());
-            link = new ExternalNormalLink(found);
-        }
-        else if(auto chunk = ChunkFind().findInnermostInsideInstruction(
-            module->getFunctionList(), address)) {
-
-            LOG(10, "--> instruction(literal?) " << chunk->getName());
-            link = new NormalLink(chunk);
-        }
-        else {
-            LOG(10, " --> data link");
-            link = LinkFactory::makeDataLink(module, address, true);
-            if(!link) {
-                throw "failed to create link!";
-            }
-        }
+        if(!link) { throw "[LinkedInstruction] failed to create link!"; }
         linked->setLink(link);
         auto v = instruction->getSemantic();
         instruction->setSemantic(linked);
