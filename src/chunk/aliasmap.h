@@ -18,6 +18,8 @@ public:
     FunctionAliasMap(Module *module);
 
     Function *find(const std::string &alias);
+private:
+    void maybeSpecialAlias(const char *alias, Function *func);
 };
 
 #endif

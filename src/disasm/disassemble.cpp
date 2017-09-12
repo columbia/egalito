@@ -508,7 +508,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     }
 
     if(block->getSize() > 0) {
-        CLOG0(1, "fall-through function [%s]... "
+        CLOG0(9, "fall-through function [%s]... "
             "adding basic block\n", function->getName().c_str());
         ChunkMutator(function, false).append(block);
     }

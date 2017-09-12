@@ -2,6 +2,9 @@
 #include "aliasmap.h"
 #include "concrete.h"
 #include "elf/symbol.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dsymbol
 #include "log/log.h"
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
@@ -12,28 +15,22 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
         for(auto aliasSym : sym->getAliases()) {
             if(aliasSym->getType() != Symbol::TYPE_FUNC) continue;
             auto alias = aliasSym->getName();
-            //LOG(1, alias << " is an alias for " << func->getName());
             aliasMap[alias] = func;
+            LOG(5, "alias [" << alias << "] to [" << func->getName() << "]");
 
-#if 1
-            auto specialVersion = std::strstr(alias, "@@GLIBC");
-            if(specialVersion) {
-                std::string splice(alias, specialVersion - alias);
-                aliasMap[splice] = func;
-                LOG(1, "alias [" << splice << "] to [" << alias << "]");
-            }
-#endif
+            maybeSpecialAlias(alias, func);
         }
 
-#if 1
-        auto name = sym->getName();
-        auto specialVersion = std::strstr(name, "@@GLIBC");
-        if(specialVersion) {
-            std::string splice(name, specialVersion - name);
-            aliasMap[splice] = func;
-            LOG(1, "alias [" << splice << "] to [" << name << "]");
-        }
-#endif
+        maybeSpecialAlias(sym->getName(), func);
+    }
+}
+
+void FunctionAliasMap::maybeSpecialAlias(const char *alias, Function *func) {
+    auto specialVersion = std::strstr(alias, "@@GLIBC");
+    if(specialVersion) {
+        std::string splice(alias, specialVersion - alias);
+        aliasMap[splice] = func;
+        LOG(5, "SPECIAL alias [" << splice << "] to [" << alias << "]");
     }
 }
 

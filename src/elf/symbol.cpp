@@ -370,7 +370,7 @@ void SymbolVersionList::dump() const {
     LOG(1, "Number of version symbols: " << std::dec << verList.size());
     LOG(1, "Number of versions: " << nameList.size());
     for(auto n : nameList) {
-        LOG(1, "name[" << n.first << "] " << n.second);
+        LOG(9, "name[" << n.first << "] " << n.second);
     }
 }
 
