@@ -90,7 +90,12 @@ void ControlFlowGraph::construct(Block *block) {
     }
     else if(auto ij = dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
-        LOG(1, "How should we handle IndirectJumpInstruction for X86_64 CFG?");
+        if(ij->getMnemonic() == "callq") {
+            fallThrough = true;
+        }
+        else {
+            fallThrough = false;
+        }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(ij->getMnemonic() == "blr") {
             fallThrough = true;
