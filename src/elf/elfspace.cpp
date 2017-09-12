@@ -62,8 +62,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->module = Disassemble::module(elf, symbolList);
     this->module->setElfSpace(this);
 
-    ChunkDumper dumper;
-    module->accept(&dumper);
+    //ChunkDumper dumper;
+    //module->accept(&dumper);
 
     FallThroughFunctionPass fallThrough;
     module->accept(&fallThrough);
