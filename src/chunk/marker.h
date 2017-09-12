@@ -8,33 +8,64 @@
 class Module;
 class RelocList;
 
-class Marker : public AddressableChunkImpl {
+class Marker : public ChunkImpl {
 private:
+    address_t address;
     Symbol *symbol;
-    DataSection *dataSection;
-    size_t alignment;
 
 public:
-    Marker(Symbol *symbol);
-    Marker(DataSection *dataSection, size_t alignment);
+    Marker(address_t address, Symbol *symbol=nullptr);
     Symbol *getSymbol() const { return symbol; }
-    DataSection *getDataSection() const { return dataSection; }
-    size_t getAlignment() const { return alignment; }
-    address_t inferAddress() const;
+    void setSymbol(Symbol *symbol) { this->symbol = symbol; }
     virtual void accept(ChunkVisitor *visitor) {}
+
+    virtual address_t getAddress() const { return address; }
+    virtual void setAddress(address_t address) { this->address = address; }
+};
+
+class SectionStartMarker : public Marker {
+private:
+    DataSection *dataSection;
+    long int bias;
+
+public:
+    SectionStartMarker(DataSection *dataSection, Symbol *symbol=nullptr);
+    DataSection *getDataSection() const { return dataSection; }
+    virtual void accept(ChunkVisitor *visitor) {}
+
+    virtual address_t getAddress() const;
+    virtual void setAddress(address_t address);
+};
+
+class SectionEndMarker : public Marker {
+private:
+    DataSection *dataSection;
+    long int bias;
+
+public:
+    SectionEndMarker(DataSection *dataSection, Symbol *symbol=nullptr);
+    DataSection *getDataSection() const { return dataSection; }
+    virtual void accept(ChunkVisitor *visitor) {}
+
+    virtual address_t getAddress() const;
+    virtual void setAddress(address_t address);
 };
 
 class MarkerList : public CollectionChunkImpl<Marker> {
 public:
-    MarkerList() {}
-
-    static MarkerList *buildMarkerList(ElfMap *elf, Module *module,
-        SymbolList *symbolList, RelocList *relocList);
-    static MarkerLink *makeMarkerLink(Module *module, Symbol *symbol);
-    static MarkerLink *makeMarkerLink(Module *module, DataSection *dataSection,
-        size_t alignment);
-
     virtual void accept(ChunkVisitor *visitor);
+
+    Link *createMarkerLink(address_t target, size_t addend, Symbol *symbol,
+        Module *module);
+    Marker *findOrAddGeneralMarker(address_t target, Symbol *symbol);
+    Marker *findOrAddStartMarker(Symbol *symbol, DataSection *dataSection);
+    Marker *findOrAddEndMarker(Symbol *symbol, DataSection *dataSection);
+
+private:
+    Link *createGeneralMarkerLink(address_t target, Symbol *symbol,
+        size_t addend, Module *module);
+    Link *createStartOrEndMarkerLink(address_t target, Symbol *symbol,
+        size_t addend, DataSection *dataSection, Module *module);
 };
 
 #endif

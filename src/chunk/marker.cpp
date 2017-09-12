@@ -10,123 +10,142 @@
 
 #include "log/log.h"
 
-#define ROUND_UP_BY(x, y)   (((x) + (y) - 1) & ~((y) - 1))
-
-Marker::Marker(Symbol *symbol)
-    : symbol(symbol), dataSection(nullptr), alignment(1) {
-
-    setPosition(new AbsolutePosition(symbol->getAddress()));
+Marker::Marker(address_t address, Symbol *symbol)
+    : address(address), symbol(symbol) {
 }
 
-Marker::Marker(DataSection *dataSection, size_t alignment)
-    : symbol(nullptr), dataSection(dataSection), alignment(alignment) {
-
-    setPosition(new AbsolutePosition(inferAddress()));
+SectionStartMarker::SectionStartMarker(DataSection *dataSection, Symbol *symbol)
+    : Marker(dataSection->getAddress(), symbol), dataSection(dataSection),
+      bias(0) {
 }
 
-address_t Marker::inferAddress() const {
-    return ROUND_UP_BY(dataSection->getAddress() + dataSection->getSize(),
-        alignment);
+address_t SectionStartMarker::getAddress() const {
+    return dataSection->getAddress() + bias;
 }
 
-MarkerList *MarkerList::buildMarkerList(ElfMap *elf, Module *module,
-    SymbolList *symbolList, RelocList *relocList) {
-
-    LOG(1, "extracting marker symbols");
-
-    auto list = new MarkerList();
-
-    if(relocList) {
-        for(auto r : *relocList) {
-            auto sym = r->getSymbol();
-            if(!sym) continue;
-            if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
-            if(sym->getAddress() == 0) {
-                LOG(1, "skipping WEAK symbol " << sym->getName());
-                continue;
-            }
-            if(!strncmp(sym->getName(), ".LC", 3)) {
-                LOG(1, "skipping compiler generated symbol " << sym->getName());
-                continue;
-            }
-
-            auto base = elf->getBaseAddress();
-#if 0
-            auto addr = base + sym->getAddress();
-            bool resolved = false;
-            for(auto region : CIter::regions(module)) {
-                if(CIter::spatial(region)->findContaining(addr)) {
-                    LOG(1, "already resolved as a variable " << sym->getName());
-                    resolved = true;
-                    break;
-                }
-            }
-            if(resolved) continue;
-
-            Chunk *chunk = nullptr;
-            if(auto inner = ChunkFind().findInnermostInsideInstruction(
-                module->getFunctionList(), r->getAddress())) {
-                auto instr = dynamic_cast<Instruction *>(inner);
-                auto semantic = instr->getSemantic();
-                if(auto linked = dynamic_cast<LinkedInstruction *>(semantic)) {
-                    if(linked->getLink()->getTarget()) continue;
-                }
-                chunk = inner;
-            }
-            else {
-                auto varAddr = base + r->getAddress();
-                for(auto dr : CIter::regions(module)) {
-                    if(auto var = dr->findVariable(varAddr)) {
-                        chunk = var;
-                        break;
-                    }
-                }
-            }
-
-            if(chunk) {
-                LOG(1, "found linker defined symbol: " << sym->getName()
-                    << " at " << r->getAddress());
-                list->getChildren()->add(new Marker(sym));
-            }
-#else
-            list->getChildren()->add(new Marker(sym));
-#endif
-        }
-    }
-
-    return list;
+void SectionStartMarker::setAddress(address_t address) {
+    bias = address - getAddress();
 }
 
-MarkerLink *MarkerList::makeMarkerLink(Module *module, Symbol *symbol) {
-    auto space = module->getElfSpace();
-    for(auto marker : CIter::children(space->getMarkerList())) {
-        if(marker->getSymbol() == symbol) {
-            return new MarkerLink(marker);
-        }
-    }
-
-    auto marker = new Marker(symbol);
-    space->getMarkerList()->getChildren()->add(marker);
-    return new MarkerLink(marker);
+SectionEndMarker::SectionEndMarker(DataSection *dataSection, Symbol *symbol)
+    : Marker(dataSection->getAddress() + dataSection->getSize(), symbol),
+      dataSection(dataSection), bias(0) {
 }
 
-MarkerLink *MarkerList::makeMarkerLink(Module *module, DataSection *dataSection,
-    size_t alignment) {
+address_t SectionEndMarker::getAddress() const {
+    return dataSection->getAddress() + dataSection->getSize() + bias;
+}
 
-    auto space = module->getElfSpace();
-    for(auto marker : CIter::children(space->getMarkerList())) {
-        if(marker->getDataSection() == dataSection
-            && marker->getAlignment() == alignment) {
-
-            return new MarkerLink(marker);
-        }
-    }
-
-    auto marker = new Marker(dataSection, alignment);
-    space->getMarkerList()->getChildren()->add(marker);
-    return new MarkerLink(marker);
+void SectionEndMarker::setAddress(address_t address) {
+    bias = address - getAddress();
 }
 
 void MarkerList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
+
+Link *MarkerList::createMarkerLink(address_t target, size_t addend,
+    Symbol *symbol, Module *module) {
+
+    LOG(10, "creating marker link to " << target
+        << " in " << module->getName());
+    if(symbol) {
+        LOG(10, "    with symbol " << symbol->getName());
+        auto sec = module->getElfSpace()->getElfMap()->findSection(
+            symbol->getSectionIndex());
+        for(auto region : CIter::regions(module)) {
+            for(auto dsec : CIter::children(region)) {
+                auto original
+                    = region->getOriginalAddress() + dsec->getOriginalOffset();
+                if(original == sec->getVirtualAddress()) {
+                    auto link = createStartOrEndMarkerLink(
+                        target, symbol, addend, dsec, module);
+                    if(link) return link;
+                    // some markers have alignment restrictions
+                }
+            }
+        }
+    }
+    else {
+        for(auto region : CIter::regions(module)) {
+            for(auto dsec : CIter::children(region)) {
+                auto link = createStartOrEndMarkerLink(
+                    target, symbol, addend, dsec, module);
+                if(link) return link;
+            }
+        }
+    }
+    return createGeneralMarkerLink(target, symbol, addend, module);
+}
+
+Link *MarkerList::createGeneralMarkerLink(address_t target, Symbol *symbol,
+    size_t addend, Module *module) {
+
+    LOG(10, "    general markerLink to " << std::hex << target);
+    auto list = module->getMarkerList();
+    auto marker = list->findOrAddGeneralMarker(target, symbol);
+    return new MarkerLink(marker, addend);
+}
+
+Link *MarkerList::createStartOrEndMarkerLink(address_t target, Symbol *symbol,
+    size_t addend, DataSection *dataSection, Module *module) {
+
+    auto list = module->getMarkerList();
+    if(dataSection->getAddress() == target) {
+        LOG(10, "    start markerLink to "
+            << std::hex << target);
+        auto marker = list->findOrAddStartMarker(symbol, dataSection);
+        return new MarkerLink(marker, addend);
+    }
+    if(dataSection->getAddress() + dataSection->getSize() == target) {
+        LOG(10, "    end markerLink to " << std::hex << target);
+        auto marker = list->findOrAddEndMarker(symbol, dataSection);
+        return new MarkerLink(marker, addend);
+    }
+    return nullptr;
+}
+
+Marker *MarkerList::findOrAddGeneralMarker(address_t target, Symbol *symbol) {
+    for(auto marker : CIter::children(this)) {
+        if(marker->getAddress() != target) continue;
+        if(marker->getSymbol() != symbol) continue;
+        return marker;
+    }
+    LOG(11, "     create new one");
+    auto marker = new Marker(target, symbol);
+    getChildren()->add(marker);
+    return marker;
+}
+
+Marker *MarkerList::findOrAddStartMarker(Symbol *symbol,
+    DataSection *dataSection) {
+
+    for(auto marker : CIter::children(this)) {
+        if(auto startMarker = dynamic_cast<SectionStartMarker *>(marker)) {
+            if(startMarker->getDataSection() != dataSection) continue;
+            if(marker->getSymbol() != symbol) continue;
+            return startMarker;
+        }
+    }
+    LOG(11, "     create new one");
+    auto marker = new SectionStartMarker(dataSection, symbol);
+    getChildren()->add(marker);
+    return marker;
+}
+
+Marker *MarkerList::findOrAddEndMarker(Symbol *symbol,
+    DataSection *dataSection) {
+
+    for(auto marker : CIter::children(this)) {
+        if(auto endMarker = dynamic_cast<SectionEndMarker *>(marker)) {
+            if(endMarker->getDataSection() != dataSection) continue;
+            if(marker->getSymbol() != symbol) continue;
+            return endMarker;
+        }
+    }
+    LOG(11, "     create new one");
+    auto marker = new SectionEndMarker(dataSection, symbol);
+    getChildren()->add(marker);
+    return marker;
+}
+
