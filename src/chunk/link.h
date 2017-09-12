@@ -121,10 +121,14 @@ class Marker;
 class MarkerLink : public Link {
 private:
     Marker *marker;
+    size_t addend;
+
 public:
-    MarkerLink(Marker *marker) : marker(marker) {}
+    MarkerLink(Marker *marker, size_t addend)
+        : marker(marker), addend(addend) {}
 
     Marker *getMarker() const { return marker; }
+    size_t getAddend() const { return addend; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
 };
@@ -211,6 +215,38 @@ public:
         bool isExternal = false);
     static Link *makeDataLink(Module *module, address_t target,
         bool isRelative = true);
+    static Link *makeMarkerLink(Module *module, address_t target,
+        Symbol *symbol);
 };
+
+// --- link resolver ---
+
+class Reloc;
+class Instruction;
+class Conductor;
+class ElfSpace;
+
+/** This resolver assumes that we have both relocations and symbols.
+ */
+class PerfectLinkResolver {
+public:
+    /* Resolve within the same module using address info in a relocation.
+     * Only returns nullptr if undefined within the module. */
+    static Link *resolveInternally(Reloc *reloc, Module *module);
+
+    /* Resolve outside the module using symbol info. */
+    static Link *resolveExternally(Symbol *symbol, Conductor *conductor,
+        ElfSpace *elfSpace);
+
+    /* Resolve within the same module using address obtained by data flow
+     * analysis. */
+    static Link *resolveInferred(address_t address, Instruction *instruction,
+        Module *module);
+
+private:
+    static Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
+};
+
+// class RelocOnlyLinkResolver {}
 
 #endif
