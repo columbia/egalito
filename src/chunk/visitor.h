@@ -21,7 +21,7 @@ public:
     virtual void visit(DataRegion *dataRegion) = 0;
     virtual void visit(MarkerList *markerList) = 0;
 };
-class ChunkListener {
+class ChunkListener : public ChunkVisitor {
 public:
     virtual void visit(Program *program) {}
     virtual void visit(Module *function) {}

@@ -1,0 +1,21 @@
+File format:
+    <signature><version (uint32)><chunk count (uint32)><chunk header 1>...
+    <chunk data 1><chunk data 2>...
+
+Signature: "egalito\255"
+Version: "\0" currently, stop parsing on version mismatch
+Chunk count: number of chunk headers that follow
+Chunk header:
+    <chunk type (uint16)><chunk ID (uint32)>
+    <serialized offset (uint32)><serialized size (uint32)>
+
+    Chunk type: values less than 256 are built-in, >= 256 are user defined
+
+Chunk data:
+    <required data><special type 1 (uint8)><data 1>...
+
+Data types:
+    <address (uint32)>
+    <size (uint32)>
+    <string size (uint32)>string data...
+    <local link id (uint32)>
