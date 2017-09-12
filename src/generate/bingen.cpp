@@ -59,69 +59,6 @@ BinGen::~BinGen() {
     fs.close();
 }
 
-// maybe this should be a pass to create a special type of links?
-void BinGen::extractMarkers() {
-    LOG(1, "extracting marker symbols");
-
-    auto mainSpace = mainModule->getElfSpace();
-    if(auto relocList = mainSpace->getRelocList()) {
-        for(auto r : *relocList) {
-            auto sym = r->getSymbol();
-            if(!sym) continue;
-            if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
-            if(sym->getAddress() == 0) {
-                LOG(1, "skipping WEAK symbol " << sym->getName());
-                continue;
-            }
-            if(!strncmp(sym->getName(), ".LC", 3)) {
-                LOG(1, "skipping compiler generated symbol " << sym->getName());
-                continue;
-            }
-
-            auto base
-                = mainModule->getElfSpace()->getElfMap()->getBaseAddress();
-            auto addr = base + sym->getAddress();
-            bool resolved = false;
-            for(auto region : CIter::regions(mainModule)) {
-                if(CIter::spatial(region)->findContaining(addr)) {
-                    LOG(1, "already resolved as a variable " << sym->getName());
-                    resolved = true;
-                    break;
-                }
-            }
-            if(resolved) continue;
-
-            // it's usually the 'end' symbols, because the 'start' symbols
-            // can be resolved as a DataVariable.
-            Chunk *chunk = nullptr;
-            if(auto inner = ChunkFind().findInnermostInsideInstruction(
-                mainModule->getFunctionList(), r->getAddress())) {
-                auto instr = dynamic_cast<Instruction *>(inner);
-                auto semantic = instr->getSemantic();
-                if(auto linked = dynamic_cast<LinkedInstruction *>(semantic)) {
-                    if(linked->getLink()->getTarget()) continue;
-                }
-                chunk = inner;
-            }
-            else {
-                auto varAddr = base + r->getAddress();
-                for(auto dr : CIter::regions(mainModule)) {
-                    if(auto var = dr->findVariable(varAddr)) {
-                        chunk = var;
-                        break;
-                    }
-                }
-            }
-
-            if(chunk) {
-                LOG(1, "found linker defined symbol: " << sym->getName()
-                    << " at " << r->getAddress());
-                markerList.emplace_back(chunk, sym);
-            }
-        }
-    }
-}
-
 int BinGen::generate() {
     changeMapAddress(mainModule, 0xa0000000);
     SegMap::mapAllSegments(setup);
@@ -132,18 +69,13 @@ int BinGen::generate() {
     ReloCheckPass checker;
     setup->getConductor()->getProgram()->accept(&checker);
 
-    // this must be performed before any instrumentation, transformation,
-    // reassignment
-    extractMarkers();
-
     applyAdditionalTransform();
 
     endOfCode = reassignFunctionAddress();
 
     interleaveData();
 
-    // this must come after data regions are assigned the final address
-    fixMarkerSymbols();
+    fixMarkers();
 
     FixDataRegionsPass fixDataRegions;
     setup->getConductor()->getProgram()->accept(&fixDataRegions);
@@ -191,28 +123,31 @@ address_t BinGen::reassignFunctionAddress() {
     // we have to reassign address here because size could have been
     // changed due to instrumentation
     auto address = list.front()->getAddress();
-    auto address2 = address;
+    startOfCode = address;
     for(auto func : list) {
-        // if a heuristics to find out alignment fails, we need to make a
+        // if this heuristics to find out alignment fails, we need to make a
         // list of functions with special alignment (e.g. vector table)
 
         auto org = func->getAddress();
-        address2 = ROUND_UP_BY(address2, org & -org);
+        if(address != ROUND_UP_BY(address, org & -org)) {
+            LOG(1, "rouding up " << address << " by " << (org & -org));
+        }
+        address = ROUND_UP_BY(address, org & -org);
         LOG(1, func->getName() << " : " << std::hex
-            << func->getAddress() << " -> " << address2
-            << " - " << (address2 + func->getSize()));
+            << func->getAddress() << " -> " << address
+            << " - " << (address + func->getSize()));
 
-        ChunkMutator(func).setPosition(address2);
-        address2 += func->getSize();
+        ChunkMutator(func).setPosition(address);
+        address += func->getSize();
     }
 
     if(addon) {
         list = makeSortedFunctionList(addon);
         for(auto func : list) {
             LOG(10, func->getName() << " : "
-                << func->getAddress() << " -> " << address2);
-            ChunkMutator(func).setPosition(address2);
-            address2 += func->getSize();
+                << func->getAddress() << " -> " << address);
+            ChunkMutator(func).setPosition(address);
+            address += func->getSize();
         }
     }
 
@@ -414,6 +349,7 @@ address_t BinGen::remapData(Module *module, address_t pos, bool writable) {
 
         std::vector<DataSection *> dataSectionList;
         for(auto section : CIter::children(region)) {
+            if(section->isCode()) continue;
             if(section->isBss()) continue;
 
             dataSectionList.push_back(section);
@@ -425,6 +361,7 @@ address_t BinGen::remapData(Module *module, address_t pos, bool writable) {
 
         for(auto sec : dataSectionList) {
             pos = ROUND_UP_BY(pos, sec->getAlignment());
+            LOG(1, "   " << sec->getName() << " : " << pos);
             ChunkMutator(sec).setPosition(pos);
             pos += sec->getSize();
         }
@@ -475,61 +412,100 @@ void BinGen::resolveLinkerSymbol(Chunk *chunk, address_t address) {
     }
 }
 
-void BinGen::fixMarkerSymbols() {
-    for(auto m : markerList) {
-        auto name = m.getTargetSymbol()->getName();
-        LOG(1, "fixing marker symbol: " << name);
-
-        auto chunk = m.getChunk();
-
-        /*** These are target dependent: must be tailored ***/
+void BinGen::fixMarkers() {
+    LOG(1, "fixing marker address");
+    for(auto m : CIter::children(mainModule->getMarkerList())) {
+        LOG(1, "marker " << m);
+        if(auto symbol = m->getSymbol()) {
+            if(0) { }
 #if TARGET_IS_MAGENTA
-        if(!std::strcmp(name, "_end")) {
-            // end of bss aligned up by 4096
-            auto addr = ROUND_UP(endOfBss);
-            LOG(1, "should point to " << addr);
-            resolveLinkerSymbol(chunk, addr);
-        }
-        else if(!std::strcmp(name, "__code_end")) {
-            // end of text
-            LOG(1, "should point to " << endOfCode);
-            resolveLinkerSymbol(chunk, endOfCode);
-        }
-        else if(!std::strcmp(name, "__data_end")) {
-            // end of all initialized data including init and fini
-            LOG(1, "should point to " << endOfData);
-            resolveLinkerSymbol(chunk, endOfData);
-        }
-        else if(!std::strcmp(name, "__bss_end")) {
-            // end of bss segment aligned up by 16
-            auto addr = ROUND_UP_BY(endOfBss, 16);
-            LOG(1, "should point to " << addr);
-            resolveLinkerSymbol(chunk, addr);
-        }
-        else if(!std::strcmp(name, "__build_id_note_end")) {
-            // next address of the end of .note.gnu.build-id
-            auto sec = mainModule->getElfSpace()->getElfMap()
-                ->findSection(".note.gnu.build-id");
-            fixLinkToSectionEnd(chunk, sec);
-        }
-        else if(!std::strcmp(name, "__init_array_end")) {
-            // next address of the end of .init_array
-            auto sec = mainModule->getElfSpace()->getElfMap()
-                ->findSection(".init_array");
-            fixLinkToSectionEnd(chunk, sec);
-        }
-        else if(!std::strcmp(name, "__stop_lk_init")) {
-            // next address of the end of lk_init
-            auto sec = mainModule->getElfSpace()->getElfMap()
-                ->findSection("lk_init");
-            fixLinkToSectionEnd(chunk, sec);
-        }
-        else
+            else if(!std::strcmp(symbol->getName(), "_end")) {
+                // end of bss aligned up by 4096
+                auto addr = ROUND_UP(endOfBss);
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__code_start")) {
+                // start of text: we did not change section address
+                auto addr = startOfCode;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__code_end")) {
+                // end of text
+                auto addr = endOfCode;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__data_end")) {
+                // end of all initialized data including init and fini
+                auto addr = endOfData;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__bss_end")) {
+                // end of bss segment aligned up by 16
+                auto addr = ROUND_UP_BY(endOfBss, 16);
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+#if 0
+            else if(!std::strcmp(symbol->getName(), "__build_id_note_end")) {
+                // next address of the end of .note.gnu.build-id
+                auto addr = getSectionEndAddress(".note.gnu.build-id");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__init_array_end")) {
+                // next address of the end of .init_array
+                auto addr = getSectionEndAddress(".init_array");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__stop_lk_init")) {
+                // next address of the end of lk_init
+                auto addr = getSectionEndAddress("lk_init");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
 #endif
-        {
-            LOG(1, "unknown marker symbol " << name);
+#endif
+            else {
+                LOG(1, "unknown marker for " << symbol->getName());
+            }
+        }
+        else {
+            LOG(1, "marker with no name to " << m->getAddress());
         }
     }
+
+    if(addon) {
+        for(auto m : CIter::children(addon->getMarkerList())) {
+            LOG(1, "[addon] marker " << m);
+            if(auto symbol = m->getSymbol()) {
+                LOG(1, "[addon] marker " << symbol->getName());
+            }
+            else {
+                LOG(1, "[addon] marker with no name to " << m->getAddress());
+            }
+        }
+    }
+}
+
+address_t BinGen::getSectionEndAddress(const char *sectionName) const {
+    auto sec = mainModule->getElfSpace()->getElfMap()->findSection(sectionName);
+    for(auto region : CIter::regions(mainModule)) {
+        for(auto ds : CIter::children(region)) {
+            auto original
+                = region->getOriginalAddress() + ds->getOriginalOffset();
+            if(original == sec->getVirtualAddress()) {
+                return ds->getAddress() + ds->getSize();
+            }
+        }
+    }
+
+    LOG(1, "no section found! " << sectionName);
+    return 0;
 }
 
 bool BinGen::fixLinkToSectionEnd(Chunk *chunk, ElfSection *section) {
@@ -625,6 +601,7 @@ address_t BinGen::writeOutData(Module *module, address_t pos, bool writable) {
         LOG(1, "  mem size " << region->getPhdr()->p_memsz);
 
         for(auto dsec : CIter::children(region)) {
+            if(dsec->isCode()) continue;
             if(dsec->isBss()) continue;
 
             auto vstart = dsec->getAddress();

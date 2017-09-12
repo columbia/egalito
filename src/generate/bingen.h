@@ -34,6 +34,7 @@ private:
     std::vector<Module *> moduleList;
     std::ofstream fs;
     std::vector<SymbolMarker> markerList;
+    address_t startOfCode;
     address_t endOfCode;
     address_t endOfRoData;
     address_t endOfData;
@@ -45,7 +46,6 @@ public:
     int generate();
 
 private:
-    void extractMarkers();
     void applyAdditionalTransform();
     void addCallLogging();
     void addBssClear();
@@ -55,7 +55,8 @@ private:
     void changeMapAddress(Module *module, address_t address);
     void interleaveData();
     address_t alignUp(address_t pos, const char *name);
-    void fixMarkerSymbols();
+    void fixMarkers();
+    address_t getSectionEndAddress(const char *sectionName) const;
     bool fixLinkToSectionEnd(Chunk *chunk, ElfSection *section);
     void resolveLinkerSymbol(Chunk *chunk, address_t address);
     address_t remapData(Module *module, address_t pos, bool writable);
