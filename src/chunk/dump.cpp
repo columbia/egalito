@@ -95,7 +95,11 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
 void ChunkDumper::visit(MarkerList *markerList) {
     LOG(1, "--[markers]--");
     for(auto marker : CIter::children(markerList)) {
-        LOG(1, marker->getSymbol()->getName());
+        LOG0(1, "" << marker->getAddress() << " : ");
+        if(auto sym = marker->getSymbol()) {
+            LOG(1, sym->getName());
+        }
+        else LOG(1, "");
     }
 }
 
