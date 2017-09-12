@@ -178,82 +178,6 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     return false;
 }
 
-Link *FindAnywhere::resolveAsLink(Symbol *symbol) {
-    if(!symbol) return nullptr;
-
-    const char *name = symbol->getName();
-    LOG(1, "(link) SEARCH for " << name);
-
-    std::string versionedName;
-    if(auto ver = symbol->getVersion()) {
-        versionedName.append(name);
-        versionedName.push_back('@');
-        if(!ver->isHidden()) versionedName.push_back('@');
-        versionedName.append(ver->getName());
-    }
-
-    // we cannot make a useful link to emulator symbol yet
-    if(auto addr = LoaderEmulator::getInstance().findSymbol(name)) {
-        LOG(1, "    symbol only link to emulator! at " << std::hex << addr);
-        return new SymbolOnlyLink(symbol, addr);
-    }
-
-    for(auto library : *conductor->getLibraryList()) {
-        auto space = library->getElfSpace();
-        if(space && space != elfSpace) {
-            //LOG(1, "searching in " << library->getShortName());
-            if(auto link = resolveNameAsLinkHelper(name, space)) {
-                return link;
-            }
-            else if(versionedName.size() > 0) {
-                //LOG(1, "versionedName = " << versionedName.c_str());
-                if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
-                    space)) {
-
-                    return link;
-                }
-            }
-        }
-    }
-
-    LOG(1, "NOT FOUND: failed to make link to " << name);
-    return nullptr;
-}
-
-Link *FindAnywhere::resolveNameAsLinkHelper(const char *name, ElfSpace *space) {
-    auto f = CIter::named(space->getModule()->getFunctionList())
-        ->find(name);
-    if(f) {
-        LOG(10, "    ...found as function! at "
-            << std::hex << f->getAddress());
-        return new NormalLink(f);
-    }
-
-    auto alias = space->getAliasMap()->find(name);
-    if(alias) {
-        LOG(10, "    ...found as alias! " << alias->getName()
-            << " at " << std::hex << alias->getAddress());
-        return new NormalLink(alias);
-    }
-
-    auto symbol = space->getSymbolList()->find(name);
-    if(symbol) {
-        if(symbol->getAddress() > 0
-            && symbol->getType() != Symbol::TYPE_FUNC
-            && symbol->getType() != Symbol::TYPE_IFUNC) {
-
-            LOG(10, "    ...found as data ref! at "
-                << std::hex << symbol->getAddress() << " in "
-                << space->getModule()->getName());
-            return LinkFactory::makeDataLink(space->getModule(),
-                space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-                true);
-        }
-    }
-
-    return nullptr;
-}
-
 void RelocDataPass::visit(Program *program) {
     // resolve relocations in library-depends order (because e.g. COPY relocs)
 
@@ -421,11 +345,15 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         return;
     }
     auto sourceSection = sourceRegion->findDataSectionContaining(update);
-    if(!sourceSection) {
+    if(!sourceSection || sourceSection->isCode()) {
         return;
     }
     auto variable = sourceRegion->findVariable(update);
     if(variable && variable->getDest()->getTarget()) {
+        return;
+    }
+
+    if(symbol->isMarker()) {
         return;
     }
 
@@ -442,9 +370,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
 #endif
     }
 
-    link = FindAnywhere(conductor, elfSpace).resolveAsLink(symbol);
+    link = PerfectLinkResolver::resolveExternally(symbol, conductor, elfSpace);
 
-    // these shouldn't be necessary as long as if relocations are available
+    // these shouldn't be necessary as long as relocations are available
 #if 0
     address_t dest = 0;
     bool found = false;
@@ -467,6 +395,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
 #endif
 
     if(link) {
+        //TemporaryLogLevel tll("pass", 10);
         LOG0(10, "    make link: " << std::hex << update << " -> "
              << link->getTargetAddress());
         if(link->getTarget()) LOG(10, " " <<  link->getTarget()->getName());
@@ -495,7 +424,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
 #endif
     else {
-        LOG(1, "    link not made!");
+        LOG(1, "    link not made! (is not an error if unused)");
         LOG(1, "        offset " << std::hex << r->getAddress()
             << " addend " << r->getAddend());
     }
