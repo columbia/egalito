@@ -118,8 +118,8 @@ public:
 
     virtual void accept(ChunkVisitor *visitor);
 
-    Link *createDataLink(address_t target, Module *module, Symbol *symbol,
-        bool isRelative=true);
+    Link *createDataLink(address_t target, Module *module,
+        bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
     Link *resolveVariableLink(Reloc *reloc, Module *module);

@@ -32,12 +32,6 @@ bool DataSection::contains(address_t address) {
     return getRange().contains(address);
 }
 
-std::string DataRegion::getName() const {
-    StreamAsString stream;
-    stream << "region-0x" << std::hex << originalAddress;
-    return stream;
-}
-
 DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
     : dest(dest) {
 
@@ -71,6 +65,12 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     }
 }
 
+std::string DataRegion::getName() const {
+    StreamAsString stream;
+    stream << "region-0x" << std::hex << originalAddress;
+    return stream;
+}
+
 void DataRegion::addVariable(DataVariable *variable) {
     variableList.push_back(variable);
 }
@@ -94,6 +94,15 @@ DataVariable *DataRegion::findVariable(address_t address) const {
     for(auto var : variableList) {
         if(var->getAddress() == address) {
             return var;
+        }
+    }
+    return nullptr;
+}
+
+DataSection *DataRegion::findDataSectionContaining(address_t address) {
+    for(auto ds : CIter::children(this)) {
+        if(ds->contains(address)) {
+            return ds;
         }
     }
     return nullptr;
@@ -123,16 +132,17 @@ void DataRegionList::accept(ChunkVisitor *visitor) {
 }
 
 Link *DataRegionList::createDataLink(address_t target, Module *module,
-    Symbol *symbol, bool isRelative) {
+    bool isRelative) {
 
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
+
     for(auto region : CIter::children(this)) {
         if(region->contains(target)) {
             auto dsec = CIter::spatial(region)->findContaining(target);
             if(dsec) {
                 if(dsec->isCode()) {
-                    LOG(1, "is this LITERAL? or a hand-crafted table?");
+                    LOG(9, "is this LITERAL? or a hand-crafted jump table?");
                     return nullptr;
                 }
                 auto base = dsec->getAddress();
@@ -147,28 +157,6 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
         }
     }
 
-    // For inferred pointers, we don't have relocations, sometimes nor
-    // symbols.
-    if(!symbol) {
-        symbol = module->getElfSpace()->getSymbolList()->find(target);
-    }
-
-    if(symbol) {
-        LOG(1, "    markerLink to " << std::hex << target
-            << "(" << symbol->getName() << ")");
-        return MarkerList::makeMarkerLink(module, symbol);
-    }
-
-    if(auto region = findNonTLSRegionContaining(target)) {
-        for(auto dsec : CIter::children(region)) {
-            if(dsec->getAddress() + dsec->getSize() == target) {
-                LOG(1, "    markerLink to " << std::hex << target);
-                return MarkerList::makeMarkerLink(module, dsec, 1);
-            }
-        }
-    }
-
-    LOG(1, "    unable to make link!! (to " << std::hex << target << ")");
     return nullptr;
 }
 
@@ -215,10 +203,11 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
             tls, reloc->getSymbol(), reloc->getAddend());
     }
 
-    return resolveInternally(reloc, module);
+    return PerfectLinkResolver::resolveInternally(reloc, module);
 #endif
 }
 
+#if 0
 Link *DataRegionList::resolveInternally(Reloc *reloc, Module *module) {
     address_t addr = reloc->getAddend();
     if(auto symbol = reloc->getSymbol()) {
@@ -228,6 +217,11 @@ Link *DataRegionList::resolveInternally(Reloc *reloc, Module *module) {
             return nullptr;
         }
         addr += symbol->getAddress();
+
+        if(symbol->isMarker()) {
+            return module->getMarkerList()->createMarkerLink(
+                addr, symbol, module);
+        }
     }
 
     auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
@@ -243,11 +237,13 @@ Link *DataRegionList::resolveInternally(Reloc *reloc, Module *module) {
         }
     }
 
-    //this might break magenta...
-    //addr += module->getElfSpace()->getElfMap()->getBaseAddress();
-    LOG(1, "createDataLink for " << reloc->getAddress());
-    return createDataLink(addr, module, reloc->getSymbol(), true);
+    if(auto dlink = createDataLink(addr, module, true)) {
+        return dlink;
+    }
+
+    return module->getMarkerList()->createMarkerLink(addr, nullptr, module);
 }
+#endif
 
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     //TemporaryLogLevel tll("chunk", 10);
@@ -287,6 +283,14 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         ChunkMutator(region).append(ds);
     }
 
+    module->setDataRegionList(list);
+    ChunkDumper dumper;
+    for(auto region : CIter::regions(module)) {
+        region->accept(&dumper);
+    }
+
+    module->setMarkerList(new MarkerList());
+
     // make variables for all relocations located inside the regions
     for(auto reloc : *module->getElfSpace()->getRelocList()) {
         // source region (will be different from the link's dest region)
@@ -313,15 +317,4 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
             }
         }
     }
-
-    module->setDataRegionList(list);
-}
-
-DataSection *DataRegion::findDataSectionContaining(address_t address) {
-    for(auto ds : CIter::children(this)) {
-        if(ds->contains(address)) {
-            return ds;
-        }
-    }
-    return nullptr;
 }
