@@ -302,6 +302,9 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
 
     FunctionList *functionList = new FunctionList();
 
+    LOG(1, "Splitting code section into " << splitPoints.size()
+        << " fuzzy functions");
+
     for(std::set<address_t>::iterator it = splitPoints.begin();
         it != splitPoints.end(); it ++) {
 
@@ -316,7 +319,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
             functionSize = readSize - functionOffset;
         }
 
-        LOG(1, "Split into function [0x" << std::hex << (*it) << ",+"
+        LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
             << functionSize << ")");
 
         Function *function = new FuzzyFunction(virtualAddress + functionOffset);
