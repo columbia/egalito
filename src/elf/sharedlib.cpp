@@ -8,12 +8,13 @@
 #include "sharedlib.h"
 #include "types.h"
 #include "elfxx.h"
+#include "config.h"
 
 #define DEBUG_GROUP elf
 #include "log/log.h"
 
 std::string SharedLib::getAlternativeSymbolFile() const {
-#ifdef ARCH_X86_64
+#ifdef USR_LIB_DEBUG_BY_HASH
     auto buildIdSection = elfMap->findSection(".note.gnu.build-id");
     if(buildIdSection) {
         auto buildIdHeader = buildIdSection->getHeader();
@@ -50,7 +51,7 @@ std::string SharedLib::getAlternativeSymbolFile() const {
             note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
         }
     }
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(USR_LIB_DEBUG_BY_NAME)
     std::ostringstream symbolFile;
     symbolFile << "/usr/lib/debug";
     char realPath[PATH_MAX];
@@ -65,6 +66,8 @@ std::string SharedLib::getAlternativeSymbolFile() const {
         }
         return symbolFile.str();
     }
+#else
+    #error "Please define one of USR_LIB_DEBUG_BY_{NAME,HASH} in config/*.h"
 #endif
     return "";
 }

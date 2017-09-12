@@ -7,6 +7,7 @@
 
 /* src */
 
+#define USR_LIB_DEBUG_BY_HASH
 #define SANDBOX_BASE_ADDRESS    0x40000000
 
 /* app */
