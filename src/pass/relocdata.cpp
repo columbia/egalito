@@ -145,7 +145,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
 
     // Lastly, see if this is a data object; if so, use the original
     // address (but add the new load address as a base address).
-    if(auto symbol = findSymbol(elfSpace, name)) {
+    if(auto symbol = findSymbol(space, name)) {
         if(symbol->getAddress() > 0
             && symbol->getType() != Symbol::TYPE_FUNC
             && symbol->getType() != Symbol::TYPE_IFUNC) {
