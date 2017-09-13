@@ -284,9 +284,11 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     }
 
     module->setDataRegionList(list);
-    ChunkDumper dumper;
-    for(auto region : CIter::regions(module)) {
-        region->accept(&dumper);
+    IF_LOG(10) {
+        ChunkDumper dumper;
+        for(auto region : CIter::regions(module)) {
+            region->accept(&dumper);
+        }
     }
 
     module->setMarkerList(new MarkerList());

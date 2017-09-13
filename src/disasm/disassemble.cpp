@@ -593,7 +593,7 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
         }
     }
 #elif defined(ARCH_AARCH64)
-    #error "Not yet implemented"
+    LOG(0, "Not yet implemented");
 #elif defined(ARCH_ARM)
     #error "Not yet implemented"
 #endif

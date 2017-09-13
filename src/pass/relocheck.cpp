@@ -5,13 +5,21 @@
 #include "elf/elfspace.h"
 #include "instr/concrete.h"
 #include "operation/find.h"
+#include "pass/clearspatial.h"
 
 #include "log/log.h"
 #include "chunk/dump.h"
 
 void ReloCheckPass::visit(Module *module) {
-    LOG(1, "-- checking relocation for module " << module->getName());
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    LOG(1, "-- checking relocation for module " << module->getName());
+
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+    for(auto region : CIter::regions(module)) {
+        region->accept(&clearSpatial);
+    }
+
     ChunkDumper dumper;
     for(auto region : CIter::regions(module)) {
         region->accept(&dumper);
@@ -21,8 +29,8 @@ void ReloCheckPass::visit(Module *module) {
             check(r, module);
         }
     }
-#endif
     LOG(1, "-- end");
+#endif
 }
 
 /*

@@ -128,7 +128,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
     if(!symbol) return nullptr;
 
     const char *name = symbol->getName();
-    LOG(1, "(PerfectLinkResolver) SEARCH for " << name);
+    LOG(10, "(PerfectLinkResolver) SEARCH for " << name);
 
     std::string versionedName;
     if(auto ver = symbol->getVersion()) {
@@ -140,7 +140,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
 
     // we cannot make a useful link to emulator symbol yet
     if(auto addr = LoaderEmulator::getInstance().findSymbol(name)) {
-        LOG(1, "    symbol only link to emulator! at " << std::hex << addr);
+        LOG(10, "    symbol only link to emulator! at " << std::hex << addr);
         return new SymbolOnlyLink(symbol, addr);
     }
 
@@ -162,7 +162,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
 
     // this should only happen for functions in a shared library which aren't
     // pulled in.
-    LOG(1, "NOT FOUND: failed to make link to " << name);
+    LOG(10, "NOT FOUND: failed to make link to " << name);
     return nullptr;
 }
 
