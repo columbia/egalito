@@ -362,7 +362,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         return;
     }
 
-    if(symbol->isMarker()) {
+    if(symbol && symbol->isMarker()) {
         return;
     }
 

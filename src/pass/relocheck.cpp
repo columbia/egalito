@@ -83,51 +83,51 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
     else {
         address_t addr = r->getAddress();
         auto tls = module->getDataRegionList()->getTLS();
+        DataVariable *var = nullptr;
         if(tls &&
            Range(tls->getOriginalAddress(), tls->getSize()).contains(addr)) {
 
             addr += tls->getAddress() - tls->getOriginalAddress();
+            var = tls->findVariable(addr);
         }
         else {
             addr += module->getElfSpace()->getElfMap()->getBaseAddress();
+            auto dlist = module->getDataRegionList();
+            if(auto region = dlist->findRegionContaining(addr)) {
+                var = region->findVariable(addr);
+            }
         }
 
-        auto dlist = module->getDataRegionList();
-        if(auto region = dlist->findRegionContaining(addr)) {
-            if(auto var = region->findVariable(addr)) {
-                if(var->getDest()->getTarget()) {
-                    LOG(10, ss.str() << " resolved as a data variable pointing to "
-                        << var->getDest()->getTarget()->getName()
-                        << " at " << var->getDest()->getTargetAddress());
-                }
-                else if(dynamic_cast<MarkerLink *>(var->getDest())) {
-                    LOG(10, ss.str()
-                        << " resolved as a data variable pointing to a marker");
-                }
-                else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
-                    LOG(10, ss.str()
-                        << " resolved as a data variable pointing to loader emulator");
-                }
-                else {
-                    LOG(1, ss.str() << " NOT resolved!!!");
-                }
+        if(var) {
+            if(var->getDest()->getTarget()) {
+                LOG(10, ss.str() << " resolved as a data variable pointing to "
+                    << var->getDest()->getTarget()->getName()
+                    << " at " << var->getDest()->getTargetAddress());
+            }
+            else if(dynamic_cast<MarkerLink *>(var->getDest())) {
+                LOG(10, ss.str()
+                    << " resolved as a data variable pointing to a marker");
+            }
+            else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
+                LOG(10, ss.str()
+                    << " resolved as a data variable pointing to loader emulator");
             }
             else {
-                LOG0(1, ss.str() << " NOT resolved! (no variable)");
-                if(auto sym = r->getSymbol()) {
-                    if(sym->getBind() == Symbol::BIND_WEAK) {
-                        LOG(1, "WEAK");
-                    }
-                    else {
-                        LOG(1, std::hex << r->getSymbol()->getAddress()
-                            << "(" << r->getSymbol()->getName() << ")");
-                    }
-                }
-                else LOG(1, "");
+                LOG(1, ss.str() << " NOT resolved!!!");
             }
         }
         else {
-            LOG(1, "region not found for " << addr);
+            LOG0(1, ss.str() << " NOT resolved! (no variable)");
+            if(auto sym = r->getSymbol()) {
+                if(sym->getBind() == Symbol::BIND_WEAK) {
+                    LOG(1, "WEAK");
+                }
+                else {
+                    LOG(1, std::hex << r->getSymbol()->getAddress()
+                        << "(" << r->getSymbol()->getName() << ")");
+                }
+            }
+            else LOG(1, "");
         }
     }
 }
