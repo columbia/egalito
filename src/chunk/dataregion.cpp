@@ -207,44 +207,6 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 #endif
 }
 
-#if 0
-Link *DataRegionList::resolveInternally(Reloc *reloc, Module *module) {
-    address_t addr = reloc->getAddend();
-    if(auto symbol = reloc->getSymbol()) {
-        if(symbol->getSectionIndex() == 0) {
-            LOG(10, "relocation target for " << reloc->getAddress()
-                << " points to an external module");
-            return nullptr;
-        }
-        addr += symbol->getAddress();
-
-        if(symbol->isMarker()) {
-            return module->getMarkerList()->createMarkerLink(
-                addr, symbol, module);
-        }
-    }
-
-    auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
-    if(func) {
-        if(func->getAddress() == addr) {
-            return new NormalLink(func);
-        }
-        else {
-            Chunk *inner = ChunkFind().findInnermostInsideInstruction(
-                func, addr);
-            auto instruction = dynamic_cast<Instruction *>(inner);
-            return new NormalLink(instruction);
-        }
-    }
-
-    if(auto dlink = createDataLink(addr, module, true)) {
-        return dlink;
-    }
-
-    return module->getMarkerList()->createMarkerLink(addr, nullptr, module);
-}
-#endif
-
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     //TemporaryLogLevel tll("chunk", 10);
     auto list = new DataRegionList();
