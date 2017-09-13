@@ -45,7 +45,6 @@ int main(int argc, char *argv[]) {
         SegMap::mapAllSegments(&setup);
         setup.makeLoaderSandbox();
         otherPasses(&setup);
-        Function *entryFunction = setup.getEntryFunction();
         setup.moveCode();
 
         setup.getConductor()->fixDataSections();
@@ -54,14 +53,7 @@ int main(int argc, char *argv[]) {
         ReloCheckPass checker;
         setup.getConductor()->acceptInAllModules(&checker, true);
 
-        entry = setup.getEntryPoint();
-
-        if(entry == 0 && entryFunction != nullptr) {
-            entry = entryFunction->getAddress();
-            LOG(0, "Using entry function [" << entryFunction->getName()
-                << "]");
-        }
-
+        ::entry = setup.getEntryPoint();
         CLOG(0, "jumping to entry point at 0x%lx", entry);
 
         // set up execution environment

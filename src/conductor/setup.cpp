@@ -19,10 +19,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     setBaseAddress(elf, 0x4000000);
     conductor->parseExecutable(elf);
 
-    if(conductor->getMainSpace()->getSymbolList()) {
-        entrySymbol = conductor->getMainSpace()->getSymbolList()->find(
-            elf->getEntryPoint());
-    }
+    findEntryPointFunction();
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
@@ -166,28 +163,22 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
     }
 }
 
-address_t ConductorSetup::getEntryPoint() {
-    if(entrySymbol) {
-        auto module = conductor->getMainSpace()->getModule();
-        if(auto f = CIter::named(module->getFunctionList())->find(
-            entrySymbol->getName())) {
-
-            return f->getAddress();
-        }
-        LOG(0, "entry point not found via name lookup");
-    }
-    else {
-        LOG(0, "no entry symbol name present");
-    }
-
-    return 0;
-}
-
-Function *ConductorSetup::getEntryFunction() {
+void ConductorSetup::findEntryPointFunction() {
     auto module = conductor->getMainSpace()->getModule();
     address_t elfEntry = elf->getEntryPoint();
-    LOG(0, "search for entry function at 0x" << std::hex << elfEntry);
-    return CIter::spatial(module->getFunctionList())->find(elfEntry);
+
+    if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {
+        LOG(0, "found entry function [" << f->getName() << "]");
+        entryFunction = f;
+    }
+    else {
+        LOG(0, "WARNING: can't find entry point!");
+    }
+}
+
+address_t ConductorSetup::getEntryPoint() {
+    assert(entryFunction != nullptr);
+    return entryFunction->getAddress();
 }
 
 bool ConductorSetup::setBaseAddress(ElfMap *map, address_t base) {

@@ -24,10 +24,10 @@ private:
     ElfMap *egalito;
     Conductor *conductor;
     Sandbox *sandbox;
-    Symbol *entrySymbol;
+    Function *entryFunction;
 public:
     ConductorSetup() : elf(nullptr), egalito(nullptr), conductor(nullptr),
-        sandbox(nullptr) {}
+        sandbox(nullptr), entryFunction(nullptr) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
     void injectLibrary(const char *filename);
@@ -47,8 +47,8 @@ public:
     void dumpElfSpace(ElfSpace *space);
     void dumpFunction(const char *function, ElfSpace *space = nullptr);
     address_t getEntryPoint();
-    Function *getEntryFunction();
 private:
+    void findEntryPointFunction();
     bool setBaseAddress(ElfMap *map, address_t base);
 };
 
