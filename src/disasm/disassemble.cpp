@@ -402,11 +402,82 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     return function;
 }
 
+// keep this separate from X86 version until we are sure we can disassemble
+// good enough for practical uses WITHOUT mapping symbols
 FunctionList *DisassembleAARCH64Function::linearDisassembly(
     const char *sectionName) {
 
-    // !!! Not yet implemented!
-    return nullptr;
+    auto section = elfMap->findSection(sectionName);
+    if(!section) return nullptr;
+
+    address_t virtualAddress = section->getVirtualAddress();
+    address_t readAddress = section->getReadAddress()
+        + section->convertVAToOffset(virtualAddress);
+    size_t readSize = section->getSize();
+
+    std::set<address_t> splitPoints;
+    splitPoints.insert(elfMap->getEntryPoint());
+    {
+        cs_insn *insn;
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
+
+            address_t target = 0;
+            if(shouldSplitFunctionDueTo(ins, &target)) {
+                splitPoints.insert(target);
+            }
+        }
+
+        if(count > 0) {
+            cs_free(insn, count);
+        }
+    }
+
+    FunctionList *functionList = new FunctionList();
+
+    LOG(1, "Splitting code section into " << splitPoints.size()
+        << " fuzzy functions");
+
+    for(std::set<address_t>::iterator it = splitPoints.begin();
+        it != splitPoints.end(); it ++) {
+
+        address_t functionOffset = (*it) - virtualAddress;
+        std::set<address_t>::iterator next = it;
+        next ++;
+        address_t functionSize;
+        if(next != splitPoints.end()) {
+            functionSize = (*next) - (*it);
+        }
+        else {
+            functionSize = readSize - functionOffset;
+        }
+
+        LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
+            << functionSize << ")");
+
+        Function *function = new FuzzyFunction(virtualAddress + functionOffset);
+
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+        function->setPosition(
+            positionFactory->makeAbsolutePosition(
+                virtualAddress + functionOffset));
+
+        // we don't handle literal for now. maybe later with mapping
+        // symbols
+        disassembleBlocks(false, function, readAddress + functionOffset,
+            functionSize, virtualAddress + functionOffset);
+
+        {
+            ChunkMutator m(function);  // recalculate cached values if necessary
+        }
+
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+    }
+
+    return functionList;
 }
 
 void DisassembleAARCH64Function::disassembleBlocks(bool literal,
@@ -593,7 +664,14 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
         }
     }
 #elif defined(ARCH_AARCH64)
-    LOG(0, "Not yet implemented");
+    if(ins->id == ARM64_INS_BL) {
+        cs_arm64 *x = &ins->detail->arm64;
+        cs_arm64_op *op = &x->operands[0];
+        if(x->op_count > 0 && op->type == ARM64_OP_IMM) {
+            *target = op->imm;
+            return true;
+        }
+    }
 #elif defined(ARCH_ARM)
     #error "Not yet implemented"
 #endif

@@ -184,23 +184,24 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
         return new NormalLink(alias);
     }
 
-    auto symbol = space->getSymbolList()->find(name);
-    if(symbol) {
-        if(symbol->isMarker()) {
-            return LinkFactory::makeMarkerLink(space->getModule(),
-                space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-                symbol);
-        }
-        if(symbol->getAddress() > 0
-            && symbol->getType() != Symbol::TYPE_FUNC
-            && symbol->getType() != Symbol::TYPE_IFUNC) {
+    if(auto list = space->getSymbolList()) {
+        if(auto symbol = list->find(name)) {
+            if(symbol->isMarker()) {
+                return LinkFactory::makeMarkerLink(space->getModule(),
+                    space->getElfMap()->getBaseAddress() + symbol->getAddress(),
+                    symbol);
+            }
+            if(symbol->getAddress() > 0
+                && symbol->getType() != Symbol::TYPE_FUNC
+                && symbol->getType() != Symbol::TYPE_IFUNC) {
 
-            LOG(10, "    ...found as data ref! at "
-                << std::hex << symbol->getAddress() << " in "
-                << space->getModule()->getName());
-            return LinkFactory::makeDataLink(space->getModule(),
-                space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-                true);
+                LOG(10, "    ...found as data ref! at "
+                    << std::hex << symbol->getAddress() << " in "
+                    << space->getModule()->getName());
+                return LinkFactory::makeDataLink(space->getModule(),
+                    space->getElfMap()->getBaseAddress() + symbol->getAddress(),
+                    true);
+            }
         }
     }
 

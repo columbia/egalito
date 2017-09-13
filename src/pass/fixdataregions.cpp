@@ -59,17 +59,18 @@ void FixDataRegionsPass::resolveTLSLink(TLSDataOffsetLink *link) {
     for(auto m : CIter::children(program)) {
         if(m == module) continue;
 
-        if(auto targetSym = m->getElfSpace()->getSymbolList()
-            ->find(sym->getName())) {
+        if(auto list = m->getElfSpace()->getSymbolList()) {
+            if(auto targetSym = list ->find(sym->getName())) {
 
-            if(targetSym->getSectionIndex() == SHN_UNDEF) continue;
+                if(targetSym->getSectionIndex() == SHN_UNDEF) continue;
 
-            LOG(10, "found the target in " << m->getName() << " at "
-                << targetSym->getAddress());
+                LOG(10, "found the target in " << m->getName() << " at "
+                    << targetSym->getAddress());
 
-            link->setTLSRegion(m->getDataRegionList()->getTLS());
-            link->setTarget(targetSym->getAddress());
-            break;
+                link->setTLSRegion(m->getDataRegionList()->getTLS());
+                link->setTarget(targetSym->getAddress());
+                break;
+            }
         }
     }
 }
