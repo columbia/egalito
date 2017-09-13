@@ -11,7 +11,7 @@ void FixDataRegionsPass::visit(Program *program) {
 
 void FixDataRegionsPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10);
-    LOG(1, "Fixing variables in regions for " << module->getName());
+    LOG(10, "Fixing variables in regions for " << module->getName());
     this->module = module;
     visit(module->getDataRegionList());
 }
@@ -26,19 +26,27 @@ void FixDataRegionsPass::visit(DataRegionList *dataRegionList) {
 
 void FixDataRegionsPass::visit(DataRegion *dataRegion) {
     if(!dataRegion) return;
-    for(auto var : dataRegion->variableIterable()) {
-        auto address = var->getAddress();
-        if(auto tlsLink = dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
-            if(!tlsLink->getTarget()) {
-                resolveTLSLink(tlsLink);
-            }
-        }
+    auto isTLS = dynamic_cast<TLSDataRegion *>(dataRegion);
+    for(auto dsec : CIter::children(dataRegion)) {
+        for(auto var : CIter::children(dsec)) {
+            if(auto tlsLink
+                = dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
 
-        auto target = var->getDest()->getTargetAddress() + var->getAddend();
-        LOG(10, "set variable " << std::hex << address << " => " << target
-            << " inside " << dataRegion->getName()
-            << " at " << dataRegion->getAddress());
-        *reinterpret_cast<address_t *>(address) = target;
+                if(!tlsLink->getTarget()) {
+                    resolveTLSLink(tlsLink);
+                }
+            }
+
+            auto target = var->getDest()->getTargetAddress();
+            address_t address = var->getAddress();
+            if(!isTLS) {
+                address += dataRegion->getMapBaseAddress()
+                    - dsec->getAddress()
+                    + dsec->getOriginalOffset();
+            }
+            LOG(10, "set variable " << std::hex << address << " => " << target);
+            *reinterpret_cast<address_t *>(address) = target;
+        }
     }
 }
 

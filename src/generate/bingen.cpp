@@ -10,6 +10,7 @@
 #include "instr/semantic.h"
 #include "instr/writer.h"
 #include "load/segmap.h"
+#include "operation/find.h"
 #include "operation/mutator.h"
 #include "pass/relocdata.h"
 #include "pass/fixdataregions.h"
@@ -20,6 +21,8 @@
 #include "log/log.h"
 #include "log/temp.h"
 #include "chunk/dump.h"
+
+#define TARGET_IS_MAGENTA   1
 
 #define ROUND_DOWN(x)       ((x) & ~0xfff)
 #define ROUND_UP(x)         (((x) + 0xfff) & ~0xfff)
@@ -56,72 +59,60 @@ BinGen::~BinGen() {
     fs.close();
 }
 
-void BinGen::addBssClear() {
-    if(!addon) return;
-
-#ifdef ARCH_AARCH64
-    auto clearFunction = CIter::named(addon->getFunctionList())
-        ->find("egalito_clear_addon_bss");
-    if(!clearFunction) return;
-
-//#define EARLIEST_FUNCTION_AFTER_SPSET   "_start"
-#define EARLIEST_FUNCTION_AFTER_SPSET   "main"
-    auto startFunction = CIter::named(mainModule->getFunctionList())
-        ->find(EARLIEST_FUNCTION_AFTER_SPSET);
-    if(!startFunction) return;
-
-    SwitchContextPass switcher;
-    clearFunction->accept(&switcher);
-
-    InstrumentCallsPass instrument;
-    instrument.setEntryAdvice(clearFunction);
-
-    startFunction->accept(&instrument);
-#endif
-}
-
-
-// may be this should be a pass
-void BinGen::extractLinkerSymbols() {
-    LOG(1, "extracting linker symbols");
-    // we only need to care about those without variables or chunks
-}
-
 int BinGen::generate() {
     changeMapAddress(mainModule, 0xa0000000);
     SegMap::mapAllSegments(setup);
+
     RelocDataPass relocData(setup->getConductor());
     setup->getConductor()->getProgram()->accept(&relocData);
 
     ReloCheckPass checker;
     setup->getConductor()->getProgram()->accept(&checker);
 
-    // this must be performed before any instrumentation/transformation
-    extractLinkerSymbols();
-
     applyAdditionalTransform();
 
-    auto endOfText = reassignFunctionAddress();
+    endOfCode = reassignFunctionAddress();
 
-    address_t pos = makeImageBox();
-    interleaveData(endOfText);
+    interleaveData();
+
+    fixMarkers();
 
     FixDataRegionsPass fixDataRegions;
     setup->getConductor()->getProgram()->accept(&fixDataRegions);
 
+    address_t pos = makeImageBox();
     writeOut(pos);
 
     setup->getConductor()->writeDebugElf("bin-symbols.elf");
 
-    LOG(0, "entry point is located at 0x"
-        << std::hex << setup->getEntryPoint());
+
+    LOG(1, "<image layout>");
+    LOG(1, "code: " << pos << " - " << endOfCode);
+    LOG(1, "rodata: - " << endOfRoData);
+    LOG(1, "data:   - " << endOfData);
+    LOG(1, "bss:    - " << endOfBss);
+
+    ChunkDumper dumper;
+    for(auto region : CIter::regions(mainModule)) {
+        region->accept(&dumper);
+    }
+    if(addon) {
+        for(auto region : CIter::regions(addon)) {
+            region->accept(&dumper);
+        }
+    }
+    LOG(0, "entry point at 0x" << std::hex << setup->getEntryPoint());
 
     return 0;
 }
 
 void BinGen::applyAdditionalTransform() {
     addCallLogging();
+
+#if !TARGET_IS_MAGENTA
+    // this isn't necessary for real firmware which clears bss by itself
     addBssClear();
+#endif
 
     dePLT();
 }
@@ -129,11 +120,23 @@ void BinGen::applyAdditionalTransform() {
 address_t BinGen::reassignFunctionAddress() {
     auto list = makeSortedFunctionList(mainModule);
 
+    // we have to reassign address here because size could have been
+    // changed due to instrumentation
     auto address = list.front()->getAddress();
+    startOfCode = address;
     for(auto func : list) {
+        // if this heuristics to find out alignment fails, we need to make a
+        // list of functions with special alignment (e.g. vector table)
+
+        auto org = func->getAddress();
+        if(address != ROUND_UP_BY(address, org & -org)) {
+            LOG(1, "rouding up " << address << " by " << (org & -org));
+        }
+        address = ROUND_UP_BY(address, org & -org);
         LOG(1, func->getName() << " : " << std::hex
             << func->getAddress() << " -> " << address
             << " - " << (address + func->getSize()));
+
         ChunkMutator(func).setPosition(address);
         address += func->getSize();
     }
@@ -141,7 +144,7 @@ address_t BinGen::reassignFunctionAddress() {
     if(addon) {
         list = makeSortedFunctionList(addon);
         for(auto func : list) {
-            LOG(1, func->getName() << " : "
+            LOG(10, func->getName() << " : "
                 << func->getAddress() << " -> " << address);
             ChunkMutator(func).setPosition(address);
             address += func->getSize();
@@ -167,7 +170,14 @@ void BinGen::addCallLogging() {
         ->find("egalito_dump_logs");
     if(!prologue) return;
 
-    auto mainFunc = CIter::named(mainModule->getFunctionList())->find("main");
+#if !TARGET_IS_MAGENTA
+    #define MAIN_FUNCTION_NAME  "main"
+#else
+    #define MAIN_FUNCTION_NAME  "kernel_init"
+#endif
+
+    auto mainFunc
+        = CIter::named(mainModule->getFunctionList())->find(MAIN_FUNCTION_NAME);
     if(!mainFunc) return;
 
     SwitchContextPass switcher;
@@ -178,26 +188,54 @@ void BinGen::addCallLogging() {
     InstrumentCallsPass instrument;
     instrument.setEntryAdvice(funcEntry);
     instrument.setExitAdvice(funcExit);
-#if 1
     instrument.setPredicate([](Function *function) {
+#if !TARGET_IS_MAGENTA
         if(function->hasName("_start")) return false;
         if(function->hasName("__start_ram1")) return false;
         if(function->hasName("__start_master")) return false;
-        for(auto block : CIter::children(function)) {
-            for(auto instr : CIter::children(block)) {
-                auto semantic = instr->getSemantic();
-                if(dynamic_cast<LiteralInstruction *>(semantic)) return false;
-                break;
-            }
-        }
+        auto firstB = function->getChildren()->getIterable()->get(0);
+        auto firstI = firstB->getChildren()->getIterable()->get(0);
+        auto semantic = firstI->getSemantic();
+        if(dynamic_cast<LiteralInstruction *>(semantic)) return false;
         return true;
-    });
+#else
+        if(function->hasName("kernel_init")) return true;
+        return false;
 #endif
+    });
     mainModule->accept(&instrument);
 
     instrument.setEntryAdvice(nullptr);
     instrument.setExitAdvice(prologue);
     mainFunc->accept(&instrument);
+#endif
+}
+
+void BinGen::addBssClear() {
+    if(!addon) return;
+
+#ifdef ARCH_AARCH64
+    auto clearFunction = CIter::named(addon->getFunctionList())
+        ->find("egalito_clear_addon_bss");
+    if(!clearFunction) return;
+
+#if !TARGET_IS_MAGENTA
+    #define EARLIEST_FUNCTION_AFTER_SPSET   "_start"
+#else
+    #define EARLIEST_FUNCTION_AFTER_SPSET   "main"
+#endif
+
+    auto startFunction = CIter::named(mainModule->getFunctionList())
+        ->find(EARLIEST_FUNCTION_AFTER_SPSET);
+    if(!startFunction) return;
+
+    SwitchContextPass switcher;
+    clearFunction->accept(&switcher);
+
+    InstrumentCallsPass instrument;
+    instrument.setEntryAdvice(clearFunction);
+
+    startFunction->accept(&instrument);
 #endif
 }
 
@@ -214,6 +252,7 @@ void BinGen::dePLT(void) {
                     auto target = link->getPLTTrampoline()->getTarget();
                     if(!target) {
                         LOG(1, "target is supposed to be resolved!");
+                        LOG(1, "instr = " << std::hex << instr->getAddress());
                         throw "dePLT: error";
                     }
                     auto newLink = new NormalLink(target);
@@ -227,8 +266,12 @@ void BinGen::dePLT(void) {
 
 
 void BinGen::changeMapAddress(Module *module, address_t address) {
+    auto bias = mainModule->getElfSpace()->getElfMap()->findSection(".text")
+        ->getVirtualAddress();
     auto map = module->getElfSpace()->getElfMap();
-    map->setBaseAddress(address);
+    map->setBaseAddress(address - bias);
+    LOG(1, "base address of " << module->getName() << " set to " << std::hex
+        << map->getBaseAddress());
     for(auto region : CIter::regions(module)) {
         if(region == module->getDataRegionList()->getTLS()) continue;
 
@@ -253,117 +296,253 @@ address_t BinGen::makeImageBox() {
         length += addon->getElfSpace()->getElfMap()->getLength();
     }
 
-    length = ROUND_UP(length);
-    auto imageMap = mmap((void *)startAddr, length, PROT_READ | PROT_WRITE,
-            MAP_ANONYMOUS | MAP_PRIVATE,
-            -1, 0);
-    if(imageMap == (void *)-1) {
-        LOG(1, "failed to create image: no more memory");
-        throw "mmap error";
-    }
-    if(imageMap != (void *)startAddr) {
-        LOG(1, "failed to create image: overlapping");
-        throw "mmap error";
-    }
-
-    LOG(1, "imageBox at " << startAddr << " length " << length);
     return startAddr;
 }
 
-void BinGen::interleaveData(address_t pos) {
+void BinGen::interleaveData() {
+    address_t pos = endOfCode;
     LOG(1, "code ends at " << pos);
 
-    LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, 8));
-    pos = ROUND_UP_BY(pos, 8);
-
-    LOG(1, "data starts at " << pos);
-
-    pos = copyInData(mainModule, pos, false);
+    pos = alignUp(pos, ".rodata");  // different protection
+    pos = remapData(mainModule, pos, false);
     if(addon) {
         LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, 8));
         pos = ROUND_UP_BY(pos, 8);
-        pos = copyInData(addon, pos, false);
+        pos = remapData(addon, pos, false);
     }
+    endOfRoData = pos;
 
-    pos = ROUND_UP(pos);    // page align <-- different protection
-    pos = copyInData(mainModule, pos, true);
+    pos = alignUp(pos, ".data");    // different protection
+    pos = remapData(mainModule, pos, true);
     if(addon) {
         LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, 8));
         pos = ROUND_UP_BY(pos, 8);
-        pos = copyInData(addon, pos, true);
+        pos = remapData(addon, pos, true);
     }
+    endOfData = pos;
 
-    pos = ROUND_UP(pos);    // page align <-- different page
+    pos = alignUp(pos, ".bss");     // different page
     LOG(1, "remapping in bss to box");
-    pos = remapInBss(mainModule, pos);
+    pos = remapBss(mainModule, pos);
     if(addon) {
-        pos = remapInBss(addon, pos);
+        pos = remapBss(addon, pos);
     }
+    endOfBss = pos;
 }
 
-address_t BinGen::copyInData(Module *module, address_t pos, bool writable) {
-    LOG(1, "copying in " << module->getName() << (writable ? " rw" : " ro")
+address_t BinGen::alignUp(address_t pos, const char *name) {
+    size_t align = 0x1000;
+    if(auto sec = mainModule->getElfSpace()->getElfMap()->findSection(name)) {
+        // must be at least PAGE_SIZE for MMU
+        align = std::max(align, sec->getAlignment());
+    }
+
+    LOG(1, "rouding up pos " << pos << " to " << ROUND_UP_BY(pos, align));
+    return ROUND_UP_BY(pos, align);
+}
+
+address_t BinGen::remapData(Module *module, address_t pos, bool writable) {
+    LOG(1, "remapping " << module->getName() << (writable ? " rw" : " ro")
         << "data");
-    for(auto region : CIter::children(module->getDataRegionList())) {
+    for(auto region : CIter::regions(module)) {
         if(region->writable() != writable) continue;
-        if(region->bssOnly()) {
-            // only the pointers that targets this region need to be fixed
-            continue;
+
+        std::vector<DataSection *> dataSectionList;
+        for(auto section : CIter::children(region)) {
+            if(section->isCode()) continue;
+            if(section->isBss()) continue;
+
+            dataSectionList.push_back(section);
         }
+        std::sort(dataSectionList.begin(), dataSectionList.end(),
+            [](DataSection *a, DataSection *b) {
+                return a->getAddress() < b->getAddress();
+            });
 
-        auto dataSize = region->getDataSize();
-        auto bssSize = region->getBssSize();
-
-        LOG(1, "copying in to " << std::hex << pos
-            << " from " << (region->getAddress() + region->getStartOffset()));
-        std::memcpy((void *)pos,
-            (void *)(region->getAddress() + region->getStartOffset()),
-            dataSize);
-        std::memset((void *)(pos + dataSize), 0, bssSize);
-
-        LOG(1, "offset is " << region->getStartOffset());
-        ChunkMutator(region).setPosition(pos - region->getStartOffset());
-
-        LOG(1, "base for " << region->getName()
-            << " set to " << region->getAddress());
-        pos += dataSize + bssSize;
+        for(auto sec : dataSectionList) {
+            pos = ROUND_UP_BY(pos, sec->getAlignment());
+            LOG(1, "   " << sec->getName() << " : " << pos);
+            ChunkMutator(sec).setPosition(pos);
+            pos += sec->getSize();
+        }
     }
 
     return pos;
 }
 
-address_t BinGen::remapInBss(Module *module, address_t pos) {
+address_t BinGen::remapBss(Module *module, address_t pos) {
     LOG(1, "remapping " << module->getName() << " bss segments");
-    for(auto region : CIter::children(module->getDataRegionList())) {
-        if(region->bssOnly()) {
-            LOG0(1, "remap " << region->getAddress());
-            ChunkMutator(region).setPosition(pos);
-            LOG(1, " to " << region->getAddress());
-            pos += region->getSize();
+    for(auto region : CIter::regions(module)) {
+        for(auto section : CIter::children(region)) {
+            if(section->isBss()) {
+                LOG0(1, "remap " << section->getAddress());
+                ChunkMutator(section).setPosition(pos);
+                LOG(1, " to " << section->getAddress());
+                pos += section->getSize();
+            }
         }
     }
     return pos;
+}
+
+void BinGen::resolveLinkerSymbol(Chunk *chunk, address_t address) {
+    auto instruction = dynamic_cast<Instruction *>(chunk);
+    if(instruction) {
+        auto semantic = instruction->getSemantic();
+        if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
+            auto oldLink = v->getLink();
+            if(!dynamic_cast<UnresolvedLink *>(oldLink)) {
+                LOG(1, "already linked?");
+                return;
+            }
+            LOG(1, "overwriting the instruction target address " << std::hex
+                << oldLink->getTargetAddress() << " to " << address);
+            auto link = new UnresolvedLink(address);
+            v->setLink(link);
+            delete oldLink;
+        }
+    }
+    else {
+        auto var = dynamic_cast<DataVariable *>(chunk);
+        auto oldLink = var->getDest();
+        LOG(1, "overwriting the data target address " << std::hex
+            << oldLink->getTargetAddress() << " to " << address);
+        var->setDest(new UnresolvedLink(address));
+        delete oldLink;
+    }
+}
+
+void BinGen::fixMarkers() {
+    LOG(1, "fixing marker address");
+    for(auto m : CIter::children(mainModule->getMarkerList())) {
+        LOG(1, "marker " << m);
+        if(auto symbol = m->getSymbol()) {
+            if(0) { }
+#if TARGET_IS_MAGENTA
+            else if(!std::strcmp(symbol->getName(), "_end")) {
+                // end of bss aligned up by 4096
+                auto addr = ROUND_UP(endOfBss);
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__code_start")) {
+                // start of text: we did not change section address
+                auto addr = startOfCode;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__code_end")) {
+                // end of text
+                auto addr = endOfCode;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__data_end")) {
+                // end of all initialized data including init and fini
+                auto addr = endOfData;
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__bss_end")) {
+                // end of bss segment aligned up by 16
+                auto addr = ROUND_UP_BY(endOfBss, 16);
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+#if 0
+            else if(!std::strcmp(symbol->getName(), "__build_id_note_end")) {
+                // next address of the end of .note.gnu.build-id
+                auto addr = getSectionEndAddress(".note.gnu.build-id");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__init_array_end")) {
+                // next address of the end of .init_array
+                auto addr = getSectionEndAddress(".init_array");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+            else if(!std::strcmp(symbol->getName(), "__stop_lk_init")) {
+                // next address of the end of lk_init
+                auto addr = getSectionEndAddress("lk_init");
+                m->setAddress(addr);
+                LOG(1, symbol->getName() << " set to " << m->getAddress());
+            }
+#endif
+#endif
+            else {
+                LOG(1, "unknown marker for " << symbol->getName());
+            }
+        }
+        else {
+            LOG(1, "marker with no name to " << m->getAddress());
+        }
+    }
+
+    if(addon) {
+        for(auto m : CIter::children(addon->getMarkerList())) {
+            LOG(1, "[addon] marker " << m);
+            if(auto symbol = m->getSymbol()) {
+                LOG(1, "[addon] marker " << symbol->getName());
+            }
+            else {
+                LOG(1, "[addon] marker with no name to " << m->getAddress());
+            }
+        }
+    }
+}
+
+address_t BinGen::getSectionEndAddress(const char *sectionName) const {
+    auto sec = mainModule->getElfSpace()->getElfMap()->findSection(sectionName);
+    for(auto region : CIter::regions(mainModule)) {
+        for(auto ds : CIter::children(region)) {
+            auto original
+                = region->getOriginalAddress() + ds->getOriginalOffset();
+            if(original == sec->getVirtualAddress()) {
+                return ds->getAddress() + ds->getSize();
+            }
+        }
+    }
+
+    LOG(1, "no section found! " << sectionName);
+    return 0;
+}
+
+bool BinGen::fixLinkToSectionEnd(Chunk *chunk, ElfSection *section) {
+    for(auto dr : CIter::regions(mainModule)) {
+        for(auto dsec : CIter::children(dr)) {
+            if(dr->getOriginalAddress() + dsec->getOriginalOffset()
+                == section->getVirtualAddress()) {
+
+                auto addr = dsec->getAddress() + dsec->getSize();
+                LOG(1, "should point to " << addr);
+                resolveLinkerSymbol(chunk, addr);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void BinGen::writeOut(address_t pos) {
-    LOG(1, "writing out main code");
+    LOG(1, "writing out main code " << pos);
     pos = writeOutCode(mainModule, pos);
     if(addon) {
-        LOG(1, "writing out addon code");
+        LOG(1, "writing out addon code " << pos);
         pos = writeOutCode(addon, pos);
     }
 
-    LOG(1, "writing out main rodata");
+    LOG(1, "writing out main rodata " << pos);
     pos = writeOutRoData(mainModule, pos);
     if(addon) {
-        LOG(1, "writing out addon rodata");
+        LOG(1, "writing out addon rodata " << pos);
         pos = writeOutRoData(addon, pos);
     }
 
-    LOG(1, "writing out main data");
+    LOG(1, "writing out main data " << pos);
     pos = writeOutRwData(mainModule, pos);
     if(addon) {
-        LOG(1, "writing out addon data");
+        LOG(1, "writing out addon data " << pos);
         pos = writeOutRwData(addon, pos);
     }
     LOG(1, "final pos = " << pos);
@@ -378,6 +557,7 @@ address_t BinGen::writeOutCode(Module *module, address_t pos) {
     for(auto func : list) {
         LOG(ll, "writing out " << func->getName()
             << ": pos " << pos << " vs function " << func->getAddress());
+        LOG(ll, " size " << func->getSize());
         std::cout.flush();
         if(pos != func->getAddress()) {
             LOG(ll, "adding padding of size " << (func->getAddress() - pos));
@@ -413,26 +593,32 @@ address_t BinGen::writeOutRwData(Module *module, address_t pos) {
 }
 
 address_t BinGen::writeOutData(Module *module, address_t pos, bool writable) {
-    for(auto region : CIter::children(module->getDataRegionList())) {
+    for(auto region : CIter::regions(module)) {
         if(region->writable() != writable) continue;
-        if(region->bssOnly()) continue;
 
         LOG(1, "region at " << std::hex << region->getAddress());
         LOG(1, "  offset " << region->getStartOffset());
         LOG(1, "  mem size " << region->getPhdr()->p_memsz);
-        LOG(1, "pos at " << pos);
-        auto start = region->getAddress() + region->getStartOffset();
-        if(pos != start) {
-            LOG(1, "adding padding of size " << (start - pos));
-            std::string zero(start - pos, 0);
-            fs << zero;
-            pos += start - pos;
+
+        for(auto dsec : CIter::children(region)) {
+            if(dsec->isCode()) continue;
+            if(dsec->isBss()) continue;
+
+            auto vstart = dsec->getAddress();
+            auto lstart
+                = region->getMapBaseAddress() + dsec->getOriginalOffset();
+            if(pos != vstart) {
+                LOG(1, "adding padding of size " << (vstart - pos));
+                std::string zero(vstart - pos, 0);
+                fs << zero;
+                pos += vstart - pos;
+            }
+            auto size = dsec->getSize();
+            LOG(1, "writing out data: "
+                << " [ " << vstart << " , " << (vstart + size) << " ]");
+            fs.write(reinterpret_cast<char *>(lstart), size);
+            pos += size;
         }
-        auto size = region->getPhdr()->p_memsz - region->getStartOffset();
-        LOG(1, "writing out data: " << region->getName()
-            << " at " << start << " to " << (start + size));
-        fs.write(reinterpret_cast<char *>(start), size);
-        pos += size;
     }
     return pos;
 }

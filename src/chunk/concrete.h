@@ -18,6 +18,8 @@
 #include "jumptable.h"
 #include "dataregion.h"
 
+#include "marker.h"
+
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"
 #undef INCLUDE_FROM_CONCRETE_H

@@ -9,7 +9,7 @@ private:
     int previous;
 
 public:
-    TemporaryLogLevel(const std::string &name, int level);
+    TemporaryLogLevel(const std::string &name, int level, bool cond=true);
     ~TemporaryLogLevel();
 };
 

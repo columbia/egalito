@@ -14,6 +14,7 @@
 #include "conductor/setup.h"
 #include "pass/logcalls.h"
 #include "pass/promotejumps.h"
+#include "pass/relocheck.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -49,6 +50,9 @@ int main(int argc, char *argv[]) {
 
         setup.getConductor()->fixDataSections();
         setup.getConductor()->writeDebugElf("symbols.elf");
+
+        ReloCheckPass checker;
+        setup.getConductor()->acceptInAllModules(&checker, true);
 
         entry = setup.getEntryPoint();
 

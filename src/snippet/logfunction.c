@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#define TARGET_IS_MAGENTA   1
+
 #define LOG_MAX    128
 
 static struct {
@@ -39,10 +41,15 @@ size_t egalito_long_to_buf(char *buf, unsigned long num) {
     return ret;
 }
 
+extern int _printf(const char *fmt, ...);
+
 void egalito_dump_logs() {
+#if !TARGET_IS_MAGENTA
     char buf[32];
+#endif
 
     for(int i = 0; i < log_i; i++) {
+#if !TARGET_IS_MAGENTA
         size_t pos = egalito_long_to_buf(buf, i);
         buf[pos++] = ' ';
         buf[pos++] = (logbuf[i].dir > 0) ? '>' : '<';
@@ -50,6 +57,10 @@ void egalito_dump_logs() {
         pos += egalito_long_to_buf(&buf[pos], logbuf[i].address);
         buf[pos++] = 0;
         puts(buf);  // must be used in the original target program
+#else
+        _printf("%d %c %lx\n",
+            i, (logbuf[i].dir > 0) ? '>' : '<', logbuf[i].address);
+#endif
     }
 }
 

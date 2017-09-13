@@ -13,7 +13,8 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
         if(!sym) continue;
 
         for(auto aliasSym : sym->getAliases()) {
-            if(aliasSym->getType() != Symbol::TYPE_FUNC) continue;
+            if(aliasSym->getType() != Symbol::TYPE_FUNC
+                && aliasSym->getType() != Symbol::TYPE_IFUNC) continue;
             auto alias = aliasSym->getName();
             aliasMap[alias] = func;
             LOG(5, "alias [" << alias << "] to [" << func->getName() << "]");

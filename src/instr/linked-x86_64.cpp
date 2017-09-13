@@ -5,6 +5,7 @@
 #include "elf/elfspace.h"
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"  // for determineDisplacementSize
+#include "operation/find.h"
 
 #ifdef ARCH_X86_64
 int LinkedInstruction::getDispSize() {
@@ -87,7 +88,20 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             else {
                 dispLink = LinkFactory::makeDataLink(module, target, true);
                 if(!dispLink) {
-                    dispLink = new UnresolvedLink(target);
+                    auto c = ChunkFind().findInnermostAt(
+                        module->getFunctionList(), target);
+                    if(dynamic_cast<Instruction *>(c)) {
+                        dispLink = new NormalLink(c);
+                    }
+                    else if(auto plt = CIter::spatial(module->getPLTList())
+                        ->find(target)) {
+                        dispLink = new ExternalNormalLink(plt);
+                    }
+                    else {
+                        //dispLink = new UnresolvedLink(target);
+                        dispLink = LinkFactory::makeMarkerLink(
+                            module, target, nullptr);
+                    }
                 }
             }
 

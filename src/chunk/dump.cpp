@@ -71,7 +71,33 @@ void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
 }
 
 void ChunkDumper::visit(DataRegion *dataRegion) {
-    LOG(1, "NYI");
+    LOG(1, "---[" << dataRegion->getName() << "]---");
+    LOG(1, std::hex <<
+        dataRegion->getAddress() << " + " << dataRegion->getSize());
+    for(auto sec : CIter::children(dataRegion)) {
+        LOG(1, "[" << sec->getAddress() << ", "
+            << (sec->getAddress() + sec->getSize())
+            << ") " << sec->getName());
+    }
+    for(auto var : dataRegion->variableIterable()) {
+        auto target = var->getDest()->getTarget();
+        LOG0(10, "var: " << var->getAddress());
+        if(target) {
+            LOG(10, " --> " << target->getName());
+        }
+        else LOG(10, "");
+    }
+}
+
+void ChunkDumper::visit(MarkerList *markerList) {
+    LOG(1, "--[markers]--");
+    for(auto marker : CIter::children(markerList)) {
+        LOG0(1, "" << marker->getAddress() << " : ");
+        if(auto sym = marker->getSymbol()) {
+            LOG(1, sym->getName());
+        }
+        else LOG(1, "");
+    }
 }
 
 void InstrDumper::visit(RawInstruction *semantic) {

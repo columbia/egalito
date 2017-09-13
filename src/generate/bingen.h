@@ -8,6 +8,23 @@
 
 class ConductorSetup;
 class Module;
+class Reloc;
+class Symbol;
+class Chunk;
+class ElfSection;
+
+#if 1
+class SymbolMarker {
+private:
+    Chunk *chunk;
+    Symbol *symbol;
+
+public:
+    SymbolMarker(Chunk *chunk, Symbol *symbol) : chunk(chunk), symbol(symbol) {}
+    Chunk *getChunk() const { return chunk; }
+    Symbol *getTargetSymbol() const { return symbol; }
+};
+#endif
 
 class BinGen {
 private:
@@ -16,6 +33,12 @@ private:
     Module *addon;
     std::vector<Module *> moduleList;
     std::ofstream fs;
+    std::vector<SymbolMarker> markerList;
+    address_t startOfCode;
+    address_t endOfCode;
+    address_t endOfRoData;
+    address_t endOfData;
+    address_t endOfBss;
 public:
     BinGen(ConductorSetup *setup, const char *filename);
     ~BinGen();
@@ -23,7 +46,6 @@ public:
     int generate();
 
 private:
-    void extractLinkerSymbols();
     void applyAdditionalTransform();
     void addCallLogging();
     void addBssClear();
@@ -31,14 +53,20 @@ private:
     address_t reassignFunctionAddress();
     address_t makeImageBox();
     void changeMapAddress(Module *module, address_t address);
-    void interleaveData(address_t pos);
-    address_t copyInData(Module *module, address_t pos, bool writable);
-    address_t remapInBss(Module *module, address_t pos);
+    void interleaveData();
+    address_t alignUp(address_t pos, const char *name);
+    void fixMarkers();
+    address_t getSectionEndAddress(const char *sectionName) const;
+    bool fixLinkToSectionEnd(Chunk *chunk, ElfSection *section);
+    void resolveLinkerSymbol(Chunk *chunk, address_t address);
+    address_t remapData(Module *module, address_t pos, bool writable);
+    address_t remapBss(Module *module, address_t pos);
     void writeOut(address_t pos);
     address_t writeOutCode(Module *module, address_t pos);
     address_t writeOutRoData(Module *module, address_t pos);
     address_t writeOutRwData(Module *module, address_t pos);
     address_t writeOutData(Module *module, address_t pos, bool writable);
+    address_t getEndOfBss() const;
 };
 
 #endif

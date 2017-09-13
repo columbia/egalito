@@ -75,7 +75,6 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 private:
     static Mode getMode(const Assembly &assembly);
-    //static Link *makeLink(Module *module, Reloc *reloc);
     static void resolveLinks(Module *module,
         const std::vector<std::pair<Instruction *, address_t>> &list);
 

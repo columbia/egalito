@@ -3,14 +3,10 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <fstream>
+#include <iostream>
 #include <cstring>
 
 #include "types.h"
-
-#undef DEBUG_GROUP
-#define DEBUG_GROUP load
-#include "log/log.h"
 
 extern address_t entry;
 extern "C" void _start2(void);
@@ -41,11 +37,11 @@ int main(int argc, char **argv) {
     auto size = ROUND_UP(length + MAP_OFFSET);
     auto map = mmap((void *)MAP_START_ADDRESS, size, prot, MAP_PRIVATE, fd, 0);
     if(map == (void *)-1) {
-        LOG(1, "out of memory?");
+        std::cout << "out of memory?\n";
         return -1;
     }
     if(map != (void *)MAP_START_ADDRESS) {
-        LOG(1, "overlapping with other regions");
+        std::cout << "overlapping with another region?\n";
         return -1;
     }
 

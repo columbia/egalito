@@ -51,6 +51,7 @@ LoaderEmulator::LoaderEmulator() {
 
     addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
     addSymbol("_dl_find_dso_for_object", (void *)Emulation::function_not_implemented);
+    addSymbol("__tunable_get_val", (void *)Emulation::function_not_implemented);
     addSymbol("__tunable_set_val", (void *)Emulation::function_not_implemented);
     addSymbol("__tls_get_addr", Emulation::not_yet_implemented);
 

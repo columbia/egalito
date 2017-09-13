@@ -66,6 +66,7 @@ public:
     const std::vector<Symbol *> &getAliases() const { return aliasList; }
 
     bool isFunction() const;
+    bool isMarker() const;
 
 public:
     static unsigned char typeFromInternalToElf(SymbolType type);

@@ -41,6 +41,11 @@ bool Symbol::isFunction() const {
         && size > 0 && shndx > 0 && !aliasFor;
 }
 
+bool Symbol::isMarker() const {
+    return symbolType == TYPE_NOTYPE && bindingType == BIND_GLOBAL
+        && shndx > 0;
+}
+
 bool SymbolList::add(Symbol *symbol, size_t index) {
     // Can't check just by name since it may not be unique
     //auto it = symbolMap.find(symbol->getName());
@@ -161,6 +166,9 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
     for(auto sym : *list) {
         if(sym->getSize() == 0 && sym->getAddress() > 0) {
+#ifdef ARCH_AARCH64
+            if(sym->getType() != Symbol::TYPE_FUNC) continue;
+#endif
             size_t estimate = list->estimateSizeOf(sym);
             LOG(5, "estimate size of symbol ["
                 << sym->getName() << "] to be " << std::dec << estimate);
@@ -481,6 +489,7 @@ int SymbolAliasFinder::edgeComparator(size_t x1, size_t x2) {
     }
 
     // normal symbol > mapping symbol
+    // mapping symbol names shouldn't be used at all
     if(s1->getBind() == Symbol::BIND_LOCAL && s1->getName()[0] == '$') return -1;
     if(s2->getBind() == Symbol::BIND_LOCAL && s2->getName()[0] == '$') return +1;
 
@@ -502,6 +511,11 @@ int SymbolAliasFinder::edgeComparator(size_t x1, size_t x2) {
         if(s2->getBind() == Symbol::BIND_GLOBAL) return -1;
         if(s1->getBind() == Symbol::BIND_WEAK) return +1;
         if(s2->getBind() == Symbol::BIND_WEAK) return -1;
+    }
+
+    if(s1->getSize() != s2->getSize()) {
+        if(s1->getSize() == 0) return -1;
+        if(s2->getSize() == 0) return +1;
     }
 
     // we might need a DB of standard API names
@@ -527,7 +541,7 @@ void SymbolAliasFinder::setEdge(size_t x1, size_t x2) {
 void SymbolAliasFinder::constructByAddress() {
     for(size_t i = 0; i < sortedList.size(); i++) {
         auto sym = sortedList[i];
-        if(sym->getSectionIndex() == SHN_UNDEF) continue;
+        //if(sym->getSectionIndex() == SHN_UNDEF) continue;
         //if(sym->getType() == Symbol::TYPE_SECTION) continue;
         if(sym->getType() == Symbol::TYPE_FILE) continue;
 
@@ -537,7 +551,7 @@ void SymbolAliasFinder::constructByAddress() {
                 break;
             }
             /* if(sym2->getSectionIndex() == SHN_UNDEF) continue; */
-            if(sym2->getType() == Symbol::TYPE_SECTION) continue;
+            //if(sym2->getType() == Symbol::TYPE_SECTION) continue;
             if(sym2->getType() == Symbol::TYPE_FILE) continue;
 
             if(sym->getSectionIndex() == sym2->getSectionIndex()) {

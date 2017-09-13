@@ -23,8 +23,7 @@
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
     : elf(elf), library(library), module(nullptr),
     symbolList(nullptr), dynamicSymbolList(nullptr),
-    relocList(nullptr),
-    aliasMap(nullptr) {
+    relocList(nullptr), aliasMap(nullptr) {
 
 }
 
@@ -74,7 +73,8 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //ChunkDumper dumper;
     //module->accept(&dumper);
 
-    this->relocList = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+    this->relocList
+        = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
 
     DataRegionList::buildDataRegionList(elf, module);
 

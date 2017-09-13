@@ -183,6 +183,24 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
     return std::move(sections);
 }
 
+std::vector<void *> ElfMap::findSectionsByFlag(long flag) {
+    std::vector<void *> sections;
+
+    char *charmap = static_cast<char *>(map);
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
+    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
+    for(int i = 0; i < header->e_shnum; i ++) {
+        ElfXX_Shdr *s = &sheader[i];
+
+        if(s->sh_flags & flag) {
+            sections.push_back(static_cast<void *>(s));
+        }
+    }
+
+    return sections;
+}
+
+
 address_t ElfSection::convertOffsetToVA(size_t offset) {
     return virtualAddress + offset;
 }
