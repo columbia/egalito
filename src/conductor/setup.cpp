@@ -19,8 +19,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
     setBaseAddress(elf, 0x4000000);
     conductor->parseExecutable(elf);
 
-    entrySymbol = conductor->getMainSpace()->getSymbolList()->find(
-        elf->getEntryPoint());
+    if(conductor->getMainSpace()->getSymbolList()) {
+        entrySymbol = conductor->getMainSpace()->getSymbolList()->find(
+            elf->getEntryPoint());
+    }
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
@@ -165,35 +167,25 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 }
 
 address_t ConductorSetup::getEntryPoint() {
-#if 0
-    auto module = conductor->getMainSpace()->getModule();
-    if(auto f = CIter::named(module->getFunctionList())->find("_start")) {
-        return f->getAddress();
-    }
-    if(auto f = CIter::named(module->getFunctionList())
-        ->find("_rt0_arm64_linux")) {
+    if(entrySymbol) {
+        auto module = conductor->getMainSpace()->getModule();
+        if(auto f = CIter::named(module->getFunctionList())->find(
+            entrySymbol->getName())) {
 
-        return f->getAddress();
+            return f->getAddress();
+        }
+        LOG(0, "entry point not found via name lookup");
+    }
+    else {
+        LOG(0, "no entry symbol name present");
     }
 
-    LOG(0, "WARNING: entry point not found!");
     return 0;
-#else
-    auto module = conductor->getMainSpace()->getModule();
-    if(auto f = CIter::named(module->getFunctionList())->find(
-        entrySymbol->getName())) {
-
-        return f->getAddress();
-    }
-
-    LOG(0, "entry point not found");
-    return 0;
-#endif
 }
 
 Function *ConductorSetup::getEntryFunction() {
     auto module = conductor->getMainSpace()->getModule();
-    address_t elfEntry = elf->getEntryPoint();// + elf->getBaseAddress();
+    address_t elfEntry = elf->getEntryPoint();
     LOG(0, "search for entry function at 0x" << std::hex << elfEntry);
     return CIter::spatial(module->getFunctionList())->find(elfEntry);
 }
