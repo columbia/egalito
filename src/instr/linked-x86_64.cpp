@@ -98,7 +98,9 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                         dispLink = new ExternalNormalLink(plt);
                     }
                     else {
-                        dispLink = new UnresolvedLink(target);
+                        //dispLink = new UnresolvedLink(target);
+                        dispLink = LinkFactory::makeMarkerLink(
+                            module, target, nullptr);
                     }
                 }
             }
