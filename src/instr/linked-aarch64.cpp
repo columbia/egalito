@@ -309,11 +309,14 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
-    auto linked = new LinkedInstruction(instruction, *assembly);
     auto link = PerfectLinkResolver::resolveInternally(reloc, module);
-    linked->setLink(link);
+    if(link) {
+        auto linked = new LinkedInstruction(instruction, *assembly);
+        linked->setLink(link);
+        return linked;
+    }
 
-    return linked;
+    return nullptr;
 }
 
 LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
@@ -323,11 +326,14 @@ LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
 
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
-    auto linked = new LinkedLiteralInstruction(instruction, raw);
     auto link = PerfectLinkResolver::resolveInternally(reloc, module);
-    linked->setLink(link);
+    if(link) {
+        auto linked = new LinkedLiteralInstruction(instruction, raw);
+        linked->setLink(link);
+        return linked;
+    }
 
-    return linked;
+    return nullptr;
 }
 
 void LinkedInstruction::makeAllLinked(Module *module) {
