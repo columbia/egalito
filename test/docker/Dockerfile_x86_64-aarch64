@@ -6,6 +6,7 @@ MAINTAINER Miguel Arroyo miguel@cs.columbia.edu version: 0.1
 
 RUN dpkg --add-architecture arm64 && apt-get update && apt-get install -y \
 build-essential:amd64 \
+lsb-release:amd64 \
 git:amd64 \
 gdb:amd64 \
 gosu:amd64 \

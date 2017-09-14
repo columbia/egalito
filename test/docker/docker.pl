@@ -5,6 +5,7 @@ sub has_build($%);
 sub run_build(%);
 sub run_build_cross(%);
 sub run_command($%);
+sub run_command_interactive($%);
 sub run_make(%);
 sub run_tests(%);
 sub main();
@@ -64,7 +65,7 @@ sub main() {
                 run_build(%setting);
             }
             elsif($arg eq 'shell') {
-                run_command('/bin/bash', %setting);
+                run_command_interactive('/bin/bash', %setting);
             }
             elsif($arg eq 'make') {
                 run_make(%setting);
@@ -140,6 +141,22 @@ sub run_build_cross(%) {
 }
 
 sub run_command($%) {
+    my $cmd = shift @_;
+    my %setting = @_;
+    my $arch = $setting{'arch'};
+    my $root = $setting{'root'};
+    my $cross = $setting{'cross'};
+    my $image_name = image_name(1, %setting);
+
+    run_build(%setting) unless has_build(0, %setting);
+    if($cross ne '') {
+        run_build_cross(%setting) unless has_build(1, %setting);
+    }
+
+    system("docker run -t -e LOCAL_USER_ID=\$(id -u) "
+        . "-v \$(readlink -f $root):/egalito $image_name $cmd");
+}
+sub run_command_interactive($%) {
     my $cmd = shift @_;
     my %setting = @_;
     my $arch = $setting{'arch'};

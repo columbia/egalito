@@ -4,6 +4,7 @@ MAINTAINER Miguel Arroyo miguel@cs.columbia.edu version: 0.1
 
 RUN apt-get update && apt-get install -y \
 build-essential \
+lsb-release \
 gdb \
 git \
 gosu \
