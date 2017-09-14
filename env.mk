@@ -69,7 +69,7 @@ else ifeq (arm,$(P_ARCH))
 	AFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
 else
-	$(error "Unsupported platform, we only handle aarch32, aarch64, and x86_64")
+	$(error "Unsupported platform, we only handle arm, aarch64, and x86_64")
 endif
 
 CFLAGS += '-DTESTDIR="example/$(BUILDDIR)"'

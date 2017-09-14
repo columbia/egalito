@@ -22,7 +22,7 @@ else ifeq (arm,$(P_ARCH))
 	STATIC_CFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
 else
-$(error Unsupported platform, we only handle aarch64 and x86_64)
+$(error Unsupported platform, we only handle arm, aarch64, and x86_64)
 endif
 
 space =
