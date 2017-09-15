@@ -1,5 +1,5 @@
-#include <iostream>
-#include "libc_resolve.h"
+#include "framework/include.h"
+#include "framework/StreamAsString.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
 #include "pass/chunkpass.h"
@@ -30,7 +30,7 @@ public:
         }
         else {
             unresolved ++, total ++;
-#if 1
+#if 0
             std::cout << "unresolved link at "
                 << std::hex << instruction->getAddress()
                 << " in "
@@ -40,7 +40,6 @@ public:
                 std::cout << "UnresolveLink to "
                     << link->getTargetAddress() << '\n';
             }
-            //exit(1);
 #endif
         }
     }
@@ -49,37 +48,28 @@ public:
     int getTotal() const { return total; }
 };
 
-void LibcResolve::run() {
+TEST_CASE("make sure all links in libc are resolved", "[integration][full][.]") {
     GroupRegistry::getInstance()->muteAllSettings();
 
-    try {
-        ElfMap elf(TESTDIR "hi0");
+    ElfMap elf(TESTDIR "hi0");
 
-        Conductor conductor;
-        conductor.parseExecutable(&elf);
-        conductor.parseLibraries();
+    Conductor conductor;
+    conductor.parseExecutable(&elf);
+    conductor.parseLibraries();
 
-        auto libc = conductor.getLibraryList()->getLibc();
-        if(!libc) {
-            std::cout << "TEST FAILED: can't locate libc.so in depends\n";
-            return;
-        }
+    auto libc = conductor.getLibraryList()->getLibc();
+    REQUIRE(libc != nullptr);
 
-        _Pass pass;
-        libc->getElfSpace()->getModule()->accept(&pass);
+    _Pass pass;
+    libc->getElfSpace()->getModule()->accept(&pass);
 
-        if(pass.getTotal() < 100) {
-            std::cout << "TEST FAILED: libc doesn't have very many links?\n";
-            return;
-        }
-        if(pass.getUnresolved() > 0) {
-            std::cout << "TEST FAILED: " << std::dec << pass.getUnresolved()
-                << " unresolved out of " << pass.getTotal() << " links\n";
-            return;
-        }
-        std::cout << "TEST PASSED: all " << pass.getTotal() << " links resolved\n";
+    SECTION("libc has at least a few links") {
+        CHECK(pass.getTotal() > 100);
     }
-    catch(const char *error) {
-        std::cout << "TEST FAILED: error: " << error << std::endl;
+
+    SECTION("all of libc's links are resolved") {
+        INFO(std::dec << pass.getUnresolved() << " unresolved out of "
+            << pass.getTotal() << " links");
+        CHECK(pass.getUnresolved() == 0);
     }
 }
