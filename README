@@ -11,11 +11,13 @@ if it is undefended.
 Egalito supports x86_64 and aarch64, with upcoming support for 32-bit arm.
 
 To build:
-$ sudo apt-get install libcapstone-dev
+$ sudo apt-get install libcapstone-dev libreadline-dev
+$ git submodule update --init --recursive
 $ make -j 4
 
 To test, try:
 $ cd test && ./runner && cd -
+$ cd test/script && make && cd -
 $ cd src && ./loader ex/hello && cd -
 $ cd app && ./etshell
 

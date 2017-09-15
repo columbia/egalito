@@ -13,6 +13,7 @@ src: | config
 test: src
 	$(MAKE) -C test
 	$(MAKE) -C test/example
+	$(MAKE) -C test/binary all symlinks
 app: src | test
 	$(MAKE) -C app
 
@@ -24,4 +25,5 @@ clean realclean:
 	$(MAKE) -C src clean
 	$(MAKE) -C test $@
 	$(MAKE) -C test/example clean
+	$(MAKE) -C test/binary clean
 	$(MAKE) -C config clean
