@@ -72,9 +72,6 @@ else
 	$(error "Unsupported platform, we only handle arm, aarch64, and x86_64")
 endif
 
-CFLAGS += '-DTESTDIR="example/$(BUILDDIR)"'
-CXXFLAGS += '-DTESTDIR="example/$(BUILDDIR)"'
-
 GLIBCDIR = $(dirname $(shell $(CC) --print-file-name=libc.so))
 CRTI = $(shell $(CC) --print-file-name=crti.o)
 CRTBEGIN = $(shell $(CC) --print-file-name=crtbegin.o)

@@ -6,6 +6,9 @@ CFLAGS      += -I ../src/
 CXXFLAGS    += -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
+CFLAGS      += '-DTESTDIR="binary/build/"'
+CXXFLAGS    += '-DTESTDIR="binary/build/"'
+
 ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
