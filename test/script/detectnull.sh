@@ -12,4 +12,5 @@ if [ "$?" = 0 ]; then
     echo test passed
 else
     echo test failed!
+    exit 1
 fi
