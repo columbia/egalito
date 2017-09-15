@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+sub my_system($);
 sub image_name($%);
 sub has_build($%);
 sub run_build(%);
@@ -85,6 +86,16 @@ sub main() {
 
 }
 
+sub my_system($) {
+    system($_[0]);
+    if($? == -1) {
+        die "`$_[0]` failed to execute: $!\n";
+    }
+    elsif($? >> 8) {
+        die "`$_[0]` exited with code " . ($? >> 8) . "\n";
+    }
+}
+
 sub image_name($%) {
     my $crossmode = shift @_;
     my %setting = @_;
@@ -119,14 +130,13 @@ sub run_build(%) {
 
     # extract qemu-user-static from different image
     if($arch ne $CURRENT_ARCH) {
-        system("docker run --rm --privileged multiarch/qemu-user-static:register --reset");
-        system("docker create --name register hypriot/qemu-register");
-        system("docker cp register:qemu-$arch $droot/qemu-$arch-static");
+        my_system("docker run --rm --privileged multiarch/qemu-user-static:register --reset");
+        my_system("docker create --name register hypriot/qemu-register");
+        my_system("docker cp register:qemu-$arch $droot/qemu-$arch-static");
     }
 
     # build the egalito docker image
-    my $ret = system("docker build -t $image_name -f $droot/Dockerfile_$arch $droot");
-    print "docker build exit code: " . ($ret >> 8) . "\n";
+    my_system("docker build -t $image_name -f $droot/Dockerfile_$arch $droot");
 }
 
 sub run_build_cross(%) {
@@ -137,7 +147,7 @@ sub run_build_cross(%) {
 
     run_build(%setting) unless has_build(0, %setting);
 
-    system("docker build -t $image_name -f $droot/Dockerfile_$cross-$arch $droot");
+    my_system("docker build -t $image_name -f $droot/Dockerfile_$cross-$arch $droot");
 }
 
 sub run_command($%) {
@@ -153,8 +163,9 @@ sub run_command($%) {
         run_build_cross(%setting) unless has_build(1, %setting);
     }
 
-    system("docker run -t -e LOCAL_USER_ID=\$(id -u) "
+    my_system("docker run -t -e LOCAL_USER_ID=\$(id -u) "
         . "-v \$(readlink -f $root):/egalito $image_name $cmd");
+    die "docker run exit code: " . ($? & 127) . "\n" if($? & 127);
 }
 sub run_command_interactive($%) {
     my $cmd = shift @_;
@@ -169,7 +180,7 @@ sub run_command_interactive($%) {
         run_build_cross(%setting) unless has_build(1, %setting);
     }
 
-    system("docker run -it -e LOCAL_USER_ID=\$(id -u) "
+    my_system("docker run -it -e LOCAL_USER_ID=\$(id -u) "
         . "-v \$(readlink -f $root):/egalito $image_name $cmd");
 }
 
