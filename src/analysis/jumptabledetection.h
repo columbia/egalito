@@ -28,7 +28,8 @@ private:
 
         JumptableInfo(ControlFlowGraph *cfg, UDRegMemWorkingSet *working,
             UDState *state)
-            : cfg(cfg), working(working), jumpState(state), valid(false) {}
+            : cfg(cfg), working(working), jumpState(state), valid(false),
+              targetBase(0), tableBase(0), scale(0), entries(0) {}
     };
 
     std::vector<JumpTableDescriptor *> tableList;

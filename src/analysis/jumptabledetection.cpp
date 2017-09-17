@@ -6,6 +6,7 @@
 #include "instr/concrete.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 
 #ifdef ARCH_AARCH64
 void JumptableDetection::detect(Module *module) {
@@ -16,6 +17,7 @@ void JumptableDetection::detect(Module *module) {
 
 void JumptableDetection::detect(Function *function) {
     if(containsIndirectJump(function)) {
+        //TemporaryLogLevel tll("analysis", 10);
         ControlFlowGraph cfg(function);
         UDConfiguration config(&cfg);
         UDRegMemWorkingSet working(function, &cfg);
@@ -413,7 +415,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
 
         auto parser = [&, info](UDState *state, TreeCapture cap) {
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
-            info->entries = boundTree->getValue();
+            info->entries = boundTree->getValue() / info->scale;
             found = true;
             return true;
         };
