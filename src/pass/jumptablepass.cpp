@@ -103,7 +103,12 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             break;
         }
 #ifdef ARCH_AARCH64
-        value *= 4;
+        // We only see the scale of 4 for hand-crafted jump tables in
+        // printf_positional of glibc. If this assumption does not hold,
+        // we should add another field to the descriptor.
+        if(descriptor->getScale() != 4) {
+            value *= 4;
+        }
 #endif
         address_t target = descriptor->getTargetBaseAddress() + value;
         LOG(2, "    jump table entry " << i << " @ 0x" << std::hex << target);
@@ -112,7 +117,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             module->getFunctionList(), target);
         Link *link = nullptr;
         if(inner) {
-            LOG(3, "        resolved to 0x" << std::hex << inner->getName());
+            LOG(3, "        resolved to " << std::hex << inner->getName());
             link = new NormalLink(inner);
         }
         else {
