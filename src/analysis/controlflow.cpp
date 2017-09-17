@@ -104,13 +104,11 @@ void ControlFlowGraph::construct(Block *block) {
             auto function = dynamic_cast<Function *>(block->getParent());
             auto module = dynamic_cast<Module *>(
                 function->getParent()->getParent());
-            if(!module) {
-                throw "how do we get module now?";
-            }
             auto jumptablelist = module->getJumpTableList();
             for(auto jt : CIter::children(jumptablelist)) {
                 if(jt->getInstruction() == i) {
-                    LOG(10, "jumptable targeting to...");
+                    LOG(10, "jumptable at " << i->getAddress()
+                        << "targeting to...");
                     std::set<address_t> added;
                     for(auto entry : CIter::children(jt)) {
                         auto link =
@@ -172,7 +170,7 @@ void ControlFlowGraph::construct(Block *block) {
 bool ControlFlowGraph::doesReturn(Function *function) {
     static const std::vector<std::string> noreturns = {
         "__GI___libc_fatal", "__GI___assert_fail", "__stack_chk_fail",
-        "__malloc_assert", "_exit"
+        "__malloc_assert", "_exit", "_dl_signal_error"
     };
 
     for(auto fn : noreturns) {
