@@ -232,21 +232,19 @@ class PerfectLinkResolver {
 public:
     /* Resolve within the same module using address info in a relocation.
      * Only returns nullptr if undefined within the module. */
-    static Link *resolveInternally(Reloc *reloc, Module *module);
+    virtual Link *resolveInternally(Reloc *reloc, Module *module);
 
     /* Resolve outside the module using symbol info. */
-    static Link *resolveExternally(Symbol *symbol, Conductor *conductor,
+    virtual Link *resolveExternally(Symbol *symbol, Conductor *conductor,
         ElfSpace *elfSpace);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
-    static Link *resolveInferred(address_t address, Instruction *instruction,
+    virtual Link *resolveInferred(address_t address, Instruction *instruction,
         Module *module);
 
 private:
-    static Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
+    Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
 };
-
-// class RelocOnlyLinkResolver {}
 
 #endif

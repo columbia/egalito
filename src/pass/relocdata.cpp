@@ -379,7 +379,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
 #endif
     }
 
-    link = PerfectLinkResolver::resolveExternally(symbol, conductor, elfSpace);
+    link = PerfectLinkResolver().resolveExternally(symbol, conductor, elfSpace);
 
     // these shouldn't be necessary as long as relocations are available
 #if 0

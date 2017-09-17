@@ -419,10 +419,13 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
 
     std::set<address_t> splitPoints;
     splitPoints.insert(elfMap->getEntryPoint());
-    {
+    for(size_t size = 0; size < readSize; ) {
         cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),
-            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+            (const uint8_t *)readAddress + size,
+            readSize - size,
+            virtualAddress + size,
+            0, &insn);
         for(size_t j = 0; j < count; j++) {
             auto ins = &insn[j];
 
@@ -434,6 +437,10 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
 
         if(count > 0) {
             cs_free(insn, count);
+            size += count;;
+        }
+        else {
+            size += 4;
         }
     }
 

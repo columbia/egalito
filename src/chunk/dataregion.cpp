@@ -183,7 +183,7 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 #ifdef ARCH_X86_64
     // this is the only reloc type we've seen in TLS
     if(reloc->getType() == R_X86_64_RELATIVE) {
-        return PerfectLinkResolver::resolveInternally(reloc, module);
+        return PerfectLinkResolver().resolveInternally(reloc, module);
     }
     return nullptr;
 #else
@@ -204,7 +204,7 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
             tls, reloc->getSymbol(), reloc->getAddend());
     }
 
-    return PerfectLinkResolver::resolveInternally(reloc, module);
+    return PerfectLinkResolver().resolveInternally(reloc, module);
 #endif
 }
 

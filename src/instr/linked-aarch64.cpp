@@ -309,7 +309,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
-    auto link = PerfectLinkResolver::resolveInternally(reloc, module);
+    auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
         auto linked = new LinkedInstruction(instruction, *assembly);
         linked->setLink(link);
@@ -326,7 +326,7 @@ LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
 
     LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
-    auto link = PerfectLinkResolver::resolveInternally(reloc, module);
+    auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
         auto linked = new LinkedLiteralInstruction(instruction, raw);
         linked->setLink(link);
@@ -374,7 +374,7 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction, *assembly);
 
-        auto link = PerfectLinkResolver::resolveInferred(
+        auto link = PerfectLinkResolver().resolveInferred(
             address, instruction, module);
 
         if(!link) { throw "[LinkedInstruction] failed to create link!"; }
