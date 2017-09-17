@@ -84,8 +84,8 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         address_t addr = r->getAddress();
         auto tls = module->getDataRegionList()->getTLS();
         DataVariable *var = nullptr;
-        if(tls &&
-           Range(tls->getOriginalAddress(), tls->getSize()).contains(addr)) {
+        if(tls && tls->findDataSectionContaining(addr)) {
+            //Range(tls->getOriginalAddress(), tls->getSize()).contains(addr)) {
 
             addr += tls->getAddress() - tls->getOriginalAddress();
             var = tls->findVariable(addr);

@@ -143,13 +143,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
     }
 
-    //if(auto s = findSizeZero(list, "_init")) {
     if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
         auto init = elfmap->findSection(".init");
         if(init) s->setSize(init->getHeader()->sh_size);
         if(init) LOG(6, "setting the size of _init to " << init->getHeader()->sh_size);
     }
-    //if(auto s = findSizeZero(list, "_fini")) {
     if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
         auto fini = elfmap->findSection(".fini");
         if(fini) s->setSize(fini->getHeader()->sh_size);

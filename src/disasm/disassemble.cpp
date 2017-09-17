@@ -87,9 +87,11 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     for(auto sym : *symbolList) {
         if(!sym->isFunction()) {
+            // this misses some cases where there are only mapping symbols
+            // for literals (__multc3 in libm compiled with old gcc)
+            LOG(10, "symbol address " << std::hex << sym->getAddress());
             if(sym->getSize() == 0) continue;
             if(sym->getAliasFor()) continue;
-            if(sym->getType() != Symbol::TYPE_NOTYPE) continue;
             auto sec = elfMap->findSection(sym->getSectionIndex());
             if(!sec) continue;  // ABS
             if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;

@@ -142,7 +142,8 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
             auto dsec = CIter::spatial(region)->findContaining(target);
             if(dsec) {
                 if(dsec->isCode()) {
-                    LOG(9, "is this LITERAL? or a hand-crafted jump table?");
+                    LOG(9, "is this LITERAL? or a hand-crafted jump table? "
+                        << target);
                     return nullptr;
                 }
                 auto base = dsec->getAddress();
@@ -208,7 +209,7 @@ Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
 }
 
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
-    //TemporaryLogLevel tll("chunk", 10);
+    //TemporaryLogLevel tll("chunk", 11);
     auto list = new DataRegionList();
 
     for(void *s : elfMap->getSegmentList()) {
@@ -240,7 +241,6 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         else {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
-        LOG(10, "sh_addr " << shdr->sh_addr);
         auto ds = new DataSection(region->getPhdr(), shdr);
         ChunkMutator(region).append(ds);
     }
@@ -274,7 +274,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
                     LOG(10, " => " << sym->getName()
                         << " + " << reloc->getAddend());
                 }
-                else LOG(10, " no symbol");  // must resolve by address here
+                else LOG(10, " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion, addr, link);
                 sourceRegion->addVariable(var);
