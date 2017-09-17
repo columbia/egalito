@@ -336,6 +336,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_CBNZ,    &UseDef::fillCbnz},
     {ARM64_INS_CMP,     &UseDef::fillCmp},
     {ARM64_INS_CSEL,    &UseDef::fillCsel},
+    {ARM64_INS_CSET,    &UseDef::fillCset},
     {ARM64_INS_LDAXR,   &UseDef::fillLdaxr},
     {ARM64_INS_LDP,     &UseDef::fillLdp},
     {ARM64_INS_LDR,     &UseDef::fillLdr},
@@ -1056,6 +1057,15 @@ void UseDef::fillCmp(UDState *state, Assembly *assembly) {
     defReg(state, AARCH64GPRegister::NZCV, tree);
 }
 void UseDef::fillCsel(UDState *state, Assembly *assembly) {
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    defReg(state,
+        reg0,
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
+    LOG(10, "NYI: " << assembly->getMnemonic());
+}
+void UseDef::fillCset(UDState *state, Assembly *assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);

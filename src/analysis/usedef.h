@@ -359,6 +359,7 @@ private:
     void fillCbnz(UDState *state, Assembly *assembly);
     void fillCmp(UDState *state, Assembly *assembly);
     void fillCsel(UDState *state, Assembly *assembly);
+    void fillCset(UDState *state, Assembly *assembly);
     void fillLdaxr(UDState *state, Assembly *assembly);
     void fillLdp(UDState *state, Assembly *assembly);
     void fillLdr(UDState *state, Assembly *assembly);
