@@ -46,6 +46,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
     }
 }
 
+void ConductorSetup::parseEgalitoArchive(const char *archive) {
+    conductor->parseEgalitoArchive(archive);
+}
+
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 

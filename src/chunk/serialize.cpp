@@ -5,6 +5,7 @@
 #include "chunk.h"
 #include "concrete.h"
 #include "visitor.h"
+#include "archive/generic.h"
 #include "archive/writer.h"
 #include "archive/flatchunk.h"
 
@@ -14,7 +15,7 @@ private:
 public:
     SerializeImpl(EgalitoArchiveWriter &archive) : archive(archive) {}
     virtual void visit(Program *program);
-    virtual void visit(Module *function);
+    virtual void visit(Module *module);
     //virtual void visit(FunctionList *functionList);
     //virtual void visit(PLTList *pltList);
     //virtual void visit(JumpTableList *jumpTableList);
@@ -29,7 +30,7 @@ public:
 };
 
 void SerializeImpl::visit(Program *program) {
-    archive.getFlatList().newFlatChunk(FlatChunk(0, 0, 0));
+    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Program);
     archive.getFlatList().append32(program->getChildren()
         ->getIterable()->getCount());
 
@@ -38,8 +39,8 @@ void SerializeImpl::visit(Program *program) {
     }
 }
 
-void SerializeImpl::visit(Module *function) {
-    
+void SerializeImpl::visit(Module *module) {
+    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Module);
 }
 
 void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {

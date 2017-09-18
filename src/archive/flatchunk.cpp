@@ -1,6 +1,9 @@
 #include <cassert>
 #include "flatchunk.h"
 
+void FlatChunkList::newFlatChunk(uint16_t type) {
+    newFlatChunk(FlatChunk(type, flatList.size(), /*offset=*/ 0));
+}
 void FlatChunkList::newFlatChunk(FlatChunk flat) {
     flatList.push_back(flat);
 }

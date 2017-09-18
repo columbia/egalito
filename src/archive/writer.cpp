@@ -2,6 +2,7 @@
 #include <fstream>
 #include "generic.h"
 #include "writer.h"
+#include "log/log.h"
 
 void EgalitoArchiveWriter::writeTo(std::string filename) {
     assignOffsets();
@@ -20,17 +21,19 @@ void EgalitoArchiveWriter::assignOffsets() {
     }
 }
 
+// !!! on aarch64, the endianness may need to change here
+
 static void writeValue(std::ostream &stream, uint16_t value) {
-    stream << value;
+    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 static void writeValue(std::ostream &stream, uint32_t value) {
-    stream << value;
+    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 static void writeValue(std::ostream &stream, const char *value) {
-    stream << std::string(value);
+    stream.write(value, std::strlen(value));
 }
 static void writeValue(std::ostream &stream, const std::string &value) {
-    stream << value;
+    stream.write(value.c_str(), value.length());
 }
 
 void EgalitoArchiveWriter::writeData(std::string filename) {
@@ -41,6 +44,8 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
     writeValue(file, static_cast<uint32_t>(flatList.getCount()));
 
     for(const auto &flat : flatList) {
+        LOG(9, "write FlatChunk id=" << flat.getID()
+            << " type=" << flat.getType());
         writeValue(file, flat.getType());
         writeValue(file, flat.getID());
         writeValue(file, flat.getOffset());

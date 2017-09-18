@@ -2,6 +2,7 @@
 #include "conductor.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
+#include "chunk/serialize.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
@@ -65,6 +66,19 @@ ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
     program->getChildren()->add(space->getModule());
     getSpaceList()->add(space);
     return space;
+}
+
+void Conductor::parseEgalitoArchive(const char *archive) {
+    ChunkSerializer serializer;
+    Chunk *newData = serializer.deserialize(archive);
+
+    if(auto p = dynamic_cast<Program *>(newData)) {
+        LOG(1, "Using full Chunk tree from archive [" << archive << "]");
+        this->program = p;
+    }
+    else {
+        LOG(1, "Only a subset of Chunk tree is present in archive, not using");
+    }
 }
 
 void Conductor::resolvePLTLinks() {

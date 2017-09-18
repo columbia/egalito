@@ -7,7 +7,7 @@ class ChunkVisitor {
 public:
     virtual ~ChunkVisitor() {}
     virtual void visit(Program *program) = 0;
-    virtual void visit(Module *function) = 0;
+    virtual void visit(Module *module) = 0;
     virtual void visit(FunctionList *functionList) = 0;
     virtual void visit(PLTList *pltList) = 0;
     virtual void visit(JumpTableList *jumpTableList) = 0;
@@ -24,7 +24,7 @@ public:
 class ChunkListener : public ChunkVisitor {
 public:
     virtual void visit(Program *program) {}
-    virtual void visit(Module *function) {}
+    virtual void visit(Module *module) {}
     virtual void visit(FunctionList *functionList) {}
     virtual void visit(PLTList *pltList) {}
     virtual void visit(JumpTableList *jumpTableList) {}

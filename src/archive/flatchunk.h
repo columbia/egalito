@@ -34,7 +34,7 @@ private:
     typedef std::vector<FlatChunk> FlatListType;
     FlatListType flatList;
 public:
-    void newFlatChunk(FlatChunk flat);
+    void newFlatChunk(uint16_t type);
     void appendData(const std::string &newData);
     void append32(uint32_t value);
 
@@ -44,6 +44,8 @@ public:
     FlatListType::const_iterator end() const { return flatList.cend(); }
 
     size_t getCount() const { return flatList.size(); }
+private:
+    void newFlatChunk(FlatChunk flat);
 };
 
 #endif
