@@ -1,7 +1,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cassert>
-#include <fstream>
+#include <sstream>
 #include "serialize.h"
 #include "chunk.h"
 #include "concrete.h"
@@ -10,6 +10,7 @@
 #include "archive/reader.h"
 #include "archive/writer.h"
 #include "archive/flatchunk.h"
+#include "archive/stream.h"
 #include "log/log.h"
 
 class SerializeImpl : public ChunkListener {
@@ -44,25 +45,32 @@ void SerializeImpl::visit(Program *program) {
 
 void SerializeImpl::visit(Module *module) {
     archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Module);
+
+    std::ostringstream stream;
+    ArchiveStreamWriter writer(stream);
+
+    writer.writeAnyLength(module->getName());
+
+    archive.getFlatList().appendData(stream.str());
 }
 
 class DeserializeImpl {
 private:
     EgalitoArchiveReader &archive;
-    EgalitoArchive::EgalitoChunkType debugType;
 public:
     DeserializeImpl(EgalitoArchiveReader &archive) : archive(archive) {}
     Chunk *parse(const FlatChunk &flat);
 private:
-    typedef Chunk *(DeserializeImpl::*ChunkBuilder)();
-    Chunk *makeProgram();
-    Chunk *notYetImplemented();
+    typedef Chunk *(DeserializeImpl::*ChunkBuilder)(const FlatChunk &flat);
+    Chunk *makeProgram(const FlatChunk &flat);
+    Chunk *makeModule(const FlatChunk &flat);
+    Chunk *notYetImplemented(const FlatChunk &flat);
 };
 
 Chunk *DeserializeImpl::parse(const FlatChunk &flat) {
     static const ChunkBuilder decoder[] = {
         &DeserializeImpl::makeProgram,          // TYPE_Program
-        &DeserializeImpl::notYetImplemented,    // TYPE_Module
+        &DeserializeImpl::makeModule,           // TYPE_Module
         &DeserializeImpl::notYetImplemented,    // TYPE_FunctionList
         &DeserializeImpl::notYetImplemented,    // TYPE_PLTList
         &DeserializeImpl::notYetImplemented,    // TYPE_JumpTableList
@@ -83,19 +91,29 @@ Chunk *DeserializeImpl::parse(const FlatChunk &flat) {
     const auto &type = flat.getType();
     assert(type < sizeof(decoder)/sizeof(*decoder));
 
-    this->debugType = static_cast<EgalitoArchive::EgalitoChunkType>(flat.getType());
-    Chunk *result = (this->*decoder[type])();
+    Chunk *result = (this->*decoder[type])(flat);
     return result;
 }
 
-Chunk *DeserializeImpl::makeProgram() {
-    //return new Program(nullptr);
+Chunk *DeserializeImpl::makeProgram(const FlatChunk &flat) {
+    return new Program(nullptr);
+}
+
+Chunk *DeserializeImpl::makeModule(const FlatChunk &flat) {
+    std::istringstream stream(flat.getData());
+    ArchiveStreamReader reader(stream);
+
+    std::string name;
+    reader.readAnyLength(name);
+
+    LOG(1, "trying to parse Module [" << name << "]");
+
     return nullptr;
 }
 
-Chunk *DeserializeImpl::notYetImplemented() {
+Chunk *DeserializeImpl::notYetImplemented(const FlatChunk &flat) {
     LOG(1, "WARNING: not yet implemented: deserialize archive chunk type "
-        << debugType);
+        << flat.getType());
     return nullptr;
 }
 

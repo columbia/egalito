@@ -2,6 +2,7 @@
 #include <fstream>
 #include "generic.h"
 #include "writer.h"
+#include "stream.h"
 #include "log/log.h"
 
 void EgalitoArchiveWriter::writeTo(std::string filename) {
@@ -21,36 +22,26 @@ void EgalitoArchiveWriter::assignOffsets() {
     }
 }
 
-// !!! on aarch64, the endianness may need to change here
-
-static void writeValue(std::ostream &stream, uint16_t value) {
-    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
-}
-static void writeValue(std::ostream &stream, uint32_t value) {
-    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
-}
-static void writeValue(std::ostream &stream, const char *value) {
-    stream.write(value, std::strlen(value));
-}
-static void writeValue(std::ostream &stream, const std::string &value) {
-    stream.write(value.c_str(), value.length());
-}
-
 void EgalitoArchiveWriter::writeData(std::string filename) {
     std::ofstream file(filename, std::ios::out | std::ios::binary);
 
-    writeValue(file, EgalitoArchive::signature);
-    writeValue(file, EgalitoArchive::version);
-    writeValue(file, static_cast<uint32_t>(flatList.getCount()));
+    // write the file header
+    {
+        ArchiveStreamWriter writer(file);
+        writer.write(EgalitoArchive::signature);
+        writer.write(EgalitoArchive::version);
+        writer.write(static_cast<uint32_t>(flatList.getCount()));
+    }
 
     for(const auto &flat : flatList) {
         LOG(9, "write FlatChunk id=" << flat.getID()
             << " type=" << flat.getType());
-        writeValue(file, flat.getType());
-        writeValue(file, flat.getID());
-        writeValue(file, flat.getOffset());
-        writeValue(file, flat.getSize());
-        writeValue(file, flat.getData());
+        ArchiveStreamWriter writer(file);
+        writer.write(flat.getType());
+        writer.write(flat.getID());
+        writer.write(flat.getOffset());
+        writer.write(flat.getSize());
+        writer.write(flat.getData());
     }
 
     file.close();

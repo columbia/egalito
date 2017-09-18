@@ -72,12 +72,16 @@ void Conductor::parseEgalitoArchive(const char *archive) {
     ChunkSerializer serializer;
     Chunk *newData = serializer.deserialize(archive);
 
-    if(auto p = dynamic_cast<Program *>(newData)) {
+    if(!newData) {
+        LOG(1, "Error parsing archive [" << archive << "]");
+        return;  // No data present
+    }
+    else if(auto p = dynamic_cast<Program *>(newData)) {
         LOG(1, "Using full Chunk tree from archive [" << archive << "]");
         this->program = p;
     }
     else {
-        LOG(1, "Only a subset of Chunk tree is present in archive, not using");
+        LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }
 }
 

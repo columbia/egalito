@@ -3,31 +3,22 @@
 #include "reader.h"
 #include "generic.h"
 #include "flatchunk.h"
+#include "stream.h"
 #include "chunk/chunk.h"
 #include "log/log.h"
 
-static void readValue(std::istream &stream, uint16_t &value) {
-    stream.read(reinterpret_cast<char *>(&value), sizeof(value));
-}
-static void readValue(std::istream &stream, uint32_t &value) {
-    stream.read(reinterpret_cast<char *>(&value), sizeof(value));
-}
-static void readValue(std::istream &stream, std::string &value, size_t length) {
-    value.resize(length);
-    stream.read(&value[0], length);
-}
-
 bool EgalitoArchiveReader::readHeader(std::ifstream &file) {
+    ArchiveStreamReader reader(file);
     std::string line;
-    readValue(file, line, std::strlen(EgalitoArchive::signature));
-    if(!file || line != EgalitoArchive::signature) {
+    if(!reader.read(line, std::strlen(EgalitoArchive::signature))
+        || line != EgalitoArchive::signature) {
+
         LOG(0, "Error: file signature does not match, not an Egalito archive");
         return false;
     }
 
     uint32_t version;
-    readValue(file, version);
-    if(!file) {
+    if(!reader.read(version)) {
         LOG(0, "Error: archive does not contain a version");
         return false;
     }
@@ -42,8 +33,7 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file) {
         // fall-through
     }
 
-    readValue(file, flatCount);
-    if(!file || flatCount == 0) {
+    if(!reader.read(this->flatCount) || this->flatCount == 0) {
         LOG(0, "Warning: empty Egalito archive");
         // fall-through
     }
@@ -62,11 +52,13 @@ void EgalitoArchiveReader::readFlatList(std::string filename) {
         uint32_t offset;
         uint32_t size;
         std::string data;
-        readValue(file, type);
-        readValue(file, id);
-        readValue(file, offset);
-        readValue(file, size);
-        readValue(file, data, size);
+
+        ArchiveStreamReader reader(file);
+        reader.read(type);
+        reader.read(id);
+        reader.read(offset);
+        reader.read(size);
+        reader.read(data, size);
 
         if(!file) {
             LOG(0, "Error: unexpected EOF in archive");
