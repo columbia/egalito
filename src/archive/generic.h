@@ -6,7 +6,7 @@
 namespace EgalitoArchive {
 
 extern const char *signature;
-static const uint32_t version = 0;
+static const uint32_t version = 1;
 
 enum EgalitoChunkType {
     TYPE_Program,
