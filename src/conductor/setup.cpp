@@ -60,16 +60,8 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 
 void ConductorSetup::injectLibrary(const char *filename) {
     if(auto elfmap = new ElfMap(filename)) {
-        conductor->parseAddOnLibrary(elfmap);
+        auto module = conductor->parseAddOnLibrary(elfmap);
         setBaseAddress(elfmap, 0xb0000000);
-
-        Module *module = nullptr;
-        for(auto space : conductor->getSpaceList()->iterable()) {
-            if(space->getElfMap() == elfmap) {
-                module = space->getModule();
-                break;
-            }
-        }
 
         for(auto region : CIter::regions(module)) {
             if(region == module->getDataRegionList()->getTLS()) continue;
@@ -96,7 +88,6 @@ void ConductorSetup::makeFileSandbox(const char *outputFile) {
 }
 
 void ConductorSetup::moveCode(bool useDisps) {
-
     // 1. assign new addresses to all code
     moveCodeAssignAddresses(useDisps);
 
