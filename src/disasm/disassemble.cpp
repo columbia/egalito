@@ -404,8 +404,6 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     return function;
 }
 
-// keep this separate from X86 version until we are sure we can disassemble
-// good enough for practical uses WITHOUT mapping symbols
 FunctionList *DisassembleAARCH64Function::linearDisassembly(
     const char *sectionName) {
 
@@ -437,7 +435,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
 
         if(count > 0) {
             cs_free(insn, count);
-            size += count;;
+            size += count * 4;
         }
         else {
             size += 4;
