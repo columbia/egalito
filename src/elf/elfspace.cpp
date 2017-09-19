@@ -15,6 +15,7 @@
 #include "pass/inferlinks.h"
 #include "pass/relocdata.h"
 #include "pass/jumptablepass.h"
+#include "pass/noppass.h"
 #include "pass/jumptablebounds.h"
 #include "pass/jtoverestimate.h"
 #include "analysis/jumptable.h"
@@ -104,6 +105,12 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     // this needs all blocks to be split to basic blocks
     InferLinksPass inferLinksPass(elf);
     module->accept(&inferLinksPass);
+
+    // adds a nop after every instruction
+    if (!library) {
+        NopPass nopPass;
+        module->accept(&nopPass);
+    }
 
     //TLSList::buildTLSList(elf, relocList, module);
 
