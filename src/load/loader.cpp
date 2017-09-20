@@ -13,6 +13,7 @@
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
 #include "pass/logcalls.h"
+#include "pass/noppass.h"
 #include "pass/promotejumps.h"
 #include "pass/relocheck.h"
 #include "log/registry.h"
@@ -91,6 +92,11 @@ static void otherPasses(ConductorSetup *setup) {
     LogCallsPass logCalls(setup->getConductor());
     // false = do not add tracing to Egalito's own functions
     setup->getConductor()->acceptInAllModules(&logCalls, false);
+#endif
+
+#if 0  // add nop pass
+    NopPass nopPass;
+    setup->getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
 #ifdef ARCH_X86_64
