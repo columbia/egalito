@@ -13,6 +13,7 @@
 #include "pass/logcalls.h"
 #include "pass/dumptlsinstr.h"
 #include "pass/stackxor.h"
+#include "pass/noppass.h"
 #include "pass/detectnullptr.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -171,6 +172,29 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         StackXOR stackXOR(0x28);
         setup->getConductor()->acceptInAllModules(&stackXOR);
     }, "adds XOR to return addresses on the stack");
+
+    topLevel->add("nop-pass", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        NopPass nopPass;
+        if (args.size() == 1) {
+            Function *func = nullptr;
+            func = ChunkFind2(setup->getConductor())
+                    .findFunction(args.front().c_str());
+            if(func) {
+                func->accept(&nopPass);
+            }
+            else {
+                std::cout << "can't find function \"" << args.front() << "\"\n";
+            }
+        } else if (args.size() == 0) {
+            setup->getConductor()->acceptInAllModules(&nopPass);
+        } else {
+            std::cout << "This pass only takes 0 or 1 arguments." << args.front() << "\"\n";
+        }
+    }, "adds nop instructions after every non-library instruction");
 
     topLevel->add("modules", [&] (Arguments args) {
         args.shouldHave(0);
