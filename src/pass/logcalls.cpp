@@ -48,6 +48,8 @@ extern "C" void egalito_log_function(void) {
 
     if(!inside_egalito_log_code) {
         inside_egalito_log_code = true;
+        // WARNING: if using the -fstack-protector flag, this will break the below address variable
+        // You can check if this flag is enabled with the EGALITO_STACK_PROTECTOR macro
         unsigned long address;
         __asm__ (
             "mov    80(%%rsp), %%rax" : "=a"(address)

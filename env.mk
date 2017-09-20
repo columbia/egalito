@@ -40,6 +40,14 @@ ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
 	CLDFLAGS += -no-pie -pg
 endif
 
+ifdef STACK_PROTECTOR  # set STACK_PROTECTOR=1 to enable -fstack-protector flag
+	CFLAGS += -fstack-protector-all -D EGALITO_STACK_PROTECTOR
+	CXXFLAGS += -fstack-protector-all -D EGALITO_STACK_PROTECTOR
+else
+	CFLAGS += -fno-stack-protector
+	CXXFLAGS += -fno-stack-protector
+endif
+
 ifneq ($(CROSS),)
 	P_ARCH := $(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
 else

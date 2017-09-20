@@ -20,6 +20,13 @@ void PrepareTLS::prepare(Conductor *conductor) {
     _head->tcb = _thrdescr;
     _head->self = _thrdescr;
 
+    uint64_t canary;
+    __asm__ __volatile__ (
+        "mov %%fs:0x28, %%rax" : "=a"(canary)
+    );
+    LOG(1, "copying stack canary: 0x" << std::hex << canary);
+    _head->stack_guard = canary;
+
     LOG(1, "set %""fs to point at " << main_tp);
     _set_fs(main_tp);
 #elif defined(ARCH_AARCH64)
