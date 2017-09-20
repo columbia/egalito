@@ -8,10 +8,10 @@
 #include "pass/clearspatial.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 #include "chunk/dump.h"
 
 void ReloCheckPass::visit(Module *module) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     LOG(1, "-- checking relocation for module " << module->getName());
 
     ClearSpatialPass clearSpatial;
@@ -22,8 +22,10 @@ void ReloCheckPass::visit(Module *module) {
 
     ChunkDumper dumper;
     for(auto region : CIter::regions(module)) {
-        region->accept(&dumper);
+        IF_LOG(10) region->accept(&dumper);
     }
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    //TemporaryLogLevel tll("pass", 10);
     if(auto relocList = module->getElfSpace()->getRelocList()) {
         for(auto r : *relocList) {
             check(r, module);
@@ -31,6 +33,35 @@ void ReloCheckPass::visit(Module *module) {
     }
     LOG(1, "-- end");
 #endif
+    recurse(module);
+    checkDataVariable(module);
+}
+
+void ReloCheckPass::visit(Instruction *instruction) {
+    if(auto v = dynamic_cast<LinkedInstruction*>(instruction->getSemantic())) {
+        if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
+            LOG(1, " link at " << instruction->getAddress() << " not resolved");
+        }
+    }
+}
+
+void ReloCheckPass::checkDataVariable(Module *module) {
+    for(auto region : CIter::regions(module)) {
+        for(auto var : region->variableIterable()) {
+            if(var->getDest()->getTarget()) {
+                continue;
+            }
+            else if(dynamic_cast<MarkerLink *>(var->getDest())) {
+                LOG(1, "var " << var->getAddress() << " has a marker link");
+            }
+            else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
+                LOG(1, "var " << var->getAddress() << " symbol only link");
+            }
+            else {
+                LOG0(1, " var with unresolved link at " << var->getAddress());
+            }
+        }
+    }
 }
 
 /*
@@ -113,7 +144,18 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                     << " resolved as a data variable pointing to loader emulator");
             }
             else {
-                LOG(1, ss.str() << " NOT resolved!!!");
+                LOG0(1, ss.str() << " NOT resolved!!!");
+                auto link = dynamic_cast<TLSDataOffsetLink *>(var->getDest());
+                if(link) {
+                    if(auto sym = link->getSymbol()) {
+                        if(sym->getBind() == Symbol::BIND_WEAK) {
+                            LOG(1, "WEAK");
+                        }
+                    }
+                }
+                else {
+                    LOG(1, std::hex << var->getDest()->getTargetAddress());
+                }
             }
         }
         else {

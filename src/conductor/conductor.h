@@ -33,6 +33,7 @@ public:
     address_t getMainThreadPointer() const { return mainThreadPointer; }
 private:
     ElfSpace *parse(ElfMap *elf, SharedLib *library);
+    void allocateTLSArea();
     void loadTLSData();
 };
 

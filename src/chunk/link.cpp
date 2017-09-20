@@ -93,7 +93,7 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module) {
             return nullptr;
         }
         if(symbol->isMarker()) {
-            LOG(1, "making marker link " << reloc->getAddress()
+            LOG(10, "making marker link " << reloc->getAddress()
                 << " to " << addr);
             return module->getMarkerList()->createMarkerLink(
                 symbol->getAddress(), reloc->getAddend(), symbol, module);
@@ -105,20 +105,24 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module) {
     auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
     if(func) {
         if(func->getAddress() == addr) {
+            LOG(10, "resolved to a function");
             return new NormalLink(func);
         }
         else {
             Chunk *inner = ChunkFind().findInnermostInsideInstruction(
                 func, addr);
             auto instruction = dynamic_cast<Instruction *>(inner);
+            LOG(10, "resolved to an instuction");
             return new NormalLink(instruction);
         }
     }
 
     if(auto dlink = LinkFactory::makeDataLink(module, addr, true)) {
+        LOG(10, "resolved to a data");
         return dlink;
     }
 
+    LOG(10, "resolved to a marker");
     return LinkFactory::makeMarkerLink(module, addr, nullptr);
 }
 

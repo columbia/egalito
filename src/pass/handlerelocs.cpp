@@ -6,20 +6,22 @@
 #include "operation/find.h"
 #include "instr/concrete.h"
 #include "disasm/makesemantic.h"
+
 #include "log/log.h"
+#include "log/temp.h"
 
 void HandleRelocsPass::visit(Module *module) {
     this->module = module;
     auto functionList = module->getFunctionList();
     for(auto r : *relocList) {
-        if(!r->getSymbol()) continue;
-
         Chunk *inner = ChunkFind().findInnermostInsideInstruction(
             functionList, r->getAddress());
         auto instruction = dynamic_cast<Instruction *>(inner);
         if(!instruction) continue;
 
 #ifdef ARCH_X86_64
+        if(!r->getSymbol()) continue;
+
         Function *target = CIter::findChild(functionList,
             r->getSymbol()->getName());
 
@@ -64,6 +66,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
     }
 #ifdef ARCH_AARCH64
     else if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
+        //TemporaryLogLevel tll("chunk", 10);
         auto raw = v->getStorage().getData();
         auto linked
             = LinkedLiteralInstruction::makeLinked(module, instruction, raw, r);

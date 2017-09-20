@@ -89,7 +89,6 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         if(!sym->isFunction()) {
             // this misses some cases where there are only mapping symbols
             // for literals (__multc3 in libm compiled with old gcc)
-            LOG(10, "symbol address " << std::hex << sym->getAddress());
             if(sym->getSize() == 0) continue;
             if(sym->getAliasFor()) continue;
             auto sec = elfMap->findSection(sym->getSectionIndex());
@@ -105,7 +104,7 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
                 = Disassemble::function(elfMap, sym, symbolList);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
-            LOG(1, "adding literal only function " << function->getName()
+            LOG(10, "adding literal only function " << function->getName()
                 << " at " << std::hex << function->getAddress()
                 << " size " << function->getSize());
         }

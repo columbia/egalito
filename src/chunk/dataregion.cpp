@@ -116,8 +116,8 @@ std::string TLSDataRegion::getName() const {
     return "region-TLS";
 }
 
-void TLSDataRegion::updateAddressFor(address_t baseAddress) {
-    LOG(1, "UPDATE address for TLSDataRegion from " << std::hex
+void TLSDataRegion::setBaseAddress(address_t baseAddress) {
+    LOG(1, "set base address for TLSDataRegion from " << std::hex
         << getAddress() << " to " << baseAddress);
     getPosition()->set(baseAddress);
 }
@@ -142,9 +142,18 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
             auto dsec = CIter::spatial(region)->findContaining(target);
             if(dsec) {
                 if(dsec->isCode()) {
-                    LOG(9, "is this LITERAL? or a hand-crafted jump table? "
-                        << target);
-                    return nullptr;
+                    if(ChunkFind().findInnermostAt(
+                        module->getFunctionList(), target)) {
+
+                        LOG(1, "is this a hand-crafted jump table? " << target);
+                        return nullptr;
+                    }
+                    else {
+                        // this will very likely to result in a too-far
+                        // link for AARCH64.
+                        LOG(9, "is this a LITERAL? " << target);
+                        return nullptr;
+                    }
                 }
                 auto base = dsec->getAddress();
                 LOG(10, "" << target << " has offset " << (target - base));
@@ -262,7 +271,10 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         if(sourceRegion) {
             auto sourceSection
                 = sourceRegion->findDataSectionContaining(reloc->getAddress());
-            if(!sourceSection || sourceSection->isCode()) {
+            if(!sourceSection) continue;
+            if(sourceSection->isCode()) {
+                // it's useless to make a link from code to literal here
+                // because we won't be able to reach it after remap
                 continue;
             }
 

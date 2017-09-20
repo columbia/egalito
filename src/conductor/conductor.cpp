@@ -1,3 +1,4 @@
+#include "config.h"
 #include "conductor.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
@@ -77,7 +78,8 @@ void Conductor::resolvePLTLinks() {
 }
 
 void Conductor::fixDataSections() {
-    loadTLSData();
+    // first assign an effective address to each TLS region
+    allocateTLSArea();
 
     RelocDataPass relocData(this);
     program->accept(&relocData);
@@ -87,9 +89,12 @@ void Conductor::fixDataSections() {
 
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);
+
+    // This has to come after all relocations in TLS are resolved
+    loadTLSData();
 }
 
-void Conductor::loadTLSData() {
+void Conductor::allocateTLSArea() {
     const static address_t base = 0xd0000000;
     DataLoader dataLoader(base);
 
@@ -104,19 +109,15 @@ void Conductor::loadTLSData() {
     address_t offset = 0;
     mainThreadPointer = dataLoader.allocateTLS(size, &offset);
 
-    // copy in individual TLS regions
+    // actually assign address
     for(auto module : CIter::children(program)) {
-#ifdef ARCH_X86_64
-        if(module == program->getMain()) continue;
-#endif
-
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
-            LOG(1, "copying in TLS for " << module->getName() << " at 0x"
-                << std::hex << offset << " size 0x" << tls->getSize());
+#ifdef ARCH_X86_64
+            if(module == program->getMain()) continue;
+#endif
+            tls->setBaseAddress(base + offset);
             tls->setTLSOffset((base + offset) - mainThreadPointer);
-            dataLoader.copyTLSData(module->getElfSpace()->getElfMap(),
-                tls, offset);
             offset += tls->getSize();
         }
     }
@@ -125,14 +126,22 @@ void Conductor::loadTLSData() {
     // x86: place executable's TLS (if present) right before the header
     auto executable = program->getMain();
     if(auto tls = executable->getDataRegionList()->getTLS()) {
-        LOG(1, "copying in TLS for " << executable->getName() << " at "
-            << offset << " size " << tls->getSize());
+        tls->setBaseAddress(base + offset);
         tls->setTLSOffset((base + offset) - mainThreadPointer);
-        dataLoader.copyTLSData(executable->getElfSpace()->getElfMap(),
-            tls, offset);
         offset += tls->getSize();
     }
 #endif
+}
+
+void Conductor::loadTLSData() {
+    const static address_t base = 0xd0000000;
+    DataLoader dataLoader(base);
+    for(auto module : CIter::children(program)) {
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls) {
+            dataLoader.loadRegion(module->getElfSpace()->getElfMap(), tls);
+        }
+    }
 }
 
 void Conductor::writeDebugElf(const char *filename, const char *suffix) {

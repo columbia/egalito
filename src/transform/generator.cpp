@@ -26,7 +26,6 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
-        //f->getPosition()->set(slot.getAddress());
         ChunkMutator(f).setPosition(slot.getAddress());
     }
 
@@ -44,8 +43,6 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
 
     auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
     for(auto region : CIter::regions(module)) {
-        if(region == module->getDataRegionList()->getTLS()) continue;
-
         region->updateAddressFor(baseAddress);
     }
 

@@ -219,7 +219,7 @@ uint32_t LinkedInstruction::rebuild() {
     uint32_t imm =
         getModeInfo()->makeImm(dest, getSource()->getAddress(), fixedBytes);
 #if 0
-    const int ll = 1;
+    const int ll = 10;
     LOG(ll, "mode: " << getModeInfo() - AARCH64_ImInfo);
     LOG(ll, "src: " << getSource()->getAddress());
     LOG(ll, "dest: " << dest);
@@ -305,10 +305,6 @@ void LinkedInstruction::regenerateAssembly() {
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, Assembly *assembly, Reloc *reloc) {
 
-    if(!reloc->getSymbol()) return nullptr;
-
-    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
-
     auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
         auto linked = new LinkedInstruction(instruction, *assembly);
@@ -321,10 +317,6 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
 LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
     Instruction *instruction, std::string raw, Reloc *reloc) {
-
-    if(!reloc->getSymbol()) return nullptr;
-
-    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
     auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
