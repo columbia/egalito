@@ -1,0 +1,30 @@
+0x000004f0 <+  0>:  subq         $8, %rsp                  
+0x000004f4 <+  4>:  nop                                    
+0x000004f5 <+  5>:  movl         $1, %edx                  
+0x000004fa <+ 10>:  nop                                    
+0x000004fb <+ 11>:  leaq         0x1d3(%rip), %rcx         <section-+0x6d0>
+0x00000502 <+ 18>:  nop                                    
+0x00000503 <+ 19>:  (JUMP jmp)   0x511                     <i/0x511>
+0x00000505 <+ 21>:  nop                                    
+0x00000506 <+  0>:  nopw         (%rax, %rax)              
+0x0000050c <+  6>:  nop                                    
+0x0000050d <+  7>:  movq         %rax, %rdx                
+0x00000510 <+ 10>:  nop                                    
+0x00000511 <+ 11>:  cmpb         $0, 1(%rcx, %rdx)         
+0x00000516 <+ 16>:  nop                                    
+0x00000517 <+ 17>:  leaq         1(%rdx), %rax             
+0x0000051b <+ 21>:  nop                                    
+0x0000051c <+ 22>:  (JUMP jne)   0x50d                     <i/0x50d>
+0x0000051e <+ 24>:  nop                                    
+0x0000051f <+  0>:  leaq         0x1b7(%rip), %rsi         <section-+0x6d0>
+0x00000526 <+  7>:  nop                                    
+0x00000527 <+  8>:  movl         $1, %edi                  
+0x0000052c <+ 13>:  nop                                    
+0x0000052d <+ 14>:  (CALL)       0x63a                     <my_write>
+0x00000532 <+ 19>:  nop                                    
+0x00000533 <+  0>:  xorl         %eax, %eax                
+0x00000535 <+  2>:  nop                                    
+0x00000536 <+  3>:  addq         $8, %rsp                  
+0x0000053a <+  7>:  nop                                    
+0x0000053b <+  8>:  retq                                   
+0x0000053c <+  9>:  nop                                    
