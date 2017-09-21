@@ -27,8 +27,7 @@ TEST_CASE("Disassemble Instructions", "[disasm][ins]") {
 
 #elif defined(ARCH_ARM)
     std::vector<uint8_t> bytes;
-    Disassemble::Handle handle(true);
-
+    Disassemble::Handle handle(true); 
     // Catch Bug: If attempt to run individually using -c flag => first section will fail.
     SECTION("THUMB") {
         // THUMB: bx r0
@@ -54,18 +53,37 @@ TEST_CASE("Disassemble Instructions", "[disasm][ins]") {
 }
 
 TEST_CASE("Disassemble Module", "[disasm][module]") {
-  ElfMap *elf = new ElfMap(TESTDIR "hi5");
+    ElfMap *elf = new ElfMap(TESTDIR "hi5");
 
-  SymbolList *symbolList = SymbolList::buildSymbolList(elf);
-  Disassemble::init();
+    SymbolList *symbolList = SymbolList::buildSymbolList(elf);
+    Disassemble::init();
 
 #if defined(ARCH_ARM)
-  MappingSymbolList *mappingSymbolList = MappingSymbolList::buildMappingSymbolList(symbolList);
-  Module *module = Disassemble::module(elf, symbolList, mappingSymbolList);
+    MappingSymbolList *mappingSymbolList = MappingSymbolList::buildMappingSymbolList(symbolList);
+    Module *module = Disassemble::module(elf, symbolList, mappingSymbolList);
 #else
-  Module *module = Disassemble::module(elf, symbolList);
+    Module *module = Disassemble::module(elf, symbolList);
 #endif
-  FunctionList *functionList = module->getFunctionList();
+    FunctionList *functionList = module->getFunctionList();
 
-  CHECK(functionList->getChildren()->genericGetSize() > 0);
+    CHECK(functionList->getChildren()->genericGetSize() > 0);
+}
+
+TEST_CASE("Fuzzy-function disassemble", "[disasm]") {
+    ElfMap *elfWithSymbols = new ElfMap(TESTDIR "hello");
+    SymbolList *symbolList = SymbolList::buildSymbolList(elfWithSymbols);
+    Symbol *mainSymbol = symbolList->find("main");
+    REQUIRE(mainSymbol != nullptr);
+
+    ElfMap *strippedElf = new ElfMap(TESTDIR "hello-s");
+    SymbolList *strippedSymbolList = SymbolList::buildSymbolList(strippedElf);
+    CHECK(strippedSymbolList->getCount() == 0);
+
+    Disassemble::init();
+    Module *module = Disassemble::module(strippedElf, nullptr);
+
+    Function *fuzzy = CIter::spatial(module->getFunctionList())
+        ->find(mainSymbol->getAddress());
+
+    CHECK(mainSymbol->getSize() == fuzzy->getSize());
 }
