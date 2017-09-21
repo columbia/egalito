@@ -257,6 +257,31 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a sorted list of all functions in a module, with addresses");
+    topLevel->add("functions3", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module) {
+            std::vector<Function *> funcList;
+            for(auto func : CIter::functions(module)) {
+                funcList.push_back(func);
+            }
+
+            std::sort(funcList.begin(), funcList.end(),
+                [](Function *a, Function *b) {
+                    if(a->getAddress() < b->getAddress()) return true;
+                    if(a->getAddress() == b->getAddress()) {
+                        return a->getName() < b->getName();
+                    }
+                    return false;
+                });
+
+            for(auto func : funcList) {
+                std::printf("0x%08lx 0x%08lx %s\n",
+                    func->getAddress(), func->getSize(), func->getName().c_str());
+            }
+        }
+    }, "shows a list of all functions in a module, with addresses and sizes");
 
     topLevel->add("regions", [&] (Arguments args) {
         args.shouldHave(1);

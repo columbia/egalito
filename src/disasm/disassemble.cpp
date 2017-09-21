@@ -283,11 +283,18 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
     size_t readSize = section->getSize();
 
     std::set<address_t> splitPoints;
+#ifdef ARCH_X86_64
+    std::map<address_t, size_t> nopByteCount;
+#endif
     splitPoints.insert(elfMap->getEntryPoint());
+    splitPoints.insert(section->getVirtualAddress());
     {
         cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),
             (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+#ifdef ARCH_X86_64
+        size_t nopBytes = 0;
+#endif
         for(size_t j = 0; j < count; j++) {
             auto ins = &insn[j];
 
@@ -295,6 +302,13 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
             if(shouldSplitFunctionDueTo(ins, &target)) {
                 splitPoints.insert(target);
             }
+#ifdef ARCH_X86_64
+            if(ins->id == X86_INS_NOP) {
+                nopBytes += ins->size;
+                nopByteCount[ins->address + ins->size] = nopBytes;
+            }
+            else nopBytes = 0;
+#endif
         }
 
         if(count > 0) {
@@ -320,6 +334,14 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName)
         else {
             functionSize = readSize - functionOffset;
         }
+
+#ifdef ARCH_X86_64
+        auto nop = nopByteCount.find((*it) + functionSize);
+        if(nop != nopByteCount.end()) {
+            LOG(10, "Shrinking function by " << (*nop).second << " nop bytes");
+            functionSize -= (*nop).second;
+        }
+#endif
 
         LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
             << functionSize << ")");
