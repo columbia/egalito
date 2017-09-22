@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <functional>
 #include "parser.h"
 #include "entry.h"
 #include "state.h"
@@ -70,8 +71,36 @@ void DwarfParser::parse(size_t virtualSize) {
     }
 }
 
-#define OPCODE_LOG(format, ...) \
+class DwarfExpressionDecoder {
+private:
+    DwarfCursor start;
+    DwarfState *state;
+    std::vector<uint64_t> evalStack;
+public:
+    DwarfExpressionDecoder(const DwarfCursor &start, DwarfState *state)
+        : start(start), state(state) {}
+    uint64_t decode();
+private:
+    template <typename Type>
+    Type pop();
+
+    template <typename Type>
+    void push(Type value) { evalStack.push_back(value); }
+private:
+    template <typename Type>
+    void decodeConstant(int bytes, char sign);
+
+    template <typename Type>
+    void decodeBinaryOp(const char *name,
+        std::function<Type (Type, Type)> func);
+};
+
+#define OPCODE_CLOG(format, ...) \
     CLOG(11, format, __VA_ARGS__)
+#define OPCODE_LOG(data) \
+    LOG(11, data)
+#define OPCODE_LOG0(data) \
+    LOG0(11, data)
 using std::printf;  // hack for now
 using std::exit;  // hack for now
 
@@ -79,11 +108,40 @@ static uint64_t dereferencePointer(uint64_t pointer) {
     return *(reinterpret_cast<uint64_t *>(pointer));
 }
 
-static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
+template <typename Type>
+Type DwarfExpressionDecoder::pop() {
+    Type value = evalStack.back();
+    evalStack.pop_back();
+    return value;
+}
+
+template <typename Type>
+void DwarfExpressionDecoder::decodeConstant(int bytes, char sign) {
+    Type value = start.next<Type>();
+    push(value);
+    if(bytes == 8) {
+        LOG0(11, "DW_OP_const8" << sign << ": "
+            << (value & 0xFFFFFFFF00000000) << " "
+            << (value & 0x00000000FFFFFFFF));
+    }
+    else {
+        LOG0(11, "DW_OP_const" << bytes << sign << ": " << value);
+    }
+}
+
+template <typename Type>
+void DwarfExpressionDecoder::decodeBinaryOp(const char *name,
+    std::function<Type (Type, Type)> func) {
+
+    Type value = pop<Type>();
+    evalStack.back() = func(static_cast<Type>(evalStack.back()), value);
+    LOG0(11, "DP_OP_" << name);
+}
+
+uint64_t DwarfExpressionDecoder::decode() {
     uint64_t length = start.nextUleb128();
     DwarfCursor end = start;
     end.skip(length);
-    std::vector<uint64_t> evalStack;
     evalStack.reserve(100);
 
     while(start < end) {
@@ -94,100 +152,68 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
         switch (opcode) {
         case DW_OP_addr:
             start >> value;
-            printf ("DW_OP_addr: %lx",
-                    value);
-            evalStack.push_back(value);
+            printf("DW_OP_addr: %lx", value);
+            push(value);
             break;
 
         case DW_OP_deref:
-            value = evalStack.back();
-            evalStack.pop_back();
-            evalStack.push_back(dereferencePointer(value));
+            value = pop<uint64_t>();
+            push(dereferencePointer(value));
             printf ("DW_OP_deref");
             break;
+        case DW_OP_xderef:
+            value = pop<uint64_t>();
+            push(dereferencePointer(value));
+            printf ("DW_OP_xderef");
+            break;
 
-        case DW_OP_const1u:
-            value = start.next<uint8_t>();
-            evalStack.push_back(value);
-            printf ("DW_OP_const1u: %lu", value);
+        case DW_OP_const1u: decodeConstant<uint8_t>(1, 'u'); break;
+        case DW_OP_const1s: decodeConstant<int8_t>(1, 's'); break;
+        case DW_OP_const2u: decodeConstant<uint16_t>(2, 'u'); break;
+        case DW_OP_const2s: decodeConstant<int16_t>(2, 's'); break;
+        case DW_OP_const4u: decodeConstant<uint32_t>(4, 'u'); break;
+        case DW_OP_const4s: decodeConstant<int32_t>(4, 's'); break;
+        case DW_OP_const8u: decodeConstant<uint64_t>(8, 'u'); break;
+        case DW_OP_const8s: decodeConstant<int64_t>(8, 's'); break;
+        case DW_OP_constu: {
+            uint64_t value = start.nextUleb128();
+            push(value);
+            LOG0(11, "DW_OP_constu: " << value);
             break;
-        case DW_OP_const1s:
-            svalue = start.next<int8_t>();
-            evalStack.push_back(svalue);
-            printf ("DW_OP_const1s: %ld", svalue);
+        }
+        case DW_OP_consts: {
+            int64_t svalue = start.nextSleb128();
+            push(svalue);
+            LOG0(11, "DW_OP_consts: " << value);
             break;
-        case DW_OP_const2u:
-            value = start.next<uint16_t>();
-            evalStack.push_back(value);
-            printf ("DW_OP_const2u: %lu", value);
-            break;
-        case DW_OP_const2s:
-            svalue = start.next<int16_t>();
-            evalStack.push_back(svalue);
-            printf ("DW_OP_const2s: %ld", svalue);
-            break;
-        case DW_OP_const4u:
-            value = start.next<uint32_t>();
-            evalStack.push_back(value);
-            printf ("DW_OP_const4u: %lu", value);
-            break;
-        case DW_OP_const4s:
-            svalue = start.next<int32_t>();
-            evalStack.push_back(svalue);
-            printf ("DW_OP_const4s: %ld", svalue);
-            break;
-        case DW_OP_const8u:
-            value = start.next<uint64_t>();
-            evalStack.push_back(value);
-            printf ("DW_OP_const8u: %lu %lu", value & 0xFFFFFFFF00000000, value & 0x00000000FFFFFFFF);
-            break;
-        case DW_OP_const8s:
-            svalue = (int32_t)start.next<uint64_t>();
-            evalStack.push_back(svalue);
-            printf ("DW_OP_const8s: %ld %ld", svalue & 0xFFFFFFFF00000000, svalue & 0x00000000FFFFFFFF);
-            break;
-        case DW_OP_constu:
-            value = start.nextUleb128();
-            evalStack.push_back(value);
-            printf ("DW_OP_constu: %lu", value);
-            break;
-        case DW_OP_consts:
-            svalue = start.nextSleb128();
-            evalStack.push_back(svalue);
-            printf ("DW_OP_consts: %ld", svalue);
-            break;
+        }
 
         case DW_OP_dup:
             value = evalStack.back();
-            evalStack.push_back(value);
+            push(value);
             printf ("DW_OP_dup");
             break;
-
         case DW_OP_drop:
-            evalStack.pop_back();
+            pop<uint64_t>();
             printf ("DW_OP_drop");
             break;
-
         case DW_OP_over:
             value = evalStack[evalStack.size() - 2];
             evalStack.push_back(value);
             printf ("DW_OP_over");
             break;
-
         case DW_OP_pick:
             reg = start.next<uint8_t>();
             value = evalStack[evalStack.size() - 1 - reg];
-            evalStack.push_back(value);
+            push(value);
             printf ("DW_OP_pick: %ld", (uint64_t)reg);
             break;
-
         case DW_OP_swap:
             value = evalStack[evalStack.size() - 1];
             evalStack[evalStack.size() - 1] = evalStack[evalStack.size() - 2];
             evalStack[evalStack.size() - 2] = value;
             printf ("DW_OP_swap");
             break;
-
         case DW_OP_rot:
             value = evalStack[evalStack.size() - 1];
             evalStack[evalStack.size() - 1] = evalStack[evalStack.size() - 2];
@@ -196,75 +222,63 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             printf ("DW_OP_rot");
             break;
 
-        case DW_OP_xderef:
-            value = evalStack.back();
-            evalStack.pop_back();
-            evalStack.push_back(dereferencePointer(value));
-            printf ("DW_OP_xderef");
-            break;
-
         case DW_OP_abs:
             svalue = evalStack.back();
-            if ( svalue < 0 )
-            {
+            if(svalue < 0) {
                 evalStack.back() = -svalue;
             }
             printf ("DW_OP_abs");
             break;
+        case DW_OP_neg:
+            evalStack.back() = -evalStack.back();
+            printf ("DW_OP_neg");
+            break;
+        case DW_OP_not:
+            evalStack.back() = ~evalStack.back();
+            printf ("DW_OP_not");
+            break;
 
         case DW_OP_and:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() &= value;
             printf ("DW_OP_and");
             break;
-
+        case DW_OP_or:
+            value = pop<uint64_t>();
+            evalStack.back() |= value;
+            printf ("DW_OP_or");
+            break;
+        case DW_OP_xor:
+            value = pop<uint64_t>();
+            evalStack.back() ^= value;
+            printf ("DW_OP_xor");
+            break;
         case DW_OP_div:
-            svalue = evalStack.back(); evalStack.pop_back();
+            svalue = pop<int64_t>();
             evalStack.back() = evalStack.back() / svalue;
             printf ("DW_OP_div");
             break;
-
         case DW_OP_minus:
-            svalue = evalStack.back(); evalStack.pop_back();
+            svalue = pop<int64_t>();
             evalStack.back() = evalStack.back() - svalue;
             printf ("DW_OP_minus");
             break;
-
         case DW_OP_mod:
-            svalue = evalStack.back(); evalStack.pop_back();
+            svalue = pop<int64_t>();
             evalStack.back() = evalStack.back() % svalue;
             printf ("DW_OP_mod");
             break;
-
         case DW_OP_mul:
-            svalue = evalStack.back(); evalStack.pop_back();
+            svalue = pop<int64_t>();
             evalStack.back() = evalStack.back() * svalue;
             printf ("DW_OP_mul");
             break;
 
-        case DW_OP_neg:
-            evalStack.back() =  0 - evalStack.back();
-            printf ("DW_OP_neg");
-            break;
-
-        case DW_OP_not:
-            svalue = evalStack.back();
-            evalStack.back() =  ~svalue;
-            printf ("DW_OP_not");
-            break;
-
-        case DW_OP_or:
-            value = evalStack.back(); evalStack.pop_back();
-            evalStack.back() |= value;
-            printf ("DW_OP_or");
-            break;
-
-        case DW_OP_plus:
-            value = evalStack.back(); evalStack.pop_back();
+        case DW_OP_plus:  // !!! shouldn't this be signed?
+            value = pop<uint64_t>();
             evalStack.back() += value;
             printf ("DW_OP_plus");
             break;
-
         case DW_OP_plus_uconst:
             // pop stack, add uelb128 constant, push result
             value = start.nextUleb128();
@@ -273,28 +287,20 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             break;
 
         case DW_OP_shl:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = evalStack.back() << value;
             printf ("DW_OP_shl");
             break;
-
         case DW_OP_shr:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = evalStack.back() >> value;
             printf ("DW_OP_shr");
             break;
-
         case DW_OP_shra:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             svalue = evalStack.back();
             evalStack.back() = svalue >> value;
             printf ("DW_OP_shra");
-            break;
-
-        case DW_OP_xor:
-            value = evalStack.back(); evalStack.pop_back();
-            evalStack.back() ^= value;
-            printf ("DW_OP_xor");
             break;
 
         case DW_OP_skip:
@@ -302,7 +308,6 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             start.skip(svalue);
             printf ("DW_OP_skip: %ld", svalue);
             break;
-
         case DW_OP_bra:
             svalue = start.next<int16_t>();
             if(evalStack.size() > 0) {
@@ -313,110 +318,62 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             break;
 
         case DW_OP_eq:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() == value);
             printf ("DW_OP_eq");
             break;
         case DW_OP_ge:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() >= value);
             printf ("DW_OP_ge");
             break;
         case DW_OP_gt:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() > value);
             printf ("DW_OP_gt");
             break;
         case DW_OP_le:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() <= value);
             printf ("DW_OP_le");
             break;
         case DW_OP_lt:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() < value);
             printf ("DW_OP_lt");
             break;
         case DW_OP_ne:
-            value = evalStack.back(); evalStack.pop_back();
+            value = pop<uint64_t>();
             evalStack.back() = (evalStack.back() != value);
             printf ("DW_OP_ne");
             break;
 
-        case DW_OP_lit0:
-        case DW_OP_lit1:
-        case DW_OP_lit2:
-        case DW_OP_lit3:
-        case DW_OP_lit4:
-        case DW_OP_lit5:
-        case DW_OP_lit6:
-        case DW_OP_lit7:
-        case DW_OP_lit8:
-        case DW_OP_lit9:
-        case DW_OP_lit10:
-        case DW_OP_lit11:
-        case DW_OP_lit12:
-        case DW_OP_lit13:
-        case DW_OP_lit14:
-        case DW_OP_lit15:
-        case DW_OP_lit16:
-        case DW_OP_lit17:
-        case DW_OP_lit18:
-        case DW_OP_lit19:
-        case DW_OP_lit20:
-        case DW_OP_lit21:
-        case DW_OP_lit22:
-        case DW_OP_lit23:
-        case DW_OP_lit24:
-        case DW_OP_lit25:
-        case DW_OP_lit26:
-        case DW_OP_lit27:
-        case DW_OP_lit28:
-        case DW_OP_lit29:
-        case DW_OP_lit30:
-        case DW_OP_lit31:
+        case DW_OP_lit0: case DW_OP_lit1: case DW_OP_lit2: case DW_OP_lit3:
+        case DW_OP_lit4: case DW_OP_lit5: case DW_OP_lit6: case DW_OP_lit7:
+        case DW_OP_lit8: case DW_OP_lit9: case DW_OP_lit10: case DW_OP_lit11:
+        case DW_OP_lit12: case DW_OP_lit13: case DW_OP_lit14: case DW_OP_lit15:
+        case DW_OP_lit16: case DW_OP_lit17: case DW_OP_lit18: case DW_OP_lit19:
+        case DW_OP_lit20: case DW_OP_lit21: case DW_OP_lit22: case DW_OP_lit23:
+        case DW_OP_lit24: case DW_OP_lit25: case DW_OP_lit26: case DW_OP_lit27:
+        case DW_OP_lit28: case DW_OP_lit29: case DW_OP_lit30: case DW_OP_lit31:
             value = opcode - DW_OP_lit0;
-            evalStack.push_back(value);
+            push(value);
             printf ("DW_OP_lit%ld", value);
             break;
 
-        case DW_OP_reg0:
-        case DW_OP_reg1:
-        case DW_OP_reg2:
-        case DW_OP_reg3:
-        case DW_OP_reg4:
-        case DW_OP_reg5:
-        case DW_OP_reg6:
-        case DW_OP_reg7:
-        case DW_OP_reg8:
-        case DW_OP_reg9:
-        case DW_OP_reg10:
-        case DW_OP_reg11:
-        case DW_OP_reg12:
-        case DW_OP_reg13:
-        case DW_OP_reg14:
-        case DW_OP_reg15:
-        case DW_OP_reg16:
-        case DW_OP_reg17:
-        case DW_OP_reg18:
-        case DW_OP_reg19:
-        case DW_OP_reg20:
-        case DW_OP_reg21:
-        case DW_OP_reg22:
-        case DW_OP_reg23:
-        case DW_OP_reg24:
-        case DW_OP_reg25:
-        case DW_OP_reg26:
-        case DW_OP_reg27:
-        case DW_OP_reg28:
-        case DW_OP_reg29:
-        case DW_OP_reg30:
-        case DW_OP_reg31:
+        case DW_OP_reg0: case DW_OP_reg1: case DW_OP_reg2: case DW_OP_reg3:
+        case DW_OP_reg4: case DW_OP_reg5: case DW_OP_reg6: case DW_OP_reg7:
+        case DW_OP_reg8: case DW_OP_reg9: case DW_OP_reg10: case DW_OP_reg11:
+        case DW_OP_reg12: case DW_OP_reg13: case DW_OP_reg14: case DW_OP_reg15:
+        case DW_OP_reg16: case DW_OP_reg17: case DW_OP_reg18: case DW_OP_reg19:
+        case DW_OP_reg20: case DW_OP_reg21: case DW_OP_reg22: case DW_OP_reg23:
+        case DW_OP_reg24: case DW_OP_reg25: case DW_OP_reg26: case DW_OP_reg27:
+        case DW_OP_reg28: case DW_OP_reg29: case DW_OP_reg30: case DW_OP_reg31:
             reg = opcode - DW_OP_reg0;
             //TODO: Not sure about the following operation
             //Using offsets for now, but might need to use values or
             //something else completely
-            evalStack.push_back(state->get(reg).getOffset());
+            push(state->get(reg).getOffset());
             printf ("DW_OP_reg%ld", reg);
             break;
 
@@ -425,48 +382,24 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             //TODO: Not sure about the following operation
             //Using offsets for now, but might need to use values or
             //something else completely
-            evalStack.push_back(state->get(reg).getOffset());
+            push(state->get(reg).getOffset());
             printf ("DW_OP_regx: %lu", reg);
             break;          
 
-        case DW_OP_breg0:
-        case DW_OP_breg1:
-        case DW_OP_breg2:
-        case DW_OP_breg3:
-        case DW_OP_breg4:
-        case DW_OP_breg5:
-        case DW_OP_breg6:
-        case DW_OP_breg7:
-        case DW_OP_breg8:
-        case DW_OP_breg9:
-        case DW_OP_breg10:
-        case DW_OP_breg11:
-        case DW_OP_breg12:
-        case DW_OP_breg13:
-        case DW_OP_breg14:
-        case DW_OP_breg15:
-        case DW_OP_breg16:
-        case DW_OP_breg17:
-        case DW_OP_breg18:
-        case DW_OP_breg19:
-        case DW_OP_breg20:
-        case DW_OP_breg21:
-        case DW_OP_breg22:
-        case DW_OP_breg23:
-        case DW_OP_breg24:
-        case DW_OP_breg25:
-        case DW_OP_breg26:
-        case DW_OP_breg27:
-        case DW_OP_breg28:
-        case DW_OP_breg29:
-        case DW_OP_breg30:
-        case DW_OP_breg31:
+        case DW_OP_breg0: case DW_OP_breg1: case DW_OP_breg2: case DW_OP_breg3:
+        case DW_OP_breg4: case DW_OP_breg5: case DW_OP_breg6: case DW_OP_breg7:
+        case DW_OP_breg8: case DW_OP_breg9: case DW_OP_breg10: case DW_OP_breg11:
+        case DW_OP_breg12: case DW_OP_breg13: case DW_OP_breg14: case DW_OP_breg15:
+        case DW_OP_breg16: case DW_OP_breg17: case DW_OP_breg18: case DW_OP_breg19:
+        case DW_OP_breg20: case DW_OP_breg21: case DW_OP_breg22: case DW_OP_breg23:
+        case DW_OP_breg24: case DW_OP_breg25: case DW_OP_breg26: case DW_OP_breg27:
+        case DW_OP_breg28: case DW_OP_breg29: case DW_OP_breg30: case DW_OP_breg31:
             reg = opcode - DW_OP_breg0;
             svalue = start.nextSleb128();
             //TODO: Not sure about the following operation
             //Using offsets for now, but might need to use values or
             //something else completely
-            evalStack.push_back(state->get(reg).getOffset() + svalue);
+            push(state->get(reg).getOffset() + svalue);
             printf ("DW_OP_breg%ld (%s): %ld", reg, shortRegisterName(reg), svalue);
             break;
 
@@ -476,20 +409,8 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
             //TODO: Not sure about the following operation
             //Using offsets for now, but might need to use values or
             //something else completely
-            evalStack.push_back(state->get(reg).getOffset() + svalue);
+            push(state->get(reg).getOffset() + svalue);
             printf ("DW_OP_bregx: %lu %ld", reg, svalue);
-            break;
-
-        case DW_OP_fbreg:
-            //TODO:FATAL
-            printf("DW_OP_fbreg is not supported");
-            exit(1);
-            break;
-
-        case DW_OP_piece:
-            //TODO:FATAL
-            printf("DW_OP_piece is not supported");
-            exit(1);
             break;
 
         case DW_OP_deref_size:
@@ -515,6 +436,8 @@ static uint64_t decodeExpression(DwarfCursor start, DwarfState *state) {
         case DW_OP_call2:
         case DW_OP_call4:
         case DW_OP_call_ref:
+        case DW_OP_piece:
+        case DW_OP_fbreg:
         default:
             //TODO:FATAL
             printf("DW_OP_* is not supported");
@@ -696,7 +619,7 @@ DwarfState *DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end,
         case DW_CFA_def_cfa_expression:
             //TODO: Complete this decoding
             printf("  DW_CFA_def_cfa_expression (");
-            decodeExpression(start, state);
+            DwarfExpressionDecoder(start, state).decode();
             printf(")\n");
             state->setCfaExpression(start.getCursor());
             ul = start.nextUleb128();
@@ -709,7 +632,7 @@ DwarfState *DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end,
             //TODO: Complete this decoding
             printf("  DW_CFA_expression: %s (",
                 getRegisterName(reg).c_str());
-            decodeExpression(start, state);
+            DwarfExpressionDecoder(start, state).decode();
             printf(")\n");
             ul = start.nextUleb128();
             start.skip(ul);
@@ -720,7 +643,7 @@ DwarfState *DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end,
             //TODO: Complete this decoding
             printf("  DW_CFA_val_expression: %s (",
                     getRegisterName(reg).c_str());
-            decodeExpression(start, state);
+            DwarfExpressionDecoder(start, state).decode();
             printf (")\n");
             ul = start.nextUleb128();
             state->set(reg, DW_CFA_val_expression, state->get(reg).getOffset());
