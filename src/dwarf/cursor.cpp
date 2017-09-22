@@ -38,7 +38,7 @@ uint8_t *DwarfCursor::nextString() {
     return str;
 }
 
-int64_t DwarfCursor::nextEncodedPointer(uint8_t encoding) {
+int64_t DwarfCursor::parseNextEncodedPointer(uint8_t encoding) {
     int64_t result = 0;
 
     if(encoding == DW_EH_PE_omit) return 0;

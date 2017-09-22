@@ -10,13 +10,13 @@ private:
     address_t cursor;
 public:
     DwarfCursor(address_t start) : start(start), cursor(start) {} 
-    address_t getBeginning() const { return start; }
+    address_t getStart() const { return start; }
+    address_t getCursor() const { return cursor; }
     size_t getOffset() const { return cursor - start; }
 
     int64_t nextSleb128();
     uint64_t nextUleb128();
     uint8_t *nextString();
-    int64_t nextEncodedPointer(uint8_t encoding);
     void skip(size_t bytes) { this->cursor += bytes; }
 
     bool operator < (const DwarfCursor &other) const
@@ -27,13 +27,20 @@ public:
         e = next<ElementType>();
         return *this;
     }
-private:
+
+    template <typename ElementType>
+    ElementType nextEncodedPointer(uint8_t encoding) {
+        return static_cast<ElementType>(parseNextEncodedPointer(encoding));
+    }
+
     template <typename ElementType>
     ElementType next() {
         auto e = get<ElementType>();
         cursor += sizeof(ElementType);
         return e;
     }
+private:
+    int64_t parseNextEncodedPointer(uint8_t encoding);
 
     template <typename ElementType>
     ElementType get() const {

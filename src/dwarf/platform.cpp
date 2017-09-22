@@ -2,6 +2,7 @@
 #include "platform.h"
 
 static const char *registerNames[] = {
+#ifdef ARCH_X86_64
     "rax", "rdx", "rcx", "rbx",
     "rsi", "rdi", "rbp", "rsp",
     "r8",  "r9",  "r10", "r11",
@@ -20,6 +21,9 @@ static const char *registerNames[] = {
     "fs.base", "gs.base", "", "",
     "tr", "ldtr",
     "mxcsr", "fcw", "fsw"
+#else
+    // please put aarch64 register names here, in DWARF order
+#endif
 };
 
 std::string getRegisterName(unsigned int reg) {

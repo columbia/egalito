@@ -7,7 +7,10 @@
 #include "cursor.h"
 #include "defines.h"
 
-class CommonInformationEntry;
+class ElfMap;
+
+class DwarfCIE;
+class DwarfFDE;
 
 #define NUM_REGISTERS 17
 
@@ -25,21 +28,21 @@ typedef struct dwarf_state_t {
     size_t cfaExpressionLength;
 } dwarf_state_t;
 
-class EhFrame {
+/** Parses DWARF information from a .eh_frame section. */
+class DwarfParser {
 private:
-    address_t map;
-    Elf64_Shdr *ehSectionHeader;
-    address_t ehSectionStartAddress;
-    address_t ehSectionShAddr;
-    address_t ehSectionEndAddress;
-    uint64_t sectionOffset;
-    uint64_t sizeInBytes;
-    std::vector<CommonInformationEntry> cies;
+    std::vector<DwarfCIE> cies;
     std::unordered_map<address_t, uint64_t> cieMap;
+    dwarf_state_t *rememberedState;
 public:
-    EhFrame(address_t map, address_t ehSectionHeader);
-    bool getCIEIndex(address_t startAddress, uint64_t *cieIndex);
-    void parseEhFrame();
+    DwarfParser(ElfMap *elfMap);
+
+    DwarfCIE *getCIE(size_t cieIndex);
+private:
+    void parse(address_t readAddress, address_t virtualAddress,
+        size_t virtualSize);
+    DwarfFDE *parseFDE(DwarfCursor start, size_t cieIndex,
+        address_t readAddress, address_t virtualAddress);
 };
 
 #endif

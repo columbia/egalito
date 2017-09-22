@@ -1,104 +1,78 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 #include "parser.h"
-#include "string.h"
+#include "entry.h"
+#include "platform.h"
+#include "elf/elfmap.h"
+#include "log/log.h"
 
-#if 0
-EhFrame::EhFrame(address_t map, address_t ehSectionHeader) {
-    this->map = map;
-    this->ehSectionHeader = (Elf64_Shdr*) ehSectionHeader;
-    this->sizeInBytes = this->ehSectionHeader->sh_size;
-    this->sectionOffset = this->ehSectionHeader->sh_offset;
-    this->ehSectionStartAddress = map + this->sectionOffset;
-    this->ehSectionShAddr = this->ehSectionHeader->sh_addr;
-    this->ehSectionEndAddress = this->ehSectionStartAddress + this->sizeInBytes;
+DwarfParser::DwarfParser(ElfMap *elfMap) {
+    ElfSection *section = elfMap->findSection(".eh_frame");
 
-    parseEhFrame();
+    if(section) {
+        parse(section->getReadAddress(), section->getVirtualAddress(),
+            section->getSize());
+    }
+    else {
+        LOG(0, "WARNING: no .eh_frame section present in ELF file!");
+    }
 }
 
+DwarfCIE *DwarfParser::getCIE(uint64_t cieIndex) {
+    assert(cieIndex < cies.size());
+    return &cies[cieIndex];
+}
 
-void EhFrame::parseEhFrame() {
-    Cursor start(ehSectionStartAddress);
-    Cursor end(ehSectionEndAddress);
+void DwarfParser::parse(address_t readAddress, address_t virtualAddress,
+    size_t virtualSize) {
+
+    DwarfCursor start(virtualAddress);
+    DwarfCursor end(virtualAddress + virtualSize);
     uint64_t indexOfCIEinVector = 0;
-    state_t* rememberedState = NULL;
 
-    /********************
-     * DEBUG
-     * ******************/
-    printf("Contents of the .eh_frame section:\n");
+    LOG(10, "Contents of the .eh_frame section:");
 
-    while (start < end)
-    {
+    while(start < end) {
         uint64_t length = start.next<uint32_t>();
         uint64_t entryLength = length + 4;
-
-        if (length == 0xffffffff)
-        {
-            //This means that the length is in the next 8 bytes
-            start>>length;
+        if(length == 0xfffffffful) {
+            // the length is in the next 8 bytes
+            start >> length;
             entryLength = length + 8;
         }
 
-        if (length == 0)
-        {
-            printf ("\n%08lx ZERO terminator\n\n\n",
-                    start.getBeginning() - ehSectionStartAddress);
+        if(length == 0) {
+            CLOG(10, "\n%08lx ZERO terminator\n\n", start.getStart() - virtualAddress);
             break;
         }
 
-        uint32_t entryID = start.get<uint32_t>();
+        DwarfCursor startOfEntry(start.getCursor());
+        uint32_t entryID = start.next<uint32_t>();
 
-        if (entryID == 0)
-        {
-            //Parse CIE
+        if(entryID == 0) {  // it's a CIE
+            CommonInformationEntry cie(start, entryLength, length, indexOfCIEinVector, ehSectionStartAddress);
 
-            //Move start 4 bytes ahead
-            start.skip(4);
-
-            try
-            {
-                CommonInformationEntry cie(start, entryLength, length, indexOfCIEinVector, ehSectionStartAddress, &rememberedState);
-
-                cies.push_back(cie);
-                cieMap.insert(std::make_pair(start.getBeginning(), indexOfCIEinVector++));
-
-            }
-            catch (const std::runtime_error& exception)
-            {
-                PRINT_EXCEPTION(exception);
-            }
-            catch(...)
-            {
-                PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-            }
+            cies.push_back(cie);
+            cieMap.insert(std::make_pair(start.getBeginning(), indexOfCIEinVector++));
         }
-        else
-        {
-            uint64_t cieIndex;
+        else {  // it's an FDE within the given CIE
+            auto it = cieMap.find(startOfEntry.getCursor() - entryID);
+            if(it != cieMap.end()) {
+                uint64_t cieIndex = (*it).second;
 
-            if (getCIEIndex(start.getBeginning() + start.getOffset() - entryID, &cieIndex))
-            {
-                //Move start 4 bytes ahead
-                start.skip(4);
+                DwarfFDE *fde = parseFDE(start, cieIndex, readAddress, virtualAddress);
 
-                try
-                {
-                    FrameDescriptorEntry fde(start, entryLength, length, entryID, &cies[cieIndex], cieIndex, ehSectionStartAddress, ehSectionShAddr, &rememberedState);
+                /*FrameDescriptorEntry fde(start, length, entryID,
+                    &cies[cieIndex], cieIndex, ehSectionStartAddress, ehSectionShAddr);*/
 
-                }
-                catch (const std::runtime_error& exception)
-                {
-                    PRINT_EXCEPTION(exception);
-                }
-                catch(...)
-                {
-                    PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-                }
+            }
+            else {
+                LOG(1, "WARNING: unknown CIE index in FDE definition");
             }
         }
 
-        start = Cursor(start.getBeginning() + entryLength);
+        start = DwarfCursor(start.getBeginning() + entryLength);
     }
 }
 
@@ -106,27 +80,30 @@ void EhFrame::parseEhFrame() {
  * INSTRUCTION PARSING 
  * **********************/
 
+#define OPCODE_LOG(format, ...) \
+    CLOG(11, format, __VA_ARGS__)
+using std::printf;  // hack for now
+using std::exit;  // hack for now
+
 static uint64_t dereferencePointer(uint64_t pointer) {
     return *(reinterpret_cast<uint64_t *>(pointer));
 }
 
-uint64_t decodeExpression(Cursor start, dwarf_state_t *state) {
+static uint64_t decodeExpression(DwarfCursor start, dwarf_state_t *state) {
     uint64_t length = start.nextUleb128();
-    Cursor end = start;
+    DwarfCursor end = start;
     end.skip(length);
     std::vector<uint64_t> evalStack;
     evalStack.reserve(100);
 
-    while (start < end)
-    {
-        uint8_t opcode;
-        start>>opcode;
+    while (start < end) {
+        uint8_t opcode = start.next<uint8_t>();
         int64_t svalue;
         uint64_t value;
         uint64_t reg;
         switch (opcode) {
             case DW_OP_addr:
-                start>>value;
+                start >> value;
                 printf ("DW_OP_addr: %lx",
                         value);
                 evalStack.push_back(value);
@@ -347,8 +324,7 @@ uint64_t decodeExpression(Cursor start, dwarf_state_t *state) {
 
             case DW_OP_bra:
                 svalue = start.next<int16_t>();
-                if (evalStack.size() > 0)
-                {
+                if(evalStack.size() > 0) {
                     evalStack.pop_back();
                     start.skip(svalue);
                 }
@@ -545,22 +521,22 @@ uint64_t decodeExpression(Cursor start, dwarf_state_t *state) {
                 value = evalStack.back(); evalStack.pop_back();
                 printf ("DW_OP_deref_size: %lu", value);
                 switch (start.next<uint8_t>()) {
-                    case 1:
-                        value = start.next<uint8_t>();
-                        break;
-                    case 2:
-                        value = start.next<uint16_t>();
-                        break;
-                    case 4:
-                        value = start.next<uint32_t>();
-                        break;
-                    case 8:
-                        value = start.next<uint64_t>();
-                        break;
-                    default:
-                        //TODO:FATAL
-                        printf("Invalid size in DW_OP_deref_size");
-                        exit(1);
+                case 1:
+                    value = start.next<uint8_t>();
+                    break;
+                case 2:
+                    value = start.next<uint16_t>();
+                    break;
+                case 4:
+                    value = start.next<uint32_t>();
+                    break;
+                case 8:
+                    value = start.next<uint64_t>();
+                    break;
+                default:
+                    //TODO:FATAL
+                    printf("Invalid size in DW_OP_deref_size");
+                    exit(1);
                 }
                 evalStack.push_back(value);
                 break;
@@ -584,316 +560,284 @@ uint64_t decodeExpression(Cursor start, dwarf_state_t *state) {
     return evalStack.back();
 }
 
-void Entry::parseInstructions(Cursor start, Cursor end, CommonInformationEntry* cie, state_t *state, uint64_t cfaIp, state_t** rememberedState) throw (const std::runtime_error)
+void DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end, CommonInformationEntry* cie, state_t *state, uint64_t cfaIp)
 {
-    uint64_t codeAlignFactor = cie->getCodeAlignFactor();
-    uint64_t dataAlignFactor = cie->getDataAlignFactor();
-    uint8_t opcode;
-    uint64_t op;
+    const uint64_t codeAlignFactor = cie->getCodeAlignFactor();
+    const uint64_t dataAlignFactor = cie->getDataAlignFactor();
     uint64_t ul, reg, registerOffset;
     int64_t l, ofs;
     uint64_t nextIp;
-    state_t* rState= NULL;
 
     memcpy(state, &(cie->state), sizeof(state_t));
 
-    while (start < end)
-    {
-        start>>opcode;
+    while(start < end) {
+        uint8_t opcode;
+        start >> opcode;
 
-        op = opcode & 0x3f;
+        uint64_t op = opcode & 0x3f;
 
-        if (opcode & 0xc0)
-        {
+        if(opcode & 0xc0) {
             opcode &= 0xc0;
         }
 
-        switch (opcode)
-        {
-            case DW_CFA_advance_loc:
-                nextIp = cfaIp + op * codeAlignFactor; 
-                printf("  DW_CFA_advance_loc: %ld to %016lx\n", op * codeAlignFactor, nextIp);
-                cfaIp = nextIp;
-                break;
+        switch (opcode) {
+        case DW_CFA_advance_loc:
+            nextIp = cfaIp + op * codeAlignFactor; 
+            printf("  DW_CFA_advance_loc: %ld to %016lx\n", op * codeAlignFactor, nextIp);
+            cfaIp = nextIp;
+            break;
 
-            case DW_CFA_offset:
-                registerOffset = start.nextUleb128();
-                printf("  DW_CFA_offset: %s at cfa%+ld\n", getRegisterName(op).c_str(), registerOffset * dataAlignFactor);
-                state->registers[op].type = DW_CFA_offset;
-                state->registers[op].offset = registerOffset * dataAlignFactor;
-                break;
+        case DW_CFA_offset:
+            registerOffset = start.nextUleb128();
+            printf("  DW_CFA_offset: %s at cfa%+ld\n", getRegisterName(op).c_str(), registerOffset * dataAlignFactor);
+            state->registers[op].type = DW_CFA_offset;
+            state->registers[op].offset = registerOffset * dataAlignFactor;
+            break;
 
-            case DW_CFA_restore:
-                printf ("  DW_CFA_restore: %s\n", getRegisterName(op).c_str());
-                state->registers[op].type = cie->state.registers[op].type;
-                state->registers[op].offset  = cie->state.registers[op].offset;
-                break;
+        case DW_CFA_restore:
+            printf ("  DW_CFA_restore: %s\n", getRegisterName(op).c_str());
+            state->registers[op].type = cie->state.registers[op].type;
+            state->registers[op].offset  = cie->state.registers[op].offset;
+            break;
 
-            case DW_CFA_set_loc:
-                try
-                {
-                    cfaIp = start.nextEncodedPointer<int64_t>(cie->getCodeEnc());
-                }
-                catch (const std::runtime_error& exception)
-                {
-                    RETHROW_RUNTIME_ERROR(exception);
-                }
-                catch (...)
-                {
-                    PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-                }
-                printf ("  DW_CFA_set_loc: %08lx\n", cfaIp);
-                break;
+        case DW_CFA_set_loc:
+            cfaIp = start.nextEncodedPointer<int64_t>(cie->getCodeEnc());
+            printf ("  DW_CFA_set_loc: %08lx\n", cfaIp);
+            break;
 
-            case DW_CFA_advance_loc1:
-                ofs = start.next<uint8_t>();
-                nextIp = cfaIp + ofs * codeAlignFactor;
+        case DW_CFA_advance_loc1:
+            ofs = start.next<uint8_t>();
+            nextIp = cfaIp + ofs * codeAlignFactor;
 
-                printf("  DW_CFA_advance_loc1: %ld to %016lx\n",
-                        ofs * codeAlignFactor,
-                        nextIp);
-                cfaIp = nextIp;
-                break;
+            printf("  DW_CFA_advance_loc1: %ld to %016lx\n",
+                    ofs * codeAlignFactor,
+                    nextIp);
+            cfaIp = nextIp;
+            break;
 
-            case DW_CFA_advance_loc2:
-                ofs = start.next<uint16_t>();
-                nextIp = cfaIp + ofs * codeAlignFactor;
+        case DW_CFA_advance_loc2:
+            ofs = start.next<uint16_t>();
+            nextIp = cfaIp + ofs * codeAlignFactor;
 
-                printf("  DW_CFA_advance_loc2: %ld to %016lx\n",
-                        ofs * codeAlignFactor,
-                        nextIp);
-                cfaIp = nextIp;
-                break;
+            printf("  DW_CFA_advance_loc2: %ld to %016lx\n",
+                    ofs * codeAlignFactor,
+                    nextIp);
+            cfaIp = nextIp;
+            break;
 
-            case DW_CFA_advance_loc4:
-                ofs = start.next<uint32_t>();
-                nextIp = cfaIp + ofs * codeAlignFactor;
+        case DW_CFA_advance_loc4:
+            ofs = start.next<uint32_t>();
+            nextIp = cfaIp + ofs * codeAlignFactor;
 
-                printf("  DW_CFA_advance_loc4: %ld to %016lx\n",
-                        ofs * codeAlignFactor,
-                        nextIp);
-                cfaIp = nextIp;
-                break;
+            printf("  DW_CFA_advance_loc4: %ld to %016lx\n",
+                    ofs * codeAlignFactor,
+                    nextIp);
+            cfaIp = nextIp;
+            break;
 
-            case DW_CFA_offset_extended:
-                reg = start.nextUleb128();
-                registerOffset = start.nextUleb128();
-                printf("  DW_CFA_offset_extended: %s at cfa%+ld\n",
-                        getRegisterName(reg).c_str(),
-                        registerOffset * dataAlignFactor);
-                state->registers[reg].type = DW_CFA_offset;
-                state->registers[reg].offset = registerOffset * dataAlignFactor;
-                break;
+        case DW_CFA_offset_extended:
+            reg = start.nextUleb128();
+            registerOffset = start.nextUleb128();
+            printf("  DW_CFA_offset_extended: %s at cfa%+ld\n",
+                    getRegisterName(reg).c_str(),
+                    registerOffset * dataAlignFactor);
+            state->registers[reg].type = DW_CFA_offset;
+            state->registers[reg].offset = registerOffset * dataAlignFactor;
+            break;
 
-            case DW_CFA_val_offset:
-                reg = start.nextUleb128();
-                registerOffset = start.nextUleb128();
-                printf("  DW_CFA_val_offset: %s at cfa%+ld\n",
-                        getRegisterName(reg).c_str(),
-                        registerOffset * dataAlignFactor);
-                state->registers[reg].type = DW_CFA_val_offset;
-                state->registers[reg].offset     = registerOffset * dataAlignFactor;
-                break;
+        case DW_CFA_val_offset:
+            reg = start.nextUleb128();
+            registerOffset = start.nextUleb128();
+            printf("  DW_CFA_val_offset: %s at cfa%+ld\n",
+                    getRegisterName(reg).c_str(),
+                    registerOffset * dataAlignFactor);
+            state->registers[reg].type = DW_CFA_val_offset;
+            state->registers[reg].offset     = registerOffset * dataAlignFactor;
+            break;
 
-            case DW_CFA_restore_extended:
-                reg = start.nextUleb128();
-                printf("  DW_CFA_restore_extended: %s\n",
-                        getRegisterName(reg).c_str());
-                state->registers[reg].type = cie->state.registers[reg].type;
-                state->registers[reg].offset = cie->state.registers[reg].offset;
-                break;
+        case DW_CFA_restore_extended:
+            reg = start.nextUleb128();
+            printf("  DW_CFA_restore_extended: %s\n",
+                    getRegisterName(reg).c_str());
+            state->registers[reg].type = cie->state.registers[reg].type;
+            state->registers[reg].offset = cie->state.registers[reg].offset;
+            break;
 
-            case DW_CFA_undefined:
-                reg = start.nextUleb128();
-                printf("  DW_CFA_undefined: %s\n",
-                        getRegisterName(reg).c_str());
-                state->registers[reg].type = DW_CFA_undefined;
-                state->registers[reg].offset = 0;
-                break;
+        case DW_CFA_undefined:
+            reg = start.nextUleb128();
+            printf("  DW_CFA_undefined: %s\n",
+                    getRegisterName(reg).c_str());
+            state->registers[reg].type = DW_CFA_undefined;
+            state->registers[reg].offset = 0;
+            break;
 
-            case DW_CFA_same_value:
-                reg = start.nextUleb128();
-                printf("  DW_CFA_same_value: %s\n",
-                        getRegisterName(reg).c_str());
-                state->registers[reg].type = DW_CFA_same_value;
-                state->registers[reg].offset = 0;
-                break;
+        case DW_CFA_same_value:
+            reg = start.nextUleb128();
+            printf("  DW_CFA_same_value: %s\n",
+                    getRegisterName(reg).c_str());
+            state->registers[reg].type = DW_CFA_same_value;
+            state->registers[reg].offset = 0;
+            break;
 
-            case DW_CFA_register:
-                reg = start.nextUleb128();
-                registerOffset = start.nextUleb128();
-                printf("  DW_CFA_register: %s in %s\n",
-                        getRegisterName(reg).c_str(), getRegisterName(registerOffset).c_str());
-                state->registers[reg].type = DW_CFA_register;
-                state->registers[reg].offset = registerOffset;
-                break;
+        case DW_CFA_register:
+            reg = start.nextUleb128();
+            registerOffset = start.nextUleb128();
+            printf("  DW_CFA_register: %s in %s\n",
+                    getRegisterName(reg).c_str(), getRegisterName(registerOffset).c_str());
+            state->registers[reg].type = DW_CFA_register;
+            state->registers[reg].offset = registerOffset;
+            break;
 
-            case DW_CFA_remember_state:
-                printf("  DW_CFA_remember_state\n");
-                rState = new state_t();
-                memcpy (rState, state, sizeof(state_t));
-                rState->next = *rememberedState;
-                *rememberedState = rState;
-                break;
+        case DW_CFA_remember_state: {
+            printf("  DW_CFA_remember_state\n");
+            auto tempState = new state_t();
+            memcpy(tempState, state, sizeof(state_t));
+            tempState->next = rememberedState;
+            *rememberedState = tempState;
+            break;
+        }
+        case DW_CFA_restore_state: {
+            printf("  DW_CFA_restore_state\n");
+            if(auto tempState = rememberedState) {
+                rememberedState = tempState->next;
+                memcpy(state, tempState, sizeof(state_t));
+                delete tempState;
+            }
+            break;
+        }
 
-            case DW_CFA_restore_state:
-                printf("  DW_CFA_restore_state\n");
-                rState = *rememberedState;
-                if (rState)
-                {
-                    *rememberedState = rState->next;
-                    memcpy(state, rState, sizeof(state_t));
-                    delete rState;
-                }
-                break;
+        case DW_CFA_def_cfa:
+            state->cfaRegister = start.nextUleb128();
+            state->cfaOffset = start.nextUleb128();
+            state->cfaExpression = 0;
+            printf("  DW_CFA_def_cfa: %s ofs %ld\n",
+                    getRegisterName(state->cfaRegister).c_str(), state->cfaOffset);
+            break;
 
-            case DW_CFA_def_cfa:
-                state->cfaRegister = start.nextUleb128();
-                state->cfaOffset = start.nextUleb128();
-                state->cfaExpression = 0;
-                printf("  DW_CFA_def_cfa: %s ofs %ld\n",
-                        getRegisterName(state->cfaRegister).c_str(), state->cfaOffset);
-                break;
+        case DW_CFA_def_cfa_register:
+            state->cfaRegister = start.nextUleb128();
+            state->cfaExpression = 0;
+            printf("  DW_CFA_def_cfa_register: %s\n",
+                    getRegisterName(state->cfaRegister).c_str());
+            break;
 
-            case DW_CFA_def_cfa_register:
-                state->cfaRegister = start.nextUleb128();
-                state->cfaExpression = 0;
-                printf("  DW_CFA_def_cfa_register: %s\n",
-                        getRegisterName(state->cfaRegister).c_str());
-                break;
+        case DW_CFA_def_cfa_offset:
+            state->cfaOffset = start.nextUleb128();
+            printf("  DW_CFA_def_cfa_offset: %ld\n", state->cfaOffset);
+            break;
 
-            case DW_CFA_def_cfa_offset:
-                state->cfaOffset = start.nextUleb128();
-                printf("  DW_CFA_def_cfa_offset: %ld\n", state->cfaOffset);
-                break;
+        case DW_CFA_nop:
+            printf("  DW_CFA_nop\n");
+            break;
 
-            case DW_CFA_nop:
-                printf("  DW_CFA_nop\n");
-                break;
+        case DW_CFA_def_cfa_expression:
+            //TODO: Complete this decoding
+            printf ("  DW_CFA_def_cfa_expression (");
+            decodeExpression(start, state);
+            printf (")\n");
+            state->cfaExpression = start.getBeginning() + start.getOffset();
+            ul = start.nextUleb128();
+            start.skip(ul);
+            break;
 
-            case DW_CFA_def_cfa_expression:
-                //TODO: Complete this decoding
-                printf ("  DW_CFA_def_cfa_expression (");
-                decodeExpression(start, state);
-                printf (")\n");
-                state->cfaExpression = start.getBeginning() + start.getOffset();
-                ul = start.nextUleb128();
-                start.skip(ul);
-                break;
+        case DW_CFA_expression:
+            reg = start.nextUleb128();
+            state->registers[reg].type = DW_CFA_expression;
+            state->registers[reg].offset = start.getBeginning() + start.getOffset();
+            //TODO: Complete this decoding
+            printf ("  DW_CFA_expression: %s (",
+                    getRegisterName(reg).c_str());
+            decodeExpression(start, state);
+            printf (")\n");
+            ul = start.nextUleb128();
+            start.skip(ul);
+            break;
 
-            case DW_CFA_expression:
-                reg = start.nextUleb128();
-                state->registers[reg].type = DW_CFA_expression;
-                state->registers[reg].offset = start.getBeginning() + start.getOffset();
-                //TODO: Complete this decoding
-                printf ("  DW_CFA_expression: %s (",
-                        getRegisterName(reg).c_str());
-                decodeExpression(start, state);
-                printf (")\n");
-                ul = start.nextUleb128();
-                start.skip(ul);
-                break;
+        case DW_CFA_val_expression:
+            reg = start.nextUleb128();
+            //TODO: Complete this decoding
+            printf ("  DW_CFA_val_expression: %s (",
+                    getRegisterName(reg).c_str());
+            decodeExpression(start, state);
+            printf (")\n");
+            ul = start.nextUleb128();
+            state->registers[reg].type = DW_CFA_val_expression;
+            start.skip(ul);
+            break;
 
-            case DW_CFA_val_expression:
-                reg = start.nextUleb128();
-                //TODO: Complete this decoding
-                printf ("  DW_CFA_val_expression: %s (",
-                        getRegisterName(reg).c_str());
-                decodeExpression(start, state);
-                printf (")\n");
-                ul = start.nextUleb128();
-                state->registers[reg].type = DW_CFA_val_expression;
-                start.skip(ul);
-                break;
+        case DW_CFA_offset_extended_sf:
+            reg = start.nextUleb128();
+            l = start.nextSleb128();
+            printf("  DW_CFA_offset_extended_sf: %s at cfa%+ld\n",
+                    getRegisterName(reg).c_str(),
+                    l * dataAlignFactor);
+            state->registers[reg].type = DW_CFA_offset;
+            state->registers[reg].offset = l * dataAlignFactor;
+            break;
 
-            case DW_CFA_offset_extended_sf:
-                reg = start.nextUleb128();
-                l = start.nextSleb128();
-                printf("  DW_CFA_offset_extended_sf: %s at cfa%+ld\n",
-                        getRegisterName(reg).c_str(),
-                        l * dataAlignFactor);
-                state->registers[reg].type = DW_CFA_offset;
-                state->registers[reg].offset = l * dataAlignFactor;
-                break;
+        case DW_CFA_val_offset_sf:
+            reg = start.nextUleb128();
+            l = start.nextSleb128();
+            printf("  DW_CFA_val_offset_sf: %s at cfa%+ld\n",
+                    getRegisterName(reg).c_str(),
+                    l * dataAlignFactor);
+            state->registers[reg].type = DW_CFA_val_offset;
+            state->registers[reg].offset = l * dataAlignFactor;
+            break;
 
-            case DW_CFA_val_offset_sf:
-                reg = start.nextUleb128();
-                l = start.nextSleb128();
-                printf("  DW_CFA_val_offset_sf: %s at cfa%+ld\n",
-                        getRegisterName(reg).c_str(),
-                        l * dataAlignFactor);
-                state->registers[reg].type = DW_CFA_val_offset;
-                state->registers[reg].offset = l * dataAlignFactor;
-                break;
+        case DW_CFA_def_cfa_sf:
+            state->cfaRegister = start.nextUleb128();
+            state->cfaOffset = start.nextSleb128();
+            state->cfaOffset = state->cfaOffset * dataAlignFactor;
+            state->cfaExpression = 0;
+            printf("  DW_CFA_def_cfa_sf: %s ofs %ld\n",
+                    getRegisterName(state->cfaRegister).c_str(), state->cfaOffset);
+            break;
 
-            case DW_CFA_def_cfa_sf:
-                state->cfaRegister = start.nextUleb128();
-                state->cfaOffset = start.nextSleb128();
-                state->cfaOffset = state->cfaOffset * dataAlignFactor;
-                state->cfaExpression = 0;
-                printf("  DW_CFA_def_cfa_sf: %s ofs %ld\n",
-                        getRegisterName(state->cfaRegister).c_str(), state->cfaOffset);
-                break;
+        case DW_CFA_def_cfa_offset_sf:
+            state->cfaOffset = start.nextSleb128();
+            state->cfaOffset = state->cfaOffset * dataAlignFactor;
+            printf("  DW_CFA_def_cfa_offset_sf: %ld\n", state->cfaOffset);
+            break;
 
-            case DW_CFA_def_cfa_offset_sf:
-                state->cfaOffset = start.nextSleb128();
-                state->cfaOffset = state->cfaOffset * dataAlignFactor;
-                printf("  DW_CFA_def_cfa_offset_sf: %ld\n", state->cfaOffset);
-                break;
+        case DW_CFA_MIPS_advance_loc8:
+            ofs = start.next<uint64_t>();
+            printf("  DW_CFA_MIPS_advance_loc8: %ld to %016lx\n",
+                    ofs * codeAlignFactor,
+                    cfaIp + ofs * codeAlignFactor);
+            cfaIp += ofs * codeAlignFactor;
+            break;
 
-            case DW_CFA_MIPS_advance_loc8:
-                ofs = start.next<uint64_t>();
-                printf("  DW_CFA_MIPS_advance_loc8: %ld to %016lx\n",
-                        ofs * codeAlignFactor,
-                        cfaIp + ofs * codeAlignFactor);
-                cfaIp += ofs * codeAlignFactor;
-                break;
+        case DW_CFA_GNU_window_save:
+            printf("  DW_CFA_GNU_window_save\n");
+            break;
 
-            case DW_CFA_GNU_window_save:
-                printf("  DW_CFA_GNU_window_save\n");
-                break;
+        case DW_CFA_GNU_args_size:
+            ul = start.nextUleb128();
+            printf("  DW_CFA_GNU_args_size: %ld\n", ul);
+            break;
 
-            case DW_CFA_GNU_args_size:
-                ul = start.nextUleb128();
-                printf("  DW_CFA_GNU_args_size: %ld\n", ul);
-                break;
+        case DW_CFA_GNU_negative_offset_extended:
+            reg = start.nextUleb128();
+            l = - start.nextUleb128();
+            printf("  DW_CFA_GNU_negative_offset_extended: %s at cfa%+ld\n",
+                    getRegisterName(reg).c_str(),
+                    l * dataAlignFactor);
+            state->registers[reg].type = DW_CFA_offset;
+            state->registers[reg].offset = l * dataAlignFactor;
+            break;
 
-            case DW_CFA_GNU_negative_offset_extended:
-                reg = start.nextUleb128();
-                l = - start.nextUleb128();
-                printf("  DW_CFA_GNU_negative_offset_extended: %s at cfa%+ld\n",
-                        getRegisterName(reg).c_str(),
-                        l * dataAlignFactor);
-                state->registers[reg].type = DW_CFA_offset;
-                state->registers[reg].offset = l * dataAlignFactor;
-                break;
-
-            default:
-                printf("  DW_CFA_??? (User defined call frame opcode: %#x)\n", opcode);
-                start = end;
+        default:
+            printf("  DW_CFA_??? (User defined call frame opcode: %#x)\n", opcode);
+            start = end;
         }
     }
-}
-
-/*****************
- * END
- * ***********/
-bool EhFrame::getCIEIndex(address_t startAddress, uint64_t *cieIndex)
-{
-    auto cieIndexInVector = cieMap.find(startAddress);
-    if (cieIndexInVector != cieMap.end())
-    {
-        *cieIndex = cieIndexInVector->second;
-        return true;
-    }
-
-    return false;
 }
 
 /*********************************
  * Class CommonInformationEntry
  * ******************************/
-CommonInformationEntry::CommonInformationEntry(Cursor start, uint64_t entryLength, uint64_t length, uint64_t index, address_t ehSectionStartAddress, state_t** rememberedState) throw (const std::runtime_error)
+CommonInformationEntry::CommonInformationEntry(DwarfCursor start, uint64_t entryLength, uint64_t length, uint64_t index, address_t ehSectionStartAddress)
 {
     this->startAddress = start.getBeginning();
     this->cieId = 0;
@@ -903,89 +847,57 @@ CommonInformationEntry::CommonInformationEntry(Cursor start, uint64_t entryLengt
     this->codeEnc = 0;
     this->lsdaEnc = DW_EH_PE_omit;
     this->isSignal = false;
-    this->augmentationSectionExistsInFDEs= false;
     this->entryLength = entryLength;
     this->length = length;
     this->index = index;
-    try
-    {
-        parseCIE(start, ehSectionStartAddress, rememberedState);
-    }
-    catch (const std::runtime_error& exception)
-    {
-        RETHROW_RUNTIME_ERROR(exception);
-    }
-    catch (...)
-    {
-        PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-    }
+    parseCIE(start, ehSectionStartAddress);
 }
 
-void CommonInformationEntry::parseCIE(Cursor start, address_t ehSectionStartAddress, state_t** rememberedState) throw (const std::runtime_error)
-{
-    start>>version;
+void CommonInformationEntry::parseCIE(DwarfCursor start, address_t virtualAddress, uint64_t index) {
+    DwarfCIE *cie = new DwarfCIE(start.getStart(), length, index);
+    start >> version;
 
-    if (version != 1 && version != 3)
-    {
-        THROW_RUNTIME_ERROR("Version not 1 or 3");
+    if(version != 1 && version != 3) {
+        LOG(1, "ERROR: Dwarf version number is not 1 or 3");
+        return;
     }
 
-    cieAugmentationString = start.nextString();
+    auto cieAugmentationString = start.nextString();
 
     codeAlignFactor = start.nextUleb128(); 
     dataAlignFactor = start.nextSleb128();
 
     retAddressReg = start.nextUleb128();
 
-    augmentationSectionExistsInFDEs = false;
-
-    if (*cieAugmentationString != '\0')
-    {
-        if (*cieAugmentationString != 'z')
-        {
-            THROW_RUNTIME_ERROR("Augmentation String is not a zero byte and does not start with z");
+    if(*cieAugmentationString) {
+        if(*cieAugmentationString != 'z') {
+            LOG(1, "ERROR: Augmentation string should start with '\\0' or 'z'");
+            return;
         }
-
-        augmentationSectionExistsInFDEs = true;
 
         augmentationSectionLength = start.nextUleb128();
 
-        uint8_t *cieAugmentationStringPtrCopy = cieAugmentationString + 1;
-        char ch;
-
-        while ((ch = *(cieAugmentationStringPtrCopy++)))
-        {
-            switch(ch)
-            {
-                case 'L':
-                    start>>lsdaEnc;
-                    break;
-                case 'P':
-                    start>>personalityEncoding;
-                    try
-                    {
-                        personalityEncodingRoutine = start.nextEncodedPointer<uint64_t>(personalityEncoding);
-                    }
-                    catch (const std::runtime_error& exception)
-                    {
-                        RETHROW_RUNTIME_ERROR(exception);
-                    }
-                    catch (...)
-                    {
-                        PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-                    }
-
-                    break;
-                case 'R':
-                    start>>codeEnc;
-                    break;
-                case 'S':
-                    isSignal = true;
-                    break;
-                default:
-                    break;
+        for(uint8_t *ptr = cieAugmentationString + 1; *ptr; ptr ++) {
+            switch(static_cast<char>(*ptr)) {
+            case 'L':
+                start >> lsdaEnc;
+                break;
+            case 'P':
+                start >> personalityEncoding;
+                personalityEncodingRoutine = start.nextEncodedPointer<uint64_t>(personalityEncoding);
+                break;
+            case 'R':
+                start >> codeEnc;
+                break;
+            case 'S':
+                isSignal = true;
+                break;
+            default:
+                break;
             }
         }
+
+        Augmentation *augmentation = new Augmentation(augmentationSectionLength);
     }
 
     /********************
@@ -1000,14 +912,11 @@ void CommonInformationEntry::parseCIE(Cursor start, address_t ehSectionStartAddr
     printf ("  Return address column: %lu\n", getRetAddressReg());
     printf("\n");
 
-    parseInstructions(start, Cursor(start.getBeginning() + entryLength), this, &(this->state), 0, rememberedState); 
+    parseInstructions(start, DwarfCursor(start.getBeginning() + entryLength), this, &(this->state), 0); 
 }
 
-
-/*********************************
- * Class FrameDescriptorEntry 
- * ******************************/
-FrameDescriptorEntry::FrameDescriptorEntry(Cursor start, uint64_t entryLength, uint64_t length, uint32_t ciePointer,  CommonInformationEntry* cie, uint64_t cieIndex, address_t ehSectionStartAddress, address_t ehSectionShAddr, state_t** rememberedState) throw (const std::runtime_error)
+#if 0
+FrameDescriptorEntry::FrameDescriptorEntry(DwarfCursor start, uint64_t entryLength, uint64_t length, uint32_t ciePointer,  CommonInformationEntry* cie, uint64_t cieIndex, address_t ehSectionStartAddress, address_t ehSectionShAddr)
 {
     this->startAddress = start.getBeginning();
     this->entryLength = entryLength;
@@ -1015,78 +924,27 @@ FrameDescriptorEntry::FrameDescriptorEntry(Cursor start, uint64_t entryLength, u
     this->ciePointer = ciePointer;
     this->cieIndex = cieIndex;
 
-    if ((*cie).getIndex() == cieIndex)
-    {
-        try
-        {
-            parseFDE(start, cie, ehSectionStartAddress, ehSectionShAddr, rememberedState);
-        }
-        catch (const std::runtime_error& exception)
-        {
-            RETHROW_RUNTIME_ERROR(exception);
-        }
-        catch (...)
-        {
-            PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-        }
-    }
-    else
-    {
-        THROW_RUNTIME_ERROR("CIE Index mismatch!");
-    }
+    assert(cie->getIndex() == cieIndex);
+    parseFDE(start, cie, ehSectionStartAddress, ehSectionShAddr);
 }
+#endif
 
-void FrameDescriptorEntry::parseFDE(Cursor start, CommonInformationEntry *cie, address_t ehSectionStartAddress, address_t ehSectionShAddr, state_t** rememberedState) throw (const std::runtime_error)
-{
+DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, uint64_t cieIndex,
+    address_t readAddress, address_t virtualAddress) {
 
-    try
-    {
-        pcBegin = start.nextEncodedPointer<int64_t>((*cie).getCodeEnc()) + ehSectionShAddr;
-    }
-    catch (const std::runtime_error& exception)
-    {
-        RETHROW_RUNTIME_ERROR(exception);
-    }
-    catch (...)
-    {
-        PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-    }
+    DwarfCIE *cie = getCIE(cieIndex);
+    DwarfFDE *fde = new DwarfFDE(start.getStart(), length, cieIndex);
 
-    //Intentionally made two separate try blocks to find out which statement caused the error
-    try
-    {
-        pcRange = start.nextEncodedPointer<uint64_t>((*cie).getCodeEnc() & 0x0F);
-    }
-    catch (const std::runtime_error& exception)
-    {
-        RETHROW_RUNTIME_ERROR(exception);
-    }
-    catch (...)
-    {
-        PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-    }
+    fde->setPcBegin(start.nextEncodedPointer<int64_t>(
+        cie->getCodeEnc()) + virtualAddress);
+    fde->setPcRange(start.nextEncodedPointer<uint64_t>(
+        cie->getCodeEnc() & 0x0F));
 
-    if ((*cie).doFDEsHaveAugmentationSection())
-    {
-        augmentationSectionLength = start.nextUleb128();
+    if(cie->doFDEsHaveAugmentationSection()) {
+        size_t augLength = start.nextUleb128();
 
-
-        if ((*cie).getLsdaEnc() != DW_EH_PE_omit)
-        {
-            try
-            {
-                lsdaPointer =  start.nextEncodedPointer<uint64_t>((*cie).getLsdaEnc()); 
-            }
-            catch (const std::runtime_error& exception)
-            {
-                RETHROW_RUNTIME_ERROR(exception);
-            }
-            catch (...)
-            {
-                PRINT_UNHANDLED_EXCEPTION_ERROR_MESSAGE_AND_ABORT;
-            }
-        }
-
+        // will be set to 0 if the LSDA encoding is DW_EH_PE_omit
+        lsdaPointer = start.nextEncodedPointer<uint64_t>(cie->getLsdaEnc());
     }
 
     /********************
@@ -1097,6 +955,7 @@ void FrameDescriptorEntry::parseFDE(Cursor start, CommonInformationEntry *cie, a
             (cie->getCieStartAddress() - ehSectionStartAddress),
             (getPcBegin() - ehSectionStartAddress), 
             (getPcBegin() - ehSectionStartAddress) + getPcRange());
-    parseInstructions(start, Cursor(start.getBeginning() + entryLength), cie, &(this->state), (getPcBegin() - ehSectionStartAddress), rememberedState); 
+    parseInstructions(start, DwarfCursor(start.getBeginning() + entryLength), cie, &(this->state), (getPcBegin() - ehSectionStartAddress)); 
+
+    return fde;
 }
-#endif
