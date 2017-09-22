@@ -31,7 +31,7 @@ private:
     DwarfCIE *parseCIE(DwarfCursor start, DwarfCursor end, uint64_t length,
         uint64_t index);
     DwarfFDE *parseFDE(DwarfCursor start, DwarfCursor end, uint64_t length,
-        size_t cieIndex);
+        size_t cieIndex, uint32_t entryID);
 };
 
 #endif

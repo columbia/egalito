@@ -15,6 +15,7 @@
 #include "pass/stackxor.h"
 #include "pass/noppass.h"
 #include "pass/detectnullptr.h"
+#include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -312,4 +313,10 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         DetectNullPtrPass detectNull;
         setup->getConductor()->acceptInAllModules(&detectNull, true);
     }, "runs DetectNullPtrPass to instrument indirect calls");
+
+    topLevel->add("dwarf", [&] (Arguments args) {
+        args.shouldHave(0);
+        auto elf = setup->getConductor()->getMainSpace()->getElfMap();
+        DwarfParser parser(elf);
+    }, "parses DWARF unwind info for the main ELF file");
 }

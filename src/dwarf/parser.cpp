@@ -8,7 +8,9 @@
 #include "elf/elfmap.h"
 #include "log/log.h"
 
-DwarfParser::DwarfParser(ElfMap *elfMap) : info(nullptr) {
+DwarfParser::DwarfParser(ElfMap *elfMap) : info(nullptr),
+    rememberedState(nullptr) {
+
     ElfSection *section = elfMap->findSection(".eh_frame");
 
     if(section) {
@@ -23,8 +25,8 @@ DwarfParser::DwarfParser(ElfMap *elfMap) : info(nullptr) {
 
 void DwarfParser::parse(size_t virtualSize) {
     info = new DwarfUnwindInfo();
-    DwarfCursor start(virtualAddress);
-    DwarfCursor end(virtualAddress + virtualSize);
+    DwarfCursor start(readAddress);
+    DwarfCursor end(readAddress + virtualSize);
 
     LOG(10, "Contents of the .eh_frame section:");
 
@@ -38,7 +40,8 @@ void DwarfParser::parse(size_t virtualSize) {
         }
 
         if(length == 0) {
-            CLOG(10, "\n%08lx ZERO terminator\n\n", start.getStart() - virtualAddress);
+            CLOG(10, "\n%08lx ZERO terminator\n\n",
+                start.getStart() - readAddress);
             break;
         }
 
@@ -54,7 +57,8 @@ void DwarfParser::parse(size_t virtualSize) {
         else {  // it's an FDE within the given CIE
             uint64_t cieIndex;
             if(info->findCIE(startOfEntry.getCursor() - entryID, &cieIndex)) {
-                DwarfFDE *fde = parseFDE(start, endOfEntry, length, cieIndex);
+                DwarfFDE *fde = parseFDE(start, endOfEntry, length, cieIndex,
+                    entryID);
                 info->addFDE(fde);
             }
             else {
@@ -651,7 +655,7 @@ DwarfState *DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end,
             printf("  DW_CFA_remember_state\n");
             auto tempState = new DwarfState(*state);
             tempState->setNext(rememberedState);
-            *rememberedState = *tempState;
+            rememberedState = tempState;
             break;
         }
         case DW_CFA_restore_state: {
@@ -855,10 +859,11 @@ DwarfCIE *DwarfParser::parseCIE(DwarfCursor start, DwarfCursor end,
 }
 
 DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, DwarfCursor end,
-    uint64_t length, uint64_t cieIndex) {
+    uint64_t length, uint64_t cieIndex, uint32_t entryID) {
 
     DwarfCIE *cie = info->getCIE(cieIndex);
     DwarfFDE *fde = new DwarfFDE(start.getStart(), length, cieIndex);
+    fde->setCiePointer(entryID);
 
     uint8_t codeEnc = cie->getAugmentation()
         ? cie->getAugmentation()->getCodeEnc() : 0;
