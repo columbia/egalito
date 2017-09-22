@@ -10,28 +10,28 @@ class ElfMap;
 
 class DwarfCIE;
 class DwarfFDE;
+class DwarfUnwindInfo;
 class DwarfState;
 
 /** Parses DWARF information from a .eh_frame section. */
 class DwarfParser {
 private:
-    std::vector<DwarfCIE *> cieList;
-    std::vector<DwarfFDE *> fdeList;
-    std::unordered_map<address_t, uint64_t> cieMap;
+    DwarfUnwindInfo *info;
+    address_t readAddress;
+    address_t virtualAddress;
     DwarfState *rememberedState;
 public:
     DwarfParser(ElfMap *elfMap);
 
-    DwarfCIE *getCIE(size_t cieIndex);
+    DwarfUnwindInfo *getUnwindInfo() const { return info; }
 private:
-    void parse(address_t readAddress, address_t virtualAddress,
-        size_t virtualSize);
+    void parse(size_t virtualSize);
     DwarfState *parseInstructions(DwarfCursor start, DwarfCursor end,
         DwarfCIE *cie, uint64_t cfaIp);
-    DwarfCIE *parseCIE(DwarfCursor start, address_t readAddress,
-        address_t virtualAddress, uint64_t length, uint64_t index);
-    DwarfFDE *parseFDE(DwarfCursor start, size_t cieIndex,
-        address_t readAddress, address_t virtualAddress);
+    DwarfCIE *parseCIE(DwarfCursor start, DwarfCursor end, uint64_t length,
+        uint64_t index);
+    DwarfFDE *parseFDE(DwarfCursor start, DwarfCursor end, uint64_t length,
+        size_t cieIndex);
 };
 
 #endif

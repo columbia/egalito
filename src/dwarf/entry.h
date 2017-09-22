@@ -1,6 +1,8 @@
 #ifndef EGALITO_DWARF_ENTRY_H
 #define EGALITO_DWARF_ENTRY_H
 
+#include <vector>
+#include <unordered_map>
 #include "types.h"
 
 class DwarfState;
@@ -66,8 +68,6 @@ public:
     void setAugmentation(Augmentation *augmentation)
         { this->augmentation = augmentation; }
     Augmentation *getAugmentation() const { return augmentation; }
-    bool doFDEsHaveAugmentationSection() const
-        { return augmentation != nullptr; }
 
     void setCodeAlignFactor(uint64_t codeAlignFactor)
         { this->codeAlignFactor = codeAlignFactor; }
@@ -114,6 +114,20 @@ public:
     uint32_t getCiePointer() const { return ciePointer; }
     uint64_t getPcRange() const { return pcRange; }
     int64_t getPcBegin() const { return pcBegin; }
+};
+
+class DwarfUnwindInfo {
+private:
+    std::vector<DwarfCIE *> cieList;
+    std::vector<DwarfFDE *> fdeList;
+    std::unordered_map<address_t, uint64_t> cieMap;
+public:
+    void addCIE(DwarfCIE *cie);
+    void addFDE(DwarfFDE *fde);
+
+    uint64_t getCIECount() const { return cieList.size(); }
+    bool findCIE(address_t address, uint64_t *index);
+    DwarfCIE *getCIE(size_t cieIndex);
 };
 
 #endif

@@ -8,26 +8,21 @@
 #include "elf/elfmap.h"
 #include "log/log.h"
 
-DwarfParser::DwarfParser(ElfMap *elfMap) {
+DwarfParser::DwarfParser(ElfMap *elfMap) : info(nullptr) {
     ElfSection *section = elfMap->findSection(".eh_frame");
 
     if(section) {
-        parse(section->getReadAddress(), section->getVirtualAddress(),
-            section->getSize());
+        this->readAddress = section->getReadAddress();
+        this->virtualAddress = section->getVirtualAddress();
+        parse(section->getSize());
     }
     else {
         LOG(0, "WARNING: no .eh_frame section present in ELF file!");
     }
 }
 
-DwarfCIE *DwarfParser::getCIE(uint64_t cieIndex) {
-    assert(cieIndex < cieList.size());
-    return cieList[cieIndex];
-}
-
-void DwarfParser::parse(address_t readAddress, address_t virtualAddress,
-    size_t virtualSize) {
-
+void DwarfParser::parse(size_t virtualSize) {
+    info = new DwarfUnwindInfo();
     DwarfCursor start(virtualAddress);
     DwarfCursor end(virtualAddress + virtualSize);
 
@@ -47,31 +42,27 @@ void DwarfParser::parse(address_t readAddress, address_t virtualAddress,
             break;
         }
 
-        DwarfCursor startOfEntry(start.getCursor());
+        DwarfCursor startOfEntry{start.getCursor()};
+        DwarfCursor endOfEntry{start.getStart() + entryLength};
         uint32_t entryID = start.next<uint32_t>();
 
         if(entryID == 0) {  // it's a CIE
-            const uint64_t cieIndex = cieList.size();
-            DwarfCIE *cie = parseCIE(start, readAddress, virtualAddress,
-                length, cieIndex);
-
-            cieList.push_back(cie);
-            cieMap[start.getStart()] = cieIndex;
+            const uint64_t cieIndex = info->getCIECount();
+            DwarfCIE *cie = parseCIE(start, endOfEntry, length, cieIndex);
+            info->addCIE(cie);
         }
         else {  // it's an FDE within the given CIE
-            auto it = cieMap.find(startOfEntry.getCursor() - entryID);
-            if(it != cieMap.end()) {
-                const uint64_t cieIndex = (*it).second;
-                DwarfFDE *fde = parseFDE(start, cieIndex, readAddress, virtualAddress);
-
-                fdeList.push_back(fde);
+            uint64_t cieIndex;
+            if(info->findCIE(startOfEntry.getCursor() - entryID, &cieIndex)) {
+                DwarfFDE *fde = parseFDE(start, endOfEntry, length, cieIndex);
+                info->addFDE(fde);
             }
             else {
                 LOG(1, "WARNING: unknown CIE index in FDE definition");
             }
         }
 
-        start = DwarfCursor(start.getStart() + entryLength);
+        start = endOfEntry;
     }
 }
 
@@ -799,8 +790,8 @@ DwarfState *DwarfParser::parseInstructions(DwarfCursor start, DwarfCursor end,
     return state;
 }
 
-DwarfCIE *DwarfParser::parseCIE(DwarfCursor start, address_t readAddress,
-    address_t virtualAddress, uint64_t length, uint64_t index) {
+DwarfCIE *DwarfParser::parseCIE(DwarfCursor start, DwarfCursor end,
+    uint64_t length, uint64_t index) {
 
     DwarfCIE *cie = new DwarfCIE(start.getStart(), length, index);
 
@@ -823,7 +814,7 @@ DwarfCIE *DwarfParser::parseCIE(DwarfCursor start, address_t readAddress,
 
         auto augmentation = new DwarfCIE::Augmentation();
 
-        const auto augmentationLength = start.nextUleb128();  // not used
+        start.nextUleb128();  // skip the augmentation length
         for(uint8_t *ptr = cieAugmentationString + 1; *ptr; ptr ++) {
             switch(static_cast<char>(*ptr)) {
             case 'P':
@@ -858,28 +849,29 @@ DwarfCIE *DwarfParser::parseCIE(DwarfCursor start, address_t readAddress,
     printf("  Return address column: %lu\n", cie->getRetAddressReg());
     printf("\n");
 
-    DwarfCursor where{start.getStart() + entryLength};
-    auto state = parseInstructions(start, where, cie, 0);
+    auto state = parseInstructions(start, end, cie, 0);
     cie->setState(state);
     return cie;
 }
 
-DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, uint64_t cieIndex,
-    address_t readAddress, address_t virtualAddress) {
+DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, DwarfCursor end,
+    uint64_t length, uint64_t cieIndex) {
 
-    DwarfCIE *cie = getCIE(cieIndex);
+    DwarfCIE *cie = info->getCIE(cieIndex);
     DwarfFDE *fde = new DwarfFDE(start.getStart(), length, cieIndex);
 
-    fde->setPcBegin(start.nextEncodedPointer<int64_t>(
-        cie->getCodeEnc()) + virtualAddress);
-    fde->setPcRange(start.nextEncodedPointer<uint64_t>(
-        cie->getCodeEnc() & 0x0F));
+    uint8_t codeEnc = cie->getAugmentation()
+        ? cie->getAugmentation()->getCodeEnc() : 0;
 
-    if(cie->doFDEsHaveAugmentationSection()) {
-        const auto augmentationLength = start.nextUleb128();  // not used
+    fde->setPcBegin(start.nextEncodedPointer<int64_t>(codeEnc) + virtualAddress);
+    fde->setPcRange(start.nextEncodedPointer<uint64_t>(codeEnc & 0x0f));
+
+    if(cie->getAugmentation()) {  // if CIE has augmentation, so do FDEs
+        start.nextUleb128();  // skip the augmentation length
 
         // will be set to 0 if the LSDA encoding is DW_EH_PE_omit
-        const auto lsdaPointer = start.nextEncodedPointer<uint64_t>(cie->getLsdaEnc());
+        const auto lsdaPointer = start.nextEncodedPointer<uint64_t>(
+            cie->getAugmentation()->getLsdaEnc());
 
         fde->setAugmentation(new DwarfFDE::Augmentation(lsdaPointer));
     }
@@ -890,8 +882,7 @@ DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, uint64_t cieIndex,
         cie->getStartAddress() - readAddress,
         fde->getPcBegin() - readAddress, 
         fde->getPcBegin() - readAddress + fde->getPcRange());
-    DwarfCursor where{start.getStart() + entryLength};
-    auto state = parseInstructions(start, where, cie, fde->getPcBegin() - readAddress);
+    auto state = parseInstructions(start, end, cie, fde->getPcBegin() - readAddress);
     fde->setState(state);
     return fde;
 }
