@@ -13,21 +13,22 @@ class DwarfFDE;
 class DwarfUnwindInfo;
 class DwarfState;
 
-/** Parses DWARF information from a .eh_frame section. */
+/** Parses DWARF information from a .eh_frame section.
+
+    Note: if debugging info is enabled, this class prints out DWARF
+    information in the same format as `objdump -g`.
+*/
 class DwarfParser {
 private:
     DwarfUnwindInfo *info;
     address_t readAddress;
     address_t virtualAddress;
-    DwarfState *rememberedState;
 public:
     DwarfParser(ElfMap *elfMap);
 
     DwarfUnwindInfo *getUnwindInfo() const { return info; }
 private:
     void parse(size_t virtualSize);
-    DwarfState *parseInstructions(DwarfCursor start, DwarfCursor end,
-        DwarfCIE *cie, uint64_t cfaIp);
     DwarfCIE *parseCIE(DwarfCursor start, DwarfCursor end, uint64_t length,
         uint64_t index);
     DwarfFDE *parseFDE(DwarfCursor start, DwarfCursor end, uint64_t length,
