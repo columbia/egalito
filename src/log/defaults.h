@@ -9,6 +9,7 @@
 #define D_chunk         9
 #define D_conductor     9
 #define D_disasm        9
+#define D_dwarf         9
 #define D_elf           9
 #define D_generate      9
 #define D_instr         9

@@ -8,6 +8,7 @@ BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 CONDUCTOR_SOURCES   = $(wildcard conductor/*.cpp)
 DISASM_SOURCES      = $(wildcard disasm/*.cpp)
+DWARF_SOURCES       = $(wildcard dwarf/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 GENERATE_SOURCES    = $(wildcard generate/*.cpp)
 INSTR_SOURCES       = $(wildcard instr/*.cpp)
@@ -37,7 +38,8 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
 		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
-		$(OPERATION_SOURCES) snippet/logcall.S load/emulator.cpp load/segmap.cpp
+		$(OPERATION_SOURCES) $(DWARF_SOURCES) \
+		snippet/logcall.S load/emulator.cpp load/segmap.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
 TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
