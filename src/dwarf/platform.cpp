@@ -36,3 +36,8 @@ std::string getRegisterName(unsigned int reg) {
 
     return stream.str();
 }
+
+const char *shortRegisterName(unsigned int reg) {
+    return (reg <= sizeof(registerNames)/sizeof(*registerNames))
+        ? registerNames[reg] : "(unknown)";
+}

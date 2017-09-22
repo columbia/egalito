@@ -1,7 +1,6 @@
 #ifndef EGALITO_DWARF_PARSER_H
 #define EGALITO_DWARF_PARSER_H
 
-#include <elf.h>
 #include <vector>
 #include <unordered_map>
 #include "cursor.h"
@@ -11,29 +10,15 @@ class ElfMap;
 
 class DwarfCIE;
 class DwarfFDE;
-
-#define NUM_REGISTERS 17
-
-typedef struct {
-    int32_t type;
-    uint64_t offset;
-} register_data_t;
-
-typedef struct dwarf_state_t {
-    register_data_t registers[NUM_REGISTERS];
-    struct dwarf_state_t *next;
-    uint64_t cfaRegister;
-    int64_t cfaOffset;
-    address_t cfaExpression;
-    size_t cfaExpressionLength;
-} dwarf_state_t;
+class DwarfState;
 
 /** Parses DWARF information from a .eh_frame section. */
 class DwarfParser {
 private:
-    std::vector<DwarfCIE> cies;
+    std::vector<DwarfCIE *> cieList;
+    std::vector<DwarfFDE *> fdeList;
     std::unordered_map<address_t, uint64_t> cieMap;
-    dwarf_state_t *rememberedState;
+    DwarfState *rememberedState;
 public:
     DwarfParser(ElfMap *elfMap);
 
@@ -41,6 +26,10 @@ public:
 private:
     void parse(address_t readAddress, address_t virtualAddress,
         size_t virtualSize);
+    DwarfState *parseInstructions(DwarfCursor start, DwarfCursor end,
+        DwarfCIE *cie, uint64_t cfaIp);
+    DwarfCIE *parseCIE(DwarfCursor start, address_t readAddress,
+        address_t virtualAddress, uint64_t length, uint64_t index);
     DwarfFDE *parseFDE(DwarfCursor start, size_t cieIndex,
         address_t readAddress, address_t virtualAddress);
 };

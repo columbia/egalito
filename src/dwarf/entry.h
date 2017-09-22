@@ -3,16 +3,23 @@
 
 #include "types.h"
 
+class DwarfState;
+
 // Base class for Dwarf CIE/FDEs
 class DwarfEntry {
 private:
     address_t startAddress;
     uint64_t length;        // size of CIE structure, excluding length field
+    DwarfState *state;
 public:
     DwarfEntry(address_t startAddress, uint64_t length)
-        : startAddress(startAddress), length(length) {}
+        : startAddress(startAddress), length(length), state(nullptr) {}
+
+    void setState(DwarfState *state) { this->state = state; }
+
     address_t getStartAddress() const { return startAddress; }
     uint64_t getLength() const { return length; }
+    DwarfState *getState() const { return state; }
 };
 
 // Dwarf Common Information Entry (CIE)
@@ -27,7 +34,15 @@ public:
         bool isSignal;
     public:
         Augmentation();
-        uint64_t getAugmentationSectionLength() const { return augLength; }
+
+        void setPersonalityEncoding(uint8_t personalityEncoding)
+            { this->personalityEncoding = personalityEncoding; }
+        void setPersonalityEncodingRoutine(uint64_t personalityEncodingRoutine)
+            { this->personalityEncodingRoutine = personalityEncodingRoutine; }
+        void setCodeEnc(uint8_t codeEnc) { this->codeEnc = codeEnc; }
+        void setLsdaEnc(uint8_t lsdaEnc) { this->lsdaEnc = lsdaEnc; }
+        void setIsSignal(bool isSignal) { this->isSignal = isSignal; }
+
         uint8_t getPersonalityEncoding() const { return personalityEncoding; }
         uint64_t getPersonalityEncodingRoutine() const
             { return personalityEncodingRoutine; }
@@ -38,6 +53,9 @@ public:
 private:
     uint64_t index;
     uint32_t cieId;
+    uint64_t codeAlignFactor;
+    int64_t dataAlignFactor;
+    uint64_t retAddressReg;
 
     Augmentation *augmentation;
 private:
@@ -51,10 +69,14 @@ public:
     bool doFDEsHaveAugmentationSection() const
         { return augmentation != nullptr; }
 
+    void setCodeAlignFactor(uint64_t codeAlignFactor)
+        { this->codeAlignFactor = codeAlignFactor; }
+    void setDataAlignFactor(uint64_t dataAlignFactor)
+        { this->dataAlignFactor = dataAlignFactor; }
+    void setRetAddressReg(uint64_t reg) { retAddressReg = reg; }
+
     uint64_t getIndex() const { return index; }
     uint32_t getCieId() const { return cieId; }
-    uint8_t getVersion() const { return version; }
-    uint8_t *getCieAugmentationString() const { return cieAugmentationString; }
     uint64_t getCodeAlignFactor() const { return codeAlignFactor; }
     int64_t getDataAlignFactor() const { return dataAlignFactor; }
     uint64_t getRetAddressReg() const { return retAddressReg; }

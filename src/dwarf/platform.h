@@ -4,5 +4,6 @@
 #include <string>
 
 std::string getRegisterName(unsigned int reg);
+const char *shortRegisterName(unsigned int reg);
 
 #endif

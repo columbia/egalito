@@ -1,4 +1,5 @@
 #include "entry.h"
+#include "defines.h"
 
 DwarfCIE::Augmentation::Augmentation() {
     this->personalityEncoding = 0;
@@ -12,6 +13,9 @@ DwarfCIE::DwarfCIE(address_t startAddress, uint64_t length, uint64_t index)
     : DwarfEntry(startAddress, length), index(index) {
 
     this->cieId = 0;
+    this->codeAlignFactor = 0;
+    this->dataAlignFactor = 0;
+    this->retAddressReg = 0;
 }
 
 DwarfFDE::DwarfFDE(address_t startAddress, uint64_t length, uint64_t cieIndex)
