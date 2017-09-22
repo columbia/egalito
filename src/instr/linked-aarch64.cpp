@@ -360,7 +360,9 @@ void LinkedInstruction::resolveLinks(Module *module,
     const std::vector<std::pair<Instruction *, address_t>>& list) {
 
     //TemporaryLogLevel tll("instr", 10);
-    for(auto [instruction, address] : list) {
+    for(auto it : list) {
+        auto instruction = it.first;
+        auto address = it.second;
         LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
@@ -387,7 +389,9 @@ void LinkedInstruction::saveToFile(Module *module,
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-inferredpointers";
     std::ofstream f(filename.c_str(), std::ios::out);
-    for(auto [instruction, address] : list) {
+    for(auto it : list) {
+        auto instruction = it.first;
+        auto address = it.second;
         f << instruction->getAddress() << '\n';
         f << address << '\n';
     }
