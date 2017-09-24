@@ -30,12 +30,20 @@ void Disassemble::init() {
     PositionFactory::setInstance(positionFactory);
 }
 
-Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList) {
+Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
+    DwarfUnwindInfo *dwarfInfo) {
+
     if(symbolList) {
+        LOG(1, "Creating module from symbol info");
         return makeModuleFromSymbols(elfMap, symbolList);
     }
+    else if(dwarfInfo) {
+        LOG(1, "Creating module from dwarf info");
+        return makeModuleFromDwarfInfo(elfMap, dwarfInfo);
+    }
     else {
-        return makeModuleFromScratch(elfMap);
+        LOG(1, "Creating module without symbol info or dwarf info");
+        return makeModuleFromDwarfInfo(elfMap, nullptr);
     }
 }
 
@@ -115,25 +123,25 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
     return module;
 }
 
-Module *Disassemble::makeModuleFromScratch(ElfMap *elfMap) {
+Module *Disassemble::makeModuleFromDwarfInfo(ElfMap *elfMap,
+    DwarfUnwindInfo *dwarfInfo) {
+
     Module *module = new Module();
 
-    FunctionList *functionList = linearDisassembly(elfMap, ".text");
+    FunctionList *functionList = linearDisassembly(elfMap, ".text", dwarfInfo);
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
     functionList->setParent(module);
-
-    //SplitFunctions::splitByDirectCall(module);
 
     return module;
 }
 
 FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
-    const char *sectionName) {
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo) {
 
     DisasmHandle handle(true);
     DisassembleFunction disassembler(handle, elfMap);
-    return disassembler.linearDisassembly(sectionName);
+    return disassembler.linearDisassembly(sectionName, dwarfInfo);
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
@@ -273,7 +281,9 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     return function;
 }
 
-FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName) {
+FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
+    DwarfUnwindInfo *dwarfInfo) {
+
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
@@ -427,7 +437,7 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
 }
 
 FunctionList *DisassembleAARCH64Function::linearDisassembly(
-    const char *sectionName) {
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo) {
 
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;

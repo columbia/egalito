@@ -570,7 +570,12 @@ void DwarfInstructionDecoder::parseAdvanceLocN(int count) {
 }
 
 DwarfState *DwarfInstructionDecoder::parseInstructions() {
-    this->state = new DwarfState(*cie->getState());
+    if(cie->getState()) {
+        state = new DwarfState(*cie->getState());
+    }
+    else {
+        state = new DwarfState();
+    }
 
     const uint64_t codeAlignFactor = cie->getCodeAlignFactor();
     const int64_t dataAlignFactor = cie->getDataAlignFactor();

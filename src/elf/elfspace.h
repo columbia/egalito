@@ -3,6 +3,7 @@
 
 #include "symbol.h"
 #include "reloc.h"
+#include "dwarf/entry.h"
 #include "chunk/plt.h"
 #include "chunk/concrete.h"  // for Module
 #include "util/iter.h"
@@ -15,6 +16,7 @@ class FunctionAliasMap;
 class ElfSpace {
 private:
     ElfMap *elf;
+    DwarfUnwindInfo *dwarf;
     SharedLib *library;
     Module *module;
 private:

@@ -1,6 +1,7 @@
 #include "elfspace.h"
 #include "symbol.h"
 #include "elfdynamic.h"
+#include "dwarf/parser.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
 #include "chunk/aliasmap.h"
@@ -21,7 +22,7 @@
 #include "log/log.h"
 
 ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
-    : elf(elf), library(library), module(nullptr),
+    : elf(elf), dwarf(nullptr), library(library), module(nullptr),
     symbolList(nullptr), dynamicSymbolList(nullptr),
     relocList(nullptr), aliasMap(nullptr) {
 
@@ -29,6 +30,7 @@ ElfSpace::ElfSpace(ElfMap *elf, SharedLib *library)
 
 ElfSpace::~ElfSpace() {
     delete elf;
+    delete dwarf;
     delete library;
     delete module;
     delete symbolList;
@@ -53,12 +55,17 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         this->symbolList = SymbolList::buildSymbolList(elf);
     }
 
+    if(!this->symbolList) {
+        DwarfParser dwarfParser(elf);
+        this->dwarf = dwarfParser.getUnwindInfo();
+    }
+
     if(elf->isDynamic()) {
         this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
     }
 
     Disassemble::init();
-    this->module = Disassemble::module(elf, symbolList);
+    this->module = Disassemble::module(elf, symbolList, dwarf);
     this->module->setElfSpace(this);
 
     //ChunkDumper dumper;

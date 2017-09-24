@@ -7,6 +7,7 @@
 #include "handle.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
+#include "dwarf/entry.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "instr/assembly.h"
@@ -14,12 +15,14 @@
 class Symbol;
 class SymbolList;
 
+// Old disassembly interface, use Disassemble2 instead
 class Disassemble {
 public:
     static void init();
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList);
+    static Module *module(ElfMap *elfMap, SymbolList *symbolList,
+        DwarfUnwindInfo *dwarfInfo = nullptr);
     static FunctionList *linearDisassembly(ElfMap *elfMap,
-        const char *sectionName);
+        const char *sectionName, DwarfUnwindInfo *dwarfInfo);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
@@ -36,7 +39,8 @@ public:
 private:
     static Module *makeModuleFromSymbols(ElfMap *elfMap,
         SymbolList *symbolList);
-    static Module *makeModuleFromScratch(ElfMap *elfMap);
+    static Module *makeModuleFromDwarfInfo(ElfMap *elfMap,
+        DwarfUnwindInfo *dwarfInfo);
 };
 
 class DisassembleFunctionBase {
@@ -60,7 +64,8 @@ public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
-    FunctionList *linearDisassembly(const char *sectionName);
+    FunctionList *linearDisassembly(const char *sectionName,
+        DwarfUnwindInfo *dwarfInfo);
 };
 
 class DisassembleAARCH64Function : public DisassembleFunctionBase {
@@ -68,7 +73,8 @@ public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
-    FunctionList *linearDisassembly(const char *sectionName);
+    FunctionList *linearDisassembly(const char *sectionName,
+        DwarfUnwindInfo *dwarfInfo);
 private:
     void disassembleBlocks(bool literal, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
