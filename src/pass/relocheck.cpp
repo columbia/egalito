@@ -46,11 +46,13 @@ void ReloCheckPass::visit(Instruction *instruction) {
             auto f = dynamic_cast<Function *>(
                 instruction->getParent()->getParent());
             LOG(1, " in " << f->getName() << " at " << f->getAddress());
+#if defined(ARCH_AARCH64)
             if(dynamic_cast<LinkedLiteralInstruction *>(
                 instruction->getSemantic())) {
 
                 LOG(10, "    from linkedliteral!");
             }
+#endif
         }
     }
 }
