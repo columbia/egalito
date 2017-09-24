@@ -187,7 +187,8 @@ DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, DwarfCursor end,
     uint8_t codeEnc = cie->getAugmentation()
         ? cie->getAugmentation()->getCodeEnc() : 0;
 
-    fde->setPcBegin(start.nextEncodedPointer<int64_t>(codeEnc) + virtualAddress);
+    fde->setPcBegin(start.nextEncodedPointer<int64_t>(codeEnc) + virtualAddress
+        - readAddress);
     fde->setPcRange(start.nextEncodedPointer<uint64_t>(codeEnc & 0x0f));
 
     if(cie->getAugmentation()) {  // if CIE has augmentation, so do FDEs
@@ -204,9 +205,9 @@ DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, DwarfCursor end,
         start.getStart() - readAddress, length,
         static_cast<uint64_t>(fde->getCiePointer()),
         cie->getStartAddress() - readAddress,
-        fde->getPcBegin() - readAddress, 
-        fde->getPcBegin() - readAddress + fde->getPcRange());
-    DwarfInstructionDecoder decoder(start, end, cie, fde->getPcBegin() - readAddress);
+        fde->getPcBegin(), 
+        fde->getPcBegin() + fde->getPcRange());
+    DwarfInstructionDecoder decoder(start, end, cie, fde->getPcBegin());
     auto state = decoder.parseInstructions();
     fde->setState(state);
     return fde;

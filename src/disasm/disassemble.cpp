@@ -10,6 +10,7 @@
 #include "makesemantic.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
+#include "chunk/size.h"
 #include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "log/log.h"
@@ -292,6 +293,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
+#if 0
     std::set<address_t> splitPoints;
 #ifdef ARCH_X86_64
     std::map<address_t, size_t> nopByteCount;
@@ -373,6 +375,52 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         functionList->getChildren()->add(function);
         function->setParent(functionList);
     }
+#else
+    std::vector<Range> intervalList;
+    for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
+        DwarfFDE *fde = *it;
+        LOG(1, "looks like an FDE at [" << std::hex << fde->getPcBegin() << ",+"
+            << fde->getPcRange() << "]");
+        Range range(fde->getPcBegin(), fde->getPcRange());
+        intervalList.push_back(range);
+    }
+
+    if(auto s = elfMap->findSection(".init")) {
+        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+    }
+    if(auto s = elfMap->findSection(".fini")) {
+        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+    }
+
+    FunctionList *functionList = new FunctionList();
+    LOG(1, "Splitting code section into " << intervalList.size()
+        << " fuzzy functions");
+
+    for(const Range &range : intervalList) {
+        address_t intervalVirtualAddress = range.getStart();
+        address_t intervalOffset = intervalVirtualAddress - virtualAddress;
+        address_t intervalSize = range.getSize();
+        LOG(1, "Split into function [0x"
+            << std::hex << intervalVirtualAddress << ",+"
+            << intervalSize << ") at section offset 0x" << intervalOffset);
+
+        Function *function = new FuzzyFunction(intervalVirtualAddress);
+
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+        function->setPosition(
+            positionFactory->makeAbsolutePosition(intervalVirtualAddress));
+
+        disassembleBlocks(function, readAddress + intervalOffset,
+            intervalSize, intervalVirtualAddress);
+
+        {
+            ChunkMutator m(function);  // recalculate cached values if necessary
+        }
+
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+    }
+#endif
 
     return functionList;
 }

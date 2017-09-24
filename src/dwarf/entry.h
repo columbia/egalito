@@ -128,6 +128,11 @@ public:
     uint64_t getCIECount() const { return cieList.size(); }
     bool findCIE(address_t address, uint64_t *index);
     DwarfCIE *getCIE(size_t cieIndex);
+
+    std::vector<DwarfCIE *>::iterator cieBegin() { return cieList.begin(); }
+    std::vector<DwarfCIE *>::iterator cieEnd() { return cieList.end(); }
+    std::vector<DwarfFDE *>::iterator fdeBegin() { return fdeList.begin(); }
+    std::vector<DwarfFDE *>::iterator fdeEnd() { return fdeList.end(); }
 };
 
 #endif
