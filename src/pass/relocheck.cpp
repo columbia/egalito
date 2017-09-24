@@ -25,22 +25,32 @@ void ReloCheckPass::visit(Module *module) {
         IF_LOG(10) region->accept(&dumper);
     }
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    //TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-libm.so.6");
     if(auto relocList = module->getElfSpace()->getRelocList()) {
         for(auto r : *relocList) {
             check(r, module);
         }
     }
-    LOG(1, "-- end");
 #endif
     recurse(module);
     checkDataVariable(module);
+    LOG(1, "-- end");
 }
 
 void ReloCheckPass::visit(Instruction *instruction) {
     if(auto v = dynamic_cast<LinkedInstruction*>(instruction->getSemantic())) {
-        if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-            LOG(1, " link at " << instruction->getAddress() << " not resolved");
+        if(auto link = dynamic_cast<UnresolvedLink *>(v->getLink())) {
+            LOG(1, " unresolvedlink at " << std::hex
+                << instruction->getAddress()
+                << " to " << link->getTargetAddress());
+            auto f = dynamic_cast<Function *>(
+                instruction->getParent()->getParent());
+            LOG(1, " in " << f->getName() << " at " << f->getAddress());
+            if(dynamic_cast<LinkedLiteralInstruction *>(
+                instruction->getSemantic())) {
+
+                LOG(10, "    from linkedliteral!");
+            }
         }
     }
 }

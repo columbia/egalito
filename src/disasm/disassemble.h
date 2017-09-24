@@ -75,9 +75,6 @@ private:
     void processLiterals(Function *function, address_t readAddress,
         size_t readSize, address_t virtualAddress);
 
-    Symbol *getMappingSymbol(Symbol *symbol);
-    Symbol *findMappingSymbol(SymbolList *symbolList,
-        address_t virtualAddress);
     bool processMappingSymbol(Symbol *symbol);
 };
 
