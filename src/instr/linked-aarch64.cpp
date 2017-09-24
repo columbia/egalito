@@ -413,21 +413,23 @@ LinkedInstruction::loadFromFile(Module *module) {
 
     char line[128];
     for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
-        auto addr = std::stoll(line);
+        auto addr = std::stoull(line);
         LOG(10, "instruction at 0x" << std::hex << addr);
         auto fn =
             CIter::spatial(module->getFunctionList())->findContaining(addr);
         if(!fn) {
-            LOG(1, "LinkedInstruction: function not found");
+            LOG(1, "LinkedInstruction: function not found at "
+                << std::hex << addr);
         }
         auto instr = dynamic_cast<Instruction *>(
             ChunkFind().findInnermostAt(fn, addr));
         if(!instr) {
-            LOG(1, "LinkedInstruction: instruction not found");
+            LOG(1, "LinkedInstruction: instruction not found at "
+                << std::hex << addr);
         }
 
         f.getline(line, 128);
-        auto value = std::stoll(line);
+        auto value = std::stoull(line);
         LOG(10, "pointer to 0x" << std::hex << value);
         list.emplace_back(instr, value);
     }
