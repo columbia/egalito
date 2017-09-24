@@ -125,9 +125,6 @@ public:
     Link *resolveVariableLink(Reloc *reloc, Module *module);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
-
-private:
-    Link *resolveInternally(Reloc *reloc, Module *module);
 };
 
 #endif
