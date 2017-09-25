@@ -558,7 +558,7 @@ address_t BinGen::writeOutCode(Module *module, address_t pos) {
         LOG(ll, "writing out " << func->getName()
             << ": pos " << pos << " vs function " << func->getAddress());
         LOG(ll, " size " << func->getSize());
-        std::cout.flush();
+        IF_LOG(ll) std::cout.flush();
         if(pos != func->getAddress()) {
             LOG(ll, "adding padding of size " << (func->getAddress() - pos));
             std::string zero(func->getAddress() - pos, 0);
