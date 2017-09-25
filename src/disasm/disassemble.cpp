@@ -295,18 +295,14 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
 #if 0
     std::set<address_t> splitPoints;
-#ifdef ARCH_X86_64
     std::map<address_t, size_t> nopByteCount;
-#endif
     splitPoints.insert(elfMap->getEntryPoint());
     splitPoints.insert(section->getVirtualAddress());
     {
         cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),
             (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
-#ifdef ARCH_X86_64
         size_t nopBytes = 0;
-#endif
         for(size_t j = 0; j < count; j++) {
             auto ins = &insn[j];
 
@@ -314,13 +310,12 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             if(shouldSplitFunctionDueTo(ins, &target)) {
                 splitPoints.insert(target);
             }
-#ifdef ARCH_X86_64
+
             if(ins->id == X86_INS_NOP) {
                 nopBytes += ins->size;
                 nopByteCount[ins->address + ins->size] = nopBytes;
             }
             else nopBytes = 0;
-#endif
         }
 
         if(count > 0) {
@@ -330,8 +325,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
     FunctionList *functionList = new FunctionList();
 
-    LOG(1, "Splitting code section into " << splitPoints.size()
-        << " fuzzy functions");
+    std::vector<Range> fromScratchIntervalList;
 
     for(std::set<address_t>::iterator it = splitPoints.begin();
         it != splitPoints.end(); it ++) {
@@ -347,26 +341,35 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             functionSize = readSize - functionOffset;
         }
 
-#ifdef ARCH_X86_64
         auto nop = nopByteCount.find((*it) + functionSize);
         if(nop != nopByteCount.end()) {
             LOG(10, "Shrinking function by " << (*nop).second << " nop bytes");
             functionSize -= (*nop).second;
         }
-#endif
 
-        LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
-            << functionSize << ")");
+        Range range(virtualAddress + functionOffset, functionSize);
+        fromScratchIntervalList.push_back(range);
+    }
 
-        Function *function = new FuzzyFunction(virtualAddress + functionOffset);
+    LOG(1, "Splitting code section into " << fromScratchIntervalList.size()
+        << " fuzzy functions");
+
+    for(const Range &range : fromScratchIntervalList) {
+        address_t intervalVirtualAddress = range.getStart();
+        address_t intervalOffset = intervalVirtualAddress - virtualAddress;
+        address_t intervalSize = range.getSize();
+        LOG(1, "Split into function [0x"
+            << std::hex << intervalVirtualAddress << ",+"
+            << intervalSize << ") at section offset 0x" << intervalOffset);
+
+        Function *function = new FuzzyFunction(intervalVirtualAddress);
 
         PositionFactory *positionFactory = PositionFactory::getInstance();
         function->setPosition(
-            positionFactory->makeAbsolutePosition(
-                virtualAddress + functionOffset));
+            positionFactory->makeAbsolutePosition(intervalVirtualAddress));
 
-        disassembleBlocks(function, readAddress + functionOffset,
-            functionSize, virtualAddress + functionOffset);
+        disassembleBlocks(function, readAddress + intervalOffset,
+            intervalSize, intervalVirtualAddress);
 
         {
             ChunkMutator m(function);  // recalculate cached values if necessary
@@ -381,8 +384,15 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         DwarfFDE *fde = *it;
         LOG(1, "looks like an FDE at [" << std::hex << fde->getPcBegin() << ",+"
             << fde->getPcRange() << "]");
+
         Range range(fde->getPcBegin(), fde->getPcRange());
-        intervalList.push_back(range);
+        Range sectionRange(section->getVirtualAddress(), section->getSize());
+        if(range.overlaps(sectionRange)) {
+            intervalList.push_back(range);
+        }
+        else {
+            LOG(1, "FDE is out of bounds of .text section, skipping");
+        }
     }
 
     if(auto s = elfMap->findSection(".init")) {
@@ -390,6 +400,31 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     }
     if(auto s = elfMap->findSection(".fini")) {
         intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+    }
+
+    address_t entryPoint = elfMap->getEntryPoint();
+    LOG(1, "Disassembly pass assumes _start at entry point 0x"
+        << std::hex << entryPoint);
+    for(auto range : intervalList) {
+        if(range.getStart() == entryPoint) {
+            if(range.getSize() == 0x2b) {
+                address_t start = entryPoint + 0x2b;
+                start = (start + 0x7) & (~0x7);
+
+                LOG(1, "Adding deregister_tm_clones etc starting at 0x"
+                    << std::hex << start);
+
+                intervalList.push_back(Range(start, 0x40));  // deregister_tm_clones
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x50));  // register_tm_clones
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x40));  // __do_global_dtors_aux
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x10));  // frame_dummy
+                start += intervalList.back().getSize();
+            }
+            break;
+        }
     }
 
     FunctionList *functionList = new FunctionList();

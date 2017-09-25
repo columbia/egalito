@@ -15,4 +15,10 @@ EOF
 perl -ne '/0x([0-9a-f]+) 0x([0-9a-f]+)/ && print "0x$1 0x$2\n"' tmp/codeform.sym > tmp/codeform-sym.1
 perl -ne '/0x([0-9a-f]+) 0x([0-9a-f]+)/ && print "0x$1 0x$2\n"' tmp/codeform-s.sym > tmp/codeform-sym.2
 
-diff -y tmp/codeform-sym.{1,2}
+diff tmp/codeform-sym.{1,2}
+if [ -z "$(diff tmp/codeform-sym.1 tmp/codeform-sym.2)" ]; then
+    echo "test passed"
+else
+    echo "test failed!"
+    exit 1
+fi

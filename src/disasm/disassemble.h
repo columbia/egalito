@@ -15,7 +15,6 @@
 class Symbol;
 class SymbolList;
 
-// Old disassembly interface, use Disassemble2 instead
 class Disassemble {
 public:
     static void init();

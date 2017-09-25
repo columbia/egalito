@@ -4,3 +4,4 @@ test:
 	./hello.sh
 	./codeform.sh
 	./dwarf-diff.sh
+	./codeform-dwarf-syms.sh
