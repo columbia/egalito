@@ -1,7 +1,7 @@
-#ifndef EGALITO_CONFIG_AARCH64_OPENSUSE_H
-#define EGALITO_CONFIG_AARCH64_OPENSUSE_H
+#ifndef EGALITO_CONFIG_AARCH64_UBUNTU_H
+#define EGALITO_CONFIG_AARCH64_UBUNTU_H
 
-/* For openSUSE tumbleweed on AARCH64 */
+/* For Ubuntu on AARCH64 */
 
 /* common */
 
@@ -16,5 +16,8 @@
 #define PROMPT_COLOR    C_GREEN
 
 /* test */
+
+#define ANALYSIS_JUMPTABLE_MAIN_COUNT               1
+#define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   2
 
 #endif

@@ -1,4 +1,5 @@
 #include <sstream>
+#include "config.h"
 #include "framework/include.h"
 #include "analysis/jumptable.h"
 #include "conductor/conductor.h"
@@ -23,14 +24,7 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
 
     int jumpTableCount = (int)jt.getTableList().size();
     CAPTURE(jumpTableCount);
-#ifdef ARCH_X86_64
-    REQUIRE(jumpTableCount == 1);
-#elif defined(ARCH_AARCH64)
-    // gcc7 for AARCH64 does NOT generate jump table for this
-    REQUIRE(jumpTableCount == 0);
-#else
-# error "check the disassembly"
-#endif
+    REQUIRE(jumpTableCount == ANALYSIS_JUMPTABLE_MAIN_COUNT);
 }
 
 static void testFunction(Function *f, int expected) {
@@ -73,13 +67,7 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
         const char *name;
         int expected;
     } testCase[] = {
-#ifdef ARCH_X86_64
-        {"parse_expression", 2},
-#elif defined(ARCH_AARCH64)
-        {"parse_expression", 1},
-#else
-# error "check the disassembly"
-#endif
+        {"parse_expression", ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT},
         {"trecurse", 0}  // this has a tail-recursive call
     };
     for(size_t i = 0; i < sizeof(testCase)/sizeof(*testCase); i ++) {

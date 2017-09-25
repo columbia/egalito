@@ -15,6 +15,9 @@
 
 #define PROMPT_COLOR    C_GREEN
 
-/* test */
+/* test: use gcc-7 if on Leap42.3 */
+
+#define ANALYSIS_JUMPTABLE_MAIN_COUNT               0
+#define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   1
 
 #endif
