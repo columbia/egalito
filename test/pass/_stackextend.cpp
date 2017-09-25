@@ -1,3 +1,4 @@
+#include "config.h"
 #include "framework/include.h"
 #include "pass/stackextend.h"
 #include "instr/concrete.h"
@@ -91,7 +92,12 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
     SECTION("frame with stack arguments") {
         auto f = CIter::named(module->getFunctionList())->find("func__");
         CAPTURE(f->getSize() - funcsize[f]);
+#if defined(PASS_STACKEXTEND_RESTORE_SP_FROM_X29) \
+    && PASS_STACKEXTEND_RESTORE_SP_FROM_X29 == 1
+        CHECK(f->getSize() == funcsize[f] + 4 + 4 + 4 + numberOfEpilogue(f) * 4);
+#else
         CHECK(f->getSize() == funcsize[f] + 4 + 4 + numberOfEpilogue(f) * 4);
+#endif
     }
 #endif
 }
