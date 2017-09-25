@@ -339,6 +339,14 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
     auto virtualAddress = symbol->getAddress();
 
+    if(knownLinkerBytes(symbol)) {
+        LOG(1, "treating " << symbol->getName() << " as a special case");
+        disassembleBlocks(true, function, readAddress, symbol->getSize(),
+            virtualAddress);
+        ChunkMutator m(function);  // recalculate cached values if necessary
+        return function;
+    }
+
     auto mapping = symbolList->findMappingBelowOrAt(symbol);
     if(!mapping) {
         LOG(1, "NO mapping symbol below " << symbol->getName()
@@ -512,6 +520,11 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
     else {
         delete block;
     }
+}
+
+bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
+    if(!strcmp(symbol->getName(), "buildsig")) return true;
+    return false;
 }
 
 void DisassembleFunctionBase::disassembleBlocks(Function *function,

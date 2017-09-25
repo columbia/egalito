@@ -162,6 +162,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);
     }*/
 
+    // Fuchsia Zircon script defines a literal
+    if(auto s = list->find("buildsig")) {
+        s->setSize(0x24);
+    }
+
     for(auto sym : *list) {
         if(sym->getSize() == 0 && sym->getAddress() > 0) {
             size_t estimate = list->estimateSizeOf(sym);

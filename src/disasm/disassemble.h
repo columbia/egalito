@@ -76,6 +76,7 @@ private:
         size_t readSize, address_t virtualAddress);
 
     bool processMappingSymbol(Symbol *symbol);
+    bool knownLinkerBytes(Symbol *symbol);
 };
 
 #ifdef ARCH_X86_64
