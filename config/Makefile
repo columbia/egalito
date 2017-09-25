@@ -29,3 +29,6 @@ clean:
 	else \
 		rm -f config.h; \
 	fi
+
+force-update:
+	cp -a $(PLATFORM_CONFIG_FILE) config.h
