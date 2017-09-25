@@ -22,6 +22,7 @@ config:
 	$(MAKE) -C config
 
 clean realclean:
+	$(MAKE) -C app clean
 	$(MAKE) -C src clean
 	$(MAKE) -C test $@
 	$(MAKE) -C test/example clean
