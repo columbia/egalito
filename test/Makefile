@@ -17,6 +17,7 @@ INTEGRATION_SOURCES = $(wildcard integration/*.cpp)
 ELF_SOURCES         = $(wildcard elf/*.cpp)
 DISASM_SOURCES      = $(wildcard disasm/*.cpp)
 LOG_SOURCES         = $(wildcard log/*.cpp)
+UTIL_SOURCES        = $(wildcard util/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -24,7 +25,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 RUNNER_SOURCES = $(FRAMEWORK_SOURCES) $(CHUNK_SOURCES) $(ANALYSIS_SOURCES) \
 	$(PASS_SOURCES) $(ELF_SOURCES) $(DISASM_SOURCES) $(LOG_SOURCES) \
-	$(INTEGRATION_SOURCES)
+	$(INTEGRATION_SOURCES) $(UTIL_SOURCES)
 RUNNER_OBJECTS = $(call obj-filename,$(RUNNER_SOURCES))
 ALL_SOURCES = $(sort $(RUNNER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
