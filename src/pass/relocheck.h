@@ -5,12 +5,15 @@
 #include "elf/reloc.h"
 
 class Module;
+class Instruction;
 
 class ReloCheckPass : public ChunkPass {
 public:
     virtual void visit(Module *module);
+    virtual void visit(Instruction *instruction);
 private:
     void check(Reloc *r, Module *module);
+    void checkDataVariable(Module *module);
 };
 
 #endif

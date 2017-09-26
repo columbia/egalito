@@ -72,7 +72,7 @@ public:
 
     virtual size_t getSize() const { return phdr->p_memsz; }
 
-    virtual void updateAddressFor(address_t baseAddress);
+    void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
     size_t getStartOffset() const { return startOffset; }
     address_t getMapBaseAddress() const { return mappedAddress; }
@@ -100,7 +100,7 @@ public:
 
     bool containsData(address_t address);
 
-    virtual void updateAddressFor(address_t baseAddress);
+    void setBaseAddress(address_t baseAddress);
 
     void setTLSOffset(address_t offset) { tlsOffset = offset; }
     address_t getTLSOffset() const { return tlsOffset; }
@@ -125,9 +125,6 @@ public:
     Link *resolveVariableLink(Reloc *reloc, Module *module);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
-
-private:
-    Link *resolveInternally(Reloc *reloc, Module *module);
 };
 
 #endif

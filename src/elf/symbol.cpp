@@ -162,6 +162,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);
     }*/
 
+    // Fuchsia Zircon script defines a literal
+    if(auto s = list->find("buildsig")) {
+        s->setSize(0x24);
+    }
+
     SymbolAliasFinder aliasFinder(list);
     aliasFinder.constructByAddress();
 
@@ -204,9 +209,6 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
     for(auto sym : *list) {
         if(sym->getSize() == 0 && sym->getAddress() > 0) {
-#ifdef ARCH_AARCH64
-            if(sym->getType() != Symbol::TYPE_FUNC) continue;
-#endif
             size_t estimate = list->estimateSizeOf(sym);
             LOG(5, "estimate size of symbol ["
                 << sym->getName() << "] to be " << std::dec << estimate);
@@ -236,7 +238,11 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
 SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     const char *sectionName, unsigned sectionType) {
 
+#ifdef ARCH_X86_64
     SymbolList *list = new SymbolList();
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    SymbolList *list = new SymbolListWithMapping();
+#endif
 
     auto section = elfmap->findSection(sectionName);
     if(!section || section->getHeader()->sh_type != sectionType) {
@@ -291,14 +297,62 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         list->add(symbol, (size_t)j);
     }
 
+    list->buildMappingList();
     return list;
+}
+
+void SymbolListWithMapping::buildMappingList() {
+    sortedMappingList.reserve(getCount());
+    for(auto sym : *this) {
+        if(sym->getName()[0] == '$') {
+            sortedMappingList.push_back(sym);
+        }
+    }
+    sortedMappingList.shrink_to_fit();
+    std::sort(sortedMappingList.begin(), sortedMappingList.end(),
+        [](Symbol *a, Symbol *b) {
+            return a->getAddress() < b->getAddress(); });
+}
+
+Symbol *SymbolListWithMapping::findMappingBelowOrAt(Symbol *symbol) {
+    auto it = std::lower_bound(
+        sortedMappingList.begin(), sortedMappingList.end(), symbol,
+        [](Symbol *a, Symbol *b) {  // b: symbol, continue if true
+            return a->getAddress() < b->getAddress();
+        });
+    if((*it)->getAddress() == symbol->getAddress()) {
+        if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
+            return *it;
+        }
+    }
+    while(--it != sortedMappingList.begin()) {
+        if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
+            return *(it);
+        }
+    }
+    return nullptr;
+}
+
+Symbol *SymbolListWithMapping::findMappingAbove(Symbol *symbol) {
+    auto it = std::upper_bound(
+        sortedMappingList.begin(), sortedMappingList.end(), symbol,
+        [](Symbol *a, Symbol *b) {  // b: symbol, continue if false
+            return a->getAddress() < b->getAddress();
+        });
+    while(it != sortedMappingList.end()) {
+        if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
+            return *it;
+        }
+        ++it;
+    }
+    return nullptr;
 }
 
 size_t SymbolList::estimateSizeOf(Symbol *symbol) {
     auto it = spaceMap.upper_bound(symbol->getAddress());
     while(it != spaceMap.end()) {
         Symbol *other = (*it).second;
-        // for AARCH64, if the next symbol is mapping symbol, then it is
+        // for AARCH64, if the next symbol is a mapping symbol, then it is
         // still part of the same function
         if(!strcmp(other->getName(), "$d")) {
             ++it;

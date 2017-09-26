@@ -3,6 +3,7 @@ mkdir -p tmp
 
 DIR=../binary/target/codeform/dir
 
+rm -f tmp/codeform.htm
 ln -s ../../src/libegalito.so
 LD_LIBRARY_PATH=../../src ../../src/loader $DIR/codeform \
 	-o tmp/codeform.htm $DIR/rules/c_1_html $DIR/codeform.c \

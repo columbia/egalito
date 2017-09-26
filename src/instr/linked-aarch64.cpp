@@ -219,7 +219,7 @@ uint32_t LinkedInstruction::rebuild() {
     uint32_t imm =
         getModeInfo()->makeImm(dest, getSource()->getAddress(), fixedBytes);
 #if 0
-    const int ll = 1;
+    const int ll = 10;
     LOG(ll, "mode: " << getModeInfo() - AARCH64_ImInfo);
     LOG(ll, "src: " << getSource()->getAddress());
     LOG(ll, "dest: " << dest);
@@ -305,10 +305,6 @@ void LinkedInstruction::regenerateAssembly() {
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, Assembly *assembly, Reloc *reloc) {
 
-    if(!reloc->getSymbol()) return nullptr;
-
-    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
-
     auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
         auto linked = new LinkedInstruction(instruction, *assembly);
@@ -321,10 +317,6 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 
 LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
     Instruction *instruction, std::string raw, Reloc *reloc) {
-
-    if(!reloc->getSymbol()) return nullptr;
-
-    LOG0(10, "reloc " << std::hex << reloc->getAddress() << " ");
 
     auto link = PerfectLinkResolver().resolveInternally(reloc, module);
     if(link) {
@@ -368,7 +360,9 @@ void LinkedInstruction::resolveLinks(Module *module,
     const std::vector<std::pair<Instruction *, address_t>>& list) {
 
     //TemporaryLogLevel tll("instr", 10);
-    for(auto [instruction, address] : list) {
+    for(auto it : list) {
+        auto instruction = it.first;
+        auto address = it.second;
         LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
@@ -395,7 +389,9 @@ void LinkedInstruction::saveToFile(Module *module,
     std::string filename(CACHE_DIR "/");
     filename += module->getName() + "-inferredpointers";
     std::ofstream f(filename.c_str(), std::ios::out);
-    for(auto [instruction, address] : list) {
+    for(auto it : list) {
+        auto instruction = it.first;
+        auto address = it.second;
         f << instruction->getAddress() << '\n';
         f << address << '\n';
     }
@@ -417,21 +413,23 @@ LinkedInstruction::loadFromFile(Module *module) {
 
     char line[128];
     for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
-        auto addr = std::stoll(line);
+        auto addr = std::stoull(line);
         LOG(10, "instruction at 0x" << std::hex << addr);
         auto fn =
             CIter::spatial(module->getFunctionList())->findContaining(addr);
         if(!fn) {
-            LOG(1, "LinkedInstruction: function not found");
+            LOG(1, "LinkedInstruction: function not found at "
+                << std::hex << addr);
         }
         auto instr = dynamic_cast<Instruction *>(
             ChunkFind().findInnermostAt(fn, addr));
         if(!instr) {
-            LOG(1, "LinkedInstruction: instruction not found");
+            LOG(1, "LinkedInstruction: instruction not found at "
+                << std::hex << addr);
         }
 
         f.getline(line, 128);
-        auto value = std::stoll(line);
+        auto value = std::stoull(line);
         LOG(10, "pointer to 0x" << std::hex << value);
         list.emplace_back(instr, value);
     }

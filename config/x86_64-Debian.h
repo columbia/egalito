@@ -16,4 +16,7 @@
 
 /* test */
 
+#define ANALYSIS_JUMPTABLE_MAIN_COUNT               1
+#define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   2
+
 #endif

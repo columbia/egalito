@@ -170,7 +170,7 @@ void ControlFlowGraph::construct(Block *block) {
 bool ControlFlowGraph::doesReturn(Function *function) {
     static const std::vector<std::string> noreturns = {
         "__GI___libc_fatal", "__GI___assert_fail", "__stack_chk_fail",
-        "__malloc_assert", "_exit", "_dl_signal_error"
+        "__malloc_assert", "_exit", "_dl_signal_error", "abort", "lose"
     };
 
     for(auto fn : noreturns) {
@@ -189,7 +189,8 @@ bool ControlFlowGraph::doesReturn(Function *function) {
 
 bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
     static const std::vector<std::string> PLTnoreturns = {
-        "__cxa_throw@plt", "exit@plt"
+        "__cxa_throw@plt", "exit@plt", "__stack_chk_fail@plt",
+        "_ZSt20__throw_out_of_rangePKc@plt"
     };
 
     for(auto plt : PLTnoreturns) {

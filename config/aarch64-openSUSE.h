@@ -1,7 +1,7 @@
 #ifndef EGALITO_CONFIG_AARCH64_OPENSUSE_H
 #define EGALITO_CONFIG_AARCH64_OPENSUSE_H
 
-/* For openSUSE tumbleweed on AARCH64 */
+/* For openSUSE on AARCH64 */
 
 /* common */
 
@@ -17,4 +17,13 @@
 
 /* test */
 
+#if defined(__GNUC__) && (__GNUC__ >= 7)    /* tumbleweed */
+#define ANALYSIS_JUMPTABLE_MAIN_COUNT               0
+#define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   1
+#else
+#define ANALYSIS_JUMPTABLE_MAIN_COUNT               1
+#define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   2
+#endif
+
+#define PASS_STACKEXTEND_RESTORE_SP_FROM_X29        0
 #endif

@@ -18,15 +18,17 @@ void FixDataRegionsPass::visit(Module *module) {
 
 void FixDataRegionsPass::visit(DataRegionList *dataRegionList) {
 #ifdef ARCH_X86_64
-    visit(dataRegionList->getTLS());
+    //visit(dataRegionList->getTLS());
+    recurse(dataRegionList);
 #elif defined(ARCH_AARCH64)
     recurse(dataRegionList);
 #endif
 }
 
 void FixDataRegionsPass::visit(DataRegion *dataRegion) {
+#ifdef ARCH_X86_64
     if(!dataRegion) return;
-    auto isTLS = dynamic_cast<TLSDataRegion *>(dataRegion);
+#endif
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
             if(auto tlsLink
@@ -35,15 +37,21 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
                 if(!tlsLink->getTarget()) {
                     resolveTLSLink(tlsLink);
                 }
+                if(!tlsLink->getTarget()) {
+                    if(auto sym = tlsLink->getSymbol()) {
+                        if(sym->getBind() != Symbol::BIND_WEAK) {
+                            LOG(1, "[fixdataregion] unresolved non weak symbol");
+                        }
+                        continue;
+                    }
+                }
             }
 
             auto target = var->getDest()->getTargetAddress();
-            address_t address = var->getAddress();
-            if(!isTLS) {
-                address += dataRegion->getMapBaseAddress()
+            address_t address = var->getAddress()
+                    + dataRegion->getMapBaseAddress()
                     - dsec->getAddress()
                     + dsec->getOriginalOffset();
-            }
             LOG(10, "set variable " << std::hex << address << " => " << target);
             *reinterpret_cast<address_t *>(address) = target;
         }

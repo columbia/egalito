@@ -77,9 +77,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     InternalCalls internalCalls;
     module->accept(&internalCalls);
 
-    //ChunkDumper dumper;
-    //module->accept(&dumper);
-
     this->relocList
         = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
 
@@ -111,8 +108,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     // this needs all blocks to be split to basic blocks
     InferLinksPass inferLinksPass(elf);
     module->accept(&inferLinksPass);
-
-    //TLSList::buildTLSList(elf, relocList, module);
 
     aliasMap = new FunctionAliasMap(module);
 }

@@ -118,6 +118,7 @@ private:
     MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
 public:
+    virtual ~SymbolList() {}
     bool add(Symbol *symbol, size_t index);
     void addAlias(Symbol *symbol, size_t otherIndex);
     Symbol *get(size_t index);
@@ -130,6 +131,10 @@ public:
 
     size_t estimateSizeOf(Symbol *symbol);
 
+    virtual void buildMappingList() {}
+    virtual Symbol *findMappingBelowOrAt(Symbol *symbol) { return nullptr; }
+    virtual Symbol *findMappingAbove(Symbol *symbol) { return nullptr; }
+
     static SymbolList *buildSymbolList(SharedLib *library);
     static SymbolList *buildSymbolList(ElfMap *elfmap);
     static SymbolList *buildDynamicSymbolList(ElfMap *elfmap);
@@ -137,6 +142,16 @@ private:
     static SymbolList *buildAnySymbolList(ElfMap *elfmap,
         const char *sectionName, unsigned sectionType);
     static Symbol *findSizeZero(SymbolList *list, const char *sym);
+};
+
+class SymbolListWithMapping : public SymbolList {
+private:
+    std::vector<Symbol *> sortedMappingList;
+
+public:
+    virtual void buildMappingList();
+    virtual Symbol *findMappingBelowOrAt(Symbol *symbol);
+    virtual Symbol *findMappingAbove(Symbol *symbol);
 };
 
 #endif

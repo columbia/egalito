@@ -171,7 +171,7 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
     // the only way to get Function * is by address; name can not be used,
     // because there may be multiple local functions with the same name.
     for(f.getline(line, 128); f.good(); f.getline(line, 128)) {
-        auto brAddr = std::stoll(line);
+        auto brAddr = std::stoull(line);
         LOG(10, "instruction at 0x" << std::hex << brAddr);
         auto fn =
             CIter::spatial(module->getFunctionList())->findContaining(brAddr);

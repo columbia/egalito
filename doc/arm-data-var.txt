@@ -15,6 +15,11 @@ B) links are resolved in two stages in the following order
  2. [relocdata.cpp] resolve using symbols (requires an alias map)
     - targets in an external module
 
+C) A special case is a literal that has a relocation. For this case, we create
+a LinkedLiteralInstruction. There will be a NormalLink to this type of chunk,
+which points to either code or data. This is only seen in a statically linked
+binary.
+
 *) Regarding addend,
  - (guess) it should only be present when the target is within the same module
  - then, it should be used to calculate the target address and will not be

@@ -4,7 +4,7 @@
 #include "types.h"
 
 class ElfMap;
-class TLSDataRegion;
+class DataRegion;
 
 class DataLoader {
 private:
@@ -17,8 +17,7 @@ public:
         offset will be incremented by the size of the header.
     */
     address_t allocateTLS(size_t size, size_t *offset);
-    void copyTLSData(ElfMap *elfMap, TLSDataRegion *tls,
-        address_t offset);
+    void loadRegion(ElfMap *elfMap, DataRegion *region);
 };
 
 #endif

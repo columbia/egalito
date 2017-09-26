@@ -1,6 +1,12 @@
+P_ARCH := $(shell uname -m)
+
+define x86_only
+$(if $(filter x86_64,$(P_ARCH)),$1)
+endef
+
 .PHONY: test
 test:
-	./detectnull.sh
+	$(call x86_only,./detectnull.sh)
 	./hello.sh
 	./codeform.sh
 	./dwarf-diff.sh

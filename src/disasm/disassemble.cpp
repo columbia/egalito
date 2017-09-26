@@ -98,7 +98,6 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         if(!sym->isFunction()) {
             // this misses some cases where there are only mapping symbols
             // for literals (__multc3 in libm compiled with old gcc)
-            LOG(10, "symbol address " << std::hex << sym->getAddress());
             if(sym->getSize() == 0) continue;
             if(sym->getAliasFor()) continue;
             auto sec = elfMap->findSection(sym->getSectionIndex());
@@ -114,7 +113,7 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
                 = Disassemble::function(elfMap, sym, symbolList);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
-            LOG(1, "adding literal only function " << function->getName()
+            LOG(10, "adding literal only function " << function->getName()
                 << " at " << std::hex << function->getAddress()
                 << " size " << function->getSize());
         }
@@ -153,37 +152,7 @@ Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
     return disassembler.function(symbol, symbolList);
 }
 
-Symbol *DisassembleAARCH64Function::getMappingSymbol(Symbol *symbol) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    for(auto sym : symbol->getAliases()) {
-        if(sym->getName()[0] == '$') {
-            return sym;
-        }
-    }
-#endif
-    return nullptr;
-}
-
-Symbol *DisassembleAARCH64Function::findMappingSymbol(SymbolList *symbolList,
-    address_t virtualAddress) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    auto sym = symbolList->find(virtualAddress);
-    if(sym) {
-        if(sym->getName()[0] == '$') {
-            return sym;
-        }
-        else {
-            return getMappingSymbol(sym);
-        }
-    }
-#endif
-    return nullptr;
-}
-
 bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
-#ifdef ARCH_X86_64
-    return false;
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     bool literal = false;
     switch(symbol->getName()[1]) {
     case 'a':
@@ -200,7 +169,6 @@ bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
         break;
     }
     return literal;
-#endif
 }
 
 Instruction *DisassembleInstruction::instruction(
@@ -481,6 +449,9 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
 // --- AARCH64 disassembly code
 
+// We do not handle binaries that contain embedded literals in code without
+// mapping symbols.
+
 Function *DisassembleAARCH64Function::function(Symbol *symbol,
     SymbolList *symbolList) {
 
@@ -500,35 +471,52 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
 
     auto readAddress =
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
-    auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-    auto mapping = getMappingSymbol(symbol);
-    bool hasMappingSymbol = mapping != nullptr;
-    bool literal = hasMappingSymbol ? processMappingSymbol(mapping) : false;
+    if(knownLinkerBytes(symbol)) {
+        LOG(1, "treating " << symbol->getName() << " as a special case");
+        disassembleBlocks(true, function, readAddress, symbol->getSize(),
+            virtualAddress);
+        ChunkMutator m(function);  // recalculate cached values if necessary
+        return function;
+    }
 
-    disassembleBlocks(literal, function, readAddress, readSize,
-        virtualAddress);
-    for(auto size = function->getSize();
-        size < readSize;
-        size = function->getSize()) {
+    auto mapping = symbolList->findMappingBelowOrAt(symbol);
+    if(!mapping) {
+        LOG(1, "NO mapping symbol below " << symbol->getName()
+            << " at " << std::hex << symbol->getAddress()
+            << " - " << (symbol->getAddress() + symbol->getSize()));
+        throw "mapping symbol decode error";
+    }
+    LOG(10, "mapping symbol below " << symbol->getName()
+        << " at " << std::hex << symbol->getAddress()
+        << " - " << (symbol->getAddress() + symbol->getSize())
+        << " is " << mapping->getName()
+        << " #" << std::dec << mapping->getIndex());
 
-        if(!hasMappingSymbol) {
-            literal = !literal;
+    address_t end = symbol->getAddress() + symbol->getSize();
+    size_t offset = 0;
+
+    bool literal = processMappingSymbol(mapping);
+    while((mapping = symbolList->findMappingAbove(mapping))) {
+        LOG(10, "    next mapping symbol is #"
+            << std::dec << mapping->getIndex());
+        if(end <= mapping->getAddress()) {
+            auto size = symbol->getSize() - offset;
+            disassembleBlocks(literal, function, readAddress + offset,
+                size, virtualAddress + offset);
+            offset += size;
+            break;
         }
-        else {
-            mapping = findMappingSymbol(symbolList, virtualAddress + size);
-            if(!mapping) {
-                // this is actually not literal if it is pointing to the
-                // gap between the text and literal, but it's ok for now
-                literal = true;
-            }
-            else {
-                literal = processMappingSymbol(mapping);
-            }
-        }
-        disassembleBlocks(literal, function, readAddress + size,
-            readSize - size, virtualAddress + size);
+        auto size = mapping->getAddress() - (symbol->getAddress() + offset);
+        disassembleBlocks(literal, function, readAddress + offset,
+            size, symbol->getAddress() + offset);
+        offset += size;
+        literal = processMappingSymbol(mapping);
+    }
+    if(offset < symbol->getSize()) {
+        disassembleBlocks(literal, function, readAddress + offset,
+            symbol->getSize() - offset, virtualAddress + offset);
     }
 
     {
@@ -605,8 +593,8 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
             positionFactory->makeAbsolutePosition(
                 virtualAddress + functionOffset));
 
-        // we don't handle literal for now. maybe later with mapping
-        // symbols
+        // We don't handle literals for now. We need the section index to
+        // find the corresponding mapping symbol.
         disassembleBlocks(false, function, readAddress + functionOffset,
             functionSize, virtualAddress + functionOffset);
 
@@ -650,16 +638,6 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
     }
 
     for(size_t sz = 0; sz < readSize; sz += 4) {
-        cs_insn *insn;
-        size_t count = cs_disasm(handle.raw(),
-            (const uint8_t *)readAddress + sz,
-            readSize - sz, virtualAddress + sz, 0, &insn);
-
-        if(count > 0) {
-            cs_free(insn, count);
-            break;
-        }
-
         auto instr = new Instruction();
         std::string raw;
         raw.assign(reinterpret_cast<char *>(readAddress + sz), 4);
@@ -676,6 +654,11 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
     else {
         delete block;
     }
+}
+
+bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
+    if(!strcmp(symbol->getName(), "buildsig")) return true;
+    return false;
 }
 
 void DisassembleFunctionBase::disassembleBlocks(Function *function,
