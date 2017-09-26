@@ -9,7 +9,6 @@
 #include "chunk/dump.h"
 #include "log/log.h"
 
-#ifdef ARCH_AARCH64
 void DefList::set(int reg, TreeNode *tree) {
     list[reg] = tree;
 }
@@ -313,17 +312,26 @@ UDRegMemWorkingSet::UDRegMemWorkingSet(
         auto node = cfg->get(block);
         for(auto instr : CIter::children(block)) {
             stateList.emplace_back(node, instr);
+#ifdef ARCH_X86_64
+            stateListIndex[instr] = stateList.size() - 1;
+#endif
         }
     }
 }
 
 UDState *UDRegMemWorkingSet::getState(Instruction *instruction) {
+#ifdef ARCH_X86_64
+    return &stateList[stateListIndex[instruction]];
+#elif defined(ARCH_AARCH64)
     address_t offset = instruction->getAddress() - function->getAddress();
     return &stateList[offset / 4];
+#endif
 }
 
 
 const std::map<int, UseDef::HandlerType> UseDef::handlers = {
+#ifdef ARCH_X86_64
+#elif defined(ARCH_AARCH64)
     {ARM64_INS_ADD,     &UseDef::fillAddOrSub},
     {ARM64_INS_ADR,     &UseDef::fillAdr},
     {ARM64_INS_ADRP,    &UseDef::fillAdrp},
@@ -358,6 +366,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_STRH,    &UseDef::fillStrh},
     {ARM64_INS_SUB,     &UseDef::fillAddOrSub},
     {ARM64_INS_SXTW,    &UseDef::fillSxtw},
+#endif
 };
 
 void UseDef::analyze(const std::vector<std::vector<int>>& order) {
@@ -413,10 +422,26 @@ void UseDef::analyzeGraph(const std::vector<int>& order) {
     }
 }
 
-bool UseDef::callIfEnabled(UDState *state, Assembly *assembly) {
+bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
+#ifdef ARCH_X86_64
+    #define INVALID_ID  X86_INS_INVALID
+#elif defined(ARCH_AARCH64)
+    #define INVALID_ID  AARCH64_INS_INVALID
+#endif
+    Assembly *assembly = instruction->getSemantic()->getAssembly();
+    int id = INVALID_ID;
+    if(assembly) {
+        id = assembly->getId();
+    }
+    else {
+        auto v = dynamic_cast<ControlFlowInstruction *>(
+            instruction->getSemantic());
+        if(v) id = v->getId();
+    }
+
     bool handled = false;
-    if(config->isEnabled(assembly->getId())) {
-        auto it = handlers.find(assembly->getId());
+    if(config->isEnabled(id)) {
+        auto it = handlers.find(id);
         if(it != handlers.end()) {
             auto f = it->second;
             (this->*f)(state, assembly);
@@ -435,12 +460,7 @@ void UseDef::fillState(UDState *state) {
     ChunkDumper dumper;
     IF_LOG(11) state->getInstruction()->accept(&dumper);
 
-    auto assembly = state->getInstruction()->getSemantic()->getAssembly();
-    if(assembly->getId() == ARM64_INS_AT) {
-        throw "AT should be an alias for SYS";
-    }
-
-    bool handled = callIfEnabled(state, assembly);
+    bool handled = callIfEnabled(state, state->getInstruction());
     if(handled) {
         IF_LOG(11) state->dumpState();
         IF_LOG(11) working->dumpSet();
@@ -518,12 +538,15 @@ void UseDef::fillImm(UDState *state, Assembly *assembly) {
 }
 
 void UseDef::fillReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     useReg(state, reg0);
+#endif
 }
 
 void UseDef::fillRegToReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
@@ -535,9 +558,11 @@ void UseDef::fillRegToReg(UDState *state, Assembly *assembly) {
         TreeNodePhysicalRegister>(reg1, width1);
 
     defReg(state, reg0, tree);
+#endif
 }
 
 void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
+#ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -578,9 +603,11 @@ void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
     auto derefTree
         = TreeFactory::instance().make<TreeNodeDereference>(memTree, width);
     defReg(state, reg0, derefTree);
+#endif
 }
 
 void UseDef::fillImmToReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
 
@@ -596,9 +623,11 @@ void UseDef::fillImmToReg(UDState *state, Assembly *assembly) {
         tree1 = TreeFactory::instance().make<TreeNodeConstant>(op1);
     }
     defReg(state, reg0, tree1);
+#endif
 }
 
 void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
@@ -639,9 +668,11 @@ void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
         break;
     }
     defReg(state, reg0, tree);
+#endif
 }
 
 void UseDef::fillMemImmToReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -673,9 +704,11 @@ void UseDef::fillMemImmToReg(UDState *state, Assembly *assembly) {
         baseTree,
         TreeFactory::instance().make<TreeNodeConstant>(imm));
     defReg(state, base, wbTree);
+#endif
 }
 
 void UseDef::fillRegToMem(UDState *state, Assembly *assembly, size_t width) {
+#ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -714,10 +747,11 @@ void UseDef::fillRegToMem(UDState *state, Assembly *assembly, size_t width) {
     }
 
     defMem(state, memTree, reg0);
+#endif
 }
 
 void UseDef::fillRegImmToReg(UDState *state, Assembly *assembly) {
-
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
 
@@ -756,10 +790,11 @@ void UseDef::fillRegImmToReg(UDState *state, Assembly *assembly) {
         break;
     }
     defReg(state, reg0, tree);
+#endif
 }
 
 void UseDef::fillMemToRegReg(UDState *state, Assembly *assembly) {
-
+#ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -800,9 +835,11 @@ void UseDef::fillMemToRegReg(UDState *state, Assembly *assembly) {
         = TreeFactory::instance().make<TreeNodeDereference>(memTree1, width);
     defReg(state, reg0, derefTree0);
     defReg(state, reg1, derefTree1);
+#endif
 }
 
 void UseDef::fillRegRegToMem(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -838,10 +875,11 @@ void UseDef::fillRegRegToMem(UDState *state, Assembly *assembly) {
 
     defMem(state, memTree0, reg0);
     defMem(state, memTree1, reg1);
+#endif
 }
 
 void UseDef::fillRegRegImmToMem(UDState *state, Assembly *assembly) {
-
+#ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -877,9 +915,11 @@ void UseDef::fillRegRegImmToMem(UDState *state, Assembly *assembly) {
         baseTree,
         TreeFactory::instance().make<TreeNodeConstant>(imm));
     defReg(state, base, wbTree);
+#endif
 }
 
 void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -920,9 +960,11 @@ void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
         baseTree,
         TreeFactory::instance().make<TreeNodeConstant>(imm));
     defReg(state, base, wbTree);
+#endif
 }
 
 void UseDef::fillRegRegRegToReg(UDState *state, Assembly *assembly) {
+#ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
@@ -961,8 +1003,10 @@ void UseDef::fillRegRegRegToReg(UDState *state, Assembly *assembly) {
         break;
     }
     defReg(state, reg0, tree);
+#endif
 }
 
+#ifdef ARCH_AARCH64
 void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_IMM) {
@@ -1266,6 +1310,7 @@ void UseDef::fillSxtw(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
+#endif
 
 void MemLocation::extract(TreeNode *tree) {
     TreeCapture cap;
@@ -1286,4 +1331,3 @@ void MemLocation::extract(TreeNode *tree) {
     }
 }
 
-#endif

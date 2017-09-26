@@ -280,19 +280,21 @@ public:
         { return nullptr; }
 };
 
-// only works for fixed size instructions
 class UDRegMemWorkingSet : public UDWorkingSet {
 private:
     Function *function;
     ControlFlowGraph *cfg;
-    std::vector<RegMemState> stateList;
+#ifdef ARCH_X86_64
+    std::map<Instruction *, size_t> stateListIndex;
+#endif
+    typedef std::vector<RegMemState> StateListType;
+    StateListType stateList;
 public:
     UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg);
     virtual ~UDRegMemWorkingSet() {}
 
     virtual UDState *getState(Instruction *instruction);
-    const std::vector<RegMemState> &getStateList() const
-        { return stateList; }
+    const StateListType &getStateList() const { return stateList; }
     Function *getFunction() const { return function; }
     ControlFlowGraph *getCFG() const { return cfg; }
 };
@@ -322,7 +324,7 @@ public:
 private:
     void analyzeGraph(const std::vector<int>& order);
     void fillState(UDState *state);
-    bool callIfEnabled(UDState *state, Assembly *assembly);
+    bool callIfEnabled(UDState *state, Instruction *instruction);
 
     void fillImm(UDState *state, Assembly *assembly);
     void fillReg(UDState *state, Assembly *assembly);
@@ -347,6 +349,7 @@ private:
     TreeNode *shiftExtend(TreeNode *tree, arm64_shifter type,
         unsigned int value);
 
+#ifdef ARCH_AARCH64
     void fillAddOrSub(UDState *state, Assembly *assembly);
     void fillAdr(UDState *state, Assembly *assembly);
     void fillAdrp(UDState *state, Assembly *assembly);
@@ -380,6 +383,7 @@ private:
     void fillStrb(UDState *state, Assembly *assembly);
     void fillStrh(UDState *state, Assembly *assembly);
     void fillSxtw(UDState *state, Assembly *assembly);
+#endif
 };
 
 class MemLocation {
