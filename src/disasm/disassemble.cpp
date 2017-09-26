@@ -407,6 +407,25 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         << std::hex << entryPoint);
     for(auto range : intervalList) {
         if(range.getStart() == entryPoint) {
+            // Gentoo, with gcc 5.4.0
+            if(range.getSize() == 0x2a) {
+                address_t start = entryPoint + 0x2a;
+                start = (start + 0x7) & (~0x7);
+
+                LOG(1, "Adding deregister_tm_clones etc starting at 0x"
+                    << std::hex << start);
+
+                intervalList.push_back(Range(start, 0x40));  // deregister_tm_clones
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x40));  // register_tm_clones
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x20));  // __do_global_dtors_aux
+                start += intervalList.back().getSize();
+                intervalList.push_back(Range(start, 0x30));  // frame_dummy
+                start += intervalList.back().getSize();
+            }
+
+            // Debian, with gcc 7.2.0
             if(range.getSize() == 0x2b) {
                 address_t start = entryPoint + 0x2b;
                 start = (start + 0x7) & (~0x7);

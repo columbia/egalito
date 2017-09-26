@@ -57,7 +57,7 @@ void ElfMap::parseElf(const char *filename) {
 void ElfMap::verifyElf() {
 
     unsigned char *e_ident = ((ElfXX_Ehdr *)map)->e_ident;
-    if (   e_ident[EI_MAG0] != ELFMAG0
+    if (e_ident[EI_MAG0] != ELFMAG0
         || e_ident[EI_MAG1] != ELFMAG1
         || e_ident[EI_MAG2] != ELFMAG2
         || e_ident[EI_MAG3] != ELFMAG3) {
@@ -159,7 +159,9 @@ ElfSection *ElfMap::findSection(const char *name) const {
 }
 
 ElfSection *ElfMap::findSection(int index) const {
-    if((unsigned int)index < sectionList.size()) {
+    if(static_cast<std::vector<ElfSection *>::size_type>(index)
+        < sectionList.size()) {
+
         return sectionList[index];
     }
     return nullptr;

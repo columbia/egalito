@@ -162,18 +162,6 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         s->setType(Symbol::TYPE_FUNC);
     }*/
 
-    for(auto sym : *list) {
-        if(sym->getSize() == 0 && sym->getAddress() > 0) {
-#ifdef ARCH_AARCH64
-            if(sym->getType() != Symbol::TYPE_FUNC) continue;
-#endif
-            size_t estimate = list->estimateSizeOf(sym);
-            LOG(5, "estimate size of symbol ["
-                << sym->getName() << "] to be " << std::dec << estimate);
-            sym->setSize(estimate);
-        }
-    }
-
     SymbolAliasFinder aliasFinder(list);
     aliasFinder.constructByAddress();
 
@@ -211,6 +199,18 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
         }
         else {
             seenNamed[sym->getName()] = sym;
+        }
+    }
+
+    for(auto sym : *list) {
+        if(sym->getSize() == 0 && sym->getAddress() > 0) {
+#ifdef ARCH_AARCH64
+            if(sym->getType() != Symbol::TYPE_FUNC) continue;
+#endif
+            size_t estimate = list->estimateSizeOf(sym);
+            LOG(5, "estimate size of symbol ["
+                << sym->getName() << "] to be " << std::dec << estimate);
+            sym->setSize(estimate);
         }
     }
 
