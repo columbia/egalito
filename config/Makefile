@@ -20,7 +20,7 @@ config.h: $(PLATFORM_CONFIG_FILE)
 	fi
 
 $(PLATFORM_CONFIG_FILE):
-	@echo "Please add a new configuration file ($(PLATFORM_CONFIG_FILE))."
+	$(error "Please add a new configuration file ($(PLATFORM_CONFIG_FILE)).")
 
 clean:
 	@if [ "$(DIFF)" != "" ]; then \

@@ -3,6 +3,7 @@
 
 #include "framework/include.h"
 #include "disasm/disassemble.h"
+#include "dwarf/parser.h"
 #include "chunk/module.h"
 #include "chunk/dump.h"
 #include "elf/symbol.h"
@@ -80,7 +81,9 @@ TEST_CASE("Fuzzy-function disassemble", "[disasm]") {
     CHECK(strippedSymbolList->getCount() == 0);
 
     Disassemble::init();
-    Module *module = Disassemble::module(strippedElf, nullptr);
+    DwarfParser dwarfParser(strippedElf);
+    Module *module = Disassemble::module(strippedElf, nullptr,
+        dwarfParser.getUnwindInfo());
 
     Function *fuzzy = CIter::spatial(module->getFunctionList())
         ->find(mainSymbol->getAddress());
