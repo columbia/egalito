@@ -353,19 +353,12 @@ void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
     // We find the crtbegin functions by extrapolating from the ret statements
     // that are followed by nops. Because these functions are very strange, the
     // padding nops are not stripped from the functions (to match symbol info).
-    static const bool splitAfterReturn[] = {
-        true,       // after deregister_tm_clones comes register_tm_clones
-        true,       // after register_tm_clones comes __do_global_dtors_aux
-        false,      // __do_global_dtors_aux contains an inner ret+nop!
-        true        // after __do_global_dtors_aux comes frame_dummy
-    };
-    size_t actionCounter = 0;
-
     enum {
-        MODE_NONE,
-        MODE_RET,
-        MODE_NOP,
-        MODE_FOUND
+        MODE_NONE,          // starting
+        MODE_RET,           // seen a ret
+        MODE_NOP,           // seen a ret and one or more nops
+        MODE_MAYBE_FOUND,   // almost done, but filter out ret+nop+ret
+        MODE_FOUND          // done, end the function!
     } mode = MODE_NONE;
 
     for(size_t j = 0; j < count; j++) {
@@ -384,17 +377,17 @@ void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
                 break;
             case MODE_NOP:
                 if(ins->id == X86_INS_NOP) mode = MODE_NOP;
+                else mode = MODE_MAYBE_FOUND, redo = true;
+                break;
+            case MODE_MAYBE_FOUND:
+                // if we see ret+nop+ret sequence, wait until second ret
+                if(ins->id == X86_INS_RET) mode = MODE_RET;
                 else mode = MODE_FOUND, redo = true;
                 break;
             case MODE_FOUND:
-                if(actionCounter < sizeof(splitAfterReturn)/sizeof(*splitAfterReturn)
-                    && splitAfterReturn[actionCounter]) {
-
-                    LOG(1, "splitting crtbegin function at 0x"
-                        << std::hex << ins->address);
-                    splitRanges.splitAt(ins->address);
-                }
-                actionCounter ++;
+                LOG(1, "splitting crtbegin function at 0x"
+                    << std::hex << ins->address);
+                splitRanges.splitAt(ins->address);
                 mode = MODE_NONE, redo = true;
                 break;
             }
