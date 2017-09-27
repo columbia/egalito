@@ -98,6 +98,11 @@ void Assembly::overrideCapstone(const cs_insn &insn) {
 AssemblyOperands::OperandsMode AssemblyOperands::getMode() const {
     OperandsMode mode = MODE_UNKNOWN;
 #ifdef ARCH_X86_64
+    if(op_count == 1
+        && operands[0].type == X86_OP_REG) {
+
+        mode = MODE_REG;
+    }
     if(op_count == 2
         && operands[0].type == X86_OP_REG
         && operands[1].type == X86_OP_REG) {
@@ -115,6 +120,12 @@ AssemblyOperands::OperandsMode AssemblyOperands::getMode() const {
         && operands[1].type == X86_OP_REG) {
 
         mode = MODE_IMM_REG;
+    }
+    if(op_count == 2
+        && operands[0].type == X86_OP_REG
+        && operands[1].type == X86_OP_MEM) {
+
+        mode = MODE_REG_MEM;
     }
 #elif defined(ARCH_AARCH64)
     if(op_count == 0) {
