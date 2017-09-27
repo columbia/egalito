@@ -188,6 +188,8 @@ IntervalTree::~IntervalTree() {
 }
 
 bool IntervalTree::splitAt(address_t point) {
+    if(!tree->getTotalRange().contains(point)) return false;
+
     std::vector<Range> found = findOverlapping(point);
 
     if(found.size() == 1) {

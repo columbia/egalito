@@ -277,11 +277,8 @@ Function *DisassembleX86Function::fuzzyFunction(const Range &range,
     return function;
 }
 
-FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
-    DwarfUnwindInfo *dwarfInfo) {
-
-    auto section = elfMap->findSection(sectionName);
-    if(!section) return nullptr;
+void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
+    IntervalTree &splitRanges, IntervalTree &functionPadding) {
 
     // Get address of region to disassemble
     address_t virtualAddress = section->getVirtualAddress();
@@ -289,8 +286,71 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
+    cs_insn *insn;
+    size_t count = cs_disasm(handle.raw(),
+        (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+
+    size_t nopBytes = 0;
+    //enum { PROLOGUE_NONE, PROLOGUE_PUSH } prologueState = PROLOGUE_NONE;
+    for(size_t j = 0; j < count; j++) {
+        auto ins = &insn[j];
+
+        address_t target = 0;
+        if(shouldSplitFunctionDueTo(ins, &target)) {
+            splitRanges.splitAt(target);
+        }
+
+        if(ins->id == X86_INS_NOP) {
+            nopBytes += ins->size;
+        }
+        else if(nopBytes) {
+            functionPadding.add(Range(ins->address - nopBytes, nopBytes));
+            nopBytes = 0;
+        }
+
+#if 0
+        switch(prologueState) {
+        case PROLOGUE_NONE:
+            if(ins->id == X86_INS_PUSH && ins->detail->x86.op_count == 1
+                && ins->detail->x86.operands[0].type == X86_OP_REG
+                && ins->detail->x86.operands[0].reg == X86_REG_RBP) {
+
+                prologueState = PROLOGUE_PUSH;
+            }
+            break;
+        case PROLOGUE_PUSH:
+            if(ins->id == X86_INS_MOV && ins->detail->x86.op_count == 2
+                && ins->detail->x86.operands[0].type == X86_OP_REG
+                && ins->detail->x86.operands[1].type == X86_OP_REG
+                && ins->detail->x86.operands[0].reg == X86_REG_RSP
+                && ins->detail->x86.operands[1].reg == X86_REG_RBP) {
+
+                splitRanges.splitAt(ins->address - 1);  // back before push
+            }
+            prologueState = PROLOGUE_NONE;
+            break;
+        }
+#endif
+    }
+
+    if(nopBytes) {
+        functionPadding.add(Range(virtualAddress + readSize - nopBytes,
+            nopBytes));
+    }
+
+    if(count > 0) cs_free(insn, count);
+}
+
+FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
+    DwarfUnwindInfo *dwarfInfo) {
+
+    auto section = elfMap->findSection(sectionName);
+    if(!section) return nullptr;
+
+    Range sectionRange(section->getVirtualAddress(), section->getSize());
+
     // Find known functions from DWARF info
-    IntervalTree knownFunctions(Range(virtualAddress, readSize));
+    IntervalTree knownFunctions(sectionRange);
     for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
         DwarfFDE *fde = *it;
         Range range(fde->getPcBegin(), fde->getPcRange());
@@ -304,45 +364,15 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     }
 
     // Run first disassembly pass, to find obvious function boundaries
-    IntervalTree splitRanges(Range(virtualAddress, readSize));
-    splitRanges.add(Range(virtualAddress, readSize));
+    IntervalTree splitRanges(sectionRange);
+    splitRanges.add(sectionRange);
     splitRanges.splitAt(elfMap->getEntryPoint());
 
-    IntervalTree functionPadding(Range(virtualAddress, readSize));
-    {
-        cs_insn *insn;
-        size_t count = cs_disasm(handle.raw(),
-            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
-        size_t nopBytes = 0;
-        for(size_t j = 0; j < count; j++) {
-            auto ins = &insn[j];
-
-            address_t target = 0;
-            if(shouldSplitFunctionDueTo(ins, &target)) {
-                splitRanges.splitAt(target);
-            }
-
-            if(ins->id == X86_INS_NOP) {
-                nopBytes += ins->size;
-            }
-            else if(nopBytes) {
-                functionPadding.add(Range(ins->address - nopBytes, nopBytes));
-                nopBytes = 0;
-            }
-        }
-
-        if(nopBytes) {
-            functionPadding.add(Range(virtualAddress + readSize - nopBytes,
-                nopBytes));
-        }
-
-        if(count > 0) {
-            cs_free(insn, count);
-        }
-    }
+    IntervalTree functionPadding(sectionRange);
+    firstDisassemblyPass(section, splitRanges, functionPadding);
 
     // Shrink functions, removing nop padding bytes
-    IntervalTree functionsWithoutPadding(Range(virtualAddress, readSize));
+    IntervalTree functionsWithoutPadding(sectionRange);
     splitRanges.getRoot()->inStartOrderTraversal([&] (Range func) {
         Range bound;
         if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
@@ -363,6 +393,9 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
             LOG(1, "looks like function " << func << " may have some padding");
             if(func.getEnd() == bound.getEnd() || bound.contains(func.getEnd())) {
+                // Subtracts func, and if any single range would be subtracted,
+                // we also subtract the nop padding from that range. This
+                // avoids enroaching into functions that begin with a nop.
                 functionsWithoutPadding.subtractWithAddendum(func, bound);
             }
             else {
@@ -393,7 +426,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     FunctionList *functionList = new FunctionList();
     for(const Range &range : intervalList) {
         LOG(1, "Split into function " << range << " at section offset "
-            << range.getStart() - virtualAddress);
+            << section->convertVAToOffset(range.getStart()));
         Function *function = fuzzyFunction(range, section);
         functionList->getChildren()->add(function);
         function->setParent(functionList);

@@ -14,6 +14,7 @@
 
 class Symbol;
 class SymbolList;
+class IntervalTree;
 
 class Disassemble {
 public:
@@ -66,6 +67,9 @@ public:
     Function *fuzzyFunction(const Range &range, ElfSection *section);
     FunctionList *linearDisassembly(const char *sectionName,
         DwarfUnwindInfo *dwarfInfo);
+private:
+    void firstDisassemblyPass(ElfSection *section,
+        IntervalTree &splitRanges, IntervalTree &functionPadding);
 };
 
 class DisassembleAARCH64Function : public DisassembleFunctionBase {
