@@ -244,6 +244,20 @@ void IntervalTree::subtract(Range range) {
     }
 }
 
+void IntervalTree::subtractWithAddendum(Range range, Range addendum) {
+    std::vector<Range> overlapping = findOverlapping(range);
+
+    for(Range r : overlapping) {
+        remove(r);
+        if(r.getStart() < range.getStart()) {
+            add(Range::fromEndpoints(r.getStart(), range.getStart()));
+        }
+        if(addendum.getEnd() < r.getEnd()) {
+            add(Range::fromEndpoints(addendum.getEnd(), r.getEnd()));
+        }
+    }
+}
+
 IntervalTree IntervalTree::complement() {
     Range bounds = tree->getTotalRange();
     IntervalTree newTree(bounds);

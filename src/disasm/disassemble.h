@@ -63,6 +63,7 @@ public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
+    Function *fuzzyFunction(const Range &range, ElfSection *section);
     FunctionList *linearDisassembly(const char *sectionName,
         DwarfUnwindInfo *dwarfInfo);
 };

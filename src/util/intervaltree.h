@@ -60,6 +60,7 @@ public:
     bool findLowerBoundOrOverlapping(address_t point, Range *lowerBound);
     bool findUpperBound(address_t point, Range *upperBound);
     void subtract(Range range);
+    void subtractWithAddendum(Range range, Range addendum);
     IntervalTree complement();
     void unionWith(IntervalTree &otherTree);
 

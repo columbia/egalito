@@ -251,6 +251,32 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     return function;
 }
 
+Function *DisassembleX86Function::fuzzyFunction(const Range &range,
+    ElfSection *section) {
+
+    address_t virtualAddress = section->getVirtualAddress();
+    address_t readAddress = section->getReadAddress()
+        + section->convertVAToOffset(virtualAddress);
+    address_t intervalVirtualAddress = range.getStart();
+    address_t intervalOffset = intervalVirtualAddress - virtualAddress;
+    address_t intervalSize = range.getSize();
+
+    Function *function = new FuzzyFunction(intervalVirtualAddress);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(intervalVirtualAddress));
+
+    disassembleBlocks(function, readAddress + intervalOffset,
+        intervalSize, intervalVirtualAddress);
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
+    }
+
+    return function;
+}
+
 FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     DwarfUnwindInfo *dwarfInfo) {
 
@@ -275,14 +301,6 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         else {
             LOG(1, "FDE is out of bounds of .text section, skipping");
         }
-    }
-
-    // Add known functions from section info
-    if(auto s = elfMap->findSection(".init")) {
-        knownFunctions.add(Range(s->getVirtualAddress(), s->getSize()));
-    }
-    if(auto s = elfMap->findSection(".fini")) {
-        knownFunctions.add(Range(s->getVirtualAddress(), s->getSize()));
     }
 
     // Run first disassembly pass, to find obvious function boundaries
@@ -341,36 +359,42 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
     // Remove all known functions, plus nop padding bytes
     knownFunctions.getRoot()->inStartOrderTraversal([&] (Range func) {
-        functionsWithoutPadding.subtract(func);
+        Range bound;
+        if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
+            LOG(1, "looks like function " << func << " may have some padding");
+            if(func.getEnd() == bound.getEnd() || bound.contains(func.getEnd())) {
+                functionsWithoutPadding.subtractWithAddendum(func, bound);
+            }
+            else {
+                functionsWithoutPadding.subtract(func);
+            }
+        }
+        else {
+            // No nop padding bytes, just subtract function
+            functionsWithoutPadding.subtract(func);
+        }
     });
 
+    // Finally, convert to list of ranges
     functionsWithoutPadding.unionWith(knownFunctions);
     std::vector<Range> intervalList = functionsWithoutPadding.getAllData();
+
+    // Handle special functions from section info
+    if(auto s = elfMap->findSection(".init")) {
+        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+    }
+    if(auto s = elfMap->findSection(".fini")) {
+        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+    }
+
     LOG(1, "Splitting code section into " << intervalList.size()
         << " fuzzy functions");
 
     FunctionList *functionList = new FunctionList();
     for(const Range &range : intervalList) {
-        address_t intervalVirtualAddress = range.getStart();
-        address_t intervalOffset = intervalVirtualAddress - virtualAddress;
-        address_t intervalSize = range.getSize();
-        LOG(1, "Split into function [0x"
-            << std::hex << intervalVirtualAddress << ",+"
-            << intervalSize << ") at section offset 0x" << intervalOffset);
-
-        Function *function = new FuzzyFunction(intervalVirtualAddress);
-
-        PositionFactory *positionFactory = PositionFactory::getInstance();
-        function->setPosition(
-            positionFactory->makeAbsolutePosition(intervalVirtualAddress));
-
-        disassembleBlocks(function, readAddress + intervalOffset,
-            intervalSize, intervalVirtualAddress);
-
-        {
-            ChunkMutator m(function);  // recalculate cached values if necessary
-        }
-
+        LOG(1, "Split into function " << range << " at section offset "
+            << range.getStart() - virtualAddress);
+        Function *function = fuzzyFunction(range, section);
         functionList->getChildren()->add(function);
         function->setParent(functionList);
     }
