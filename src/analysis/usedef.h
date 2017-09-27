@@ -349,6 +349,13 @@ private:
     TreeNode *shiftExtend(TreeNode *tree, arm64_shifter type,
         unsigned int value);
 
+#ifdef ARCH_X86_64
+    void fillAddOrSub(UDState *state, Assembly *assembly);
+    void fillLea(UDState *state, Assembly *assembly);
+    void fillMov(UDState *state, Assembly *assembly);
+    void fillPush(UDState *state, Assembly *assembly);
+#endif
+
 #ifdef ARCH_AARCH64
     void fillAddOrSub(UDState *state, Assembly *assembly);
     void fillAdr(UDState *state, Assembly *assembly);
