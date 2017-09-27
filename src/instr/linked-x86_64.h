@@ -74,6 +74,27 @@ public:
 public:
     diff_t calculateDisplacement();
 };
+
+// no link yet
+class StackFrameInstruction : public RawInstruction {
+private:
+    unsigned int id;
+    size_t opCodeSize;
+    size_t displacementSize;
+    long int displacement;
+public:
+    StackFrameInstruction(Assembly *assembly);
+
+    virtual size_t getSize() const { return opCodeSize + displacementSize; }
+
+    void writeTo(char *target);
+    void writeTo(std::string &target);
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+
+    int getId() const { return id; }
+    void addToDisplacementValue(long int add);
+};
 #endif
 
 #endif

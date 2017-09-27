@@ -196,6 +196,13 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
         false);
 }
 
+void InstrDumper::visit(StackFrameInstruction *semantic) {
+    std::string data = getBytes(semantic);
+    std::vector<unsigned char> v(data.begin(), data.end());
+    Assembly assembly = Disassemble::makeAssembly(v, address);
+    DisasmDump::printInstruction(address, &assembly, pos, nullptr);
+}
+
 void InstrDumper::visit(LiteralInstruction *semantic) {
     std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());

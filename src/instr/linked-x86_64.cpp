@@ -167,4 +167,36 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
     return getLink()->getTargetAddress()
         - (getSource()->getAddress() + getSize());
 }
+
+void StackFrameInstruction::writeTo(char *target) {
+    std::memcpy(target, getStorage().getData().c_str(), opCodeSize);
+    std::memcpy(target + opCodeSize, &displacement, displacementSize);
+}
+
+void StackFrameInstruction::writeTo(std::string &target) {
+    target.append(getStorage().getData(), 0, opCodeSize);
+    target.append(
+        reinterpret_cast<const char *>(&displacement), displacementSize);
+}
+
+StackFrameInstruction::StackFrameInstruction(Assembly *assembly)
+    : RawInstruction(std::string(assembly->getBytes())) {
+
+    this->id = assembly->getId();
+
+    this->displacementSize = MakeSemantic::determineDisplacementSize(assembly);
+    this->opCodeSize = assembly->getSize() - displacementSize;
+    auto asmOps = assembly->getAsmOperands();
+    for(size_t i = 0; i < asmOps->getOpCount(); i++) {
+        auto op = &asmOps->getOperands()[i];
+        if(op->type == X86_OP_MEM && op->mem.base == X86_REG_RSP) {
+            this->displacement = op->mem.disp;
+        }
+    }
+}
+
+void StackFrameInstruction::addToDisplacementValue(long int add) {
+    displacement += add;
+}
+
 #endif

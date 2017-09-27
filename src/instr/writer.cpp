@@ -82,6 +82,23 @@ void InstrWriterMakeReloc::visit(ControlFlowInstruction *controlFlow) {
     madeReloc = true;
 }
 
+// StackFrameInstruction
+void InstrWriterCString::visit(StackFrameInstruction *stackFrame) {
+#ifdef ARCH_X86_64
+    stackFrame->writeTo(target);
+#endif
+}
+void InstrWriterCppString::visit(StackFrameInstruction *stackFrame) {
+#ifdef ARCH_X86_64
+    stackFrame->writeTo(target);
+#endif
+}
+void InstrWriterGetData::visit(StackFrameInstruction *stackFrame) {
+#ifdef ARCH_X86_64
+    stackFrame->writeTo(data);
+#endif
+}
+
 // LiteralInstruction
 void InstrWriterCString::visit(LiteralInstruction *literal) {
     visit(static_cast<RawInstruction *>(literal));
