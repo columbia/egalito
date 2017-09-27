@@ -341,6 +341,69 @@ void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
     if(count > 0) cs_free(insn, count);
 }
 
+void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
+    Range crtbegin, IntervalTree &splitRanges) {
+
+    cs_insn *insn;
+    size_t count = cs_disasm(handle.raw(),
+        (const uint8_t *)section->getReadAddress()
+            + section->convertVAToOffset(crtbegin.getStart()),
+        crtbegin.getSize(), crtbegin.getStart(), 0, &insn);
+
+    // We find the crtbegin functions by extrapolating from the ret statements
+    // that are followed by nops. Because these functions are very strange, the
+    // padding nops are not stripped from the functions (to match symbol info).
+    static const bool splitAfterReturn[] = {
+        true,       // after deregister_tm_clones comes register_tm_clones
+        true,       // after register_tm_clones comes __do_global_dtors_aux
+        false,      // __do_global_dtors_aux contains an inner ret+nop!
+        true        // after __do_global_dtors_aux comes frame_dummy
+    };
+    size_t actionCounter = 0;
+
+    enum {
+        MODE_NONE,
+        MODE_RET,
+        MODE_NOP,
+        MODE_FOUND
+    } mode = MODE_NONE;
+
+    for(size_t j = 0; j < count; j++) {
+        auto ins = &insn[j];
+
+        bool redo;
+        do {
+            redo = false;
+            switch(mode) {
+            case MODE_NONE:
+                if(ins->id == X86_INS_RET) mode = MODE_RET;
+                break;
+            case MODE_RET:
+                if(ins->id == X86_INS_NOP) mode = MODE_NOP;
+                else mode = MODE_NONE, redo = true;
+                break;
+            case MODE_NOP:
+                if(ins->id == X86_INS_NOP) mode = MODE_NOP;
+                else mode = MODE_FOUND, redo = true;
+                break;
+            case MODE_FOUND:
+                if(actionCounter < sizeof(splitAfterReturn)/sizeof(*splitAfterReturn)
+                    && splitAfterReturn[actionCounter]) {
+
+                    LOG(1, "splitting crtbegin function at 0x"
+                        << std::hex << ins->address);
+                    splitRanges.splitAt(ins->address);
+                }
+                actionCounter ++;
+                mode = MODE_NONE, redo = true;
+                break;
+            }
+        } while(redo);
+    }
+
+    if(count > 0) cs_free(insn, count);
+}
+
 FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     DwarfUnwindInfo *dwarfInfo) {
 
@@ -387,7 +450,8 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         }
     });
 
-    // Remove all known functions, plus nop padding bytes
+    // Remove nop padding byte ranges after all known functions
+    // (achieved by removing all functions plus nops, then adding back in)
     knownFunctions.getRoot()->inStartOrderTraversal([&] (Range func) {
         Range bound;
         if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
@@ -407,12 +471,18 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             functionsWithoutPadding.subtract(func);
         }
     });
+    functionsWithoutPadding.unionWith(knownFunctions);  // add back in
 
-    // Finally, convert to list of ranges
-    functionsWithoutPadding.unionWith(knownFunctions);
+    // Hack to find the crtbegin functions...
+    auto entryPoint = elfMap->getEntryPoint();
+    Range crtBeginFunction;  // blob of all crtbegin functions
+    if(functionsWithoutPadding.findUpperBound(entryPoint, &crtBeginFunction)) {
+        disassembleCrtBeginFunctions(section, crtBeginFunction,
+            functionsWithoutPadding);
+    }
+
+    // Get final list of functions (add special functions outside .text)
     std::vector<Range> intervalList = functionsWithoutPadding.getAllData();
-
-    // Handle special functions from section info
     if(auto s = elfMap->findSection(".init")) {
         intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
     }

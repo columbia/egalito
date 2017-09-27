@@ -70,6 +70,8 @@ public:
 private:
     void firstDisassemblyPass(ElfSection *section,
         IntervalTree &splitRanges, IntervalTree &functionPadding);
+    void disassembleCrtBeginFunctions(ElfSection *section, Range crtbegin,
+        IntervalTree &splitRanges);
 };
 
 class DisassembleAARCH64Function : public DisassembleFunctionBase {
