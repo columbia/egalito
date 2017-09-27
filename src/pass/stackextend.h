@@ -8,13 +8,10 @@
 #include "analysis/controlflow.h"
 #include "elf/reloc.h"
 
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class ControlFlowInstruction;
 
 class FrameType {
 private:
-    size_t baseSize;    // local variable + callee-saved regs
-    size_t outArgSize;
     Instruction *setBPInstr;
     std::vector<Instruction *> resetSPInstrs;
     std::vector<Instruction *> epilogueInstrs;
@@ -32,7 +29,7 @@ public:
     void dump();
 
 private:
-    size_t getFrameSize(Function *function);
+    bool createsFrame(Function *function);
 };
 
 class StackExtendPass : public ChunkPass {
@@ -52,10 +49,14 @@ public:
     virtual void visit(Instruction *instruction) {}
 private:
     virtual bool shouldApply(Function *function) { return true; }
+    // AARCH64
     void addExtendStack(Function *function, FrameType *frame);
     void addShrinkStack(Function *function, FrameType *frame);
+    // X86_64
+    void extendStack(Function *function, FrameType *frame);
+    void adjustOffset(Instruction *instruction);
+
     virtual void useStack(Function *function, FrameType *frame) {};
 };
-#endif
 
 #endif

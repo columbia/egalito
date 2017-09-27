@@ -1,23 +1,33 @@
 #include <algorithm>
 #include <string>
+#include <assert.h>
 #include "stackextend.h"
 #include "analysis/jumptable.h"
+#include "analysis/usedefutil.h"
+#include "analysis/controlflow.h"
+#include "analysis/usedef.h"
+#include "analysis/walker.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
+#include "disasm/makesemantic.h"
 #include "instr/concrete.h"
 #include "disasm/disassemble.h"
 #include "operation/mutator.h"
 #include "log/log.h"
+#include "log/temp.h"
 
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void StackExtendPass::visit(Module *module) {
+#ifdef ARCH_X86_64
+    if(0) {}
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     if(extendSize >= 504) { // due to stp limitation
         LOG(1, "can't extend over 504");
     }
     else if(extendSize & 0x7) {
         LOG(1, "extend size must be multiple of 8");
     }
+#endif
     else {
         LOG(5, "extending by " << extendSize);
         recurse(module);
@@ -31,14 +41,181 @@ void StackExtendPass::visit(Function *function) {
     IF_LOG(10) frame.dump();
 
     if(extendSize > 0) {
+#ifdef ARCH_X86_64
+        extendStack(function, &frame);
+#else
         addExtendStack(function, &frame);
         addShrinkStack(function, &frame);
+#endif
         ChunkMutator(function).updatePositions();
     }
     useStack(function, &frame);
+    IF_LOG(10) frame.dump();
+}
+
+#ifdef ARCH_X86_64
+static size_t getLoadStackOffset(UDState *state) {
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > StackAccessForm1;
+
+    typedef TreePatternBinary<TreeNodeSubtraction,
+        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > StackAccessForm2;
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        StackAccessForm1
+    > StackDerefForm1;
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        StackAccessForm2
+    > StackDerefForm2;
+
+    for(auto& def : state->getRegDefList()) {
+        TreeCapture cap1, cap2;
+        if(StackDerefForm1::matches(def.second, cap1)) {
+            auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
+            return c->getValue();
+        }
+        if(StackDerefForm2::matches(def.second, cap2)) {
+            auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
+            return c->getValue();
+        }
+
+        if(StackAccessForm1::matches(def.second, cap1)) { // add $0x10,%rsp
+            return 0;
+        }
+        if(StackAccessForm2::matches(def.second, cap2)) { // sub $0x10,%rsp
+            return 0;
+        }
+    }
+    for(auto& def : state->getMemDefList()) {
+        TreeCapture cap1, cap2;
+        if(StackAccessForm1::matches(def.second, cap1)) {
+            auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
+            return c->getValue();
+        }
+        if(StackAccessForm2::matches(def.second, cap2)) {
+            auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
+            return c->getValue();
+        }
+    }
+    state->dumpState();
+    throw "getLoadStackOffset: error";
+    //return 0;
+}
+
+static size_t getCurrentFrameSize(UDState *state) {
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > StackAccessForm1;
+
+    typedef TreePatternBinary<TreeNodeSubtraction,
+        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > StackAccessForm2;
+
+    size_t size = 0;
+    bool found;
+    auto f = [&](UDState *s, TreeCapture cap) {
+        //LOG0(1, "cap: "); cap.get(0)->print(TreePrinter(2, 0)); LOG(1, "");
+        auto c = dynamic_cast<TreeNodeConstant *>(cap.get(0));
+        size += c->getValue();
+        state = s;
+        found = true;
+        return true;
+    };
+    while(found) {
+        found = false;
+        FlowUtil::searchUpDef<StackAccessForm1>(state, X86_REG_RSP, f);
+        if(!found) {
+            FlowUtil::searchUpDef<StackAccessForm2>(state, X86_REG_RSP, f);
+        }
+    }
+    return size;
+}
+#endif
+
+void StackExtendPass::adjustOffset(Instruction *instruction) {
+#ifdef ARCH_X86_64
+    LOG(1, "adjusting displacement in " << instruction->getAddress());
+    //ChunkDumper dumper;
+    //instruction->accept(&dump);
+
+    auto v
+        = dynamic_cast<DisassembledInstruction *>(instruction->getSemantic());
+    assert(!!v);
+    auto sfi = new StackFrameInstruction(v->getAssembly());
+    sfi->addToDisplacementValue(extendSize);
+    instruction->setSemantic(sfi);
+    //instruction->accept(&dump);
+    delete v;
+#endif
+}
+
+void StackExtendPass::extendStack(Function *function, FrameType *frame) {
+#ifdef ARCH_X86_64
+    ControlFlowGraph cfg(function);
+    UDConfiguration config(&cfg);
+    UDRegMemWorkingSet working(function, &cfg);
+    UseDef usedef(&config, &working);
+
+    IF_LOG(10) cfg.dump();
+    IF_LOG(10) cfg.dumpDot();
+
+    SccOrder order(&cfg);
+    order.genFull(0);
+    TemporaryLogLevel tll("analysis", 11);
+    usedef.analyze(order.get());
+
+
+    for(auto block : CIter::children(function)) {
+        for(auto instr : CIter::children(block)) {
+            auto state = working.getState(instr);
+            for(auto& ref : state->getRegRefList()) {
+                auto reg = ref.first;
+                if(reg == X86_REG_RSP) {
+                    LOG(10, std::hex << instr->getAddress() << " refs rsp");
+                    if(auto offset = getLoadStackOffset(state)) {
+                        auto frameSize = getCurrentFrameSize(state);
+                        LOG(10, "offset = " << offset
+                            << " frame size = " << frameSize);
+                        if(frameSize < offset) {
+                            adjustOffset(instr);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // prologue -- sub $0x8,%rsp
+    std::vector<unsigned char> bin_sub = {0x48, 0x83, 0xec};
+    for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
+        unsigned char c = (extendSize >> s) & 0xff;
+        if(c) bin_sub.push_back(c);
+    }
+    auto firstB = function->getChildren()->getIterable()->get(0);
+    ChunkMutator(firstB).prepend(Disassemble::instruction(bin_sub));
+
+    // epilogue -- add $0x8,%rsp
+    std::vector<unsigned char> bin_add = {0x48, 0x83, 0xc4};
+    for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
+        unsigned char c = (extendSize >> s) & 0xff;
+        if(c) bin_add.push_back(c);
+    }
+    for(auto ins : frame->getResetSPInstrs()) {
+        ChunkMutator(ins->getParent()).insertBefore(ins,
+            Disassemble::instruction(bin_add));
+    }
+#endif
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     auto firstB = function->getChildren()->getIterable()->get(0);
     if(withSave) {
         // STP X29, X30, [SP, #-extendSize/8]
@@ -60,14 +237,15 @@ void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
     auto instr_add = Disassemble::instruction(bin_add.getVector());
     if(auto ins = frame->getSetBPInstr()) {
         ChunkMutator(ins->getParent()).insertAfter(ins, instr_add);
-        frame->setSetBPInstr(instr_add);
     }
+#endif
 }
 
 void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
+#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    auto bin_sub = AARCH64InstructionBinary(
+        0xD1000000 | extendSize << 10 | 29 << 5 | 29);
     for(auto ins : frame->getResetSPInstrs()) {
-        auto bin_sub = AARCH64InstructionBinary(
-            0xD1000000 | extendSize << 10 | 29 << 5 | 29);
         auto instr_sub = Disassemble::instruction(bin_sub.getVector());
         ChunkMutator(ins->getParent()).insertBefore(ins, instr_sub);
     }
@@ -92,40 +270,47 @@ void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
             frame->fixEpilogue(ins, instr_add);
         }
     }
+#endif
 }
 
-FrameType::FrameType(Function *function)
-    : baseSize(0), outArgSize(0), setBPInstr(nullptr) {
-    baseSize = getFrameSize(function);
-
-    if(baseSize > 0) {
+FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
+    if(createsFrame(function)) {
         auto firstB = function->getChildren()->getIterable()->get(0);
         for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
             if(auto assembly = ins->getSemantic()->getAssembly()) {
                 auto asmOps = assembly->getAsmOperands();
+#ifdef ARCH_X86_64
+                if(assembly->getId() == X86_INS_MOV
+                    && assembly->getAsmOperands()->getOpCount() == 2
+                    && asmOps->getOperands()[0].type == X86_OP_REG
+                    && asmOps->getOperands()[0].reg == X86_REG_RSP
+                    && asmOps->getOperands()[1].type == X86_OP_REG
+                    && asmOps->getOperands()[1].reg ==  X86_REG_RBP) {
+
+                    setBPInstr = ins;
+                    break;
+                }
+#elif defined(ARCH_AARCH64)
                 if(asmOps->getOpCount() >= 2
-                   && asmOps->getOperands()[0].type == ARM64_OP_REG
-                   && asmOps->getOperands()[0].reg == ARM64_REG_X29
-                   && asmOps->getOperands()[1].type == ARM64_OP_REG
-                   && asmOps->getOperands()[1].reg == ARM64_REG_SP) {
+                    && asmOps->getOperands()[0].type == ARM64_OP_REG
+                    && asmOps->getOperands()[0].reg == ARM64_REG_X29
+                    && asmOps->getOperands()[1].type == ARM64_OP_REG
+                    && asmOps->getOperands()[1].reg == ARM64_REG_SP) {
 
                     if(assembly->getId() == ARM64_INS_MOV) {
-                        outArgSize = 0;
                         setBPInstr = ins;
                     }
                     else if(assembly->getId() == ARM64_INS_ADD) {
-                        outArgSize = asmOps->getOperands()[2].imm;
                         setBPInstr = ins;
                     }
                     break;
                 }
+#endif
             }
         }
     }
 
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());
-    if(!module) LOG(1, "no module?");
-
     for(auto b : function->getChildren()->getIterable()->iterable()) {
         for(auto ins : b->getChildren()->getIterable()->iterable()) {
             if(dynamic_cast<ReturnInstruction *>(ins->getSemantic())) {
@@ -134,30 +319,33 @@ FrameType::FrameType(Function *function)
             else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
                 ins->getSemantic())) {
 
-                if(cfi->getMnemonic() == std::string("b")
-                   || cfi->getMnemonic().find("b.", 0) != std::string::npos) {
-
-                    if(auto link = dynamic_cast<NormalLink *>(cfi->getLink())) {
-                        if(dynamic_cast<Function *>(&*link->getTarget())) {
-                            epilogueInstrs.push_back(ins);
-                        }
-                        continue;
+#ifdef ARCH_X86_64
+                if(cfi->getMnemonic() == "callq") continue;
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+                if(cfi->getAssembly()->getId() == ARM64_INS_BL) continue;
+#endif
+                if(auto link = dynamic_cast<NormalLink *>(cfi->getLink())) {
+                    if(auto f = dynamic_cast<Function *>(&*link->getTarget())) {
+                        if(f != function) epilogueInstrs.push_back(ins);
                     }
-                    if(dynamic_cast<PLTLink *>(cfi->getLink())) {
-                        epilogueInstrs.push_back(ins);
-                        continue;
-                    }
+                    continue;
+                }
+                if(dynamic_cast<PLTLink *>(cfi->getLink())) {
+                    epilogueInstrs.push_back(ins);
+                    continue;
                 }
             }
             else if(dynamic_cast<IndirectJumpInstruction *>(
                 ins->getSemantic())) {
 
+                bool tablejump = false;
                 for(auto jt : CIter::children(module->getJumpTableList())) {
                     if(ins == jt->getDescriptor()->getInstruction()) {
-                        continue;
+                        tablejump = true;
+                        break;
                     }
                 }
-                epilogueInstrs.push_back(ins);
+                if(!tablejump) epilogueInstrs.push_back(ins);
             }
         }
     }
@@ -167,13 +355,24 @@ FrameType::FrameType(Function *function)
         for(auto ins : parent->getChildren()->getIterable()->iterable()) {
             if(auto assembly = ins->getSemantic()->getAssembly()) {
                 auto operands = assembly->getAsmOperands()->getOperands();
-                if(assembly->getId() == ARM64_INS_MOV
-                   && operands[0].reg == ARM64_REG_SP
-                   && operands[1].type == ARM64_OP_REG
-                   && operands[1].reg == ARM64_REG_X29) {
+#ifdef ARCH_X86_64
+                if(assembly->getId() == X86_INS_ADD
+                    && assembly->getAsmOperands()->getOpCount() == 2
+                    && operands[0].type == X86_OP_IMM
+                    && operands[1].type == X86_OP_REG
+                    && operands[1].reg == X86_REG_RSP) {
 
                     resetSPInstrs.push_back(ins);
                 }
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+                if(assembly->getId() == ARM64_INS_MOV
+                    && operands[0].reg == ARM64_REG_SP
+                    && operands[1].type == ARM64_OP_REG
+                    && operands[1].reg == ARM64_REG_X29) {
+
+                    resetSPInstrs.push_back(ins);
+                }
+#endif
             }
         }
     }
@@ -194,24 +393,48 @@ FrameType::FrameType(Function *function)
     }
 }
 
-size_t FrameType::getFrameSize(Function *function) {
+bool FrameType::createsFrame(Function *function) {
+#ifdef ARCH_X86_64
+    for(auto block : CIter::children(function)) {
+        for(auto ins : CIter::children(block)) {
+            if(auto assembly = ins->getSemantic()->getAssembly()) {
+                auto operands = assembly->getAsmOperands()->getOperands();
+                if(assembly->getId() == X86_INS_PUSH) {
+                    return true;
+                }
+                if(assembly->getId() == X86_INS_SUB
+                    && assembly->getAsmOperands()->getOpCount() == 2
+                    && operands[0].type == X86_OP_IMM
+                    && operands[1].type == X86_OP_REG
+                    && operands[1].reg == X86_REG_RSP) {
+
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+#elif defined(ARCH_AARCH64)
     auto firstB = function->getChildren()->getIterable()->get(0);
     for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
         if(auto assembly = ins->getSemantic()->getAssembly()) {
             auto operands = assembly->getAsmOperands()->getOperands();
             auto writeback = assembly->getAsmOperands()->getWriteback();
             if(assembly->getId() == ARM64_INS_SUB
-               && operands[0].reg == ARM64_REG_SP) {
-                return operands[2].imm;  // doesn't handle shift and ext
+                && operands[0].reg == ARM64_REG_SP) {
+
+                return true;
             }
             else if(assembly->getId() == ARM64_INS_STP
-                    && operands[2].type == ARM64_OP_MEM
-                    && writeback) {
-                return -(operands[2].mem.disp);
+                && operands[2].type == ARM64_OP_MEM
+                && writeback) {
+
+                return true;
             }
         }
     }
-    return 0;
+    return false;
+#endif
 }
 
 void FrameType::fixEpilogue(Instruction *oldInstr, Instruction *newInstr) {
@@ -232,9 +455,12 @@ void FrameType::fixEpilogue(Instruction *oldInstr, Instruction *newInstr) {
 }
 
 void FrameType::dump() {
-    CLOG(1, "frame size = 0x%x", baseSize);
-    CLOG(1, "out-going arg size = %d", outArgSize);
-    LOG(1, "BP set @ " << (setBPInstr ? setBPInstr->getName() : ""));
+    LOG(1, "BP set at " << (setBPInstr ? setBPInstr->getName() : ""));
+    for(auto i : resetSPInstrs) {
+        LOG(1, "SP reset at " << std::hex << i->getAddress());
+    }
+    for(auto i : epilogueInstrs) {
+        LOG(1, "function epilogue starts at " << std::hex << i->getAddress());
+    }
 }
 
-#endif

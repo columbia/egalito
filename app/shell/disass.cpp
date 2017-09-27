@@ -15,6 +15,7 @@
 #include "pass/stackxor.h"
 #include "pass/noppass.h"
 #include "pass/detectnullptr.h"
+#include "pass/stackextend.h"
 #include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -319,4 +320,31 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         auto elf = setup->getConductor()->getMainSpace()->getElfMap();
         DwarfParser parser(elf);
     }, "parses DWARF unwind info for the main ELF file");
+
+    topLevel->add("extend", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(1);
+
+        Function *func = nullptr;
+        address_t addr;
+        if(args.asHex(0, &addr)) {
+            func = ChunkFind2(setup->getConductor())
+                .findFunctionContaining(addr);
+        }
+        else {
+            func = ChunkFind2(setup->getConductor())
+                .findFunction(args.front().c_str());
+        }
+
+        if(func) {
+            StackExtendPass extender(0x10, false);
+            func->accept(&extender);
+        }
+        else {
+            std::cout << "can't find function or address \"" << args.front() << "\"\n";
+        }
+    }, "extend stack of a single function");
 }

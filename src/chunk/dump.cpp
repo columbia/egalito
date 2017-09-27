@@ -197,10 +197,12 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
 }
 
 void InstrDumper::visit(StackFrameInstruction *semantic) {
+#ifdef ARCH_X86_64
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());
     Assembly assembly = Disassemble::makeAssembly(v, address);
     DisasmDump::printInstruction(address, &assembly, pos, nullptr);
+#endif
 }
 
 void InstrDumper::visit(LiteralInstruction *semantic) {

@@ -444,7 +444,7 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
 #ifdef ARCH_X86_64
     #define INVALID_ID  X86_INS_INVALID
 #elif defined(ARCH_AARCH64)
-    #define INVALID_ID  AARCH64_INS_INVALID
+    #define INVALID_ID  ARM64_INS_INVALID
 #endif
     Assembly *assembly = instruction->getSemantic()->getAssembly();
     int id = INVALID_ID;
@@ -452,9 +452,13 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
         id = assembly->getId();
     }
     else {
+#ifdef ARCH_X86_64
         auto v = dynamic_cast<ControlFlowInstruction *>(
             instruction->getSemantic());
         if(v) id = v->getId();
+#else
+        LOG(1, __func__ << ": how do we gent id?");
+#endif
     }
 
     bool handled = false;
