@@ -127,6 +127,7 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     switch(assembly->getSize()) {
     case 2: return 1;
     case 3: return 1;
+    case 4: return 1;
     case 5: return 4;
     case 6: return 4;
     case 7: return 4;
