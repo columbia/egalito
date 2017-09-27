@@ -13,6 +13,7 @@
 #include "chunk/size.h"
 #include "operation/mutator.h"
 #include "instr/concrete.h"
+#include "util/intervaltree.h"
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -347,6 +348,37 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         function->setParent(functionList);
     }
 #else
+    IntervalTree intervals(Range(virtualAddress, readSize));
+
+    std::set<address_t> splitPoints;
+    std::map<address_t, size_t> nopByteCount;
+    splitPoints.insert(elfMap->getEntryPoint());
+    splitPoints.insert(section->getVirtualAddress());
+    {
+        cs_insn *insn;
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+        size_t nopBytes = 0;
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
+
+            address_t target = 0;
+            if(shouldSplitFunctionDueTo(ins, &target)) {
+                splitPoints.insert(target);
+            }
+
+            if(ins->id == X86_INS_NOP) {
+                nopBytes += ins->size;
+                nopByteCount[ins->address + ins->size] = nopBytes;
+            }
+            else nopBytes = 0;
+        }
+
+        if(count > 0) {
+            cs_free(insn, count);
+        }
+    }
+
     std::vector<Range> intervalList;
     for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
         DwarfFDE *fde = *it;

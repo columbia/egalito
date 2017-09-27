@@ -27,7 +27,7 @@ TEST_CASE("Interval tree lower bound", "[util][fast]") {
     tree.add(Range(0x20, 0xe));
     tree.add(Range(0x30, 0xe));
 
-    Range output(0, 0);
+    Range output;
     CHECK(!tree.findLowerBound(0x15, &output));
 
     REQUIRE(tree.findLowerBound(0x1f, &output));
@@ -56,7 +56,7 @@ TEST_CASE("Interval tree lower bound on large input", "[util][fast]") {
         tree.add(Range(i, 0x8));
     }
 
-    Range output(0, 0);
+    Range output;
     REQUIRE(tree.findLowerBound(0x20, &output));
     CHECK(output == Range(0x10, 0x8));
 
@@ -83,7 +83,7 @@ TEST_CASE("Interval tree upper bound", "[util][fast]") {
     tree.add(Range(0x20, 0xe));
     tree.add(Range(0x30, 0xe));
 
-    Range output(0, 0);
+    Range output;
     REQUIRE(tree.findUpperBound(0x1, &output));
     CHECK(output == Range(0x10, 0xe));
 
@@ -132,4 +132,22 @@ TEST_CASE("Interval tree find overlapping with point", "[util][fast]") {
     std::sort(output.begin(), output.end());
     CHECK(output == std::vector<Range>(
         { Range(0x30, 0x4) }));
+}
+
+TEST_CASE("Interval tree complement", "[util][fast]") {
+    IntervalTree tree(Range(0, 0x40));
+
+    tree.add(Range(0x10, 0xe));
+    tree.add(Range(0x20, 0x10));
+    tree.add(Range(0x30, 0xe));
+
+    IntervalTree newTree = tree.complement();
+
+    std::vector<Range> output;
+    newTree.getRoot()->inStartOrderTraversal([&] (const Range &r) {
+        output.push_back(r);
+    });
+
+    CHECK(output == std::vector<Range>(
+        { Range(0x0, 0x10), Range(0x1e, 0x2), Range(0x3e, 0x2) }));
 }

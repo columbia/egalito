@@ -9,6 +9,7 @@ private:
     address_t _start;
     size_t _size;
 public:
+    Range() : _start(0), _size(0) {}
     Range(address_t start, size_t size) : _start(start), _size(size) {}
 
     address_t getStart() const { return _start; }

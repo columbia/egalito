@@ -126,3 +126,24 @@ bool IntervalTree::findLowerBound(address_t point, Range *lowerBound) {
 bool IntervalTree::findUpperBound(address_t point, Range *upperBound) {
     return tree->findUpperBound(point, upperBound);
 }
+
+IntervalTree IntervalTree::complement() {
+    Range bounds = tree->getTotalRange();
+    IntervalTree newTree(bounds);
+    address_t lastPoint = bounds.getStart();
+
+    tree->inStartOrderTraversal([&] (Range r) {
+        address_t end = r.getStart();
+        if(end > lastPoint) {
+            newTree.add(Range::fromEndpoints(lastPoint, end));
+        }
+
+        lastPoint = std::max(lastPoint, r.getEnd());
+    });
+
+    if(lastPoint < bounds.getEnd()) {
+        newTree.add(Range::fromEndpoints(lastPoint, bounds.getEnd()));
+    }
+
+    return std::move(newTree);
+}
