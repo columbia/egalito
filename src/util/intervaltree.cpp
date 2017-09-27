@@ -1,9 +1,6 @@
 #include <cassert>
 #include <algorithm>
 #include "intervaltree.h"
-
-#undef DEBUG_GROUP
-#define DEBUG_GROUP chunk
 #include "log/log.h"
 
 IntervalTreeNode::~IntervalTreeNode() {
@@ -12,9 +9,8 @@ IntervalTreeNode::~IntervalTreeNode() {
 }
 
 void IntervalTreeNode::add(Range range) {
-    LOG(1, "adding [" << range.getStart() << ",+" << range.getSize() << ") to ["
-        << totalRange.getStart() << ",+" << totalRange.getSize()
-        << ") with midpoint " << midpoint);
+    /*LOG(1, "adding " << range << " to " << totalRange
+        << " with midpoint " << midpoint);*/
     assert(totalRange.contains(range));
 
     if(range < midpoint) {
@@ -66,57 +62,39 @@ void IntervalTreeNode::findOverlapping(address_t point,
 }
 
 bool IntervalTreeNode::findLowerBound(address_t point, Range *bound) {
-    LOG(1, "    findLowerBound for " << point << " in " << totalRange);
-    bool found = false;
-    for(const auto &r : overlapEnd) {
-    //for(RangeList::reverse_iterator it = overlapEnd.rbegin();
-    //    it != overlapEnd.rend(); it ++) {
-        //Range r = *it;
-
-        LOG(1, "        " << r << " < " << point << " ?");
-        if(r < point) {
-            if(found && bound->getEnd() < r.getEnd()) {
-                *bound = r;
-            }
-            //return true;
-            found = true;
-        }
-    }
-
-    if(point < midpoint) {
-        if(lower) return lower->findLowerBound(point, bound);
-    }
     if(point >= midpoint) {
         if(higher && higher->findLowerBound(point, bound)) return true;
     }
 
-    //LOG(1, "findLowerBound: nope");
-    return found;
+    for(RangeList::reverse_iterator it = overlapEnd.rbegin();
+        it != overlapEnd.rend(); it ++) {
+
+        Range r = *it;
+
+        if(r < point) {
+            *bound = r;
+            return true;
+        }
+    }
+
+    if(lower && lower->findLowerBound(point, bound)) return true;
+
+    return false;
 }
 
 bool IntervalTreeNode::findUpperBound(address_t point, Range *bound) {
-    Range best(0, 0);
-    bool foundBest = false;
-    for(RangeList::reverse_iterator it = overlapStart.rbegin();
-        it != overlapStart.rend(); it ++) {
-
-        if(point < *it) {
-            best = *it;
-            foundBest = true;
-        }
-        else break;
-    }
-    if(foundBest) {
-        *bound = best;
-        return true;
-    }
-
     if(point < midpoint) {
-        if(lower) return lower->findUpperBound(point, bound);
+        if(lower && lower->findUpperBound(point, bound)) return true;
     }
-    if(point >= midpoint) {
-        if(higher) return higher->findUpperBound(point, bound);
+
+    for(const auto &r : overlapStart) {
+        if(point < r) {
+            *bound = r;
+            return true;
+        }
     }
+
+    if(higher && higher->findUpperBound(point, bound)) return true;
 
     return false;
 }
@@ -142,7 +120,6 @@ std::vector<Range> IntervalTree::findOverlapping(address_t point) {
 }
 
 bool IntervalTree::findLowerBound(address_t point, Range *lowerBound) {
-    LOG(1, "findLowerBound for " << point);
     return tree->findLowerBound(point, lowerBound);
 }
 

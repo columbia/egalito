@@ -20,6 +20,7 @@
 #define D_pass          9
 #define D_snippet       9
 #define D_transform     9
+#define D_util          9
 
 // Custom groups
 #define D_dsymbol       3
