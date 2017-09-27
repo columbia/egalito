@@ -35,6 +35,9 @@ bool Range::operator < (const Range &other) const {
 bool Range::operator == (const Range &other) const {
     return _start == other._start && _size == other._size;
 }
+bool Range::operator != (const Range &other) const {
+    return _start != other._start || _size != other._size;
+}
 
 Range Range::fromPoint(address_t point) {
     return std::move(Range(point, 1));

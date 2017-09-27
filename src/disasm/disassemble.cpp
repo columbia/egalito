@@ -257,199 +257,99 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
+    // Get address of region to disassemble
     address_t virtualAddress = section->getVirtualAddress();
     address_t readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
-#if 0
-    std::set<address_t> splitPoints;
-    std::map<address_t, size_t> nopByteCount;
-    splitPoints.insert(elfMap->getEntryPoint());
-    splitPoints.insert(section->getVirtualAddress());
-    {
-        cs_insn *insn;
-        size_t count = cs_disasm(handle.raw(),
-            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
-        size_t nopBytes = 0;
-        for(size_t j = 0; j < count; j++) {
-            auto ins = &insn[j];
-
-            address_t target = 0;
-            if(shouldSplitFunctionDueTo(ins, &target)) {
-                splitPoints.insert(target);
-            }
-
-            if(ins->id == X86_INS_NOP) {
-                nopBytes += ins->size;
-                nopByteCount[ins->address + ins->size] = nopBytes;
-            }
-            else nopBytes = 0;
-        }
-
-        if(count > 0) {
-            cs_free(insn, count);
-        }
-    }
-
-    FunctionList *functionList = new FunctionList();
-
-    std::vector<Range> fromScratchIntervalList;
-
-    for(std::set<address_t>::iterator it = splitPoints.begin();
-        it != splitPoints.end(); it ++) {
-
-        address_t functionOffset = (*it) - virtualAddress;
-        std::set<address_t>::iterator next = it;
-        next ++;
-        address_t functionSize;
-        if(next != splitPoints.end()) {
-            functionSize = (*next) - (*it);
-        }
-        else {
-            functionSize = readSize - functionOffset;
-        }
-
-        auto nop = nopByteCount.find((*it) + functionSize);
-        if(nop != nopByteCount.end()) {
-            LOG(10, "Shrinking function by " << (*nop).second << " nop bytes");
-            functionSize -= (*nop).second;
-        }
-
-        Range range(virtualAddress + functionOffset, functionSize);
-        fromScratchIntervalList.push_back(range);
-    }
-
-    LOG(1, "Splitting code section into " << fromScratchIntervalList.size()
-        << " fuzzy functions");
-
-    for(const Range &range : fromScratchIntervalList) {
-        address_t intervalVirtualAddress = range.getStart();
-        address_t intervalOffset = intervalVirtualAddress - virtualAddress;
-        address_t intervalSize = range.getSize();
-        LOG(1, "Split into function [0x"
-            << std::hex << intervalVirtualAddress << ",+"
-            << intervalSize << ") at section offset 0x" << intervalOffset);
-
-        Function *function = new FuzzyFunction(intervalVirtualAddress);
-
-        PositionFactory *positionFactory = PositionFactory::getInstance();
-        function->setPosition(
-            positionFactory->makeAbsolutePosition(intervalVirtualAddress));
-
-        disassembleBlocks(function, readAddress + intervalOffset,
-            intervalSize, intervalVirtualAddress);
-
-        {
-            ChunkMutator m(function);  // recalculate cached values if necessary
-        }
-
-        functionList->getChildren()->add(function);
-        function->setParent(functionList);
-    }
-#else
-    IntervalTree intervals(Range(virtualAddress, readSize));
-
-    std::set<address_t> splitPoints;
-    std::map<address_t, size_t> nopByteCount;
-    splitPoints.insert(elfMap->getEntryPoint());
-    splitPoints.insert(section->getVirtualAddress());
-    {
-        cs_insn *insn;
-        size_t count = cs_disasm(handle.raw(),
-            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
-        size_t nopBytes = 0;
-        for(size_t j = 0; j < count; j++) {
-            auto ins = &insn[j];
-
-            address_t target = 0;
-            if(shouldSplitFunctionDueTo(ins, &target)) {
-                splitPoints.insert(target);
-            }
-
-            if(ins->id == X86_INS_NOP) {
-                nopBytes += ins->size;
-                nopByteCount[ins->address + ins->size] = nopBytes;
-            }
-            else nopBytes = 0;
-        }
-
-        if(count > 0) {
-            cs_free(insn, count);
-        }
-    }
-
-    std::vector<Range> intervalList;
+    // Find known functions from DWARF info
+    IntervalTree knownFunctions(Range(virtualAddress, readSize));
     for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
         DwarfFDE *fde = *it;
-        LOG(1, "looks like an FDE at [" << std::hex << fde->getPcBegin() << ",+"
-            << fde->getPcRange() << "]");
-
         Range range(fde->getPcBegin(), fde->getPcRange());
-        Range sectionRange(section->getVirtualAddress(), section->getSize());
-        if(range.overlaps(sectionRange)) {
-            intervalList.push_back(range);
+        if(knownFunctions.add(range)) {
+            LOG(1, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
+                << fde->getPcRange() << "]");
         }
         else {
             LOG(1, "FDE is out of bounds of .text section, skipping");
         }
     }
 
+    // Add known functions from section info
     if(auto s = elfMap->findSection(".init")) {
-        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+        knownFunctions.add(Range(s->getVirtualAddress(), s->getSize()));
     }
     if(auto s = elfMap->findSection(".fini")) {
-        intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
+        knownFunctions.add(Range(s->getVirtualAddress(), s->getSize()));
     }
 
-    address_t entryPoint = elfMap->getEntryPoint();
-    LOG(1, "Disassembly pass assumes _start at entry point 0x"
-        << std::hex << entryPoint);
-    for(auto range : intervalList) {
-        if(range.getStart() == entryPoint) {
-            // Gentoo, with gcc 5.4.0
-            if(range.getSize() == 0x2a) {
-                address_t start = entryPoint + 0x2a;
-                start = (start + 0x7) & (~0x7);
+    // Run first disassembly pass, to find obvious function boundaries
+    IntervalTree splitRanges(Range(virtualAddress, readSize));
+    splitRanges.add(Range(virtualAddress, readSize));
+    splitRanges.splitAt(elfMap->getEntryPoint());
 
-                LOG(1, "Adding deregister_tm_clones etc starting at 0x"
-                    << std::hex << start);
+    IntervalTree functionPadding(Range(virtualAddress, readSize));
+    {
+        cs_insn *insn;
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+        size_t nopBytes = 0;
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
 
-                intervalList.push_back(Range(start, 0x40));  // deregister_tm_clones
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x40));  // register_tm_clones
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x20));  // __do_global_dtors_aux
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x30));  // frame_dummy
-                start += intervalList.back().getSize();
+            address_t target = 0;
+            if(shouldSplitFunctionDueTo(ins, &target)) {
+                splitRanges.splitAt(target);
             }
 
-            // Debian, with gcc 7.2.0
-            if(range.getSize() == 0x2b) {
-                address_t start = entryPoint + 0x2b;
-                start = (start + 0x7) & (~0x7);
-
-                LOG(1, "Adding deregister_tm_clones etc starting at 0x"
-                    << std::hex << start);
-
-                intervalList.push_back(Range(start, 0x40));  // deregister_tm_clones
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x50));  // register_tm_clones
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x40));  // __do_global_dtors_aux
-                start += intervalList.back().getSize();
-                intervalList.push_back(Range(start, 0x10));  // frame_dummy
-                start += intervalList.back().getSize();
+            if(ins->id == X86_INS_NOP) {
+                nopBytes += ins->size;
             }
-            break;
+            else if(nopBytes) {
+                functionPadding.add(Range(ins->address - nopBytes, nopBytes));
+                nopBytes = 0;
+            }
+        }
+
+        if(nopBytes) {
+            functionPadding.add(Range(virtualAddress + readSize - nopBytes,
+                nopBytes));
+        }
+
+        if(count > 0) {
+            cs_free(insn, count);
         }
     }
 
-    FunctionList *functionList = new FunctionList();
+    // Shrink functions, removing nop padding bytes
+    IntervalTree functionsWithoutPadding(Range(virtualAddress, readSize));
+    splitRanges.getRoot()->inStartOrderTraversal([&] (Range func) {
+        Range bound;
+        if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
+            LOG(1, "looks like function " << func << " may have some padding");
+            if(func.getEnd() == bound.getEnd() || bound.contains(func.getEnd())) {
+                functionsWithoutPadding.add(Range::fromEndpoints(
+                    func.getStart(), bound.getStart()));
+            }
+            else {
+                functionsWithoutPadding.add(func);
+            }
+        }
+    });
+
+    // Remove all known functions, plus nop padding bytes
+    knownFunctions.getRoot()->inStartOrderTraversal([&] (Range func) {
+        functionsWithoutPadding.subtract(func);
+    });
+
+    functionsWithoutPadding.unionWith(knownFunctions);
+    std::vector<Range> intervalList = functionsWithoutPadding.getAllData();
     LOG(1, "Splitting code section into " << intervalList.size()
         << " fuzzy functions");
 
+    FunctionList *functionList = new FunctionList();
     for(const Range &range : intervalList) {
         address_t intervalVirtualAddress = range.getStart();
         address_t intervalOffset = intervalVirtualAddress - virtualAddress;
@@ -474,7 +374,6 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         functionList->getChildren()->add(function);
         function->setParent(functionList);
     }
-#endif
 
     return functionList;
 }

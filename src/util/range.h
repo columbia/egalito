@@ -26,6 +26,7 @@ public:
     bool operator < (address_t point) const;
     bool operator < (const Range &other) const;
     bool operator == (const Range &other) const;
+    bool operator != (const Range &other) const;
 
     static Range fromPoint(address_t point);
     static Range fromEndpoints(address_t start, address_t end);

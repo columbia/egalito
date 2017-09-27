@@ -8,17 +8,18 @@ IntervalTreeNode::~IntervalTreeNode() {
     delete higher;
 }
 
-void IntervalTreeNode::add(Range range) {
+bool IntervalTreeNode::add(Range range) {
+    if(!totalRange.contains(range)) return false;
+
     /*LOG(1, "adding " << range << " to " << totalRange
         << " with midpoint " << midpoint);*/
-    assert(totalRange.contains(range));
 
     if(range < midpoint) {
         if(!lower) {
             lower = new IntervalTreeNode(
                 Range::fromEndpoints(totalRange.getStart(), midpoint));
         }
-        lower->add(range);
+        return lower->add(range);
     }
     else if(range.contains(midpoint)) {
         overlapStart.push_back(range);
@@ -38,8 +39,40 @@ void IntervalTreeNode::add(Range range) {
             higher = new IntervalTreeNode(
                 Range::fromEndpoints(midpoint, totalRange.getEnd()));
         }
-        higher->add(range);
+        return higher->add(range);
     }
+
+    return true;
+}
+
+bool IntervalTreeNode::remove(Range range) {
+    if(range < midpoint) {
+        if(lower) return lower->remove(range);
+    }
+    else if(midpoint < range) {
+        if(higher) return higher->remove(range);
+    }
+    else {
+        bool removed1 = false;
+        bool removed2 = false;
+
+        auto it1 = std::find(overlapStart.begin(), overlapStart.end(), range);
+        if(it1 != overlapStart.end()) {
+            overlapStart.erase(it1);
+            removed1 = true;
+        }
+
+        auto it2 = std::find(overlapEnd.begin(), overlapEnd.end(), range);
+        if(it2 != overlapEnd.end()) {
+            overlapEnd.erase(it2);
+            removed2 = true;
+        }
+
+        assert((removed1 && removed2) || (!removed1 && !removed2));
+        return removed1 && removed2;
+    }
+
+    return false;
 }
 
 void IntervalTreeNode::findOverlapping(address_t point,
@@ -53,11 +86,31 @@ void IntervalTreeNode::findOverlapping(address_t point,
         }
     }
     if(point >= midpoint) {
-        if(higher) higher->findOverlapping(point, found);
         for(const auto &r : overlapEnd) {
             if(r.contains(point)) found.push_back(r);
             if(r < point) break;
         }
+        if(higher) higher->findOverlapping(point, found);
+    }
+}
+
+void IntervalTreeNode::findOverlapping(Range range, std::vector<Range> &found) {
+    bool searchLower = true, searchHigher = true;
+
+    if(range < midpoint) searchHigher = false;
+    if(midpoint < range || midpoint == range.getStart()) searchLower = false;
+
+    if(searchLower && lower) {
+        lower->findOverlapping(range, found);
+    }
+
+    // !!! inefficient compared to the above
+    for(const auto &r : overlapStart) {
+        if(r.overlaps(range)) found.push_back(r);
+    }
+
+    if(searchHigher && higher) {
+        higher->findOverlapping(range, found);
     }
 }
 
@@ -78,6 +131,27 @@ bool IntervalTreeNode::findLowerBound(address_t point, Range *bound) {
     }
 
     if(lower && lower->findLowerBound(point, bound)) return true;
+
+    return false;
+}
+
+bool IntervalTreeNode::findLowerBoundOrOverlapping(address_t point, Range *bound) {
+    if(point >= midpoint) {
+        if(higher && higher->findLowerBoundOrOverlapping(point, bound)) return true;
+    }
+
+    for(RangeList::reverse_iterator it = overlapEnd.rbegin();
+        it != overlapEnd.rend(); it ++) {
+
+        Range r = *it;
+
+        if(r < point || r.contains(point)) {
+            *bound = r;
+            return true;
+        }
+    }
+
+    if(lower && lower->findLowerBoundOrOverlapping(point, bound)) return true;
 
     return false;
 }
@@ -113,9 +187,32 @@ IntervalTree::~IntervalTree() {
     delete tree;
 }
 
+bool IntervalTree::splitAt(address_t point) {
+    std::vector<Range> found = findOverlapping(point);
+
+    if(found.size() == 1) {
+        auto r = found[0];
+        if(point != r.getStart() && point != r.getEnd()) {
+            remove(found[0]);
+            add(Range::fromEndpoints(r.getStart(), point));
+            add(Range::fromEndpoints(point, r.getEnd()));
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 std::vector<Range> IntervalTree::findOverlapping(address_t point) {
     std::vector<Range> found;
     tree->findOverlapping(point, found);
+    return std::move(found);
+}
+
+std::vector<Range> IntervalTree::findOverlapping(Range range) {
+    std::vector<Range> found;
+    tree->findOverlapping(range, found);
     return std::move(found);
 }
 
@@ -123,8 +220,28 @@ bool IntervalTree::findLowerBound(address_t point, Range *lowerBound) {
     return tree->findLowerBound(point, lowerBound);
 }
 
+bool IntervalTree::findLowerBoundOrOverlapping(address_t point,
+    Range *lowerBound) {
+
+    return tree->findLowerBoundOrOverlapping(point, lowerBound);
+}
+
 bool IntervalTree::findUpperBound(address_t point, Range *upperBound) {
     return tree->findUpperBound(point, upperBound);
+}
+
+void IntervalTree::subtract(Range range) {
+    std::vector<Range> overlapping = findOverlapping(range);
+
+    for(Range r : overlapping) {
+        remove(r);
+        if(r.getStart() < range.getStart()) {
+            add(Range::fromEndpoints(r.getStart(), range.getStart()));
+        }
+        if(range.getEnd() < r.getEnd()) {
+            add(Range::fromEndpoints(range.getEnd(), r.getEnd()));
+        }
+    }
 }
 
 IntervalTree IntervalTree::complement() {
@@ -146,4 +263,18 @@ IntervalTree IntervalTree::complement() {
     }
 
     return std::move(newTree);
+}
+
+void IntervalTree::unionWith(IntervalTree &otherTree) {
+    otherTree.getRoot()->inStartOrderTraversal([&] (Range range) {
+        add(range);
+    });
+}
+
+std::vector<Range> IntervalTree::getAllData() const {
+    std::vector<Range> output;
+    tree->inStartOrderTraversal([&] (const Range &r) {
+        output.push_back(r);
+    });
+    return std::move(output);
 }

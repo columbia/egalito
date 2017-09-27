@@ -9,15 +9,35 @@ TEST_CASE("Interval tree add nodes then iterate", "[util][fast]") {
     tree.add(Range(20, 3));
     tree.add(Range(30, 4));
 
-    std::vector<address_t> starts;
-    std::vector<size_t> sizes;
-    tree.getRoot()->inStartOrderTraversal([&] (const Range &r) {
-        starts.push_back(r.getStart());
-        sizes.push_back(r.getSize());
-    });
+    CHECK(tree.getAllData() == std::vector<Range>(
+        { Range(10, 2), Range(20, 3), Range(30, 4) }));
+}
 
-    CHECK(starts == std::vector<address_t>({ 10, 20, 30 }));
-    CHECK(sizes == std::vector<size_t>({ 2, 3, 4 }));
+TEST_CASE("Interval tree add out-of-bounds node", "[util][fast]") {
+    IntervalTree tree(Range(0, 10));
+    CHECK(tree.add(Range(2, 3)));
+    CHECK(!tree.add(Range(9, 2)));
+}
+
+TEST_CASE("Interval tree remove nodes", "[util][fast]") {
+    IntervalTree tree(Range(0, 100));
+
+    tree.add(Range(10, 2));
+    tree.add(Range(20, 3));
+    tree.add(Range(30, 4));
+    tree.add(Range(40, 5));
+
+    REQUIRE(tree.remove(Range(20, 3)));
+    CHECK(tree.getAllData() == std::vector<Range>(
+        { Range(10, 2), Range(30, 4), Range(40, 5) }));
+
+    CHECK(!tree.remove(Range(0, 5)));
+
+    REQUIRE(tree.remove(Range(10, 2)));
+    CHECK(tree.getAllData() == std::vector<Range>(
+        { Range(30, 4), Range(40, 5) }));
+
+    CHECK(!tree.remove(Range(10, 2)));
 }
 
 TEST_CASE("Interval tree lower bound", "[util][fast]") {
@@ -134,6 +154,13 @@ TEST_CASE("Interval tree find overlapping with point", "[util][fast]") {
         { Range(0x30, 0x4) }));
 }
 
+TEST_CASE("Interval tree complement empty set", "[util][fast]") {
+    IntervalTree tree(Range(1, 123));
+    IntervalTree newTree = tree.complement();
+
+    CHECK(newTree.getAllData() == std::vector<Range>({ Range(1, 123) }));
+}
+
 TEST_CASE("Interval tree complement", "[util][fast]") {
     IntervalTree tree(Range(0, 0x40));
 
@@ -143,11 +170,6 @@ TEST_CASE("Interval tree complement", "[util][fast]") {
 
     IntervalTree newTree = tree.complement();
 
-    std::vector<Range> output;
-    newTree.getRoot()->inStartOrderTraversal([&] (const Range &r) {
-        output.push_back(r);
-    });
-
-    CHECK(output == std::vector<Range>(
+    CHECK(newTree.getAllData() == std::vector<Range>(
         { Range(0x0, 0x10), Range(0x1e, 0x2), Range(0x3e, 0x2) }));
 }

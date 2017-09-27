@@ -28,9 +28,12 @@ public:
 
     Range getTotalRange() const { return totalRange; }
 
-    void add(Range range);
+    bool add(Range range);
+    bool remove(Range range);
     void findOverlapping(address_t point, std::vector<Range> &found);
+    void findOverlapping(Range range, std::vector<Range> &found);
     bool findLowerBound(address_t point, Range *bound);
+    bool findLowerBoundOrOverlapping(address_t point, Range *bound);
     bool findUpperBound(address_t point, Range *bound);
     Range upperBound(address_t point);
 
@@ -48,13 +51,20 @@ public:
         { other.tree = nullptr; }
     ~IntervalTree();
 
-    void add(Range range) { tree->add(range); }
+    bool add(Range range) { return tree->add(range); }
+    bool remove(Range range) { return tree->remove(range); }
+    bool splitAt(address_t point);
     std::vector<Range> findOverlapping(address_t point);
+    std::vector<Range> findOverlapping(Range range);
     bool findLowerBound(address_t point, Range *lowerBound);
+    bool findLowerBoundOrOverlapping(address_t point, Range *lowerBound);
     bool findUpperBound(address_t point, Range *upperBound);
+    void subtract(Range range);
     IntervalTree complement();
+    void unionWith(IntervalTree &otherTree);
 
     IntervalTreeNode *getRoot() const { return tree; }
+    std::vector<Range> getAllData() const;
 };
 
 #endif
