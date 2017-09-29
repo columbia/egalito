@@ -30,12 +30,15 @@ class FuzzyFunction : public Function {
 private:
     std::string name;
 public:
+    FuzzyFunction() {}
     FuzzyFunction(address_t originalAddress);
 
     virtual Symbol *getSymbol() const { return nullptr; }
     virtual std::string getName() const { return name; }
     virtual bool hasName(std::string name) const
         { return name == this->name; }
+
+    void setName(std::string name) { this->name = name; }
 };
 
 class FunctionList : public CompositeChunkImpl<Function> {

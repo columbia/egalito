@@ -12,6 +12,7 @@ public:
 
     bool read(uint16_t &value);
     bool read(uint32_t &value);
+    bool read(uint64_t &value);
     bool read(std::string &value, size_t length);
     bool readAnyLength(std::string &value);
 };
@@ -24,6 +25,7 @@ public:
 
     void write(uint16_t value);
     void write(uint32_t value);
+    void write(uint64_t value);
     void write(const char *value);
     void write(const std::string &value);
     void writeAnyLength(const char *value);

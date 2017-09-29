@@ -7,6 +7,7 @@
 
 std::string Module::getName() const {
     std::ostringstream stream;
+    if(!elfSpace) return "module-???";
     auto lib = elfSpace->getLibrary();
     if(lib) {
         stream << "module-" << lib->getShortName();

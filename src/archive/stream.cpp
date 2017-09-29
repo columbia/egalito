@@ -14,6 +14,11 @@ bool ArchiveStreamReader::read(uint32_t &value) {
     return stream.operator bool ();
 }
 
+bool ArchiveStreamReader::read(uint64_t &value) {
+    stream.read(reinterpret_cast<char *>(&value), sizeof(value));
+    return stream.operator bool ();
+}
+
 bool ArchiveStreamReader::read(std::string &value, size_t length) {
     value.resize(length);
     stream.read(&value[0], length);
@@ -30,6 +35,10 @@ void ArchiveStreamWriter::write(uint16_t value) {
 }
 
 void ArchiveStreamWriter::write(uint32_t value) {
+    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
+}
+
+void ArchiveStreamWriter::write(uint64_t value) {
     stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 

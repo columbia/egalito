@@ -6,12 +6,15 @@
 #include <vector>
 #include "types.h"
 
+class Chunk;
+
 class FlatChunk {
 private:
     uint16_t type;
     uint32_t id;
     uint32_t offset;
     std::string data;
+    Chunk *instance;
 public:
     FlatChunk(uint16_t type, uint32_t id, uint32_t offset,
         std::string data = "")
@@ -27,6 +30,10 @@ public:
         { data.append(static_cast<const char *>(newData), newSize); }
 
     void setOffset(uint32_t offset) { this->offset = offset; }
+    void setInstance(Chunk *instance) { this->instance = instance; }
+
+    template <typename ChunkType>
+    ChunkType *getInstance() const { return dynamic_cast<ChunkType *>(instance); }
 };
 
 class FlatChunkList {
@@ -39,9 +46,11 @@ public:
     void appendData(const std::string &newData);
     void append32(uint32_t value);
 
+    FlatChunk &get(FlatListType::size_type i);
+
     FlatListType::iterator begin() { return flatList.begin(); }
-    FlatListType::const_iterator begin() const { return flatList.cbegin(); }
     FlatListType::iterator end() { return flatList.end(); }
+    FlatListType::const_iterator begin() const { return flatList.cbegin(); }
     FlatListType::const_iterator end() const { return flatList.cend(); }
 
     size_t getCount() const { return flatList.size(); }

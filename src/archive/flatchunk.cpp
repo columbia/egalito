@@ -19,3 +19,8 @@ void FlatChunkList::append32(uint32_t value) {
 
     flatList.back().appendData(static_cast<void *>(&value), sizeof(value));
 }
+
+FlatChunk &FlatChunkList::get(FlatListType::size_type i) {
+    assert(i < flatList.size());
+    return flatList[i];
+}
