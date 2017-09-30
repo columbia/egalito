@@ -188,37 +188,7 @@ DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
     return nullptr;
 }
 
-Link *DataRegionList::resolveVariableLink(Reloc *reloc, Module *module) {
-#ifdef ARCH_X86_64
-    // this is the only reloc type we've seen in TLS
-    if(reloc->getType() == R_X86_64_RELATIVE) {
-        return PerfectLinkResolver().resolveInternally(reloc, module);
-    }
-    return nullptr;
-#else
-    // We can't resolve the address yet, because a link may point to a TLS
-    // in another module e.g. errno referred from libm (tls can be nullptr)
-#if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
-    #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
-#endif
-    Symbol *symbol = reloc->getSymbol();
-    if(reloc->getType() == R_AARCH64_TLS_TPREL
-        || reloc->getType() == R_AARCH64_TLSDESC) {
-
-        auto tls = getTLS();
-        if(symbol && symbol->getSectionIndex() == 0) {
-            tls = nullptr;
-        }
-        return new TLSDataOffsetLink(
-            tls, reloc->getSymbol(), reloc->getAddend());
-    }
-
-    return PerfectLinkResolver().resolveInternally(reloc, module);
-#endif
-}
-
 void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
-    //TemporaryLogLevel tll("chunk", 11);
     auto list = new DataRegionList();
 
     for(void *s : elfMap->getSegmentList()) {
@@ -263,34 +233,4 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     }
 
     module->setMarkerList(new MarkerList());
-
-    // make variables for all relocations located inside the regions
-    for(auto reloc : *module->getElfSpace()->getRelocList()) {
-        // source region (will be different from the link's dest region)
-        auto sourceRegion = list->findRegionContaining(reloc->getAddress());
-        if(sourceRegion) {
-            auto sourceSection
-                = sourceRegion->findDataSectionContaining(reloc->getAddress());
-            if(!sourceSection) continue;
-            if(sourceSection->isCode()) {
-                // it's useless to make a link from code to literal here
-                // because we won't be able to reach it after remap
-                continue;
-            }
-
-            LOG(10, "sourceRegion is " << sourceRegion->getName());
-            if(auto link = list->resolveVariableLink(reloc, module)) {
-                auto addr = reloc->getAddress();
-                LOG0(10, "resolving a variable at " << std::hex << addr);
-                if(auto sym = reloc->getSymbol()) {
-                    LOG(10, " => " << sym->getName()
-                        << " + " << reloc->getAddend());
-                }
-                else LOG(10, " => " << reloc->getAddend());
-                if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
-                auto var = new DataVariable(sourceRegion, addr, link);
-                sourceRegion->addVariable(var);
-            }
-        }
-    }
 }

@@ -2,6 +2,9 @@
 #include "conductor.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
+#include "pass/handlerelocs.h"
+#include "pass/handledatarelocs.h"
+#include "pass/injectbridge.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
@@ -9,6 +12,7 @@
 #include "pass/libchacks.h"
 #include "transform/data.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 Conductor::Conductor() {
     forest = new ElfForest();
@@ -77,12 +81,48 @@ void Conductor::resolvePLTLinks() {
     }
 }
 
+void Conductor::resolveWeak() {
+    //TemporaryLogLevel tll("conductor", 10);
+    //TemporaryLogLevel tll("chunk", 10);
+
+    for(auto lib : *getLibraryList()) {
+        auto space = lib->getElfSpace();
+        if(!space) continue;    // could be nullptr for parse etshell
+        auto module = space->getModule();
+
+        if(module->getName() == "module-(egalito)") {
+            InjectBridgePass bridge(space->getRelocList());
+            module->accept(&bridge);
+        }
+
+        // theoretically this should be three passes, but in practice?
+        LOG(10, "[[[[1 HandleRelocsWeak]]]]" << module->getName());
+        HandleRelocsWeak handleRelocsPass(
+            space->getElfMap(), space->getRelocList());
+        module->accept(&handleRelocsPass);
+
+        LOG(10, "[[[[2 HandleDataRelocsExternalStrong]]]]" << module->getName());
+        HandleDataRelocsExternalStrong pass1(space->getRelocList(), this);
+        module->accept(&pass1);
+
+        LOG(10, "[[[[3 HandleDataRelocsInternalWeak]]]]" << module->getName());
+        HandleDataRelocsInternalWeak pass2(space->getRelocList());
+        module->accept(&pass2);
+
+        LOG(10, "[[[[4 HandleDataRelocsExternalWeak]]]]" << module->getName());
+        HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
+        module->accept(&pass3);
+    }
+}
+
 void Conductor::fixDataSections() {
     // first assign an effective address to each TLS region
     allocateTLSArea();
 
+#ifdef ARCH_X86_64
     RelocDataPass relocData(this);
     program->accept(&relocData);
+#endif
 
     FixJumpTablesPass fixJumpTables;
     program->accept(&fixJumpTables);

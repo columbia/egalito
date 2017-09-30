@@ -56,8 +56,8 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         auto linked
             = LinkedInstruction::makeLinked(module, instruction, assembly);
 #else
-        auto linked
-            = LinkedInstruction::makeLinked(module, instruction, assembly, r);
+        auto linked = LinkedInstruction::makeLinked(module, instruction,
+            assembly, r, resolveWeak);
 #endif
         if(linked) {
             instruction->setSemantic(linked);
@@ -68,8 +68,8 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
     else if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
         //TemporaryLogLevel tll("chunk", 10);
         auto raw = v->getStorage().getData();
-        auto linked
-            = LinkedLiteralInstruction::makeLinked(module, instruction, raw, r);
+        auto linked = LinkedLiteralInstruction::makeLinked(module, instruction,
+            raw, r, resolveWeak);
         if(linked) {
             instruction->setSemantic(linked);
             delete v;

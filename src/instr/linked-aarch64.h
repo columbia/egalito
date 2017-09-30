@@ -69,7 +69,8 @@ public:
     uint32_t rebuild();
 
     static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, Assembly *assembly, Reloc *reloc);
+        Instruction *instruction, Assembly *assembly, Reloc *reloc,
+        bool resolveWeak);
     static void makeAllLinked(Module *module);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
@@ -97,7 +98,8 @@ public:
         : LinkDecorator<LiteralInstruction>(rawData) {}
 
     static LinkedLiteralInstruction *makeLinked(Module *module,
-        Instruction *instruction, std::string raw, Reloc *reloc);
+        Instruction *instruction, std::string raw, Reloc *reloc,
+        bool resolveWeak);
 
     void writeTo(char *target);
     void writeTo(std::string &target);

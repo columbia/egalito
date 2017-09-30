@@ -5,6 +5,8 @@
 #include <map>
 #include "types.h"
 
+class Conductor;
+
 /** Emulate functionality provided by ld.so. */
 class LoaderEmulator {
 private:
@@ -15,6 +17,7 @@ private:
     std::map<std::string, address_t> symbolMap;
 public:
     void useArgv(char **argv);
+    void setGlobalConductor(Conductor *conductor);
 
     address_t findSymbol(const std::string &symbol);
 private:

@@ -232,7 +232,7 @@ class PerfectLinkResolver {
 public:
     /* Resolve within the same module using address info in a relocation.
      * Only returns nullptr if undefined within the module. */
-    virtual Link *resolveInternally(Reloc *reloc, Module *module);
+    virtual Link *resolveInternally(Reloc *reloc, Module *module, bool weak);
 
     /* Resolve outside the module using symbol info. */
     virtual Link *resolveExternally(Symbol *symbol, Conductor *conductor,

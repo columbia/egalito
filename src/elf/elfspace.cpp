@@ -13,6 +13,7 @@
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
+#include "pass/handledatarelocs.h"
 #include "pass/inferlinks.h"
 #include "pass/relocdata.h"
 #include "pass/jumptablepass.h"
@@ -74,9 +75,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     FallThroughFunctionPass fallThrough;
     module->accept(&fallThrough);
 
-    InternalCalls internalCalls;
-    module->accept(&internalCalls);
-
     this->relocList
         = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
 
@@ -84,8 +82,15 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     PLTList::parsePLTList(elf, relocList, module);
 
-    HandleRelocsPass handleRelocsPass(elf, relocList);
+    // this needs data regions
+    HandleDataRelocsInternalStrong handleDataRelocs(relocList);
+    module->accept(&handleDataRelocs);
+
+    HandleRelocsStrong handleRelocsPass(elf, relocList);
     module->accept(&handleRelocsPass);
+
+    InternalCalls internalCalls;
+    module->accept(&internalCalls);
 
     if(module->getPLTList()) {
         ExternalCalls externalCalls(module->getPLTList());

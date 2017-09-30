@@ -10,7 +10,7 @@
 #include "log/log.h"
 
 static int indent = 0;
-Conductor *global_conductor;
+extern Conductor *egalito_conductor;
 
 extern "C"
 void egalito_log_function_name(unsigned long address, int dir) {
@@ -19,7 +19,7 @@ void egalito_log_function_name(unsigned long address, int dir) {
     egalito_printf("%d ", indent);
 
     auto arrow = dir > 0 ? "->" : "<-";
-    auto func = ChunkFind2(global_conductor).findFunctionContaining(address);
+    auto func = ChunkFind2(egalito_conductor).findFunctionContaining(address);
     if(func) {
         // the offset is given in the transformed binary...
         egalito_printf("%s %lx [%s+%lu]\n", arrow, address,
@@ -113,8 +113,6 @@ extern "C" void egalito_log_function_ret(void) {
 #endif
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
-    global_conductor = conductor;
-
     auto lib = conductor->getLibraryList()->get("(egalito)");
     if(!lib) throw "LogCallsPass requires libegalito.so to be transformed";
 
@@ -142,6 +140,8 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
             && !function->hasName("__write_nocancel")
 
             && !function->hasName("__GI__IO_file_doallocate")
+
+            && !function->hasName("$d")
         ;
     });
 #endif

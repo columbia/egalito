@@ -9,6 +9,7 @@
 
 class Link;
 class ElfMap;
+class Module;
 
 class DataRegion;
 
@@ -106,9 +107,6 @@ public:
     address_t getTLSOffset() const { return tlsOffset; }
 };
 
-class ElfMap;
-class Module;
-class Reloc;
 class DataRegionList : public CollectionChunkImpl<DataRegion> {
 private:
     TLSDataRegion *tls;
@@ -122,7 +120,6 @@ public:
         bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
-    Link *resolveVariableLink(Reloc *reloc, Module *module);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
 };

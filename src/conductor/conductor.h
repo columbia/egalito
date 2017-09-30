@@ -20,6 +20,7 @@ public:
     void parseAddOnLibrary(ElfMap *elf);
 
     void resolvePLTLinks();
+    void resolveWeak();
     void fixDataSections();
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");

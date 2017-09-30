@@ -8,6 +8,7 @@
 #include "operation/find.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 
 address_t NormalLink::getTargetAddress() const {
     return target->getAddress();
@@ -84,12 +85,21 @@ Link *LinkFactory::makeMarkerLink(Module *module, address_t target,
         target, 0, symbol, module);
 }
 
-Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module) {
+Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
+    bool weak) {
+
     address_t addr = reloc->getAddend();
     if(auto symbol = reloc->getSymbol()) {
+        LOG(10, "(resolveInternally) SEARCH for " << symbol->getName());
+
         if(symbol->getSectionIndex() == 0) {
             LOG(10, "relocation target for " << reloc->getAddress()
                 << " points to an external module");
+            return nullptr;
+        }
+        if(!weak && symbol->getBind() == Symbol::BIND_WEAK) {
+            LOG(10, "weak symbol " << symbol->getName()
+                << " should be resolved later");
             return nullptr;
         }
         if(symbol->isMarker()) {
@@ -101,6 +111,7 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module) {
 
         addr += symbol->getAddress();
     }
+    LOG(10, "(resolveInternally) SEARCH for " << std::hex << addr);
 
     auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
     if(func) {
@@ -132,7 +143,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
     if(!symbol) return nullptr;
 
     const char *name = symbol->getName();
-    LOG(10, "(PerfectLinkResolver) SEARCH for " << name);
+    LOG(10, "(resolveExternally) SEARCH for " << name);
 
     std::string versionedName;
     if(auto ver = symbol->getVersion()) {
@@ -166,7 +177,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
 
     // this should only happen for functions in a shared library which aren't
     // pulled in.
-    LOG(10, "NOT FOUND: failed to make link to " << name);
+    LOG(9, "NOT FOUND: failed to make link to " << name);
     return nullptr;
 }
 
@@ -203,8 +214,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
                     << std::hex << symbol->getAddress() << " in "
                     << space->getModule()->getName());
                 return LinkFactory::makeDataLink(space->getModule(),
-                    space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-                    true);
+                    symbol->getAddress(), true);
             }
         }
     }

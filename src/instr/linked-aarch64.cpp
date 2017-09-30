@@ -303,9 +303,11 @@ void LinkedInstruction::regenerateAssembly() {
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
-    Instruction *instruction, Assembly *assembly, Reloc *reloc) {
+    Instruction *instruction, Assembly *assembly, Reloc *reloc,
+    bool resolveWeak) {
 
-    auto link = PerfectLinkResolver().resolveInternally(reloc, module);
+    auto link
+        = PerfectLinkResolver().resolveInternally(reloc, module, resolveWeak);
     if(link) {
         auto linked = new LinkedInstruction(instruction, *assembly);
         linked->setLink(link);
@@ -316,9 +318,10 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
 }
 
 LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
-    Instruction *instruction, std::string raw, Reloc *reloc) {
+    Instruction *instruction, std::string raw, Reloc *reloc, bool resolveWeak) {
 
-    auto link = PerfectLinkResolver().resolveInternally(reloc, module);
+    auto link
+        = PerfectLinkResolver().resolveInternally(reloc, module, resolveWeak);
     if(link) {
         auto linked = new LinkedLiteralInstruction(instruction, raw);
         linked->setLink(link);

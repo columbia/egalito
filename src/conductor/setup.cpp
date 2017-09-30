@@ -10,10 +10,13 @@
 
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
+Conductor *egalito_conductor __attribute__((weak));
+
 void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
 
     this->conductor = new Conductor();
+    egalito_conductor = conductor;
 
     this->elf = new ElfMap(executable);
     setBaseAddress(elf, 0x4000000);
@@ -44,6 +47,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(withSharedLibs) {
         conductor->resolvePLTLinks();
     }
+    conductor->resolveWeak();
 }
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
@@ -63,8 +67,6 @@ void ConductorSetup::injectLibrary(const char *filename) {
         }
 
         for(auto region : CIter::regions(module)) {
-            if(region == module->getDataRegionList()->getTLS()) continue;
-
             region->updateAddressFor(elfmap->getBaseAddress());
         }
     }
