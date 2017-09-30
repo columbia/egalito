@@ -53,11 +53,14 @@ void InstrumentCallsPass::addAdvice(
     auto bin_stp = AARCH64InstructionBinary(
         0xA9800000 | (-16/8 & 0x7F) << 15
         | rLR.encoding() << 10 | rSP.encoding() << 5 | rFP.encoding());
+    auto bin_mov = AARCH64InstructionBinary(0x91000000
+        | rSP.encoding() << 5 | rFP.encoding());
     auto bin_bl = AARCH64InstructionBinary(0x94000000);
     auto bin_ldp = AARCH64InstructionBinary(
         0xA8C00000 | (16/8 & 0x7F) << 15
         | rLR.encoding() << 10 | rSP.encoding() << 5 | rFP.encoding());
     auto ins_stp = Disassemble::instruction(bin_stp.getVector());
+    auto ins_mov = Disassemble::instruction(bin_mov.getVector());
     auto ins_bl = Disassemble::instruction(bin_bl.getVector());
     ins_bl->getSemantic()->setLink(new NormalLink(advice));
     auto ins_ldp = Disassemble::instruction(bin_ldp.getVector());
@@ -67,10 +70,12 @@ void InstrumentCallsPass::addAdvice(
     if(after) {
         ChunkMutator(block).insertAfter(point, ins_ldp);
         ChunkMutator(block).insertAfter(point, ins_bl);
+        ChunkMutator(block).insertAfter(point, ins_mov);
         ChunkMutator(block).insertAfter(point, ins_stp);
     }
     else {
         ChunkMutator(block).insertBefore(point, ins_stp);
+        ChunkMutator(block).insertBefore(point, ins_mov);
         ChunkMutator(block).insertBefore(point, ins_bl);
         ChunkMutator(block).insertBefore(point, ins_ldp);
     }
