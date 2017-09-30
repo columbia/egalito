@@ -2,18 +2,13 @@
 #define EGALITO_ARCHIVE_READER_H
 
 #include <iosfwd>
-#include "flatchunk.h"
+#include "archive.h"
 
 class EgalitoArchiveReader {
-private:
-    FlatChunkList flatList;
-    uint32_t flatCount;
 public:
-    void readFlatList(std::string filename);
-
-    FlatChunkList &getFlatList() { return flatList; }
+    EgalitoArchive *read(std::string filename);
 private:
-    bool readHeader(std::ifstream &file);
+    bool readHeader(std::ifstream &file, uint32_t &flatCount);
 };
 
 #endif

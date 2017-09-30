@@ -1,15 +1,15 @@
 #ifndef EGALITO_ARCHIVE_WRITER_H
 #define EGALITO_ARCHIVE_WRITER_H
 
-#include "flatchunk.h"
+#include <string>
+#include "archive.h"
 
 class EgalitoArchiveWriter {
 private:
-    FlatChunkList flatList;
+    EgalitoArchive *archive;
 public:
-    void writeTo(std::string filename);
-
-    FlatChunkList &getFlatList() { return flatList; }
+    EgalitoArchiveWriter(EgalitoArchive *archive) : archive(archive) {}
+    void write(std::string filename);
 private:
     void assignOffsets();
     void writeData(std::string filename);

@@ -1,26 +1,30 @@
 #include <cassert>
 #include "flatchunk.h"
+#include "archive.h"  // for TYPE_UNKNOWN
+#include "log/log.h"
 
-void FlatChunkList::newFlatChunk(uint16_t type) {
-    newFlatChunk(FlatChunk(type, flatList.size(), /*offset=*/ 0));
-}
-void FlatChunkList::newFlatChunk(FlatChunk flat) {
-    flatList.push_back(flat);
-}
-
-void FlatChunkList::appendData(const std::string &newData) {
-    assert(flatList.size() > 0);
-
-    flatList.back().appendData(newData);
+FlatChunk::FlatChunk() : type(EgalitoArchive::TYPE_UNKNOWN), id(-1), offset(0),
+    data() {
 }
 
-void FlatChunkList::append32(uint32_t value) {
-    assert(flatList.size() > 0);
-
-    flatList.back().appendData(static_cast<void *>(&value), sizeof(value));
+FlatChunk *FlatChunkList::newFlatChunk(uint16_t type) {
+    flatList.push_back(new FlatChunk(type, flatList.size()));
+    return flatList.back();
 }
 
-FlatChunk &FlatChunkList::get(FlatListType::size_type i) {
+FlatChunkList::~FlatChunkList() {
+    for(auto flat : flatList) delete flat;
+}
+
+void FlatChunkList::addFlatChunk(FlatChunk *flat) {
+    flatList.resize(flat->getID() + 1);
+    if(flatList[flat->getID()] && flatList[flat->getID()]->getID()) {
+        LOG(1, "WARNING: overwriting old FlatChunk at ID " << flat->getID());
+    }
+    flatList[flat->getID()] = flat;
+}
+
+FlatChunk *FlatChunkList::get(FlatListType::size_type i) {
     assert(i < flatList.size());
     return flatList[i];
 }

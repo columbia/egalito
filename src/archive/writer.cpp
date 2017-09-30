@@ -1,11 +1,10 @@
 #include <cstring>  // for std::strlen
 #include <fstream>
-#include "generic.h"
 #include "writer.h"
 #include "stream.h"
 #include "log/log.h"
 
-void EgalitoArchiveWriter::writeTo(std::string filename) {
+void EgalitoArchiveWriter::write(std::string filename) {
     assignOffsets();
     writeData(filename);
 }
@@ -16,9 +15,9 @@ void EgalitoArchiveWriter::assignOffsets() {
     totalSize += sizeof(EgalitoArchive::version);
     totalSize += sizeof(uint32_t);  // chunk count
 
-    for(auto &flat : flatList) {
-        flat.setOffset(totalSize);
-        totalSize += sizeof(uint16_t) + sizeof(uint32_t)*3 + flat.getSize();
+    for(auto flat : archive->getFlatList()) {
+        flat->setOffset(totalSize);
+        totalSize += sizeof(uint16_t) + sizeof(uint32_t)*3 + flat->getSize();
     }
 }
 
@@ -30,18 +29,18 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
         ArchiveStreamWriter writer(file);
         writer.write(EgalitoArchive::signature);
         writer.write(EgalitoArchive::version);
-        writer.write(static_cast<uint32_t>(flatList.getCount()));
+        writer.write(static_cast<uint32_t>(archive->getFlatList().getCount()));
     }
 
-    for(const auto &flat : flatList) {
-        LOG(9, "write FlatChunk id=" << flat.getID()
-            << " type=" << flat.getType());
+    for(auto flat : archive->getFlatList()) {
+        LOG(9, "write FlatChunk id=" << flat->getID()
+            << " type=" << flat->getType());
         ArchiveStreamWriter writer(file);
-        writer.write(flat.getType());
-        writer.write(flat.getID());
-        writer.write(flat.getOffset());
-        writer.write(flat.getSize());
-        writer.write(flat.getData());
+        writer.write(flat->getType());
+        writer.write(flat->getID());
+        writer.write(flat->getOffset());
+        writer.write(flat->getSize());
+        writer.write(flat->getData());
     }
 
     file.close();

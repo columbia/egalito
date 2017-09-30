@@ -1,13 +1,15 @@
 #include <fstream>
 #include <cstring>  // for std::strlen
 #include "reader.h"
-#include "generic.h"
+#include "archive.h"
 #include "flatchunk.h"
 #include "stream.h"
 #include "chunk/chunk.h"
 #include "log/log.h"
 
-bool EgalitoArchiveReader::readHeader(std::ifstream &file) {
+bool EgalitoArchiveReader::readHeader(std::ifstream &file,
+    uint32_t &flatCount) {
+
     ArchiveStreamReader reader(file);
     std::string line;
     if(!reader.read(line, std::strlen(EgalitoArchive::signature))
@@ -33,7 +35,7 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file) {
         // fall-through
     }
 
-    if(!reader.read(this->flatCount) || this->flatCount == 0) {
+    if(!reader.read(flatCount) || flatCount == 0) {
         LOG(0, "Warning: empty Egalito archive");
         // fall-through
     }
@@ -41,10 +43,13 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file) {
     return true;  // Success
 }
 
-void EgalitoArchiveReader::readFlatList(std::string filename) {
+EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
     std::ifstream file(filename, std::ios::in | std::ios::binary);
-    
-    if(!readHeader(file)) return;
+
+    uint32_t flatCount;
+    if(!readHeader(file, flatCount)) return nullptr;
+
+    EgalitoArchive *archive = new EgalitoArchive(filename);
 
     for(uint32_t i = 0; i < flatCount; i ++) {
         uint16_t type;
@@ -62,13 +67,16 @@ void EgalitoArchiveReader::readFlatList(std::string filename) {
 
         if(!file) {
             LOG(0, "Error: unexpected EOF in archive");
-            return;
+            delete archive;
+            return nullptr;
         }
         LOG(9, "read FlatChunk id=" << id << " type=" << type);
 
-        FlatChunk flat(type, id, offset, data);
-        flatList.newFlatChunk(flat);
+        FlatChunk *flat = new FlatChunk(type, id, data);
+        flat->setOffset(offset);
+        archive->getFlatList().addFlatChunk(flat);
     }
 
     file.close();
+    return archive;
 }

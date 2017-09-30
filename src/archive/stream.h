@@ -2,7 +2,10 @@
 #define EGALITO_ARCHIVE_STREAM_H
 
 #include <iosfwd>
+#include <sstream>
 #include <cstdint>
+
+class FlatChunk;
 
 class ArchiveStreamReader {
 private:
@@ -15,6 +18,8 @@ public:
     bool read(uint64_t &value);
     bool read(std::string &value, size_t length);
     bool readAnyLength(std::string &value);
+
+    bool stillGood();
 };
 
 class ArchiveStreamWriter {
@@ -30,6 +35,16 @@ public:
     void write(const std::string &value);
     void writeAnyLength(const char *value);
     void writeAnyLength(const std::string &value);
+};
+
+class FlatChunk;
+class BufferedStreamWriter : public ArchiveStreamWriter {
+private:
+    FlatChunk *flat;
+    std::ostringstream stream;
+public:
+    BufferedStreamWriter(FlatChunk *flat);
+    ~BufferedStreamWriter();
 };
 
 #endif

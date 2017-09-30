@@ -7,18 +7,17 @@
 #include "chunk.h"
 #include "concrete.h"
 #include "visitor.h"
-#include "archive/generic.h"
+#include "archive/archive.h"
 #include "archive/reader.h"
 #include "archive/writer.h"
-#include "archive/flatchunk.h"
 #include "archive/stream.h"
 #include "log/log.h"
 
 class SerializeImpl : public ChunkListener {
 private:
-    EgalitoArchiveWriter &archive;
+    EgalitoArchive *archive;
 public:
-    SerializeImpl(EgalitoArchiveWriter &archive) : archive(archive) {}
+    SerializeImpl(EgalitoArchive *archive) : archive(archive) {}
     virtual void visit(Program *program);
     virtual void visit(Module *module);
     virtual void visit(FunctionList *functionList);
@@ -35,43 +34,41 @@ public:
 };
 
 void SerializeImpl::visit(Program *program) {
-    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Program);
-
-    std::ostringstream stream;
-    ArchiveStreamWriter writer(stream);
-
-    writer.write(static_cast<uint32_t>(archive.getFlatList().getCount()));  // FunctionList id
-
-    archive.getFlatList().appendData(stream.str());
+    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+        EgalitoArchive::TYPE_Program);
+    BufferedStreamWriter writer(flat);
 
     for(auto module : CIter::children(program)) {
+        writer.write(static_cast<uint32_t>(archive->getFlatList().getCount()));
         module->accept(this);
     }
 }
 
 void SerializeImpl::visit(Module *module) {
-    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Module);
-
-    std::ostringstream stream;
-    ArchiveStreamWriter writer(stream);
-
-    writer.write(static_cast<uint32_t>(archive.getFlatList().getCount()));  // FunctionList id
-    writer.writeAnyLength(module->getName());
-
-    archive.getFlatList().appendData(stream.str());
+    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+        EgalitoArchive::TYPE_Module);
+    {
+        BufferedStreamWriter writer(flat);
+        writer.write(static_cast<uint32_t>(archive->getFlatList().getCount()));  // FunctionList id
+        writer.writeAnyLength(module->getName());
+    }
 
     module->getFunctionList()->accept(this);
 }
 
 void SerializeImpl::visit(FunctionList *functionList) {
-    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_FunctionList);
-    archive.getFlatList().append32(functionList->getChildren()
-        ->getIterable()->getCount());
+    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+        EgalitoArchive::TYPE_FunctionList);
+    {
+        BufferedStreamWriter writer(flat);
+        writer.write(static_cast<uint32_t>(functionList->getChildren()
+            ->getIterable()->getCount()));
 
-    int i = 0;
-    for(auto function : CIter::children(functionList)) {
-        archive.getFlatList().append32(archive.getFlatList().getCount() + i);
-        i ++;
+        int i = 0;
+        for(auto function : CIter::children(functionList)) {
+            writer.write(static_cast<uint32_t>(archive->getFlatList().getCount() + i));
+            i ++;
+        }
     }
 
     for(auto function : CIter::children(functionList)) {
@@ -80,36 +77,34 @@ void SerializeImpl::visit(FunctionList *functionList) {
 }
 
 void SerializeImpl::visit(Function *function) {
-    archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Function);
-
-    std::ostringstream stream;
-    ArchiveStreamWriter writer(stream);
+    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+        EgalitoArchive::TYPE_Function);
+    BufferedStreamWriter writer(flat);
 
     writer.write(static_cast<uint64_t>(function->getAddress()));
     writer.writeAnyLength(function->getName());
-
-    archive.getFlatList().appendData(stream.str());
 }
 
 class DeserializeImpl {
 private:
-    EgalitoArchiveReader &archive;
+    EgalitoArchive *archive;
 public:
-    DeserializeImpl(EgalitoArchiveReader &archive) : archive(archive) {}
-    void instantiate(FlatChunk &flat);
-    Chunk *parse(const FlatChunk &flat);
+    DeserializeImpl(EgalitoArchive *archive) : archive(archive) {}
+    void instantiate(FlatChunk *flat);
+    Chunk *parse(FlatChunk *flat);
 private:
-    typedef Chunk *(DeserializeImpl::*ChunkBuilder)(const FlatChunk &flat,
+    typedef Chunk *(DeserializeImpl::*ChunkBuilder)(FlatChunk *flat,
         ArchiveStreamReader &reader);
-    Chunk *makeProgram(const FlatChunk &flat, ArchiveStreamReader &reader);
-    Chunk *makeModule(const FlatChunk &flat, ArchiveStreamReader &reader);
-    Chunk *makeFunctionList(const FlatChunk &flat, ArchiveStreamReader &reader);
-    Chunk *makeFunction(const FlatChunk &flat, ArchiveStreamReader &reader);
-    Chunk *notYetImplemented(const FlatChunk &flat, ArchiveStreamReader &reader);
+    Chunk *makeProgram(FlatChunk *flat, ArchiveStreamReader &reader);
+    Chunk *makeModule(FlatChunk *flat, ArchiveStreamReader &reader);
+    Chunk *makeFunctionList(FlatChunk *flat, ArchiveStreamReader &reader);
+    Chunk *makeFunction(FlatChunk *flat, ArchiveStreamReader &reader);
+    Chunk *notYetImplemented(FlatChunk *flat, ArchiveStreamReader &reader);
 };
 
-void DeserializeImpl::instantiate(FlatChunk &flat) {
+void DeserializeImpl::instantiate(FlatChunk *flat) {
     std::function<Chunk *()> constructor[] = {
+        [] () -> Chunk* { return nullptr; },              // TYPE_UNKNOWN
         [] () -> Chunk* { return new Program(nullptr); },        // TYPE_Program
         [] () -> Chunk* { return new Module(); },         // TYPE_Module
 #if 0
@@ -147,15 +142,17 @@ void DeserializeImpl::instantiate(FlatChunk &flat) {
 #endif
     };
 
-    const auto &type = flat.getType();
+    assert(flat != nullptr);
+    const auto &type = flat->getType();
     assert(type < sizeof(constructor)/sizeof(*constructor));
 
     Chunk *instance = (constructor[type])();
-    flat.setInstance(instance);
+    flat->setInstance(instance);
 }
 
-Chunk *DeserializeImpl::parse(const FlatChunk &flat) {
+Chunk *DeserializeImpl::parse(FlatChunk *flat) {
     static const ChunkBuilder decoder[] = {
+        &DeserializeImpl::notYetImplemented,    // TYPE_UNKNOWN
         &DeserializeImpl::makeProgram,          // TYPE_Program
         &DeserializeImpl::makeModule,           // TYPE_Module
         &DeserializeImpl::makeFunctionList,     // TYPE_FunctionList
@@ -175,27 +172,28 @@ Chunk *DeserializeImpl::parse(const FlatChunk &flat) {
         &DeserializeImpl::notYetImplemented,    // TYPE_Marker
     };
 
-    const auto &type = flat.getType();
+    assert(flat != nullptr);
+    const auto &type = flat->getType();
     assert(type < sizeof(decoder)/sizeof(*decoder));
 
-    std::istringstream stream(flat.getData());
+    std::istringstream stream(flat->getData());
     ArchiveStreamReader reader(stream);
 
     Chunk *result = (this->*decoder[type])(flat, reader);
     return result;
 }
 
-Chunk *DeserializeImpl::makeProgram(const FlatChunk &flat, ArchiveStreamReader &reader) {
+Chunk *DeserializeImpl::makeProgram(FlatChunk *flat, ArchiveStreamReader &reader) {
     uint32_t id;
     reader.read(id);
 
-    flat.getInstance<Program>()->getChildren()->add(
-        archive.getFlatList().get(id).getInstance<Module>());
+    flat->getInstance<Program>()->getChildren()->add(
+        archive->getFlatList().get(id)->getInstance<Module>());
 
-    return flat.getInstance<Program>();
+    return flat->getInstance<Program>();
 }
 
-Chunk *DeserializeImpl::makeModule(const FlatChunk &flat, ArchiveStreamReader &reader) {
+Chunk *DeserializeImpl::makeModule(FlatChunk *flat, ArchiveStreamReader &reader) {
     uint32_t id;
     reader.read(id);
     std::string name;
@@ -203,68 +201,70 @@ Chunk *DeserializeImpl::makeModule(const FlatChunk &flat, ArchiveStreamReader &r
 
     LOG(1, "trying to parse Module [" << name << "]");
 
-    auto functionList = archive.getFlatList().get(id).getInstance<FunctionList>();
-    flat.getInstance<Module>()->getChildren()->add(functionList);
-    flat.getInstance<Module>()->setFunctionList(functionList);
+    auto functionList = archive->getFlatList().get(id)->getInstance<FunctionList>();
+    flat->getInstance<Module>()->getChildren()->add(functionList);
+    flat->getInstance<Module>()->setFunctionList(functionList);
 
-    return flat.getInstance<Module>();
+    return flat->getInstance<Module>();
 }
 
-Chunk *DeserializeImpl::makeFunctionList(const FlatChunk &flat, ArchiveStreamReader &reader) {
+Chunk *DeserializeImpl::makeFunctionList(FlatChunk *flat, ArchiveStreamReader &reader) {
     uint32_t count;
     reader.read(count);
 
     for(uint32_t i = 0; i < count; i ++) {
         uint32_t id;
         reader.read(id);
-        flat.getInstance<FunctionList>()->getChildren()->add(
-            archive.getFlatList().get(id).getInstance<Function>());
+        flat->getInstance<FunctionList>()->getChildren()->add(
+            archive->getFlatList().get(id)->getInstance<Function>());
     }
 
-    return flat.getInstance<FunctionList>();
+    return flat->getInstance<FunctionList>();
 }
 
-Chunk *DeserializeImpl::makeFunction(const FlatChunk &flat, ArchiveStreamReader &reader) {
+Chunk *DeserializeImpl::makeFunction(FlatChunk *flat, ArchiveStreamReader &reader) {
     uint64_t address;
     std::string name;
     reader.read(address);
     reader.readAnyLength(name);
 
-    flat.getInstance<FuzzyFunction>()->setPosition(new AbsolutePosition(address));
-    flat.getInstance<FuzzyFunction>()->setName(name);
+    flat->getInstance<FuzzyFunction>()->setPosition(new AbsolutePosition(address));
+    flat->getInstance<FuzzyFunction>()->setName(name);
 
-    return flat.getInstance<FuzzyFunction>();
+    return flat->getInstance<FuzzyFunction>();
 }
 
-Chunk *DeserializeImpl::notYetImplemented(const FlatChunk &flat, ArchiveStreamReader &reader) {
+Chunk *DeserializeImpl::notYetImplemented(FlatChunk *flat, ArchiveStreamReader &reader) {
     LOG(1, "WARNING: not yet implemented: deserialize archive chunk type "
-        << flat.getType());
+        << flat->getType());
     return nullptr;
 }
 
 void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
-    EgalitoArchiveWriter archive;
+    EgalitoArchive *archive = new EgalitoArchive();
     SerializeImpl serializer(archive);
     chunk->accept(&serializer);
 
-    archive.writeTo(filename);
+    EgalitoArchiveWriter(archive).write(filename);
+
+    delete archive;
 }
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {
-    EgalitoArchiveReader archive;
+    EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
     DeserializeImpl deserializer(archive);
 
     std::vector<Chunk *> chunkList;
 
-    archive.readFlatList(filename);
-    for(auto &flat : archive.getFlatList()) {
+    for(auto flat : archive->getFlatList()) {
         deserializer.instantiate(flat);
     }
 
-    for(const auto &flat : archive.getFlatList()) {
+    for(auto flat : archive->getFlatList()) {
         Chunk *chunk = deserializer.parse(flat);
         chunkList.push_back(chunk);
     }
 
+    delete archive;
     return chunkList.size() ? chunkList[0] : nullptr;
 }
