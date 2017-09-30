@@ -32,6 +32,8 @@ public:
     ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
+
+    void check();
 private:
     ElfSpace *parse(ElfMap *elf, SharedLib *library);
     void allocateTLSArea();

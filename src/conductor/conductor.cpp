@@ -10,6 +10,7 @@
 #include "pass/fixjumptables.h"
 #include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
+#include "pass/relocheck.h"
 #include "transform/data.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -203,3 +204,9 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
         module->accept(visitor);
     }
 }
+
+void Conductor::check() {
+    ReloCheckPass checker;
+    acceptInAllModules(&checker, true);
+}
+

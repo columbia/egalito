@@ -48,6 +48,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
         conductor->resolvePLTLinks();
     }
     conductor->resolveWeak();
+
+    conductor->check();
 }
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)

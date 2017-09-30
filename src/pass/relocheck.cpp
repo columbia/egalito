@@ -134,7 +134,6 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             var = tls->findVariable(tlsAddr);
         }
         if(!var) {
-            addr += module->getElfSpace()->getElfMap()->getBaseAddress();
             auto dlist = module->getDataRegionList();
             if(auto region = dlist->findRegionContaining(addr)) {
                 var = region->findVariable(addr);
@@ -161,7 +160,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                 if(link) {
                     if(auto sym = link->getSymbol()) {
                         if(sym->getBind() == Symbol::BIND_WEAK) {
-                            LOG(1, "WEAK");
+                            LOG(1, " [WEAK]");
                         }
                     }
                 }
@@ -174,7 +173,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             LOG0(1, ss.str() << " NOT resolved! (no variable)");
             if(auto sym = r->getSymbol()) {
                 if(sym->getBind() == Symbol::BIND_WEAK) {
-                    LOG(1, "WEAK");
+                    LOG(1, " [WEAK] " << sym->getName());
                 }
                 else {
                     LOG(1, std::hex << r->getSymbol()->getAddress()

@@ -19,6 +19,9 @@ void egalito_log_function_name(unsigned long address, int dir) {
     egalito_printf("%d ", indent);
 
     auto arrow = dir > 0 ? "->" : "<-";
+    // we cannot do this yet (on some platform). func->getName().c_str()
+    // below will create a memory object in loader which will be destoryed
+    // at the end of this function.
     auto func = ChunkFind2(egalito_conductor).findFunctionContaining(address);
     if(func) {
         // the offset is given in the transformed binary...
