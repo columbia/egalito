@@ -197,7 +197,7 @@ template <
     int Direction,
     typename VisitType,
     typename FinishType,
-    template <int, typename, typename> typename CollectType
+    template <int, typename, typename> class CollectType
 >
 class OrderOnCFG
     : DFSWalkerBase<OrderOnCFG<Direction, VisitType, FinishType, CollectType>> {
