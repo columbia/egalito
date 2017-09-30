@@ -36,7 +36,13 @@ public:
 
 void SerializeImpl::visit(Program *program) {
     archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Program);
-    archive.getFlatList().append32(archive.getFlatList().getCount());  // 1st module
+
+    std::ostringstream stream;
+    ArchiveStreamWriter writer(stream);
+
+    writer.write(static_cast<uint32_t>(archive.getFlatList().getCount()));  // FunctionList id
+
+    archive.getFlatList().appendData(stream.str());
 
     for(auto module : CIter::children(program)) {
         module->accept(this);
@@ -45,11 +51,11 @@ void SerializeImpl::visit(Program *program) {
 
 void SerializeImpl::visit(Module *module) {
     archive.getFlatList().newFlatChunk(EgalitoArchive::TYPE_Module);
-    archive.getFlatList().append32(archive.getFlatList().getCount());  // function list
 
     std::ostringstream stream;
     ArchiveStreamWriter writer(stream);
 
+    writer.write(static_cast<uint32_t>(archive.getFlatList().getCount()));  // FunctionList id
     writer.writeAnyLength(module->getName());
 
     archive.getFlatList().appendData(stream.str());
@@ -93,12 +99,13 @@ public:
     void instantiate(FlatChunk &flat);
     Chunk *parse(const FlatChunk &flat);
 private:
-    typedef Chunk *(DeserializeImpl::*ChunkBuilder)(const FlatChunk &flat);
-    Chunk *makeProgram(const FlatChunk &flat);
-    Chunk *makeModule(const FlatChunk &flat);
-    Chunk *makeFunctionList(const FlatChunk &flat);
-    Chunk *makeFunction(const FlatChunk &flat);
-    Chunk *notYetImplemented(const FlatChunk &flat);
+    typedef Chunk *(DeserializeImpl::*ChunkBuilder)(const FlatChunk &flat,
+        ArchiveStreamReader &reader);
+    Chunk *makeProgram(const FlatChunk &flat, ArchiveStreamReader &reader);
+    Chunk *makeModule(const FlatChunk &flat, ArchiveStreamReader &reader);
+    Chunk *makeFunctionList(const FlatChunk &flat, ArchiveStreamReader &reader);
+    Chunk *makeFunction(const FlatChunk &flat, ArchiveStreamReader &reader);
+    Chunk *notYetImplemented(const FlatChunk &flat, ArchiveStreamReader &reader);
 };
 
 void DeserializeImpl::instantiate(FlatChunk &flat) {
@@ -171,14 +178,14 @@ Chunk *DeserializeImpl::parse(const FlatChunk &flat) {
     const auto &type = flat.getType();
     assert(type < sizeof(decoder)/sizeof(*decoder));
 
-    Chunk *result = (this->*decoder[type])(flat);
-    return result;
-}
-
-Chunk *DeserializeImpl::makeProgram(const FlatChunk &flat) {
     std::istringstream stream(flat.getData());
     ArchiveStreamReader reader(stream);
 
+    Chunk *result = (this->*decoder[type])(flat, reader);
+    return result;
+}
+
+Chunk *DeserializeImpl::makeProgram(const FlatChunk &flat, ArchiveStreamReader &reader) {
     uint32_t id;
     reader.read(id);
 
@@ -188,10 +195,7 @@ Chunk *DeserializeImpl::makeProgram(const FlatChunk &flat) {
     return flat.getInstance<Program>();
 }
 
-Chunk *DeserializeImpl::makeModule(const FlatChunk &flat) {
-    std::istringstream stream(flat.getData());
-    ArchiveStreamReader reader(stream);
-
+Chunk *DeserializeImpl::makeModule(const FlatChunk &flat, ArchiveStreamReader &reader) {
     uint32_t id;
     reader.read(id);
     std::string name;
@@ -206,10 +210,7 @@ Chunk *DeserializeImpl::makeModule(const FlatChunk &flat) {
     return flat.getInstance<Module>();
 }
 
-Chunk *DeserializeImpl::makeFunctionList(const FlatChunk &flat) {
-    std::istringstream stream(flat.getData());
-    ArchiveStreamReader reader(stream);
-
+Chunk *DeserializeImpl::makeFunctionList(const FlatChunk &flat, ArchiveStreamReader &reader) {
     uint32_t count;
     reader.read(count);
 
@@ -223,10 +224,7 @@ Chunk *DeserializeImpl::makeFunctionList(const FlatChunk &flat) {
     return flat.getInstance<FunctionList>();
 }
 
-Chunk *DeserializeImpl::makeFunction(const FlatChunk &flat) {
-    std::istringstream stream(flat.getData());
-    ArchiveStreamReader reader(stream);
-
+Chunk *DeserializeImpl::makeFunction(const FlatChunk &flat, ArchiveStreamReader &reader) {
     uint64_t address;
     std::string name;
     reader.read(address);
@@ -238,7 +236,7 @@ Chunk *DeserializeImpl::makeFunction(const FlatChunk &flat) {
     return flat.getInstance<FuzzyFunction>();
 }
 
-Chunk *DeserializeImpl::notYetImplemented(const FlatChunk &flat) {
+Chunk *DeserializeImpl::notYetImplemented(const FlatChunk &flat, ArchiveStreamReader &reader) {
     LOG(1, "WARNING: not yet implemented: deserialize archive chunk type "
         << flat.getType());
     return nullptr;
