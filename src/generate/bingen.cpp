@@ -17,6 +17,8 @@
 #include "pass/instrumentcalls.h"
 #include "pass/switchcontext.h"
 #include "pass/relocheck.h"
+#include "snippet/hook.h"
+#include "snippet/logfunction.h"
 
 #include "log/log.h"
 #include "log/temp.h"
@@ -159,16 +161,16 @@ void BinGen::addCallLogging() {
     if(!addon) return;
 
     auto funcEntry = CIter::named(addon->getFunctionList())
-        ->find("egalito_log_function");
+        ->find("egalito_log_function_entry");
     if(!funcEntry) return;
 
     auto funcExit = CIter::named(addon->getFunctionList())
-        ->find("egalito_log_function_ret");
+        ->find("egalito_log_function_exit");
     if(!funcExit) return;
 
-    auto prologue = CIter::named(addon->getFunctionList())
+    auto epilogue = CIter::named(addon->getFunctionList())
         ->find("egalito_dump_logs");
-    if(!prologue) return;
+    if(!epilogue) return;
 
 #if !TARGET_IS_MAGENTA
     #define MAIN_FUNCTION_NAME  "main"
@@ -183,7 +185,10 @@ void BinGen::addCallLogging() {
     SwitchContextPass switcher;
     funcEntry->accept(&switcher);
     funcExit->accept(&switcher);
-    prologue->accept(&switcher);
+    epilogue->accept(&switcher);
+
+    set_function_entry_hook(egalito_log_function_entry);
+    set_function_exit_hook(egalito_log_function_exit);
 
     InstrumentCallsPass instrument;
     instrument.setEntryAdvice(funcEntry);
@@ -206,7 +211,7 @@ void BinGen::addCallLogging() {
     mainModule->accept(&instrument);
 
     instrument.setEntryAdvice(nullptr);
-    instrument.setExitAdvice(prologue);
+    instrument.setExitAdvice(epilogue);
     mainFunc->accept(&instrument);
 #endif
 }

@@ -7,6 +7,7 @@
 #include "disasm/disassemble.h"
 #include "cminus/print.h"
 #include "pass/switchcontext.h"
+#include "snippet/hook.h"
 #include "log/log.h"
 
 static int indent = 0;
@@ -31,6 +32,16 @@ void egalito_log_function_name(unsigned long address, int dir) {
     else {
         egalito_printf("%s %lx\n", arrow, address);
     }
+}
+
+extern "C"
+void egalito_log_function(unsigned long address) {
+    egalito_log_function_name(address - 12, 1);
+}
+
+extern "C"
+void egalito_log_function_ret(unsigned long address) {
+    egalito_log_function_name(address + 4, -1);
 }
 
 #ifdef ARCH_X86_64
@@ -120,9 +131,9 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
     if(!lib) throw "LogCallsPass requires libegalito.so to be transformed";
 
     loggingBegin = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_log_function", lib->getElfSpace()->getModule());
+        "egalito_hook_function_entry", lib->getElfSpace()->getModule());
     loggingEnd = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_log_function_ret", lib->getElfSpace()->getModule());
+        "egalito_hook_function_exit", lib->getElfSpace()->getModule());
     if(!loggingBegin || !loggingEnd) {
         throw "LogCallsPass can't find log functions";
     }
@@ -131,6 +142,9 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
     SwitchContextPass switcher;
     loggingBegin->accept(&switcher);
     loggingEnd->accept(&switcher);
+
+    set_function_entry_hook(egalito_log_function);
+    set_function_exit_hook(egalito_log_function_ret);
 
     instrument.setEntryAdvice(loggingBegin);
     instrument.setExitAdvice(loggingEnd);

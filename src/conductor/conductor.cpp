@@ -84,7 +84,7 @@ void Conductor::resolvePLTLinks() {
 
 void Conductor::resolveWeak() {
     //TemporaryLogLevel tll("conductor", 10);
-    //TemporaryLogLevel tll("chunk", 10);
+    //TemporaryLogLevel tll2("chunk", 10);
 
     for(auto lib : *getLibraryList()) {
         auto space = lib->getElfSpace();

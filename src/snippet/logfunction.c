@@ -9,9 +9,20 @@ static struct {
     unsigned long address;
 } logbuf[LOG_MAX] __attribute__((section(".data")));
 static int log_i = 0;
+static void egalito_log_function_info(unsigned long address, int dir);
 
-// keep this name to use functions in logcall.S
-void egalito_log_function_name(unsigned long address, int dir) {
+extern int _printf(const char *fmt, ...) __attribute((weak));
+
+
+void egalito_log_function_entry(unsigned long address) {
+    egalito_log_function_info(address - 12, 1);
+}
+
+void egalito_log_function_exit(unsigned long address) {
+    egalito_log_function_info(address + 4, -1);
+}
+
+void egalito_log_function_info(unsigned long address, int dir) {
     if(log_i < LOG_MAX) {
         logbuf[log_i].address = address;
         logbuf[log_i].dir = dir;
@@ -40,8 +51,6 @@ size_t egalito_long_to_buf(char *buf, unsigned long num) {
     }
     return ret;
 }
-
-extern int _printf(const char *fmt, ...);
 
 void egalito_dump_logs() {
 #if !TARGET_IS_MAGENTA

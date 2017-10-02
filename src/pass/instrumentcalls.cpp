@@ -9,8 +9,8 @@
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {
-    //TemporaryLogLevel tll("pass", 9);
-    LOG(9, "instrumenting " << function->getName() << " in "
+    //TemporaryLogLevel tll("pass", 10);
+    LOG(10, "instrumenting " << function->getName() << " in "
         << function->getParent()->getParent()->getName());
 
     if(entry) {
