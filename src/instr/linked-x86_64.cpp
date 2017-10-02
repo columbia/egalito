@@ -6,6 +6,7 @@
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"  // for determineDisplacementSize
 #include "operation/find.h"
+#include "log/log.h"
 
 #ifdef ARCH_X86_64
 int LinkedInstruction::getDispSize() {
@@ -179,12 +180,21 @@ void StackFrameInstruction::writeTo(std::string &target) {
         reinterpret_cast<const char *>(&displacement), displacementSize);
 }
 
+// temporary hack: one in MakeSemantic doesn't give the right size
+static size_t determineDisplacementSize(Assembly *assembly) {
+    if(assembly->getId() == X86_INS_MOV) {
+        if(assembly->getSize() == 5) return 1;
+    }
+    LOG(1, "for " << assembly->getMnemonic());
+    throw "don't know how to determined displacement size";
+}
+
 StackFrameInstruction::StackFrameInstruction(Assembly *assembly)
     : RawInstruction(std::string(assembly->getBytes())) {
 
     this->id = assembly->getId();
 
-    this->displacementSize = MakeSemantic::determineDisplacementSize(assembly);
+    this->displacementSize = determineDisplacementSize(assembly);
     this->opCodeSize = assembly->getSize() - displacementSize;
     auto asmOps = assembly->getAsmOperands();
     for(size_t i = 0; i < asmOps->getOpCount(); i++) {
@@ -193,6 +203,11 @@ StackFrameInstruction::StackFrameInstruction(Assembly *assembly)
             this->displacement = op->mem.disp;
         }
     }
+    LOG(10, "stackFrameInstruction : " << id);
+    LOG(10, " assembly->size " << assembly->getSize());
+    LOG(10, " displacementSize " << displacementSize);
+    LOG(10, " opCodeSize " << opCodeSize);
+    LOG(10, " displacement " << displacement);
 }
 
 void StackFrameInstruction::addToDisplacementValue(long int add) {
