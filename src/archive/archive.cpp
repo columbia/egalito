@@ -1,3 +1,3 @@
 #include "archive.h"
 
-const char *EgalitoArchive::signature = "egalito\xc4";
+const char *EgalitoArchive::SIGNATURE = "egalito\xc4";

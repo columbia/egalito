@@ -12,8 +12,8 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
 
     ArchiveStreamReader reader(file);
     std::string line;
-    if(!reader.read(line, std::strlen(EgalitoArchive::signature))
-        || line != EgalitoArchive::signature) {
+    if(!reader.read(line, std::strlen(EgalitoArchive::SIGNATURE))
+        || line != EgalitoArchive::SIGNATURE) {
 
         LOG(0, "Error: file signature does not match, not an Egalito archive");
         return false;
@@ -24,12 +24,12 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
         LOG(0, "Error: archive does not contain a version");
         return false;
     }
-    if(version > EgalitoArchive::version) {
+    if(version > EgalitoArchive::VERSION) {
         LOG(0, "Error: file version " << version
-            << " is newer than supported version " << EgalitoArchive::version);
+            << " is newer than supported version " << EgalitoArchive::VERSION);
         return false;
     }
-    if(version < EgalitoArchive::version) {
+    if(version < EgalitoArchive::VERSION) {
         LOG(0, "Warning: file version " << version
             << " is old, but proceeding to load as usual");
         // fall-through

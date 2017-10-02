@@ -3,32 +3,12 @@
 
 #include <cstdint>
 #include "flatchunk.h"
+#include "chunktypes.h"
 
 class EgalitoArchive {
 public:
-    static const char *signature;
-    static const uint32_t version = 1;
-
-    enum EgalitoChunkType {
-        TYPE_UNKNOWN = 0,
-        TYPE_Program,
-        TYPE_Module,
-        TYPE_FunctionList,
-        TYPE_PLTList,
-        TYPE_JumpTableList,
-        TYPE_DataRegionList,
-        TYPE_Function,
-        TYPE_Block,
-        TYPE_Instruction,
-        TYPE_PLTTrampoline,
-        TYPE_JumpTable,
-        TYPE_JumpTableEntry,
-        TYPE_DataRegion,
-        TYPE_DataSection,
-        TYPE_DataVariable,
-        TYPE_MarkerList,
-        TYPE_Marker,
-    };
+    static const char *SIGNATURE;
+    static const uint32_t VERSION = 1;
 private:
     FlatChunkList flatList;
     std::string sourceFilename;

@@ -12,6 +12,7 @@ private:
     std::istream &stream;
 public:
     ArchiveStreamReader(std::istream &stream) : stream(stream) {}
+    virtual ~ArchiveStreamReader() {}
 
     bool read(uint16_t &value);
     bool read(uint32_t &value);

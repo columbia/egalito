@@ -3,11 +3,12 @@
 
 #include "chunk.h"
 #include "module.h"
-#include "archive/archive.h"
+#include "archive/chunktypes.h"
 
 class ElfSpaceList;
 
-class Program : public ChunkSerializerImpl<CollectionChunkImpl<Module>, EgalitoArchive::TYPE_Program> {
+class Program : public ChunkSerializerImpl<TYPE_Program,
+    CollectionChunkImpl<Module>> {
 private:
     Module *main;
     Module *egalito;

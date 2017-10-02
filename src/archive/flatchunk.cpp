@@ -1,10 +1,9 @@
 #include <cassert>
 #include "flatchunk.h"
-#include "archive.h"  // for TYPE_UNKNOWN
+#include "chunktypes.h"  // for TYPE_UNKNOWN
 #include "log/log.h"
 
-FlatChunk::FlatChunk() : type(EgalitoArchive::TYPE_UNKNOWN), id(-1), offset(0),
-    data() {
+FlatChunk::FlatChunk() : type(TYPE_UNKNOWN), id(-1), offset(0), data() {
 }
 
 FlatChunk *FlatChunkList::newFlatChunk(uint16_t type) {

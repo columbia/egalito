@@ -145,7 +145,8 @@ template <typename ChildType>
 class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
 };
 
-template <typename ChunkType, size_t flatType>
+/** Some default code for serializable Chunks. */
+template <size_t flatType, typename ChunkType>
 class ChunkSerializerImpl : public ChunkType {
 public:
     virtual size_t getFlatType() const final { return flatType; }

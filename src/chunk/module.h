@@ -3,7 +3,7 @@
 
 #include "chunk.h"
 #include "chunklist.h"
-#include "archive/archive.h"
+#include "archive/chunktypes.h"
 
 class ElfSpace;
 class FunctionList;
@@ -12,8 +12,8 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 
-class Module : public ChunkSerializerImpl<CompositeChunkImpl<Chunk>,
-    EgalitoArchive::TYPE_Module> {
+class Module : public ChunkSerializerImpl<TYPE_Module,
+    CompositeChunkImpl<Chunk>> {
 private:
     ElfSpace *elfSpace;
 private:

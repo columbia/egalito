@@ -4,11 +4,11 @@
 #include "chunk.h"
 #include "chunklist.h"
 #include "block.h"
-#include "archive/archive.h"
+#include "archive/chunktypes.h"
 
 class Symbol;
-class Function : public ChunkSerializerImpl<CompositeChunkImpl<Block>,
-    EgalitoArchive::TYPE_Function> {
+class Function : public ChunkSerializerImpl<TYPE_Function,
+    CompositeChunkImpl<Block>> {
 public:
     virtual Symbol *getSymbol() const = 0;
     virtual std::string getName() const = 0;
@@ -48,8 +48,8 @@ public:
     void setName(std::string name) { this->name = name; }
 };
 
-class FunctionList : public ChunkSerializerImpl<CompositeChunkImpl<Function>,
-    EgalitoArchive::TYPE_FunctionList> {
+class FunctionList : public ChunkSerializerImpl<TYPE_FunctionList,
+    CompositeChunkImpl<Function>> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

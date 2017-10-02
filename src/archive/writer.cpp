@@ -11,8 +11,8 @@ void EgalitoArchiveWriter::write(std::string filename) {
 
 void EgalitoArchiveWriter::assignOffsets() {
     uint32_t totalSize = 0;
-    totalSize += std::strlen(EgalitoArchive::signature);
-    totalSize += sizeof(EgalitoArchive::version);
+    totalSize += std::strlen(EgalitoArchive::SIGNATURE);
+    totalSize += sizeof(EgalitoArchive::VERSION);
     totalSize += sizeof(uint32_t);  // chunk count
 
     for(auto flat : archive->getFlatList()) {
@@ -27,8 +27,8 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
     // write the file header
     {
         ArchiveStreamWriter writer(file);
-        writer.write(EgalitoArchive::signature);
-        writer.write(EgalitoArchive::version);
+        writer.write(EgalitoArchive::SIGNATURE);
+        writer.write(EgalitoArchive::VERSION);
         writer.write(static_cast<uint32_t>(archive->getFlatList().getCount()));
     }
 
