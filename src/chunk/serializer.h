@@ -7,6 +7,8 @@
 
 class Chunk;
 
+/** Operations available to a Chunk's serialize/deserialize functions.
+*/
 class ChunkSerializerOperations {
 private:
     EgalitoArchive *archive;
@@ -33,13 +35,15 @@ public:
         { return archive->getFlatList().get(id)->getInstance<Type>(); }
 };
 
-class ChunkSerializer2 {
+/** Highest-level archive serialization/deserialization.
+*/
+class ChunkSerializer {
 public:
-    virtual FlatChunk::FlatType getFlatType() const = 0;
-    virtual void serialize(ChunkSerializerOperations &op,
-        ArchiveStreamWriter &writer) = 0;
-    virtual bool deserialize(ChunkSerializerOperations &op,
-        ArchiveStreamReader &reader) = 0;
+    /** Here chunk is the root of the tree to serialize. */
+    void serialize(Chunk *chunk, std::string filename);
+
+    /** Returns the root of the deserialized tree. */
+    Chunk *deserialize(std::string filename);
 };
 
 #endif

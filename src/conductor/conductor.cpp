@@ -2,7 +2,7 @@
 #include "conductor.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
-#include "chunk/serialize.h"
+#include "chunk/serializer.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"

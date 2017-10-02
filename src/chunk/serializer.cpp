@@ -5,6 +5,8 @@
 #include "chunklist.h"
 #include "concrete.h"  // for instantiation
 #include "archive/stream.h"
+#include "archive/reader.h"
+#include "archive/writer.h"
 
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
     FlatChunk *flat = archive->getFlatList().newFlatChunk(
@@ -65,6 +67,7 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
         chunk->getChildren()->genericAdd(lookup(id));
     }
 
+    // we deserialize all Chunks, not in order
     /*for(auto id : idList) {
         this->deserialize(lookupFlat(id));
     }*/
@@ -127,4 +130,32 @@ Chunk *ChunkSerializerOperations::lookup(FlatChunk::IDType id) {
 
 FlatChunk *ChunkSerializerOperations::lookupFlat(FlatChunk::IDType id) {
     return archive->getFlatList().get(id);
+}
+
+void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
+    EgalitoArchive *archive = new EgalitoArchive();
+    ChunkSerializerOperations op(archive);
+
+    op.serialize(chunk);
+
+    EgalitoArchiveWriter(archive).write(filename);
+
+    delete archive;
+}
+
+Chunk *ChunkSerializer::deserialize(std::string filename) {
+    EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
+    ChunkSerializerOperations op(archive);
+
+    for(auto flat : archive->getFlatList()) {
+        flat->setInstance(op.instantiate(flat));
+    }
+
+    for(auto flat : archive->getFlatList()) {
+        op.deserialize(flat);
+    }
+
+    auto root = op.lookup(0);
+    delete archive;
+    return root;
 }

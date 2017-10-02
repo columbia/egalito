@@ -7,7 +7,7 @@
 #include "conductor/conductor.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
-#include "chunk/serialize.h"
+#include "chunk/serializer.h"
 #include "generate/bingen.h"
 #include "operation/find.h"
 #include "operation/find2.h"
