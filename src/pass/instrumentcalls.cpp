@@ -2,12 +2,12 @@
 #include "disasm/disassemble.h"
 #include "instr/register.h"
 #include "instr/semantic.h"
+#include "instr/linked-x86_64.h"
 #include "operation/mutator.h"
 
 #include "log/log.h"
 #include "log/temp.h"
 
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void InstrumentCallsPass::useStack(Function *function, FrameType *frame) {
     //TemporaryLogLevel tll("pass", 10);
     LOG(10, "instrumenting " << function->getName() << " in "
@@ -41,6 +41,33 @@ void InstrumentCallsPass::addExitAdvice(Function *function, FrameType *frame) {
 void InstrumentCallsPass::addAdvice(
     Instruction *point, Function *advice, bool after) {
 
+#ifdef ARCH_X86_64
+    // sub $0x8,%rsp
+    auto subIns = Disassemble::instruction({0x48, 0x83, 0xec, 0x08});
+
+    // call f
+    auto callIns = new Instruction();
+    auto callSem
+        = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
+    callSem->setLink(new NormalLink(advice));
+    callIns->setSemantic(callSem);
+
+    // add $0x8,%rsp
+    auto addIns = Disassemble::instruction({0x48, 0x83, 0xc4, 0x08});
+
+    auto block = point->getParent();
+
+    if(after) {
+        ChunkMutator(block).insertAfter(point, addIns);
+        ChunkMutator(block).insertAfter(point, callIns);
+        ChunkMutator(block).insertAfter(point, subIns);
+    }
+    else {
+        ChunkMutator(block).insertBefore(point, subIns);
+        ChunkMutator(block).insertBefore(point, callIns);
+        ChunkMutator(block).insertBefore(point, addIns);
+    }
+#elif defined(ARCH_AARCH64)
     /* For an arbitrary cutpoint, the base register must be figured out
      * from the frame type. */
     const PhysicalRegister<AARCH64GPRegister> rSP(
@@ -79,5 +106,5 @@ void InstrumentCallsPass::addAdvice(
         ChunkMutator(block).insertBefore(point, ins_bl);
         ChunkMutator(block).insertBefore(point, ins_ldp);
     }
-}
 #endif
+}

@@ -9,7 +9,6 @@
 // entry and exit don't match
 #define FUNCTIONCALL_CONTEXT_SIZE   0//(1*16)
 
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 class InstrumentCallsPass : public StackExtendPass {
 public:
     typedef bool (*predicate_t) (Function *function);
@@ -18,10 +17,9 @@ private:
     Function *entry;
     Function *exit;
     predicate_t predicate;
-
 public:
     InstrumentCallsPass()
-        : StackExtendPass(FUNCTIONCALL_CONTEXT_SIZE, false),
+        : StackExtendPass(FUNCTIONCALL_CONTEXT_SIZE),
           entry(nullptr), exit(nullptr), predicate(nullptr) {}
     void setPredicate(predicate_t predicate) { this->predicate = predicate; }
     void setEntryAdvice(Function *entry) { this->entry = entry; }
@@ -36,6 +34,5 @@ private:
         return function != entry && function != exit
             && (predicate ? predicate(function) : true); }
 };
-#endif
 
 #endif

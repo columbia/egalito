@@ -36,95 +36,23 @@ void egalito_log_function_name(unsigned long address, int dir) {
 
 extern "C"
 void egalito_log_function(unsigned long address) {
-    egalito_log_function_name(address - 12, 1);
+#ifdef ARCH_X86_64
+    #define DISTANCE_FROM_ENTRY     9
+#elif defined(ARCH_AARCH64)
+    #define DISTANCE_FROM_ENTRY     12
+#endif
+    egalito_log_function_name(address - DISTANCE_FROM_ENTRY, 1);
 }
 
 extern "C"
 void egalito_log_function_ret(unsigned long address) {
-    egalito_log_function_name(address + 4, -1);
-}
-
 #ifdef ARCH_X86_64
-static bool inside_egalito_log_code = false;
-
-extern "C" void egalito_log_function(void) {
-    __asm__ (
-        "push   %rax\n"
-        "push   %rcx\n"
-        "push   %rdx\n"
-        "push   %rsi\n"
-        "push   %rdi\n"
-        "push   %r8\n"
-        "push   %r9\n"
-        "push   %r10\n"
-        "push   %r11\n"
-    );
-
-    if(!inside_egalito_log_code) {
-        inside_egalito_log_code = true;
-        // WARNING: if using the -fstack-protector flag, this will break the below address variable
-        // You can check if this flag is enabled with the EGALITO_STACK_PROTECTOR macro
-        unsigned long address;
-        __asm__ (
-            "mov    80(%%rsp), %%rax" : "=a"(address)
-        );
-        address -= 5;
-        //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-        egalito_log_function_name(address, 1);
-        inside_egalito_log_code = false;
-    }
-
-    __asm__ (
-        "pop    %r11\n"
-        "pop    %r10\n"
-        "pop    %r9\n"
-        "pop    %r8\n"
-        "pop    %rdi\n"
-        "pop    %rsi\n"
-        "pop    %rdx\n"
-        "pop    %rcx\n"
-        "pop    %rax\n"
-    );
-}
-
-extern "C" void egalito_log_function_ret(void) {
-    __asm__ (
-        "push   %rax\n"
-        "push   %rcx\n"
-        "push   %rdx\n"
-        "push   %rsi\n"
-        "push   %rdi\n"
-        "push   %r8\n"
-        "push   %r9\n"
-        "push   %r10\n"
-        "push   %r11\n"
-    );
-
-    if(!inside_egalito_log_code) {
-        inside_egalito_log_code = true;
-        unsigned long address;
-        __asm__ (
-            "mov    80(%%rsp), %%rax" : "=a"(address)
-        );
-        address -= 5;
-        //unsigned long address = (unsigned long)__builtin_return_address(0) - 5;
-        egalito_log_function_name(address, -1);
-        inside_egalito_log_code = false;
-    }
-
-    __asm__ (
-        "pop    %r11\n"
-        "pop    %r10\n"
-        "pop    %r9\n"
-        "pop    %r8\n"
-        "pop    %rdi\n"
-        "pop    %rsi\n"
-        "pop    %rdx\n"
-        "pop    %rcx\n"
-        "pop    %rax\n"
-    );
-}
+    #define DISTANCE_FROM_EXIT      4
+#elif defined(ARCH_AARCH64)
+    #define DISTANCE_FROM_EXIT      4
 #endif
+    egalito_log_function_name(address + DISTANCE_FROM_EXIT, -1);
+}
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
     auto lib = conductor->getLibraryList()->get("(egalito)");
@@ -138,7 +66,6 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
         throw "LogCallsPass can't find log functions";
     }
 
-#ifdef ARCH_AARCH64
     SwitchContextPass switcher;
     loggingBegin->accept(&switcher);
     loggingEnd->accept(&switcher);
@@ -161,56 +88,9 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
             && !function->hasName("$d")
         ;
     });
-#endif
 }
 
 void LogCallsPass::visit(Function *function) {
-#ifdef ARCH_X86_64
-    if(function->getName() == "egalito_log_function") return;
-    if(function->getName() == "egalito_log_function_ret") return;
-    if(function->getName() == "__GI___libc_write") return;
-
-    // bugs:
-    if(function->getName() == "__GI__IO_file_doallocate") return;
-
-    LOG(1, "adding logging to function [" << function->getName() << "]");
-    addEntryInstructionsAt(function->getChildren()->getIterable()->get(0));
-
-    recurse(function);
-#else
     function->accept(&instrument);
-#endif
 }
 
-#ifdef ARCH_X86_64
-void LogCallsPass::visit(Instruction *instruction) {
-    auto s = instruction->getSemantic();
-    if(dynamic_cast<ReturnInstruction *>(s)) {
-        addExitInstructionsAt(instruction);
-    }
-    else if(auto v = dynamic_cast<ControlFlowInstruction *>(s)) {
-        if(v->getMnemonic() != "callq"
-            && dynamic_cast<ExternalNormalLink *>(s->getLink())) {
-
-            addExitInstructionsAt(instruction);
-        }
-    }
-}
-
-void LogCallsPass::addEntryInstructionsAt(Block *block) {
-    auto callIns = new Instruction();
-    auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
-    callSem->setLink(new NormalLink(loggingBegin));
-    callIns->setSemantic(callSem);
-    ChunkMutator(block).prepend(callIns);
-}
-
-void LogCallsPass::addExitInstructionsAt(Instruction *instruction) {
-    auto callIns = new Instruction();
-    auto callSem = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
-    callSem->setLink(new NormalLink(loggingEnd));
-    callIns->setSemantic(callSem);
-    ChunkMutator(instruction->getParent())
-        .insertBefore(instruction, callIns);
-}
-#endif

@@ -20,7 +20,7 @@
 void StackExtendPass::visit(Module *module) {
 #ifdef ARCH_X86_64
     if(0) {}
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(ARCH_AARCH64)
     if(extendSize >= 504) { // due to stp limitation
         LOG(1, "can't extend over 504");
     }
@@ -119,22 +119,25 @@ static size_t getCurrentFrameSize(UDState *state) {
     > StackAccessForm2;
 
     size_t size = 0;
-    bool found;
+    bool searching = true;
     auto f = [&](UDState *s, TreeCapture cap) {
-        //LOG0(1, "cap: "); cap.get(0)->print(TreePrinter(2, 0)); LOG(1, "");
+        LOG(11, "state = " << s->getInstruction()->getAddress());
+        LOG0(11, "cap: ");
+        IF_LOG(11) cap.get(0)->print(TreePrinter(2, 0));
+        LOG(11, "");
         auto c = dynamic_cast<TreeNodeConstant *>(cap.get(0));
         size += c->getValue();
         state = s;
-        found = true;
+        searching = true;
         return true;
     };
-    while(found) {
-        found = false;
+    do {
+        searching = false;
         FlowUtil::searchUpDef<StackAccessForm1>(state, X86_REG_RSP, f);
-        if(!found) {
+        if(!searching) {
             FlowUtil::searchUpDef<StackAccessForm2>(state, X86_REG_RSP, f);
         }
-    }
+    } while (searching);
     return size;
 }
 #endif
@@ -168,9 +171,9 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
 
     SccOrder order(&cfg);
     order.genFull(0);
-    TemporaryLogLevel tll("analysis", 11);
+    //TemporaryLogLevel tll("analysis", 11);
+    //TemporaryLogLevel tll2("pass", 10);
     usedef.analyze(order.get());
-
 
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
@@ -183,7 +186,7 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
                         auto frameSize = getCurrentFrameSize(state);
                         LOG(10, "offset = " << offset
                             << " frame size = " << frameSize);
-                        if(frameSize < offset) {
+                        if(frameSize <= offset) {
                             adjustOffset(instr);
                         }
                     }
@@ -193,31 +196,67 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
     }
 
     // prologue -- sub $0x8,%rsp
-    std::vector<unsigned char> bin_sub = {0x48, 0x83, 0xec};
-    for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
-        unsigned char c = (extendSize >> s) & 0xff;
-        if(c) bin_sub.push_back(c);
-    }
     auto firstB = function->getChildren()->getIterable()->get(0);
-    ChunkMutator(firstB).prepend(Disassemble::instruction(bin_sub));
+    if(!saveList.empty()) {
+        for(auto r : saveList) {
+            std::vector<unsigned char> pushBin;
+            if(r >= 8) {
+                pushBin.push_back(0x41);
+                pushBin.push_back(0x50 + r - 8);
+            }
+            else {
+                pushBin.push_back(0x50 + r);
+            }
+            auto pushIns = Disassemble::instruction(pushBin);
+            ChunkMutator(firstB).prepend(pushIns);
+        }
+    }
+    else {
+        std::vector<unsigned char> bin_sub = {0x48, 0x83, 0xec};
+        for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
+            unsigned char c = (extendSize >> s) & 0xff;
+            if(c) bin_sub.push_back(c);
+        }
+        ChunkMutator(firstB).prepend(Disassemble::instruction(bin_sub));
+    }
 
     // epilogue -- add $0x8,%rsp
-    std::vector<unsigned char> bin_add = {0x48, 0x83, 0xc4};
-    for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
-        unsigned char c = (extendSize >> s) & 0xff;
-        if(c) bin_add.push_back(c);
+    if(!saveList.empty()) {
+        for(auto ins : frame->getEpilogueInstrs()) {
+            for(auto r : saveList) {
+                std::vector<unsigned char> popBin;
+                if(r >= 8) {
+                    popBin.push_back(0x41);
+                    popBin.push_back(0x58 + r - 8);
+                }
+                else {
+                    popBin.push_back(0x58 + r);
+                }
+                auto popIns = Disassemble::instruction(popBin);
+                ChunkMutator(ins->getParent()).insertBefore(ins, popIns);
+            }
+        }
     }
-    for(auto ins : frame->getResetSPInstrs()) {
-        ChunkMutator(ins->getParent()).insertBefore(ins,
-            Disassemble::instruction(bin_add));
+    else {
+        std::vector<unsigned char> bin_add = {0x48, 0x83, 0xc4};
+        for(int s = sizeof(int) * 4 - 8; s >= 0; s -= 8) {
+            unsigned char c = (extendSize >> s) & 0xff;
+            if(c) bin_add.push_back(c);
+        }
+        for(auto ins : frame->getEpilogueInstrs()) {
+            ChunkMutator(ins->getParent()).insertBefore(ins,
+                Disassemble::instruction(bin_add));
+        }
     }
 #endif
 }
 
 void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#if defined(ARCH_AARCH64)
     auto firstB = function->getChildren()->getIterable()->get(0);
-    if(withSave) {
+    if(!saveList.empty()) {
+        auto reg1 = saveList[0];
+        auto reg2 = saveList[1];
         // STP X29, X30, [SP, #-extendSize/8]
         auto enc = 0xA9800000 | (-extendSize/8 & 0x7F) << 15
             | reg2 << 10 | 31 << 5 | reg1;
@@ -242,7 +281,7 @@ void StackExtendPass::addExtendStack(Function *function, FrameType *frame) {
 }
 
 void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#if defined(ARCH_AARCH64)
     auto bin_sub = AARCH64InstructionBinary(
         0xD1000000 | extendSize << 10 | 29 << 5 | 29);
     for(auto ins : frame->getResetSPInstrs()) {
@@ -250,7 +289,9 @@ void StackExtendPass::addShrinkStack(Function *function, FrameType *frame) {
         ChunkMutator(ins->getParent()).insertBefore(ins, instr_sub);
     }
 
-    if(withSave) {
+    if(!saveList.empty()) {
+        auto reg1 = saveList[0];
+        auto reg2 = saveList[1];
         for(auto ins : frame->getEpilogueInstrs()) {
             // LDP X29, X30, [SP], #extendSize/8
             auto enc = 0xA8C00000 | extendSize/8 << 15
@@ -321,7 +362,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
 
 #ifdef ARCH_X86_64
                 if(cfi->getMnemonic() == "callq") continue;
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(ARCH_AARCH64)
                 if(cfi->getAssembly()->getId() == ARM64_INS_BL) continue;
 #endif
                 if(auto link = dynamic_cast<NormalLink *>(cfi->getLink())) {
@@ -364,7 +405,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
 
                     resetSPInstrs.push_back(ins);
                 }
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+#elif defined(ARCH_AARCH64)
                 if(assembly->getId() == ARM64_INS_MOV
                     && operands[0].reg == ARM64_REG_SP
                     && operands[1].type == ARM64_OP_REG

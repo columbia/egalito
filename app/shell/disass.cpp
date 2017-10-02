@@ -340,7 +340,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
 
         if(func) {
-            StackExtendPass extender(0x10, false);
+            StackExtendPass extender(0x10);
             func->accept(&extender);
         }
         else {

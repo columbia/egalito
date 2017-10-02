@@ -52,7 +52,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
         funcsize[f] = f->getSize();
     }
 
-    StackExtendPass extender(0x10, false);
+    StackExtendPass extender(0x10);
     module->accept(&extender);
 
     SECTION("tail") {
@@ -119,7 +119,7 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
     auto f = CIter::named(module->getFunctionList())->find("__offtime");
     REQUIRE(f != nullptr);
 
-    StackExtendPass extender(0x10, false);
+    StackExtendPass extender(0x10);
     f->accept(&extender);
 #endif
 }

@@ -3,7 +3,6 @@
 #include "instr/register.h"
 #include "operation/mutator.h"
 
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 void SwitchContextPass::useStack(Function *function, FrameType *frame) {
     addSaveContextAt(function, frame);
 
@@ -13,11 +12,12 @@ void SwitchContextPass::useStack(Function *function, FrameType *frame) {
 }
 
 void SwitchContextPass::addSaveContextAt(Function *function, FrameType *frame) {
-    const PhysicalRegister<AARCH64GPRegister> rSP(
-        AARCH64GPRegister::R31, true);
-
+#ifdef ARCH_AARCH64
     Block *block = function->getChildren()->getIterable()->get(0);
     Instruction *point = block->getChildren()->getIterable()->get(0);
+
+    const PhysicalRegister<AARCH64GPRegister> rSP(
+        AARCH64GPRegister::R31, true);
 
     auto bin_mrs = AARCH64InstructionBinary(0xD53B4200  // NZCV
         | PhysicalRegister<AARCH64GPRegister>(
@@ -44,11 +44,13 @@ void SwitchContextPass::addSaveContextAt(Function *function, FrameType *frame) {
         ChunkMutator(point->getParent()).insertAfter(point, ins_stp);
         --pos;
     }
+#endif
 }
 
 void SwitchContextPass::addRestoreContextAt(
     Instruction *instruction, FrameType *frame) {
 
+#ifdef ARCH_AARCH64
     const PhysicalRegister<AARCH64GPRegister> rSP(
         AARCH64GPRegister::R31, true);
 
@@ -82,5 +84,5 @@ void SwitchContextPass::addRestoreContextAt(
     }
 
     frame->fixEpilogue(instruction, ins_msr);
-}
 #endif
+}

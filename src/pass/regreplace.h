@@ -28,7 +28,7 @@ private:
 
 public:
     AARCH64RegReplacePass(AARCH64GPRegister::ID id, size_t saveSize)
-        : StackExtendPass(saveSize, false),
+        : StackExtendPass(saveSize),
           regX(PhysicalRegister<AARCH64GPRegister>(id, true)) {};
 
     virtual void replacePerFunction(Function *function,

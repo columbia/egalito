@@ -1,7 +1,22 @@
-#ifdef ARCH_AARCH64
     .text
     .global egalito_hook_function_entry
 egalito_hook_function_entry:
+#ifdef ARCH_X86_64
+    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
+    cmpb    $0x0, (%rax)
+    jne     1f
+    push    %rbx
+    mov     %rax, %rbx
+    movb    $0x1, (%rax)
+    mov     0x8(%rsp), %rax
+    mov     %rax, %rdi
+    mov     egalito_hook_function_entry_hook@gotpcrel(%rip), %rax
+    callq   *(%rax)
+    movb    $0x0, (%rbx)
+    pop     %rbx
+1:
+    retq
+#elif defined(ARCH_AARCH64)
     adrp    x0, :pg_hi21:egalito_inside_hook_code
     ldr     x1, [x0, #:lo12:egalito_inside_hook_code]
     cbnz    x1, 1f
@@ -22,11 +37,28 @@ egalito_hook_function_entry:
     str     x1, [x0, #:lo12:egalito_inside_hook_code]
 1:
     ret
+#endif
     .type egalito_hook_function_entry, STT_FUNC
     .size egalito_hook_function_entry, .-egalito_hook_function_entry
 
     .global egalito_hook_function_exit
 egalito_hook_function_exit:
+#ifdef ARCH_X86_64
+    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
+    cmpb    $0x0, (%rax)
+    jne     1f
+    push    %rbx
+    mov     %rax, %rbx
+    movb    $0x1, (%rax)
+    mov     0x8(%rsp), %rax
+    mov     %rax, %rdi
+    mov     egalito_hook_function_exit_hook@gotpcrel(%rip), %rax
+    callq   *(%rax)
+    movb    $0x0, (%rbx)
+    pop     %rbx
+1:
+    retq
+#elif defined(ARCH_AARCH64)
     adrp    x0, :pg_hi21:egalito_inside_hook_code
     ldr     x1, [x0, #:lo12:egalito_inside_hook_code]
     cbnz    x1, 1f
@@ -47,6 +79,7 @@ egalito_hook_function_exit:
     str     x1, [x0, #:lo12:egalito_inside_hook_code]
 1:
     ret
+#endif
     .type egalito_hook_function_exit, STT_FUNC
     .size egalito_hook_function_exit, .-egalito_hook_function_exit
 
@@ -71,4 +104,3 @@ egalito_hook_function_exit_hook:
     .skip 8
     .type egalito_hook_function_exit_hook, STT_OBJECT
     .size egalito_hook_function_exit_hook, .-egalito_hook_function_exit_hook
-#endif

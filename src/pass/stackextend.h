@@ -35,13 +35,11 @@ private:
 class StackExtendPass : public ChunkPass {
 private:
     size_t extendSize;
-    bool withSave;
-    int reg1;
-    int reg2;
+    const std::vector<int> saveList;
 
 public:
-    StackExtendPass(size_t extendSize, bool withSave, int reg1=29, int reg2=30)
-        : extendSize(extendSize), withSave(withSave), reg1(reg1), reg2(reg2) {}
+    StackExtendPass(size_t extendSize, const std::vector<int> saveList={})
+        : extendSize(extendSize), saveList(saveList) {}
 
     virtual void visit(Module *module);
     virtual void visit(Function *function);
