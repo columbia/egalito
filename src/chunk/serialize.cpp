@@ -13,6 +13,43 @@
 #include "archive/stream.h"
 #include "log/log.h"
 
+#include "serializer.h"
+
+#if 1
+void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
+    EgalitoArchive *archive = new EgalitoArchive();
+    ChunkSerializerOperations op(archive);
+
+    op.serialize(chunk);
+
+    EgalitoArchiveWriter(archive).write(filename);
+
+    delete archive;
+}
+
+Chunk *ChunkSerializer::deserialize(std::string filename) {
+    LOG(1, "::deserialize " << filename);
+    LOG(1, "::deserialize make archive");
+    EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
+    ChunkSerializerOperations op(archive);
+
+    LOG(1, "::deserialize instantiations");
+    for(auto flat : archive->getFlatList()) {
+        flat->setInstance(op.instantiate(flat));
+    }
+
+    LOG(1, "::deserialize deserialize() calls");
+    for(auto flat : archive->getFlatList()) {
+        op.deserialize(flat);
+    }
+
+    LOG(1, "::deserialize done");
+
+    auto root = op.lookup(0);
+    delete archive;
+    return root;
+}
+#else
 class SerializeImpl : public ChunkListener {
 private:
     EgalitoArchive *archive;
@@ -268,3 +305,4 @@ Chunk *ChunkSerializer::deserialize(std::string filename) {
     delete archive;
     return chunkList.size() ? chunkList[0] : nullptr;
 }
+#endif

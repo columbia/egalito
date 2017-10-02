@@ -22,7 +22,7 @@ private:
 public:
     FlatChunk();
     FlatChunk(FlatType type, IDType id, std::string data = "")
-        : type(type), id(id), offset(0), data(data) {}
+        : type(type), id(id), offset(0), data(data), instance(nullptr) {}
 
     FlatType getType() const { return type; }
     IDType getID() const { return id; }

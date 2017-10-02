@@ -8,7 +8,7 @@ FlatChunk::FlatChunk() : type(EgalitoArchive::TYPE_UNKNOWN), id(-1), offset(0),
 }
 
 FlatChunk *FlatChunkList::newFlatChunk(uint16_t type) {
-    flatList.push_back(new FlatChunk(type, flatList.size()));
+    flatList.push_back(new FlatChunk(type, getNextID()));
     return flatList.back();
 }
 

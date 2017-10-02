@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "chunklist.h"
+#include "archive/archive.h"
 
 class ElfSpace;
 class FunctionList;
@@ -11,7 +12,8 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 
-class Module : public CompositeChunkImpl<Chunk> {
+class Module : public ChunkSerializerImpl<CompositeChunkImpl<Chunk>,
+    EgalitoArchive::TYPE_Module> {
 private:
     ElfSpace *elfSpace;
 private:
@@ -43,6 +45,11 @@ public:
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
 };

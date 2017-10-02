@@ -3,7 +3,9 @@
 #include "module.h"
 #include "elf/elfspace.h"
 #include "elf/sharedlib.h"
+#include "serializer.h"
 #include "visitor.h"
+#include "log/log.h"
 
 std::string Module::getName() const {
     std::ostringstream stream;
@@ -16,6 +18,31 @@ std::string Module::getName() const {
         stream << "module-main";
     }
     return stream.str();
+}
+
+void Module::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    writer.writeAnyLength(getName());
+
+    writer.write(op.serialize(getFunctionList()));
+}
+
+bool Module::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    std::string name;
+    reader.readAnyLength(name);
+
+    LOG(1, "trying to parse Module [" << name << "]");
+
+    uint32_t id;
+    reader.read(id);
+    auto functionList = op.lookupAs<FunctionList>(id);
+    getChildren()->add(functionList);
+    setFunctionList(functionList);
+
+    return reader.stillGood();
 }
 
 void Module::accept(ChunkVisitor *visitor) {

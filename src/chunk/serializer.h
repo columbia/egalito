@@ -27,6 +27,10 @@ public:
 
     Chunk *lookup(FlatChunk::IDType id);
     FlatChunk *lookupFlat(FlatChunk::IDType id);
+
+    template <typename Type>
+    Type *lookupAs(FlatChunk::IDType id)
+        { return archive->getFlatList().get(id)->getInstance<Type>(); }
 };
 
 class ChunkSerializer2 {

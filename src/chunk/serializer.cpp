@@ -65,9 +65,9 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
         chunk->getChildren()->genericAdd(lookup(id));
     }
 
-    for(auto id : idList) {
+    /*for(auto id : idList) {
         this->deserialize(lookupFlat(id));
-    }
+    }*/
 }
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *chunk) {
