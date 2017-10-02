@@ -27,6 +27,7 @@ private:
     std::ostream &stream;
 public:
     ArchiveStreamWriter(std::ostream &stream) : stream(stream) {}
+    virtual ~ArchiveStreamWriter() {}
 
     void write(uint16_t value);
     void write(uint32_t value);
@@ -35,6 +36,8 @@ public:
     void write(const std::string &value);
     void writeAnyLength(const char *value);
     void writeAnyLength(const std::string &value);
+
+    virtual void flush() {}
 };
 
 class FlatChunk;
@@ -45,6 +48,15 @@ private:
 public:
     BufferedStreamWriter(FlatChunk *flat);
     ~BufferedStreamWriter();
+
+    void flush();
+};
+
+class InMemoryStreamReader : public ArchiveStreamReader {
+private:
+    std::istringstream stream;
+public:
+    InMemoryStreamReader(FlatChunk *flat);
 };
 
 #endif

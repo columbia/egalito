@@ -45,13 +45,17 @@ class FlatChunkList {
 private:
     typedef std::vector<FlatChunk *> FlatListType;
     FlatListType flatList;
+    FlatChunk::IDType nextID;
 public:
+    FlatChunkList() : nextID(0) {}
     ~FlatChunkList();
 
     FlatChunk *newFlatChunk(uint16_t type);
+    FlatChunk *newFlatChunk(uint16_t type, FlatChunk::IDType id);
     void addFlatChunk(FlatChunk *flat);
 
     FlatChunk *get(FlatListType::size_type i);
+    FlatChunk::IDType getNextID() { return nextID ++; }
     size_t getCount() const { return flatList.size(); }
 
     FlatListType::iterator begin() { return flatList.begin(); }

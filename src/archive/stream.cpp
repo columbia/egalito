@@ -70,6 +70,19 @@ BufferedStreamWriter::BufferedStreamWriter(FlatChunk *flat)
 }
 
 BufferedStreamWriter::~BufferedStreamWriter() {
+    std::string data = stream.str();
+    if(data.length() > 0) {
+        LOG(1, "buffered up data [" << stream.str() << "]");
+        flat->appendData(stream.str());
+    }
+}
+
+void BufferedStreamWriter::flush() {
     LOG(1, "buffered up data [" << stream.str() << "]");
     flat->appendData(stream.str());
+    stream.str(std::string());
+}
+
+InMemoryStreamReader::InMemoryStreamReader(FlatChunk *flat)
+    : ArchiveStreamReader(stream), stream(flat->getData()) {
 }

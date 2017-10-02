@@ -3,10 +3,11 @@
 
 #include "chunk.h"
 #include "module.h"
+#include "archive/archive.h"
 
 class ElfSpaceList;
 
-class Program : public CollectionChunkImpl<Module> {
+class Program : public ChunkSerializerImpl<CollectionChunkImpl<Module>, EgalitoArchive::TYPE_Program> {
 private:
     Module *main;
     Module *egalito;
@@ -20,6 +21,11 @@ public:
 
     Module *getMain() const { return main; }
     Module *getEgalito() const { return egalito; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
 };

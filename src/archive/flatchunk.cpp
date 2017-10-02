@@ -12,6 +12,12 @@ FlatChunk *FlatChunkList::newFlatChunk(uint16_t type) {
     return flatList.back();
 }
 
+FlatChunk *FlatChunkList::newFlatChunk(uint16_t type, FlatChunk::IDType id) {
+    auto flat = new FlatChunk(type, id);
+    addFlatChunk(flat);
+    return flat;
+}
+
 FlatChunkList::~FlatChunkList() {
     for(auto flat : flatList) delete flat;
 }
