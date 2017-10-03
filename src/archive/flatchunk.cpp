@@ -22,11 +22,14 @@ FlatChunkList::~FlatChunkList() {
 }
 
 void FlatChunkList::addFlatChunk(FlatChunk *flat) {
-    flatList.resize(flat->getID() + 1);
-    if(flatList[flat->getID()] && flatList[flat->getID()]->getID()) {
+    if(flatList.size() < flat->getID() + 1) {
+        flatList.resize(flat->getID() + 1);
+    }
+    if(flatList[flat->getID()]) {
         LOG(1, "WARNING: overwriting old FlatChunk at ID " << flat->getID());
     }
     flatList[flat->getID()] = flat;
+    LOG(1, "add flatchunk id=" << flat->getID() << " to list");
 }
 
 FlatChunk *FlatChunkList::get(FlatListType::size_type i) {

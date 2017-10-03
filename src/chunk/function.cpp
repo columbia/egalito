@@ -4,12 +4,18 @@
 #include "serializer.h"
 #include "visitor.h"
 #include "elf/symbol.h"
+#include "log/log.h"
 
 void Function::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    LOG(1, "serialize function " << getName());
+
     writer.write(static_cast<uint64_t>(getAddress()));
     writer.writeAnyLength(getName());
+    op.serializeChildren(this, writer);
+
+    LOG(1, "...returning from serialize function " << getName());
 }
 
 bool Function::deserialize(ChunkSerializerOperations &op,
@@ -23,6 +29,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsolutePosition(address));
     if(auto p = dynamic_cast<FuzzyFunction *>(this)) p->setName(name);
 
+    op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
 

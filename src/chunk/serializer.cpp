@@ -7,6 +7,7 @@
 #include "archive/stream.h"
 #include "archive/reader.h"
 #include "archive/writer.h"
+#include "log/log.h"
 
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
     FlatChunk *flat = archive->getFlatList().newFlatChunk(
@@ -29,6 +30,11 @@ void ChunkSerializerOperations::serialize(Chunk *chunk,
 
 bool ChunkSerializerOperations::deserialize(FlatChunk *flat) {
     InMemoryStreamReader reader(flat);
+    if(!flat->getInstance<Chunk>()) {
+        LOG(1, "WARNING: did not instantiate Chunk for flat");
+        return false;
+    }
+
     flat->getInstance<Chunk>()->deserialize(*this, reader);
     return reader.stillGood();
 }
@@ -36,8 +42,8 @@ bool ChunkSerializerOperations::deserialize(FlatChunk *flat) {
 void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
     ArchiveStreamWriter &writer) {
 
-    writer.write(static_cast<uint32_t>(chunk->getChildren()
-        ->genericGetSize()));
+    uint32_t count = chunk->getChildren()->genericGetSize();
+    writer.write(count);
 
     std::vector<FlatChunk::IDType> idList;
     for(auto child : chunk->getChildren()->genericIterable()) {
@@ -49,6 +55,7 @@ void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
 
     size_t i = 0;
     for(auto child : chunk->getChildren()->genericIterable()) {
+        LOG(1, "    serialize child with id " << idList[i]);
         this->serialize(child, idList[i ++]);
     }
 }
@@ -104,8 +111,8 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return new FuzzyFunction(); },       // TYPE_Function
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
+        [] () -> Chunk* { return new Block(); },          // TYPE_Block
+        [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
@@ -138,9 +145,15 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
 
     op.serialize(chunk);
 
+    LOG(1, "done with root serialize call");
+
     EgalitoArchiveWriter(archive).write(filename);
 
+    LOG(1, "done with writing");
+
     delete archive;
+
+    LOG(1, "done with deleting");
 }
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {

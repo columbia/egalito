@@ -2,7 +2,6 @@
 #include <cstring>  // for std::strlen
 #include "stream.h"
 #include "flatchunk.h"
-#include "log/log.h"
 
 // !!! on aarch64, the endianness may need to change here
 bool ArchiveStreamReader::read(uint16_t &value) {
@@ -72,13 +71,11 @@ BufferedStreamWriter::BufferedStreamWriter(FlatChunk *flat)
 BufferedStreamWriter::~BufferedStreamWriter() {
     std::string data = stream.str();
     if(data.length() > 0) {
-        LOG(1, "buffered up data [" << stream.str() << "]");
         flat->appendData(stream.str());
     }
 }
 
 void BufferedStreamWriter::flush() {
-    LOG(1, "buffered up data [" << stream.str() << "]");
     flat->appendData(stream.str());
     stream.str(std::string());
 }
