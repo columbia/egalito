@@ -7,9 +7,11 @@
 #include "visitor.h"
 #include "log/log.h"
 
-std::string Module::getName() const {
+void Module::setElfSpace(ElfSpace *space) {
+    elfSpace = space;
+
+    // set name based on ElfSpace
     std::ostringstream stream;
-    if(!elfSpace) return "module-???";
     auto lib = elfSpace->getLibrary();
     if(lib) {
         stream << "module-" << lib->getShortName();
@@ -17,7 +19,7 @@ std::string Module::getName() const {
     else {
         stream << "module-main";
     }
-    return stream.str();
+    setName(stream.str());
 }
 
 void Module::serialize(ChunkSerializerOperations &op,
@@ -36,6 +38,7 @@ bool Module::deserialize(ChunkSerializerOperations &op,
 
     std::string name;
     reader.readAnyLength(name);
+    setName(name);
 
     LOG(1, "trying to parse Module [" << name << "]");
 
