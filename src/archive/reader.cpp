@@ -70,7 +70,7 @@ EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
             delete archive;
             return nullptr;
         }
-        LOG(9, "read FlatChunk id=" << id << " type=" << type);
+        LOG(10, "read FlatChunk id=" << id << " type=" << type);
 
         FlatChunk *flat = new FlatChunk(type, id, data);
         flat->setOffset(offset);

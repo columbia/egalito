@@ -30,13 +30,11 @@ bool Function::hasName(std::string name) const {
 void Function::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    LOG(1, "serialize function " << getName());
+    LOG(10, "serialize function " << getName());
 
     writer.write(static_cast<uint64_t>(getAddress()));
     writer.writeAnyLength(getName());
     op.serializeChildren(this, writer);
-
-    LOG(1, "...returning from serialize function " << getName());
 }
 
 bool Function::deserialize(ChunkSerializerOperations &op,

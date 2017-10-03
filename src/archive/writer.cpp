@@ -16,10 +16,8 @@ void EgalitoArchiveWriter::assignOffsets() {
     totalSize += sizeof(uint32_t);  // chunk count
 
     for(auto flat : archive->getFlatList()) {
-        LOG(1, "assign offsets for flat " << flat);
         if(!flat) {
-            LOG(1, "ERROR: null FlatChunk in list!");
-            continue;
+            LOG(1, "ERROR: null FlatChunk in list! Will crash soon.");
         }
         flat->setOffset(totalSize);
         totalSize += sizeof(uint16_t) + sizeof(uint32_t)*3 + flat->getSize();
@@ -38,9 +36,7 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
     }
 
     for(auto flat : archive->getFlatList()) {
-        if(!flat) continue;
-        LOG(9, "write FlatChunk id=" << flat->getID()
-            << " type=" << flat->getType());
+        LOG(10, "write FlatChunk id=" << flat->getID() << " type=" << flat->getType());
         ArchiveStreamWriter writer(file);
         writer.write(flat->getType());
         writer.write(flat->getID());

@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cassert>
 #include <set>
+#include <sstream>  // for debugging
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
@@ -213,6 +214,12 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
     if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.length(),
         address, 0, &ins) != 1) {
 
+        std::ostringstream stream;
+        stream << "address: " << std::hex << address << ", bytes:";
+        for(int i = 0; i < bytes.length(); i ++) {
+            stream << std::hex << " " << (int)bytes[i];
+        }
+        LOG(1, stream.str());
         throw "Invalid instruction opcode string provided\n";
     }
 

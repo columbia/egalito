@@ -28,9 +28,7 @@ void Module::serialize(ChunkSerializerOperations &op,
     writer.writeAnyLength(getName());
 
     auto functionList = op.serialize(getFunctionList());
-    LOG(1, "about to write functionList id...");
     writer.write(functionList);
-    LOG(1, "done with functionList id");
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,

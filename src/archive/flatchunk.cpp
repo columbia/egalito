@@ -7,8 +7,7 @@ FlatChunk::FlatChunk() : type(TYPE_UNKNOWN), id(-1), offset(0), data() {
 }
 
 FlatChunk *FlatChunkList::newFlatChunk(uint16_t type) {
-    flatList.push_back(new FlatChunk(type, getNextID()));
-    return flatList.back();
+    return newFlatChunk(type, getNextID());
 }
 
 FlatChunk *FlatChunkList::newFlatChunk(uint16_t type, FlatChunk::IDType id) {
@@ -29,7 +28,7 @@ void FlatChunkList::addFlatChunk(FlatChunk *flat) {
         LOG(1, "WARNING: overwriting old FlatChunk at ID " << flat->getID());
     }
     flatList[flat->getID()] = flat;
-    LOG(1, "add flatchunk id=" << flat->getID() << " to list");
+    LOG(11, "add flatchunk id=" << flat->getID() << " to list");
 }
 
 FlatChunk *FlatChunkList::get(FlatListType::size_type i) {

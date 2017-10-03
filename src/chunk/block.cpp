@@ -20,8 +20,6 @@ std::string Block::getName() const {
 void Block::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    LOG(1, "serialize block " << getName());
-
     writer.write(static_cast<uint64_t>(getAddress()));
     op.serializeChildren(this, writer);
 }

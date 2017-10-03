@@ -46,15 +46,18 @@ bool Instruction::deserialize(ChunkSerializerOperations &op,
     std::string name;
     reader.readAnyLength(name);
 
-    LOG(1, "deserializing instruction " << name);
-
     std::string data;
     reader.readAnyLength(data);
-    RawByteStorage storage(data);
-    //setSemantic(new RawInstruction(std::move(storage)));
     DisasmHandle handle(true);
-    setSemantic(DisassembleInstruction(handle)
-        .instructionSemantic(this, data, address));
+    try {
+        setSemantic(DisassembleInstruction(handle)
+            .instructionSemantic(this, data, address));
+    }
+    catch(const char *what) {
+        LOG(1, "DISASSEMBLY ERROR: " << what);
+        RawByteStorage storage(data);
+        setSemantic(new RawInstruction(std::move(storage)));
+    }
 
     return reader.stillGood();
 }

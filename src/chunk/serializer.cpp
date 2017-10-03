@@ -55,7 +55,7 @@ void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
 
     size_t i = 0;
     for(auto child : chunk->getChildren()->genericIterable()) {
-        LOG(1, "    serialize child with id " << idList[i]);
+        //LOG(1, "    serialize child with id " << idList[i]);
         this->serialize(child, idList[i ++]);
     }
 }
