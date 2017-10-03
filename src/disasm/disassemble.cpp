@@ -206,6 +206,33 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     return instr;
 }
 
+InstructionSemantic *DisassembleInstruction::instructionSemantic(
+    Instruction *instr, const std::string &bytes, address_t address) {
+
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.length(),
+        address, 0, &ins) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    InstructionSemantic *semantic = nullptr;
+    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
+
+    if(!semantic) {
+        if(details) {
+            semantic = new DisassembledInstruction(Assembly(*ins));
+        }
+        else {
+            std::string raw;
+            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            semantic = new RawInstruction(raw);
+        }
+    }
+    instr->setSemantic(semantic);
+    return semantic;
+}
+
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 

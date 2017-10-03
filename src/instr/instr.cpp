@@ -5,6 +5,8 @@
 #include "chunk/visitor.h"
 #include "instr.h"
 #include "semantic.h"
+#include "writer.h"
+#include "disasm/disassemble.h"
 #include "log/log.h"
 
 #include "isolated.h"  // for debugging
@@ -28,6 +30,10 @@ void Instruction::serialize(ChunkSerializerOperations &op,
 
     writer.write(static_cast<uint64_t>(getAddress()));
     writer.writeAnyLength(getName());
+
+    InstrWriterGetData instrWriter;
+    getSemantic()->accept(&instrWriter);
+    writer.writeAnyLength(instrWriter.get());
 }
 
 bool Instruction::deserialize(ChunkSerializerOperations &op,
@@ -40,10 +46,15 @@ bool Instruction::deserialize(ChunkSerializerOperations &op,
     std::string name;
     reader.readAnyLength(name);
 
-    RawByteStorage storage(std::string("\xcc", 1));
-    setSemantic(new RawInstruction(std::move(storage)));
-
     LOG(1, "deserializing instruction " << name);
+
+    std::string data;
+    reader.readAnyLength(data);
+    RawByteStorage storage(data);
+    //setSemantic(new RawInstruction(std::move(storage)));
+    DisasmHandle handle(true);
+    setSemantic(DisassembleInstruction(handle)
+        .instructionSemantic(this, data, address));
 
     return reader.stillGood();
 }

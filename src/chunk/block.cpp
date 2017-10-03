@@ -22,18 +22,18 @@ void Block::serialize(ChunkSerializerOperations &op,
 
     LOG(1, "serialize block " << getName());
 
-    //writer.write(static_cast<uint64_t>(getAddress()));
-    //op.serializeChildren(this, writer);
+    writer.write(static_cast<uint64_t>(getAddress()));
+    op.serializeChildren(this, writer);
 }
 
 bool Block::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
     uint64_t address = 0;
-    //reader.read(address);
+    reader.read(address);
     setPosition(new AbsolutePosition(address));
 
-    //op.deserializeChildren(this, reader);
+    op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
 
