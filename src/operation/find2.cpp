@@ -16,8 +16,10 @@ Function *ChunkFind2::findFunctionHelper(const char *name, Module *module) {
     if(func) return func;
 
     // Also, check if this is an alias for a known function.
-    auto alias = module->getElfSpace()->getAliasMap()->find(name);
-    if(alias) return alias;
+    if(module->getElfSpace()) {
+        auto alias = module->getElfSpace()->getAliasMap()->find(name);
+        if(alias) return alias;
+    }
 
     return nullptr;
 }
