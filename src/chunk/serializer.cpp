@@ -94,7 +94,7 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
         [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
         [] () -> Chunk* { return new DataRegionList(); }, // TYPE_DataRegionList
-        [] () -> Chunk* { return new FuzzyFunction(); },       // TYPE_Function
+        [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
         [] () -> Chunk* { return new PLTTrampoline(); },  // TYPE_PLTTrampoline
@@ -110,7 +110,7 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return new FuzzyFunction(); },       // TYPE_Function
+        [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
         [] () -> Chunk* { return nullptr; },

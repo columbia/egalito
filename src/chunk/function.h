@@ -9,10 +9,24 @@
 class Symbol;
 class Function : public ChunkSerializerImpl<TYPE_Function,
     CompositeChunkImpl<Block>> {
+private:
+    Symbol *symbol;
+    std::string name;
 public:
-    virtual Symbol *getSymbol() const = 0;
-    virtual std::string getName() const = 0;
-    virtual bool hasName(std::string name) const = 0;
+    Function() : symbol(nullptr) {}
+
+    /** Create a fuzzy function named according to the original address. */
+    Function(address_t originalAddress);
+
+    /** Create an authoritative function from symbol information. */
+    Function(Symbol *symbol);
+
+    virtual Symbol *getSymbol() const { return symbol; }
+    virtual std::string getName() const { return name; }
+    virtual void setName(const std::string &name) { this->name = name; }
+
+    /** Check if the given name is a valid alias for this function. */
+    virtual bool hasName(std::string name) const;
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
@@ -20,32 +34,6 @@ public:
         ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
-};
-
-class FunctionFromSymbol : public Function {
-private:
-    Symbol *symbol;
-public:
-    FunctionFromSymbol(Symbol *symbol) : symbol(symbol) {}
-
-    virtual Symbol *getSymbol() const { return symbol; }
-    virtual std::string getName() const;
-    virtual bool hasName(std::string name) const;
-};
-
-class FuzzyFunction : public Function {
-private:
-    std::string name;
-public:
-    FuzzyFunction() {}
-    FuzzyFunction(address_t originalAddress);
-
-    virtual Symbol *getSymbol() const { return nullptr; }
-    virtual std::string getName() const { return name; }
-    virtual bool hasName(std::string name) const
-        { return name == this->name; }
-
-    void setName(std::string name) { this->name = name; }
 };
 
 class FunctionList : public ChunkSerializerImpl<TYPE_FunctionList,

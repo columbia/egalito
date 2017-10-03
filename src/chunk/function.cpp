@@ -6,6 +6,27 @@
 #include "elf/symbol.h"
 #include "log/log.h"
 
+Function::Function(address_t originalAddress) : symbol(nullptr) {
+    std::ostringstream stream;
+    stream << "fuzzyfunc-0x" << std::hex << originalAddress;
+    name = stream.str();
+}
+
+Function::Function(Symbol *symbol) : symbol(symbol) {
+    name = symbol->getName();
+}
+
+bool Function::hasName(std::string name) const {
+    if(symbol->getName() == name) return true;
+    for(auto s : getSymbol()->getAliases()) {
+        if(std::string(s->getName()) == name) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void Function::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
@@ -27,38 +48,13 @@ bool Function::deserialize(ChunkSerializerOperations &op,
     reader.readAnyLength(name);
 
     setPosition(new AbsolutePosition(address));
-    if(auto p = dynamic_cast<FuzzyFunction *>(this)) p->setName(name);
+    setName(name);
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
 
 void Function::accept(ChunkVisitor *visitor) {
-    visitor->visit(this);
-}
-
-std::string FunctionFromSymbol::getName() const {
-    return symbol->getName();
-}
-
-bool FunctionFromSymbol::hasName(std::string name) const {
-    if(symbol->getName() == name) return true;
-    for(auto s : getSymbol()->getAliases()) {
-        if(std::string(s->getName()) == name) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-FuzzyFunction::FuzzyFunction(address_t originalAddress) {
-    std::ostringstream stream;
-    stream << "fuzzyfunc-0x" << std::hex << originalAddress;
-    name = stream.str();
-}
-
-void FunctionList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
 
@@ -73,4 +69,8 @@ bool FunctionList::deserialize(ChunkSerializerOperations &op,
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
+}
+
+void FunctionList::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
 }

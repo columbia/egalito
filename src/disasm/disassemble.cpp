@@ -256,7 +256,7 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     auto section = elfMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
-    Function *function = new FunctionFromSymbol(symbol);
+    Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
 
@@ -288,7 +288,7 @@ Function *DisassembleX86Function::fuzzyFunction(const Range &range,
     address_t intervalOffset = intervalVirtualAddress - virtualAddress;
     address_t intervalSize = range.getSize();
 
-    Function *function = new FuzzyFunction(intervalVirtualAddress);
+    Function *function = new Function(intervalVirtualAddress);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     function->setPosition(
@@ -537,7 +537,7 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     auto section = elfMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
-    Function *function = new FunctionFromSymbol(symbol);
+    Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
 #ifdef ARCH_ARM
@@ -664,7 +664,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
         LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
             << functionSize << ")");
 
-        Function *function = new FuzzyFunction(virtualAddress + functionOffset);
+        Function *function = new Function(virtualAddress + functionOffset);
 
         PositionFactory *positionFactory = PositionFactory::getInstance();
         function->setPosition(
