@@ -76,7 +76,7 @@ void EgalitoLoader::run(int argc, char *argv[]) {
 }
 
 void EgalitoLoader::otherPasses() {
-#if 0  // add call logging?
+#if 1  // add call logging?
     LogCallsPass logCalls(setup.getConductor());
     // false = do not add tracing to Egalito's own functions
     setup.getConductor()->acceptInAllModules(&logCalls, false);

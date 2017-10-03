@@ -41,6 +41,7 @@ egalito_hook_function_entry:
     .type egalito_hook_function_entry, STT_FUNC
     .size egalito_hook_function_entry, .-egalito_hook_function_entry
 
+
     .global egalito_hook_function_exit
 egalito_hook_function_exit:
 #ifdef ARCH_X86_64
@@ -83,6 +84,34 @@ egalito_hook_function_exit:
     .type egalito_hook_function_exit, STT_FUNC
     .size egalito_hook_function_exit, .-egalito_hook_function_exit
 
+
+    .global egalito_hook_instruction
+egalito_hook_instruction:
+#ifdef ARCH_X86_64
+    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
+    cmpb    $0x0, (%rax)
+    jne     1f
+    push    %rbx
+    mov     %rax, %rbx
+    movb    $0x1, (%rax)
+    mov     0x8(%rsp), %rax
+    mov     %rax, %rdi
+    mov     egalito_hook_instruction_hook@gotpcrel(%rip), %rax
+    callq   *(%rax)
+    movb    $0x0, (%rbx)
+    pop     %rbx
+1:
+    retq
+#elif defined(ARCH_AARCH64)
+    #error NYI
+#endif
+    .type egalito_hook_instruction, STT_FUNC
+    .size egalito_hook_instruction, .-egalito_hook_instruction
+
+
+//
+// begin .bss section
+//
     .bss
     .align 8
     .global egalito_inside_hook_code
@@ -104,3 +133,10 @@ egalito_hook_function_exit_hook:
     .skip 8
     .type egalito_hook_function_exit_hook, STT_OBJECT
     .size egalito_hook_function_exit_hook, .-egalito_hook_function_exit_hook
+
+    .global egalito_hook_instruction_hook
+    .weak egalito_hook_instruction_hook
+egalito_hook_instruction_hook:
+    .skip 8
+    .type egalito_hook_instruction_hook, STT_OBJECT
+    .size egalito_hook_instruction_hook, .-egalito_hook_instruction_hook
