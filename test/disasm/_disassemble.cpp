@@ -79,11 +79,18 @@ TEST_CASE("Fuzzy-function disassemble", "[disasm]") {
     ElfMap *strippedElf = new ElfMap(TESTDIR "hello-s");
     SymbolList *strippedSymbolList = SymbolList::buildSymbolList(strippedElf);
     CHECK(strippedSymbolList->getCount() == 0);
+    SymbolList *dynamicSymbolList = nullptr;
+    RelocList *relocList = nullptr;
+#ifdef ARCH_AARCH64
+    dynamicSymbolList = SymbolList::buildDynamicSymbolList(strippedElf);
+    relocList = RelocList::buildRelocList(
+        strippedElf, strippedSymbolList, dynamicSymbolList);
+#endif
 
     Disassemble::init();
     DwarfParser dwarfParser(strippedElf);
     Module *module = Disassemble::module(strippedElf, nullptr,
-        dwarfParser.getUnwindInfo());
+        dwarfParser.getUnwindInfo(), dynamicSymbolList, relocList);
 
     Function *fuzzy = CIter::spatial(module->getFunctionList())
         ->find(mainSymbol->getAddress());
