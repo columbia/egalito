@@ -33,7 +33,8 @@ void Disassemble::init() {
 }
 
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
-    DwarfUnwindInfo *dwarfInfo) {
+    DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+    RelocList *relocList) {
 
     if(symbolList) {
         LOG(1, "Creating module from symbol info");
@@ -41,11 +42,13 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
     }
     else if(dwarfInfo) {
         LOG(1, "Creating module from dwarf info");
-        return makeModuleFromDwarfInfo(elfMap, dwarfInfo);
+        return makeModuleFromDwarfInfo(
+            elfMap, dwarfInfo, dynamicSymbolList, relocList);
     }
     else {
         LOG(1, "Creating module without symbol info or dwarf info");
-        return makeModuleFromDwarfInfo(elfMap, nullptr);
+        return makeModuleFromDwarfInfo(
+            elfMap, nullptr, dynamicSymbolList, relocList);
     }
 }
 
@@ -125,11 +128,13 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
 }
 
 Module *Disassemble::makeModuleFromDwarfInfo(ElfMap *elfMap,
-    DwarfUnwindInfo *dwarfInfo) {
+    DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+    RelocList *relocList) {
 
     Module *module = new Module();
 
-    FunctionList *functionList = linearDisassembly(elfMap, ".text", dwarfInfo);
+    FunctionList *functionList = linearDisassembly(elfMap, ".text",
+        dwarfInfo, dynamicSymbolList, relocList);
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
     functionList->setParent(module);
@@ -138,11 +143,13 @@ Module *Disassemble::makeModuleFromDwarfInfo(ElfMap *elfMap,
 }
 
 FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
-    const char *sectionName, DwarfUnwindInfo *dwarfInfo) {
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+    SymbolList *dynamicSymbolList, RelocList *relocList) {
 
     DisasmHandle handle(true);
     DisassembleFunction disassembler(handle, elfMap);
-    return disassembler.linearDisassembly(sectionName, dwarfInfo);
+    return disassembler.linearDisassembly(
+        sectionName, dwarfInfo, dynamicSymbolList, relocList);
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
@@ -398,7 +405,8 @@ void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
 }
 
 FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
-    DwarfUnwindInfo *dwarfInfo) {
+    DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+    RelocList *relocList) {
 
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
@@ -577,19 +585,121 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     return function;
 }
 
+static void dump(IntervalTree &tree) {
+    for(const Range &range : tree.getAllData()) {
+        LOG(1, "start: " << std::hex
+            << range.getStart() << " " << range.getSize());
+    }
+}
+
 FunctionList *DisassembleAARCH64Function::linearDisassembly(
-    const char *sectionName, DwarfUnwindInfo *dwarfInfo) {
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+    SymbolList *dynamicSymbolList, RelocList *relocList) {
 
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
+
+    address_t codeStart = section->getVirtualAddress();
+    address_t codeEnd = section->getVirtualAddress() + section->getSize();
+
+    std::vector<ElfSection *> sectionList;
+    auto plt = elfMap->findSection(".plt");
+    ElfXX_Ehdr *header = (ElfXX_Ehdr *)elfMap->getMap();
+    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(elfMap->getCharmap() + header->e_shoff);
+    for(int i = 0; i < header->e_shnum; i ++) {
+        ElfXX_Shdr *s = &sheader[i];
+        if(s->sh_flags & SHF_EXECINSTR) {
+            auto sec = elfMap->findSection(i);
+            if(sec == plt) continue;
+            sectionList.push_back(sec);
+        }
+    }
+
+    for(auto s : sectionList) {
+        LOG(1, "exec section: " << s->getName());
+        codeStart = std::min(codeStart, s->getVirtualAddress());
+        codeEnd = std::max(codeEnd, s->getVirtualAddress() + s->getSize());
+    }
+
+    Range codeRange(codeStart, codeEnd - codeStart);
+    IntervalTree splitRanges(codeRange);
+    splitRanges.add(codeRange);
+
+    for(auto s : sectionList) {
+        splitRanges.splitAt(s->getVirtualAddress());
+        splitRanges.splitAt(s->getVirtualAddress() + s->getSize());
+    }
+    LOG(1, "initial section boundaries");
+    IF_LOG(1) dump(splitRanges);
+
+    // Find known functions from DWARF info
+    for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
+        DwarfFDE *fde = *it;
+        if(splitRanges.splitAt(fde->getPcBegin())) {
+            LOG(1, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
+                << fde->getPcRange() << "]");
+        }
+        else {
+            LOG(1, "FDE is out of bounds of .text section, skipping");
+        }
+    }
+
+    LOG(1, "with DWARF FDE");
+    IF_LOG(1) dump(splitRanges);
+
+    // Run first disassembly pass, to find obvious function boundaries
+    splitRanges.splitAt(elfMap->getEntryPoint());
+
+    LOG(1, "with DWARF FDE + entryPoint");
+    IF_LOG(1) dump(splitRanges);
+
+    for(auto s : sectionList) {
+        firstDisassemblyPass(s, splitRanges);
+    }
+    LOG(1, "with DWARF FDE + entryPoint + first");
+    IF_LOG(1) dump(splitRanges);
+
+    splitByDynamicSymbols(dynamicSymbolList, splitRanges);
+    LOG(1, "with DWARF FDE + entryPoint + first + plt");
+    IF_LOG(1) dump(splitRanges);
+
+    splitByRelocations(relocList, splitRanges);
+    LOG(1, "with DWARF FDE + entryPoint + first + plt + reloc");
+    IF_LOG(1) dump(splitRanges);
+
+    finalDisassemblyPass(section, splitRanges);
+    LOG(1, "with DWARF FDE + entryPoint + first + plt + reloc + final");
+    IF_LOG(1) dump(splitRanges);
+
+    FunctionList *functionList = new FunctionList();
+    for(auto s : sectionList) {
+        Range range(s->getVirtualAddress(), s->getSize());
+        auto intervalList = splitRanges.findOverlapping(range);
+        LOG(1, s->getName() << "[" << std::hex << s->getVirtualAddress()
+            << ", " << (s->getVirtualAddress() + s->getSize())
+            << ") contains " << std::dec << intervalList.size()
+            << " fuzzy functions");
+
+        for(const auto& r : intervalList) {
+            LOG(1, "Split into function " << r << " at section offset "
+                << s->convertVAToOffset(r.getStart()));
+            Function *function = fuzzyFunction(r, s);
+            functionList->getChildren()->add(function);
+            function->setParent(functionList);
+        }
+    }
+
+    return functionList;
+}
+
+void DisassembleAARCH64Function::firstDisassemblyPass(ElfSection *section,
+    IntervalTree &splitRanges) {
 
     address_t virtualAddress = section->getVirtualAddress();
     address_t readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
-    std::set<address_t> splitPoints;
-    splitPoints.insert(elfMap->getEntryPoint());
     for(size_t size = 0; size < readSize; ) {
         cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),
@@ -602,7 +712,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
 
             address_t target = 0;
             if(shouldSplitFunctionDueTo(ins, &target)) {
-                splitPoints.insert(target);
+                splitRanges.splitAt(target);
             }
         }
 
@@ -614,50 +724,99 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
             size += 4;
         }
     }
+}
 
-    FunctionList *functionList = new FunctionList();
+// this could be run multiple times until it converges
+void DisassembleAARCH64Function::finalDisassemblyPass(ElfSection *section,
+    IntervalTree &splitRanges) {
 
-    LOG(1, "Splitting code section into " << splitPoints.size()
-        << " fuzzy functions");
+    for(auto const& range : splitRanges.getAllData()) {
+        address_t virtualAddress = range.getStart();
+        address_t readAddress = section->getReadAddress()
+            + section->convertVAToOffset(virtualAddress);
+        address_t readSize = range.getSize();
 
-    for(std::set<address_t>::iterator it = splitPoints.begin();
-        it != splitPoints.end(); it ++) {
+        for(size_t size = 0; size < readSize; ) {
+            cs_insn *insn;
+            size_t count = cs_disasm(handle.raw(),
+                (const uint8_t *)readAddress + size,
+                readSize - size,
+                virtualAddress + size,
+                0, &insn);
+            for(size_t j = 0; j < count; j++) {
+                auto ins = &insn[j];
 
-        address_t functionOffset = (*it) - virtualAddress;
-        std::set<address_t>::iterator next = it;
-        next ++;
-        address_t functionSize;
-        if(next != splitPoints.end()) {
-            functionSize = (*next) - (*it);
+                address_t target = 0;
+                if(shouldSplitFunctionDueTo2(ins, virtualAddress, &target)) {
+                    splitRanges.splitAt(target);
+                }
+            }
+
+            if(count > 0) {
+                cs_free(insn, count);
+                size += count * 4;
+            }
+            else {
+                size += 4;
+            }
         }
-        else {
-            functionSize = readSize - functionOffset;
+    }
+}
+
+void DisassembleAARCH64Function::splitByDynamicSymbols(
+    SymbolList *dynamicSymbolList, IntervalTree &splitRanges) {
+
+    if(!dynamicSymbolList) return;
+    for(auto sym : *dynamicSymbolList) {
+        if(sym->getType() == Symbol::TYPE_FUNC
+            && sym->getSectionIndex() != SHN_UNDEF) {
+
+            LOG(1, "dynamic symbol adds these boundaries " <<
+                std::hex << sym->getAddress() << " "
+                << (sym->getAddress() + sym->getSize()));
+            splitRanges.splitAt(sym->getAddress());
+            splitRanges.splitAt(sym->getAddress() + sym->getSize());
         }
+    }
+}
 
-        LOG(10, "Split into function [0x" << std::hex << (*it) << ",+"
-            << functionSize << ")");
+void DisassembleAARCH64Function::splitByRelocations(
+    RelocList *relocList, IntervalTree &splitRanges) {
 
-        Function *function = new FuzzyFunction(virtualAddress + functionOffset);
-
-        PositionFactory *positionFactory = PositionFactory::getInstance();
-        function->setPosition(
-            positionFactory->makeAbsolutePosition(
-                virtualAddress + functionOffset));
-
-        // We don't handle literals for now. We need the section index to
-        // find the corresponding mapping symbol.
-        disassembleBlocks(false, function, readAddress + functionOffset,
-            functionSize, virtualAddress + functionOffset);
-
-        {
-            ChunkMutator m(function);  // recalculate cached values if necessary
+    if(!relocList) return;
+    for(auto r : *relocList) {
+        if(r->getType() == R_AARCH64_RELATIVE) {
+            LOG(1, "relocation adds this boundary " << std::hex
+                << r->getAddend());
+            splitRanges.splitAt(r->getAddend());
         }
+    }
+}
 
-        functionList->getChildren()->add(function);
-        function->setParent(functionList);
+Function *DisassembleAARCH64Function::fuzzyFunction(const Range &range,
+    ElfSection *section) {
+
+    address_t virtualAddress = section->getVirtualAddress();
+    address_t readAddress = section->getReadAddress()
+        + section->convertVAToOffset(virtualAddress);
+    address_t intervalVirtualAddress = range.getStart();
+    address_t intervalOffset = intervalVirtualAddress - virtualAddress;
+    address_t intervalSize = range.getSize();
+
+    Function *function = new FuzzyFunction(intervalVirtualAddress);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(intervalVirtualAddress));
+
+    disassembleBlocks(false, function, readAddress + intervalOffset,
+        intervalSize, intervalVirtualAddress);
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
     }
 
-    return functionList;
+    return function;
 }
 
 void DisassembleAARCH64Function::disassembleBlocks(bool literal,
@@ -843,12 +1002,35 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
         cs_arm64 *x = &ins->detail->arm64;
         cs_arm64_op *op = &x->operands[0];
         if(x->op_count > 0 && op->type == ARM64_OP_IMM) {
+            LOG(1, "function call adds this boundary " << std::hex
+                << op->imm);
             *target = op->imm;
             return true;
         }
     }
 #elif defined(ARCH_ARM)
     #error "Not yet implemented"
+#endif
+    return false;
+}
+
+bool DisassembleFunctionBase::shouldSplitFunctionDueTo2(cs_insn *ins,
+    address_t start, address_t *target) {
+
+#ifdef ARCH_AARCH64
+    if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
+        cs_arm64 *x = &ins->detail->arm64;
+        cs_arm64_op *op = &x->operands[0];
+        if(x->op_count > 0 && op->type == ARM64_OP_IMM) {
+            address_t dest = op->imm;
+            LOG(1, "jump to " << dest << " in " << start);
+            if(dest < start) {
+                LOG(1, "tail call adds this boundary " << std::hex << dest);
+                *target = dest;
+                return true;
+            }
+        }
+    }
 #endif
     return false;
 }

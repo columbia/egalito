@@ -65,8 +65,12 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
     }
 
+    this->relocList
+        = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+
     Disassemble::init();
-    this->module = Disassemble::module(elf, symbolList, dwarf);
+    this->module = Disassemble::module(elf, symbolList, dwarf,
+        dynamicSymbolList, relocList);
     this->module->setElfSpace(this);
 
     //ChunkDumper dumper;
@@ -74,9 +78,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     FallThroughFunctionPass fallThrough;
     module->accept(&fallThrough);
-
-    this->relocList
-        = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
 
     DataRegionList::buildDataRegionList(elf, module);
 

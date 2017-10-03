@@ -20,9 +20,12 @@ class Disassemble {
 public:
     static void init();
     static Module *module(ElfMap *elfMap, SymbolList *symbolList,
-        DwarfUnwindInfo *dwarfInfo = nullptr);
+        DwarfUnwindInfo *dwarfInfo = nullptr,
+        SymbolList *dynamicSymbolList = nullptr,
+        RelocList *relocList = nullptr);
     static FunctionList *linearDisassembly(ElfMap *elfMap,
-        const char *sectionName, DwarfUnwindInfo *dwarfInfo);
+        const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+        SymbolList *dynamicSymbolList, RelocList *relocList);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
@@ -40,7 +43,8 @@ private:
     static Module *makeModuleFromSymbols(ElfMap *elfMap,
         SymbolList *symbolList);
     static Module *makeModuleFromDwarfInfo(ElfMap *elfMap,
-        DwarfUnwindInfo *dwarfInfo);
+        DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+        RelocList *relocList);
 };
 
 class DisassembleFunctionBase {
@@ -57,6 +61,8 @@ protected:
 
     bool shouldSplitBlockAt(cs_insn *ins);
     bool shouldSplitFunctionDueTo(cs_insn *ins, address_t *target);
+    bool shouldSplitFunctionDueTo2(cs_insn *ins, address_t start,
+        address_t *target);
 };
 
 class DisassembleX86Function : public DisassembleFunctionBase {
@@ -66,7 +72,8 @@ public:
     Function *function(Symbol *symbol, SymbolList *symbolList);
     Function *fuzzyFunction(const Range &range, ElfSection *section);
     FunctionList *linearDisassembly(const char *sectionName,
-        DwarfUnwindInfo *dwarfInfo);
+        DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+        RelocList *relocList);
 private:
     void firstDisassemblyPass(ElfSection *section,
         IntervalTree &splitRanges, IntervalTree &functionPadding);
@@ -80,8 +87,15 @@ public:
 
     Function *function(Symbol *symbol, SymbolList *symbolList);
     FunctionList *linearDisassembly(const char *sectionName,
-        DwarfUnwindInfo *dwarfInfo);
+        DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
+        RelocList *relocList);
 private:
+    void firstDisassemblyPass(ElfSection *section, IntervalTree &splitRanges);
+    void finalDisassemblyPass(ElfSection *section, IntervalTree &splitRanges);
+    void splitByDynamicSymbols(SymbolList *dynamicSymbolList,
+        IntervalTree &splitRanges);
+    void splitByRelocations(RelocList *relocList, IntervalTree &splitRanges);
+    Function *fuzzyFunction(const Range &range, ElfSection *section);
     void disassembleBlocks(bool literal, Function *function,
         address_t readAddress, size_t readSize, address_t virtualAddress);
     void processLiterals(Function *function, address_t readAddress,
