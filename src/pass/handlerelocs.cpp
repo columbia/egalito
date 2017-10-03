@@ -89,7 +89,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
 
         // Symbol Only links should only be formed with relocations for object
         // files where symbol is in UND section (0)
-        if(symbol->getSectionIndex() == 0) {
+        if(symbol->getSectionIndex() == SHN_UNDEF) {
             auto newLink = new SymbolOnlyLink(symbol, r->getAddress());
             v->setLink(newLink);
             LOG(2, " -> CREATED SYMBOL ONLY LINK");

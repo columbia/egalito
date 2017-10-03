@@ -61,7 +61,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         || reloc->getType() == R_AARCH64_TLSDESC) {
 
         auto tls = module->getDataRegionList()->getTLS();
-        if(symbol && symbol->getSectionIndex() == 0) {
+        if(symbol && symbol->getSectionIndex() == SHN_UNDEF) {
             tls = nullptr;
         }
         return new TLSDataOffsetLink(
