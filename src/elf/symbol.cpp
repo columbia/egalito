@@ -320,14 +320,18 @@ Symbol *SymbolListWithMapping::findMappingBelowOrAt(Symbol *symbol) {
         [](Symbol *a, Symbol *b) {  // b: symbol, continue if true
             return a->getAddress() < b->getAddress();
         });
-    if((*it)->getAddress() == symbol->getAddress()) {
-        if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
-            return *it;
+    if(it != sortedMappingList.end()) {
+        if((*it)->getAddress() == symbol->getAddress()) {
+            if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
+                return *it;
+            }
         }
     }
-    while(--it != sortedMappingList.begin()) {
-        if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
-            return *(it);
+    if(it != sortedMappingList.begin()) {
+        while(--it != sortedMappingList.begin()) {
+            if((*it)->getSectionIndex() == symbol->getSectionIndex()) {
+                return *(it);
+            }
         }
     }
     return nullptr;
