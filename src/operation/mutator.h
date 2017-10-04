@@ -69,13 +69,14 @@ public:
 
     /** Force positions to be updated, if using cached positions. */
     void updatePositions();
+
+    void setPreviousSibling(Chunk *c, Chunk *prev);
+    void setNextSibling(Chunk *c, Chunk *next);
 private:
     void updateSizesAndAuthorities(Chunk *child);
     void updateGenerationCounts(Chunk *child);
     void updateAuthorityHelper(Chunk *root);
     void updatePositionHelper(Chunk *root);
-    void setPreviousSibling(Chunk *c, Chunk *prev);
-    void setNextSibling(Chunk *c, Chunk *next);
 };
 
 #endif

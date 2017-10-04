@@ -62,6 +62,8 @@ public:
     FlatListType::iterator end() { return flatList.end(); }
     FlatListType::const_iterator begin() const { return flatList.cbegin(); }
     FlatListType::const_iterator end() const { return flatList.cend(); }
+    FlatListType::reverse_iterator rbegin() { return flatList.rbegin(); }
+    FlatListType::reverse_iterator rend() { return flatList.rend(); }
 };
 
 #endif

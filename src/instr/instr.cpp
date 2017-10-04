@@ -29,7 +29,6 @@ void Instruction::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write(static_cast<uint64_t>(getAddress()));
-    writer.writeAnyLength(getName());
 
     InstrWriterGetData instrWriter;
     getSemantic()->accept(&instrWriter);
@@ -41,14 +40,13 @@ bool Instruction::deserialize(ChunkSerializerOperations &op,
 
     uint64_t address;
     reader.read(address);
-    setPosition(new AbsolutePosition(address));
-
-    std::string name;
-    reader.readAnyLength(name);
+    //setPosition(new AbsolutePosition(address));
+    //setPosition(new AbsolutePosition(-1));
 
     std::string data;
     reader.readAnyLength(data);
-    DisasmHandle handle(true);
+#if 1
+    static DisasmHandle handle(true);
     try {
         setSemantic(DisassembleInstruction(handle)
             .instructionSemantic(this, data, address));
@@ -58,6 +56,10 @@ bool Instruction::deserialize(ChunkSerializerOperations &op,
         RawByteStorage storage(data);
         setSemantic(new RawInstruction(std::move(storage)));
     }
+#else
+    RawByteStorage storage(data);
+    setSemantic(new RawInstruction(std::move(storage)));
+#endif
 
     return reader.stillGood();
 }

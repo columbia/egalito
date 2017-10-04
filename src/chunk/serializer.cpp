@@ -71,7 +71,9 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
         uint32_t id;
         reader.read(id);
         idList.push_back(id);
-        chunk->getChildren()->genericAdd(lookup(id));
+        Chunk *child = lookup(id);
+        chunk->getChildren()->genericAdd(child);
+        child->setParent(chunk);
     }
 
     // we deserialize all Chunks, not in order
@@ -164,8 +166,13 @@ Chunk *ChunkSerializer::deserialize(std::string filename) {
         flat->setInstance(op.instantiate(flat));
     }
 
-    for(auto flat : archive->getFlatList()) {
+    /*for(auto flat : archive->getFlatList()) {
         op.deserialize(flat);
+    }*/
+    for(auto it = archive->getFlatList().rbegin();
+        it != archive->getFlatList().rend(); it ++) {
+
+        op.deserialize(*it);
     }
 
     auto root = op.lookup(0);

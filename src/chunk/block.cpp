@@ -2,6 +2,9 @@
 #include "block.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "disasm/disassemble.h"  // for debugging!
+#include "concrete.h"  // for ChunkIter
+#include "operation/mutator.h"
 #include "log/log.h"
 
 std::string Block::getName() const {
@@ -32,6 +35,26 @@ bool Block::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsolutePosition(address));
 
     op.deserializeChildren(this, reader);
+#if 1
+    ChunkMutator mutator(this);
+    Chunk *prevChunk = this;
+    auto iterable = getChildren()->getIterable();
+    for(size_t i = 0; i < iterable->getCount(); i ++) {
+        Chunk *instr = iterable->get(i);
+        mutator.setPreviousSibling(instr, prevChunk);
+        if(i + 1 < iterable->getCount()) {
+            mutator.setNextSibling(instr, iterable->get(i + 1));
+        }
+        Disassemble::init();
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+        instr->setPosition(
+            positionFactory->makePosition(prevChunk, instr, this->getSize()));
+        prevChunk = instr;
+        //LOG(1, "set position of " << instr->getName() << " size " << instr->getSize());
+    }
+
+    mutator.updatePositions();
+#endif
     return reader.stillGood();
 }
 
