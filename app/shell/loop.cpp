@@ -58,6 +58,10 @@ void mainLoop() {
         args.shouldHave(1);
         setup.parseElfFiles(args.front().c_str(), true, true);
     }, "parses the given ELF and all its shared libraries");
+    topLevel.add("parse-archive", [&] (Arguments args) {
+        args.shouldHave(1);
+        setup.parseEgalitoArchive(args.front().c_str());
+    }, "parses and reassembles an Egalito archive");
 
     topLevel.add("inject", [&] (Arguments args) {
         args.shouldHave(1);

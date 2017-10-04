@@ -17,6 +17,10 @@ class ChunkListImpl;
 
 class ChunkVisitor;
 
+class ChunkSerializerOperations;
+class ArchiveStreamReader;
+class ArchiveStreamWriter;
+
 /** Main base class for representing code and entities in a program.
 
     Chunks are arranged in a hierarchical structure. If the concrete type is
@@ -48,6 +52,12 @@ public:
 
     virtual address_t getAddress() const = 0;
     virtual Range getRange() const = 0;
+
+    virtual size_t getFlatType() const = 0;
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer) = 0;
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader) = 0;
 
     virtual void accept(ChunkVisitor *visitor) = 0;
 };
@@ -81,6 +91,12 @@ public:
 
     virtual address_t getAddress() const;
     virtual Range getRange() const;
+
+    virtual size_t getFlatType() const { return 0; }
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer) {}
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader) { return false; }
 };
 
 template <typename ChunkType>
@@ -127,6 +143,17 @@ class CompositeChunkImpl : public ChildListDecorator<
 /** A Chunk that contains a list of other Chunks, but has no Position. */
 template <typename ChildType>
 class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
+};
+
+/** Some default code for serializable Chunks. */
+template <size_t flatType, typename ChunkType>
+class ChunkSerializerImpl : public ChunkType {
+public:
+    virtual size_t getFlatType() const final { return flatType; }
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer) = 0;
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader) = 0;
 };
 
 #endif

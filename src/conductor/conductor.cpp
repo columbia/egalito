@@ -5,6 +5,7 @@
 #include "pass/handlerelocs.h"
 #include "pass/handledatarelocs.h"
 #include "pass/injectbridge.h"
+#include "chunk/serializer.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
@@ -55,10 +56,11 @@ void Conductor::parseLibraries() {
     }
 }
 
-void Conductor::parseAddOnLibrary(ElfMap *elf) {
+Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
     auto library = new SharedLib("(addon)", "(addon)", elf);
     getLibraryList()->add(library);
-    parse(elf, library);
+    auto space = parse(elf, library);
+    return space->getModule();
 }
 
 ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
@@ -70,6 +72,23 @@ ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
     program->getChildren()->add(space->getModule());
     getSpaceList()->add(space);
     return space;
+}
+
+void Conductor::parseEgalitoArchive(const char *archive) {
+    ChunkSerializer serializer;
+    Chunk *newData = serializer.deserialize(archive);
+
+    if(!newData) {
+        LOG(1, "Error parsing archive [" << archive << "]");
+        return;  // No data present
+    }
+    else if(auto p = dynamic_cast<Program *>(newData)) {
+        LOG(1, "Using full Chunk tree from archive [" << archive << "]");
+        this->program = p;
+    }
+    else {
+        LOG(1, "Not using archive, only a subset of the Chunk tree is present");
+    }
 }
 
 void Conductor::resolvePLTLinks() {

@@ -52,21 +52,22 @@ void ConductorSetup::parseElfFiles(const char *executable,
     conductor->check();
 }
 
+void ConductorSetup::parseEgalitoArchive(const char *archive) {
+    this->conductor = new Conductor();
+
+    this->elf = nullptr;
+    this->egalito = nullptr;
+
+    conductor->parseEgalitoArchive(archive);
+}
+
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
 void ConductorSetup::injectLibrary(const char *filename) {
     if(auto elfmap = new ElfMap(filename)) {
-        conductor->parseAddOnLibrary(elfmap);
+        auto module = conductor->parseAddOnLibrary(elfmap);
         setBaseAddress(elfmap, 0xb0000000);
-
-        Module *module = nullptr;
-        for(auto space : conductor->getSpaceList()->iterable()) {
-            if(space->getElfMap() == elfmap) {
-                module = space->getModule();
-                break;
-            }
-        }
 
         for(auto region : CIter::regions(module)) {
             region->updateAddressFor(elfmap->getBaseAddress());
@@ -91,7 +92,6 @@ void ConductorSetup::makeFileSandbox(const char *outputFile) {
 }
 
 void ConductorSetup::moveCode(bool useDisps) {
-
     // 1. assign new addresses to all code
     moveCodeAssignAddresses(useDisps);
 

@@ -1,18 +1,22 @@
 #include <sstream>
 #include <iomanip>
 #include "function.h"
+#include "serializer.h"
 #include "visitor.h"
 #include "elf/symbol.h"
+#include "log/log.h"
 
-void Function::accept(ChunkVisitor *visitor) {
-    visitor->visit(this);
+Function::Function(address_t originalAddress) : symbol(nullptr) {
+    std::ostringstream stream;
+    stream << "fuzzyfunc-0x" << std::hex << originalAddress;
+    name = stream.str();
 }
 
-std::string FunctionFromSymbol::getName() const {
-    return symbol->getName();
+Function::Function(Symbol *symbol) : symbol(symbol) {
+    name = symbol->getName();
 }
 
-bool FunctionFromSymbol::hasName(std::string name) const {
+bool Function::hasName(std::string name) const {
     if(symbol->getName() == name) return true;
     for(auto s : getSymbol()->getAliases()) {
         if(std::string(s->getName()) == name) {
@@ -23,10 +27,46 @@ bool FunctionFromSymbol::hasName(std::string name) const {
     return false;
 }
 
-FuzzyFunction::FuzzyFunction(address_t originalAddress) {
-    std::ostringstream stream;
-    stream << "fuzzyfunc-0x" << std::hex << originalAddress;
-    name = stream.str();
+void Function::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    LOG(10, "serialize function " << getName());
+
+    writer.write(static_cast<uint64_t>(getAddress()));
+    writer.writeAnyLength(getName());
+    op.serializeChildren(this, writer);
+}
+
+bool Function::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    uint64_t address;
+    std::string name;
+    reader.read(address);
+    reader.readAnyLength(name);
+
+    setPosition(new AbsolutePosition(address));
+    setName(name);
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
+}
+
+void Function::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
+void FunctionList::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    op.serializeChildren(this, writer);
+}
+
+bool FunctionList::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }
 
 void FunctionList::accept(ChunkVisitor *visitor) {

@@ -30,6 +30,7 @@ public:
         sandbox(nullptr), entryFunction(nullptr) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
+    void parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);
     void makeLoaderSandbox();
     void makeFileSandbox(const char *outputFile);

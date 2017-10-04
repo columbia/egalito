@@ -4,6 +4,7 @@
 #include "elf/elfforest.h"
 
 class ChunkVisitor;
+class Module;
 
 class Conductor {
 private:
@@ -17,7 +18,8 @@ public:
     void parseExecutable(ElfMap *elf);
     void parseEgalito(ElfMap *elf);
     void parseLibraries();
-    void parseAddOnLibrary(ElfMap *elf);
+    Module *parseAddOnLibrary(ElfMap *elf);
+    void parseEgalitoArchive(const char *archive);
 
     void resolvePLTLinks();
     void resolveWeak();
@@ -29,12 +31,12 @@ public:
     Program *getProgram() const { return program; }
     ElfSpace *getMainSpace() const { return forest->getMainSpace(); }
     LibraryList *getLibraryList() const { return forest->getLibraryList(); }
-    ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
 
     void check();
 private:
+    ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
     ElfSpace *parse(ElfMap *elf, SharedLib *library);
     void allocateTLSArea();
     void loadTLSData();

@@ -3,6 +3,7 @@
 include ../env.mk
 
 ANALYSIS_SOURCES    = $(wildcard analysis/*.cpp)
+ARCHIVE_SOURCES     = $(wildcard archive/*.cpp)
 BREAK_SOURCES       = $(wildcard break/*.cpp)
 CHUNK_SOURCES       = $(wildcard chunk/*.cpp)
 CONDUCTOR_SOURCES   = $(wildcard conductor/*.cpp)
@@ -35,7 +36,7 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
 		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
-		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(UTIL_SOURCES) \
+		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(ARCHIVE_SOURCES) $(UTIL_SOURCES) \
 		$(SNIPPET_SOURCES) load/emulator.cpp load/segmap.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)

@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "chunklist.h"
+#include "archive/chunktypes.h"
 
 class ElfSpace;
 class FunctionList;
@@ -11,9 +12,11 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 
-class Module : public CompositeChunkImpl<Chunk> {
+class Module : public ChunkSerializerImpl<TYPE_Module,
+    CompositeChunkImpl<Chunk>> {
 private:
     ElfSpace *elfSpace;
+    std::string name;
 private:
     FunctionList *functionList;
     PLTList *pltList;
@@ -24,9 +27,10 @@ public:
     Module() : elfSpace(nullptr), functionList(nullptr), pltList(nullptr),
         jumpTableList(nullptr), dataRegionList(nullptr), markerList(nullptr) {}
 
-    std::string getName() const;
+    std::string getName() const { return name; }
+    void setName(const std::string &name) { this->name = name; }
 
-    void setElfSpace(ElfSpace *space) { elfSpace = space; }
+    void setElfSpace(ElfSpace *space);
     ElfSpace *getElfSpace() const { return elfSpace; }
 
     FunctionList *getFunctionList() const { return functionList; }
@@ -43,6 +47,11 @@ public:
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
 };

@@ -7,6 +7,7 @@
 #include "conductor/conductor.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
+#include "chunk/serializer.h"
 #include "generate/bingen.h"
 #include "operation/find.h"
 #include "operation/find2.h"
@@ -347,4 +348,11 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             std::cout << "can't find function or address \"" << args.front() << "\"\n";
         }
     }, "extend stack of a single function");
+
+    topLevel->add("archive", [&] (Arguments args) {
+        args.shouldHave(1);
+        ChunkSerializer serializer;
+        serializer.serialize(setup->getConductor()->getProgram(),
+            args.front().c_str());
+    }, "generates an Egalito archive with the Chunk tree");
 }

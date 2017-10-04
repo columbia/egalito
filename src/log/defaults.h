@@ -5,6 +5,7 @@
 
 // Default groups created from subdirectory names
 #define D_analysis      9
+#define D_archive       9
 #define D_break         9
 #define D_chunk         9
 #define D_conductor     9

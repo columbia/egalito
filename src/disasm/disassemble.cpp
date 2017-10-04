@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cassert>
 #include <set>
+#include <sstream>  // for debugging
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
@@ -213,6 +214,39 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     return instr;
 }
 
+InstructionSemantic *DisassembleInstruction::instructionSemantic(
+    Instruction *instr, const std::string &bytes, address_t address) {
+
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.length(),
+        address, 0, &ins) != 1) {
+
+        std::ostringstream stream;
+        stream << "address: " << std::hex << address << ", bytes:";
+        for(int i = 0; i < bytes.length(); i ++) {
+            stream << std::hex << " " << (int)bytes[i];
+        }
+        LOG(1, stream.str());
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    InstructionSemantic *semantic = nullptr;
+    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
+
+    if(!semantic) {
+        if(details) {
+            semantic = new DisassembledInstruction(Assembly(*ins));
+        }
+        else {
+            std::string raw;
+            raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            semantic = new RawInstruction(raw);
+        }
+    }
+    instr->setSemantic(semantic);
+    return semantic;
+}
+
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 
@@ -236,7 +270,7 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     auto section = elfMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
-    Function *function = new FunctionFromSymbol(symbol);
+    Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
 
@@ -268,7 +302,7 @@ Function *DisassembleX86Function::fuzzyFunction(const Range &range,
     address_t intervalOffset = intervalVirtualAddress - virtualAddress;
     address_t intervalSize = range.getSize();
 
-    Function *function = new FuzzyFunction(intervalVirtualAddress);
+    Function *function = new Function(intervalVirtualAddress);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     function->setPosition(
@@ -518,7 +552,7 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     auto section = elfMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
-    Function *function = new FunctionFromSymbol(symbol);
+    Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
 #ifdef ARCH_ARM
@@ -805,7 +839,7 @@ Function *DisassembleAARCH64Function::fuzzyFunction(const Range &range,
     address_t intervalOffset = intervalVirtualAddress - virtualAddress;
     address_t intervalSize = range.getSize();
 
-    Function *function = new FuzzyFunction(intervalVirtualAddress);
+    Function *function = new Function(intervalVirtualAddress);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     function->setPosition(
