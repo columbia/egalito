@@ -27,8 +27,9 @@ void ObjDump::parse(const char *filename) {
             setup.parseEgalitoArchive(filename);
         }
 
-        TemporaryLogLevel enableDisassemblyOutput1("chunk", 9);
-        TemporaryLogLevel enableDisassemblyOutput2("disasm", 9);
+        const int logLevel = options.getShowBytes() ? 20 : 9;
+        TemporaryLogLevel enableDisassemblyOutput1("chunk", logLevel);
+        TemporaryLogLevel enableDisassemblyOutput2("disasm", logLevel);
         ChunkDumper dumper(options.getShowBasicBlocks());
         setup.getConductor()->acceptInAllModules(&dumper);
     }
@@ -49,6 +50,8 @@ void printUsage(const char *program) {
         "    --no-recursive  Dump only the main ELF/archive file (default)\n"
         "    --basic-blocks     Show basic blocks in output\n"
         "    --no-basic-blocks  Don't split functions into blocks in output\n"
+        "    --bytes         Show disassembled instruction bytes\n"
+        "    --no-bytes      Don't show instruction bytes (default)\n"
         "\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
 }
@@ -94,6 +97,14 @@ int main(int argc, char *argv[]) {
         }},
         {"--no-basic-blocks", [] (ObjDumpOptions &options) {
             options.setShowBasicBlocks(false);
+        }},
+
+        // should we show disassembled instruction bytes?
+        {"--bytes", [] (ObjDumpOptions &options) {
+            options.setShowBytes(true);
+        }},
+        {"--no-bytes", [] (ObjDumpOptions &options) {
+            options.setShowBytes(false);
         }},
     };
 

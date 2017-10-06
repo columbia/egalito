@@ -6,16 +6,19 @@
 class ObjDumpOptions {
 private:
     bool debugMessages = false;
-    bool showBasicBlocks = false;
     bool recursive = false;
+    bool showBasicBlocks = false;
+    bool showBytes = false;
 public:
     bool getDebugMessages() const { return debugMessages; }
     bool getRecursive() const { return recursive; }
     bool getShowBasicBlocks() const { return showBasicBlocks; }
+    bool getShowBytes() const { return showBytes; }
 
     void setDebugMessages(bool d) { debugMessages = d; }
     void setRecursive(bool r) { recursive = r; }
     void setShowBasicBlocks(bool s) { showBasicBlocks = s; }
+    void setShowBytes(bool s) { showBytes = s; }
 };
 
 class ObjDump {
