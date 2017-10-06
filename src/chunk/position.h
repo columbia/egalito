@@ -200,10 +200,11 @@ typedef GenerationalPositionDecorator<
 
 class PositionFactory {
 private:
-    static PositionFactory *instance;
+    static PositionFactory instance;
 public:
-    static PositionFactory *getInstance() { return instance; }
-    static void setInstance(PositionFactory *factory) { instance = factory; }
+    static PositionFactory *getInstance() { return &instance; }
+    static void setInstance(const PositionFactory &factory)
+        { instance = factory; }
 public:
     enum Mode {
         MODE_GENERATION_OFFSET,
@@ -221,6 +222,7 @@ public:
 private:
     Mode mode;
 public:
+    PositionFactory();  // use default mode
     PositionFactory(Mode mode) : mode(mode) {}
     Position *makeAbsolutePosition(address_t address);
     Position *makePosition(Chunk *previous, Chunk *chunk, address_t offset);

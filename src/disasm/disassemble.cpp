@@ -22,16 +22,6 @@
 #include "chunk/dump.h"
 
 void Disassemble::init() {
-    if(PositionFactory::getInstance()) return;
-
-    PositionFactory *positionFactory = new PositionFactory(
-        //PositionFactory::MODE_DEBUGGING_NO_CACHE);  // 9.30 s
-        //PositionFactory::MODE_CACHED_SUBSEQUENT);   // ~6.04 s
-        PositionFactory::MODE_OFFSET);              // 5.89 s
-        //PositionFactory::MODE_CACHED_OFFSET);       // 6.98 s
-        //PositionFactory::MODE_GENERATION_SUBSEQUENT); // ~7.50 s
-        //PositionFactory::MODE_GENERATION_OFFSET);
-    PositionFactory::setInstance(positionFactory);
 }
 
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,

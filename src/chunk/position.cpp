@@ -111,7 +111,17 @@ void GenerationalPositionDecorator<PositionType>::recalculate() {
     cache = PositionType::get();
 }
 
-PositionFactory *PositionFactory::instance;
+PositionFactory PositionFactory::instance;  // use default mode
+
+PositionFactory::PositionFactory()
+    //: mode(MODE_DEBUGGING_NO_CACHE)     // 9.30 s
+    //: mode(MODE_CACHED_SUBSEQUENT)      // ~6.04 s
+    : mode(MODE_OFFSET)                 // 5.89 s
+    //: mode(MODE_CACHED_OFFSET)          // 6.98 s
+    //: mode(MODE_GENERATION_SUBSEQUENT)  // ~7.50 s
+    //: mode(MODE_GENERATION_OFFSET)
+{
+}
 
 Position *PositionFactory::makeAbsolutePosition(address_t address) {
     if(needsGenerationTracking()) {

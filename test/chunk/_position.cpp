@@ -83,8 +83,7 @@ public:
 TEST_CASE("position validation for simple main with default Position type", "[chunk][fast]") {
     GroupRegistry::getInstance()->muteAllSettings();
 
-    delete PositionFactory::getInstance();
-    PositionFactory::setInstance(nullptr);
+    PositionFactory::setInstance(PositionFactory());
 
     ElfMap elf(TESTDIR "hi0");
 
@@ -127,8 +126,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
         SECTION(StreamAsString() << "for PositionFactory mode "
             << testCase.mode << " (" << testCase.name << ")") {
 
-            delete PositionFactory::getInstance();
-            PositionFactory::setInstance(new PositionFactory(testCase.mode));
+            PositionFactory::setInstance(PositionFactory(testCase.mode));
 
             ElfMap elf(TESTDIR "hi0");
 
