@@ -15,6 +15,8 @@ private:
 public:
     ChunkSerializerOperations(EgalitoArchive *archive) : archive(archive) {}
 
+    int getVersion() const { return archive->getVersion(); }
+
     virtual FlatChunk::IDType serialize(Chunk *chunk);
     virtual void serialize(Chunk *chunk, FlatChunk::IDType id);
     virtual bool deserialize(FlatChunk *flat);

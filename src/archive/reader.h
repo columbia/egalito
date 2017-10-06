@@ -8,7 +8,8 @@ class EgalitoArchiveReader {
 public:
     EgalitoArchive *read(std::string filename);
 private:
-    bool readHeader(std::ifstream &file, uint32_t &flatCount);
+    bool readHeader(std::ifstream &file, uint32_t &flatCount,
+        uint32_t &version);
 };
 
 #endif

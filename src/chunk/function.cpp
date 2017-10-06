@@ -70,6 +70,11 @@ bool Function::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsolutePosition(address));
     setName(name);
 
+    if(op.getVersion() == 2) {
+        op.deserializeChildren(this, reader);
+        return reader.stillGood();
+    }
+
     uint8_t compressedMode = 0;
     reader.read(compressedMode);
     if(compressedMode == 0) {
@@ -91,7 +96,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                 prevChunk1, block, this->getSize()));
 
             Chunk *prevChunk2 = block;
-            ChunkMutator mutator2(block);
+            ChunkMutator mutator2(block, false);
 
             uint64_t instrCount = 0;
             reader.read(instrCount);
@@ -112,23 +117,14 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                 }
                 totalSize += instr->getSize();
 
-                mutator2.setPreviousSibling(instr, prevChunk2);
-                if(prevChunk2 != block) {
-                    mutator2.setNextSibling(prevChunk2, instr);
-                }
-                instr->setParent(block);
-
                 instr->setPosition(positionFactory->makePosition(
                     prevChunk2, instr, block->getSize()));
-                block->getChildren()->add(instr);
+                mutator2.append(instr);
                 prevChunk2 = instr;
             }
 
-            //this->getChildren()->add(block);
             mutator1.append(block);
             prevChunk1 = block;
-
-            mutator2.updatePositions();
         }
     }
     return reader.stillGood();

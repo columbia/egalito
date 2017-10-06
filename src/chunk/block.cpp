@@ -36,6 +36,8 @@ bool Block::deserialize(ChunkSerializerOperations &op,
 
     op.deserializeChildren(this, reader);
 #if 1
+    Disassemble::init();
+    PositionFactory *positionFactory = PositionFactory::getInstance();
     ChunkMutator mutator(this);
     Chunk *prevChunk = this;
     auto iterable = getChildren()->getIterable();
@@ -45,8 +47,6 @@ bool Block::deserialize(ChunkSerializerOperations &op,
         if(i + 1 < iterable->getCount()) {
             mutator.setNextSibling(instr, iterable->get(i + 1));
         }
-        Disassemble::init();
-        PositionFactory *positionFactory = PositionFactory::getInstance();
         instr->setPosition(
             positionFactory->makePosition(prevChunk, instr, this->getSize()));
         prevChunk = instr;

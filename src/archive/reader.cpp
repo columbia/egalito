@@ -8,7 +8,7 @@
 #include "log/log.h"
 
 bool EgalitoArchiveReader::readHeader(std::ifstream &file,
-    uint32_t &flatCount) {
+    uint32_t &flatCount, uint32_t &version) {
 
     ArchiveStreamReader reader(file);
     std::string line;
@@ -19,7 +19,6 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
         return false;
     }
 
-    uint32_t version;
     if(!reader.read(version)) {
         LOG(0, "Error: archive does not contain a version");
         return false;
@@ -31,7 +30,7 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
     }
     if(version < EgalitoArchive::VERSION) {
         LOG(0, "Warning: file version " << version
-            << " is old, but proceeding to load as usual");
+            << " is old, trying to load it anyway");
         // fall-through
     }
 
@@ -46,10 +45,10 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
 EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
     std::ifstream file(filename, std::ios::in | std::ios::binary);
 
-    uint32_t flatCount;
-    if(!readHeader(file, flatCount)) return nullptr;
+    uint32_t flatCount, version;
+    if(!readHeader(file, flatCount, version)) return nullptr;
 
-    EgalitoArchive *archive = new EgalitoArchive(filename);
+    EgalitoArchive *archive = new EgalitoArchive(filename, version);
 
     for(uint32_t i = 0; i < flatCount; i ++) {
         uint16_t type;
