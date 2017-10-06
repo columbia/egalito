@@ -30,3 +30,4 @@
 #define D_dplt          0
 #define D_dloadtime     0
 #define D_dassign       0
+#define D_dtiming       9

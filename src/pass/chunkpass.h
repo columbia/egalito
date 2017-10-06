@@ -4,6 +4,7 @@
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "chunk/visitor.h"
+#include "util/timing.h"
 
 class ChunkPass : public ChunkVisitor {
 protected:
@@ -13,7 +14,10 @@ protected:
             child->accept(this);
         }
     }
+private:
+    EgalitoTiming timing;
 public:
+    ChunkPass(const char *passName = "unknown ChunkPass") : timing(passName) {}
     virtual void visit(Program *program) { recurse(program); }
     virtual void visit(Module *module) { recurse(module); }
     virtual void visit(FunctionList *functionList) { recurse(functionList); }

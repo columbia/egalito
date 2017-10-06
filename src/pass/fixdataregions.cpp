@@ -68,7 +68,7 @@ void FixDataRegionsPass::resolveTLSLink(TLSDataOffsetLink *link) {
         if(m == module) continue;
 
         if(auto list = m->getElfSpace()->getSymbolList()) {
-            if(auto targetSym = list ->find(sym->getName())) {
+            if(auto targetSym = list->find(sym->getName())) {
 
                 if(targetSym->getSectionIndex() == SHN_UNDEF) continue;
 
@@ -82,4 +82,3 @@ void FixDataRegionsPass::resolveTLSLink(TLSDataOffsetLink *link) {
         }
     }
 }
-
