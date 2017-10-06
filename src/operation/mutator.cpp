@@ -171,6 +171,7 @@ void ChunkMutator::remove(Chunk *child) {
 }
 
 void ChunkMutator::splitBlockBefore(Instruction *point) {
+#if 0
     auto block = dynamic_cast<Block *>(point->getParent());
     Block *block2 = nullptr;
 
@@ -207,6 +208,57 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
         instr->setPosition(positionFactory->makePosition(
             block2, instr, block2->getSize()));
     }
+#else
+    Block *block = dynamic_cast<Block *>(point->getParent());
+    Block *newBlock = new Block();
+
+    newBlock->setPosition(PositionFactory::getInstance()->makePosition(
+        block, newBlock, point->getAddress() - chunk->getAddress()));
+
+    size_t totalChildren = block->getChildren()->getIterable()->getCount();
+    if(totalChildren == 0) return;
+
+    size_t leaveBehind = 0;
+    Instruction *lastLeftBehind = nullptr;
+    for(Instruction *instr = block->getChildren()->getIterable()->get(0);
+        instr && instr != point;
+        instr = static_cast<Instruction *>(instr->getNextSibling())) {
+
+        leaveBehind ++;
+        lastLeftBehind = instr;
+    }
+    if(lastLeftBehind) setNextSibling(lastLeftBehind, nullptr);
+
+    {
+        ChunkMutator newMutator(newBlock);
+        Chunk *prevChunk = newBlock;
+        for(Instruction *instr = point;
+            instr;
+            instr = static_cast<Instruction *>(instr->getNextSibling())) {
+
+            if(instr == point) setPreviousSibling(instr, nullptr);
+            //else setPreviousSibling(instr, prevChunk);
+
+            delete instr->getPosition();
+            instr->setPosition(PositionFactory::getInstance()->makePosition(
+                prevChunk, instr, newBlock->getSize()));
+            newMutator.append(instr);
+            prevChunk = instr;
+        }
+    }
+
+    for(size_t i = 0; i < totalChildren - leaveBehind; i ++) {
+        block->getChildren()->removeLast();
+    }
+
+    insertAfter(block, newBlock);
+    if(auto block3 = dynamic_cast<Block *>(block->getNextSibling())) {
+        setPreviousSibling(block3, newBlock);
+        setNextSibling(newBlock, block3);
+    }
+    setNextSibling(block, newBlock);
+    setPreviousSibling(newBlock, block);
+#endif
 }
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {

@@ -2,6 +2,8 @@
 #include "splitbasicblock.h"
 #include "analysis/controlflow.h"
 #include "operation/mutator.h"
+#include "util/streamasstring.h"
+#include "util/timing.h"
 
 #include <assert.h>
 #include <cstdio>  // for std::fflush
@@ -13,6 +15,7 @@ void SplitBasicBlock::visit(Function *function) {
     //TemporaryLogLevel tll("pass", 20);
 
     std::set<Instruction *> splitPoints;
+    {std::string foo=StreamAsString()<<"SplitBasicBlock part 1 for " << function->getName();EgalitoTiming timing(foo.c_str(), 100);
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             if(auto linked = dynamic_cast<LinkedInstruction *>(
@@ -40,8 +43,9 @@ void SplitBasicBlock::visit(Function *function) {
                 }
             }
         }
-    }
+    }}
 
+    {EgalitoTiming timing("SplitBasicBlock part 2", 100);
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());
     if(module) {
         auto jumptablelist = module->getJumpTableList();
@@ -71,7 +75,7 @@ void SplitBasicBlock::visit(Function *function) {
                 }
             }
         }
-    }
+    }}
 
 #if 0
     size_t org = function->getSize();
@@ -82,12 +86,15 @@ void SplitBasicBlock::visit(Function *function) {
     }
 #endif
 
-    ChunkMutator m(function);
-    for(auto instr : splitPoints) {
+    {std::string foo=StreamAsString()<<"SplitBasicBlock part 3 for " << function->getName();EgalitoTiming timing(foo.c_str(), 100);
+    ChunkMutator m(function, false);
+    for(auto it = splitPoints.rbegin(); it != splitPoints.rend(); it ++) {
+        auto instr = *it;
         //LOG(1, "    split at 0x" << std::hex << instr->getAddress());
         m.splitBlockBefore(instr);
     }
     function->getChildren()->clearSpatial();
+    }
 
 #if 0
     if(splitPoints.size() > 0) {

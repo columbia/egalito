@@ -65,6 +65,7 @@ public:
 
     virtual void add(ChildType *child);
     virtual void remove(ChildType *child);
+    virtual void removeLast();
     virtual IterableChunkList<ChildType> *getIterable() { return &iterable; }
     virtual SpatialChunkList<ChildType> *getSpatial() { if(!spatial) createSpatial(); return spatial; }
     virtual NamedChunkList<ChildType> *getNamed() { if(!named) createNamed(); return named; }
@@ -87,6 +88,16 @@ void ChunkListImpl<ChildType>::remove(ChildType *child) {
     iterable.remove(child);
     if(spatial) spatial->remove(child);
     if(named) named->remove(child);
+}
+
+template <typename ChildType>
+void ChunkListImpl<ChildType>::removeLast() {
+    ChildType *last = iterable.getLast();
+    if(last) {
+        iterable.removeLast();
+        if(spatial) spatial->remove(last);
+        if(named) named->remove(last);
+    }
 }
 
 template <typename ChildType>
@@ -114,6 +125,7 @@ public:
 
     void add(ChildType *child) { childList.push_back(child); }
     void remove(ChildType *child);
+    void removeLast();
 
     ChildType *get(size_t index) { return childList[index]; }
     ChildType *getLast() { return childList.size() ? childList[childList.size() - 1] : nullptr; }
@@ -129,6 +141,11 @@ void IterableChunkList<ChildType>::remove(ChildType *child) {
     if(i != static_cast<size_t>(-1)) {
         childList.erase(childList.begin() + i);
     }
+}
+
+template <typename ChildType>
+void IterableChunkList<ChildType>::removeLast() {
+    childList.pop_back();
 }
 
 template <typename ChildType>
