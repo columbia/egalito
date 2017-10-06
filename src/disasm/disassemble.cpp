@@ -15,6 +15,7 @@
 #include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "util/intervaltree.h"
+#include "instr/writer.h"  // for debugging
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -970,6 +971,55 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     if(block->getSize() == 0) {
         delete block;
     }
+
+#if 1
+    {
+        size_t j = 0;
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                InstrWriterGetData writer;
+                i->getSemantic()->accept(&writer);
+                std::string data = writer.get();
+
+                auto ins = &insn[j++];
+                bool different = false;
+                if(ins->size != data.length()) different = true;
+                else {
+                    for(size_t z = 0; z < data.length(); z ++) {
+                        if((unsigned char)ins->bytes[z] != (unsigned char)data[z]) {
+                            different = true;
+                            break;
+                        }
+                    }
+                }
+
+                if(different) {
+                    LOG(1, "ERROR: reconstructed instruction differs from original:");
+
+                    {
+                        std::ostringstream stream;
+                        stream << "original:      address: " << std::hex << ins->address << ", bytes:";
+                        for(size_t i = 0; i < ins->size; i ++) {
+                            stream << std::hex << " " << (int)ins->bytes[i];
+                        }
+                        LOG(1, stream.str());
+                    }
+
+                    {
+                        std::ostringstream stream;
+                        stream << "reconstructed: address: " << std::hex << i->getAddress() << ", bytes:";
+                        for(size_t i = 0; i < data.length(); i ++) {
+                            stream << std::hex << " " << (int)data[i];
+                        }
+                        LOG(1, stream.str());
+                    }
+                }
+            }
+        }
+        for(size_t j = 0; j < count; j ++) {
+        }
+    }
+#endif
 
     cs_free(insn, count);
 }
