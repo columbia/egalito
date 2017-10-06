@@ -105,6 +105,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                 reader.readAnyLength(bytes);
                 static DisasmHandle handle(true);
                 Instruction *instr = nullptr;
+#if 1
                 try {
                     instr = DisassembleInstruction(handle, true)
                         .instruction(bytes, address + totalSize);
@@ -115,6 +116,11 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                     RawByteStorage storage(bytes);
                     instr->setSemantic(new RawInstruction(std::move(storage)));
                 }
+#else
+                instr = new Instruction();
+                RawByteStorage storage(bytes);
+                instr->setSemantic(new RawInstruction(std::move(storage)));
+#endif
                 totalSize += instr->getSize();
 
                 instr->setPosition(positionFactory->makePosition(

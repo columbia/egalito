@@ -183,12 +183,9 @@ bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
 Instruction *DisassembleInstruction::instruction(const std::string &bytes,
     address_t address) {
 
-    cs_insn *ins;
-    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.size(),
-        address, 0, &ins) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
+    cs_insn *ins = runDisassembly(
+        reinterpret_cast<const uint8_t *>(bytes.c_str()),
+        bytes.length(), address);
 
     return instruction(ins);
 }
@@ -196,12 +193,8 @@ Instruction *DisassembleInstruction::instruction(const std::string &bytes,
 Instruction *DisassembleInstruction::instruction(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *ins;
-    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.data(), bytes.size(),
-        address, 0, &ins) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
+    cs_insn *ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+        bytes.size(), address);
 
     return instruction(ins);
 }
@@ -230,18 +223,9 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
 InstructionSemantic *DisassembleInstruction::instructionSemantic(
     Instruction *instr, const std::string &bytes, address_t address) {
 
-    cs_insn *ins;
-    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.length(),
-        address, 0, &ins) != 1) {
-
-        std::ostringstream stream;
-        stream << "address: " << std::hex << address << ", bytes:";
-        for(int i = 0; i < bytes.length(); i ++) {
-            stream << std::hex << " " << (int)bytes[i];
-        }
-        LOG(1, stream.str());
-        throw "Invalid instruction opcode string provided\n";
-    }
+    cs_insn *ins = runDisassembly(
+        reinterpret_cast<const uint8_t *>(bytes.c_str()),
+        bytes.length(), address);
 
     InstructionSemantic *semantic = nullptr;
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
@@ -263,15 +247,29 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 
-    cs_insn *insn;
-    if(cs_disasm(handle.raw(), (const uint8_t *)str.data(), str.size(),
-        address, 0, &insn) != 1) {
-
-        throw "Invalid instruction opcode string provided\n";
-    }
+    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(str.data()),
+        str.size(), address);
     Assembly assembly(*insn);
     cs_free(insn, 1);
     return assembly;
+}
+
+cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
+    size_t size, address_t address) {
+
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), bytes, size, address, 0, &ins) != 1) {
+        std::ostringstream stream;
+        stream << "address: " << std::hex << address << ", bytes:";
+        for(size_t i = 0; i < size; i ++) {
+            stream << std::hex << " " << (int)bytes[i];
+        }
+        LOG(1, stream.str());
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    return ins;
 }
 
 // --- X86_64 disassembly code

@@ -129,6 +129,9 @@ public:
 
     Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
+private:
+    cs_insn *runDisassembly(const uint8_t *bytes, size_t size,
+        address_t address);
 };
 
 class AARCH64InstructionBinary {

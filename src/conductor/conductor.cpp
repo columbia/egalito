@@ -6,6 +6,7 @@
 #include "pass/handledatarelocs.h"
 #include "pass/injectbridge.h"
 #include "chunk/serializer.h"
+#include "pass/internalcalls.h"
 #include "pass/resolveplt.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
@@ -89,6 +90,9 @@ void Conductor::parseEgalitoArchive(const char *archive) {
     else {
         LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }
+
+    InternalCalls internalCalls;
+    acceptInAllModules(&internalCalls);
 }
 
 void Conductor::resolvePLTLinks() {
