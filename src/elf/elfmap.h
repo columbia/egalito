@@ -59,11 +59,14 @@ private:
     address_t baseAddress;
     address_t copyBase;
     address_t rwCopyBase;
+private:
+    ElfMap();
 public:
     ElfMap(pid_t pid);
     ElfMap(const char *filename);
     ElfMap(void *self);
     ~ElfMap();
+    static bool isElf(const char *filename);
 private:
     void setup();
     void parseElf(const char *filename);

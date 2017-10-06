@@ -9,6 +9,8 @@
 
 class ChunkDumper : public ChunkVisitor {
 private:
+    bool showBasicBlocks;
+private:
     template <typename Type>
     void recurse(Type *root) {
         for(auto child : root->getChildren()->genericIterable()) {
@@ -16,6 +18,8 @@ private:
         }
     }
 public:
+    ChunkDumper(bool showBasicBlocks = true)
+        : showBasicBlocks(showBasicBlocks) {}
     virtual void visit(Program *program) {}
     virtual void visit(Module *module);
     virtual void visit(FunctionList *functionList);

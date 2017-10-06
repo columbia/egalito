@@ -32,13 +32,14 @@ void ChunkDumper::visit(Function *function) {
 }
 
 void ChunkDumper::visit(Block *block) {
-    LOG(4, block->getName() << ":");
+    if(showBasicBlocks) LOG(4, block->getName() << ":");
     recurse(block);
 }
 
 void ChunkDumper::visit(Instruction *instruction) {
     int pos = INT_MIN;
     auto parent = instruction->getParent();
+    if(!showBasicBlocks && parent) parent = parent->getParent();
     if(parent) {
         auto currentPos = instruction->getPosition();
         auto parentPos = parent->getPosition();

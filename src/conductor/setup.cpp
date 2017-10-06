@@ -61,9 +61,6 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     conductor->parseEgalitoArchive(archive);
 }
 
-#define ROUND_DOWN(x)   ((x) & ~0xfff)
-#define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
-
 void ConductorSetup::injectLibrary(const char *filename) {
     if(auto elfmap = new ElfMap(filename)) {
         auto module = conductor->parseAddOnLibrary(elfmap);
@@ -135,13 +132,6 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
 void ConductorSetup::moveCodeMakeExecutable() {
     sandbox->finalize();
 }
-
-/*
-    // resolve all relocations in data sections
-    conductor.fixDataSections();
-
-    conductor.writeDebugElf("symbols.elf");
-*/
 
 void ConductorSetup::dumpElfSpace(ElfSpace *space) {
     ChunkDumper dumper;

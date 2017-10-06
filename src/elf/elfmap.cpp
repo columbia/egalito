@@ -9,6 +9,9 @@
 #include "elfmap.h"
 #include "log/log.h"
 
+ElfMap::ElfMap() : map(nullptr), length(0), fd(-1) {
+}
+
 ElfMap::ElfMap(pid_t pid) {
     std::ostringstream stream;
     stream << "/proc/" << static_cast<int>(pid) << "/exe";
@@ -28,6 +31,18 @@ ElfMap::ElfMap(void *self) : map(self), length(0), fd(-1) {
 ElfMap::~ElfMap() {
     if(length) munmap(map, length);
     if(fd > 0) close(fd);
+}
+
+bool ElfMap::isElf(const char *filename) {
+    try {
+        ElfMap elf;
+        elf.parseElf(filename);
+    }
+    catch(const char *error) {
+        return false;
+    }
+
+    return true;
 }
 
 void ElfMap::setup() {
@@ -55,19 +70,18 @@ void ElfMap::parseElf(const char *filename) {
 }
 
 void ElfMap::verifyElf() {
-
     unsigned char *e_ident = ((ElfXX_Ehdr *)map)->e_ident;
-    if (e_ident[EI_MAG0] != ELFMAG0
+    if(e_ident[EI_MAG0] != ELFMAG0
         || e_ident[EI_MAG1] != ELFMAG1
         || e_ident[EI_MAG2] != ELFMAG2
         || e_ident[EI_MAG3] != ELFMAG3) {
+
         throw "executable image does not have ELF magic\n";
     }
 
     // check architecture type
     unsigned char type = e_ident[EI_CLASS];
-
-    if (type != ELFCLASSXX) {
+    if(type != ELFCLASSXX) {
         throw "file is unsupported\n";
     }
 }

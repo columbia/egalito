@@ -12,6 +12,7 @@ CXXFLAGS    += -g -I ../src/
 CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
 
 SHELL_SOURCES       = $(wildcard shell/*.cpp)
+OBJDUMP_SOURCES     = $(wildcard objdump/*.cpp)
 PYTHON_SOURCES      = $(wildcard python/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
@@ -20,19 +21,21 @@ dep-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).d)
 
 ETSHELL_SOURCES = $(SHELL_SOURCES)
 ETSHELL_OBJECTS = $(call obj-filename,$(ETSHELL_SOURCES))
+ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
+ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
 
-PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
-
-ALL_SOURCES = $(sort $(ETSHELL_SOURCES))
+ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
+PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS) $(PYTHON_OBJECTS)))
 
 ETSHELL = $(BUILDDIR)etshell
+ETOBJDUMP = $(BUILDDIR)etobjdump
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 
-OUTPUTS = $(ETSHELL)
+OUTPUTS = $(ETSHELL) $(ETOBJDUMP)
 
 # Default target
 .PHONY: all
@@ -58,6 +61,7 @@ $(BUILDTREE): ../config/config.h
 	@touch .symlinks
 	@echo making symlinks...
 	@ln -sf $(ETSHELL)
+	@ln -sf $(ETOBJDUMP)
 
 .PHONY: rebuild-src
 rebuild-src:
@@ -80,8 +84,11 @@ $(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/$(BUILDDIR)libegalito.a
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -lreadline -Wl,-rpath=$(abspath ../src)
-
 $(ETSHELL): ../src/$(BUILDDIR)libegalito.so
+
+$(ETOBJDUMP): $(ETOBJDUMP_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETOBJDUMP): ../src/$(BUILDDIR)libegalito.so
 
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell

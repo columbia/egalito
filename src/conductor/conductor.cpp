@@ -49,8 +49,8 @@ void Conductor::parseLibraries() {
     for(size_t i = 0; i < getLibraryList()->getCount(); i ++) {
         auto library = getLibraryList()->get(i);
         auto space = library->getElfSpace();
-        if(space == getSpaceList()->getEgalito()) continue;
-        if(space == getSpaceList()->getMain()) continue;
+
+        if(space) continue;  // already parsed (e.g. libegalito, executable)
 
         parse(library->getElfMap(), library);
     }
@@ -97,7 +97,12 @@ void Conductor::resolvePLTLinks() {
 
     if(auto libc = getLibraryList()->getLibc()) {
         LibcHacksPass libcHacks(program);
-        libc->getElfSpace()->getModule()->accept(&libcHacks);
+        if(libc->getElfSpace()) {
+            libc->getElfSpace()->getModule()->accept(&libcHacks);
+        }
+        else {
+            LOG(1, "WARNING: don't have ElfSpace anymore for LibcHacks...");
+        }
     }
 }
 
@@ -228,4 +233,3 @@ void Conductor::check() {
     ReloCheckPass checker;
     acceptInAllModules(&checker, true);
 }
-
