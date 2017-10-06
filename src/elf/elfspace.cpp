@@ -75,44 +75,30 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     //ChunkDumper dumper;
     //module->accept(&dumper);
 
-    FallThroughFunctionPass fallThrough;
-    module->accept(&fallThrough);
+    RUN_PASS(FallThroughFunctionPass(), module);
 
     DataRegionList::buildDataRegionList(elf, module);
 
     PLTList::parsePLTList(elf, relocList, module);
 
     // this needs data regions
-    HandleDataRelocsInternalStrong handleDataRelocs(relocList);
-    module->accept(&handleDataRelocs);
-
-    HandleRelocsStrong handleRelocsPass(elf, relocList);
-    module->accept(&handleRelocsPass);
-
-    InternalCalls internalCalls;
-    module->accept(&internalCalls);
+    RUN_PASS(HandleDataRelocsInternalStrong(relocList), module);
+    RUN_PASS(HandleRelocsStrong(elf, relocList), module);
+    RUN_PASS(InternalCalls(), module);
 
     if(module->getPLTList()) {
-        ExternalCalls externalCalls(module->getPLTList());
-        module->accept(&externalCalls);
+        RUN_PASS(ExternalCalls(module->getPLTList()), module);
     }
 
-    JumpTablePass jumpTablePass;
-    module->accept(&jumpTablePass);
-
-    JumpTableBounds jumpTableBounds;
-    module->accept(&jumpTableBounds);
-
-    JumpTableOverestimate jumpTableOverestimate;
-    module->accept(&jumpTableOverestimate);
+    RUN_PASS(JumpTablePass(), module);
+    RUN_PASS(JumpTableBounds(), module);
+    RUN_PASS(JumpTableOverestimate(), module);
 
     // this needs jumptable information and all NormalLinks
-    SplitBasicBlock split;
-    module->accept(&split);
+    RUN_PASS(SplitBasicBlock(), module);
 
     // this needs all blocks to be split to basic blocks
-    InferLinksPass inferLinksPass(elf);
-    module->accept(&inferLinksPass);
+    RUN_PASS(InferLinksPass(elf), module);
 
     aliasMap = new FunctionAliasMap(module);
 }

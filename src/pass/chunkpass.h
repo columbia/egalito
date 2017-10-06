@@ -6,6 +6,21 @@
 #include "chunk/visitor.h"
 #include "util/timing.h"
 
+#if 1  // enable pass profiling
+    #define RUN_PASS(passConstructor, module) \
+        { \
+            EgalitoTiming timing(#passConstructor); \
+            auto pass = passConstructor; \
+            module->accept(&pass); \
+        }
+#else
+    #define RUN_PASS(passConstructor, module) \
+        { \
+            auto pass = passConstructor; \
+            module->accept(&pass); \
+        }
+#endif
+
 class ChunkPass : public ChunkVisitor {
 protected:
     template <typename Type>
@@ -14,10 +29,7 @@ protected:
             child->accept(this);
         }
     }
-private:
-    EgalitoTiming timing;
 public:
-    ChunkPass(const char *passName = "unknown ChunkPass") : timing(passName) {}
     virtual void visit(Program *program) { recurse(program); }
     virtual void visit(Module *module) { recurse(module); }
     virtual void visit(FunctionList *functionList) { recurse(functionList); }
