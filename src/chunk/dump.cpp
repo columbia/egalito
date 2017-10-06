@@ -9,7 +9,10 @@
 #include "log/log.h"
 
 void ChunkDumper::visit(Module *module) {
-    auto count = module->getChildren()->getIterable()->getCount();
+    size_t count = 0;
+    if(auto functionList = module->getFunctionList()) {
+        count = functionList->getChildren()->getIterable()->getCount();
+    }
     LOG(4, "=== [" << module->getName() << "] with " << count << " functions ===");
     recurse(module);
 }
