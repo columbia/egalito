@@ -14,6 +14,7 @@ public:
     ArchiveStreamReader(std::istream &stream) : stream(stream) {}
     virtual ~ArchiveStreamReader() {}
 
+    bool read(uint8_t &value);
     bool read(uint16_t &value);
     bool read(uint32_t &value);
     bool read(uint64_t &value);
@@ -30,6 +31,7 @@ public:
     ArchiveStreamWriter(std::ostream &stream) : stream(stream) {}
     virtual ~ArchiveStreamWriter() {}
 
+    void write(uint8_t value);
     void write(uint16_t value);
     void write(uint32_t value);
     void write(uint64_t value);

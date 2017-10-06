@@ -4,6 +4,10 @@
 #include "serializer.h"
 #include "visitor.h"
 #include "elf/symbol.h"
+#include "disasm/disassemble.h"
+#include "instr/writer.h"
+#include "instr/semantic.h"
+#include "operation/mutator.h"
 #include "log/log.h"
 
 Function::Function(address_t originalAddress) : symbol(nullptr) {
@@ -34,7 +38,25 @@ void Function::serialize(ChunkSerializerOperations &op,
 
     writer.write(static_cast<uint64_t>(getAddress()));
     writer.writeAnyLength(getName());
+
+#if 0  // don't use compression
+    writer.write(static_cast<uint8_t>(0));
     op.serializeChildren(this, writer);
+#else  // compress data
+    writer.write(static_cast<uint8_t>(1));
+
+    writer.write(static_cast<uint64_t>(
+        this->getChildren()->getIterable()->getCount()));
+    for(auto block : CIter::children(this)) {
+        writer.write(static_cast<uint64_t>(
+            block->getChildren()->getIterable()->getCount()));
+        for(auto instr : CIter::children(block)) {
+            InstrWriterGetData instrWriter;
+            instr->getSemantic()->accept(&instrWriter);
+            writer.writeAnyLength(instrWriter.get());
+        }
+    }
+#endif
 }
 
 bool Function::deserialize(ChunkSerializerOperations &op,
@@ -48,7 +70,67 @@ bool Function::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsolutePosition(address));
     setName(name);
 
-    op.deserializeChildren(this, reader);
+    uint8_t compressedMode = 0;
+    reader.read(compressedMode);
+    if(compressedMode == 0) {
+        op.deserializeChildren(this, reader);
+    }
+    else {
+        Disassemble::init();
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+
+        Chunk *prevChunk1 = this;
+        ChunkMutator mutator1(this);
+
+        size_t totalSize = 0;
+        uint64_t blockCount = 0;
+        reader.read(blockCount);
+        for(uint64_t b = 0; b < blockCount; b ++) {
+            Block *block = new Block();
+            block->setPosition(positionFactory->makePosition(
+                prevChunk1, block, this->getSize()));
+
+            Chunk *prevChunk2 = block;
+            ChunkMutator mutator2(block);
+
+            uint64_t instrCount = 0;
+            reader.read(instrCount);
+            for(uint64_t i = 0; i < instrCount; i ++) {
+                std::string bytes;
+                reader.readAnyLength(bytes);
+                static DisasmHandle handle(true);
+                Instruction *instr = nullptr;
+                try {
+                    instr = DisassembleInstruction(handle, true)
+                        .instruction(bytes, address + totalSize);
+                }
+                catch(const char *what) {
+                    LOG(1, "DISASSEMBLY ERROR: " << what);
+                    instr = new Instruction();
+                    RawByteStorage storage(bytes);
+                    instr->setSemantic(new RawInstruction(std::move(storage)));
+                }
+                totalSize += instr->getSize();
+
+                mutator2.setPreviousSibling(instr, prevChunk2);
+                if(prevChunk2 != block) {
+                    mutator2.setNextSibling(prevChunk2, instr);
+                }
+                instr->setParent(block);
+
+                instr->setPosition(positionFactory->makePosition(
+                    prevChunk2, instr, block->getSize()));
+                block->getChildren()->add(instr);
+                prevChunk2 = instr;
+            }
+
+            //this->getChildren()->add(block);
+            mutator1.append(block);
+            prevChunk1 = block;
+
+            mutator2.updatePositions();
+        }
+    }
     return reader.stillGood();
 }
 

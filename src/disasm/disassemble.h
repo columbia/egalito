@@ -119,6 +119,8 @@ public:
     DisassembleInstruction(DisasmHandle &handle, bool details = true)
         : handle(handle), details(details) {}
 
+    Instruction *instruction(const std::string &bytes,
+        address_t address = 0);
     Instruction *instruction(const std::vector<unsigned char> &bytes,
         address_t address = 0);
     Instruction *instruction(cs_insn *ins);

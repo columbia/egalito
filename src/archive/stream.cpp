@@ -4,6 +4,11 @@
 #include "flatchunk.h"
 
 // !!! on aarch64, the endianness may need to change here
+bool ArchiveStreamReader::read(uint8_t &value) {
+    stream.read(reinterpret_cast<char *>(&value), sizeof(value));
+    return stream.operator bool ();
+}
+
 bool ArchiveStreamReader::read(uint16_t &value) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(value));
     return stream.operator bool ();
@@ -32,6 +37,10 @@ bool ArchiveStreamReader::readAnyLength(std::string &value) {
 
 bool ArchiveStreamReader::stillGood() {
     return stream.good();
+}
+
+void ArchiveStreamWriter::write(uint8_t value) {
+    stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 
 void ArchiveStreamWriter::write(uint16_t value) {

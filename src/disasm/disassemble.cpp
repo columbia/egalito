@@ -180,6 +180,19 @@ bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
     return literal;
 }
 
+Instruction *DisassembleInstruction::instruction(const std::string &bytes,
+    address_t address) {
+
+    cs_insn *ins;
+    if(cs_disasm(handle.raw(), (const uint8_t *)bytes.c_str(), bytes.size(),
+        address, 0, &ins) != 1) {
+
+        throw "Invalid instruction opcode string provided\n";
+    }
+
+    return instruction(ins);
+}
+
 Instruction *DisassembleInstruction::instruction(
     const std::vector<unsigned char> &bytes, address_t address) {
 
