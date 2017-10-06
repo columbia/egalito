@@ -81,7 +81,6 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         op.deserializeChildren(this, reader);
     }
     else {
-        Disassemble::init();
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;

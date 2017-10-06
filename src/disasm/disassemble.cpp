@@ -21,9 +21,6 @@
 
 #include "chunk/dump.h"
 
-void Disassemble::init() {
-}
-
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
     RelocList *relocList) {

@@ -18,7 +18,6 @@ class IntervalTree;
 
 class Disassemble {
 public:
-    static void init();
     static Module *module(ElfMap *elfMap, SymbolList *symbolList,
         DwarfUnwindInfo *dwarfInfo = nullptr,
         SymbolList *dynamicSymbolList = nullptr,

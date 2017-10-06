@@ -57,7 +57,6 @@ TEST_CASE("Disassemble Module", "[disasm][module]") {
     ElfMap *elf = new ElfMap(TESTDIR "hi5");
 
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
-    Disassemble::init();
 
 #if defined(ARCH_ARM)
     MappingSymbolList *mappingSymbolList = MappingSymbolList::buildMappingSymbolList(symbolList);
@@ -87,7 +86,6 @@ TEST_CASE("Fuzzy-function disassemble", "[disasm]") {
         strippedElf, strippedSymbolList, dynamicSymbolList);
 #endif
 
-    Disassemble::init();
     DwarfParser dwarfParser(strippedElf);
     Module *module = Disassemble::module(strippedElf, nullptr,
         dwarfParser.getUnwindInfo(), dynamicSymbolList, relocList);

@@ -49,7 +49,6 @@ static void ensureValues(Block *block, const std::vector<unsigned char> &values)
 }
 
 TEST_CASE("calling append() on ChunkMutator", "[chunk][normal]") {
-    Disassemble::init();
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
     Block *block = makeBlock();
@@ -69,7 +68,6 @@ TEST_CASE("calling append() on ChunkMutator", "[chunk][normal]") {
 }
 
 TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
-    Disassemble::init();
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
     Block *block = makeBlock();

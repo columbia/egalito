@@ -68,7 +68,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
     this->relocList
         = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
 
-    Disassemble::init();
     this->module = Disassemble::module(elf, symbolList, dwarf,
         dynamicSymbolList, relocList);
     this->module->setElfSpace(this);

@@ -36,7 +36,6 @@ bool Block::deserialize(ChunkSerializerOperations &op,
 
     op.deserializeChildren(this, reader);
 #if 1
-    Disassemble::init();
     PositionFactory *positionFactory = PositionFactory::getInstance();
     ChunkMutator mutator(this);
     Chunk *prevChunk = this;
