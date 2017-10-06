@@ -22,9 +22,6 @@ public:
         DwarfUnwindInfo *dwarfInfo = nullptr,
         SymbolList *dynamicSymbolList = nullptr,
         RelocList *relocList = nullptr);
-    static FunctionList *linearDisassembly(ElfMap *elfMap,
-        const char *sectionName, DwarfUnwindInfo *dwarfInfo,
-        SymbolList *dynamicSymbolList, RelocList *relocList);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
@@ -44,6 +41,9 @@ private:
     static Module *makeModuleFromDwarfInfo(ElfMap *elfMap,
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
         RelocList *relocList);
+    static FunctionList *linearDisassembly(ElfMap *elfMap,
+        const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+        SymbolList *dynamicSymbolList, RelocList *relocList);
 };
 
 class DisassembleFunctionBase {

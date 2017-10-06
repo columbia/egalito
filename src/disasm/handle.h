@@ -5,12 +5,14 @@
 
 class DisasmHandle {
 private:
-    csh handle;
+    static bool initialized[2];
+    static csh handle[2];
+    int which;
 public:
     DisasmHandle(bool detailed = false);
     ~DisasmHandle();
 
-    csh &raw() { return handle; }
+    csh &raw() { return handle[which]; }
 };
 
 #endif
