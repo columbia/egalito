@@ -21,7 +21,6 @@ else ifeq (arm,$(P_ARCH))
 	LOAD_SOURCES += load/bootstrap-arm.s
 endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
-MAIN_SOURCES        = $(wildcard main/*.cpp)
 OPERATION_SOURCES   = $(wildcard operation/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
@@ -39,24 +38,21 @@ TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(ARCHIVE_SOURCES) $(UTIL_SOURCES) \
 		$(SNIPPET_SOURCES) load/emulator.cpp load/segmap.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
-TARGET_SOURCES = $(TYPICAL_SOURCES) $(MAIN_SOURCES)
-TARGET_OBJECTS = $(call obj-filename,$(TARGET_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
 ADDON_SOURCES = $(SNIPPET_SOURCES)
 ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
-ALL_SOURCES = $(sort $(TARGET_SOURCES) $(LOADER_SOURCES) $(BINLOADER_SOURCES))
+ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
-TARGET = $(BUILDDIR)egalito
 LOADER = $(BUILDDIR)loader
 LIBRARY = $(BUILDDIR)libegalito.a
 SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 ADDON_LIBRARY = $(BUILDDIR)libaddon.so
 
-OUTPUTS = $(TARGET) $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
+OUTPUTS = $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
 		$(ADDON_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
@@ -79,7 +75,6 @@ $(BUILDTREE): ../config/config.h
 	if [ "$(P_ARCH)" != "`cat $@`" ]; then \
 		echo making symlinks...; \
 		echo $(P_ARCH) > $@; \
-		ln -sf $(BUILDDIR)egalito; \
 		ln -sf $(BUILDDIR)loader; \
 		ln -sf $(BUILDDIR)libegalito.a; \
 		ln -sf $(BUILDDIR)libegalito.so; \
@@ -109,8 +104,6 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
 
 # Programs and libraries
-$(TARGET): $(TARGET_OBJECTS)
-	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS)
 $(LOADER): $(LOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
