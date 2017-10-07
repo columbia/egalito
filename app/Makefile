@@ -40,6 +40,7 @@ OUTPUTS = $(ETSHELL) $(ETOBJDUMP)
 # Default target
 .PHONY: all
 all: app-all .symlinks
+	@true
 
 app-all: $(OUTPUTS) | rebuild-src
 
@@ -55,7 +56,7 @@ $(BUILDTREE): ../config/config.h
 	@mkdir -p $@
 
 ../config/config.h:
-	$(MAKE) -C ../config
+	$(call short-make,../config)
 
 .symlinks: $(OUTPUTS)
 	@touch .symlinks
@@ -65,7 +66,7 @@ $(BUILDTREE): ../config/config.h
 
 .PHONY: rebuild-src
 rebuild-src:
-	$(MAKE) -C ../src
+	$(call short-make,../src)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))

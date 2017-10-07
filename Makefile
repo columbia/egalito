@@ -6,25 +6,33 @@ ifdef USE_CONFIG
 	export
 endif
 
+ifeq ($(MAKEVERBOSE),)
+    MAKE += --no-print-directory
+    short-make = @+echo '>>>' MAKE -C ${1} ${2} ;\
+        $(MAKE) -C ${1} ${2} ; echo '<<<' MAKE -C ${1} ${2}
+else
+    short-make = +$(MAKE) -C ${1} ${2}
+endif
+
 .PHONY: all config src test app clean realclean
 all: src test app
+	@true
 src: | config
-	$(MAKE) -C src
+	$(call short-make,src)
 test: src
-	$(MAKE) -C test
-	$(MAKE) -C test/example
-	$(MAKE) -C test/binary all symlinks
+	$(call short-make,test)
+	$(call short-make,test/example)
+	$(call short-make,test/binary all symlinks)
 app: src | test
-	$(MAKE) -C app
-
+	$(call short-make,app)
 
 config:
-	$(MAKE) -C config
+	$(call short-make,config)
 
 clean realclean:
-	$(MAKE) -C app clean
-	$(MAKE) -C src clean
-	$(MAKE) -C test $@
-	$(MAKE) -C test/example clean
-	$(MAKE) -C test/binary clean
-	$(MAKE) -C config clean
+	$(call short-make,app,clean)
+	$(call short-make,src,clean)
+	$(call short-make,test,$@)
+	$(call short-make,test/example,clean)
+	$(call short-make,test/binary,clean)
+	$(call short-make,config,clean)

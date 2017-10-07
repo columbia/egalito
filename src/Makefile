@@ -61,6 +61,7 @@ GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
 # Default target
 .PHONY: all
 all: $(GEN_TIMESTAMP) $(OUTPUTS) .symlinks
+	@true
 
 $(BUILDDIR)load/emulator.o $(BUILDDIR)transform/data.o: | $(GEN_TIMESTAMP)
 $(ALL_OBJECTS): | $(BUILDTREE)
@@ -68,7 +69,7 @@ $(BUILDTREE): ../config/config.h
 	@mkdir -p $@
 
 ../config/config.h:
-	$(MAKE) -C ../config
+	$(call short-make,../config)
 
 .symlinks: $(OUTPUTS)
 	@touch $@
@@ -89,7 +90,7 @@ $(GEN_TIMESTAMP): gencode | $(BUILDTREE)
 	@touch $@
 
 gencode:
-	$(MAKE) -C dep/rtld
+	$(call short-make,dep/rtld)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -119,4 +120,4 @@ $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 .PHONY: clean
 clean:
 	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf
-	-$(MAKE) -C dep/rtld clean
+	-$(call short-make,dep/rtld,clean)

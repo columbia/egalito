@@ -39,6 +39,7 @@ OUTPUTS = $(RUNNER)
 # Default target
 .PHONY: all
 all: test-all .symlinks
+	@true
 
 test-all: $(OUTPUTS) | rebuild-src
 
@@ -57,7 +58,7 @@ $(BUILDTREE):
 
 .PHONY: rebuild-src
 rebuild-src:
-	$(MAKE) -C ../src
+	$(call short-make,../src)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))

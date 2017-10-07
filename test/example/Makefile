@@ -57,6 +57,7 @@ ALL_TARGETS += $(LONE_TARGETS)
 .PHONY: targets-musl targets-musl-static targets-musl-static-q targets-firmware
 
 all: $(ALL_TARGETS)
+	@true
 
 $(ALL_TARGETS): | $(BUILDDIR)
 $(BUILDDIR):

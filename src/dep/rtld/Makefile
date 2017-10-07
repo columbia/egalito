@@ -26,6 +26,7 @@ ARCH_FILES = $(ARCH_OUTPUT) $(ARCH_GDB_GEN_FILES) $(ARCH_TEST_GEN_FILES)
 
 .PHONY: all
 all: test reproduce
+	@true
 
 test reproduce:
 

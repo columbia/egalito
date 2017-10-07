@@ -6,6 +6,7 @@ PLATFORM_CONFIG_FILE = $(P_ARCH)-$(DISTRO).h
 DIFF = $(if $(wildcard config.h),$(shell diff $(PLATFORM_CONFIG_FILE) config.h))
 
 all: config.h
+	@true
 
 config.h: $(PLATFORM_CONFIG_FILE)
 	@if [ -e $(PLATFORM_CONFIG_FILE) ]; then \
