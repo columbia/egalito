@@ -52,7 +52,7 @@ $(BUILDTREE):
 
 .symlinks: $(OUTPUTS)
 	@touch .symlinks
-	@echo making symlinks...
+	@echo "LN-S" $(OUTPUTS)
 	@ln -sf $(BUILDDIR)runner
 
 .PHONY: rebuild-src

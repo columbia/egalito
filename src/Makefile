@@ -72,8 +72,8 @@ $(BUILDTREE): ../config/config.h
 
 .symlinks: $(OUTPUTS)
 	@touch $@
-	if [ "$(P_ARCH)" != "`cat $@`" ]; then \
-		echo making symlinks...; \
+	@echo "LN-S" $(OUTPUTS)
+	@if [ "$(P_ARCH)" != "`cat $@`" ]; then \
 		echo $(P_ARCH) > $@; \
 		ln -sf $(BUILDDIR)loader; \
 		ln -sf $(BUILDDIR)libegalito.a; \

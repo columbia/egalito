@@ -59,7 +59,7 @@ $(BUILDTREE): ../config/config.h
 
 .symlinks: $(OUTPUTS)
 	@touch .symlinks
-	@echo making symlinks...
+	@echo "LN-S" $(OUTPUTS)
 	@ln -sf $(ETSHELL)
 	@ln -sf $(ETOBJDUMP)
 
