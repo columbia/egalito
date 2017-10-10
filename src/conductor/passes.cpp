@@ -9,6 +9,7 @@
 #include "chunk/aliasmap.h"
 #include "chunk/tls.h"
 #include "chunk/dataregion.h"
+#include "operation/find2.h"
 #include "disasm/disassemble.h"
 #include "pass/fallthrough.h"
 #include "pass/splitbasicblock.h"
@@ -34,6 +35,8 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     space->setModule(module);
     module->setElfSpace(space);
 
+    space->setAliasMap(new FunctionAliasMap(module));
+
     //RUN_PASS(ChunkDumper(), module);
 
     RUN_PASS(FallThroughFunctionPass(), module);
@@ -55,15 +58,19 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(JumpTableBounds(), module);
     RUN_PASS(JumpTableOverestimate(), module);
 
+    LOG(1, "RUNNING SplitBasicBlock pass");
+
     // this needs jumptable information and all NormalLinks
     RUN_PASS(SplitBasicBlock(), module);
 
     // this needs all blocks to be split to basic blocks
     RUN_PASS(InferLinksPass(elf), module);
-
-    space->setAliasMap(new FunctionAliasMap(module));
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {
+    //RUN_PASS(ChunkDumper(), program);
+
+    RUN_PASS(FallThroughFunctionPass(), program);
+
     RUN_PASS(InternalCalls(), program);
 }

@@ -4,7 +4,10 @@
 #include "elf/elfspace.h"
 
 class ConductorPasses {
+private:
+    Conductor *conductor;
 public:
+    ConductorPasses(Conductor *conductor) : conductor(conductor) {}
     void newElfPasses(ElfSpace *space);
     void newArchivePasses(Program *program);
 };

@@ -219,25 +219,22 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     if(totalChildren == 0) return;
 
     size_t leaveBehind = 0;
-    Instruction *lastLeftBehind = nullptr;
     for(Instruction *instr = block->getChildren()->getIterable()->get(0);
         instr && instr != point;
         instr = static_cast<Instruction *>(instr->getNextSibling())) {
 
         leaveBehind ++;
-        lastLeftBehind = instr;
     }
-    if(lastLeftBehind) setNextSibling(lastLeftBehind, nullptr);
+    if(auto lastLeftBehind = point->getPreviousSibling()) {
+        setNextSibling(lastLeftBehind, nullptr);
+    }
+    setPreviousSibling(point, nullptr);
 
     {
         ChunkMutator newMutator(newBlock);
         Chunk *prevChunk = newBlock;
-        for(Instruction *instr = point;
-            instr;
-            instr = static_cast<Instruction *>(instr->getNextSibling())) {
-
-            if(instr == point) setPreviousSibling(instr, nullptr);
-            //else setPreviousSibling(instr, prevChunk);
+        for(size_t i = leaveBehind; i < totalChildren; i ++) {
+            Instruction *instr = block->getChildren()->getIterable()->get(i);
 
             delete instr->getPosition();
             instr->setPosition(PositionFactory::getInstance()->makePosition(

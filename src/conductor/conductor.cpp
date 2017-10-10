@@ -76,7 +76,7 @@ ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");
-    ConductorPasses().newElfPasses(space);
+    ConductorPasses(this).newElfPasses(space);
 
     program->getChildren()->add(space->getModule());
     getSpaceList()->add(space);
@@ -99,7 +99,7 @@ void Conductor::parseEgalitoArchive(const char *archive) {
         LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }
 
-    ConductorPasses().newArchivePasses(program);
+    ConductorPasses(this).newArchivePasses(program);
 }
 
 void Conductor::resolvePLTLinks() {
