@@ -1,5 +1,6 @@
 #include "config.h"
 #include "conductor.h"
+#include "passes.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
 #include "pass/handlerelocs.h"
@@ -67,8 +68,15 @@ Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
 ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
     ElfSpace *space = new ElfSpace(elf, library);
     library->setElfSpace(space);
+
+    LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
+        << space->getName() << "] ===");
     space->findDependencies(getLibraryList());
-    space->buildDataStructures();
+    space->findSymbolsAndRelocs();
+
+    LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
+        << space->getName() << "] ---");
+    ConductorPasses().newElfPasses(space);
 
     program->getChildren()->add(space->getModule());
     getSpaceList()->add(space);
@@ -91,8 +99,7 @@ void Conductor::parseEgalitoArchive(const char *archive) {
         LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }
 
-    InternalCalls internalCalls;
-    acceptInAllModules(&internalCalls);
+    ConductorPasses().newArchivePasses(program);
 }
 
 void Conductor::resolvePLTLinks() {

@@ -29,7 +29,7 @@ public:
     ~ElfSpace();
 
     void findDependencies(LibraryList *libraryList);
-    void buildDataStructures(bool hasRelocs = true);
+    void findSymbolsAndRelocs();
 
     ElfMap *getElfMap() const { return elf; }
     SharedLib *getLibrary() const { return library; }
@@ -41,8 +41,10 @@ public:
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }
     RelocList *getRelocList() const { return relocList; }
+    DwarfUnwindInfo *getDwarfInfo() const { return dwarf; }
 
     FunctionAliasMap *getAliasMap() const { return aliasMap; }
+    void setAliasMap(FunctionAliasMap *aliasMap) { this->aliasMap = aliasMap; }
 };
 
 class ElfSpaceList {

@@ -45,10 +45,7 @@ void ElfSpace::findDependencies(LibraryList *libraryList) {
     dynamic.parse(elf, library);
 }
 
-void ElfSpace::buildDataStructures(bool hasRelocs) {
-    LOG(1, "");
-    LOG(1, "=== BUILDING ELF DATA STRUCTURES for [" << getName() << "] ===");
-
+void ElfSpace::findSymbolsAndRelocs() {
     if(library) {
         this->symbolList = SymbolList::buildSymbolList(library);
     }
@@ -56,7 +53,7 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
         this->symbolList = SymbolList::buildSymbolList(elf);
     }
 
-    if(!this->symbolList) {
+    if(!symbolList) {
         DwarfParser dwarfParser(elf);
         this->dwarf = dwarfParser.getUnwindInfo();
     }
@@ -67,40 +64,6 @@ void ElfSpace::buildDataStructures(bool hasRelocs) {
 
     this->relocList
         = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
-
-    this->module = Disassemble::module(elf, symbolList, dwarf,
-        dynamicSymbolList, relocList);
-    this->module->setElfSpace(this);
-
-    //ChunkDumper dumper;
-    //module->accept(&dumper);
-
-    RUN_PASS(FallThroughFunctionPass(), module);
-
-    DataRegionList::buildDataRegionList(elf, module);
-
-    PLTList::parsePLTList(elf, relocList, module);
-
-    // this needs data regions
-    RUN_PASS(HandleDataRelocsInternalStrong(relocList), module);
-    RUN_PASS(HandleRelocsStrong(elf, relocList), module);
-    RUN_PASS(InternalCalls(), module);
-
-    if(module->getPLTList()) {
-        RUN_PASS(ExternalCalls(module->getPLTList()), module);
-    }
-
-    RUN_PASS(JumpTablePass(), module);
-    RUN_PASS(JumpTableBounds(), module);
-    RUN_PASS(JumpTableOverestimate(), module);
-
-    // this needs jumptable information and all NormalLinks
-    RUN_PASS(SplitBasicBlock(), module);
-
-    // this needs all blocks to be split to basic blocks
-    RUN_PASS(InferLinksPass(elf), module);
-
-    aliasMap = new FunctionAliasMap(module);
 }
 
 std::string ElfSpace::getName() const {
