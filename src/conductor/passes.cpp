@@ -12,7 +12,9 @@
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
 #include "pass/fallthrough.h"
+#include "pass/nonreturn.h"
 #include "pass/splitbasicblock.h"
+#include "pass/splitfunction.h"
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
@@ -22,6 +24,7 @@
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
 #include "pass/jtoverestimate.h"
+#include "pass/updatelink.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
 
@@ -70,6 +73,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     if(!space->getSymbolList()) {
         RUN_PASS(NonReturnFunction(), module);
         RUN_PASS(SplitFunction(), module);
+        RUN_PASS(UpdateLink(), module);
     }
 #endif
 }
