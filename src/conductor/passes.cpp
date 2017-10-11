@@ -65,6 +65,13 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
 
     // this needs all blocks to be split to basic blocks
     RUN_PASS(InferLinksPass(elf), module);
+
+#ifdef ARCH_AARCH64
+    if(!space->getSymbolList()) {
+        RUN_PASS(NonReturnFunction(), module);
+        RUN_PASS(SplitFunction(), module);
+    }
+#endif
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {

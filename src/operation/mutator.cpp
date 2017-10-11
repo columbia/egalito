@@ -252,6 +252,43 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
 #endif
 }
 
+void ChunkMutator::splitFunctionBefore(Block *point) {
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    auto function = dynamic_cast<Function *>(point->getParent());
+    Function *function2 = nullptr;
+
+    std::vector<Block *> moveList;
+    for(auto child : CIter::children(function)) {
+        if(!function2) {
+            if(child == point) {
+                function2 = new Function(point->getAddress());
+                function2->setPosition(
+                    positionFactory->makeAbsolutePosition(point->getAddress()));
+            }
+        }
+        if(function2) {
+            moveList.push_back(child);
+        }
+    }
+
+    for(auto child : moveList) {
+        ChunkMutator(function).remove(child);
+        delete child->getPosition();
+    }
+    auto functionList = dynamic_cast<FunctionList *>(function->getParent());
+    functionList->getChildren()->add(function2);
+
+    Chunk *prevChunk = function;
+    for(auto child : moveList) {
+        child->setPosition(positionFactory->makePosition(
+            prevChunk, child, function2->getSize()));
+
+        ChunkMutator(function2).append(child);
+        prevChunk = child;
+    }
+}
+
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {

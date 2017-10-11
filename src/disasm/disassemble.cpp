@@ -632,6 +632,8 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
     auto section = elfMap->findSection(sectionName);
     if(!section) return nullptr;
 
+    //TemporaryLogLevel tll("disasm", 10);
+
     address_t codeStart = section->getVirtualAddress();
     address_t codeEnd = section->getVirtualAddress() + section->getSize();
 
@@ -678,50 +680,47 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
         }
     }
 
-    LOG(10, "with DWARF FDE");
+    LOG(10, "with DWARF");
     IF_LOG(10) dump(splitRanges);
 
     // Run first disassembly pass, to find obvious function boundaries
     splitRanges.splitAt(elfMap->getEntryPoint());
 
-    LOG(10, "with DWARF FDE + entryPoint");
+    LOG(10, "with DWARF + entryPoint");
     IF_LOG(10) dump(splitRanges);
 
     for(auto s : sectionList) {
         firstDisassemblyPass(s, splitRanges);
     }
-    LOG(10, "with DWARF FDE + entryPoint + first");
+    LOG(10, "with DWARF + entryPoint + first");
     IF_LOG(10) dump(splitRanges);
 
     splitByDynamicSymbols(dynamicSymbolList, splitRanges);
-    LOG(10, "with DWARF FDE + entryPoint + first + plt");
+    LOG(10, "with DWARF + entryPoint + first + plt");
     IF_LOG(10) dump(splitRanges);
 
     splitByRelocations(relocList, splitRanges);
-    LOG(10, "with DWARF FDE + entryPoint + first + plt + reloc");
+    LOG(10, "with DWARF + entryPoint + first + plt + reloc");
     IF_LOG(10) dump(splitRanges);
 
     finalDisassemblyPass(section, splitRanges);
-    LOG(10, "with DWARF FDE + entryPoint + first + plt + reloc + final");
+    LOG(10, "with DWARF + entryPoint + first + plt + reloc + final");
     IF_LOG(10) dump(splitRanges);
 
     FunctionList *functionList = new FunctionList();
     for(auto s : sectionList) {
-        Range range(s->getVirtualAddress(), s->getSize());
-        auto intervalList = splitRanges.findOverlapping(range);
-        LOG(10, s->getName() << "[" << std::hex << s->getVirtualAddress()
-            << ", " << (s->getVirtualAddress() + s->getSize())
-            << ") contains " << std::dec << intervalList.size()
-            << " fuzzy functions");
-
+        LOG(10, "splitting into functions in " << s->getName());
+        auto intervalList = splitRanges.findOverlapping(Range(
+            s->getVirtualAddress(), s->getSize()));
         for(const auto& r : intervalList) {
-            LOG(10, "Split into function " << r << " at section offset "
-                << s->convertVAToOffset(r.getStart()));
+            LOG0(10, "    " << r);
             Function *function = nullptr;
             if(auto sym = dynamicSymbolList->find(r.getStart())) {
+                LOG(10, " ...from dynamic symbol");
                 assert(sym->getSize() == r.getSize());
                 function = this->function(sym, nullptr);
             } else {
+                LOG(10, " ...fuzzy");
                 function = fuzzyFunction(r, s);
             }
             functionList->getChildren()->add(function);
@@ -787,7 +786,9 @@ void DisassembleAARCH64Function::finalDisassemblyPass(ElfSection *section,
                 auto ins = &insn[j];
 
                 address_t target = 0;
-                if(shouldSplitFunctionDueTo2(ins, virtualAddress, &target)) {
+                if(shouldSplitFunctionDueTo2(ins, virtualAddress,
+                    virtualAddress + readSize, &target)) {
+
                     splitRanges.splitAt(target);
                 }
             }
@@ -1097,7 +1098,7 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
 }
 
 bool DisassembleFunctionBase::shouldSplitFunctionDueTo2(cs_insn *ins,
-    address_t start, address_t *target) {
+    address_t start, address_t end, address_t *target) {
 
 #ifdef ARCH_AARCH64
     if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)) {
@@ -1105,7 +1106,7 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo2(cs_insn *ins,
         cs_arm64_op *op = &x->operands[0];
         if(x->op_count > 0 && op->type == ARM64_OP_IMM) {
             address_t dest = op->imm;
-            if(dest < start) {
+            if(dest < start || end <= dest) {
                 *target = dest;
                 return true;
             }

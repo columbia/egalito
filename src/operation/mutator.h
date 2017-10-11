@@ -5,6 +5,7 @@
 #include "chunk/chunklist.h"
 #include "cursor.h"
 
+class Block;
 class Instruction;
 
 /** Class to add/remove children in the Chunk hierarchy.
@@ -59,6 +60,8 @@ public:
         block cannot be NULL.
      */
     void splitBlockBefore(Instruction* point);
+
+    void splitFunctionBefore(Block *point);
 
     /** Sets the position of a Chunk, performs any necessary updates. */
     void setPosition(address_t address);

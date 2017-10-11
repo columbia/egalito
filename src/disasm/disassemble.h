@@ -61,7 +61,7 @@ protected:
     bool shouldSplitBlockAt(cs_insn *ins);
     bool shouldSplitFunctionDueTo(cs_insn *ins, address_t *target);
     bool shouldSplitFunctionDueTo2(cs_insn *ins, address_t start,
-        address_t *target);
+        address_t end, address_t *target);
 };
 
 class DisassembleX86Function : public DisassembleFunctionBase {
