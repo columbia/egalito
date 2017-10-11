@@ -960,7 +960,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
         delete block;
     }
 
-#if 1
+#ifdef ARCH_X86_64
     {
         size_t j = 0;
         for(auto b : CIter::children(function)) {
