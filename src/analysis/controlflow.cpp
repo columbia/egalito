@@ -173,6 +173,8 @@ bool ControlFlowGraph::doesReturn(Function *function) {
         "__malloc_assert", "_exit", "_dl_signal_error", "abort", "lose"
     };
 
+    if(!function->returns()) return false;
+
     for(auto fn : noreturns) {
         if(function->getName() == fn) return false;
     }
