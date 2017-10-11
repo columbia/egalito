@@ -13,6 +13,7 @@ private:
     Module *main;
     Module *egalito;
     ElfSpaceList *spaceList;
+    Chunk *entryPoint;
 public:
     Program(ElfSpaceList *spaceList);
 
@@ -22,6 +23,9 @@ public:
 
     Module *getMain() const { return main; }
     Module *getEgalito() const { return egalito; }
+
+    void setEntryPoint(Chunk *chunk) { entryPoint = chunk; }
+    address_t getEntryPointAddress();
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

@@ -195,6 +195,8 @@ void RelocDataPass::visit(Program *program) {
     for(;;) {
         bool didWork = false;
         for(auto module : CIter::children(program)) {
+            if(!module->getElfSpace()) continue;
+
             auto sharedLib = module->getElfSpace()->getLibrary();
             if(resolved.find(sharedLib) != resolved.end()) {
                 continue;  // already processed this module

@@ -24,10 +24,9 @@ private:
     ElfMap *egalito;
     Conductor *conductor;
     Sandbox *sandbox;
-    Function *entryFunction;
 public:
     ConductorSetup() : elf(nullptr), egalito(nullptr), conductor(nullptr),
-        sandbox(nullptr), entryFunction(nullptr) {}
+        sandbox(nullptr) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
     void parseEgalitoArchive(const char *archive);

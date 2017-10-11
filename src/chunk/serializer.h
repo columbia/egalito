@@ -1,6 +1,7 @@
 #ifndef EGALITO_CHUNK_SERIALIZER_H
 #define EGALITO_CHUNK_SERIALIZER_H
 
+#include <map>
 #include "archive/archive.h"
 #include "archive/flatchunk.h"
 #include "archive/stream.h"
@@ -12,6 +13,7 @@ class Chunk;
 class ChunkSerializerOperations {
 private:
     EgalitoArchive *archive;
+    std::map<Chunk *, FlatChunk::IDType> assignment;
 public:
     ChunkSerializerOperations(EgalitoArchive *archive) : archive(archive) {}
 

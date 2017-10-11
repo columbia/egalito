@@ -16,6 +16,7 @@ static address_t *findAuxiliaryVector(char **argv) {
 }
 
 void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
+    if(!elf) return;
     ElfMap *beginning = (interpreter ? interpreter : elf);
     ElfXX_Ehdr *header = (ElfXX_Ehdr *)elf->getCharmap();
 

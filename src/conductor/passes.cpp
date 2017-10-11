@@ -73,4 +73,12 @@ void ConductorPasses::newArchivePasses(Program *program) {
     RUN_PASS(FallThroughFunctionPass(), program);
 
     RUN_PASS(InternalCalls(), program);
+
+    for(auto module : CIter::children(program)) {
+        if(!module->getDataRegionList()) {
+            auto regionList = new DataRegionList();
+            module->getChildren()->add(regionList);
+            module->setDataRegionList(regionList);
+        }
+    }
 }

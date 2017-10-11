@@ -83,7 +83,19 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
 }
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *chunk) {
-    return archive->getFlatList().getNextID();
+    auto it = assignment.find(chunk);
+    if(it != assignment.end()) {
+        return (*it).second;
+    }
+
+    if(chunk) {
+        auto id = archive->getFlatList().getNextID();
+        assignment[chunk] = id;
+        return id;
+    }
+    else {
+        return static_cast<FlatChunk::IDType>(-1);
+    }
 }
 
 Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
@@ -134,10 +146,12 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
 }
 
 Chunk *ChunkSerializerOperations::lookup(FlatChunk::IDType id) {
+    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
     return archive->getFlatList().get(id)->getInstance<Chunk>();
 }
 
 FlatChunk *ChunkSerializerOperations::lookupFlat(FlatChunk::IDType id) {
+    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
     return archive->getFlatList().get(id);
 }
 

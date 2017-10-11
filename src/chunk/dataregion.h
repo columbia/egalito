@@ -111,6 +111,8 @@ class DataRegionList : public CollectionChunkImpl<DataRegion> {
 private:
     TLSDataRegion *tls;
 public:
+    DataRegionList() : tls(nullptr) {}
+
     void setTLS(TLSDataRegion *tls) { this->tls = tls; }
     TLSDataRegion *getTLS() const { return tls; }
 

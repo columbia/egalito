@@ -163,7 +163,7 @@ void ConductorSetup::findEntryPointFunction() {
 
     if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {
         LOG(0, "found entry function [" << f->getName() << "]");
-        entryFunction = f;
+        conductor->getProgram()->setEntryPoint(f);
     }
     else {
         LOG(0, "WARNING: can't find entry point!");
@@ -171,8 +171,7 @@ void ConductorSetup::findEntryPointFunction() {
 }
 
 address_t ConductorSetup::getEntryPoint() {
-    assert(entryFunction != nullptr);
-    return entryFunction->getAddress();
+    return getConductor()->getProgram()->getEntryPointAddress();
 }
 
 bool ConductorSetup::setBaseAddress(ElfMap *map, address_t base) {

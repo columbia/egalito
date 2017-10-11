@@ -11,7 +11,9 @@
 
 void FixJumpTablesPass::visit(Module *module) {
     this->module = module;
-    recurse(module->getJumpTableList());
+    if(module->getJumpTableList()) {
+        recurse(module->getJumpTableList());
+    }
 }
 
 void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {

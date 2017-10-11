@@ -181,6 +181,8 @@ void Conductor::allocateTLSArea() {
         if(tls) size += tls->getSize();
     }
 
+    if(!size) return;
+
     // allocate headers
     address_t offset = 0;
     mainThreadPointer = dataLoader.allocateTLS(size, &offset);
