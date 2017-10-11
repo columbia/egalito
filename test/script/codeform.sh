@@ -10,7 +10,7 @@ LD_LIBRARY_PATH=../../src ../../src/loader $DIR/codeform \
     >tmp/codeform-run.log 2>&1
 rm libegalito.so
 
-if [ -z "$(diff $DIR/../codeform-expected.html tmp/codeform.htm)" ]; then
+if [ -z "$(diff $DIR/../codeform-expected.html tmp/codeform.htm 2>&1)" ]; then
     echo "test passed, no diff in codeform output"
 else
     echo "test failed!"

@@ -249,12 +249,6 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     }
 
     insertAfter(block, newBlock);
-    if(auto block3 = dynamic_cast<Block *>(block->getNextSibling())) {
-        setPreviousSibling(block3, newBlock);
-        setNextSibling(newBlock, block3);
-    }
-    setNextSibling(block, newBlock);
-    setPreviousSibling(newBlock, block);
 #endif
 }
 
