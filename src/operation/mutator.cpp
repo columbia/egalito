@@ -244,8 +244,17 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
         }
     }
 
+    size_t removedSize = 0;
     for(size_t i = 0; i < totalChildren - leaveBehind; i ++) {
+        auto last = block->getChildren()->getIterable()->getLast();
         block->getChildren()->removeLast();
+        removedSize += last->getSize();
+    }
+    for(Chunk *c = block; c; c = c->getParent()) {
+        // only if size is tracked
+        if(c->getSize() != 0) {
+            c->addToSize(-removedSize);
+        }
     }
 
     insertAfter(block, newBlock);
