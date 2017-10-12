@@ -47,6 +47,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(withSharedLibs) {
         conductor->resolvePLTLinks();
     }
+    conductor->resolveTLSLinks();
     conductor->resolveWeak();
 
     conductor->check();

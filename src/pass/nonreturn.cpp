@@ -24,6 +24,7 @@ void NonReturnFunction::visit(Module *module) {
     } while (size != nonReturnList.size());
 
     for(auto f : nonReturnList) {
+        LOG(1, "marking " << f->getName() << " as non-returning");
         f->setNonreturn();
     }
 }
@@ -48,9 +49,6 @@ void NonReturnFunction::visit(Function *function) {
                         continue;
                     }
 
-                    // check if this instruction is always executed
-                    LOG(1, "adding " << function->getName() <<
-                        " to the list of non-returning functions");
                     nonReturnList.push_back(function);
                     return;
                 }
