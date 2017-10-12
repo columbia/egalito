@@ -15,7 +15,13 @@ while(my $line = <>) {
             $seen{$function} ++;
         }
         elsif($line =~ /\(jump_table_data .*/) {
-            $mode = 'in-data';
+			if($line =~ /\[$/) {
+				$mode = 'in-entries';
+				$entries = 0;
+			}
+			else {
+				$mode = 'in-data';
+			}
         }
     }
     elsif($mode eq 'in-data') {
@@ -29,7 +35,7 @@ while(my $line = <>) {
         }
     }
     elsif($mode eq 'in-entries') {
-        if($line =~ /^\s+\]$/) {
+        if($line =~ /^\s+\]\)*$/) {
             # sometimes multiple versions of the same function will appear.
             # for now, we only print jump tables from the first copy.
             if($seen{$function} == 1) {
