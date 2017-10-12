@@ -170,8 +170,12 @@ void ChunkMutator::remove(Chunk *child) {
     updateGenerationCounts(child);
 }
 
+void ChunkMutator::removeLast() {
+    remove(chunk->getChildren()->genericGetLast());
+}
+
 void ChunkMutator::splitBlockBefore(Instruction *point) {
-#if 0
+#if 1
     auto block = dynamic_cast<Block *>(point->getParent());
     Block *block2 = nullptr;
 
@@ -213,45 +217,43 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     size_t totalChildren = block->getChildren()->getIterable()->getCount();
     if(totalChildren == 0) return;
 
+    // Create new block for the new instructions. point will be the first
+    // instruction in newBlock.
     Block *newBlock = new Block();
     newBlock->setPosition(PositionFactory::getInstance()->makePosition(
         block, newBlock, point->getAddress() - chunk->getAddress()));
 
-    size_t leaveBehind = 0;
-    for(Instruction *instr = block->getChildren()->getIterable()->get(0);
-        instr && instr != point;
-        instr = static_cast<Instruction *>(instr->getNextSibling())) {
+    // How many instructions to leave in the original block?
+    size_t leaveBehindCount = block->getChildren()->getIterable()
+        ->indexOf(point);
 
-        leaveBehind ++;
-    }
-
+    // Staging area to temporarily store Instructions being moved from block
+    // to newBlock.
     std::vector<Instruction *> moveInstr;
-    size_t removedSize = 0;
-    for(size_t i = leaveBehind + 1; i < totalChildren; i ++) {
+    for(size_t i = leaveBehindCount; i < totalChildren; i ++) {
         auto last = block->getChildren()->getIterable()->get(i);
         moveInstr.push_back(last);
-        removedSize += last->getSize();
     }
-    for(size_t i = leaveBehind + 1; i < totalChildren; i ++) {
-        //block->getChildren()->removeLast();
-        auto last = block->getChildren()->getIterable()->get(leaveBehind + 1);
-        ChunkMutator(block).remove(last);
+    for(size_t i = leaveBehindCount; i < totalChildren; i ++) {
+        ChunkMutator(block).removeLast();  // in reverse order of above
     }
-    //modifiedChildSize(block, -removedSize);
 
-    if(auto lastLeftBehind = point->getPreviousSibling()) {
-        setNextSibling(lastLeftBehind, nullptr);
+    // Clear old pointers and references from instructions.
+    for(auto instr : moveInstr) {
+        instr->setPreviousSibling(nullptr);
+        instr->setNextSibling(nullptr);
+        instr->setParent(nullptr);
+        delete instr->getPosition();
+        instr->setPosition(nullptr);
     }
-    setPreviousSibling(point, nullptr);
 
-    if(1){
+    // Append instructions from moveInstr to newBlock.
+    {
         ChunkMutator newMutator(newBlock);
         Chunk *prevChunk = newBlock;
         for(auto instr : moveInstr) {
-            delete instr->getPosition();
             instr->setPosition(PositionFactory::getInstance()->makePosition(
                 prevChunk, instr, newBlock->getSize()));
-            instr->setParent(newBlock);
             newMutator.append(instr);
             prevChunk = instr;
         }
