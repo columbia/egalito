@@ -87,7 +87,7 @@ void SplitBasicBlock::visit(Function *function) {
 #endif
 
     {std::string foo=StreamAsString()<<"SplitBasicBlock part 3 for " << function->getName();EgalitoTiming timing(foo.c_str(), 100);
-    ChunkMutator m(function, false);
+    ChunkMutator m(function);
     for(auto it = splitPoints.rbegin(); it != splitPoints.rend(); it ++) {
         auto instr = *it;
         //LOG(1, "    split at 0x" << std::hex << instr->getAddress());
@@ -98,8 +98,8 @@ void SplitBasicBlock::visit(Function *function) {
 
 #if 0
     if(splitPoints.size() > 0) {
-        TemporaryLogLevel tll("analysis", 10);
-        m.updatePositions();
+        TemporaryLogLevel tll("pass", 10);
+        //m.updatePositions();
 
         LOG(1, "function: " << function->getName());
         ChunkDumper dump;
@@ -110,6 +110,7 @@ void SplitBasicBlock::visit(Function *function) {
         std::cout.flush();
         std::fflush(stdout);
 
+        LOG(1, "org = " << org << " now = " << function->getSize());
         assert(org == function->getSize());
     }
 #endif
