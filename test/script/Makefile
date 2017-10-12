@@ -11,3 +11,4 @@ test:
 	./codeform.sh
 	./dwarf-diff.sh
 	./codeform-dwarf-syms.sh
+	./jumptable-rtl.sh
