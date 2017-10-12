@@ -160,9 +160,10 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                 if(link) {
                     if(auto sym = link->getSymbol()) {
                         if(sym->getBind() == Symbol::BIND_WEAK) {
-                            LOG(1, " [WEAK]");
+                            LOG0(1, " [WEAK]");
                         }
                     }
+                    LOG(1, "");
                 }
                 else {
                     LOG(1, std::hex << var->getDest()->getTargetAddress());
