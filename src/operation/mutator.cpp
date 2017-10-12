@@ -210,13 +210,12 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     }
 #else
     Block *block = dynamic_cast<Block *>(point->getParent());
-    Block *newBlock = new Block();
-
-    newBlock->setPosition(PositionFactory::getInstance()->makePosition(
-        block, newBlock, point->getAddress() - chunk->getAddress()));
-
     size_t totalChildren = block->getChildren()->getIterable()->getCount();
     if(totalChildren == 0) return;
+
+    Block *newBlock = new Block();
+    newBlock->setPosition(PositionFactory::getInstance()->makePosition(
+        block, newBlock, point->getAddress() - chunk->getAddress()));
 
     size_t leaveBehind = 0;
     for(Instruction *instr = block->getChildren()->getIterable()->get(0);
@@ -225,35 +224,36 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
 
         leaveBehind ++;
     }
+
+    std::vector<Instruction *> moveInstr;
+    size_t removedSize = 0;
+    for(size_t i = leaveBehind + 1; i < totalChildren; i ++) {
+        auto last = block->getChildren()->getIterable()->get(i);
+        moveInstr.push_back(last);
+        removedSize += last->getSize();
+    }
+    for(size_t i = leaveBehind + 1; i < totalChildren; i ++) {
+        //block->getChildren()->removeLast();
+        auto last = block->getChildren()->getIterable()->get(leaveBehind + 1);
+        ChunkMutator(block).remove(last);
+    }
+    //modifiedChildSize(block, -removedSize);
+
     if(auto lastLeftBehind = point->getPreviousSibling()) {
         setNextSibling(lastLeftBehind, nullptr);
     }
     setPreviousSibling(point, nullptr);
 
-    {
+    if(1){
         ChunkMutator newMutator(newBlock);
         Chunk *prevChunk = newBlock;
-        for(size_t i = leaveBehind; i < totalChildren; i ++) {
-            Instruction *instr = block->getChildren()->getIterable()->get(i);
-
+        for(auto instr : moveInstr) {
             delete instr->getPosition();
             instr->setPosition(PositionFactory::getInstance()->makePosition(
                 prevChunk, instr, newBlock->getSize()));
+            instr->setParent(newBlock);
             newMutator.append(instr);
             prevChunk = instr;
-        }
-    }
-
-    size_t removedSize = 0;
-    for(size_t i = 0; i < totalChildren - leaveBehind; i ++) {
-        auto last = block->getChildren()->getIterable()->getLast();
-        block->getChildren()->removeLast();
-        removedSize += last->getSize();
-    }
-    for(Chunk *c = block; c; c = c->getParent()) {
-        // only if size is tracked
-        if(c->getSize() != 0) {
-            c->addToSize(-removedSize);
         }
     }
 
