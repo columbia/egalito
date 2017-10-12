@@ -56,7 +56,7 @@ public:
     void remove(Chunk *child);
 
     /** Removes the last child from this chunk. */
-    void removeLast();
+    void removeLast(int n = 1);
 
     /** Splits a block at an instruction
 

@@ -15,11 +15,13 @@ void UpdateLink::visit(Function *function) {
 
 void UpdateLink::visit(Instruction *instruction) {
     auto s = instruction->getSemantic();
-    if(auto linked = dynamic_cast<LinkedInstruction *>(s)) {
-        auto oldLink = linked->getLink();
+    if(dynamic_cast<LinkedInstruction *>(s)
+        || dynamic_cast<ControlFlowInstruction *>(s)) {
+
+        auto oldLink = s->getLink();
         if(auto link = makeUpdateLink(oldLink, nullptr)) {
             LOG(10, " from I " << std::hex << instruction->getAddress());
-            linked->setLink(link);
+            s->setLink(link);
             delete oldLink;
         }
     }

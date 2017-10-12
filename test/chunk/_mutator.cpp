@@ -141,6 +141,7 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
     delete block;
 }
 
+#if 0
 TEST_CASE("calling splitBlockBefore() in ChunkMutator", "[chunk][fast]") {
     TemporaryLogLevel tll("pass", 20);
 
@@ -157,3 +158,4 @@ TEST_CASE("calling splitBlockBefore() in ChunkMutator", "[chunk][fast]") {
     ChunkDumper dumper;
     main->accept(&dumper);
 }
+#endif
