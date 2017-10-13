@@ -23,6 +23,7 @@ endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 OPERATION_SOURCES   = $(wildcard operation/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
+RUNTIME_SOURCES     = $(wildcard runtime/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 UTIL_SOURCES        = $(wildcard util/*.cpp)
 CMINUS_SOURCES      = $(wildcard cminus/*.c)
@@ -38,7 +39,8 @@ TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(ARCHIVE_SOURCES) $(UTIL_SOURCES) \
 		$(SNIPPET_SOURCES) load/emulator.cpp load/segmap.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
-LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
+LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES) \
+	$(RUNTIME_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
 ADDON_SOURCES = $(SNIPPET_SOURCES)
 ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))

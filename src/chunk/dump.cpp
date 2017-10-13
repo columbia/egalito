@@ -121,6 +121,14 @@ void InstrDumper::visit(LinkedInstruction *semantic) {
     Assembly *assembly = semantic->getAssembly();
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
+    if(auto v = dynamic_cast<GSTableLink *>(link)) {
+        std::ostringstream targetName;
+        targetName << target->getName() << "@gs["
+            << v->getEntry()->getIndex() << "]";
+        DisasmDump::printInstruction(
+            address, assembly, pos, targetName.str().c_str());
+        return;
+    }
     if(target) {
         DisasmDump::printInstruction(
             address, assembly, pos, target->getName().c_str());

@@ -17,6 +17,7 @@
 #include "plt.h"
 #include "jumptable.h"
 #include "dataregion.h"
+#include "gstable.h"
 
 #include "marker.h"
 

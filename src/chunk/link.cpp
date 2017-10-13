@@ -34,6 +34,14 @@ address_t MarkerLink::getTargetAddress() const {
     return marker->getAddress() + addend;
 }
 
+ChunkRef GSTableLink::getTarget() const {
+    return entry->getTarget();
+}
+
+address_t GSTableLink::getTargetAddress() const {
+    return entry->getOffset();
+}
+
 ChunkRef DataOffsetLink::getTarget() const {
     return section;
 }

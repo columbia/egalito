@@ -5,10 +5,6 @@
 #include "disasm/disassemble.h"
 #include "log/log.h"
 
-address_t GSTableLink::getTargetAddress() const {
-    return 0xdeadbeef;  // !!!
-}
-
 void UseGSTablePass::visit(Block *block) {
     auto iterable = block->getChildren()->getIterable();
     for(size_t i = 0; i < iterable->getCount(); i ++) {
@@ -39,7 +35,8 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
         {0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0});
     auto semantic = new LinkedInstruction(instr, assembly);
 
-    semantic->setLink(new GSTableLink(target));
+    auto gsEntry = gsTable->makeEntryFor(target);
+    semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);  // !!!
     instr->setSemantic(semantic);
 

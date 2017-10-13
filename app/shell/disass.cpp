@@ -8,6 +8,7 @@
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
 #include "chunk/serializer.h"
+#include "chunk/gstable.h"  // for testing
 #include "generate/bingen.h"
 #include "operation/find.h"
 #include "operation/find2.h"
@@ -364,7 +365,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             return;
         }
         args.shouldHave(0);
-        UseGSTablePass useGSTable;
+        GSTable *gsTable = new GSTable();
+        UseGSTablePass useGSTable(gsTable);
         setup->getConductor()->acceptInAllModules(&useGSTable, true);
     }, "indirects calls through the GS table");
 

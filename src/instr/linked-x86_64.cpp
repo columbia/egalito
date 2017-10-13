@@ -16,7 +16,8 @@ int LinkedInstruction::getDispSize() {
 unsigned LinkedInstruction::calculateDisplacement() {
     unsigned int disp = getLink()->getTargetAddress();
     if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
-        && !dynamic_cast<AbsoluteDataLink *>(getLink())) {
+        && !dynamic_cast<AbsoluteDataLink *>(getLink())
+        && !dynamic_cast<GSTableLink *>(getLink())) {
 
         disp -= (instruction->getAddress() + getSize());
     }

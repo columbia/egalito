@@ -4,32 +4,15 @@
 #include <map>
 #include "chunkpass.h"
 #include "chunk/link.h"
-
-class GSTable {
-private:
-    std::map<Function *, address_t> indexMap;
-public:
-    void assignIndex(Function *function);
-
-    address_t getIndex(Function *function);
-};
-
-class GSTableLink : public Link {
-private:
-    ChunkRef target;
-public:
-    GSTableLink(ChunkRef target) : target(target) {}
-    virtual ChunkRef getTarget() const { return target; }
-    virtual address_t getTargetAddress() const;
-};
+#include "chunk/gstable.h"
 
 class UseGSTablePass : public ChunkPass {
 private:
-    GSTable gs;
+    GSTable *gsTable;
     bool transformDirectCalls;
 public:
-    UseGSTablePass(bool transformDirectCalls = true)
-        : transformDirectCalls(transformDirectCalls) {}
+    UseGSTablePass(GSTable *gsTable, bool transformDirectCalls = true)
+        : gsTable(gsTable), transformDirectCalls(transformDirectCalls) {}
 
     virtual void visit(Block *block);
 private:

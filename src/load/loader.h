@@ -13,6 +13,7 @@ public:
     void run(int argc, char *argv[]);
 private:
     void otherPasses();
+    void otherPassesAfterMove();
 };
 
 #endif
