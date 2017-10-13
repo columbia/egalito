@@ -304,6 +304,7 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
                 function2 = new Function(point->getAddress());
                 function2->setPosition(
                     positionFactory->makeAbsolutePosition(point->getAddress()));
+                function2->setParent(function->getParent());
             }
         }
         if(function2) {
