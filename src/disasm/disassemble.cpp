@@ -232,6 +232,15 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
     return semantic;
 }
 
+InstructionSemantic *DisassembleInstruction::instructionSemantic(
+    Instruction *instr, const std::vector<unsigned char> &bytes,
+    address_t address) {
+
+    return instructionSemantic(instr,
+        std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size()),
+        address);
+}
+
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 

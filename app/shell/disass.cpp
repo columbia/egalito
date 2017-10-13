@@ -17,6 +17,7 @@
 #include "pass/noppass.h"
 #include "pass/detectnullptr.h"
 #include "pass/stackextend.h"
+#include "pass/usegstable.h"
 #include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -355,4 +356,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         serializer.serialize(setup->getConductor()->getProgram(),
             args.front().c_str());
     }, "generates an Egalito archive with the Chunk tree");
+
+    topLevel->add("usegstable", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        UseGSTablePass useGSTable;
+        setup->getConductor()->acceptInAllModules(&useGSTable, true);
+    }, "indirects calls through the GS table");
 }

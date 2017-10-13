@@ -125,6 +125,8 @@ public:
     Instruction *instruction(cs_insn *ins);
     InstructionSemantic *instructionSemantic(Instruction *instr,
         const std::string &bytes, address_t address = 0);
+    InstructionSemantic *instructionSemantic(Instruction *instr,
+        const std::vector<unsigned char> &bytes, address_t address = 0);
 
     Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
