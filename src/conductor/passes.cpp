@@ -24,9 +24,11 @@
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
 #include "pass/jtoverestimate.h"
+#include "pass/removepadding.h"
 #include "pass/updatelink.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 void ConductorPasses::newElfPasses(ElfSpace *space) {
     ElfMap *elf = space->getElfMap();
@@ -37,6 +39,8 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
         space->getDynamicSymbolList(), relocList);
     space->setModule(module);
     module->setElfSpace(space);
+
+    RUN_PASS(RemovePadding(), module);
 
     space->setAliasMap(new FunctionAliasMap(module));
 
@@ -73,6 +77,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     if(!space->getSymbolList()) {
         RUN_PASS(NonReturnFunction(), module);
         RUN_PASS(SplitFunction(), module);
+        RUN_PASS(RemovePadding(), module);
         RUN_PASS(UpdateLink(), module);
     }
 #endif
