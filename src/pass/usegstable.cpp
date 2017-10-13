@@ -35,12 +35,26 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 
     // callq  *%gs:0xdeadbeef
     DisasmHandle handle(true);
-    auto semantic = DisassembleInstruction(handle).instructionSemantic(instr,
-        (std::vector<unsigned char>){0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0});
+    auto assembly = DisassembleInstruction(handle).makeAssembly(
+        {0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0});
+    auto semantic = new LinkedInstruction(instr, assembly);
 
-    // currently, can't set a link for this instr type...
-    //delete semantic->getLink();
-    //semantic->setLink(new GSTableLink(target));
+    semantic->setLink(new GSTableLink(target));
+    semantic->setIndex(0);  // !!!
+    instr->setSemantic(semantic);
+
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+    delete i;
+#if 0
+    InstrWriterGetData writer;
+    semantic->accept(&writer);
+    std::string s = writer.get();
+    for(size_t i = 0; i < s.length(); i ++) {
+        LOG0(1, ((int)s[i] & 0xff) << " ");
+    }
+    LOG(1, ".");
+#endif
 }
 
 void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
