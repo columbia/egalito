@@ -14,6 +14,7 @@
 #include "pass/logcalls.h"
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
+#include "pass/collapseplt.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -85,6 +86,11 @@ void EgalitoLoader::otherPasses() {
 #if 0  // add nop pass
     NopPass nopPass;
     setup.getConductor()->getProgram()->getMain()->accept(&nopPass);
+#endif
+
+#if 0
+    CollapsePLTPass collapsePLT;
+    setup.getConductor()->acceptInAllModules(&collapsePLT, true);
 #endif
 
 #ifdef ARCH_X86_64

@@ -18,6 +18,7 @@
 #include "pass/detectnullptr.h"
 #include "pass/stackextend.h"
 #include "pass/usegstable.h"
+#include "pass/collapseplt.h"
 #include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -366,4 +367,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         UseGSTablePass useGSTable;
         setup->getConductor()->acceptInAllModules(&useGSTable, true);
     }, "indirects calls through the GS table");
+
+    topLevel->add("collapseplt", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        CollapsePLTPass collapsePLT;
+        setup->getConductor()->acceptInAllModules(&collapsePLT, true);
+    }, "changes all instructions that target the PLT to use a direct reference");
 }
