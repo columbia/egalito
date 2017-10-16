@@ -23,6 +23,8 @@ void ManageGS::init(GSTable *gsTable) {
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     LOG(1, "Initializing GS table at " << std::hex << buffer);
 
+    gsTable->setTableAddress(buffer);
+
     address_t *array = static_cast<address_t *>(buffer);
     for(auto entry : CIter::children(gsTable)) {
         LOG(9, "    gs@[" << std::dec << entry->getIndex() << "] -> "
@@ -31,4 +33,11 @@ void ManageGS::init(GSTable *gsTable) {
     }
 
     arch_prctl(ARCH_SET_GS, reinterpret_cast<unsigned long>(buffer));
+}
+
+void ManageGS::setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
+    address_t value) {
+
+    address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
+    array[index] = value;
 }

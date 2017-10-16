@@ -1,7 +1,10 @@
+#include <cassert>
 #include "gstable.h"
 
+#define ENTRY_SIZE 8
+
 GSTableEntry::IndexType GSTableEntry::getOffset() const {
-    return index * 8;
+    return index * ENTRY_SIZE;
 }
 
 void GSTableEntry::accept(ChunkVisitor *visitor) {
@@ -24,6 +27,19 @@ GSTableEntry *GSTable::makeEntryFor(Chunk *target) {
 GSTableEntry::IndexType GSTable::nextIndex() const {
     // reserve index 0 for future use
     return entryMap.size() + 1;
+}
+
+GSTableEntry::IndexType GSTable::offsetToIndex(GSTableEntry::IndexType offset) {
+    return offset / ENTRY_SIZE;
+}
+
+GSTableEntry *GSTable::getAtIndex(GSTableEntry::IndexType index) {
+    index -= 1;
+    if(index >= getChildren()->getIterable()->getCount()) {
+        return nullptr;
+    }
+
+    return getChildren()->getIterable()->get(index);
 }
 
 void GSTable::accept(ChunkVisitor *visitor) {

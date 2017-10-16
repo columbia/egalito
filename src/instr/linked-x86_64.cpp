@@ -183,7 +183,7 @@ void StackFrameInstruction::writeTo(std::string &target) {
 
 // temporary hack: one in MakeSemantic doesn't give the right size
 static size_t determineDisplacementSize(Assembly *assembly) {
-    if(assembly->getId() == X86_INS_MOV) {
+    if(assembly->getId() == X86_INS_MOV || assembly->getId() == X86_INS_LEA) {
         if(assembly->getSize() == 5) return 1;
     }
     LOG(1, "for " << assembly->getMnemonic());

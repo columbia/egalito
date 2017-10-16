@@ -8,6 +8,7 @@
 #include "log/log.h"
 
 extern Conductor *egalito_conductor;
+extern GSTable *egalito_gsTable;
 
 void InjectBridgePass::visit(Module *module) {
 #define EGALITO_BRIDGE_ENTRY(name) \
@@ -17,6 +18,7 @@ void InjectBridgePass::visit(Module *module) {
         address_t address;
     } list[] = {
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
+        EGALITO_BRIDGE_ENTRY(egalito_gsTable),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_entry_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_exit_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_jit_fixup_hook),

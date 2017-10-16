@@ -29,11 +29,18 @@ class GSTable : public CollectionChunkImpl<GSTableEntry> {
 private:
     Chunk *escapeTarget;
     std::map<Chunk *, GSTableEntry *> entryMap;
+    void *tableAddress;
 public:
-    GSTable() : escapeTarget(nullptr) {}
+    GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
 
     GSTableEntry *makeEntryFor(Chunk *target);
     void setEscapeTarget(Chunk *target) { escapeTarget = target; }
+
+    GSTableEntry::IndexType offsetToIndex(GSTableEntry::IndexType offset);
+    GSTableEntry *getAtIndex(GSTableEntry::IndexType index);
+
+    void setTableAddress(void *address) { tableAddress = address; }
+    void *getTableAddress() const { return tableAddress; }
 
     virtual void accept(ChunkVisitor *visitor);
 private:
