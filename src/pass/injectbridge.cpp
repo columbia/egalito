@@ -19,6 +19,7 @@ void InjectBridgePass::visit(Module *module) {
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_entry_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_exit_hook),
+        EGALITO_BRIDGE_ENTRY(egalito_hook_jit_fixup_hook),
     };
 
     for(auto reloc : *relocList) {

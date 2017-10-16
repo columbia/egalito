@@ -16,6 +16,7 @@
 #include "pass/promotejumps.h"
 #include "pass/collapseplt.h"
 #include "pass/usegstable.h"
+#include "pass/jitgsfixup.h"
 #include "runtime/managegs.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -100,8 +101,12 @@ void EgalitoLoader::otherPasses() {
 
 #if 1
     gsTable = new GSTable();
+    //setup.getConductor()->getProgram()->getChildren()->add(gsTable);
     UseGSTablePass useGSTable(gsTable);
     setup.getConductor()->acceptInAllModules(&useGSTable, true);
+
+    JitGSFixup jitGSFixup(setup.getConductor(), gsTable);
+    setup.getConductor()->getProgram()->accept(&jitGSFixup);
 #endif
 
 #ifdef ARCH_X86_64

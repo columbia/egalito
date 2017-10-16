@@ -93,4 +93,3 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
 void LogCallsPass::visit(Function *function) {
     function->accept(&instrument);
 }
-

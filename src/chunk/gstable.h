@@ -11,12 +11,14 @@ public:
     typedef uint32_t IndexType;
 private:
     Chunk *target;
+    Chunk *resolver;
     IndexType index;
 public:
     GSTableEntry(Chunk *target, uint32_t index)
-        : target(target), index(index) {}
+        : target(target), resolver(nullptr), index(index) {}
 
-    Chunk *getTarget() const { return target; }
+    void setLazyResolver(Chunk *resolver) { this->resolver = resolver; }
+    Chunk *getTarget() const { return resolver ? resolver : target; }
     IndexType getIndex() const { return index; }
     IndexType getOffset() const;
 
