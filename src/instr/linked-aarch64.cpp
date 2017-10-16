@@ -345,7 +345,7 @@ void LinkedInstruction::makeAllLinked(Module *module) {
             df.addUseDefFor(func);
         }
         for(auto func : CIter::functions(module)) {
-            live.detect(func);
+            live.detect(df.getWorkingSet(func));
         }
         for(auto func : CIter::functions(module)) {
             df.adjustCallUse(&live, func, module);
