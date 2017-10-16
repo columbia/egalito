@@ -58,6 +58,8 @@ void DataFlow::adjustCallUse(
                 }
                 if(!func) continue;
 
+                if(dynamic_cast<PLTTrampoline *>(func)) continue;
+
                 auto working = getWorkingSet(function);
                 auto state = working->getState(instr);
 
