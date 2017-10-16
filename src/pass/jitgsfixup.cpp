@@ -6,9 +6,11 @@
 #include "cminus/print.h"
 #include "snippet/hook.h"
 #include "runtime/managegs.h"
+#include "transform/generator.h"
 #include "log/log.h"
 
 GSTable *egalito_gsTable;
+extern Sandbox *egalito_sandbox;
 
 extern "C"
 void egalito_jit_gs_fixup(unsigned long *address) {
@@ -24,6 +26,16 @@ void egalito_jit_gs_fixup(unsigned long *address) {
         entry->setLazyResolver(nullptr);
         auto target = entry->getTarget();
         egalito_printf("target=[%s])\n", target->getName().c_str());
+
+        if(auto targetFunc = dynamic_cast<Function *>(target)) {
+            egalito_sandbox->reopen();
+            Generator generator(true);
+            generator.copyFunctionToSandbox(targetFunc, egalito_sandbox);
+            egalito_sandbox->finalize();
+        }
+        else {
+            egalito_printf("JIT fixup error: target is not a function!\n");
+        }
 
         ManageGS::setEntry(egalito_gsTable, index, target->getAddress());
         *address -= 8;  // size of call instruction; re-run it

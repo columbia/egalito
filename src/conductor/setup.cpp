@@ -11,6 +11,7 @@
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
 Conductor *egalito_conductor __attribute__((weak));
+Sandbox *egalito_sandbox __attribute__((weak));
 
 void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
@@ -77,6 +78,7 @@ void ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
     this->sandbox = new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing);
+    ::egalito_sandbox = sandbox;
 }
 
 void ConductorSetup::makeFileSandbox(const char *outputFile) {

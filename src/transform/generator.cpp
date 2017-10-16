@@ -11,14 +11,6 @@
 #define DEBUG_GROUP dassign
 #include "log/log.h"
 
-#if 0
-Sandbox *Generator::makeSandbox() {
-    auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
-    return new SandboxImpl<MemoryBacking,
-        WatermarkAllocator<MemoryBacking>>(backing);
-}
-#endif
-
 void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     for(auto f : CIter::functions(module)) {
         //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
@@ -53,23 +45,35 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
     LOG(1, "Copying code into sandbox");
     for(auto f : CIter::functions(module)) {
-        char *output = reinterpret_cast<char *>(f->getAddress());
-        LOG(2, "    writing out [" << f->getName() << "] at 0x" << std::hex << f->getAddress());
-        for(auto b : CIter::children(f)) {
-            for(auto i : CIter::children(b)) {
-                if(useDisps) {
-                    InstrWriterCString writer(output);
-                    i->getSemantic()->accept(&writer);
-                }
-                else {
-                    InstrWriterForObjectFile writer(output);
-                    i->getSemantic()->accept(&writer);
-                }
-                output += i->getSemantic()->getSize();
-            }
+        LOG(2, "    writing out [" << f->getName() << "] at 0x"
+            << std::hex << f->getAddress());
+
+        if(f->getName() != "puts") {
+            copyFunctionToSandbox(f, sandbox);
         }
     }
 
+    copyPLTEntriesToSandbox(module, sandbox);
+}
+
+void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
+    char *output = reinterpret_cast<char *>(function->getAddress());
+    for(auto b : CIter::children(function)) {
+        for(auto i : CIter::children(b)) {
+            if(useDisps) {
+                InstrWriterCString writer(output);
+                i->getSemantic()->accept(&writer);
+            }
+            else {
+                InstrWriterForObjectFile writer(output);
+                i->getSemantic()->accept(&writer);
+            }
+            output += i->getSemantic()->getSize();
+        }
+    }
+}
+
+void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {

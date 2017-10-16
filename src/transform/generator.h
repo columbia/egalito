@@ -8,9 +8,11 @@ private:
     bool useDisps;
 public:
     Generator(bool useDisps = true) : useDisps(useDisps) {}
-    //Sandbox *makeSandbox();
     void pickAddressesInSandbox(Module *module, Sandbox *sandbox);
     void copyCodeToSandbox(Module *module, Sandbox *sandbox);
+    void copyFunctionToSandbox(Function *function, Sandbox *sandbox);
+    void copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox);
+
     void jumpToSandbox(Sandbox *sandbox, Module *module,
         const char *function = "main");
 };

@@ -31,8 +31,6 @@ public:
     address_t getBase() const;
     size_t getSize() const { return size; }
     size_t getMemorySize() const { return memSize;}
-
-    void finalize();
 };
 
 class MemoryBacking : public SandboxBacking {
@@ -46,6 +44,7 @@ public:
     address_t getBase() const { return base; }
 
     void finalize();
+    bool reopen();
 };
 
 class ExeBacking : public MemoryBacking {
@@ -56,6 +55,7 @@ public:
     ExeBacking(ElfSpace *elfSpace, std::string filename);
 
     void finalize();
+    bool reopen() { return false; }
 };
 
 class ObjBacking : public MemoryBacking {
@@ -66,6 +66,7 @@ public:
     ObjBacking(ElfSpace *elfSpace, std::string filename);
 
     void finalize();
+    bool reopen() { return false; }
 };
 
 template <typename Backing>
@@ -110,6 +111,7 @@ public:
     /** May throw std::bad_alloc. */
     virtual Slot allocate(size_t request) = 0;
     virtual void finalize() = 0;
+    virtual bool reopen() = 0;
 };
 
 template <typename Backing, typename Allocator>
@@ -124,6 +126,7 @@ public:
     virtual Slot allocate(size_t request)
         { return alloc.allocate(request); }
     virtual void finalize() { backing.finalize(); }
+    virtual bool reopen() { return backing.reopen(); }
 };
 
 #endif

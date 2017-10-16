@@ -31,6 +31,11 @@ void MemoryBacking::finalize() {
     mprotect((void *)base, getSize(), PROT_READ | PROT_EXEC);
 }
 
+bool MemoryBacking::reopen() {
+    mprotect((void *)base, getSize(), PROT_READ | PROT_WRITE);
+    return true;
+}
+
 ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)
     : MemoryBacking(MAX_SANDBOX_SIZE), elfSpace(elfSpace), filename(filename) {
 
