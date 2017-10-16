@@ -1,5 +1,6 @@
 #include <numeric>
 #include "regreplace.h"
+#include "analysis/reguse.h"
 #include "disasm/disassemble.h"
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     #include "disasm/aarch64-regbits.h"
@@ -35,9 +36,9 @@ void AARCH64RegReplacePass::useStack(
     function->accept(&dumper);
 #endif
 
-    AARCH64RegisterUsage regUsage(function, AARCH64GPRegister::R18);
+    AARCH64RegisterUsageX regUsage(function, AARCH64GPRegister::R18);
 
-    std::vector<int> count = regUsage.getAllUseCounts();
+    std::vector<int> count = AARCH64RegisterUsage().getAllUseCounts(function);
     std::vector<bool> unusable = regUsage.getUnusableRegister();
 
     AARCH64GPRegister::ID dualID;
@@ -88,7 +89,7 @@ void AARCH64RegReplacePass::useStack(
 }
 
 void AARCH64RegReplacePass::replacePerFunction(Function *function,
-    FrameType *frame, AARCH64RegisterUsage *regUsage,
+    FrameType *frame, AARCH64RegisterUsageX *regUsage,
     AARCH64GPRegister::ID dualID) {
 
     PhysicalRegister<AARCH64GPRegister> rSP(AARCH64GPRegister::SP, true);
@@ -133,7 +134,7 @@ void AARCH64RegReplacePass::replacePerFunction(Function *function,
 }
 
 void AARCH64RegReplacePass::replacePerInstruction(FrameType *frame,
-    AARCH64RegisterUsage *regUsage, AARCH64GPRegister::ID dualID) {
+    AARCH64RegisterUsageX *regUsage, AARCH64GPRegister::ID dualID) {
 
     PhysicalRegister<AARCH64GPRegister> baseReg(
         frame->getSetBPInstr() ? AARCH64GPRegister::R29 : AARCH64GPRegister::SP,
@@ -237,102 +238,6 @@ std::vector<Instruction *> AARCH64RegReplacePass::getCallingInstructions(
     }
 
     return instructions;
-}
-
-AARCH64RegisterUsage::AARCH64RegisterUsage(Function *function,
-                                           AARCH64GPRegister::ID id)
-    : function(function), regX(id, true) {
-
-    for(auto block : function->getChildren()->getIterable()->iterable()) {
-        for(auto ins : block->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = ins->getSemantic()->getAssembly()) {
-                auto asmOps = assembly->getAsmOperands();
-                for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
-                    auto& op = asmOps->getOperands()[i];
-                    if(op.type == ARM64_OP_REG) {
-                        if(AARCH64GPRegister(op.mem.base, false).id() == id) {
-                            xList.push_back(ins);
-                            break;
-                        }
-                    }
-                    if(op.type == ARM64_OP_MEM) {
-                        if(AARCH64GPRegister(op.mem.base, false).id() == id) {
-                            xList.push_back(ins);
-                            break;
-                        }
-                        if(AARCH64GPRegister(op.mem.index, false).id() == id) {
-                            xList.push_back(ins);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-std::vector<int> AARCH64RegisterUsage::getAllUseCounts() {
-    int use_count[AARCH64GPRegister::REGISTER_NUMBER];
-    for(size_t i = 0; i < AARCH64GPRegister::REGISTER_NUMBER; ++i) {
-        use_count[i] = 0;
-    }
-
-    for(auto block : function->getChildren()->getIterable()->iterable()) {
-        for(auto ins : block->getChildren()->getIterable()->iterable()) {
-            if(auto assembly = ins->getSemantic()->getAssembly()) {
-                auto asmOps = assembly->getAsmOperands();
-                for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
-                    if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
-                        int id = PhysicalRegister<AARCH64GPRegister>(
-                            asmOps->getOperands()[i].reg, false).id();
-
-                        if(id == AARCH64GPRegister::INVALID) continue;
-                        ++use_count[id];
-                    }
-                }
-            }
-            else {
-                LOG(1, "RegReplacePass needs Assembly!");
-            }
-        }
-    }
-    return std::vector<int>(use_count,
-                            use_count + AARCH64GPRegister::REGISTER_NUMBER);
-}
-
-std::vector<bool> AARCH64RegisterUsage::getUnusableRegister() {
-    bool unusable[AARCH64GPRegister::REGISTER_NUMBER];
-    for(size_t i = 0; i < AARCH64GPRegister::REGISTER_NUMBER; ++i) {
-        unusable[i] = false;
-    }
-    for(auto ins : xList) {
-        if(auto assembly = ins->getSemantic()->getAssembly()) {
-            auto asmOps = assembly->getAsmOperands();
-            bool withX = false;
-            std::vector<int> regOperands;
-            for(size_t i = 0; i < asmOps->getOpCount(); ++i) {
-                if(asmOps->getOperands()[i].type == ARM64_OP_REG) {
-                    int id = PhysicalRegister<AARCH64GPRegister>(
-                        asmOps->getOperands()[i].reg, false).id();
-
-                    if(id == AARCH64GPRegister::INVALID) continue;
-                    if(id == regX.id()) {
-                        withX = true;
-                    }
-                    regOperands.push_back(id);
-                }
-
-                if(withX) {
-                    for(auto rid : regOperands) {
-                        unusable[rid] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    return std::vector<bool>(unusable,
-                             unusable + AARCH64GPRegister::REGISTER_NUMBER);
 }
 
 #endif
