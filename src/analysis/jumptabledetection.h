@@ -48,9 +48,9 @@ private:
         const JumptableInfo& info);
 
     bool parseTableAccess(UDState *state, int reg, JumptableInfo *info);
-    address_t parseBaseAddress(UDState *state, int reg);
-    address_t parseSavedAddress(UDState *state, int reg);
-    address_t parseComputedAddress(UDState *state, int reg);
+    std::tuple<bool, address_t> parseBaseAddress(UDState *state, int reg);
+    std::tuple<bool, address_t> parseSavedAddress(UDState *state, int reg);
+    std::tuple<bool, address_t> parseComputedAddress(UDState *state, int reg);
 
     bool parseBound(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromCompare(UDState *state, int bound, JumptableInfo *info);

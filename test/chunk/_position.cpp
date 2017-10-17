@@ -201,6 +201,8 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
                 CheckAddressIntegrity pass;
                 func->accept(&pass);
             }
+
+            PositionFactory::setInstance(PositionFactory());
         }
     }
 }

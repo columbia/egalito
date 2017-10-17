@@ -1,11 +1,15 @@
 #include "framework/include.h"
 #include "framework/StreamAsString.h"
+#include "conductor/conductor.h"
 #include "chunk/dump.h"
 #include "operation/mutator.h"
+#include "operation/find2.h"
 #include "instr/concrete.h"
 #include "instr/writer.h"
 #include "disasm/disassemble.h"
 #include "pass/chunkpass.h"
+#include "pass/splitbasicblock.h"
+#include "log/temp.h"
 #include "log/registry.h"
 
 static Instruction *makeWithImmediate(unsigned char imm) {
@@ -136,3 +140,22 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
 
     delete block;
 }
+
+#if 0
+TEST_CASE("calling splitBlockBefore() in ChunkMutator", "[chunk][fast]") {
+    TemporaryLogLevel tll("pass", 20);
+
+    ElfMap elf(TESTDIR "hi0");
+    Conductor conductor;
+    conductor.parseExecutable(&elf);
+
+    Function *main = ChunkFind2(&conductor).findFunction("main");
+    REQUIRE(main != nullptr);
+
+    SplitBasicBlock splitBasicBlock;
+    conductor.getProgram()->accept(&splitBasicBlock);
+
+    ChunkDumper dumper;
+    main->accept(&dumper);
+}
+#endif

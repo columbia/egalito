@@ -10,13 +10,15 @@
 #include "operation/mutator.h"
 #include "log/log.h"
 
-Function::Function(address_t originalAddress) : symbol(nullptr) {
+Function::Function(address_t originalAddress)
+    : symbol(nullptr), nonreturn(false) {
+
     std::ostringstream stream;
     stream << "fuzzyfunc-0x" << std::hex << originalAddress;
     name = stream.str();
 }
 
-Function::Function(Symbol *symbol) : symbol(symbol) {
+Function::Function(Symbol *symbol) : symbol(symbol), nonreturn(false) {
     name = symbol->getName();
 }
 
