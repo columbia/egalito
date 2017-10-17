@@ -55,14 +55,17 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
         if(dynamic_cast<IndirectJumpInstruction *>(s)) {
             LOG(10, "indirect jump at 0x" << std::hex << instr->getAddress());
             auto state = working->getState(instr);
+            IF_LOG(10) state->dumpState();
 
             JumptableInfo info(working->getCFG(), working, state);
-            auto parser = [&](UDState *state, TreeCapture cap) {
-                return parseJumptable(state, cap, &info);
+            auto parser = [&](UDState *s, TreeCapture& cap) {
+                return parseJumptable(s, cap, &info);
             };
 
             LOG(10, "trying MakeJumpTargetForm1");
-            auto reg = state->getRegRefList().begin()->first;
+            auto assembly = s->getAssembly();
+            auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+            int reg = AARCH64GPRegister::convertToPhysical(op0);
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser);
             if(info.valid) {
                 makeDescriptor(working, instr, info);
@@ -154,22 +157,21 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     >> TableAccessForm2;
 
     bool found = false;
-    auto parser = [&, info](UDState *state, TreeCapture cap) {
+    auto parser = [&, info](UDState *s, TreeCapture& cap) {
         auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
         auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
 
         address_t address;
         std::tie(found, address)
-            = parseBaseAddress(state, regTree1->getRegister());
+            = parseBaseAddress(s, regTree1->getRegister());
         if(found) {
             LOG(10, "JUMPTABLE FOUND!");
             info->tableBase = address;
 
             auto deref = dynamic_cast<TreeNodeDereference *>(cap.get(0));
             info->scale = deref->getWidth();
-            found = true;
 
-            parseBound(state, regTree2->getRegister(), info);
+            parseBound(s, regTree2->getRegister(), info);
             return true;
         }
         return false;
@@ -178,6 +180,7 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     LOG(10, "[TableAccess] looking for reference in 0x" << std::hex
         << state->getInstruction()->getAddress()
         << " register " << std::dec << reg);
+    IF_LOG(10) state->dumpState();
 
     LOG(10, "    trying TableAccessForm1");
     FlowUtil::searchUpDef<TableAccessForm1>(state, reg, parser);
@@ -198,6 +201,7 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
     LOG(10, "[TableBase] looking for reference in 0x" << std::hex
         << state->getInstruction()->getAddress()
         << " register " << std::dec << reg);
+    IF_LOG(10) state->dumpState();
 
     typedef TreePatternCapture<
         TreePatternTerminal<TreeNodeAddress>
@@ -205,7 +209,7 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
 
     address_t addr = 0;
     bool found = false;
-    auto parser = [&](UDState *state, TreeCapture cap) {
+    auto parser = [&](UDState *s, TreeCapture& cap) {
         auto pageTree = dynamic_cast<TreeNodeAddress *>(cap.get(0));
         addr = pageTree->getValue();
         found = true;
@@ -234,9 +238,9 @@ auto JumptableDetection::parseSavedAddress(UDState *state, int reg)
 
     address_t addr = 0;
     bool found = false;
-    auto parser = [&](UDState *state, TreeCapture cap) {
+    auto parser = [&](UDState *s, TreeCapture& cap) {
         MemLocation loadLoc(cap.get(0));
-        for(auto& ss : state->getMemRef(reg)) {
+        for(auto& ss : s->getMemRef(reg)) {
             for(const auto& mem : ss->getMemDefList()) {
                 MemLocation storeLoc(mem.second);
                 if(loadLoc == storeLoc) {
@@ -264,10 +268,10 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
 
     address_t addr = 0;
     bool found;
-    auto parser = [&](UDState *state, TreeCapture cap) {
+    auto parser = [&](UDState *s, TreeCapture& cap) {
         auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
         address_t page;
-        std::tie(found, page) = parseBaseAddress(state, regTree->getRegister());
+        std::tie(found, page) = parseBaseAddress(s, regTree->getRegister());
         if(found) {
             auto offsetTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
             addr = page + offsetTree->getValue();
@@ -288,22 +292,22 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     > ComparisonForm;
 
     bool found = false;
-    auto parser = [&, info](UDState *state, int reg, TreeCapture cap) {
+    auto parser = [&, info](UDState *s, int reg, TreeCapture& cap) {
         if(reg == AARCH64GPRegister::NZCV) { // cmp
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
-            if(getBoundFromCompare(state, boundTree->getValue(), info)) {
+            if(getBoundFromCompare(s, boundTree->getValue(), info)) {
                 LOG(10, "NZCV 0x"
-                    << std::hex << state->getInstruction()->getAddress());
+                    << std::hex << s->getInstruction()->getAddress());
                 found = true;
             }
         }
         if(reg == AARCH64GPRegister::ONETIME_NZCV) { // cbz, cbnz
             auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
-            if(getBoundFromCompareAndBranch(state, regTree->getRegister(),
+            if(getBoundFromCompareAndBranch(s, regTree->getRegister(),
                 info)) {
 
                 LOG(10, "ONETIME NZCV: 0x"
-                    << std::hex << state->getInstruction()->getAddress());
+                    << std::hex << s->getInstruction()->getAddress());
                 found = true;
             }
         }
@@ -437,7 +441,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
             << state->getInstruction()->getAddress());
         bool found = false;
 
-        auto parser = [&, info](UDState *state, TreeCapture cap) {
+        auto parser = [&, info](UDState *s, TreeCapture& cap) {
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
             info->entries = boundTree->getValue() / info->scale;
             found = true;
@@ -466,11 +470,11 @@ bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
 
     // the register should be the same, otherwise it must have a def tree
     bool found = false;
-    auto parser = [&, info](UDState *state, TreeCapture cap) {
+    auto parser = [&, info](UDState *s, TreeCapture& cap) {
         auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
         if(regTree->getRegister() != reg) return false;
         auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
-        if(getBoundFromCompare(state, boundTree->getValue(), info)) {
+        if(getBoundFromCompare(s, boundTree->getValue(), info)) {
             found = true;
             return true;
         }

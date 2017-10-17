@@ -363,6 +363,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_CMP,     &UseDef::fillCmp},
     {ARM64_INS_CSEL,    &UseDef::fillCsel},
     {ARM64_INS_CSET,    &UseDef::fillCset},
+    {ARM64_INS_EOR,     &UseDef::fillEor},
     {ARM64_INS_LDAXR,   &UseDef::fillLdaxr},
     {ARM64_INS_LDP,     &UseDef::fillLdp},
     {ARM64_INS_LDR,     &UseDef::fillLdr},
@@ -377,6 +378,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_MOV,     &UseDef::fillMov},
     {ARM64_INS_MRS,     &UseDef::fillMrs},
     {ARM64_INS_NOP,     &UseDef::fillNop},
+    {ARM64_INS_ORR,     &UseDef::fillOrr},
     {ARM64_INS_RET,     &UseDef::fillRet},
     {ARM64_INS_STP,     &UseDef::fillStp},
     {ARM64_INS_STR,     &UseDef::fillStr},
@@ -1209,9 +1211,7 @@ void UseDef::fillBl(UDState *state, Assembly *assembly) {
     }
 }
 void UseDef::fillBlr(UDState *state, Assembly *assembly) {
-    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
-    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
-    useReg(state, reg0);
+    fillReg(state, assembly);
 
     for(int i = 0; i < 9; i++) {
         useReg(state, i);
@@ -1223,6 +1223,26 @@ void UseDef::fillBlr(UDState *state, Assembly *assembly) {
 }
 void UseDef::fillBr(UDState *state, Assembly *assembly) {
     fillReg(state, assembly);
+
+    auto instr = state->getInstruction();
+    auto function = instr->getParent()->getParent();
+    auto module = dynamic_cast<Module *>(function->getParent()->getParent());
+    bool tableJump = false;
+    for(auto jt : CIter::children(module->getJumpTableList())) {
+        if(instr == jt->getInstruction()) {
+            tableJump = true;
+            break;
+        }
+    }
+    if(!tableJump) {
+        for(int i = 0; i < 9; i++) {
+            useReg(state, i);
+            defReg(state, i, nullptr);
+        }
+        for(int i = 9; i < 19; i++) {
+            defReg(state, i, nullptr);
+        }
+    }
 }
 void UseDef::fillCbz(UDState *state, Assembly *assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -1275,6 +1295,15 @@ void UseDef::fillCset(UDState *state, Assembly *assembly) {
         reg0,
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
     LOG(10, "NYI: " << assembly->getMnemonic());
+}
+void UseDef::fillEor(UDState *state, Assembly *assembly) {
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    defReg(state,
+        reg0,
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
+    LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
 void UseDef::fillLdaxr(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -1392,6 +1421,15 @@ void UseDef::fillMadd(UDState *state, Assembly *assembly) {
 }
 void UseDef::fillNop(UDState *state, Assembly *assembly) {
     /* Nothing to do */
+}
+void UseDef::fillOrr(UDState *state, Assembly *assembly) {
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
+    defReg(state,
+        reg0,
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
+    LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
 void UseDef::fillMov(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();

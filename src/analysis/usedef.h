@@ -371,6 +371,7 @@ private:
     void fillCmp(UDState *state, Assembly *assembly);
     void fillCsel(UDState *state, Assembly *assembly);
     void fillCset(UDState *state, Assembly *assembly);
+    void fillEor(UDState *state, Assembly *assembly);
     void fillLdaxr(UDState *state, Assembly *assembly);
     void fillLdp(UDState *state, Assembly *assembly);
     void fillLdr(UDState *state, Assembly *assembly);
@@ -385,6 +386,7 @@ private:
     void fillMov(UDState *state, Assembly *assembly);
     void fillMrs(UDState *state, Assembly *assembly);
     void fillNop(UDState *state, Assembly *assembly);
+    void fillOrr(UDState *state, Assembly *assembly);
     void fillRet(UDState *state, Assembly *assembly);
     void fillStp(UDState *state, Assembly *assembly);
     void fillStr(UDState *state, Assembly *assembly);
