@@ -53,7 +53,7 @@ void LiveRegister::detect(UDRegMemWorkingSet *working) {
     SavedRegister saved;
     for(auto r : saved.getList(function)) {
         info.live(r);
-#if 1
+#if 0
         if(r < AARCH64GPRegister::R18) {
             LOG(1, "caller clobbered register saved! " << std::dec << r);
         }

@@ -18,7 +18,7 @@ public:
     void kill(int reg);
     void live(int reg);
     bool get(int reg) { return regs[reg]; }
-    const std::bitset<32>& get() { return regs; }
+    const std::bitset<32>& get() const { return regs; }
 };
 
 class LiveRegister {
