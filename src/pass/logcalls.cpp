@@ -10,52 +10,75 @@
 #include "snippet/hook.h"
 #include "log/log.h"
 
+static int indent = 0;
 extern Conductor *egalito_conductor;
 
 extern "C"
-void egalito_log_instruction_pretty(unsigned long address) {
+void egalito_log_function_name(unsigned long address, int dir) {
+    indent += dir;
+    //for(int i = 0; i < indent; i ++) egalito_printf("    ");
+    egalito_printf("%d ", indent);
+
+    auto arrow = dir > 0 ? "->" : "<-";
+    // we cannot do this yet (on some platform). func->getName().c_str()
+    // below will create a memory object in loader which will be destoryed
+    // at the end of this function.
     auto func = ChunkFind2(egalito_conductor).findFunctionContaining(address);
     if(func) {
         // the offset is given in the transformed binary...
-        egalito_printf("%lx [%s+%lu]\n", address,
+        egalito_printf("%s %lx [%s+%lu]\n", arrow, address,
             func->getName().c_str(), address - func->getAddress());
     }
     else {
-        egalito_printf("%lx\n", address);
+        egalito_printf("%s %lx\n", arrow, address);
     }
 }
 
 extern "C"
-void egalito_log_instruction(unsigned long address) {
+void egalito_log_function(unsigned long address) {
 #ifdef ARCH_X86_64
     #define DISTANCE_FROM_ENTRY     9
 #elif defined(ARCH_AARCH64)
     #define DISTANCE_FROM_ENTRY     12
 #endif
-    egalito_log_instruction_pretty(address - DISTANCE_FROM_ENTRY);
+    egalito_log_function_name(address - DISTANCE_FROM_ENTRY, 1);
+}
+
+extern "C"
+void egalito_log_function_ret(unsigned long address) {
+#ifdef ARCH_X86_64
+    #define DISTANCE_FROM_EXIT      4
+#elif defined(ARCH_AARCH64)
+    #define DISTANCE_FROM_EXIT      4
+#endif
+    egalito_log_function_name(address + DISTANCE_FROM_EXIT, -1);
 }
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
     auto lib = conductor->getLibraryList()->get("(egalito)");
     if(!lib) throw "LogCallsPass requires libegalito.so to be transformed";
 
-    loggingFunc = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_instruction", lib->getElfSpace()->getModule());
-    if(!loggingFunc) {
+    loggingBegin = ChunkFind2(conductor).findFunctionInModule(
+        "egalito_hook_function_entry", lib->getElfSpace()->getModule());
+    loggingEnd = ChunkFind2(conductor).findFunctionInModule(
+        "egalito_hook_function_exit", lib->getElfSpace()->getModule());
+    if(!loggingBegin || !loggingEnd) {
         throw "LogCallsPass can't find log functions";
     }
 
     SwitchContextPass switcher;
-    loggingFunc->accept(&switcher);
+    loggingBegin->accept(&switcher);
+    loggingEnd->accept(&switcher);
 
-    LOG(1, "setting instruction hook to " << (void *)egalito_log_instruction);
-    set_instruction_hook(egalito_log_instruction);
+    set_function_entry_hook(egalito_log_function);
+    set_function_exit_hook(egalito_log_function_ret);
 
-    instrument.setAdvice(loggingFunc);
+    instrument.setEntryAdvice(loggingBegin);
+    instrument.setExitAdvice(loggingEnd);
     instrument.setPredicate([](Function *function) {
-#if 0
-        return !function->hasName("egalito_log_instruction")
-            && !function->hasName("egalito_log_instruction_pretty")
+        return !function->hasName("egalito_log_function")
+            && !function->hasName("egalito_log_function_ret")
+            && !function->hasName("egalito_log_function_name")
 
             && !function->hasName("__GI___libc_write")
             && !function->hasName("__write_nocancel")
@@ -64,9 +87,6 @@ LogCallsPass::LogCallsPass(Conductor *conductor) {
 
             && !function->hasName("$d")
         ;
-#else
-        return function->getName() == "main";
-#endif
     });
 }
 
