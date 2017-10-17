@@ -79,7 +79,7 @@ void EgalitoLoader::otherPasses() {
 #if 1  // add call logging?
     LogCallsPass logCalls(setup.getConductor());
     // false = do not add tracing to Egalito's own functions
-    setup.getConductor()->acceptInAllModules(&logCalls, false);
+    setup.getConductor()->getProgram()->getMain()->accept(&logCalls);
 #endif
 
 #if 0  // add nop pass
