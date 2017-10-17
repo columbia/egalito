@@ -14,7 +14,6 @@ public:
     std::vector<int> getList(UDRegMemWorkingSet *working);
 
 private:
-    void detectMakeFrame(const UDState& state);
     void detectSaveRegister(const UDState& state, std::vector<int>& list);
 };
 #endif

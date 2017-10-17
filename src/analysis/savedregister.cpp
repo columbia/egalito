@@ -29,35 +29,10 @@ std::vector<int> SavedRegister::getList(Function *function) {
 std::vector<int> SavedRegister::getList(UDRegMemWorkingSet *working) {
     std::vector<int> list;
     for(auto& s : working->getStateList()) {
-        detectMakeFrame(s);
         detectSaveRegister(s, list);
     }
 
     return list;
-}
-
-void SavedRegister::detectMakeFrame(const UDState& state) {
-    typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>,
-        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-    > MakeFrameForm;
-
-    IF_LOG(10) {
-        auto semantic = state.getInstruction()->getSemantic();
-        if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
-            if(v->getAssembly()->getId() == ARM64_INS_STP) {
-                state.dumpState();
-            }
-        }
-    }
-
-    for(auto def : state.getRegDefList()) {
-        TreeCapture cap;
-        if(MakeFrameForm::matches(def.second, cap)) {
-            auto sz = dynamic_cast<TreeNodeConstant *>(cap.get(0))->getValue();
-            LOG(10, "detected frame creation [" << std::dec << sz << "]");
-        }
-    }
 }
 
 void SavedRegister::detectSaveRegister(const UDState& state,
@@ -72,11 +47,11 @@ void SavedRegister::detectSaveRegister(const UDState& state,
     for(auto mem : state.getMemDefList()) {
         TreeCapture cap;
         if(PushForm::matches(mem.second, cap)) {
-            //use MemLocation to simply get offset?
-
-            LOG(10, "detected register save: " << std::dec << mem.first);
-            auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
-            list.push_back(regTree->getRegister());
+            LOG(11, "detected register save: " << std::dec << mem.first);
+            LOG(11, "state: " << std::hex
+                << state.getInstruction()->getAddress());
+            IF_LOG(11) state.dumpState();
+            list.push_back(mem.first);
         }
     }
 }
