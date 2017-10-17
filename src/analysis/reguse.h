@@ -1,6 +1,9 @@
 #ifndef EGALITO_ANALYSIS_REGUSE_H
 #define EGALITO_ANALYSIS_REGUSE_H
 
+#include <vector>
+#include <bitset>
+
 #include "instr/register.h"
 
 class Function;
@@ -25,6 +28,7 @@ public:
     AARCH64RegisterUsage() {}
 
     std::vector<int> getAllUseCounts(Function *function);
+    std::bitset<32> getUnusedRegisters(Function *function);
 };
 
 #endif

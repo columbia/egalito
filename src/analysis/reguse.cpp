@@ -1,4 +1,3 @@
-#include <vector>
 #include <cstddef>
 #include "reguse.h"
 #include "chunk/concrete.h"
@@ -101,3 +100,13 @@ std::vector<int> AARCH64RegisterUsage::getAllUseCounts(Function *function) {
                             use_count + AARCH64GPRegister::REGISTER_NUMBER);
 }
 
+std::bitset<32> AARCH64RegisterUsage::getUnusedRegisters(Function *function) {
+    auto counts = getAllUseCounts(function);
+    std::bitset<32> unused(0x0);
+    for(size_t i = 0; i < 32; i++) {
+        if(counts[i] == 0) {
+            unused[i] = 1;
+        }
+    }
+    return unused;
+}
