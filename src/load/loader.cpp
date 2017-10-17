@@ -12,6 +12,7 @@
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
 #include "pass/logcalls.h"
+#include "pass/loginstr.h"
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
 #include "log/registry.h"
@@ -76,10 +77,15 @@ void EgalitoLoader::run(int argc, char *argv[]) {
 }
 
 void EgalitoLoader::otherPasses() {
-#if 1  // add call logging?
+#if 0  // add call logging?
     LogCallsPass logCalls(setup.getConductor());
     // false = do not add tracing to Egalito's own functions
     setup.getConductor()->getProgram()->getMain()->accept(&logCalls);
+#endif
+
+#if 1  // add instruction logging?
+    RUN_PASS(LogInstructionPass(setup.getConductor()), 
+        setup.getConductor()->getProgram()->getMain());
 #endif
 
 #if 0  // add nop pass
