@@ -48,9 +48,13 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
         LOG(2, "    writing out [" << f->getName() << "] at 0x"
             << std::hex << f->getAddress());
 
+#if 0
         if(f->getName() != "puts") {
             copyFunctionToSandbox(f, sandbox);
         }
+#else
+        copyFunctionToSandbox(f, sandbox);
+#endif
     }
 
     copyPLTEntriesToSandbox(module, sandbox);

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdio>  // for std::fflush
+#include <cstdlib>  // for getenv
 
 #include "loader.h"
 #include "usage.h"
@@ -91,8 +92,12 @@ void EgalitoLoader::otherPasses() {
 #endif
 
 #if 1  // add instruction logging?
-    RUN_PASS(LogInstructionPass(setup.getConductor()), 
-        setup.getConductor()->getProgram()->getMain());
+    if(auto p = getenv("EGALITO_LOG_INSTRUCTION_PASS")) {
+        if(strtol(p, nullptr, 0) != 0) {
+            RUN_PASS(LogInstructionPass(setup.getConductor()),
+                setup.getConductor()->getProgram()->getMain());
+        }
+    }
 #endif
 
 #if 0  // add nop pass
