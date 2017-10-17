@@ -6,6 +6,7 @@
 
 #ifdef ARCH_AARCH64
 class Module;
+class Program;
 
 class DataFlow {
 private:
@@ -18,10 +19,14 @@ public:
     ~DataFlow();
     void addUseDefFor(Function *function);
     void adjustCallUse(LiveRegister *live, Function *function, Module *module);
+    void adjustPLTCallUse(LiveRegister *live, Function *function,
+        Program *program);
     UDRegMemWorkingSet *getWorkingSet(Function *function);
 
 private:
     bool isTLSdescResolveCall(UDState *state, Module *module);
+    void adjustUse(LiveRegister *live, Instruction *instruction,
+        Function *source, Function *target, bool viaTrampoline);
 };
 #endif
 

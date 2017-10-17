@@ -58,22 +58,7 @@ void DataFlow::adjustCallUse(
                 }
                 if(!func) continue;
 
-                if(dynamic_cast<PLTTrampoline *>(func)) continue;
-
-                auto working = getWorkingSet(function);
-                auto state = working->getState(instr);
-
-                auto info = live->getInfo(func);
-
-                //R0 - R18
-                auto ud = flowList[function];
-                for(int i = 0; i < 19; i++) {
-                    if(info.get(i)) {
-                        LOG(10, "canceling use of " << std::dec << i);
-                        ud->cancelUseDefReg(state, i);
-                    }
-                }
-                IF_LOG(11) state->dumpState();
+                adjustUse(live, instr, function, func, false);
             }
             else if(assembly->getId() == ARM64_INS_BLR) {
                 auto working = getWorkingSet(function);
@@ -88,6 +73,28 @@ void DataFlow::adjustCallUse(
                 }
                 IF_LOG(11) state->dumpState();
             }
+        }
+    }
+}
+
+void DataFlow::adjustPLTCallUse(
+    LiveRegister *live, Function *function, Program *program) {
+    // consider PLTs
+    for(auto block : CIter::children(function)) {
+        for(auto instr: CIter::children(block)) {
+            auto s = instr->getSemantic();
+            auto assembly = s->getAssembly();
+            if(!assembly) continue;
+            if(assembly->getId() == ARM64_INS_BL) {
+                if(auto pltLink = dynamic_cast<PLTLink *>(s->getLink())) {
+                    auto target = pltLink->getPLTTrampoline()->getTarget();
+                    if(auto func = dynamic_cast<Function *>(target)) {
+                        adjustUse(live, instr, function, func, true);
+                        continue;
+                    }
+                }
+            }
+            // does not try to find the target of indirect calls for now
         }
     }
 }
@@ -127,6 +134,26 @@ bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
         }
     }
     return false;
+}
+
+void DataFlow::adjustUse(LiveRegister *live, Instruction *instruction,
+    Function *source, Function *target, bool viaTrampoline) {
+
+    auto working = getWorkingSet(source);
+    auto state = working->getState(instruction);
+
+    LOG(10, "adjusting use at " << std::hex << instruction->getAddress());
+
+    auto info = live->getInfo(target);
+    auto ud = flowList[source];
+    for(int i = 0; i < 19; i++) {
+        if(viaTrampoline && (i == 16 || i == 17)) continue;
+        if(info.get(i)) {
+            LOG(10, "    canceling use of " << std::dec << i);
+            ud->cancelUseDefReg(state, i);
+        }
+    }
+    IF_LOG(11) state->dumpState();
 }
 
 DataFlow::~DataFlow() {
