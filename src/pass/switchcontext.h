@@ -13,6 +13,10 @@
 // Save R11, R10, R9, R8, RDI, RSI, RDX, RCX, RAX
 #define EGALITO_CONTEXT_SIZE    (8*9)
 #define REGISTER_SAVE_LIST      {11, 10, 9, 8, 7, 6, 2, 1, 0}
+
+// Save same as above, but not RAX
+#define RET_RAX_CONTEXT_SIZE            (8*8)
+#define RET_RAX_REGISTER_SAVE_LIST      {11, 10, 9, 8, 7, 6, 2, 1}
 #elif defined(ARCH_AARCH64)
 // For AARCH64, this means all non-callee-saved registers, except for
 // X29 and X30 which will be saved by InstrumentCalls pass.
@@ -26,9 +30,10 @@ class SwitchContextPass : public StackExtendPass {
 private:
     const size_t contextSize;
 public:
-    SwitchContextPass()
-        : StackExtendPass(EGALITO_CONTEXT_SIZE, REGISTER_SAVE_LIST),
-          contextSize(EGALITO_CONTEXT_SIZE) {}
+    SwitchContextPass(size_t contextSize = EGALITO_CONTEXT_SIZE,
+        const std::vector<int> saveList = REGISTER_SAVE_LIST)
+        : StackExtendPass(contextSize, saveList),
+          contextSize(contextSize) {}
 private:
     void useStack(Function *function, FrameType *frame);
     void addSaveContextAt(Function *function, FrameType *frame);

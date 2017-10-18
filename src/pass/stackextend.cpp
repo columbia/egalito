@@ -223,6 +223,9 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
     // epilogue -- add $0x8,%rsp
     if(!saveList.empty()) {
         for(auto ins : frame->getEpilogueInstrs()) {
+            // Note: we use insertBeforeJumpTo, so we have to keep changing the
+            // insertion point to be equivalent to insertBefore(ins, .)
+            auto insPoint = ins;
             for(auto r : saveList) {
                 std::vector<unsigned char> popBin;
                 if(r >= 8) {
@@ -233,7 +236,8 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
                     popBin.push_back(0x58 + r);
                 }
                 auto popIns = Disassemble::instruction(popBin);
-                ChunkMutator(ins->getParent()).insertBefore(ins, popIns);
+                ChunkMutator(ins->getParent()).insertBeforeJumpTo(insPoint, popIns);
+                insPoint = popIns;
             }
         }
     }
