@@ -75,7 +75,7 @@ void EgalitoLoader::run(int argc, char *argv[]) {
     PrepareTLS::prepare(setup.getConductor());
 
     if(libc && libc->getElfSpace()) {
-        //CallInit::callInitFunctions(libc->getElfSpace(), argv);
+        CallInit::callInitFunctions(libc->getElfSpace(), argv);
     }
 
     // jump to the interpreter/target program (never returns)

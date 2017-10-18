@@ -49,6 +49,8 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
             address_t offset = tableSection->convertVAToOffset(computed);
             int value = *reinterpret_cast<int *>(tableReadPtr + offset);
 
+            //if(!value) continue;  // zero entry, not used?
+
             //LOG(1, "looks like value is " << std::hex << value);
 
             // for relative jump tables

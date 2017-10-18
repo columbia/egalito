@@ -34,7 +34,7 @@ void CallInit::callInitFunctions(ElfSpace *space, char **argv) {
                 LOG(1, "invoking init function " << chunk->getName());
                 // !!! we should actually call this from transformed code...
                 //((void (*)())chunk->getAddress())();
-                //((void (*)(int, char*, char*))chunk->getAddress())(0, nullptr, nullptr);
+                ((void (*)(int, char*, char*))chunk->getAddress())(0, nullptr, nullptr);
                 // !!! call the init_array functions
             }
         }

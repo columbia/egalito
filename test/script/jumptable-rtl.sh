@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir tmp 2>/dev/null
 
-../../app/etshell >/dev/null >tmp/jumptable-rtl.out <<EOF
+../../app/etshell >tmp/jumptable-rtl.out <<EOF
 parse ../binary/build/jumptable
 jumptables
 EOF
