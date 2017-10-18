@@ -4,7 +4,7 @@ int f();
 int main();
 
 int f() {
-    printf("%lx %lx\n", f, main);
+    printf("%lx %lx\n", (unsigned long)f, (unsigned long)main);
     return 11;
 }
 int main() {

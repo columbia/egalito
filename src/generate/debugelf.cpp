@@ -125,14 +125,14 @@ void DebugElf::writeTo(int fd) {
     ehdr.e_shnum = 4;
     ehdr.e_shstrndx = 2;
 
-    write(fd, &ehdr, sizeof(ehdr));
+    (void)write(fd, &ehdr, sizeof(ehdr));
 
     // build section headers
     ElfXX_Shdr shdr;
     for(size_t i = 0; i < sizeof(ElfXX_Shdr); i ++) {
         ((char *)&shdr)[i] = 0;
     }
-    write(fd, &shdr, sizeof(shdr));
+    (void)write(fd, &shdr, sizeof(shdr));
 
     shdr.sh_name = 1; // .symtab
     shdr.sh_type = SHT_SYMTAB;
@@ -144,7 +144,7 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_info = 0; // all symbols global
     shdr.sh_addralign = 1;
     shdr.sh_entsize = sizeof(ElfXX_Sym);
-    write(fd, &shdr, sizeof(shdr));
+    (void)write(fd, &shdr, sizeof(shdr));
 
     shdr.sh_name = 9; // .strtab
     shdr.sh_type = SHT_STRTAB;
@@ -152,7 +152,7 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_size = strtable_used;
     shdr.sh_link = 0;
     shdr.sh_entsize = 0;
-    write(fd, &shdr, sizeof(shdr));
+    (void)write(fd, &shdr, sizeof(shdr));
 
     shdr.sh_name = 17; // .text
     shdr.sh_type = SHT_NOBITS;
@@ -168,11 +168,11 @@ void DebugElf::writeTo(int fd) {
     shdr.sh_entsize = 0;
     shdr.sh_flags = SHF_ALLOC | SHF_EXECINSTR;
     shdr.sh_addralign = 1;
-    write(fd, &shdr, sizeof(shdr));
+    (void)write(fd, &shdr, sizeof(shdr));
 
-    write(fd, symbols,
+    (void)write(fd, symbols,
         symbols_used*sizeof(ElfXX_Sym));
-    write(fd, strtable, strtable_used);
+    (void)write(fd, strtable, strtable_used);
 }
 
 void DebugElf::writeTo(const char *filename) {

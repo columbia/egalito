@@ -17,7 +17,7 @@ static void _strcpy(char *dest, const char *src) {
 }
 
 static void write_char(int stream, char c) {
-    write(stream, &c, 1);
+    (void)write(stream, &c, 1);
 }
 
 static void write_string(int stream, const char *message) {
@@ -26,7 +26,7 @@ static void write_string(int stream, const char *message) {
     size_t length = 0;
     while(message[length]) length ++;
     
-    write(stream, message, length);
+    (void)write(stream, message, length);
 }
 
 static void write_hex(int stream, unsigned long number) {
@@ -45,7 +45,7 @@ static void write_hex(int stream, unsigned long number) {
     }
     /*buffer[--i] = 'x';
     buffer[--i] = '0';*/
-    write(stream, buffer + i, 2+8+8-i);
+    (void)write(stream, buffer + i, 2+8+8-i);
 }
 
 static void write_decimal(int stream, unsigned long number) {
@@ -55,7 +55,7 @@ static void write_decimal(int stream, unsigned long number) {
         buffer[--i] = (number % 10) + '0';
         number /= 10;
     } while(number);
-    write(stream, buffer + i, 20-i);
+    (void)write(stream, buffer + i, 20-i);
 }
 
 static void decimal_to_string(unsigned long number, char *s) {
@@ -148,7 +148,7 @@ int NAME(vfprintf) (int stream, const char *format, va_list args) {
         else {
             const char *p = begin;
             while(*p && *p != '%') p ++;
-            write(stream, begin, p - begin);
+            (void)write(stream, begin, p - begin);
             
             begin = p;
         }

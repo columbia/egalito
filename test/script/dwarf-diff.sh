@@ -12,10 +12,10 @@ EOF
     cat tmp/dwarf-diff.egalito | sed '1,3 d' | head -n -1 > tmp/dwarf-diff.egalito.2
     diff tmp/dwarf-diff.objdump tmp/dwarf-diff.egalito.2
 
-    if [ "$?" = 0 ]; then
-        echo test passed
-    else
+    if [ "$?" != 0 ]; then
         echo test failed, $program
         exit 1
     fi
 done
+
+echo test passed
