@@ -57,6 +57,23 @@ bool TreePatternBinary<Type, LeftType, RightType>::matches(
 }
 
 template <typename Type, typename LeftType, typename RightType>
+class TreePatternBinaryAnyOrder {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type, typename LeftType, typename RightType>
+bool TreePatternBinaryAnyOrder<Type, LeftType, RightType>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    auto b = dynamic_cast<Type *>(node);
+    return b != nullptr && (
+        (LeftType::matches(b->getLeft(), capture)
+            && RightType::matches(b->getRight(), capture))
+        || (LeftType::matches(b->getRight(), capture)
+            && RightType::matches(b->getLeft(), capture)));
+}
+
+template <typename Type, typename LeftType, typename RightType>
 class TreePatternRecursiveBinary {
 public:
     static bool matches(TreeNode *node, TreeCapture &capture);

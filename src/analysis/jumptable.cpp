@@ -64,7 +64,7 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
         TreePatternRIP
     > TreePatternLEA;
 
-    typedef TreePatternBinary<TreeNodeAddition,
+    typedef TreePatternBinaryAnyOrder<TreeNodeAddition,
         TreePatternLEA,
         TreePatternBinary<TreeNodeAddition,
             TreePatternCapture<TreePatternLEA>,
