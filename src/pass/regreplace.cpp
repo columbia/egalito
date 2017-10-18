@@ -1,5 +1,6 @@
 #include <numeric>
 #include "regreplace.h"
+#include "analysis/frametype.h"
 #include "analysis/reguse.h"
 #include "disasm/disassemble.h"
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)

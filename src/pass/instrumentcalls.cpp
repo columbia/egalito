@@ -1,4 +1,5 @@
-#include "pass/instrumentcalls.h"
+#include "instrumentcalls.h"
+#include "analysis/frametype.h"
 #include "disasm/disassemble.h"
 #include "instr/register.h"
 #include "instr/semantic.h"

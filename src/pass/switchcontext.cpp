@@ -1,4 +1,5 @@
-#include "pass/switchcontext.h"
+#include "switchcontext.h"
+#include "analysis/frametype.h"
 #include "disasm/disassemble.h"
 #include "instr/register.h"
 #include "operation/mutator.h"
