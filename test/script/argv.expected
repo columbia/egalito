@@ -1,0 +1,4 @@
+argv[0] = "../binary/build/argv"
+argv[1] = "one"
+argv[2] = "two"
+argv[3] = "(null)"

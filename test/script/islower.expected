@@ -1,0 +1,2 @@
+'a' should be lowercase: 512
+'A' should not be lowercase: 0

@@ -14,3 +14,5 @@ test:
 	./jumptable-rtl.sh
 	./codeform-s.sh
 	./verify-redzone.sh
+	./argv.sh
+	./islower.sh
