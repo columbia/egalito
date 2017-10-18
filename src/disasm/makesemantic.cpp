@@ -131,7 +131,7 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     case 5: return 4;
     case 6: return 4;
     case 7: return 4;
-    case 8: return 4;  // never actually observed
+    case 8: return 4;  // call *%gs:0xf00
     case 9: return 4;  // never actually observed
     case 10: return 4;
     case 11: return 4;

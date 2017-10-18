@@ -88,6 +88,18 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
 
     if(!newChunk->getPosition()) makePositionFor(newChunk);
     updateSizesAndAuthorities(newChunk);
+
+    // if the next sibling has children, need to update their position
+    // (this happens when inserting one Block between two others)
+    if(auto next = newChunk->getNextSibling()) {
+        if(next->getChildren() && next->getChildren()->genericGetSize() > 0) {
+            auto nextChild = next->getChildren()->genericGetAt(0);
+            delete nextChild->getPosition();
+            nextChild->setPosition(nullptr);
+
+            ChunkMutator(next).makePositionFor(nextChild);
+        }
+    }
 }
 
 void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
@@ -167,7 +179,32 @@ void ChunkMutator::remove(Chunk *child) {
     }
 
     // update authority pointers in positions
-    updateGenerationCounts(child);
+    updateGenerationCounts(chunk);  // ???
+}
+
+void ChunkMutator::removeLast(int n) {
+    size_t removedSize = 0;
+    for(int i = 0; i < n; i ++) {
+        Chunk *last = chunk->getChildren()->genericGetLast();
+        if(auto prev = last->getPreviousSibling()) {
+            prev->setNextSibling(nullptr);
+        }
+
+        removedSize += last->getSize();
+
+        chunk->getChildren()->genericRemoveLast();
+    }
+
+    // update sizes of parents and grandparents
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        // only if size is tracked
+        if(c->getSize() != 0) {
+            c->addToSize(-removedSize);
+        }
+    }
+
+    // update authority pointers in positions
+    updateGenerationCounts(chunk);  // ???
 }
 
 void ChunkMutator::splitBlockBefore(Instruction *point) {
@@ -210,46 +247,86 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     }
 #else
     Block *block = dynamic_cast<Block *>(point->getParent());
-    Block *newBlock = new Block();
-
-    newBlock->setPosition(PositionFactory::getInstance()->makePosition(
-        block, newBlock, point->getAddress() - chunk->getAddress()));
-
     size_t totalChildren = block->getChildren()->getIterable()->getCount();
     if(totalChildren == 0) return;
 
-    size_t leaveBehind = 0;
-    for(Instruction *instr = block->getChildren()->getIterable()->get(0);
-        instr && instr != point;
-        instr = static_cast<Instruction *>(instr->getNextSibling())) {
+    // Create new block for the new instructions. point will be the first
+    // instruction in newBlock.
+    Block *newBlock = new Block();
+    newBlock->setPosition(PositionFactory::getInstance()->makePosition(
+        block, newBlock, point->getAddress() - chunk->getAddress()));
 
-        leaveBehind ++;
-    }
-    if(auto lastLeftBehind = point->getPreviousSibling()) {
-        setNextSibling(lastLeftBehind, nullptr);
-    }
-    setPreviousSibling(point, nullptr);
+    // How many instructions to leave in the original block?
+    size_t leaveBehindCount = block->getChildren()->getIterable()
+        ->indexOf(point);
 
+    // Staging area to temporarily store Instructions being moved from block
+    // to newBlock.
+    std::vector<Instruction *> moveInstr;
+    for(size_t i = leaveBehindCount; i < totalChildren; i ++) {
+        auto last = block->getChildren()->getIterable()->get(i);
+        moveInstr.push_back(last);
+    }
+    ChunkMutator(block).removeLast(totalChildren - leaveBehindCount);
+
+    // Clear old pointers and references from instructions.
+    for(auto instr : moveInstr) {
+        instr->setPreviousSibling(nullptr);
+        instr->setNextSibling(nullptr);
+        instr->setParent(nullptr);
+        delete instr->getPosition();
+        instr->setPosition(nullptr);
+    }
+
+    // Append instructions from moveInstr to newBlock.
     {
         ChunkMutator newMutator(newBlock);
-        Chunk *prevChunk = newBlock;
-        for(size_t i = leaveBehind; i < totalChildren; i ++) {
-            Instruction *instr = block->getChildren()->getIterable()->get(i);
-
-            delete instr->getPosition();
-            instr->setPosition(PositionFactory::getInstance()->makePosition(
-                prevChunk, instr, newBlock->getSize()));
+        for(auto instr : moveInstr) {
             newMutator.append(instr);
-            prevChunk = instr;
+            newMutator.makePositionFor(instr);
         }
-    }
-
-    for(size_t i = 0; i < totalChildren - leaveBehind; i ++) {
-        block->getChildren()->removeLast();
     }
 
     insertAfter(block, newBlock);
 #endif
+}
+
+void ChunkMutator::splitFunctionBefore(Block *point) {
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    auto function = dynamic_cast<Function *>(point->getParent());
+    Function *function2 = nullptr;
+
+    std::vector<Block *> moveList;
+    for(auto child : CIter::children(function)) {
+        if(!function2) {
+            if(child == point) {
+                function2 = new Function(point->getAddress());
+                function2->setPosition(
+                    positionFactory->makeAbsolutePosition(point->getAddress()));
+                function2->setParent(function->getParent());
+            }
+        }
+        if(function2) {
+            moveList.push_back(child);
+        }
+    }
+
+    for(auto child : moveList) {
+        ChunkMutator(function).remove(child);
+        delete child->getPosition();
+    }
+    auto functionList = dynamic_cast<FunctionList *>(function->getParent());
+    functionList->getChildren()->add(function2);
+
+    Chunk *prevChunk = function;
+    for(auto child : moveList) {
+        child->setPosition(positionFactory->makePosition(
+            prevChunk, child, function2->getSize()));
+
+        ChunkMutator(function2).append(child);
+        prevChunk = child;
+    }
 }
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {

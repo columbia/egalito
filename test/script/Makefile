@@ -12,4 +12,5 @@ test:
 	./dwarf-diff.sh
 	./codeform-dwarf-syms.sh
 	./jumptable-rtl.sh
+	./codeform-s.sh
 	./verify-redzone.sh

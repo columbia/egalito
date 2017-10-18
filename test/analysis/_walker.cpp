@@ -8,7 +8,7 @@
 
 TEST_CASE("CFG walker", "[analysis][fast][.]") {
     GroupRegistry::getInstance()->muteAllSettings();
-    GroupRegistry::getInstance()->applySetting("analysis", 10);
+    //GroupRegistry::getInstance()->applySetting("analysis", 10);
 
     ElfMap elf(TESTDIR "cfg");
 

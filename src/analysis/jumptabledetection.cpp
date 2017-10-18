@@ -61,6 +61,7 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
                 return parseJumptable(state, cap, &info);
             };
 
+            LOG(10, "trying MakeJumpTargetForm1");
             auto reg = state->getRegRefList().begin()->first;
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser);
             if(info.valid) {
@@ -68,6 +69,7 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
                 continue;
             }
 
+            LOG(10, "trying MakeJumpTargetForm2");
             FlowUtil::searchUpDef<MakeJumpTargetForm2>(state, reg, parser);
             if(info.valid) {
                 makeDescriptor(working, instr, info);
@@ -94,14 +96,17 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture cap,
     auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
     auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
 
-    address_t targetBase = parseBaseAddress(state, regTree1->getRegister());
     bool found = false;
-    if(targetBase != 0) {
+    address_t targetBase;
+    std::tie(found, targetBase)
+        = parseBaseAddress(state, regTree1->getRegister());
+    if(found) {
         LOG(10, "index 0: matches table base form");
         found = parseTableAccess(state, regTree2->getRegister(), info);
     }
     if(!found) {
-        targetBase = parseBaseAddress(state, regTree2->getRegister());
+        std::tie(found, targetBase)
+            = parseBaseAddress(state, regTree2->getRegister());
         if(targetBase > 0) {
             LOG(10, "index 1: matches table base form");
             found = parseTableAccess(state, regTree1->getRegister(), info);
@@ -152,7 +157,11 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     auto parser = [&, info](UDState *state, TreeCapture cap) {
         auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
         auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
-        if(auto address = parseBaseAddress(state, regTree1->getRegister())) {
+
+        address_t address;
+        std::tie(found, address)
+            = parseBaseAddress(state, regTree1->getRegister());
+        if(found) {
             LOG(10, "JUMPTABLE FOUND!");
             info->tableBase = address;
 
@@ -170,10 +179,12 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
         << state->getInstruction()->getAddress()
         << " register " << std::dec << reg);
 
+    LOG(10, "    trying TableAccessForm1");
     FlowUtil::searchUpDef<TableAccessForm1>(state, reg, parser);
     if(found) {
         return true;
     }
+    LOG(10, "    trying TableAccessForm2");
     FlowUtil::searchUpDef<TableAccessForm2>(state, reg, parser);
     if(found) {
         return true;
@@ -181,7 +192,9 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     return false;
 }
 
-address_t JumptableDetection::parseBaseAddress(UDState *state, int reg) {
+auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
+    -> std::tuple<bool, address_t> {
+
     LOG(10, "[TableBase] looking for reference in 0x" << std::hex
         << state->getInstruction()->getAddress()
         << " register " << std::dec << reg);
@@ -191,23 +204,27 @@ address_t JumptableDetection::parseBaseAddress(UDState *state, int reg) {
     > BaseAddressForm;
 
     address_t addr = 0;
+    bool found = false;
     auto parser = [&](UDState *state, TreeCapture cap) {
         auto pageTree = dynamic_cast<TreeNodeAddress *>(cap.get(0));
         addr = pageTree->getValue();
+        found = true;
         return true;
     };
     FlowUtil::searchUpDef<BaseAddressForm>(state, reg, parser);
-    if(addr != 0) {
-        return addr;
+    if(found) {
+        return std::make_tuple(true, addr);
     }
 
-    if(auto address = parseComputedAddress(state, reg)) {
-        return address;
+    std::tie(found, addr) = parseComputedAddress(state, reg);
+    if(found) {
+        return std::make_tuple(true, addr);
     }
     return parseSavedAddress(state, reg);
 }
 
-address_t JumptableDetection::parseSavedAddress(UDState *state, int reg) {
+auto JumptableDetection::parseSavedAddress(UDState *state, int reg)
+    -> std::tuple<bool, address_t> {
     typedef TreePatternUnary<TreeNodeDereference,
         TreePatternCapture<TreePatternBinary<TreeNodeAddition,
             TreePatternTerminal<TreeNodePhysicalRegister>,
@@ -216,13 +233,16 @@ address_t JumptableDetection::parseSavedAddress(UDState *state, int reg) {
     > LoadForm;
 
     address_t addr = 0;
+    bool found = false;
     auto parser = [&](UDState *state, TreeCapture cap) {
         MemLocation loadLoc(cap.get(0));
         for(auto& ss : state->getMemRef(reg)) {
             for(const auto& mem : ss->getMemDefList()) {
                 MemLocation storeLoc(mem.second);
                 if(loadLoc == storeLoc) {
-                    if(auto address = parseBaseAddress(ss, mem.first)) {
+                    address_t address;
+                    std::tie(found, address) = parseBaseAddress(ss, mem.first);
+                    if(found) {
                         addr = address;
                         return true;
                     }
@@ -232,19 +252,23 @@ address_t JumptableDetection::parseSavedAddress(UDState *state, int reg) {
         return false;
     };
     FlowUtil::searchUpDef<LoadForm>(state, reg, parser);
-    return addr;
+    return std::make_tuple(found, addr);
 }
 
-address_t JumptableDetection::parseComputedAddress(UDState *state, int reg) {
+auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
+    -> std::tuple<bool, address_t> {
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > MakeBaseAddressForm;
 
     address_t addr = 0;
+    bool found;
     auto parser = [&](UDState *state, TreeCapture cap) {
         auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
-        if(auto page = parseBaseAddress(state, regTree->getRegister())) {
+        address_t page;
+        std::tie(found, page) = parseBaseAddress(state, regTree->getRegister());
+        if(found) {
             auto offsetTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
             addr = page + offsetTree->getValue();
             return true;
@@ -252,7 +276,7 @@ address_t JumptableDetection::parseComputedAddress(UDState *state, int reg) {
         return false;
     };
     FlowUtil::searchUpDef<MakeBaseAddressForm>(state, reg, parser);
-    return addr;
+    return std::make_pair(found, addr);
 }
 
 bool JumptableDetection::parseBound(UDState *state, int reg,

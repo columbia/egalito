@@ -12,8 +12,6 @@ public:
     virtual void visit(Module *module);
     virtual void visit(DataRegionList *dataRegionList);
     virtual void visit(DataRegion *dataRegion);
-private:
-    void resolveTLSLink(TLSDataOffsetLink *link);
 };
 
 #endif

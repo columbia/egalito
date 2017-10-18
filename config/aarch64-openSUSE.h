@@ -25,5 +25,9 @@
 #define ANALYSIS_JUMPTABLE_PARSE_EXPRESSION_COUNT   2
 #endif
 
+#if defined(__GNUC__) && (__GNUC__ >= 7)    /* tumbleweed */
 #define PASS_STACKEXTEND_RESTORE_SP_FROM_X29        0
+#else   /* gcc-6 */
+#define PASS_STACKEXTEND_RESTORE_SP_FROM_X29        1
+#endif
 #endif

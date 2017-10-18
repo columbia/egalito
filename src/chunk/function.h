@@ -12,8 +12,9 @@ class Function : public ChunkSerializerImpl<TYPE_Function,
 private:
     Symbol *symbol;
     std::string name;
+    bool nonreturn;
 public:
-    Function() : symbol(nullptr) {}
+    Function() : symbol(nullptr), nonreturn(false) {}
 
     /** Create a fuzzy function named according to the original address. */
     Function(address_t originalAddress);
@@ -34,6 +35,9 @@ public:
         ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
+
+    bool returns() const { return !nonreturn; }
+    void setNonreturn() { nonreturn = true; }
 };
 
 class FunctionList : public ChunkSerializerImpl<TYPE_FunctionList,

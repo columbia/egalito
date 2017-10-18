@@ -132,12 +132,14 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
     partial.push_back(module->getChildren()->getNamed()->find("getifaddrs_internal"));
 #endif
 
-#if 1
-    GroupRegistry::getInstance()->applySetting("analysis", 9);
-    WARN("re-doing " << partial.size() << " tests\n");
-    for(auto f : partial) {
-        WARN("re-doing: " << f->getSymbol()->getName());
-        missingBounds(f);
+#if 0
+    if(partial.size() > 0) {
+        GroupRegistry::getInstance()->applySetting("analysis", 9);
+        WARN("re-doing " << partial.size() << " tests\n");
+        for(auto f : partial) {
+            WARN("re-doing: " << f->getSymbol()->getName());
+            missingBounds(f);
+        }
     }
 #endif
 }

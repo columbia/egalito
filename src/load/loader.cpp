@@ -15,6 +15,10 @@
 #include "pass/loginstr.h"
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
+#include "pass/collapseplt.h"
+#include "pass/usegstable.h"
+#include "pass/jitgsfixup.h"
+#include "runtime/managegs.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -46,6 +50,7 @@ void EgalitoLoader::generateCode() {
     setup.makeLoaderSandbox();
     otherPasses();
     setup.moveCode();
+    otherPassesAfterMove();
 
     setup.getConductor()->fixDataSections();
     setup.getConductor()->writeDebugElf("symbols.elf");
@@ -69,12 +74,14 @@ void EgalitoLoader::run(int argc, char *argv[]) {
     PrepareTLS::prepare(setup.getConductor());
 
     if(libc && libc->getElfSpace()) {
-        CallInit::callInitFunctions(libc->getElfSpace(), argv);
+        //CallInit::callInitFunctions(libc->getElfSpace(), argv);
     }
 
     // jump to the interpreter/target program (never returns)
     _start2();
 }
+
+static GSTable *gsTable;
 
 void EgalitoLoader::otherPasses() {
 #if 0  // add call logging?
@@ -93,9 +100,30 @@ void EgalitoLoader::otherPasses() {
     setup.getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
+#if 1
+    CollapsePLTPass collapsePLT;
+    setup.getConductor()->acceptInAllModules(&collapsePLT, true);
+#endif
+
+#if 1
+    gsTable = new GSTable();
+    //setup.getConductor()->getProgram()->getChildren()->add(gsTable);
+    UseGSTablePass useGSTable(gsTable);
+    setup.getConductor()->acceptInAllModules(&useGSTable, true);
+
+    JitGSFixup jitGSFixup(setup.getConductor(), gsTable);
+    setup.getConductor()->getProgram()->accept(&jitGSFixup);
+#endif
+
 #ifdef ARCH_X86_64
     PromoteJumpsPass promoteJumps;
     setup.getConductor()->acceptInAllModules(&promoteJumps, true);
+#endif
+}
+
+void EgalitoLoader::otherPassesAfterMove() {
+#if 1
+    ManageGS::init(gsTable);
 #endif
 }
 

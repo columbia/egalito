@@ -22,6 +22,7 @@ public:
     void parseEgalitoArchive(const char *archive);
 
     void resolvePLTLinks();
+    void resolveTLSLinks();
     void resolveWeak();
     void fixDataSections();
 

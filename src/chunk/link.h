@@ -133,6 +133,18 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class GSTableEntry;
+class GSTableLink : public Link {
+private:
+    GSTableEntry *entry;
+public:
+    GSTableLink(GSTableEntry *entry) : entry(entry) {}
+
+    GSTableEntry *getEntry() const { return entry; }
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+};
+
 // --- data links ---
 
 class DataSection;

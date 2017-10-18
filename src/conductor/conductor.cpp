@@ -9,6 +9,7 @@
 #include "chunk/serializer.h"
 #include "pass/internalcalls.h"
 #include "pass/resolveplt.h"
+#include "pass/resolvetls.h"
 #include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
 #include "pass/fixdataregions.h"
@@ -115,6 +116,11 @@ void Conductor::resolvePLTLinks() {
             LOG(1, "WARNING: don't have ElfSpace anymore for LibcHacks...");
         }
     }
+}
+
+void Conductor::resolveTLSLinks() {
+    ResolveTLSPass resolveTLS;
+    program->accept(&resolveTLS);
 }
 
 void Conductor::resolveWeak() {

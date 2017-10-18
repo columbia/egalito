@@ -61,7 +61,7 @@ protected:
     bool shouldSplitBlockAt(cs_insn *ins);
     bool shouldSplitFunctionDueTo(cs_insn *ins, address_t *target);
     bool shouldSplitFunctionDueTo2(cs_insn *ins, address_t start,
-        address_t *target);
+        address_t end, address_t *target);
 };
 
 class DisassembleX86Function : public DisassembleFunctionBase {
@@ -125,6 +125,8 @@ public:
     Instruction *instruction(cs_insn *ins);
     InstructionSemantic *instructionSemantic(Instruction *instr,
         const std::string &bytes, address_t address = 0);
+    InstructionSemantic *instructionSemantic(Instruction *instr,
+        const std::vector<unsigned char> &bytes, address_t address = 0);
 
     Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);

@@ -38,22 +38,27 @@ void ReloCheckPass::visit(Module *module) {
 }
 
 void ReloCheckPass::visit(Instruction *instruction) {
-    if(auto v = dynamic_cast<LinkedInstruction*>(instruction->getSemantic())) {
-        if(auto link = dynamic_cast<UnresolvedLink *>(v->getLink())) {
-            LOG(1, " unresolvedlink at " << std::hex
-                << instruction->getAddress()
-                << " to " << link->getTargetAddress());
-            auto f = dynamic_cast<Function *>(
-                instruction->getParent()->getParent());
-            LOG(1, " in " << f->getName() << " at " << f->getAddress());
-#if defined(ARCH_AARCH64)
-            if(dynamic_cast<LinkedLiteralInstruction *>(
-                instruction->getSemantic())) {
+    auto v1 = dynamic_cast<LinkedInstruction *>(instruction->getSemantic());
+    auto v2 = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());
 
-                LOG(10, "    from linkedliteral!");
-            }
-#endif
+    UnresolvedLink *link = nullptr;
+    if(v1 && !link) link = dynamic_cast<UnresolvedLink *>(v1->getLink());
+    if(v2 && !link) link = dynamic_cast<UnresolvedLink *>(v2->getLink());
+
+    if(link) {
+        LOG(1, " unresolvedlink at " << std::hex
+            << instruction->getAddress()
+            << " to " << link->getTargetAddress());
+        auto f = dynamic_cast<Function *>(
+            instruction->getParent()->getParent());
+        LOG(1, " in " << f->getName() << " at " << f->getAddress());
+#if defined(ARCH_AARCH64)
+        if(dynamic_cast<LinkedLiteralInstruction *>(
+            instruction->getSemantic())) {
+
+            LOG(10, "    from linkedliteral!");
         }
+#endif
     }
 }
 
@@ -160,9 +165,10 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                 if(link) {
                     if(auto sym = link->getSymbol()) {
                         if(sym->getBind() == Symbol::BIND_WEAK) {
-                            LOG(1, " [WEAK]");
+                            LOG0(1, " [WEAK]");
                         }
                     }
+                    LOG(1, "");
                 }
                 else {
                     LOG(1, std::hex << var->getDest()->getTargetAddress());

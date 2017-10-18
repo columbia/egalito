@@ -8,6 +8,7 @@
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
 #include "chunk/serializer.h"
+#include "chunk/gstable.h"  // for testing
 #include "generate/bingen.h"
 #include "operation/find.h"
 #include "operation/find2.h"
@@ -17,6 +18,8 @@
 #include "pass/noppass.h"
 #include "pass/detectnullptr.h"
 #include "pass/stackextend.h"
+#include "pass/usegstable.h"
+#include "pass/collapseplt.h"
 #include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -355,4 +358,25 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         serializer.serialize(setup->getConductor()->getProgram(),
             args.front().c_str());
     }, "generates an Egalito archive with the Chunk tree");
+
+    topLevel->add("usegstable", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        GSTable *gsTable = new GSTable();
+        UseGSTablePass useGSTable(gsTable);
+        setup->getConductor()->acceptInAllModules(&useGSTable, true);
+    }, "indirects calls through the GS table");
+
+    topLevel->add("collapseplt", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        CollapsePLTPass collapsePLT;
+        setup->getConductor()->acceptInAllModules(&collapsePLT, true);
+    }, "changes all instructions that target the PLT to use a direct reference");
 }

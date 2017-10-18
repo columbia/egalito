@@ -26,6 +26,7 @@ public:
     virtual ~ChunkList() {}
     virtual void genericAdd(Chunk *child) = 0;
     virtual void genericRemove(Chunk *child) = 0;
+    virtual void genericRemoveLast() = 0;
     virtual Chunk *genericGetLast() = 0;
     virtual Chunk *genericGetAt(size_t index) = 0;
     virtual void genericInsertAt(size_t index, Chunk *child) = 0;
@@ -54,6 +55,7 @@ public:
         { auto v = dynamic_cast<ChildType *>(child); if(v) add(v); }
     virtual void genericRemove(Chunk *child)
         { auto v = dynamic_cast<ChildType *>(child); if(v) remove(v); }
+    virtual void genericRemoveLast() { removeLast(); }
     virtual Chunk *genericGetLast() { return iterable.getLast(); }
     virtual Chunk *genericGetAt(size_t index) { return iterable.get(index); }
     virtual void genericInsertAt(size_t index, Chunk *child)

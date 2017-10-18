@@ -12,7 +12,9 @@
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
 #include "pass/fallthrough.h"
+#include "pass/nonreturn.h"
 #include "pass/splitbasicblock.h"
+#include "pass/splitfunction.h"
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
@@ -22,8 +24,11 @@
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
 #include "pass/jtoverestimate.h"
+#include "pass/removepadding.h"
+#include "pass/updatelink.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 void ConductorPasses::newElfPasses(ElfSpace *space) {
     ElfMap *elf = space->getElfMap();
@@ -34,6 +39,8 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
         space->getDynamicSymbolList(), relocList);
     space->setModule(module);
     module->setElfSpace(space);
+
+    RUN_PASS(RemovePadding(), module);
 
     space->setAliasMap(new FunctionAliasMap(module));
 
@@ -65,6 +72,15 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
 
     // this needs all blocks to be split to basic blocks
     RUN_PASS(InferLinksPass(elf), module);
+
+#ifdef ARCH_AARCH64
+    if(!space->getSymbolList()) {
+        RUN_PASS(NonReturnFunction(), module);
+        RUN_PASS(SplitFunction(), module);
+        RUN_PASS(RemovePadding(), module);
+        RUN_PASS(UpdateLink(), module);
+    }
+#endif
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {
