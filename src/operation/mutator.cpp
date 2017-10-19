@@ -97,7 +97,7 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
             delete nextChild->getPosition();
             nextChild->setPosition(nullptr);
 
-            ChunkMutator(next).makePositionFor(nextChild);
+            ChunkMutator(next, false).makePositionFor(nextChild);
         }
     }
 }
@@ -263,11 +263,12 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     // Staging area to temporarily store Instructions being moved from block
     // to newBlock.
     std::vector<Instruction *> moveInstr;
+    auto childrenList = block->getChildren()->getIterable();
     for(size_t i = leaveBehindCount; i < totalChildren; i ++) {
-        auto last = block->getChildren()->getIterable()->get(i);
+        auto last = childrenList->get(i);
         moveInstr.push_back(last);
     }
-    ChunkMutator(block).removeLast(totalChildren - leaveBehindCount);
+    ChunkMutator(block, false).removeLast(totalChildren - leaveBehindCount);
 
     // Clear old pointers and references from instructions.
     for(auto instr : moveInstr) {
@@ -280,7 +281,7 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
 
     // Append instructions from moveInstr to newBlock.
     {
-        ChunkMutator newMutator(newBlock);
+        ChunkMutator newMutator(newBlock, false);
         for(auto instr : moveInstr) {
             newMutator.append(instr);
             newMutator.makePositionFor(instr);

@@ -55,7 +55,7 @@ public:
     /** Removes a child. */
     void remove(Chunk *child);
 
-    /** Removes the last child from this chunk. */
+    /** Removes the last n children from this chunk. */
     void removeLast(int n = 1);
 
     /** Splits a block at an instruction
