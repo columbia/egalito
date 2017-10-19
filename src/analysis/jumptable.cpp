@@ -5,6 +5,7 @@
 #include "slicing.h"
 #include "slicingtree.h"
 #include "slicingmatch.h"
+#include "util/timing.h"
 
 #include "types.h"
 
@@ -33,6 +34,7 @@ void JumpTableSearch::search(Function *function) {
             search.sliceAt(i, j->getRegister());
             LOG(1, "slicing at " << i->getName() << " in " << function->getName());
 
+            //EgalitoTiming ttt("JumpTableSearch matching etc");
             JumpTableDescriptor descriptor(function, i);
 
             if(matchJumpTable(search.getInitialState(), &descriptor)

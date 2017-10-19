@@ -7,7 +7,10 @@
 #include "instr/concrete.h"
 #include "instr/memory.h"
 #include "disasm/dump.h"
+#include "util/timing.h"
 #include "log/log.h"
+
+//#define ENABLE_SLICING_DEBUG
 
 class SlicingInstructionState {
 public:
@@ -379,6 +382,7 @@ const char *SlicingUtilities::printReg(int reg) {
 }
 
 void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {
+#ifdef ENABLE_SLICING_DEBUG
     std::ostringstream output;
     output << "[";
 
@@ -397,9 +401,11 @@ void SlicingUtilities::printRegs(SearchState *state, bool withNewline) {
         << output.str());
 
     if(withNewline) LOG(11, "");
+#endif
 }
 
 void SlicingUtilities::printMems(SearchState *state, bool withNewline) {
+#ifdef ENABLE_SLICING_DEBUG
     std::ostringstream output;
     output << "[";
 
@@ -414,9 +420,11 @@ void SlicingUtilities::printMems(SearchState *state, bool withNewline) {
          << output.str());
 
     if(withNewline) LOG(11, "");
+#endif
 }
 
 void SlicingUtilities::printRegTrees(SearchState *state) {
+#ifdef ENABLE_SLICING_DEBUG
     const auto &regs = state->getRegs();
     for(size_t r = 0; r < regs.size(); r ++) {
         auto tree = state->getRegTree(r);
@@ -428,6 +436,7 @@ void SlicingUtilities::printRegTrees(SearchState *state) {
         IF_LOG(12) tree->print(TreePrinter(3, 1));
         LOG(12, "");
     }
+#endif
 }
 
 void SlicingUtilities::copyParentRegTrees(SearchState *state) {
@@ -441,6 +450,7 @@ void SlicingUtilities::copyParentRegTrees(SearchState *state) {
 }
 
 void SlicingUtilities::printMemTrees(SearchState *state) {
+#ifdef ENABLE_SLICING_DEBUG
     for(auto const &tree : state->getMemTrees()) {
         LOG0(12, "        MEM ");
         IF_LOG(12) tree.first->print(TreePrinter(3,1));
@@ -448,6 +458,7 @@ void SlicingUtilities::printMemTrees(SearchState *state) {
         IF_LOG(12) tree.second->print(TreePrinter(3, 1));
         LOG(12, "");
     }
+#endif
 }
 
 
@@ -606,6 +617,7 @@ void SlicingSearch::sliceAt(Instruction *instruction, int reg) {
 }
 
 void SlicingSearch::buildStatePass(SearchState *startState) {
+    //EgalitoTiming ttt("SlicingSearch::buildStatePass");
     // We perform a breadth-first search through parent CFG nodes
     // and generate this->stateList.
     std::vector<bool> visited(cfg->getCount());  // indexed by node ID
@@ -677,6 +689,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
 }
 
 void SlicingSearch::buildRegTreePass() {
+    //EgalitoTiming ttt("SlicingSearch::buildRegTreePass");
     LOG(11, "second pass iteration");
     int index = (getStep() < 0 ? stateList.size() - 1 : 0);
     for(; isIndexValid(stateList, index); index += getStep()) {
