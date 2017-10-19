@@ -123,6 +123,10 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         }
     }
 
+    if(immIndex < 0 && dispIndex < 0) {
+        return nullptr;
+    }
+
     auto linked = new LinkedInstruction(instruction, *assembly);
     if(immIndex >= 0 && dispIndex >= 0) {
         auto dualLink = new ImmAndDispLink(immLink, dispLink);
@@ -136,10 +140,6 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     else if(dispIndex >= 0) {
         linked->setIndex(dispIndex);
         linked->setLink(dispLink);
-    }
-    else {
-        delete linked;
-        return nullptr;
     }
     return linked;
 }
