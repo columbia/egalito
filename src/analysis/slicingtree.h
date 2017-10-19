@@ -237,6 +237,7 @@ private:
     std::vector<TreeNode *> parentList;
 public:
     void addParent(TreeNode *parent) { parentList.push_back(parent); }
+    void addParentIfNotPresent(TreeNode *parent);
 
     const std::vector<TreeNode *> &getParents() const { return parentList; }
     virtual void print(const TreePrinter &p) const;
@@ -246,7 +247,8 @@ public:
 class TreeFactory {
 private:
     std::vector<TreeNode *> trees;
-    std::map<Register, TreeNodePhysicalRegister *> regTrees;
+    std::map<int, TreeNodeRegister *> regTrees;
+    std::map<Register, TreeNodePhysicalRegister *> regPhysicalTrees;
 
 public:
     static TreeFactory& instance();
@@ -267,8 +269,14 @@ private:
     TreeFactory& operator=(const TreeFactory&);
     TreeFactory(const TreeFactory&);
 
+    TreeNodeRegister *makeTreeNodeRegister(int reg);
     TreeNodePhysicalRegister *makeTreeNodePhysicalRegister(
         Register reg, int width);
+};
+
+template <>
+inline TreeNodeRegister *TreeFactory::make(int reg) {
+    return makeTreeNodeRegister(reg);
 };
 
 template <>

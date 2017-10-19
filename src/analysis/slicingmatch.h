@@ -11,7 +11,7 @@ public:
     void add(TreeNode *node) { captureList.push_back(node); }
     TreeNode *get(int index) const { return captureList[index]; }
     size_t getCount() const { return captureList.size(); }
-    void clear() { captureList.clear(); }
+    bool clear() { captureList.clear(); return true; }
 };
 
 class TreePatternAny {
@@ -26,6 +26,25 @@ public:
     static bool matches(TreeNode *node, TreeCapture &capture)
         { return dynamic_cast<Type *>(node) != nullptr; }
 };
+
+template <typename Type>
+class TreePatternAtLeastOneParent {
+public:
+    static bool matches(TreeNode *node, TreeCapture &capture);
+};
+template <typename Type>
+bool TreePatternAtLeastOneParent<Type>::matches(
+    TreeNode *node, TreeCapture &capture) {
+
+    if(auto m = dynamic_cast<TreeNodeMultipleParents *>(node)) {
+        for(auto parent : m->getParents()) {
+            if(Type::matches(parent, capture)) return true;
+        }
+    }
+
+    return false;
+    //return Type::matches(node, capture);
+}
 
 template <typename Type, typename SubType>
 class TreePatternUnary {
@@ -99,8 +118,9 @@ template <typename Type>
 bool TreePatternCapture<Type>::matches(
     TreeNode *node, TreeCapture &capture) {
 
-    capture.add(node);
-    return Type::matches(node, capture);
+    bool found = Type::matches(node, capture);
+    if(found) capture.add(node);
+    return found;
 }
 
 template <int Wanted>

@@ -114,6 +114,13 @@ void TreeNodeMultipleParents::print(const TreePrinter &p) const {
     }
 }
 
+void TreeNodeMultipleParents::addParentIfNotPresent(TreeNode *parent) {
+    // Rather than spend quadratic time searching for matches, just look at
+    // the previous parent. This will remove some duplicates at least.
+    if(!parentList.empty() && parentList.back()->equal(parent)) return;
+    addParent(parent);
+}
+
 bool TreeNodeMultipleParents::equal(TreeNode *tree) {
     auto t = dynamic_cast<TreeNodeMultipleParents *>(tree);
     if(t) {
@@ -138,16 +145,27 @@ TreeFactory& TreeFactory::instance() {
     return factory;
 }
 
-TreeNodePhysicalRegister *TreeFactory::makeTreeNodePhysicalRegister(
-    Register reg, int width) {
-
+TreeNodeRegister *TreeFactory::makeTreeNodeRegister(int reg) {
     auto i = regTrees.find(reg);
     if(i != regTrees.end()) {
         return i->second;
     }
 
-    TreeNodePhysicalRegister *n = new TreeNodePhysicalRegister(reg, width);
+    TreeNodeRegister *n = new TreeNodeRegister(reg);
     regTrees.emplace(reg, n);
+    return n;
+}
+
+TreeNodePhysicalRegister *TreeFactory::makeTreeNodePhysicalRegister(
+    Register reg, int width) {
+
+    auto i = regPhysicalTrees.find(reg);
+    if(i != regPhysicalTrees.end()) {
+        return i->second;
+    }
+
+    TreeNodePhysicalRegister *n = new TreeNodePhysicalRegister(reg, width);
+    regPhysicalTrees.emplace(reg, n);
     return n;
 }
 
@@ -160,4 +178,6 @@ void TreeFactory::cleanAll() {
     clean();
     for(auto t : regTrees) { delete t.second; }
     regTrees.clear();
+    for(auto t : regPhysicalTrees) { delete t.second; }
+    regPhysicalTrees.clear();
 }

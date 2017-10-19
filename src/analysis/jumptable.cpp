@@ -75,6 +75,16 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
                 TreePatternConstantIs<4>>
         >
     > Form1;
+
+    typedef TreePatternBinaryAnyOrder<TreeNodeAddition,
+        TreePatternAtLeastOneParent<TreePatternLEA>,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternAtLeastOneParent<TreePatternCapture<TreePatternLEA>>,
+            TreePatternBinary<TreeNodeMultiplication,
+                TreePatternCapture<TreePatternAny>,
+                TreePatternConstantIs<4>>
+        >
+    > Form1_MultipleParents;
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     typedef TreePatternTerminal<TreeNodeAddress> TreePatternTargetBase;
 
@@ -99,7 +109,17 @@ bool JumpTableSearch::matchJumpTable(SearchState *state,
 #endif
 
     TreeCapture capture;
+    bool matched = false;
     if(Form1::matches(tree, capture)) {
+        matched = true;
+    }
+#ifdef ARCH_X86_64
+    else if(capture.clear() && Form1_MultipleParents::matches(tree, capture)) {
+        matched = true;
+    }
+#endif
+
+    if(matched) {
         LOG(1, "found jump table jump:");
         IF_LOG(1) tree->print(TreePrinter(1, 0));
         LOG(1, "");

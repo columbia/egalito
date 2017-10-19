@@ -568,13 +568,42 @@ TreeNode *SlicingUtilities::getParentRegTree(SearchState *state, int reg) {
         return tree;
     }
     else {
-        // unusual case: multiple parents, combine with branching node
+        // unusual case: multiple parents
+#define OPTIMIZE_TREES 1
+#ifdef OPTIMIZE_TREES
+        // first we see if all parents are identical, if so use just one
+        auto firstTree = parents[0]->getRegTree(reg);
+        bool allEqual = true;
+        for(size_t i = 1; i < parents.size(); i ++) {
+            auto currentTree = parents[i]->getRegTree(reg);
+            if(firstTree == currentTree) continue;  // mostly for nullptr
+
+            if((!firstTree && currentTree) || (firstTree && !currentTree)
+                || !currentTree->equal(firstTree)) {
+
+                allEqual = false;
+                break;
+            }
+        }
+
+        if(allEqual) {
+            state->setRegTree(reg, firstTree);
+            return firstTree;
+        }
+#endif
+
+        // nope, we need to combine parents with a branching node
         auto tree = TreeFactory::instance().make<TreeNodeMultipleParents>();
         for(auto p : parents) {
             auto t = p->getRegTree(reg);
             if(!t) t = TreeFactory::instance().make<TreeNodeRegister>(reg);
+#ifdef OPTIMIZE_TREES
+            tree->addParentIfNotPresent(t);
+#else
             tree->addParent(t);
+#endif
         }
+
         state->setRegTree(reg, tree);
         return tree;
     }
