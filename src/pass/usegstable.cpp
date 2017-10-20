@@ -3,6 +3,7 @@
 #include "instr/concrete.h"
 #include "operation/mutator.h"
 #include "disasm/disassemble.h"
+#include "chunk/dump.h"
 #include "log/log.h"
 
 void UseGSTablePass::visit(Block *block) {
@@ -13,15 +14,30 @@ void UseGSTablePass::visit(Block *block) {
             if(v->getMnemonic() == "callq") {
                 if(transformDirectCalls) rewriteDirectCall(block, instr);
             }
+            else if(auto link = v->getLink()) {
+                if(dynamic_cast<ExternalNormalLink *>(link)
+                    || dynamic_cast<ExternalOffsetLink *>(link)
+                    || dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
+
+                    rewriteTailRecursion(block, instr);
+                }
+            }
         }
         if(dynamic_cast<IndirectCallInstruction *>(instr->getSemantic())) {
             rewriteIndirectCall(block, instr);
+        }
+        if(auto v = dynamic_cast<IndirectJumpInstruction *>(instr->getSemantic())) {
+            if(!v->isForJumpTable()) {
+                rewriteIndirectTailRecursion(block, instr);
+            }
         }
     }
 }
 
 void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     auto i = static_cast<ControlFlowInstruction *>(instr->getSemantic());
+    if(!i->getLink()) return;
+
     Chunk *target = &*i->getLink()->getTarget();
     if(target == nullptr) {
         LOG(1, "WARNING: unknown target for direct call " << instr->getName()
@@ -54,9 +70,20 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 #endif
 }
 
-void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
+void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
+    ChunkDumper dumper;
+    LOG0(1, "rewrite tail recursion: ");
+    instr->accept(&dumper);
+}
 
+void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     ChunkMutator mutator(block);
+}
+
+void UseGSTablePass::rewriteIndirectTailRecursion(Block *block, Instruction *instr) {
+    ChunkDumper dumper;
+    LOG0(1, "rewrite indirect tail recursion: ");
+    instr->accept(&dumper);
 }
 
 #if 0

@@ -71,7 +71,7 @@ void JitGSFixup::visit(Program *program) {
 
 void JitGSFixup::resetGSTable() {
     for(auto entry : CIter::children(gsTable)) {
-        LOG(1, "set resolver for " << entry->getTarget()->getName());
+        LOG(12, "set resolver for " << entry->getTarget()->getName());
         entry->setLazyResolver(callback);
     }
 }

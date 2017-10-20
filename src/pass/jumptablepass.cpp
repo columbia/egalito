@@ -5,6 +5,7 @@
 #include "analysis/jumptabledetection.h"
 #include "config.h"
 #include "chunk/jumptable.h"
+#include "instr/concrete.h"  // for IndirectJumpInstruction
 #include "operation/find.h"
 #include "operation/find2.h"
 #include "elf/elfspace.h"
@@ -75,6 +76,14 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
                 module->getElfSpace()->getElfMap(), descriptor);
             count = jumpTable->getEntryCount();
             jumpTableList->getChildren()->add(jumpTable);
+
+            if(descriptor->getInstruction()) {
+                if(auto v = dynamic_cast<IndirectJumpInstruction *>(
+                    descriptor->getInstruction()->getSemantic())) {
+
+                    v->setJumpTable(jumpTable);
+                }
+            }
         }
         tableMap[jumpTable->getAddress()] = jumpTable;
 

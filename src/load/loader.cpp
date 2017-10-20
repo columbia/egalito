@@ -105,12 +105,12 @@ void EgalitoLoader::otherPasses() {
     setup.getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
-#if 0
+#if 1
     CollapsePLTPass collapsePLT;
     setup.getConductor()->acceptInAllModules(&collapsePLT, true);
 #endif
 
-#if 0
+#if 1
     gsTable = new GSTable();
     //setup.getConductor()->getProgram()->getChildren()->add(gsTable);
     UseGSTablePass useGSTable(gsTable);
@@ -127,7 +127,7 @@ void EgalitoLoader::otherPasses() {
 }
 
 void EgalitoLoader::otherPassesAfterMove() {
-#if 0
+#if 1
     ManageGS::init(gsTable);
 #endif
 }

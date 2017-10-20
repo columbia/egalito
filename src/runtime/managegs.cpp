@@ -27,7 +27,7 @@ void ManageGS::init(GSTable *gsTable) {
 
     address_t *array = static_cast<address_t *>(buffer);
     for(auto entry : CIter::children(gsTable)) {
-        LOG(9, "    gs@[" << std::dec << entry->getIndex() << "] -> "
+        LOG(12, "    gs@[" << std::dec << entry->getIndex() << "] -> "
             << entry->getTarget()->getName());
         array[entry->getIndex()] = entry->getTarget()->getAddress();
     }

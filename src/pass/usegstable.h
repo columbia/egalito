@@ -17,7 +17,9 @@ public:
     virtual void visit(Block *block);
 private:
     void rewriteDirectCall(Block *block, Instruction *instr);
+    void rewriteTailRecursion(Block *block, Instruction *instr);
     void rewriteIndirectCall(Block *block, Instruction *instr);
+    void rewriteIndirectTailRecursion(Block *block, Instruction *instr);
 };
 
 #endif

@@ -17,18 +17,26 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
+class JumpTable;
 class IndirectJumpInstruction : public IsolatedInstruction {
 private:
     Register reg;
     std::string mnemonic;
+    JumpTable *jumpTable;
 public:
     IndirectJumpInstruction(const Assembly &assembly, Register reg,
         const std::string &mnemonic)
         : IsolatedInstruction(assembly), reg(reg),
-        mnemonic(mnemonic) {}
+        mnemonic(mnemonic), jumpTable(nullptr) {}
 
     std::string getMnemonic() const { return mnemonic; }
     register_t getRegister() const { return reg; }
+
+    // After jump table passes have run, either the jumpTable pointer will be
+    // set, or this jump has another purpose (e.g. indirect tail recursion).
+    bool isForJumpTable() const { return jumpTable != nullptr; }
+    JumpTable *getJumpTable() const { return jumpTable; }
+    void setJumpTable(JumpTable *jumpTable) { this->jumpTable = jumpTable; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
