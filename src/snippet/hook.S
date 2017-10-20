@@ -8,8 +8,7 @@ egalito_hook_function_entry:
     push    %rbx
     mov     %rax, %rbx
     movb    $0x1, (%rax)
-    mov     0x8(%rsp), %rax
-    mov     %rax, %rdi
+    mov     0x8(%rsp), %rdi
     mov     egalito_hook_function_entry_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
     movb    $0x0, (%rbx)
@@ -51,8 +50,7 @@ egalito_hook_function_exit:
     push    %rbx
     mov     %rax, %rbx
     movb    $0x1, (%rax)
-    mov     0x8(%rsp), %rax
-    mov     %rax, %rdi
+    mov     0x8(%rsp), %rdi
     mov     egalito_hook_function_exit_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
     movb    $0x0, (%rbx)
@@ -93,8 +91,7 @@ egalito_hook_instruction:
     push    %rbx
     mov     %rax, %rbx
     movb    $0x1, (%rax)
-    mov     0x8(%rsp), %rax
-    mov     %rax, %rdi
+    mov     0x8(%rsp), %rdi
     mov     egalito_hook_instruction_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
     movb    $0x0, (%rbx)
@@ -116,9 +113,7 @@ egalito_hook_jit_fixup:
     push    %rbx
     mov     %rax, %rbx
     movb    $0x1, (%rax)
-    #mov     0x8(%rsp), %rax
-    #mov     %rax, %rdi
-    lea     0x8(%rsp), %rdi
+    lea     0x8(%rsp), %rdi  # lea, not mov
     mov     egalito_hook_jit_fixup_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
     movb    $0x0, (%rbx)

@@ -2,7 +2,8 @@
 mkdir tmp 2>/dev/null
 
 ln -s ../../src/libegalito.so ./libegalito.so || true
-EGALITO_DEBUG=/dev/null ../../src/loader ../binary/target/redzone/redzone > tmp/redzone-output.txt
+EGALITO_LOG_INSTRUCTION_PASS=1 EGALITO_DEBUG=/dev/null ../../src/loader \
+    ../binary/target/redzone/redzone > tmp/redzone-output.txt
 
 grep -q "\[redzone_output\] 153295" tmp/redzone-output.txt
 
