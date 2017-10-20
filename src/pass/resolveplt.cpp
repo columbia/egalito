@@ -25,7 +25,7 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
         pltTrampoline->setTarget(found);
     }
     else {
-        LOG(1, "unresolved pltTrampoline target "
+        LOG(12, "unresolved pltTrampoline target "
             << symbol->getName() << " unused?");
     }
 }

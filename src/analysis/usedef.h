@@ -350,6 +350,7 @@ private:
         unsigned int value);
 
 #ifdef ARCH_X86_64
+    size_t inferAccessWidth(const cs_x86_op *op);
     void fillAddOrSub(UDState *state, Assembly *assembly);
     void fillLea(UDState *state, Assembly *assembly);
     void fillMov(UDState *state, Assembly *assembly);

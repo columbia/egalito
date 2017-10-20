@@ -1107,6 +1107,14 @@ void UseDef::fillRegRegRegToReg(UDState *state, Assembly *assembly) {
 }
 
 #ifdef ARCH_X86_64
+size_t UseDef::inferAccessWidth(const cs_x86_op *op) {
+    if(op->type != X86_OP_MEM && op->type != X86_OP_REG) {
+        LOG(1, "don't know how to infer width of operand type "
+            << static_cast<int>(op->type) << ", blindly assuming 8");
+        return 8;  // default to 8
+    }
+    return op->size;
+}
 void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
@@ -1119,8 +1127,8 @@ void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
 void UseDef::fillLea(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_MEM_REG) {
-        size_t width = 8;
-        LOG(1, "how do I find the width? -- blindly assuming 8");
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
         fillMemToReg(state, assembly, width);
     }
     else {
@@ -1130,13 +1138,13 @@ void UseDef::fillLea(UDState *state, Assembly *assembly) {
 void UseDef::fillMov(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
-        size_t width = 8;
-        LOG(1, "how do I find the width? -- blindly assuming 8");
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
         fillRegToMem(state, assembly, width);
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
-        size_t width = 8;
-        LOG(1, "how do I find the width? -- blindly assuming 8");
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
         fillMemToReg(state, assembly, width);
     }
     else {
@@ -1146,8 +1154,8 @@ void UseDef::fillMov(UDState *state, Assembly *assembly) {
 void UseDef::fillPush(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG) {
-        size_t width = 8;
-        LOG(1, "how do I find the width? -- blindly assuming 8");
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
         fillRegToMem(state, assembly, width);
     }
     else {

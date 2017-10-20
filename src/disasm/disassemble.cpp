@@ -461,7 +461,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         DwarfFDE *fde = *it;
         Range range(fde->getPcBegin(), fde->getPcRange());
         if(knownFunctions.add(range)) {
-            LOG(1, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
+            LOG(12, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
                 << fde->getPcRange() << "]");
         }
         else {
@@ -482,7 +482,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     splitRanges.getRoot()->inStartOrderTraversal([&] (Range func) {
         Range bound;
         if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
-            LOG(1, "looks like function " << func << " may have some padding");
+            LOG(10, "looks like function " << func << " may have some padding");
             if(func.getEnd() == bound.getEnd() || bound.contains(func.getEnd())) {
                 functionsWithoutPadding.add(Range::fromEndpoints(
                     func.getStart(), bound.getStart()));
@@ -498,7 +498,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     knownFunctions.getRoot()->inStartOrderTraversal([&] (Range func) {
         Range bound;
         if(functionPadding.findLowerBoundOrOverlapping(func.getEnd(), &bound)) {
-            LOG(1, "looks like function " << func << " may have some padding");
+            LOG(10, "looks like function " << func << " may have some padding");
             if(func.getEnd() == bound.getEnd() || bound.contains(func.getEnd())) {
                 // Subtracts func, and if any single range would be subtracted,
                 // we also subtract the nop padding from that range. This
@@ -538,7 +538,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
     FunctionList *functionList = new FunctionList();
     for(const Range &range : intervalList) {
-        LOG(1, "Split into function " << range << " at section offset "
+        LOG(11, "Split into function " << range << " at section offset "
             << section->convertVAToOffset(range.getStart()));
         Function *function = fuzzyFunction(range, section);
         functionList->getChildren()->add(function);
@@ -961,7 +961,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     }
 
     if(block->getSize() > 0) {
-        CLOG0(9, "fall-through function [%s]... "
+        CLOG0(10, "fall-through function [%s]... "
             "adding basic block\n", function->getName().c_str());
         ChunkMutator(function, false).append(block);
     }
