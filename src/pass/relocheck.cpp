@@ -38,20 +38,25 @@ void ReloCheckPass::visit(Module *module) {
 }
 
 void ReloCheckPass::visit(Instruction *instruction) {
-    auto v1 = dynamic_cast<LinkedInstruction *>(instruction->getSemantic());
-    auto v2 = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());
-
     UnresolvedLink *link = nullptr;
-    if(v1 && !link) link = dynamic_cast<UnresolvedLink *>(v1->getLink());
-    if(v2 && !link) link = dynamic_cast<UnresolvedLink *>(v2->getLink());
+    if(auto v = dynamic_cast<LinkedInstruction *>(
+        instruction->getSemantic())) {
+
+        link = dynamic_cast<UnresolvedLink *>(v->getLink());
+    }
+    if(auto v = dynamic_cast<ControlFlowInstruction *>(
+        instruction->getSemantic())) {
+
+        link = dynamic_cast<UnresolvedLink *>(v->getLink());
+    }
 
     if(link) {
-        LOG(1, " unresolvedlink at " << std::hex
+        LOG(1, " unresolved link at " << std::hex
             << instruction->getAddress()
             << " to " << link->getTargetAddress());
         auto f = dynamic_cast<Function *>(
             instruction->getParent()->getParent());
-        LOG(1, " in " << f->getName() << " at " << f->getAddress());
+        LOG(10, " in " << f->getName() << " at " << f->getAddress());
 #if defined(ARCH_AARCH64)
         if(dynamic_cast<LinkedLiteralInstruction *>(
             instruction->getSemantic())) {
