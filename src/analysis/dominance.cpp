@@ -37,7 +37,7 @@ Dominance::Dominance(ControlFlowGraph *cfg)
             bool first = true;
             ControlFlow::id_t idom = -1;
             for(auto link : node->backwardLinks()) {
-                auto pred = link.getID();
+                auto pred = link->getTargetID();
                 if(idoms[idMap[pred]] != -1) {
                     if(first) {
                         idom = pred;

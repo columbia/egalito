@@ -44,7 +44,7 @@ void NonReturnFunction::visit(Function *function) {
                     //cfg.dump();
                     Dominance dom(&cfg);
                     auto pdom = dom.getPostDominators(0);
-                    auto nid = cfg.get(block)->getID();
+                    auto nid = cfg.getIDFor(block);
                     if(std::find(pdom.begin(), pdom.end(), nid) == pdom.end()) {
                         continue;
                     }

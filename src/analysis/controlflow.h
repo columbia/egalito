@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include "analysis/graph.h"
 #include "util/iter.h"
 
 class Function;
@@ -13,7 +14,7 @@ namespace ControlFlow {
     typedef int id_t;
 };
 
-class ControlFlowLink {
+class ControlFlowLink : public GraphLinkBase {
 public:
     using id_t = ControlFlow::id_t;
 private:
@@ -24,44 +25,43 @@ public:
     ControlFlowLink(id_t id, int offset = 0, bool followJump = true)
         : id(id), offset(offset), followJump(followJump) {}
 
-    id_t getID() const { return id; }
+    virtual id_t getTargetID() const { return id; }
     int getOffset() const { return offset; }
     bool getFollowJump() const { return followJump; }
 };
 
-class ControlFlowNode {
+class ControlFlowNode : public GraphNodeBase {
 public:
     using id_t = ControlFlow::id_t;
 private:
     id_t id;
     Block *block;
 private:
-    typedef std::vector<ControlFlowLink> ListType;
+    using GraphNodeBase::ListType;
     ListType links;
     ListType reverseLinks;
 public:
     ControlFlowNode(id_t id, Block *block) : id(id), block(block) {}
+    ~ControlFlowNode() {}
 
-    id_t getID() const { return id; }
+    virtual id_t getID() const { return id; }
     Block *getBlock() const { return block; }
 
-    void addLink(const ControlFlowLink &link)
-        { links.push_back(link); }
-    void addReverseLink(const ControlFlowLink &rlink)
-        { reverseLinks.push_back(rlink); }
+    void addLink(const ControlFlowLink &link);
+    void addReverseLink(const ControlFlowLink &rlink);
 
     ConcreteIterable<ListType> forwardLinks()
         { return ConcreteIterable<ListType>(links); }
     ConcreteIterable<ListType> backwardLinks()
         { return ConcreteIterable<ListType>(reverseLinks); }
 
-    ConcreteIterable<ListType> getLinks(int direction)
+    virtual ConcreteIterable<ListType> getLinks(int direction)
         { return (direction > 0) ? forwardLinks() : backwardLinks(); }
 
     std::string getDescription();
 };
 
-class ControlFlowGraph {
+class ControlFlowGraph : public GraphBase {
 public:
     using id_t = ControlFlow::id_t;
 private:
@@ -69,13 +69,13 @@ private:
     std::map<Block *, id_t> blockMapping;
 public:
     ControlFlowGraph(Function *function);
-    virtual ~ControlFlowGraph() {}
+    virtual ~ControlFlowGraph();
 
-    ControlFlowNode *get(id_t id)
+    virtual ControlFlowNode *get(id_t id)
         { return &graph[id]; }
-    ControlFlowNode *get(Block *block)
-        { return &graph[blockMapping[block]]; }
-    size_t getCount() const { return graph.size(); }
+    virtual size_t getCount() const { return graph.size(); }
+
+    id_t getIDFor(Block *block) { return blockMapping[block]; }
 
     void dump();
     void dumpDot();

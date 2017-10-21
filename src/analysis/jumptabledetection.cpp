@@ -363,7 +363,7 @@ bool JumptableDetection::getBoundFromCompare(UDState *state, int bound,
         IF_LOG(10) s->dumpState();
 
         for(auto link : s->getNode()->forwardLinks()) {
-            if(link.getID() == jumpNodeID) {
+            if(link->getTargetID() == jumpNodeID) {
                 branches.push_back(s);
             }
         }
@@ -398,7 +398,7 @@ bool JumptableDetection::getBoundFromCompareAndBranch(UDState *state, int reg,
     auto jumpNodeID = info->jumpState->getNode()->getID();
 
     for(auto link : state->getNode()->forwardLinks()) {
-        if(link.getID() == jumpNodeID) {
+        if(link->getTargetID() == jumpNodeID) {
             LOG(1, "NYI: condition register is " << reg);
             break;
         }

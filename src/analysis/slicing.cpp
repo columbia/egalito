@@ -635,7 +635,7 @@ void SlicingUtilities::copyParentMemTrees(SearchState *state) {
 
 void SlicingSearch::sliceAt(Instruction *instruction, int reg) {
     auto block = dynamic_cast<Block *>(instruction->getParent());
-    auto node = cfg->get(block);
+    auto node = cfg->get(cfg->getIDFor(block));
     LOG(11, "begin slicing at " << instruction->getName());
 
     SearchState *startState = makeSearchState(node, instruction);
@@ -697,9 +697,10 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
         if(stillSearching) {
             // find all nodes that link to this one, keep searching there
             for(auto link : node->getLinks(getStep())) {
-                auto newNode = cfg->get(link.getID());
+                auto newNode = cfg->get(link->getTargetID());
                 if(!visited[newNode->getID()]) {
-                    auto offset = link.getOffset();
+                    auto cflink = static_cast<ControlFlowLink *>(link);
+                    auto offset = cflink->getOffset();
                     Instruction *newStart
                         = newNode->getBlock()->getChildren()->getSpatial()->find(
                             newNode->getBlock()->getAddress() + offset);
@@ -708,7 +709,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
                     SearchState *newState = makeSearchState(*currentState);
                     newState->setNode(newNode);
                     newState->setInstruction(newStart);
-                    newState->setJumpTaken(link.getFollowJump());
+                    newState->setJumpTaken(cflink->getFollowJump());
                     transitionList.push_back(newState);
                     setParent(currentState, newState);
                 }

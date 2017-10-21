@@ -278,13 +278,13 @@ void UDWorkingSet::transitionTo(ControlFlowNode *node) {
     regSet->clear();
     memSet->clear();
     for(auto link : node->backwardLinks()) {
-        for(auto mr : nodeExposedRegSetList[link.getID()]) {
+        for(auto mr : nodeExposedRegSetList[link->getTargetID()]) {
             for(auto o : mr.second) {
                 addToRegSet(mr.first, o);
             }
         }
 
-        memSet->addList(nodeExposedMemSetList[link.getID()]);
+        memSet->addList(nodeExposedMemSetList[link->getTargetID()]);
     }
 }
 
@@ -322,7 +322,7 @@ UDRegMemWorkingSet::UDRegMemWorkingSet(
     : UDWorkingSet(cfg), function(function), cfg(cfg) {
 
     for(auto block : CIter::children(function)) {
-        auto node = cfg->get(block);
+        auto node = cfg->get(cfg->getIDFor(block));
         for(auto instr : CIter::children(block)) {
             stateList.emplace_back(node, instr);
 #ifdef ARCH_X86_64

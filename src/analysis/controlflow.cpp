@@ -9,6 +9,14 @@
 #include "pass/chunkpass.h"
 #include "log/log.h"
 
+void ControlFlowNode::addLink(const ControlFlowLink &link) {
+    links.emplace_back(new ControlFlowLink(link));
+}
+
+void ControlFlowNode::addReverseLink(const ControlFlowLink &rlink) {
+    reverseLinks.emplace_back(new ControlFlowLink(rlink));
+}
+
 std::string ControlFlowNode::getDescription() {
     std::ostringstream stream;
     stream << "node " << getID()
@@ -19,6 +27,19 @@ std::string ControlFlowNode::getDescription() {
 ControlFlowGraph::ControlFlowGraph(Function *function) {
     // do a breadth-first pass over the function
     construct(function);
+}
+
+ControlFlowGraph::~ControlFlowGraph() {
+    // link should not be deleted everytime node is deleted because node
+    // can be copied
+    for(auto& node : graph) {
+        for(auto link : node.forwardLinks()) {
+            delete &*link;
+        }
+        for(auto link : node.backwardLinks()) {
+            delete &*link;
+        }
+    }
 }
 
 void ControlFlowGraph::construct(Function *function) {
@@ -205,20 +226,22 @@ bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
 
 void ControlFlowGraph::dump() {
     LOG(1, "Control flow graph:");
-    for(auto node : graph) {
+    for(auto& node : graph) {
         LOG(1, "    " << node.getDescription());
         LOG0(1, "        forward links:");
-        for(auto link : node.forwardLinks()) {
-            LOG0(1, " " << link.getID() << " ("
-                << graph[link.getID()].getBlock()->getName()
-                << ") + " << std::dec << link.getOffset() << ";");
+        for(const auto& link : node.forwardLinks()) {
+            auto cflink = dynamic_cast<ControlFlowLink *>(&*link);
+            LOG0(1, " " << cflink->getTargetID() << " ("
+                << graph[cflink->getTargetID()].getBlock()->getName()
+                << ") + " << std::dec << cflink->getOffset() << ";");
         }
         LOG(1, "");
         LOG0(1, "        backward links:");
         for(auto link : node.backwardLinks()) {
-            LOG0(1, " " << link.getID() << " ("
-                << graph[link.getID()].getBlock()->getName()
-                << ") + " << std::dec << link.getOffset() << ";");
+            auto cflink = dynamic_cast<ControlFlowLink *>(&*link);
+            LOG0(1, " " << cflink->getTargetID() << " ("
+                << graph[cflink->getTargetID()].getBlock()->getName()
+                << ") + " << std::dec << cflink->getOffset() << ";");
         }
         LOG(1, "");
     }
@@ -229,18 +252,20 @@ void ControlFlowGraph::dumpDot() {
 
     LOG(1, "Control flow graph (DOT):");
     LOG(1, "digraph G {");
-    for(auto node : graph) {
+    for(auto& node : graph) {
         std::smatch match1, match2;
 
         auto nodeName = node.getBlock()->getName();
         std::regex_search(nodeName, match1, e);
 
-        for(auto link : node.forwardLinks()) {
-            auto linkName = graph[link.getID()].getBlock()->getName();
+        for(const auto& link : node.forwardLinks()) {
+            auto cflink = dynamic_cast<ControlFlowLink *>(&*link);
+            auto linkName = graph[cflink->getTargetID()].getBlock()->getName();
             std::regex_search(linkName, match2, e);
 
             LOG(1, " \"" << node.getID() << "(" << match1[1] << ")\""
-                << " -> \"" << link.getID() << "(" << match2[1] << ")\"");
+                << " -> \"" << cflink->getTargetID()
+                << "(" << match2[1] << ")\"");
         }
     }
     LOG(1, "}");

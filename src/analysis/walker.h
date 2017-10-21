@@ -3,29 +3,29 @@
 
 #include <vector>
 #include <algorithm>
-#include "controlflow.h"
+#include "analysis/graph.h"
 #include "util/iter.h"
 
 template <typename DerivedType>
 class DFSWalkerBase {
 private:
-    ControlFlowGraph *cfg;
+    GraphBase *graph;
     std::vector<bool> visited;
 
 protected:
-    DFSWalkerBase(ControlFlowGraph *cfg) : cfg(cfg) {}
+    DFSWalkerBase(GraphBase *graph) : graph(graph) {}
     void walk(int id, int dir) {
-        visited.assign(cfg->getCount(), false);
+        visited.assign(graph->getCount(), false);
         reset();
         walkHelper(id, dir);
         finish();
     }
 
     void walkAll(int id, int dir) {
-        visited.assign(cfg->getCount(), false);
+        visited.assign(graph->getCount(), false);
         reset();
         walkHelper(id, dir);
-        for(size_t i = 1; i < cfg->getCount(); i++) {
+        for(size_t i = 1; i < graph->getCount(); i++) {
             if(!visited[i]) {
                 tick();
                 walkHelper(i, dir);
@@ -37,17 +37,17 @@ protected:
 private:
     void walkHelper(int id, int dir) {
         visited[id] = true;
-        preVisit(cfg->get(id));
-        for(auto &link : cfg->get(id)->getLinks(dir)) {
-            auto n = link.getID();
+        preVisit(graph->get(id));
+        for(auto link : graph->get(id)->getLinks(dir)) {
+            auto n = link->getTargetID();
             if(!visited[n]) {
-                walkHelper(link.getID(), dir);
+                walkHelper(link->getTargetID(), dir);
             }
             else {
-                lateVisit(cfg->get(id), &link);
+                lateVisit(graph->get(id), &*link);
             }
         }
-        postVisit(cfg->get(id));
+        postVisit(graph->get(id));
     };
 
     DerivedType &derived() {
@@ -57,9 +57,9 @@ private:
     void reset() { derived().reset(); }
     void tick() { derived().tick(); }
     void finish() { derived().finish(); }
-    void preVisit(ControlFlowNode *node) { derived().preVisit(node); }
-    void postVisit(ControlFlowNode *node) { derived().postVisit(node); }
-    void lateVisit(ControlFlowNode *from, ControlFlowLink *link)
+    void preVisit(GraphNodeBase *node) { derived().preVisit(node); }
+    void postVisit(GraphNodeBase *node) { derived().postVisit(node); }
+    void lateVisit(GraphNodeBase *from, GraphLinkBase *link)
         { derived().lateVisit(from, link); }
 };
 
@@ -94,8 +94,8 @@ private:
     std::vector<std::vector<int>> order;
     int lap;
 public:
-    NodeCollection(ControlFlowGraph *cfg)
-        : order(cfg->getCount()), lap(0) {}
+    NodeCollection(GraphBase *graph)
+        : order(graph->getCount()), lap(0) {}
 
     const std::vector<std::vector<int>>& get() const { return order; }
 
@@ -108,13 +108,13 @@ public:
         lap++;
         order.push_back(std::vector<int>());
     }
-    void preVisit(ControlFlowNode *node) {
+    void preVisit(GraphNodeBase *node) {
         VisitType().preVisit(&order[lap], node->getID());
     }
-    void postVisit(ControlFlowNode *node) {
+    void postVisit(GraphNodeBase *node) {
         VisitType().postVisit(&order[lap], node->getID());
     }
-    void lateVisit(ControlFlowNode *from, ControlFlowLink *link) { }
+    void lateVisit(GraphNodeBase *from, GraphLinkBase *link) { }
     void finish() {
         for(auto& o : order) {
             FinishType().finish(&o);
@@ -125,7 +125,7 @@ public:
 template <int Direction, typename VisitType, typename FinishType>
 class SccCollection {
 private:
-    ControlFlowGraph *cfg;
+    GraphBase *graph;
     int scc;
     int disc;
     std::vector<int> discovery;
@@ -136,10 +136,10 @@ private:
     std::vector<std::vector<int>> sccOrder;
 
 public:
-    SccCollection(ControlFlowGraph *cfg)
-        : cfg(cfg), scc(0), disc(0),
-          discovery(cfg->getCount()), lowLink(cfg->getCount()),
-          onStack(cfg->getCount()) {}
+    SccCollection(GraphBase *graph)
+        : graph(graph), scc(0), disc(0),
+          discovery(graph->getCount()), lowLink(graph->getCount()),
+          onStack(graph->getCount()) {}
 
     const std::vector<std::vector<int>>& get() const { return sccOrder; }
 
@@ -150,18 +150,18 @@ public:
         sccOrder.push_back(std::vector<int>());
     }
     void tick() {}
-    void preVisit(ControlFlowNode *node) {
+    void preVisit(GraphNodeBase *node) {
         discovery[node->getID()] = disc;
         lowLink[node->getID()] = disc;
         stack.push_back(node->getID());
         onStack[node->getID()] = true;
         ++disc;
     }
-    void postVisit(ControlFlowNode *node) {
-        for(const auto& link : node->getLinks(Direction)) {
-            if(discovery[node->getID()] < discovery[link.getID()]) {
+    void postVisit(GraphNodeBase *node) {
+        for(auto link : node->getLinks(Direction)) {
+            if(discovery[node->getID()] < discovery[link->getTargetID()]) {
                 lowLink[node->getID()] = std::min(lowLink[node->getID()],
-                                                  lowLink[link.getID()]);
+                                                  lowLink[link->getTargetID()]);
             }
         }
         poStack.push_back(node->getID());
@@ -181,10 +181,10 @@ public:
             sccOrder.push_back(std::vector<int>());
         }
     }
-    void lateVisit(ControlFlowNode *from, ControlFlowLink *link) {
-        if(onStack[link->getID()]) {
+    void lateVisit(GraphNodeBase *from, GraphLinkBase *link) {
+        if(onStack[link->getTargetID()]) {
             lowLink[from->getID()] = std::min(lowLink[from->getID()],
-                                              discovery[link->getID()]);
+                                              discovery[link->getTargetID()]);
         }
     }
     void finish() {
@@ -212,8 +212,8 @@ private:
         OrderOnCFG<Direction, VisitType, FinishType, CollectType>> BaseType;
 
 public:
-    OrderOnCFG(ControlFlowGraph *cfg)
-        : BaseType(cfg), collector(cfg) {}
+    OrderOnCFG(GraphBase *graph)
+        : BaseType(graph), collector(graph) {}
 
     void gen(int id) { BaseType::walk(id, Direction); }
     void genFull(int id) { BaseType::walkAll(id, Direction); }
@@ -224,9 +224,9 @@ public:
 private:
     void reset() { collector.reset(); }
     void tick() { collector.tick(); }
-    void preVisit(ControlFlowNode *node) { collector.preVisit(node); }
-    void postVisit(ControlFlowNode *node) { collector.postVisit(node); }
-    void lateVisit(ControlFlowNode *from, ControlFlowLink *link)
+    void preVisit(GraphNodeBase *node) { collector.preVisit(node); }
+    void postVisit(GraphNodeBase *node) { collector.postVisit(node); }
+    void lateVisit(GraphNodeBase *from, GraphLinkBase *link)
         { collector.lateVisit(from, link); }
     void finish() { collector.finish(); }
 };
@@ -258,8 +258,8 @@ typedef OrderOnCFG<
 
 // this should better be implemented with iterator to walk tree
 template <typename OrderType>
-bool isReachable(ControlFlowGraph *cfg, int src, int dest) {
-    OrderType walker(cfg);
+bool isReachable(GraphBase *graph, int src, int dest) {
+    OrderType walker(graph);
     walker.gen(src);
     for(auto n : walker.get()[0]) {
         if(n == dest) {
