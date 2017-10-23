@@ -84,6 +84,12 @@ void EgalitoLoader::run(int argc, char *argv[]) {
 
 static GSTable *gsTable;
 
+static bool isFeatureEnabled(const char *name) {
+    const char *variable = getenv(name);
+
+    return variable && strtol(variable, nullptr, 0) != 0;
+}
+
 void EgalitoLoader::otherPasses() {
 #if 0  // add call logging?
     LogCallsPass logCalls(setup.getConductor());
@@ -92,11 +98,9 @@ void EgalitoLoader::otherPasses() {
 #endif
 
 #if 1  // add instruction logging?
-    if(auto p = getenv("EGALITO_LOG_INSTRUCTION_PASS")) {
-        if(strtol(p, nullptr, 0) != 0) {
-            RUN_PASS(LogInstructionPass(setup.getConductor()),
-                setup.getConductor()->getProgram()->getMain());
-        }
+    if(isFeatureEnabled("EGALITO_LOG_INSTRUCTION_PASS")) {
+        RUN_PASS(LogInstructionPass(setup.getConductor()),
+            setup.getConductor()->getProgram()->getMain());
     }
 #endif
 
@@ -111,13 +115,15 @@ void EgalitoLoader::otherPasses() {
 #endif
 
 #if 1
-    gsTable = new GSTable();
-    //setup.getConductor()->getProgram()->getChildren()->add(gsTable);
-    UseGSTablePass useGSTable(gsTable);
-    setup.getConductor()->acceptInAllModules(&useGSTable, true);
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        gsTable = new GSTable();
+        //setup.getConductor()->getProgram()->getChildren()->add(gsTable);
+        UseGSTablePass useGSTable(gsTable);
+        setup.getConductor()->acceptInAllModules(&useGSTable, true);
 
-    JitGSFixup jitGSFixup(setup.getConductor(), gsTable);
-    setup.getConductor()->getProgram()->accept(&jitGSFixup);
+        JitGSFixup jitGSFixup(setup.getConductor(), gsTable);
+        setup.getConductor()->getProgram()->accept(&jitGSFixup);
+    }
 #endif
 
 #ifdef ARCH_X86_64
@@ -128,7 +134,9 @@ void EgalitoLoader::otherPasses() {
 
 void EgalitoLoader::otherPassesAfterMove() {
 #if 1
-    ManageGS::init(gsTable);
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        ManageGS::init(gsTable);
+    }
 #endif
 }
 
