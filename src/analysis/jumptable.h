@@ -11,10 +11,14 @@ class SearchState;
 class SlicingSearch;
 class TreeNode;
 
+/** Represents a single jump table as identified from program slicing (from
+    indirect jumps). Tables are deduplicated later, so there could be multiple
+    descriptors which use the same jump table data.
+*/
 class JumpTableDescriptor {
 private:
     Function *function;
-    Instruction *instruction;
+    Instruction *instruction;  // indirect jump to this jump table
     address_t address;
     address_t targetBaseAddress;
     TreeNode *indexExpr;

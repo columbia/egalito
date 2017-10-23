@@ -76,16 +76,10 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
                 module->getElfSpace()->getElfMap(), descriptor);
             count = jumpTable->getEntryCount();
             jumpTableList->getChildren()->add(jumpTable);
-
-            if(descriptor->getInstruction()) {
-                if(auto v = dynamic_cast<IndirectJumpInstruction *>(
-                    descriptor->getInstruction()->getSemantic())) {
-
-                    v->setJumpTable(jumpTable);
-                }
-            }
         }
         tableMap[jumpTable->getAddress()] = jumpTable;
+
+        jumpTable->addJumpInstruction(descriptor->getInstruction());
 
         // create JumpTableEntry's
         makeChildren(jumpTable, count);

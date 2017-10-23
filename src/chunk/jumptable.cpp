@@ -1,6 +1,8 @@
+#include <cassert>
 #include "jumptable.h"
 #include "visitor.h"
 #include "analysis/jumptable.h"
+#include "instr/concrete.h"
 #include "elf/elfmap.h"
 #include "log/log.h"
 
@@ -19,12 +21,23 @@ Function *JumpTable::getFunction() const {
     return descriptor->getFunction();
 }
 
-Instruction *JumpTable::getInstruction() const {
-    return descriptor->getInstruction();
+std::vector<Instruction *> JumpTable::getJumpInstructionList() const {
+    return jumpInstrList;
 }
 
 long JumpTable::getEntryCount() const {
     return descriptor->getEntries();
+}
+
+void JumpTable::addJumpInstruction(Instruction *instr) {
+    jumpInstrList.push_back(instr);
+
+    auto v = dynamic_cast<IndirectJumpInstruction *>(instr->getSemantic());
+    assert(v != nullptr);
+
+    v->setJumpTable(this);
+    LOG(1, "OK, instr " << instr->getName()
+        << " knows about jump table: " << v->getJumpTable());
 }
 
 void JumpTable::accept(ChunkVisitor *visitor) {

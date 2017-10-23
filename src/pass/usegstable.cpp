@@ -82,7 +82,8 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
 
 void UseGSTablePass::rewriteIndirectTailRecursion(Block *block, Instruction *instr) {
     ChunkDumper dumper;
-    LOG0(1, "rewrite indirect tail recursion: ");
+    LOG0(1, "rewrite indirect tail recursion in ["
+        << instr->getParent()->getParent()->getName() << "]: ");
     instr->accept(&dumper);
 }
 

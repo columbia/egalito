@@ -20,19 +20,27 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
+/** Assembly-level jump table chunk. Contains a list of JumpTableEntry's as
+    children. Also stores a list of indirect jumps that reference this table.
+
+    If the jump table could not be fully analyzed, getEntryCount() will return
+    -1 and there will be no JumpTableEntry children.
+*/
 class JumpTable : public CompositeChunkImpl<JumpTableEntry> {
 private:
     JumpTableDescriptor *descriptor;
+    std::vector<Instruction *> jumpInstrList;
 public:
     JumpTable(ElfMap *elf, JumpTableDescriptor *descriptor);
 
     Function *getFunction() const;
-    Instruction *getInstruction() const;
+    std::vector<Instruction *> getJumpInstructionList() const;
     long getEntryCount() const;  // returns -1 if not known
     JumpTableDescriptor *getDescriptor() const { return descriptor; }
 
     void setDescriptor(JumpTableDescriptor *descriptor)
         { this->descriptor = descriptor; }
+    void addJumpInstruction(Instruction *instr);
 
     virtual void accept(ChunkVisitor *visitor);
 };
