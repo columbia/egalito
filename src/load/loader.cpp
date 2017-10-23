@@ -110,8 +110,10 @@ void EgalitoLoader::otherPasses() {
 #endif
 
 #if 1
-    CollapsePLTPass collapsePLT;
-    setup.getConductor()->acceptInAllModules(&collapsePLT, true);
+    if(1 || isFeatureEnabled("EGALITO_USE_GS")) {
+        CollapsePLTPass collapsePLT;
+        setup.getConductor()->acceptInAllModules(&collapsePLT, true);
+    }
 #endif
 
 #if 1

@@ -39,17 +39,27 @@ std::string PLTTrampoline::getName() const {
     }
 }
 
+bool PLTTrampoline::isIFunc() const {
+#ifdef ARCH_X86_64
+    if(auto v = dynamic_cast<Function *>(target)) {
+        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) {
+            return true;
+        }
+    }
+#endif
+
+    return false;
+}
+
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     size_t offset = 0;
 #define ADD_BYTES(data, size) \
     std::memcpy(target+offset, data, size), offset += size
 
-    bool isIFunc = false;
-    if(auto v = dynamic_cast<Function *>(this->target)) {
-        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) isIFunc = true;
-        LOG(1, "making PLT entry for [" << v->getName() << "] : ifunc? " << (isIFunc ? "yes":"no"));
-    }
+    bool isIFunc = this->isIFunc();
+    LOG(1, "making PLT entry for [" << this->target->getName()
+        << "] : ifunc? " << (isIFunc ? "yes":"no"));
 
     address_t gotPLT = getGotPLTEntry();
     if(!isIFunc) {

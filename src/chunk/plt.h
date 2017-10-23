@@ -29,6 +29,7 @@ public:
 
     void setTarget(Chunk *target) { this->target = target; }
 
+    bool isIFunc() const;
     void writeTo(char *target);
     address_t getGotPLTEntry() const
         { return sourceElf->getBaseAddress() + gotPLTEntry; }
