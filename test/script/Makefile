@@ -16,3 +16,4 @@ test:
 	./verify-redzone.sh
 	./argv.sh
 	./islower.sh
+	./jumptable-libc.sh
