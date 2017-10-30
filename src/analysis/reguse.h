@@ -28,7 +28,6 @@ public:
     AARCH64RegisterUsage() {}
 
     std::vector<int> getAllUseCounts(Function *function);
-    std::bitset<32> getUnusedRegisters(Function *function);
 };
 
 #endif
