@@ -3,7 +3,9 @@
 #endif
 #include <iomanip>
 
-#include <asm/prctl.h>
+#ifdef ARCH_X86_64
+    #include <asm/prctl.h>
+#endif
 #include <sys/prctl.h>
 #include <sys/mman.h>
 
@@ -19,6 +21,7 @@
 extern "C" int arch_prctl(int code, unsigned long addr);
 
 void ManageGS::init(GSTable *gsTable) {
+#ifdef ARCH_X86_64
     void *buffer = mmap(NULL, FUNCTION_TABLE_SIZE, PROT_READ|PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     LOG(1, "Initializing GS table at " << std::hex << buffer);
@@ -33,6 +36,7 @@ void ManageGS::init(GSTable *gsTable) {
     }
 
     arch_prctl(ARCH_SET_GS, reinterpret_cast<unsigned long>(buffer));
+#endif
 }
 
 void ManageGS::setEntry(GSTable *gsTable, GSTableEntry::IndexType index,

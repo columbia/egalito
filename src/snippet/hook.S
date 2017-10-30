@@ -99,7 +99,7 @@ egalito_hook_instruction:
 1:
     retq
 #elif defined(ARCH_AARCH64)
-    #error NYI
+    brk     0   /* NYI */
 #endif
     .type egalito_hook_instruction, STT_FUNC
     .size egalito_hook_instruction, .-egalito_hook_instruction

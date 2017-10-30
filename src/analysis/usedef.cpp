@@ -1,6 +1,7 @@
 #include "usedef.h"
-#include "slicingtree.h"
-#include "slicingmatch.h"
+#include "analysis/jumptable.h"
+#include "analysis/slicingtree.h"
+#include "analysis/slicingmatch.h"
 #include "chunk/concrete.h"
 #include "disasm/dump.h"
 #include "instr/assembly.h"
@@ -1234,11 +1235,14 @@ void UseDef::fillBr(UDState *state, Assembly *assembly) {
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());
     bool tableJump = false;
     for(auto jt : CIter::children(module->getJumpTableList())) {
-        if(instr == jt->getInstruction()) {
-            tableJump = true;
-            break;
+        for(auto jump : jt->getJumpInstructionList()) {
+            if(jump == instr) {
+                tableJump = true;
+                goto out;
+            }
         }
     }
+out:
     if(!tableJump) {
         for(int i = 0; i < 9; i++) {
             useReg(state, i);

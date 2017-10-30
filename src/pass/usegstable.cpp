@@ -53,7 +53,9 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 
     auto gsEntry = gsTable->makeEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
+#ifdef ARCH_X86_64
     semantic->setIndex(0);  // !!!
+#endif
     instr->setSemantic(semantic);
 
     ChunkMutator(block).modifiedChildSize(instr,

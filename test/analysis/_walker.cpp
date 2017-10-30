@@ -1,5 +1,6 @@
 #include "framework/include.h"
 #include "analysis/walker.h"
+#include "analysis/controlflow.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
 

@@ -3,6 +3,7 @@
 #include <regex>
 #include <set>
 #include "controlflow.h"
+#include "analysis/jumptable.h"
 #include "chunk/concrete.h"
 #include "elf/symbol.h"
 #include "instr/concrete.h"
@@ -127,33 +128,35 @@ void ControlFlowGraph::construct(Block *block) {
                 function->getParent()->getParent());
             auto jumptablelist = module->getJumpTableList();
             for(auto jt : CIter::children(jumptablelist)) {
-                if(jt->getInstruction() == i) {
-                    LOG(10, "jumptable at " << i->getAddress()
-                        << "targeting to...");
-                    std::set<address_t> added;
-                    for(auto entry : CIter::children(jt)) {
-                        auto link =
-                            dynamic_cast<NormalLink *>(entry->getLink());
-                        if(link && link->getTarget()) {
-                            auto it = added.find(link->getTargetAddress());
-                            if(it != added.end()) continue;
+                for(auto jump : jt->getJumpInstructionList()) {
+                    if(jump == i) {
+                        LOG(10, "jumptable at " << i->getAddress()
+                            << "targeting to...");
+                        std::set<address_t> added;
+                        for(auto entry : CIter::children(jt)) {
+                            auto link =
+                                dynamic_cast<NormalLink *>(entry->getLink());
+                            if(link && link->getTarget()) {
+                                auto it = added.find(link->getTargetAddress());
+                                if(it != added.end()) continue;
 
-                            added.insert(link->getTargetAddress());
-                            LOG(10, "" << link->getTarget()->getName());
-                            if(auto v = dynamic_cast<Instruction *>(
-                                &*link->getTarget())) {
+                                added.insert(link->getTargetAddress());
+                                LOG(10, "" << link->getTarget()->getName());
+                                if(auto v = dynamic_cast<Instruction *>(
+                                    &*link->getTarget())) {
 
-                                auto parent
-                                    = dynamic_cast<Block *>(v->getParent());
-                                auto parentID = blockMapping[parent];
-                                auto offset = link->getTargetAddress()
-                                    - parent->getAddress();
-                                graph[id].addLink(ControlFlowLink(parentID,
-                                                                  offset));
-                                graph[parentID].addReverseLink(
-                                    ControlFlowLink(id,
-                                        i->getAddress()
-                                        - i->getParent()->getAddress()));
+                                    auto parent
+                                        = dynamic_cast<Block *>(v->getParent());
+                                    auto parentID = blockMapping[parent];
+                                    auto offset = link->getTargetAddress()
+                                        - parent->getAddress();
+                                    graph[id].addLink(ControlFlowLink(parentID,
+                                                                      offset));
+                                    graph[parentID].addReverseLink(
+                                        ControlFlowLink(id,
+                                            i->getAddress()
+                                            - i->getParent()->getAddress()));
+                                }
                             }
                         }
                     }
