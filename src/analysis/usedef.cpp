@@ -1203,11 +1203,15 @@ void UseDef::fillB(UDState *state, Assembly *assembly) {
     }
 }
 void UseDef::fillBl(UDState *state, Assembly *assembly) {
-    // anything other than callee-saved, FP, LR, SP
-    // we need link to upstream at this stage for later refinement
     for(int i = 0; i < 19; i++) {
         useReg(state, i);
         defReg(state, i, nullptr);
+    }
+    defReg(state, 30, nullptr);
+    auto link = state->getInstruction()->getSemantic()->getLink();
+    if(dynamic_cast<PLTLink *>(link)) {
+        defReg(state, 16, nullptr);
+        defReg(state, 17, nullptr);
     }
 }
 void UseDef::fillBlr(UDState *state, Assembly *assembly) {
@@ -1220,6 +1224,7 @@ void UseDef::fillBlr(UDState *state, Assembly *assembly) {
     for(int i = 9; i < 19; i++) {
         defReg(state, i, nullptr);
     }
+    defReg(state, 30, nullptr);
 }
 void UseDef::fillBr(UDState *state, Assembly *assembly) {
     fillReg(state, assembly);

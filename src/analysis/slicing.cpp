@@ -699,7 +699,7 @@ void SlicingSearch::buildStatePass(SearchState *startState) {
             for(auto link : node->getLinks(getStep())) {
                 auto newNode = cfg->get(link->getTargetID());
                 if(!visited[newNode->getID()]) {
-                    auto cflink = static_cast<ControlFlowLink *>(link);
+                    auto cflink = dynamic_cast<ControlFlowLink *>(&*link);
                     auto offset = cflink->getOffset();
                     Instruction *newStart
                         = newNode->getBlock()->getChildren()->getSpatial()->find(

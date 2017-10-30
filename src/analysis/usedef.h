@@ -25,6 +25,7 @@ public:
     void del(int reg);
     TreeNode *get(int reg) const;
 
+    size_t size() const { return list.size(); }
     ListType::iterator begin() { return list.begin(); }
     ListType::iterator end() { return list.end(); }
     ListType::const_iterator begin() const { return list.cbegin(); }
