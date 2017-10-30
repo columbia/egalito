@@ -93,7 +93,7 @@ bool JumptableDetection::containsIndirectJump(Function *function) const {
     return false;
 }
 
-bool JumptableDetection::parseJumptable(UDState *state, TreeCapture cap,
+bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
     JumptableInfo *info) {
 
     auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
@@ -435,8 +435,8 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > MakeTableIndexForm;
 
-    TreeCapture cap;
-    if(IndexTableAccessForm::matches(state->getRegDef(reg), cap)) {
+    TreeCapture capture;
+    if(IndexTableAccessForm::matches(state->getRegDef(reg), capture)) {
         LOG(5, "Dereference from index table 0x" << std::hex
             << state->getInstruction()->getAddress());
         bool found = false;
@@ -448,7 +448,8 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
             return true;
         };
 
-        auto baseRegTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+        auto baseRegTree
+            = dynamic_cast<TreeNodePhysicalRegister *>(capture.get(0));
         LOG(10, "look for reg " << baseRegTree->getRegister());
         FlowUtil::searchUpDef<MakeTableIndexForm>(
             state, baseRegTree->getRegister(), parser);

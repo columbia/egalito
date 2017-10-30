@@ -1061,6 +1061,9 @@ bool DisassembleFunctionBase::shouldSplitBlockAt(cs_insn *ins) {
 
         split = true;
     }
+    else if(ins->id == ARM64_INS_BRK) { // special case (#0x3e8)
+        split = true;
+    }
 #elif defined(ARCH_ARM)
     if(cs_insn_group(handle.raw(), ins, ARM_GRP_JUMP)) {
         split = true;

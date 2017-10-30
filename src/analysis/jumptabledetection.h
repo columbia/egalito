@@ -43,7 +43,7 @@ public:
 
 private:
     bool containsIndirectJump(Function *function) const;
-    bool parseJumptable(UDState *state, TreeCapture cap, JumptableInfo *info);
+    bool parseJumptable(UDState *state, TreeCapture& cap, JumptableInfo *info);
     void makeDescriptor(UDRegMemWorkingSet *working, Instruction *instruction,
         const JumptableInfo& info);
 
