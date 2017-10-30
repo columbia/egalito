@@ -9,6 +9,7 @@ class ControlFlowInstruction;
 
 class FrameType {
 private:
+    bool hasFrame;
     Instruction *setBPInstr;
     std::vector<Instruction *> resetSPInstrs;
     std::vector<Instruction *> epilogueInstrs;
@@ -16,6 +17,7 @@ private:
 
 public:
     FrameType(Function *function);
+    bool createsFrame() { return hasFrame; }
     Instruction *getSetBPInstr() const { return setBPInstr; }
     std::vector<Instruction *> getResetSPInstrs() const
         { return resetSPInstrs; }
@@ -24,9 +26,8 @@ public:
     void fixEpilogue(Instruction *oldInstr, Instruction *newInstr);
     void setSetBPInstr(Instruction *newInstr) { setBPInstr = newInstr; }
     void dump();
-
 private:
-    bool createsFrame(Function *function);
+    bool detectFrame(Function *function);
 };
 
 

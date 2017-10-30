@@ -16,7 +16,8 @@
 #include "log/temp.h"
 
 FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
-    if(createsFrame(function)) {
+    this->hasFrame = detectFrame(function);
+    if(hasFrame) {
         auto firstB = function->getChildren()->getIterable()->get(0);
         for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
             if(auto assembly = ins->getSemantic()->getAssembly()) {
@@ -135,7 +136,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
     }
 }
 
-bool FrameType::createsFrame(Function *function) {
+bool FrameType::detectFrame(Function *function) {
 #ifdef ARCH_X86_64
     for(auto block : CIter::children(function)) {
         for(auto ins : CIter::children(block)) {
