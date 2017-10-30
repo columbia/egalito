@@ -32,9 +32,10 @@ private:
     address_t originalOffset;
     bool code;
     bool bss;
+    const char *name;
 
 public:
-    DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr);
+    DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr);
     virtual size_t getSize() const { return size; }
     bool contains(address_t address);
     size_t getAlignment() const { return align; }

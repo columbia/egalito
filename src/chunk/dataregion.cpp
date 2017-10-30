@@ -13,9 +13,10 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-DataSection::DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
+DataSection::DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
     : size(shdr->sh_size), align(shdr->sh_addralign),
-      code(shdr->sh_flags & SHF_EXECINSTR), bss(shdr->sh_type == SHT_NOBITS) {
+      code(shdr->sh_flags & SHF_EXECINSTR), bss(shdr->sh_type == SHT_NOBITS),
+      name(elfMap->getSHStrtab() + shdr->sh_name) {
 
     address_t offset = shdr->sh_addr - phdr->p_vaddr;
     this->setPosition(new AbsoluteOffsetPosition(this, offset));
@@ -23,9 +24,7 @@ DataSection::DataSection(ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
 }
 
 std::string DataSection::getName() const {
-    StreamAsString stream;
-    stream << "section-+0x" << std::hex << originalOffset;
-    return stream;
+    return name;
 }
 
 bool DataSection::contains(address_t address) {
@@ -220,7 +219,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         else {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
-        auto ds = new DataSection(region->getPhdr(), shdr);
+        auto ds = new DataSection(elfMap, region->getPhdr(), shdr);
         ChunkMutator(region).append(ds);
     }
 
