@@ -9,6 +9,7 @@ private:
     std::vector<TreeNode *> captureList;
 public:
     void add(TreeNode *node) { captureList.push_back(node); }
+    void append(const TreeCapture& capture);
     TreeNode *get(int index) const { return captureList[index]; }
     size_t getCount() const { return captureList.size(); }
     bool clear() { captureList.clear(); return true; }
@@ -118,8 +119,12 @@ template <typename Type>
 bool TreePatternCapture<Type>::matches(
     TreeNode *node, TreeCapture &capture) {
 
-    bool found = Type::matches(node, capture);
-    if(found) capture.add(node);
+    TreeCapture capture2;
+    bool found = Type::matches(node, capture2);
+    if(found) {
+        capture.add(node);
+        capture.append(capture2);
+    }
     return found;
 }
 
