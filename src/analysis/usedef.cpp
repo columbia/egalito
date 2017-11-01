@@ -1536,3 +1536,102 @@ void MemLocation::extract(TreeNode *tree) {
     }
 }
 
+bool StateGroup::isPushOrPop(const UDState *state) {
+    typedef TreePatternRecursiveBinary<TreeNodeAddition,
+        TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>,
+        TreePatternTerminal<TreeNodeConstant>
+    > PushForm;
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        PushForm
+    > PopForm;
+
+    TreeCapture cap;
+    for(auto mem : state->getMemDefList()) {
+        if(PushForm::matches(mem.second, cap)) {
+            return true;
+        }
+    }
+    for(auto reg : state->getRegDefList()) {
+        if(PopForm::matches(reg.second, cap)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool StateGroup::isDirectCall(const UDState *state) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(auto assembly = semantic->getAssembly()) {
+        if(assembly->getId() == ARM64_INS_BL) return true;
+    }
+
+    return false;
+}
+
+bool StateGroup::isIndirectCall(const UDState *state) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(auto assembly = semantic->getAssembly()) {
+        if(assembly->getId() == ARM64_INS_BLR) return true;
+    }
+
+    return false;
+}
+
+bool StateGroup::isCall(const UDState *state) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(auto assembly = semantic->getAssembly()) {
+        if(assembly->getId() == ARM64_INS_BL) return true;
+        if(assembly->getId() == ARM64_INS_BLR) return true;
+    }
+
+    return false;
+}
+
+bool StateGroup::isExternalJump(const UDState *state, Module *module) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(dynamic_cast<ControlFlowInstruction *>(semantic)) {
+        if(StateGroup::isCall(state)) return false;
+
+        // B or B.cond
+        auto link = semantic->getLink();
+        if(dynamic_cast<Function *>(&*link->getTarget())) return true;
+        if(dynamic_cast<PLTLink *>(link)) return true;
+    }
+    else if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        // BR
+        return !StateGroup::isJumpTableJump(state, module);
+    }
+
+    return false;
+}
+
+bool StateGroup::isJumpTableJump(const UDState *state, Module *module) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        for(auto jt : CIter::children(module->getJumpTableList())) {
+            for(auto jump : jt->getJumpInstructionList()) {
+                if(jump == instr) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    return false;
+}
+
+bool StateGroup::isReturn(const UDState *state) {
+    auto instr = state->getInstruction();
+    auto semantic = instr->getSemantic();
+    if(dynamic_cast<ReturnInstruction *>(semantic)) {
+        return true;
+    }
+    return false;
+}

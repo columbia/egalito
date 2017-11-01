@@ -7,6 +7,7 @@
 #include "slicingmatch.h"
 #include "instr/register.h"
 
+class Module;
 class Function;
 class Instruction;
 class TreeNode;
@@ -413,6 +414,17 @@ public:
         { return this->reg->equal(other.reg) && this->offset == other.offset; }
 private:
     void extract(TreeNode *tree);
+};
+
+class StateGroup {
+public:
+    static bool isPushOrPop(const UDState *state);
+    static bool isDirectCall(const UDState *state);
+    static bool isIndirectCall(const UDState *state);
+    static bool isCall(const UDState *state);
+    static bool isExternalJump(const UDState *state, Module *module);
+    static bool isJumpTableJump(const UDState *state, Module *module);
+    static bool isReturn(const UDState *state);
 };
 
 #endif

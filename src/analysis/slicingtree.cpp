@@ -30,7 +30,7 @@ void TreeNodeRegisterRIP::print(const TreePrinter &p) const {
 }
 
 void TreeNodePhysicalRegister::print(const TreePrinter &p) const {
-    p.stream() << "%" << std::dec << reg;
+    p.stream() << "%R" << std::dec << reg;
 }
 
 void TreeNodeUnary::print(const TreePrinter &p) const {
