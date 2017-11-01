@@ -50,6 +50,19 @@ void LiveRegister::detect(UDRegMemWorkingSet *working) {
         }
     }
 
+    // if this function contains a function call or a jump to another
+    // function, we assume all caller-saved or temporary registers are killed
+    auto module = dynamic_cast<Module *>(function->getParent()->getParent());
+    for(const auto& s : working->getStateList()) {
+        if(StateGroup::isCall(&s) || StateGroup::isExternalJump(&s, module)) {
+            for(size_t i = 0; i < 19; i++) {
+                info.kill(i);
+            }
+            break;
+        }
+    }
+
+    // resurrect actually saved registers
     SavedRegister saved;
     for(auto r : saved.getList(function)) {
         info.live(r);
