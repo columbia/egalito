@@ -287,22 +287,6 @@ bool JumpTableSearch::matchJumpTableBounds(SlicingSearch *search,
 
             return true;
         }
-        else {
-            // this single level intepretation seems to be enough for AARCH64
-            if(auto mult = dynamic_cast<TreeNodeMultipleParents *>(indexExpr)) {
-                for(auto sub : mult->getParents()) {
-                    if(leftGeneric == sub
-                       && (op == OP_LE || op == OP_LT)) {
-                        LOG0(5, "BOUNDS CHECK (MIGHT BE) FOUND! ");
-
-                        if(op == OP_LT) bound --;  // convert "<" to "<="
-                        d->setBound(bound);
-
-                        return true;
-                    }
-                }
-            }
-        }
     }
 
     return false;
