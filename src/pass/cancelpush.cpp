@@ -2,6 +2,7 @@
 #include <map>
 #include "cancelpush.h"
 #include "analysis/call.h"
+#include "analysis/dataflow.h"
 #include "analysis/walker.h"
 #include "analysis/frametype.h"
 #include "instr/concrete.h"
@@ -25,9 +26,10 @@ RegisterSet& UnusedRegister::get(Function *function) {
 }
 
 RegisterSet& UnusedRegister::detect(Function *function) {
+    auto& regset = regsetMap[function];
+#ifdef ARCH_AARCH64
     DataFlow df;
     auto working = df.getWorkingSet(function);
-    auto& regset = regsetMap[function];
     FrameType ft(function);
 
     //auto module = dynamic_cast<Module *>(function->getParent()->getParent());
@@ -46,6 +48,9 @@ RegisterSet& UnusedRegister::detect(Function *function) {
             regset.reset(ref.first);
         }
     }
+#else
+    LOG(0, "NYI");
+#endif
     return regset;
 }
 

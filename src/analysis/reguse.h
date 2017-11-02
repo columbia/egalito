@@ -9,6 +9,7 @@
 class Function;
 class Instruction;
 
+#ifdef ARCH_AARCH64
 class AARCH64RegisterUsageX {
 private:
     Function *function;
@@ -29,5 +30,6 @@ public:
 
     std::vector<int> getAllUseCounts(Function *function);
 };
+#endif
 
 #endif

@@ -418,11 +418,13 @@ private:
 
 class StateGroup {
 public:
+#ifdef ARCH_AARCH64
     static bool isPushOrPop(const UDState *state);
     static bool isDirectCall(const UDState *state);
     static bool isIndirectCall(const UDState *state);
     static bool isCall(const UDState *state);
     static bool isExternalJump(const UDState *state, Module *module);
+#endif
     static bool isJumpTableJump(const UDState *state, Module *module);
     static bool isReturn(const UDState *state);
 };

@@ -9,7 +9,6 @@
 
 #include "log/log.h"
 
-#ifdef ARCH_AARCH64
 LiveInfo LiveRegister::getInfo(Function *function) {
     auto it = list.find(function);
     if(it == list.end()) {
@@ -40,6 +39,7 @@ void LiveRegister::detect(Function *function) {
 }
 
 void LiveRegister::detect(UDRegMemWorkingSet *working) {
+#ifdef ARCH_AARCH64
     Function *function = working->getFunction();
     LiveInfo &info = list[function];
 
@@ -75,6 +75,9 @@ void LiveRegister::detect(UDRegMemWorkingSet *working) {
         }
     }
     LOG(10, "");
+#else
+    LOG(0, "NYI");
+#endif
 }
 
 void LiveInfo::kill(int reg) {
@@ -88,4 +91,3 @@ void LiveInfo::live(int reg) {
         regs[reg] = 1;
     }
 }
-#endif

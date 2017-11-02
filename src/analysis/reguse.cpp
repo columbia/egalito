@@ -11,6 +11,7 @@
 #endif
 #include "log/log.h"
 
+#ifdef ARCH_AARCH64
 AARCH64RegisterUsageX::AARCH64RegisterUsageX(Function *function,
     AARCH64GPRegister::ID id) : function(function), regX(id, true) {
 
@@ -102,4 +103,4 @@ std::vector<int> AARCH64RegisterUsage::getAllUseCounts(Function *function) {
     return std::vector<int>(use_count,
                             use_count + AARCH64GPRegister::REGISTER_NUMBER);
 }
-
+#endif

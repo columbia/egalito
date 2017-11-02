@@ -1536,6 +1536,7 @@ void MemLocation::extract(TreeNode *tree) {
     }
 }
 
+#ifdef ARCH_AARCH64
 bool StateGroup::isPushOrPop(const UDState *state) {
     typedef TreePatternRecursiveBinary<TreeNodeAddition,
         TreePatternPhysicalRegisterIs<AARCH64GPRegister::SP>,
@@ -1609,6 +1610,7 @@ bool StateGroup::isExternalJump(const UDState *state, Module *module) {
 
     return false;
 }
+#endif
 
 bool StateGroup::isJumpTableJump(const UDState *state, Module *module) {
     auto instr = state->getInstruction();

@@ -10,7 +10,6 @@
 
 #include "log/log.h"
 
-#ifdef ARCH_AARCH64
 void DataFlow::addUseDefFor(Function *function) {
     auto graph = new ControlFlowGraph(function);
     auto config = new UDConfiguration(graph);
@@ -37,6 +36,7 @@ UDRegMemWorkingSet *DataFlow::getWorkingSet(Function *function) {
 
 void DataFlow::adjustCallUse(
     LiveRegister *live, Function *function, Module *module) {
+#ifdef ARCH_AARCH64
 
     //LOG(1, "adjusting callUse for " << function->getName());
 
@@ -75,10 +75,12 @@ void DataFlow::adjustCallUse(
             }
         }
     }
+#endif
 }
 
 void DataFlow::adjustPLTCallUse(
     LiveRegister *live, Function *function, Program *program) {
+#ifdef ARCH_AARCH64
     // consider PLTs
     for(auto block : CIter::children(function)) {
         for(auto instr: CIter::children(block)) {
@@ -97,9 +99,11 @@ void DataFlow::adjustPLTCallUse(
             // does not try to find the target of indirect calls for now
         }
     }
+#endif
 }
 
 bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
+#ifdef ARCH_AARCH64
     // this always comes in the form of page + offset
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
@@ -133,12 +137,14 @@ bool DataFlow::isTLSdescResolveCall(UDState *state, Module *module) {
             }
         }
     }
+#endif
     return false;
 }
 
 void DataFlow::adjustUse(LiveRegister *live, Instruction *instruction,
     Function *source, Function *target, bool viaTrampoline) {
 
+#ifdef ARCH_AARCH64
     auto working = getWorkingSet(source);
     auto state = working->getState(instruction);
 
@@ -154,6 +160,7 @@ void DataFlow::adjustUse(LiveRegister *live, Instruction *instruction,
         }
     }
     IF_LOG(11) state->dumpState();
+#endif
 }
 
 DataFlow::~DataFlow() {
@@ -170,4 +177,3 @@ DataFlow::~DataFlow() {
         delete g;
     }
 }
-#endif

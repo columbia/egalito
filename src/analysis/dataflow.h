@@ -4,7 +4,6 @@
 #include "analysis/usedef.h"
 #include "analysis/liveregister.h"
 
-#ifdef ARCH_AARCH64
 class Module;
 class Program;
 
@@ -28,6 +27,5 @@ private:
     void adjustUse(LiveRegister *live, Instruction *instruction,
         Function *source, Function *target, bool viaTrampoline);
 };
-#endif
 
 #endif

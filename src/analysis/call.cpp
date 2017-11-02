@@ -116,6 +116,7 @@ void IndirectCalleeList::makeList(Module *module) {
         }
     }
 
+#ifdef ARCH_AARCH64
     for(auto function : CIter::functions(module)) {
         for(auto block : CIter::children(function)) {
             for(auto instr : CIter::children(block)) {
@@ -131,5 +132,6 @@ void IndirectCalleeList::makeList(Module *module) {
             }
         }
     }
+#endif
 }
 
