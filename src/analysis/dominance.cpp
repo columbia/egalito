@@ -28,7 +28,7 @@ Dominance::Dominance(ControlFlowGraph *cfg)
     while(changed) {
         changed = false;
         for(auto id : order) {
-            LOG(10, "id = " << id); std::cout.flush();
+            LOG(10, "id = " << id);
             if(id == 0) {
                 idoms[0] = 0;
                 continue;
