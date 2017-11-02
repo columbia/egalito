@@ -19,6 +19,7 @@
 #include "pass/collapseplt.h"
 #include "pass/usegstable.h"
 #include "pass/jitgsfixup.h"
+#include "pass/cancelpush.h"
 #include "runtime/managegs.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -132,6 +133,13 @@ void EgalitoLoader::otherPasses() {
     PromoteJumpsPass promoteJumps;
     setup.getConductor()->acceptInAllModules(&promoteJumps, true);
 #endif
+
+    // enable CollapsePLTPass for better result
+    if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
+        auto program = setup.getConductor()->getProgram();
+        CancelPushPass cancelPush(program);
+        program->accept(&cancelPush);
+    }
 }
 
 void EgalitoLoader::otherPassesAfterMove() {
