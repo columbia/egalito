@@ -16,4 +16,4 @@ test:
 	./verify-redzone.sh
 	./argv.sh
 	./islower.sh
-	./jumptable-libc.sh
+	$(call x86_only,./jumptable-libc.sh)
