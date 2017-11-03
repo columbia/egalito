@@ -217,7 +217,9 @@ bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
     static const std::vector<std::string> PLTnoreturns = {
         "__cxa_throw@plt", "exit@plt", "__stack_chk_fail@plt",
         "_ZSt20__throw_out_of_rangePKc@plt",
-        "_ZSt19__throw_logic_errorPKc@plt"
+        "_ZSt19__throw_logic_errorPKc@plt",
+        "_ZSt17__throw_bad_allocv@plt",
+        "__assert_fail@plt"
     };
 
     for(auto plt : PLTnoreturns) {
