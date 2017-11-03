@@ -2,6 +2,7 @@
 #include "config.h"
 #include "framework/include.h"
 #include "analysis/jumptable.h"
+#include "analysis/jumptabledetection.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
 
@@ -28,8 +29,13 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
 }
 
 static void testFunction(Function *f, int expected) {
+#if defined(ARCH_X86_64)
     JumpTableSearch jt;
     jt.search(f);
+#elif defined(ARCH_AARCH64)
+    JumptableDetection jt;
+    jt.detect(f);
+#endif
 
     auto tableList = jt.getTableList();
     std::ostringstream stream;
@@ -80,8 +86,13 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
 }
 
 static bool missingBounds(Function *f) {
+#if defined(ARCH_X86_64)
     JumpTableSearch jt;
     jt.search(f);
+#elif defined(ARCH_AARCH64)
+    JumptableDetection jt;
+    jt.detect(f);
+#endif
     bool missing = false;
 
     auto tableList = jt.getTableList();
