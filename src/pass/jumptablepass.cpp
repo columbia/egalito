@@ -27,7 +27,7 @@ void JumpTablePass::visit(Module *module) {
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
 #if defined(ARCH_X86_64) || defined(ARCH_ARM)
-#if 1
+#if 0
     JumpTableSearch search;
     search.search(module);
 #else
