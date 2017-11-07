@@ -39,8 +39,11 @@ public:
     AssemblyOperands(const cs_insn &insn)
         : op_count(insn.detail->x86.op_count),
           operands(insn.detail->x86.operands,
-                   insn.detail->x86.operands + insn.detail->x86.op_count) {}
+                   insn.detail->x86.operands + insn.detail->x86.op_count)
+        { overrideCapstone(insn); }
     const cs_x86_op *getOperands() const { return operands.data(); }
+private:
+    void overrideCapstone(const cs_insn &insn);
 #elif defined(ARCH_AARCH64)
 private:
     bool writeback;

@@ -2,6 +2,19 @@
 #include "instr/register.h"
 #include "log/log.h"
 
+#ifdef ARCH_X86_64
+void AssemblyOperands::overrideCapstone(const cs_insn &insn) {
+    if(insn.id == X86_INS_CMP) {
+        // capstone in egalitoci
+        if(insn.detail->x86.op_count > 2) {
+            op_count = 2;
+            operands[0] = operands[1];
+            operands[1] = operands[2];
+        }
+    }
+}
+#endif
+
 #ifdef ARCH_AARCH64
 void AssemblyOperands::overrideCapstone(const cs_insn &insn) {
     if(insn.id == ARM64_INS_LDR
