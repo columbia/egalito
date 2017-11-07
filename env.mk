@@ -102,10 +102,10 @@ else
 	SHORT_LINK  = $(LINK)
 	SHORT_AR    = $(AR)
 endif
-ifeq ($(MAKEVERBOSE),)
+ifneq ($(MAKEVERBOSE),)
     MAKE += --no-print-directory
     short-make = @+echo '>>>' MAKE -C ${1} ${2} ;\
-        $(MAKE) -C ${1} ${2} ; echo '<<<' MAKE -C ${1} ${2}
+        $(MAKE) -C ${1} ${2} && echo '<<<' MAKE -C ${1} ${2}
 else
     short-make = +$(MAKE) -C ${1} ${2}
 endif
