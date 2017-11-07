@@ -30,7 +30,36 @@ typedef
     #define REGISTER_FP         ARM64_REG_FP
 #endif
 
+#ifdef ARCH_X86_64
+class X86Register {
+public:
+    enum ID {
+        INVALID = -1,
+        R0 = 0, R1, R2, R3, R4, R5, R6, R7,
+        R8, R9, R10, R11, R12, R13, R14, R15,
+
+        REGISTER_NUMBER,
+
+        SP = R7,
+
+        FLAGS = REGISTER_NUMBER
+    };
+
+private:
+    const static int mappings[R15 - R0 + 1][5];
+
+public:
+    static int convertToPhysical(int id);
+    static size_t getWidth(int pid, int id);
+    static int isInteger(int pid) { return (R0 <= pid && pid <= R15); }
+
+private:
+    static int convertToPhysicalINT(int id);
+};
+#endif
+
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
+// rename this class
 class AARCH64GPRegister {
 public:
     // the IDs must be consecutive for the ones with the same prefix
@@ -91,6 +120,7 @@ inline AARCH64GPRegister::ID& operator++(AARCH64GPRegister::ID &orig) {
     if(orig > AARCH64GPRegister::REGISTER_NUMBER) throw "can't ++R31";
     return orig;
 }
+#endif
 
 template <typename RegisterType>
 class PhysicalRegister {
@@ -103,6 +133,5 @@ public:
     bool operator==(const PhysicalRegister& rhs)
         { return id() == rhs.id(); }
 };
-#endif
 
 #endif

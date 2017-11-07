@@ -62,8 +62,10 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     }
 
     RUN_PASS(JumpTablePass(), module);
+#ifdef ARCH_X86_64
     RUN_PASS(JumpTableBounds(), module);
     RUN_PASS(JumpTableOverestimate(), module);
+#endif
 
     LOG(1, "RUNNING SplitBasicBlock pass");
 

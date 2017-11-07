@@ -1,5 +1,92 @@
 #include "register.h"
 
+#ifdef ARCH_X86_64
+const int X86Register::mappings[][5] = {
+    {R0,  X86_REG_AL,   X86_REG_AX,   X86_REG_EAX,  X86_REG_RAX},
+    {R1,  X86_REG_BL,   X86_REG_BX,   X86_REG_EBX,  X86_REG_RBX},
+    {R2,  X86_REG_CL,   X86_REG_CX,   X86_REG_ECX,  X86_REG_RCX},
+    {R3,  X86_REG_DL,   X86_REG_DX,   X86_REG_EDX,  X86_REG_RDX},
+    {R4,  X86_REG_SIL,  X86_REG_SI,   X86_REG_ESI,  X86_REG_RSI},
+    {R5,  X86_REG_DIL,  X86_REG_DI,   X86_REG_EDI,  X86_REG_RDI},
+    {R6,  X86_REG_BPL,  X86_REG_BP,   X86_REG_EBP,  X86_REG_RBP},
+    {R7,  X86_REG_SPL,  X86_REG_SP,   X86_REG_ESP,  X86_REG_RSP},
+    {R8,  X86_REG_R8B,  X86_REG_R8W,  X86_REG_R8D,  X86_REG_R8},
+    {R9,  X86_REG_R9B,  X86_REG_R9W,  X86_REG_R9D,  X86_REG_R9},
+    {R10, X86_REG_R10B, X86_REG_R10W, X86_REG_R10D, X86_REG_R10},
+    {R11, X86_REG_R11B, X86_REG_R11W, X86_REG_R11D, X86_REG_R11},
+    {R12, X86_REG_R12B, X86_REG_R12W, X86_REG_R12D, X86_REG_R12},
+    {R13, X86_REG_R13B, X86_REG_R13W, X86_REG_R13D, X86_REG_R13},
+    {R14, X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
+    {R15, X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15},
+};
+
+int X86Register::convertToPhysicalINT(int id) {
+    unsigned int guess = id - X86_REG_AL;
+    if(guess < sizeof(mappings)/sizeof(*mappings)) {
+        if(mappings[guess][1] == id) {
+            return mappings[guess][0];
+        }
+    }
+    guess = id - X86_REG_AX;
+    if(guess < sizeof(mappings)/sizeof(*mappings)) {
+        if(mappings[guess][2] == id) {
+            return mappings[guess][0];
+        }
+    }
+    guess = id - X86_REG_EAX;
+    if(guess < sizeof(mappings)/sizeof(*mappings)) {
+        if(mappings[guess][2] == id) {
+            return mappings[guess][0];
+        }
+    }
+    guess = id - X86_REG_RAX;
+    if(guess < sizeof(mappings)/sizeof(*mappings)) {
+        if(mappings[guess][2] == id) {
+            return mappings[guess][0];
+        }
+    }
+
+    for(size_t i = 0; i < sizeof(mappings)/sizeof(*mappings); i ++) {
+        for(size_t j = 1; j < sizeof(*mappings)/sizeof(**mappings); j ++) {
+            if(mappings[i][j] == id) {
+                return mappings[i][0];
+            }
+        }
+    }
+
+    switch(id) {
+    case X86_REG_AH: return R0;
+    case X86_REG_BH: return R1;
+    case X86_REG_CH: return R2;
+    case X86_REG_DH: return R3;
+    }
+
+    return X86Register::INVALID;
+}
+
+int X86Register::convertToPhysical(int id) {
+    return convertToPhysicalINT(id);
+}
+
+size_t X86Register::getWidth(int pid, int id) {
+    switch(id) {
+    case X86_REG_AH: return 1;
+    case X86_REG_BH: return 1;
+    case X86_REG_CH: return 1;
+    case X86_REG_DH: return 1;
+    }
+
+    size_t size = 1;
+    for(size_t i = 1; i < sizeof(mappings)/sizeof(*mappings); i ++) {
+        if(mappings[pid][i] == id) {
+            size <<= i - 1;
+            break;
+        }
+    }
+    return size;
+}
+#endif
+
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
 const int AARCH64GPRegister::mappings[][3] = {
     {R0, ARM64_REG_W0,  ARM64_REG_X0},

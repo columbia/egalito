@@ -26,6 +26,10 @@ private:
 
         TreeNode *indexExpr;
 
+        // keep the initial value of 'entries' to 0, not -1.
+        // Setting this to 0 means we are confident that there should be at
+        // least one jump for which we can determine the bound. In other
+        // words, we do not use JumpTableBounds pass.
         JumptableInfo(ControlFlowGraph *cfg, UDRegMemWorkingSet *working,
             UDState *state)
             : cfg(cfg), working(working), jumpState(state), valid(false),
@@ -57,6 +61,9 @@ private:
     bool getBoundFromCompareAndBranch(UDState *state, int reg,
         JumptableInfo *info);
     bool getBoundFromMove(UDState *state, int reg, JumptableInfo *info);
+    bool getBoundFromAnd(UDState *state, int reg, JumptableInfo *info);
+    bool getBoundFromLoad(UDState *state, int reg, JumptableInfo *info);
+    bool getBoundFromBitTest(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromIndexTable(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromArgument(UDState *state, int reg, JumptableInfo *info);
 };

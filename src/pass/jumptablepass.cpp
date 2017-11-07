@@ -27,8 +27,15 @@ void JumpTablePass::visit(Module *module) {
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
 #if defined(ARCH_X86_64) || defined(ARCH_ARM)
+#if 1
     JumpTableSearch search;
     search.search(module);
+#else
+    // this doesn't detect ones in printf family nor find all the bounds in sse
+    // memcmp family
+    JumptableDetection search;
+    search.detect(module);
+#endif
 #elif defined(ARCH_AARCH64)
     JumptableDetection search;
     search.detect(module);

@@ -17,6 +17,7 @@ public:
         MODE_REG_REG,
         MODE_MEM_REG,
         MODE_IMM_REG,
+        MODE_IMM_MEM,
         MODE_REG_REG_REG,
         MODE_REG_IMM,
         MODE_REG_MEM,

@@ -353,9 +353,28 @@ private:
 
 #ifdef ARCH_X86_64
     size_t inferAccessWidth(const cs_x86_op *op);
+    std::tuple<int, size_t> getPhysicalRegister(int reg);
+    TreeNode *makeMemTree(UDState *state, const x86_op_mem& mem);
     void fillAddOrSub(UDState *state, Assembly *assembly);
+    void fillAnd(UDState *state, Assembly *assembly);
+    void fillBt(UDState *state, Assembly *assembly);
+    void fillCmp(UDState *state, Assembly *assembly);
+    void fillJa(UDState *state, Assembly *assembly);
+    void fillJae(UDState *state, Assembly *assembly);
+    void fillJb(UDState *state, Assembly *assembly);
+    void fillJbe(UDState *state, Assembly *assembly);
+    void fillJe(UDState *state, Assembly *assembly);
+    void fillJne(UDState *state, Assembly *assembly);
+    void fillJg(UDState *state, Assembly *assembly);
+    void fillJge(UDState *state, Assembly *assembly);
+    void fillJl(UDState *state, Assembly *assembly);
+    void fillJle(UDState *state, Assembly *assembly);
+    void fillJmp(UDState *state, Assembly *assembly);
     void fillLea(UDState *state, Assembly *assembly);
     void fillMov(UDState *state, Assembly *assembly);
+    void fillMovabs(UDState *state, Assembly *assembly);
+    void fillMovsxd(UDState *state, Assembly *assembly);
+    void fillMovzx(UDState *state, Assembly *assembly);
     void fillPush(UDState *state, Assembly *assembly);
 #endif
 
@@ -403,15 +422,13 @@ private:
     TreeNode *reg;
     long int offset;
 
-    typedef TreePatternRecursiveBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-    > MemoryForm;
-
 public:
     MemLocation(TreeNode *tree) : reg(nullptr), offset(0) { extract(tree); }
-    bool operator==(const MemLocation& other)
+    bool operator==(const MemLocation& other) const
         { return this->reg->equal(other.reg) && this->offset == other.offset; }
+    bool operator!=(const MemLocation& other) const
+        { return !this->reg->equal(other.reg) || this->offset != other.offset; }
+    TreeNode *getRegTree() const { return reg; }
 private:
     void extract(TreeNode *tree);
 };
