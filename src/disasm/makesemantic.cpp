@@ -50,6 +50,13 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
                 *ins, op->reg, ins->mnemonic);
         }
     }
+    else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
+        if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
+            // cast is only necessary for old capstone in egalitoci
+            semantic = new IndirectJumpInstruction(
+                *ins, static_cast<Register>(op->mem.base), ins->mnemonic);
+        }
+    }
     else if(ins->id == X86_INS_RET) {
         semantic = new ReturnInstruction(DisassembledStorage(*ins));
     }

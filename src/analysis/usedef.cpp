@@ -1395,9 +1395,11 @@ void UseDef::fillJle(UDState *state, Assembly *assembly) {
 void UseDef::fillJmp(UDState *state, Assembly *assembly) {
     auto semantic = state->getInstruction()->getSemantic();
     if(auto ij = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
-        int reg;
-        std::tie(reg, std::ignore) = getPhysicalRegister(ij->getRegister());
-        useReg(state, reg);
+        if(ij->getRegister() != X86_REG_RIP) {
+            int reg;
+            std::tie(reg, std::ignore) = getPhysicalRegister(ij->getRegister());
+            useReg(state, reg);
+        }
     }
     else if(!dynamic_cast<ControlFlowInstruction *>(semantic)) {
         throw "what is this?";

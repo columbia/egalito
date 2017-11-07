@@ -46,6 +46,8 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
         auto instr = block->getChildren()->getIterable()->getLast();
         auto s = instr->getSemantic();
         if(auto ij = dynamic_cast<IndirectJumpInstruction *>(s)) {
+            auto mode = ij->getAssembly()->getAsmOperands()->getMode();
+            if(mode != AssemblyOperands::MODE_REG) continue;
             LOG(10, "indirect jump at 0x" << std::hex << instr->getAddress());
             auto state = working->getState(instr);
             IF_LOG(10) state->dumpState();
