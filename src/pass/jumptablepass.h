@@ -20,6 +20,8 @@ public:
     void makeChildren(JumpTable *jumpTable, int count);
 
 private:
+    void makeJumpTable(JumpTableList *jumpTableList,
+        const std::vector<JumpTableDescriptor *> &tables);
     void saveToFile() const;
     bool loadFromFile(JumpTableList *jumpTableList);
 };

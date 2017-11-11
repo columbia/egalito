@@ -13,6 +13,7 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP djumptable
 #include "log/log.h"
+#include "log/temp.h"
 
 void JumpTablePass::visit(Module *module) {
     this->module = module;
@@ -31,17 +32,48 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
     JumpTableSearch search;
     search.search(module);
 #else
-    // this doesn't detect ones in printf family nor find all the bounds in sse
-    // memcmp family
-    JumptableDetection search;
+    JumptableDetection search(module);
     search.detect(module);
 #endif
 #elif defined(ARCH_AARCH64)
-    JumptableDetection search;
+    JumptableDetection search(module);
     search.detect(module);
 #endif
 
+    auto count1 = search.getTableList().size();
+    while(1) {
+        makeJumpTable(jumpTableList, search.getTableList());
+        search.detect(module);
+        auto count2 = search.getTableList().size();
+        LOG(10, "count1 = " << count1 << " -> " << count2);
+        if(count1 == count2) break;
+        count1 = count2;
+    }
+
+#ifdef ARCH_X86_64
+    // we cannot detect all the bounds in hand written assembly functions
+    // yet, which means we need to rely on the other jump table passes.
+    // Note, however, it is important to find at least ones that are
+    // nested, like the ones in printf (though it is written in C)
     for(auto descriptor : search.getTableList()) {
+        if(descriptor->getFunction()->hasName("__strncat_sse2_unaligned")
+            || descriptor->getFunction()->hasName("__stpncpy_sse2_unaligned")
+            || descriptor->getFunction()->hasName("__strncpy_sse2_unaligned")
+            || descriptor->getFunction()->hasName("__strcat_sse2_unaligned")
+            || descriptor->getFunction()->hasName("__stpcpy_sse2_unaligned")
+            || descriptor->getFunction()->hasName("__strcpy_sse2_unaligned")
+        ) {
+            LOG(10, "resetting number of entries for assembly jump tables");
+            descriptor->setEntries(0);
+        }
+    }
+#endif
+}
+
+void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
+    const std::vector<JumpTableDescriptor *> &tables) {
+
+    for(auto descriptor : tables) {
         // this constructor automatically creates JumpTableEntry children
 
         LOG(1, "constructing jump table at 0x"
@@ -56,11 +88,12 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
         if(it != tableMap.end()) {
             // already exists
             jumpTable = (*it).second;
+            if(jumpTable->getDescriptor() == descriptor) continue;
             auto otherCount = jumpTable->getEntryCount();
             auto thisCount = descriptor->getEntries();
             if(otherCount < 0 && thisCount >= 0) {
                 count = descriptor->getEntries();
-                delete jumpTable->getDescriptor();
+                //delete jumpTable->getDescriptor();
                 jumpTable->setDescriptor(descriptor);
             }
             else if(otherCount >= 0 && thisCount >= 0) {
@@ -72,7 +105,7 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
                         << otherCount << " vs " << thisCount);
                     count = std::max(otherCount, thisCount);
                     if(thisCount > otherCount) {
-                        delete jumpTable->getDescriptor();
+                        //delete jumpTable->getDescriptor();
                         jumpTable->setDescriptor(descriptor);
                     }
                 }
