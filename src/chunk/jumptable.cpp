@@ -35,9 +35,9 @@ void JumpTable::addJumpInstruction(Instruction *instr) {
     auto v = dynamic_cast<IndirectJumpInstruction *>(instr->getSemantic());
     assert(v != nullptr);
 
-    v->setJumpTable(this);
-    LOG(1, "OK, instr " << instr->getName()
-        << " knows about jump table: " << v->getJumpTable());
+    v->addJumpTable(this);
+    LOG(10, "OK, instr " << instr->getName()
+        << " knows about jump table: " << this);
 }
 
 void JumpTable::accept(ChunkVisitor *visitor) {

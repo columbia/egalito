@@ -65,12 +65,13 @@ void SplitBasicBlock::visit(Function *function) {
     {EgalitoTiming timing("SplitBasicBlock part 2", 100);
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());
     if(module) {
-        auto jumptablelist = module->getJumpTableList();
-        for(auto jt : CIter::children(jumptablelist)) {
-            if(jt->getFunction() == function) {
-                for(auto entry : CIter::children(jt)) {
-                    considerSplittingFor(function, dynamic_cast<NormalLink *>(
-                        entry->getLink()));
+        if(auto jumptablelist = module->getJumpTableList()) {
+            for(auto jt : CIter::children(jumptablelist)) {
+                if(jt->getFunction() == function) {
+                    for(auto entry : CIter::children(jt)) {
+                        considerSplittingFor(function,
+                            dynamic_cast<NormalLink *>(entry->getLink()));
+                    }
                 }
             }
         }

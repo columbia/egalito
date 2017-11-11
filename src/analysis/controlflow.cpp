@@ -115,40 +115,39 @@ void ControlFlowGraph::construct(Block *block) {
         if(ij->getMnemonic() == "callq") {
             fallThrough = true;
         }
-        else {
-            fallThrough = false;
-        }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(ij->getMnemonic() == "blr") {
             fallThrough = true;
         }
-        else if(auto jt = ij->getJumpTable()) {
-            LOG(10, "jumptable at " << i->getAddress() << "targeting to...");
-            std::set<address_t> added;
-            for(auto entry : CIter::children(jt)) {
-                auto link = dynamic_cast<NormalLink *>(entry->getLink());
-                if(link && link->getTarget()) {
-                    auto it = added.find(link->getTargetAddress());
-                    if(it != added.end()) continue;
+#endif
+        else if(ij->isForJumpTable()) {
+            for(auto jt : ij->getJumpTables()) {
+                LOG(10, "jumptable at " << i->getAddress() << " targeting to ");
+                std::set<address_t> added;
+                for(auto entry : CIter::children(jt)) {
+                    auto link = dynamic_cast<NormalLink *>(entry->getLink());
+                    if(link && link->getTarget()) {
+                        auto it = added.find(link->getTargetAddress());
+                        if(it != added.end()) continue;
 
-                    added.insert(link->getTargetAddress());
-                    LOG(10, "" << link->getTarget()->getName());
-                    if(auto v = dynamic_cast<Instruction *>(
-                        &*link->getTarget())) {
+                        added.insert(link->getTargetAddress());
+                        LOG(10, "" << link->getTarget()->getName());
+                        if(auto v = dynamic_cast<Instruction *>(
+                            &*link->getTarget())) {
 
-                        auto parent = dynamic_cast<Block *>(v->getParent());
-                        auto parentID = blockMapping[parent];
-                        auto offset = link->getTargetAddress()
-                            - parent->getAddress();
-                        graph[id].addLink(ControlFlowLink(parentID, offset));
-                        graph[parentID].addReverseLink(
-                            ControlFlowLink(id, i->getAddress()
-                                - i->getParent()->getAddress()));
+                            auto parent = dynamic_cast<Block *>(v->getParent());
+                            auto parentID = blockMapping[parent];
+                            auto offset = link->getTargetAddress()
+                                - parent->getAddress();
+                            graph[id].addLink(ControlFlowLink(parentID, offset));
+                            graph[parentID].addReverseLink(
+                                ControlFlowLink(id, i->getAddress()
+                                    - i->getParent()->getAddress()));
+                        }
                     }
                 }
             }
         }
-#endif
     }
     else if(dynamic_cast<ReturnInstruction *>(i->getSemantic())) {
         // return instruction, no intra-function links
