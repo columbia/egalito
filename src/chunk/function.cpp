@@ -23,6 +23,7 @@ Function::Function(Symbol *symbol) : symbol(symbol), nonreturn(false) {
 }
 
 bool Function::hasName(std::string name) const {
+    if(!symbol) return false;
     if(symbol->getName() == name) return true;
     for(auto s : getSymbol()->getAliases()) {
         if(std::string(s->getName()) == name) {
