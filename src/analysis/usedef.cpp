@@ -283,9 +283,6 @@ void UDWorkingSet::copyFromMemSetFor(
     MemLocation loc1(place);
     for(auto &m : *memSet) {
         MemLocation loc2(m.place);
-        LOG0(10, "does this match? ");
-        IF_LOG(10) m.place->print(TreePrinter(0, 0));
-        LOG(10, "");
         if(loc1 == loc2) {
             state->addMemRef(reg, m.origin);
             // register may be different
@@ -338,7 +335,9 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
 #ifdef ARCH_X86_64
     {X86_INS_AND,       &UseDef::fillAnd},
     {X86_INS_ADD,       &UseDef::fillAddOrSub},
+    {X86_INS_BSF,       &UseDef::fillBsf},
     {X86_INS_BT,        &UseDef::fillBt},
+    {X86_INS_CALL,      &UseDef::fillCall},
     {X86_INS_CMP,       &UseDef::fillCmp},
     {X86_INS_JA,        &UseDef::fillJa},
     {X86_INS_JAE,       &UseDef::fillJae},
@@ -666,24 +665,41 @@ void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
 #ifdef ARCH_X86_64
     auto mem = assembly->getAsmOperands()->getOperands()[0].mem;
     int reg1;
-    std::tie(reg1, std::ignore) = getPhysicalRegister(
+    size_t width1;
+    std::tie(reg1, width1) = getPhysicalRegister(
         assembly->getAsmOperands()->getOperands()[1].reg);
 
+    TreeNode *tree = nullptr;
     auto memTree = makeMemTree(state, mem);
-    if(memTree) {
-        LOG(10, "  memTree:");
-        IF_LOG(10) memTree->print(TreePrinter(0, 0));
-        LOG(10, "");
+    auto id = assembly->getId();
+    if(id == X86_INS_ADD) {
         useMem(state, memTree, reg1);
+        tree = TreeFactory::instance().make<TreeNodeDereference>(
+            memTree, width);
 
-        auto derefTree
-            = TreeFactory::instance().make<TreeNodeDereference>(memTree, width);
-        defReg(state, reg1, derefTree);
+        useReg(state, reg1);
+        auto reg1Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg1, width1);
+        tree = TreeFactory::instance().make<TreeNodeAddition>(
+            reg1Tree, tree);
     }
-    else {
-        memTree = TreeFactory::instance().make<TreeNodeConstant>(0);
-        defReg(state, reg1, memTree);
+    else if(id == X86_INS_LEA) {
+        tree = memTree;
     }
+    else if(id == X86_INS_MOV
+        || id == X86_INS_MOVSXD
+        || id == X86_INS_MOVZX) {
+
+        if(memTree) {
+            useMem(state, memTree, reg1);
+            tree = TreeFactory::instance().make<TreeNodeDereference>(
+                memTree, width);
+        }
+        else {
+            tree = TreeFactory::instance().make<TreeNodeConstant>(0);
+        }
+    }
+    defReg(state, reg1, tree);
 #elif defined(ARCH_AARCH64)
     assert(!assembly->isPostIndex());
 
@@ -1200,11 +1216,12 @@ std::tuple<int, size_t> UseDef::getPhysicalRegister(int reg) {
     size_t width = X86Register::getWidth(id, reg);
     return std::make_tuple(id, width);
 }
-// returns nullptr if all is zero (disp == 0)
+// returns nullptr if all is zero (disp == 0); see fillMemToReg
 TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
     TreeNode *memTree = nullptr;
-    if(mem.disp > 0) {
-        memTree = TreeFactory::instance().make<TreeNodeAddress>(mem.disp);
+    if(mem.disp != 0) {
+        // use TreeNodeConstant because it can be mem.disp < 0
+        memTree = TreeFactory::instance().make<TreeNodeConstant>(mem.disp);
     }
     if(mem.index != INVALID_REGISTER) {
         int regI;
@@ -1213,11 +1230,11 @@ TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
         useReg(state, regI);
         TreeNode *indexTree = TreeFactory::instance().make<
             TreeNodePhysicalRegister>(regI, widthI);
-        if(mem.scale != 1) {
+        //if(mem.scale != 1) {
             indexTree = TreeFactory::instance().make<TreeNodeMultiplication>(
                 indexTree,
                 TreeFactory::instance().make<TreeNodeConstant>(mem.scale));
-        }
+        //}
         if(memTree) {
             memTree = TreeFactory::instance().make<TreeNodeAddition>(
                 indexTree, memTree);
@@ -1260,6 +1277,11 @@ void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
     else if(mode == AssemblyOperands::MODE_REG_REG) {
         fillRegToReg(state, assembly);
     }
+    else if(mode == AssemblyOperands::MODE_MEM_REG) {
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
+        fillMemToReg(state, assembly, width);
+    }
     else {
         LOG(10, "skipping mode " << mode);
     }
@@ -1268,6 +1290,21 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         fillImmToReg(state, assembly);
+    }
+    else {
+        LOG(10, "skipping mode " << mode);
+    }
+}
+void UseDef::fillBsf(UDState *state, Assembly *assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_REG_REG) {
+        int reg0, reg1;
+        std::tie(reg0, std::ignore) = getPhysicalRegister(
+            assembly->getAsmOperands()->getOperands()[0].reg);
+        std::tie(reg1, std::ignore) = getPhysicalRegister(
+            assembly->getAsmOperands()->getOperands()[1].reg);
+        defReg(state, reg0, nullptr);
+        useReg(state, reg1);
     }
     else {
         LOG(10, "skipping mode " << mode);
@@ -1302,6 +1339,18 @@ void UseDef::fillBt(UDState *state, Assembly *assembly) {
     else {
         defReg(state, X86Register::FLAGS, nullptr);
         LOG(10, "skipping mode " << mode);
+    }
+}
+void UseDef::fillCall(UDState *state, Assembly *assembly) {
+    useReg(state, 0);
+    defReg(state, 0, nullptr);
+    for(int i = 2; i < 6; i++) {
+        useReg(state, i);
+        defReg(state, i, nullptr);
+    }
+    for(int i = 8; i < 12; i++) {
+        useReg(state, i);
+        defReg(state, i, nullptr);
     }
 }
 void UseDef::fillCmp(UDState *state, Assembly *assembly) {
@@ -1426,7 +1475,7 @@ void UseDef::fillMov(UDState *state, Assembly *assembly) {
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         size_t width = inferAccessWidth(
-            &assembly->getAsmOperands()->getOperands()[0]);
+            &assembly->getAsmOperands()->getOperands()[1]);
         fillMemToReg(state, assembly, width);
     }
     else if(mode == AssemblyOperands::MODE_REG_REG) {
@@ -1805,31 +1854,18 @@ void UseDef::fillSxtw(UDState *state, Assembly *assembly) {
 #endif
 
 void MemLocation::extract(TreeNode *tree) {
-#ifdef ARCH_X86_64
-    typedef TreePatternRecursiveBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-        TreePatternCapture<TreePatternTerminal<TreeNodeAddress>>
-    > MemoryForm;
-#elif defined(ARCH_AARCH64)
     typedef TreePatternRecursiveBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > MemoryForm;
-#endif
 
     TreeCapture cap;
     if(MemoryForm::matches(tree, cap)) {
         for(size_t i = 0; i < cap.getCount(); ++i) {
             auto c = cap.get(i);
-#ifdef ARCH_X86_64
-            if(auto t = dynamic_cast<TreeNodeAddress *>(c)) {
-                offset += t->getValue();
-            }
-#elif defined(ARCH_AARCH64)
             if(auto t = dynamic_cast<TreeNodeConstant *>(c)) {
                 offset += t->getValue();
             }
-#endif
             else if(auto t = dynamic_cast<TreeNodePhysicalRegister *>(c)) {
                 reg = t;
             }

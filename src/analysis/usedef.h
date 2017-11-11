@@ -357,8 +357,10 @@ private:
     TreeNode *makeMemTree(UDState *state, const x86_op_mem& mem);
     void fillAddOrSub(UDState *state, Assembly *assembly);
     void fillAnd(UDState *state, Assembly *assembly);
+    void fillBsf(UDState *state, Assembly *assembly);
     void fillBt(UDState *state, Assembly *assembly);
     void fillCmp(UDState *state, Assembly *assembly);
+    void fillCall(UDState *state, Assembly *assembly);
     void fillJa(UDState *state, Assembly *assembly);
     void fillJae(UDState *state, Assembly *assembly);
     void fillJb(UDState *state, Assembly *assembly);
