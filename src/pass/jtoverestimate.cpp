@@ -31,7 +31,7 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
 
     for(auto it = tableMap.begin(); it != tableMap.end(); it ++) {
         JumpTable *currentTable = (*it).second;
-        if(currentTable->getDescriptor()->getEntries() >= 0) {
+        if(currentTable->getDescriptor()->getEntries() > 0) {
             // bounds for this table are already known
             continue;
         }

@@ -16,7 +16,7 @@ void JumpTableBounds::visit(Module *module) {
 
 void JumpTableBounds::visit(JumpTableList *jumpTableList) {
     recurse(jumpTableList);
-    
+
     // Note: we assume here that relocList is sorted by increasing address.
     auto relocList = module->getElfSpace()->getRelocList();
     JumpTable *currentTable = nullptr;
@@ -32,7 +32,7 @@ void JumpTableBounds::visit(JumpTableList *jumpTableList) {
             }
 
             // make sure the bounds for this table are not already known
-            if((*it).second->getDescriptor()->getEntries() < 0) {
+            if((*it).second->getDescriptor()->getEntries() <= 0) {
                 currentTable = (*it).second;
                 count = 1;
                 currentTable->getDescriptor()->setEntries(1);
