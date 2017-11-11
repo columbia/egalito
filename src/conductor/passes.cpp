@@ -61,6 +61,9 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
         RUN_PASS(ExternalCalls(module->getPLTList()), module);
     }
 
+    // we need to run this before jump table passes
+    RUN_PASS(SplitBasicBlock(), module);
+
     RUN_PASS(JumpTablePass(), module);
 #ifdef ARCH_X86_64
     RUN_PASS(JumpTableBounds(), module);
