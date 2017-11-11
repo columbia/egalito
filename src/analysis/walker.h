@@ -75,6 +75,12 @@ public:
     void postVisit(std::vector<int> *order, int id) { order->push_back(id); }
 };
 
+class PrePostorderVisitor {
+public:
+    void preVisit(std::vector<int> *order, int id) { order->push_back(id); }
+    void postVisit(std::vector<int> *order, int id) { order->push_back(id); }
+};
+
 class EmptyFinisher {
 public:
     template <typename ListType>
@@ -264,6 +270,34 @@ bool isReachable(GraphBase *graph, int src, int dest) {
     for(auto n : walker.get()[0]) {
         if(n == dest) {
             return true;
+        }
+    }
+    return false;
+}
+
+typedef OrderOnCFG<
+    1, PrePostorderVisitor, EmptyFinisher, NodeCollection
+> PrePostOrder;
+
+template <typename PruneType>
+bool isReachable(GraphBase *graph, int src, int dest, PruneType prune) {
+    PrePostOrder walker(graph);
+    walker.gen(src);
+    bool pruning = false;
+    int pruneRoot = 0;
+    for(auto n : walker.get()[0]) {
+        if(pruning) {
+            if(n == pruneRoot) {
+                pruning = false;
+            }
+            continue;
+        }
+        if(n == dest) {
+            return true;
+        }
+        pruning = prune(n);
+        if(pruning) {
+            pruneRoot = n;
         }
     }
     return false;
