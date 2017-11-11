@@ -93,8 +93,8 @@ public:
     template <typename T>
     T getSectionReadPtr(const char *name);
 
-    std::vector<void *> findSectionsByType(int type);
-    std::vector<void *> findSectionsByFlag(long flag);
+    std::vector<void *> findSectionsByType(int type) const;
+    std::vector<void *> findSectionsByFlag(long flag) const;
 
     bool hasInterpreter() const { return interpreter != nullptr; }
     const char *getInterpreter() const { return interpreter; }

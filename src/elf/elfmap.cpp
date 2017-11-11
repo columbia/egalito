@@ -181,7 +181,7 @@ ElfSection *ElfMap::findSection(int index) const {
     return nullptr;
 }
 
-std::vector<void *> ElfMap::findSectionsByType(int type) {
+std::vector<void *> ElfMap::findSectionsByType(int type) const {
     std::vector<void *> sections;
     ElfXX_Shdr sCast;
 
@@ -199,7 +199,7 @@ std::vector<void *> ElfMap::findSectionsByType(int type) {
     return std::move(sections);
 }
 
-std::vector<void *> ElfMap::findSectionsByFlag(long flag) {
+std::vector<void *> ElfMap::findSectionsByFlag(long flag) const {
     std::vector<void *> sections;
 
     char *charmap = static_cast<char *>(map);
@@ -250,5 +250,6 @@ bool ElfMap::isDynamic() const {
 }
 
 bool ElfMap::hasRelocations() const {
-    return findSection(".rela.text") != nullptr;
+    return !findSectionsByType(SHT_RELA).empty();
+    //return findSection(".rela.text") != nullptr;
 }
