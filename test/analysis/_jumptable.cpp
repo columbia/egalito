@@ -28,12 +28,17 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
     REQUIRE(jumpTableCount == ANALYSIS_JUMPTABLE_MAIN_COUNT);
 }
 
-static void testFunction(Function *f, int expected) {
+static void testFunction(Module *module, Function *f, int expected) {
 #if defined(ARCH_X86_64)
+#if 0
     JumpTableSearch jt;
     jt.search(f);
+#else
+    JumptableDetection jt(module);
+    jt.detect(f);
+#endif
 #elif defined(ARCH_AARCH64)
-    JumptableDetection jt;
+    JumptableDetection jt(module);
     jt.detect(f);
 #endif
 
@@ -80,17 +85,17 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
         auto name = testCase[i].name;
         auto f = CIter::named(module->getFunctionList())->find(name);
         if(f) {
-            testFunction(f, testCase[i].expected);
+            testFunction(module, f, testCase[i].expected);
         }
     }
 }
 
-static bool missingBounds(Function *f) {
+static bool missingBounds(Module *module, Function *f) {
 #if defined(ARCH_X86_64)
-    JumpTableSearch jt;
+    JumpTableSearch jt(module);
     jt.search(f);
 #elif defined(ARCH_AARCH64)
-    JumptableDetection jt;
+    JumptableDetection jt(module);
     jt.detect(f);
 #endif
     bool missing = false;
@@ -132,7 +137,7 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
 #if 1
     std::vector<Function *> partial;
     for(auto f : CIter::functions(module)) {
-        if(missingBounds(f)) {
+        if(missingBounds(module, f)) {
             partial.push_back(f);
         }
     }
@@ -149,7 +154,7 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
         WARN("re-doing " << partial.size() << " tests\n");
         for(auto f : partial) {
             WARN("re-doing: " << f->getSymbol()->getName());
-            missingBounds(f);
+            missingBounds(module, f);
         }
     }
 #endif
