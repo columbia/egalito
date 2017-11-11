@@ -218,7 +218,9 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         for(auto module : CIter::children(setup->getConductor()->getProgram())) {
             std::cout << "jumptables in " << module->getName() << "...\n";
             ChunkDumper dumper;
-            module->getJumpTableList()->accept(&dumper);
+            if(auto list = module->getJumpTableList()) {
+                list->accept(&dumper) ;
+            }
         }
     }, "dumps all jump tables in all modules");
 
