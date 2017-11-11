@@ -40,6 +40,7 @@ public:
 
         REGISTER_NUMBER,
 
+        BP = R6,
         SP = R7,
 
         FLAGS = REGISTER_NUMBER
