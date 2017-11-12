@@ -874,7 +874,7 @@ bool JumptableDetection::getBoundFromCompare(UDState *state, int bound,
             return true;
         }
         else {
-            LOG(9, "unknown corresponding branch at 0x" << std::hex
+            LOG(10, "unknown corresponding branch at 0x" << std::hex
                 << s->getInstruction()->getAddress()
                 << " " << assembly->getMnemonic());
         }
