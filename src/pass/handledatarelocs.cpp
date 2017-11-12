@@ -5,8 +5,10 @@
 #include "elf/elfspace.h"
 #include "elf/reloc.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
+    //TemporaryLogLevel tll("pass", 10);
     auto list = module->getDataRegionList();
 
     // make variables for all relocations located inside the regions
@@ -25,7 +27,7 @@ void HandleDataRelocsPass::visit(Module *module) {
 
             if(sourceRegion->findVariable(reloc->getAddress())) continue;
 
-            LOG(10, "sourceRegion is " << sourceRegion->getName());
+            LOG(11, "sourceRegion is " << sourceRegion->getName());
             if(auto link = resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
                 LOG0(10, "resolving a variable at " << std::hex << addr);
@@ -44,9 +46,17 @@ void HandleDataRelocsPass::visit(Module *module) {
 
 Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
 #ifdef ARCH_X86_64
-    // this is the only reloc type we've seen in TLS
     if(reloc->getType() == R_X86_64_RELATIVE) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
+    }
+    else if(reloc->getType() == R_X86_64_TPOFF64) {
+        Symbol *symbol = reloc->getSymbol();
+        auto tls = module->getDataRegionList()->getTLS();
+        if(symbol && symbol->getSectionIndex() == SHN_UNDEF) {
+            tls = nullptr;
+        }
+        return new TLSDataOffsetLink(
+            tls, reloc->getSymbol(), reloc->getAddend());
     }
     return nullptr;
 #else

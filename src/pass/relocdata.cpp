@@ -307,6 +307,8 @@ void RelocDataPass::fixRelocation(Reloc *r) {
             found = true;
         }
     }
+#if 0
+    // this could be pointing to an external module
     else if(r->getType() == R_X86_64_TPOFF64) {
         // stores an index into the thread-local storage table at %fs
         auto tls = module->getDataRegionList()->getTLS();
@@ -315,6 +317,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
             found = true;
         }
     }
+#endif
     else if(r->getType() == R_X86_64_COPY) {
         LOG(10, "IT'S A COPY! " << std::hex << update);
         address_t other;
