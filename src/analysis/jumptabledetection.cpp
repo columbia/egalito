@@ -325,11 +325,9 @@ find_tables:
             << std::hex << indexTableBase << " with "
             << std::dec << indexTableEntries << " entries of size "
             << std::dec << indexTableScale << " each");
-        IF_LOG(10) std::cout.flush();
         auto copyBase
             = module->getElfSpace()->getElfMap()->getCopyBaseAddress();
         LOG(11, "this module is mapped at " << std::hex << copyBase);
-        std::cout.flush();
         size_t max = 0;
         assert(indexTableScale == 1);
         for(size_t i = 0; i < indexTableEntries; i++) {

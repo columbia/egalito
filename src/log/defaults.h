@@ -15,7 +15,7 @@
 #define D_generate      9
 #define D_instr         9
 #define D_load          9
-#define D_log           9
+#define D_log           0
 #define D_main          9
 #define D_operation     9
 #define D_pass          9
