@@ -23,12 +23,16 @@ public:
     */
     bool resolveName(const Symbol *symbol, address_t *address,
         bool allowInternal = true);
+#if 0
     bool resolveObject(const char *name, address_t *address, size_t *size);
+#endif
 private:
     bool resolveNameHelper(const char *name, address_t *address,
         ElfSpace *space);
+#if 0
     bool resolveObjectHelper(const char *name, address_t *address,
         size_t *size, ElfSpace *space);
+#endif
 };
 
 /** Fixes relocations in the data section prior to running code.

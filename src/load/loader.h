@@ -9,7 +9,7 @@ private:
 public:
     bool parse(const char *filename);
 
-    void generateCode();
+    void generateCode(int *argc, char **argv[]);
     void run(int argc, char *argv[]);
 private:
     void otherPasses();

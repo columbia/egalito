@@ -47,12 +47,19 @@ bool EgalitoLoader::parse(const char *filename) {
     return true;
 }
 
-void EgalitoLoader::generateCode() {
+void EgalitoLoader::generateCode(int *argc, char **argv[]) {
     SegMap::mapAllSegments(&setup);
     setup.makeLoaderSandbox();
     otherPasses();
     setup.moveCode();
     otherPassesAfterMove();
+
+    // set up execution environment (do this here for __environ)
+    adjustAuxiliaryVector(*argv, setup.getElfMap(), nullptr);
+    auto adjust = removeLoaderFromArgv(*argv);
+    initial_stack += adjust;
+    *argv = (char **)((char *)*argv + adjust);
+    LoaderEmulator::getInstance().useArgv(*argv);
 
     setup.getConductor()->fixDataSections();
     setup.getConductor()->writeDebugElf("symbols.elf");
@@ -62,19 +69,12 @@ void EgalitoLoader::run(int argc, char *argv[]) {
     ::entry = setup.getEntryPoint();
     CLOG(0, "jumping to entry point at 0x%lx", entry);
 
-    // set up execution environment
-    adjustAuxiliaryVector(argv, setup.getElfMap(), nullptr);
-    auto adjust = removeLoaderFromArgv(argv);
-    initial_stack += adjust;
-    argv = (char **)((char *)argv + adjust);
-    LoaderEmulator::getInstance().useArgv(argv);
-
-    auto libc = setup.getConductor()->getLibraryList()->getLibc();
     std::cout.flush();
     std::fflush(stdout);
 
     PrepareTLS::prepare(setup.getConductor());
 
+    auto libc = setup.getConductor()->getLibraryList()->getLibc();
     if(libc && libc->getElfSpace()) {
         CallInit::callInitFunctions(libc->getElfSpace(), argv);
     }
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
 
     EgalitoLoader loader;
     if(loader.parse(program)) {
-        loader.generateCode();
+        loader.generateCode(&argc, &argv);
         loader.run(argc, argv);  // never returns
     }
 

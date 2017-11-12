@@ -54,7 +54,9 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
             }
             else if(versionedName.size() > 0) {
                 LOG(10, "trying versioned name " << versionedName.c_str());
-                if(resolveNameHelper(versionedName.c_str(), address, elfSpace)) {
+                if(resolveNameHelper(versionedName.c_str(), address,
+                    elfSpace)) {
+
                     return true;
                 }
             }
@@ -68,7 +70,9 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
                 }
                 else if(versionedName.size() > 0) {
                     LOG(10, "trying versioned name " << versionedName.c_str());
-                    if(resolveNameHelper(versionedName.c_str(), address, space)) {
+                    if(resolveNameHelper(versionedName.c_str(), address,
+                        space)) {
+
                         return true;
                     }
                 }
@@ -86,6 +90,7 @@ bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     return false;
 }
 
+#if 0
 bool FindAnywhere::resolveObject(const char *name, address_t *address,
     size_t *size) {
 
@@ -109,6 +114,7 @@ bool FindAnywhere::resolveObject(const char *name, address_t *address,
 
     return false;
 }
+#endif
 
 bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     ElfSpace *space) {
@@ -163,6 +169,7 @@ bool FindAnywhere::resolveNameHelper(const char *name, address_t *address,
     return false;
 }
 
+#if 0
 bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     size_t *size, ElfSpace *space) {
 
@@ -187,6 +194,7 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
 
     return false;
 }
+#endif
 
 void RelocDataPass::visit(Program *program) {
     // resolve relocations in library-depends order (because e.g. COPY relocs)
@@ -311,9 +319,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         LOG(10, "IT'S A COPY! " << std::hex << update);
         address_t other;
         size_t otherSize = (size_t)-1;
-        //found = FindAnywhere(conductor, elfSpace).resolveObject(name, &other, &otherSize);
         // do not allow internal references for COPY relocs
-        found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &other, false);
+        found = FindAnywhere(conductor, elfSpace).resolveName(
+            symbol, &other, false);
         if(found) {
             size_t size = std::min(otherSize, r->getSymbol()->getSize());
             LOG(10, "    doing memcpy from " << other

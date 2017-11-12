@@ -11,6 +11,7 @@ namespace Emulation {
     char *__progname_full;      // for musl
     char **__environ;           // for libc, musl
     int _dl_starting_up = 0;//1;
+    int __libc_enable_secure = 1;
     void *not_yet_implemented = 0;
 
     static void init_rtld_global(struct my_rtld_global *s) {
@@ -45,8 +46,9 @@ LoaderEmulator::LoaderEmulator() {
     addSymbol("environ", &Emulation::__environ);
 
     addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
+    addSymbol("__libc_enable_secure", &Emulation::__libc_enable_secure);
+    //addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
 
-    addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
     addSymbol("_dl_find_dso_for_object", (void *)Emulation::function_not_implemented);
     addSymbol("__tunable_get_val", (void *)Emulation::function_not_implemented);
     addSymbol("__tunable_set_val", (void *)Emulation::function_not_implemented);
