@@ -58,8 +58,10 @@ void PLTTrampoline::writeTo(char *target) {
     std::memcpy(target+offset, data, size), offset += size
 
     bool isIFunc = this->isIFunc();
-    LOG(1, "making PLT entry for [" << this->target->getName()
-        << "] : ifunc? " << (isIFunc ? "yes":"no"));
+    if(this->target) {
+        LOG(1, "making PLT entry for [" << this->target->getName()
+            << "] : ifunc? " << (isIFunc ? "yes":"no"));
+    }
 
     address_t gotPLT = getGotPLTEntry();
     if(!isIFunc) {
@@ -74,10 +76,18 @@ void PLTTrampoline::writeTo(char *target) {
         //ADD_BYTES(&address, 4);
     }
     else {
+        // make stack aligned properly for the next callq
+        // 48 83 ec 08          sub    $0x8,%rsp
+        ADD_BYTES("\x48\x83\xec\x08", 4);
+
         // ff 15 NN NN NN NN    callq *0xNNNNNNNN(%rip)
         ADD_BYTES("\xff\x15", 2);
-        address_t disp = gotPLT - (getAddress() + 2+4);
+        address_t disp = gotPLT - (getAddress() + 2+4) - 4;
         ADD_BYTES(&disp, 4);
+
+        // bring back the stack pointer for the next jmpq and align it
+        // 48 83 c4 08          add    $0x8,%rsp
+        ADD_BYTES("\x48\x83\xc4\x08", 4);
 
         // ff e0    jmpq *%rax
         ADD_BYTES("\xff\xe0", 2);
