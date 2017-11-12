@@ -14,7 +14,7 @@ void LibcHacksPass::visit(Module *module) {
 #ifdef ARCH_X86_64
     const char *funcs[] = {
         "memcpy", "mempcpy",
-        "memmove", "__memmove_chk",
+        "memmove", "__memmove_chk", "memchr", "memset",
         "strcmp", "strncmp", "strcpy", "strncpy",
         "strchr"
     };
