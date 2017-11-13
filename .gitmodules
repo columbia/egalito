@@ -1,3 +1,10 @@
 [submodule "test/binary"]
 	path = test/binary
 	url = git@github.com:columbia/egalito-tests
+[submodule "dep/capstone"]
+	path = dep/capstone
+	url = https://github.com/aquynh/capstone
+	branch = next
+[submodule "dep/distorm3"]
+	path = dep/distorm3
+	url = https://github.com/gdabah/distorm
