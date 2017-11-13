@@ -1,3 +1,5 @@
+#define HAVE_DISTORM
+
 #include <cstring>  // for memcmp
 #include "makesemantic.h"
 #include "disassemble.h"
@@ -6,6 +8,10 @@
 #include "chunk/concrete.h"
 #include "chunk/link.h"
 #include "log/log.h"
+
+#ifdef HAVE_DISTORM
+    #include "dep/distorm3/include/distorm.h"
+#endif
 
 InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, cs_insn *ins) {
@@ -129,7 +135,47 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
+static int originalGuess(int size) {
+    switch(size) {
+    case 2: return 1;
+    case 3: return 1;
+    case 4: return 1;
+    case 5: return 4;
+    case 6: return 4;
+    case 7: return 4;
+    case 8: return 4;  // call *%gs:0xf00
+    case 9: return 4;  // never actually observed
+    case 10: return 4;
+    case 11: return 4;
+    default: return 0;
+    }
+}
+
 int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
+#ifdef HAVE_DISTORM
+    _DInst instr;
+    _CodeInfo ci;
+    ci.code         = reinterpret_cast<const uint8_t *>(assembly->getBytes());
+    ci.codeLen      = assembly->getSize();
+    ci.codeOffset   = 0;  // address, don't need a real value here
+    ci.dt           = Decode64Bits;
+    ci.features     = DF_NONE;
+    
+    unsigned count = 0;
+    if(distorm_decompose(&ci, &instr, 1, &count) != DECRES_SUCCESS
+        || count != 1) {
+
+        return 0;
+    }
+
+    if(instr.dispSize && instr.dispSize/8 != originalGuess(assembly->getSize())) {
+        LOG(1, "dispSize = " << ((int)instr.dispSize/8) << ", not "
+            << originalGuess(assembly->getSize()) << " in size "
+            << assembly->getSize());
+    }
+
+    return instr.dispSize / 8;
+#else
 #ifdef ARCH_X86_64
     switch(assembly->getSize()) {
     case 2: return 1;
@@ -146,6 +192,7 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     }
 #else
     return 0;
+#endif
 #endif
 }
 

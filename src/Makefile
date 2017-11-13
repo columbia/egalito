@@ -46,6 +46,9 @@ ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
 ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
+DISTORM_A = dep/distorm3/distorm3.a
+DISTORM_SO = -L dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(shell pwd)/dep/distorm3/make/linux
+
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
 LOADER = $(BUILDDIR)loader
@@ -109,11 +112,11 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 $(LOADER): $(LOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
-		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000
+		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000 $(DISTORM_A)
 $(LIBRARY): $(TYPICAL_OBJECTS)
-	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS)
+	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS) $(DISTORM_A)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
-	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@ $(DISTORM_SO)
 $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 	$(SHORT_LINK) -nostdlib -shared -fPIC -Wl,-soname,libaddon.so $^ -o $@
 
