@@ -19,5 +19,6 @@ test:
 	./codeform-s.sh
 	./verify-redzone.sh
 	./argv.sh
+	./environ.sh
 	./islower.sh
 	$(call arch_dep,./jumptable-libc.sh)
