@@ -8,7 +8,6 @@ namespace Emulation {
     struct my_rtld_global _rtld_global;
     struct my_rtld_global_ro _rtld_global_ro;
     char **_dl_argv;
-    char *__progname_full;      // for musl
     char **__environ;           // for libc, musl
     int _dl_starting_up = 0;//1;
     int __libc_enable_secure = 1;
@@ -29,9 +28,6 @@ namespace Emulation {
 void LoaderEmulator::useArgv(char **argv) {
     Emulation::_dl_argv = argv;
     addSymbol("_dl_argv", Emulation::_dl_argv);
-    // __init_misc() in glibc will overwrite this to argv[1]
-    Emulation::__progname_full = argv[0];
-    addSymbol("__progname_full", Emulation::__progname_full);
 
     char **environ = argv;
     while(*environ) environ ++;
