@@ -7,6 +7,7 @@
 #include "log/log.h"
 
 void UseGSTablePass::visit(Block *block) {
+#ifdef ARCH_X86_64
     auto iterable = block->getChildren()->getIterable();
     for(size_t i = 0; i < iterable->getCount(); i ++) {
         Instruction *instr = iterable->get(i);
@@ -32,8 +33,10 @@ void UseGSTablePass::visit(Block *block) {
             }
         }
     }
+#endif
 }
 
+#ifdef ARCH_X86_64
 void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     auto i = static_cast<ControlFlowInstruction *>(instr->getSemantic());
     if(!i->getLink()) return;
@@ -88,6 +91,7 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block, Instruction *ins
         << instr->getParent()->getParent()->getName() << "]: ");
     instr->accept(&dumper);
 }
+#endif
 
 #if 0
 static void rewrite_indirect_call_instruction(VECTOR_TYPE(unsigned char) *buffer,

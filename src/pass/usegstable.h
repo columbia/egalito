@@ -16,10 +16,12 @@ public:
 
     virtual void visit(Block *block);
 private:
+#ifdef ARCH_X86_64
     void rewriteDirectCall(Block *block, Instruction *instr);
     void rewriteTailRecursion(Block *block, Instruction *instr);
     void rewriteIndirectCall(Block *block, Instruction *instr);
     void rewriteIndirectTailRecursion(Block *block, Instruction *instr);
+#endif
 };
 
 #endif
