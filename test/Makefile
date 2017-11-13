@@ -4,7 +4,9 @@ include ../env.mk
 
 CFLAGS      += -I ../src/
 CXXFLAGS    += -I ../src/
-CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
+CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
+	-Wl,-rpath=$(abspath ../src/$(BUILDDIR)) \
+	-Wl,-rpath=$(abspath ../dep/capstone/install/lib)
 
 CFLAGS      += '-DTESTDIR="binary/build/"'
 CXXFLAGS    += '-DTESTDIR="binary/build/"'

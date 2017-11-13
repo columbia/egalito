@@ -28,14 +28,14 @@ else
 endif
 endif
 
-CAPSTONE_DIR = ../dep/capstone
+CAPSTONE_DIR = ../dep/capstone/install
 GENERIC_FLAGS += -I $(CAPSTONE_DIR)/include
 
 OPT_FLAGS       = -g3 -O2
 DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++11 $(GENERIC_FLAGS) $(OPT_FLAGS)
-CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR) -lcapstone -Wl,-q
+CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR)/lib -lcapstone -Wl,-q
 
 ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
 	CFLAGS += -no-pie -pg

@@ -9,7 +9,9 @@ PYTHON_INC_DIR = /usr/include/python3.6m
 
 CFLAGS      += -g -I ../src/
 CXXFLAGS    += -g -I ../src/
-CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito -Wl,-rpath=../src/$(BUILDDIR)
+CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
+	-Wl,-rpath=$(abspath ../src/$(BUILDDIR)) \
+	-Wl,-rpath=$(abspath ../dep/capstone/install/lib)
 
 SHELL_SOURCES       = $(wildcard shell/*.cpp)
 OBJDUMP_SOURCES     = $(wildcard objdump/*.cpp)
@@ -98,4 +100,4 @@ $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell pyshell
+	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump
