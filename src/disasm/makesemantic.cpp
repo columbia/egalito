@@ -135,25 +135,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
-#if 0
-static int originalGuess(int size) {
-    switch(size) {
-    case 2: return 1;
-    case 3: return 1;
-    case 4: return 1;
-    case 5: return 4;
-    case 6: return 4;
-    case 7: return 4;
-    case 8: return 4;  // call *%gs:0xf00
-    case 9: return 4;  // never actually observed
-    case 10: return 4;
-    case 11: return 4;
-    default: return 0;
-    }
-}
-#endif
-
 int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
+#ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM
     _DInst instr;
     _CodeInfo ci;
@@ -171,14 +154,6 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     }
 
     int dispSize = static_cast<int>(instr.dispSize / 8);
-#if 0
-    int original = originalGuess(assembly->getSize());
-    if(dispSize && dispSize != original) {
-        LOG(1, "dispSize = " << dispSize << ", not "
-            << originalGuess(assembly->getSize()) << " in size "
-            << assembly->getSize());
-    }
-#endif
 
     if(dispSize) return dispSize;
 
@@ -196,19 +171,11 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
         }
     }
 
-#if 0
-    if(opSize >= 0 && opSize != original) {
-        LOG(1, "opSize = " << dispSize << ", not "
-            << originalGuess(assembly->getSize()) << " in size "
-            << assembly->getSize());
-    }
-#endif
     if(opSize >= 0) return opSize;
 
     LOG(1, "WARNING: distorm does not know size of instruction displacement!");
     return 0;
 #else
-#ifdef ARCH_X86_64
     switch(assembly->getSize()) {
     case 2: return 1;
     case 3: return 1;
@@ -222,9 +189,9 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     case 11: return 4;
     default: return 0;
     }
-#else
-    return 0;
 #endif
+#else  // not ARCH_X86_64
+    return 0;
 #endif
 }
 
