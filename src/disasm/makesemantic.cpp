@@ -135,6 +135,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
+#if 0
 static int originalGuess(int size) {
     switch(size) {
     case 2: return 1;
@@ -150,6 +151,7 @@ static int originalGuess(int size) {
     default: return 0;
     }
 }
+#endif
 
 int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
 #ifdef HAVE_DISTORM
@@ -168,13 +170,43 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
         return 0;
     }
 
-    if(instr.dispSize && instr.dispSize/8 != originalGuess(assembly->getSize())) {
-        LOG(1, "dispSize = " << ((int)instr.dispSize/8) << ", not "
+    int dispSize = static_cast<int>(instr.dispSize / 8);
+#if 0
+    int original = originalGuess(assembly->getSize());
+    if(dispSize && dispSize != original) {
+        LOG(1, "dispSize = " << dispSize << ", not "
             << originalGuess(assembly->getSize()) << " in size "
             << assembly->getSize());
     }
+#endif
 
-    return instr.dispSize / 8;
+    if(dispSize) return dispSize;
+
+    int opSize = -1;
+    for(size_t i = 0; i < OPERANDS_NO; i ++) {
+        if(instr.ops[i].type == O_NONE) break;
+        if(instr.ops[i].type == O_IMM
+            || instr.ops[i].type == O_IMM1
+            || instr.ops[i].type == O_IMM2
+            || instr.ops[i].type == O_PC
+            || instr.ops[i].type == O_PTR) {
+
+            opSize = instr.ops[i].size / 8;
+            break;
+        }
+    }
+
+#if 0
+    if(opSize >= 0 && opSize != original) {
+        LOG(1, "opSize = " << dispSize << ", not "
+            << originalGuess(assembly->getSize()) << " in size "
+            << assembly->getSize());
+    }
+#endif
+    if(opSize >= 0) return opSize;
+
+    LOG(1, "WARNING: distorm does not know size of instruction displacement!");
+    return 0;
 #else
 #ifdef ARCH_X86_64
     switch(assembly->getSize()) {
