@@ -2,8 +2,8 @@
 #include <sys/mman.h>
 #include "data.h"
 #include "chunk/tls.h"
-#include "dep/rtld/pthread.h"
-#include "dep/rtld/tcbhead.h"
+#include "../dep/rtld/pthread.h"
+#include "../dep/rtld/tcbhead.h"
 #include "elf/elfspace.h"
 #include "log/log.h"
 

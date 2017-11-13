@@ -10,7 +10,7 @@
 #include "log/log.h"
 
 #ifdef HAVE_DISTORM
-    #include "dep/distorm3/include/distorm.h"
+    #include "../dep/distorm3/include/distorm.h"
 #endif
 
 InstructionSemantic *MakeSemantic::makeNormalSemantic(

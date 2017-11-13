@@ -1,6 +1,6 @@
 # Makefile to compute loader structures
 
-include ../../../env.mk
+include ../../env.mk
 
 READELF = $(CROSS)readelf
 GDB = $(CROSS)gdb

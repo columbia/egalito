@@ -46,8 +46,8 @@ ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
 ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
-DISTORM_A = dep/distorm3/distorm3.a
-DISTORM_SO = -L dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(shell pwd)/dep/distorm3/make/linux
+DISTORM_A = ../dep/distorm3/distorm3.a
+DISTORM_SO = -L ../dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(shell pwd)/../dep/distorm3/make/linux
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
@@ -90,11 +90,8 @@ $(BUILDTREE): ../config/config.h
 		ln -s ../test/example/$(BUILDDIR) ex; \
 	fi
 
-$(GEN_TIMESTAMP): gencode | $(BUILDTREE)
+$(GEN_TIMESTAMP): $(BUILDTREE)
 	@touch $@
-
-gencode:
-	$(call short-make,dep/rtld)
 
 # Dependencies
 DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
@@ -124,4 +121,3 @@ $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 .PHONY: clean
 clean:
 	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf
-	-$(call short-make,dep/rtld,clean)

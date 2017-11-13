@@ -3,7 +3,7 @@
 #include "emulator.h"
 
 namespace Emulation {
-    #include "dep/rtld/rtld.h"
+    #include "../dep/rtld/rtld.h"
 
     struct my_rtld_global _rtld_global;
     struct my_rtld_global_ro _rtld_global_ro;
@@ -15,11 +15,11 @@ namespace Emulation {
 
     static void init_rtld_global(struct my_rtld_global *s) {
         using std::memcpy;
-        #include "dep/rtld/rtld_data1.c"
+        #include "../dep/rtld/rtld_data1.c"
     }
     static void init_rtld_global_ro(struct my_rtld_global_ro *s) {
         using std::memcpy;
-        #include "dep/rtld/rtld_data2.c"
+        #include "../dep/rtld/rtld_data2.c"
     }
 
     static int function_not_implemented(void) { return 0; }

@@ -1,5 +1,5 @@
 #include "preparetls.h"
-#include "dep/rtld/tcbhead.h"
+#include "../dep/rtld/tcbhead.h"
 #include "conductor/conductor.h"
 #include "log/log.h"
 
