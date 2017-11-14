@@ -24,6 +24,12 @@ Dominance::Dominance(ControlFlowGraph *cfg)
         idMap[order[i]] = i;
     }
 
+    LOG(10, "RPO");
+    for(auto n : order) {
+        LOG0(10, " " << std::setw(3) << n);
+    }
+    LOG(10, "");
+
     bool changed = true;
     while(changed) {
         changed = false;
@@ -38,7 +44,7 @@ Dominance::Dominance(ControlFlowGraph *cfg)
             ControlFlow::id_t idom = -1;
             for(auto link : node->backwardLinks()) {
                 auto pred = link->getTargetID();
-                if(idoms[idMap[pred]] != -1) {
+                if(idoms[pred] != -1) {
                     if(first) {
                         idom = pred;
                         first = false;
