@@ -203,7 +203,7 @@ bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
         "_ZSt20__throw_out_of_rangePKc@plt",
         "_ZSt19__throw_logic_errorPKc@plt",
         "_ZSt17__throw_bad_allocv@plt",
-        "__assert_fail@plt"
+        "__assert_fail@plt", "error@plt"
     };
 
     for(auto plt : PLTnoreturns) {
