@@ -1,5 +1,9 @@
 #define HAVE_DISTORM
 
+#ifdef HAVE_DISTORM
+    #include "../dep/distorm3/include/distorm.h"
+#endif
+
 #include <cstring>  // for memcmp
 #include "makesemantic.h"
 #include "disassemble.h"
@@ -8,10 +12,6 @@
 #include "chunk/concrete.h"
 #include "chunk/link.h"
 #include "log/log.h"
-
-#ifdef HAVE_DISTORM
-    #include "../dep/distorm3/include/distorm.h"
-#endif
 
 InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, cs_insn *ins) {
@@ -138,7 +138,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
 int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
 #ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM
-    _DInst instr;
+    _DInst _instr[256];
+    _DInst &instr = _instr[120];
     _CodeInfo ci;
     ci.code         = reinterpret_cast<const uint8_t *>(assembly->getBytes());
     ci.codeLen      = assembly->getSize();
@@ -153,28 +154,31 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
         return 0;
     }
 
-    int dispSize = static_cast<int>(instr.dispSize / 8);
+    if(instr.flags == FLAG_NOT_DECODABLE) return 0;
 
-    if(dispSize) return dispSize;
-
-    int opSize = -1;
+    int dispSize = -1;
     for(size_t i = 0; i < OPERANDS_NO; i ++) {
-        if(instr.ops[i].type == O_NONE) break;
-        if(instr.ops[i].type == O_IMM
-            || instr.ops[i].type == O_IMM1
-            || instr.ops[i].type == O_IMM2
-            || instr.ops[i].type == O_PC
-            || instr.ops[i].type == O_PTR) {
+        int type = instr.ops[i].type;
+        if(type == O_NONE) break;
+        if(type == O_SMEM || type == O_MEM || type == O_DISP) {
+            dispSize = instr.dispSize / 8;
+            break;
+        }
+        if(type == O_IMM || type == O_IMM1 || type == O_IMM2
+            || type == O_PC || type == O_PTR) {
 
-            opSize = instr.ops[i].size / 8;
+            dispSize = instr.ops[i].size / 8;
             break;
         }
     }
 
-    if(opSize >= 0) return opSize;
-
-    LOG(1, "WARNING: distorm does not know size of instruction displacement!");
-    return 0;
+    if(dispSize >= 0) {
+        return dispSize;
+    }
+    else {
+        //LOG(1, "WARNING: distorm does not know size of instruction displacement!");
+        return 0;
+    }
 #else
     switch(assembly->getSize()) {
     case 2: return 1;

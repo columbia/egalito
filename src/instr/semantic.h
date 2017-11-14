@@ -11,6 +11,10 @@
 class Instruction;
 class Link;
 
+class ChunkSerializerOperations;
+class ArchiveStreamReader;
+class ArchiveStreamWriter;
+
 /** Abstract base class for special instruction data.
 */
 class InstructionSemantic {

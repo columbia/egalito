@@ -10,7 +10,7 @@
 #include "log/log.h"
 
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
-    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+    FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType());
     BufferedStreamWriter writer(flat);
 
@@ -21,7 +21,7 @@ FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
 void ChunkSerializerOperations::serialize(Chunk *chunk,
     FlatChunk::IDType id) {
 
-    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+    FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType(), id);
     BufferedStreamWriter writer(flat);
 
@@ -82,23 +82,7 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
     }*/
 }
 
-FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *chunk) {
-    auto it = assignment.find(chunk);
-    if(it != assignment.end()) {
-        return (*it).second;
-    }
-
-    if(chunk) {
-        auto id = archive->getFlatList().getNextID();
-        assignment[chunk] = id;
-        return id;
-    }
-    else {
-        return static_cast<FlatChunk::IDType>(-1);
-    }
-}
-
-Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
+Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
     std::function<Chunk *()> constructor[] = {
         [] () -> Chunk* { return nullptr; },              // TYPE_UNKNOWN
         [] () -> Chunk* { return new Program(nullptr); },        // TYPE_Program
@@ -145,16 +129,6 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
     return (constructor[type])();
 }
 
-Chunk *ChunkSerializerOperations::lookup(FlatChunk::IDType id) {
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
-    return archive->getFlatList().get(id)->getInstance<Chunk>();
-}
-
-FlatChunk *ChunkSerializerOperations::lookupFlat(FlatChunk::IDType id) {
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
-    return archive->getFlatList().get(id);
-}
-
 void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
     EgalitoArchive *archive = new EgalitoArchive();
     ChunkSerializerOperations op(archive);
@@ -176,19 +150,21 @@ Chunk *ChunkSerializer::deserialize(std::string filename) {
     EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
     ChunkSerializerOperations op(archive);
 
+    // First instantiate objects, with the correct type, so that memory
+    // addresses are fixed (and pointers can be set during deserialization).
     for(auto flat : archive->getFlatList()) {
-        flat->setInstance(op.instantiate(flat));
+        flat->setInstance(instantiate(flat));
     }
 
-    /*for(auto flat : archive->getFlatList()) {
-        op.deserialize(flat);
-    }*/
+    // Deserialize in reverse order so that tree leaves will be fully
+    // initialized before their parents are constructed.
     for(auto it = archive->getFlatList().rbegin();
         it != archive->getFlatList().rend(); it ++) {
 
         op.deserialize(*it);
     }
 
+    // We assume node 0 is the root.
     auto root = op.lookup(0);
     delete archive;
     return root;
