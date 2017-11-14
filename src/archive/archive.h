@@ -19,6 +19,7 @@ public:
         : sourceFilename(filename), version(version) {}
 
     FlatChunkList &getFlatList() { return flatList; }
+    const FlatChunkList &getFlatList() const { return flatList; }
 
     int getVersion() const { return version; }
 };

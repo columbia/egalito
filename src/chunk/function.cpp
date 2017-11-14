@@ -7,6 +7,7 @@
 #include "disasm/disassemble.h"
 #include "instr/writer.h"
 #include "instr/semantic.h"
+#include "instr/serializer.h"
 #include "operation/mutator.h"
 #include "log/log.h"
 
@@ -25,7 +26,7 @@ Function::Function(Symbol *symbol) : symbol(symbol), nonreturn(false) {
 bool Function::hasName(std::string name) const {
     if(!symbol) return false;
     if(symbol->getName() == name) return true;
-    for(auto s : getSymbol()->getAliases()) {
+    for(auto s : symbol->getAliases()) {
         if(std::string(s->getName()) == name) {
             return true;
         }
@@ -46,6 +47,7 @@ void Function::serialize(ChunkSerializerOperations &op,
     writer.write(static_cast<uint8_t>(0));
     op.serializeChildren(this, writer);
 #else  // compress data
+    InstrSerializer instrSerializer;
     writer.write(static_cast<uint8_t>(1));
 
     writer.write(static_cast<uint64_t>(
@@ -54,9 +56,13 @@ void Function::serialize(ChunkSerializerOperations &op,
         writer.write(static_cast<uint64_t>(
             block->getChildren()->getIterable()->getCount()));
         for(auto instr : CIter::children(block)) {
+#if 1
+            instrSerializer.serialize(instr->getSemantic(), writer);
+#else
             InstrWriterGetData instrWriter;
             instr->getSemantic()->accept(&instrWriter);
             writer.writeAnyLength(instrWriter.get());
+#endif
         }
     }
 #endif
@@ -84,6 +90,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         op.deserializeChildren(this, reader);
     }
     else {
+        InstrSerializer instrSerializer;
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
@@ -103,26 +110,10 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             uint64_t instrCount = 0;
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
-                std::string bytes;
-                reader.readAnyLength(bytes);
-                static DisasmHandle handle(true);
-                Instruction *instr = nullptr;
-#if 1
-                try {
-                    instr = DisassembleInstruction(handle, true)
-                        .instruction(bytes, address + totalSize);
-                }
-                catch(const char *what) {
-                    LOG(1, "DISASSEMBLY ERROR: " << what);
-                    instr = new Instruction();
-                    RawByteStorage storage(bytes);
-                    instr->setSemantic(new RawInstruction(std::move(storage)));
-                }
-#else
-                instr = new Instruction();
-                RawByteStorage storage(bytes);
-                instr->setSemantic(new RawInstruction(std::move(storage)));
-#endif
+                auto instr = new Instruction();
+                auto semantic = instrSerializer.deserialize(instr,
+                    address + totalSize, reader);
+                instr->setSemantic(semantic);
                 totalSize += instr->getSize();
 
                 instr->setPosition(positionFactory->makePosition(

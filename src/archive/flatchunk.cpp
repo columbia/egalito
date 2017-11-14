@@ -35,3 +35,8 @@ FlatChunk *FlatChunkList::get(FlatListType::size_type i) {
     assert(i < flatList.size());
     return flatList[i];
 }
+
+const FlatChunk *FlatChunkList::get(FlatListType::size_type i) const {
+    assert(i < flatList.size());
+    return flatList[i];
+}
