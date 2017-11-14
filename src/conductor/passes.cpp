@@ -75,12 +75,14 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     // this needs jumptable information and all NormalLinks
     RUN_PASS(SplitBasicBlock(), module);
 
+    // spot non returning functions
+    RUN_PASS(NonReturnFunction(), module);
+
     // this needs all blocks to be split to basic blocks
     RUN_PASS(InferLinksPass(elf), module);
 
 #ifdef ARCH_AARCH64
     if(!space->getSymbolList()) {
-        RUN_PASS(NonReturnFunction(), module);
         RUN_PASS(SplitFunction(), module);
         RUN_PASS(RemovePadding(), module);
         RUN_PASS(UpdateLink(), module);
