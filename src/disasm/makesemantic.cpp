@@ -1,5 +1,9 @@
 #define HAVE_DISTORM
 
+#ifdef HAVE_DISTORM
+    #include "../dep/distorm3/include/distorm.h"
+#endif
+
 #include <cstring>  // for memcmp
 #include "makesemantic.h"
 #include "disassemble.h"
@@ -8,10 +12,6 @@
 #include "chunk/concrete.h"
 #include "chunk/link.h"
 #include "log/log.h"
-
-#ifdef HAVE_DISTORM
-    #include "../dep/distorm3/include/distorm.h"
-#endif
 
 InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, cs_insn *ins) {
@@ -39,6 +39,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             auto dispSize = determineDisplacementSize(&assembly);
             size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
+            LOG(1, "ins size = " << ins->size << ", dispSize = " << dispSize << ", use = " << use);
             auto cfi = new ControlFlowInstruction(
                 ins->id, instruction,
                 std::string((char *)ins->bytes, use),
@@ -138,7 +139,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
 int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
 #ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM
-    _DInst instr;
+    _DInst _instr[256];
+    _DInst &instr = _instr[120];
     _CodeInfo ci;
     ci.code         = reinterpret_cast<const uint8_t *>(assembly->getBytes());
     ci.codeLen      = assembly->getSize();
@@ -153,28 +155,64 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
         return 0;
     }
 
-    int dispSize = static_cast<int>(instr.dispSize / 8);
+    if(instr.flags == FLAG_NOT_DECODABLE) return 0;
 
-    if(dispSize) return dispSize;
-
-    int opSize = -1;
+    int dispSize = -1;
     for(size_t i = 0; i < OPERANDS_NO; i ++) {
-        if(instr.ops[i].type == O_NONE) break;
-        if(instr.ops[i].type == O_IMM
-            || instr.ops[i].type == O_IMM1
-            || instr.ops[i].type == O_IMM2
-            || instr.ops[i].type == O_PC
-            || instr.ops[i].type == O_PTR) {
+        int type = instr.ops[i].type;
+        if(type == O_NONE) break;
+        if(type == O_SMEM || type == O_MEM || type == O_DISP) {
+            LOG(1, "standard dispSize");
+            dispSize = instr.dispSize / 8;
+            break;
+        }
+        if(type == O_IMM || type == O_IMM1 || type == O_IMM2
+            || type == O_PC || type == O_PTR) {
 
-            opSize = instr.ops[i].size / 8;
+            int size = static_cast<int>(instr.ops[i].size);
+
+            LOG(1, "operand dispSize of " << size << " for arg # " << i);
+            LOG(1, "    " << assembly->getMnemonic() << " " << assembly->getOpStr());
+            dispSize = instr.ops[i].size / 8;
             break;
         }
     }
 
-    if(opSize >= 0) return opSize;
+    if(dispSize == 1600) {
+        LOG(1, "ABOUT TO CRASH SOON");
+        CLOG(1, "0x%x", (offsetof(_DInst, ops) + offsetof(_Operand, size)));
+        CLOG(1, "0x%x + 0x%x", offsetof(_DInst, ops), offsetof(_Operand, size));
+        CLOG(1, "imm=0x%x, disp=0x%x, addr=0x%x, flags=0x%x, unusedPrefixesMask=0x%x, usedRegistersMask=0x%x, opcode=0x%x, ops=0x%x",
+            offsetof(_DInst, imm),
+            offsetof(_DInst, disp),
+            offsetof(_DInst, addr),
+            offsetof(_DInst, flags),
+            offsetof(_DInst, unusedPrefixesMask),
+            offsetof(_DInst, usedRegistersMask),
+            offsetof(_DInst, opcode),
+            offsetof(_DInst, ops));
+        CLOG(1, "sizeof(_Value) = 0x%x, sizeof(_OffsetType) = 0x%x",
+            sizeof(_Value), sizeof(_OffsetType));
+        CLOG(1, "sizeof(uint32_t) = 0x%x vs sizeof(usedRegistersMask) = 0x%x",
+            sizeof(uint32_t),
+            sizeof(instr.usedRegistersMask));
+    }
 
-    LOG(1, "WARNING: distorm does not know size of instruction displacement!");
-    return 0;
+    //if(instr.dispSize > 0) return instr.dispSize / 8;
+
+    if(dispSize >= 0) {
+        LOG(1, "dispSize = " << dispSize << ", type[] = " << std::dec
+            << (int)instr.ops[0].type << "," << (int)instr.ops[1].type << ","
+            << (int)instr.ops[2].type << "," << (int)instr.ops[3].type
+            << ", size[] = "
+            << (int)instr.ops[0].size << "," << (int)instr.ops[1].size << ","
+            << (int)instr.ops[2].size << "," << (int)instr.ops[3].size);
+        return dispSize;
+    }
+    else {
+        //LOG(1, "WARNING: distorm does not know size of instruction displacement!");
+        return 0;
+    }
 #else
     switch(assembly->getSize()) {
     case 2: return 1;

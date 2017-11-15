@@ -1,6 +1,10 @@
 #include "serializer.h"
 #include "visitor.h"
+#include "writer.h"
+#include "concrete.h"
+#include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"
+#include "disasm/handle.h"
 #include "log/log.h"
 
 enum EgalitoInstrType {
@@ -47,13 +51,13 @@ public:
         { write(TYPE_LinkedLiteralInstruction, literal); }
 };
 
-void InstrSerializer::write(EgalitoInstrType type,
+void SemanticSerializer::write(EgalitoInstrType type,
     InstructionSemantic *forBytes) {
 
     writer.write(static_cast<uint8_t>(type));
 
     InstrWriterGetData instrWriter;
-    forBytes->getSemantic()->accept(&instrWriter);
+    forBytes->accept(&instrWriter);
     writer.writeAnyLength(instrWriter.get());
 }
 
@@ -65,7 +69,7 @@ void InstrSerializer::serialize(InstructionSemantic *semantic,
 }
 
 InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
-    ArchiveStreamReader &reader) {
+    address_t address, ArchiveStreamReader &reader) {
 
     uint8_t type;
     reader.read(type);
@@ -105,7 +109,6 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
     }
     catch(const char *what) {
         LOG(1, "DISASSEMBLY ERROR: " << what);
-        instr = new Instruction();
         RawByteStorage storage(bytes);
         return new RawInstruction(std::move(storage));
     }

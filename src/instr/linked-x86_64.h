@@ -95,6 +95,12 @@ public:
     int getId() const { return id; }
     void addToDisplacementValue(long int add);
 };
+
+// not used for X86, but we need a definition for visitors
+class LinkedLiteralInstruction : public RawInstruction {
+public:
+    using RawInstruction::RawInstruction;
+};
 #endif
 
 #endif

@@ -47,7 +47,6 @@ void Function::serialize(ChunkSerializerOperations &op,
     writer.write(static_cast<uint8_t>(0));
     op.serializeChildren(this, writer);
 #else  // compress data
-    InstrSerializer instrSerializer;
     writer.write(static_cast<uint8_t>(1));
 
     writer.write(static_cast<uint64_t>(
@@ -57,7 +56,7 @@ void Function::serialize(ChunkSerializerOperations &op,
             block->getChildren()->getIterable()->getCount()));
         for(auto instr : CIter::children(block)) {
 #if 1
-            instrSerializer.serialize(instr->getSemantic(), writer);
+            InstrSerializer().serialize(instr->getSemantic(), writer);
 #else
             InstrWriterGetData instrWriter;
             instr->getSemantic()->accept(&instrWriter);
@@ -90,7 +89,6 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         op.deserializeChildren(this, reader);
     }
     else {
-        InstrSerializer instrSerializer;
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
@@ -111,7 +109,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
                 auto instr = new Instruction();
-                auto semantic = instrSerializer.deserialize(instr,
+                auto semantic = InstrSerializer().deserialize(instr,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);
                 totalSize += instr->getSize();
