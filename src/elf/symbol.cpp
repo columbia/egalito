@@ -12,6 +12,7 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dsymbol
 #include "log/log.h"
+#include "log/temp.h"
 
 class SymbolAliasFinder : private UnionFind {
 private:
@@ -221,6 +222,21 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
 
 SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
     auto list = buildAnySymbolList(elfmap, ".dynsym", SHT_DYNSYM);
+
+    if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
+        if(auto init = elfmap->findSection(".init")) {
+            s->setSize(init->getHeader()->sh_size);
+            LOG(6, "setting the size of _init to "
+                << init->getHeader()->sh_size);
+        }
+    }
+    if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
+        if(auto fini = elfmap->findSection(".fini")) {
+            s->setSize(fini->getHeader()->sh_size);
+            LOG(6, "setting the size of _init to "
+                << fini->getHeader()->sh_size);
+        }
+    }
 
     SymbolVersionList versionList(elfmap);
     for(auto sym : *list) {
