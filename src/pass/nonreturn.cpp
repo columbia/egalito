@@ -10,13 +10,17 @@
     #include "instr/linked-aarch64.h"
 #endif
 #include "log/log.h"
+#include "log/temp.h"
 
 const std::vector<std::string> NonReturnFunction::standardNameList = {
-    "exit"
+    "exit", "error"
 };
 
 void NonReturnFunction::visit(Module *module) {
     size_t size = 0;
+
+    //TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll2("analysis", 10);
 
     do {
         size = nonReturnList.size();
@@ -40,8 +44,8 @@ void NonReturnFunction::visit(Function *function) {
 
                 if(hasLinkToNonReturn(cfi)) {
                     ControlFlowGraph cfg(function);
-                    //LOG(1, "--Function " << function->getName());
-                    //cfg.dump();
+                    LOG(10, "--Function " << function->getName());
+                    IF_LOG(10) cfg.dump();
                     Dominance dom(&cfg);
                     auto pdom = dom.getPostDominators(0);
                     auto nid = cfg.getIDFor(block);
