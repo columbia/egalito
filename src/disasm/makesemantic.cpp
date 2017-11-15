@@ -39,7 +39,6 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             auto dispSize = determineDisplacementSize(&assembly);
             size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
-            LOG(1, "ins size = " << ins->size << ", dispSize = " << dispSize << ", use = " << use);
             auto cfi = new ControlFlowInstruction(
                 ins->id, instruction,
                 std::string((char *)ins->bytes, use),
@@ -162,51 +161,18 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
         int type = instr.ops[i].type;
         if(type == O_NONE) break;
         if(type == O_SMEM || type == O_MEM || type == O_DISP) {
-            LOG(1, "standard dispSize");
             dispSize = instr.dispSize / 8;
             break;
         }
         if(type == O_IMM || type == O_IMM1 || type == O_IMM2
             || type == O_PC || type == O_PTR) {
 
-            int size = static_cast<int>(instr.ops[i].size);
-
-            LOG(1, "operand dispSize of " << size << " for arg # " << i);
-            LOG(1, "    " << assembly->getMnemonic() << " " << assembly->getOpStr());
             dispSize = instr.ops[i].size / 8;
             break;
         }
     }
 
-    if(dispSize == 1600) {
-        LOG(1, "ABOUT TO CRASH SOON");
-        CLOG(1, "0x%x", (offsetof(_DInst, ops) + offsetof(_Operand, size)));
-        CLOG(1, "0x%x + 0x%x", offsetof(_DInst, ops), offsetof(_Operand, size));
-        CLOG(1, "imm=0x%x, disp=0x%x, addr=0x%x, flags=0x%x, unusedPrefixesMask=0x%x, usedRegistersMask=0x%x, opcode=0x%x, ops=0x%x",
-            offsetof(_DInst, imm),
-            offsetof(_DInst, disp),
-            offsetof(_DInst, addr),
-            offsetof(_DInst, flags),
-            offsetof(_DInst, unusedPrefixesMask),
-            offsetof(_DInst, usedRegistersMask),
-            offsetof(_DInst, opcode),
-            offsetof(_DInst, ops));
-        CLOG(1, "sizeof(_Value) = 0x%x, sizeof(_OffsetType) = 0x%x",
-            sizeof(_Value), sizeof(_OffsetType));
-        CLOG(1, "sizeof(uint32_t) = 0x%x vs sizeof(usedRegistersMask) = 0x%x",
-            sizeof(uint32_t),
-            sizeof(instr.usedRegistersMask));
-    }
-
-    //if(instr.dispSize > 0) return instr.dispSize / 8;
-
     if(dispSize >= 0) {
-        LOG(1, "dispSize = " << dispSize << ", type[] = " << std::dec
-            << (int)instr.ops[0].type << "," << (int)instr.ops[1].type << ","
-            << (int)instr.ops[2].type << "," << (int)instr.ops[3].type
-            << ", size[] = "
-            << (int)instr.ops[0].size << "," << (int)instr.ops[1].size << ","
-            << (int)instr.ops[2].size << "," << (int)instr.ops[3].size);
         return dispSize;
     }
     else {
