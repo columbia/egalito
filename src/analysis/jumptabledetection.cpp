@@ -745,8 +745,16 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     }
 
     // more expensive in general
-    if(!found && state->getRegRef(reg).size() == 0) {
-        if(getBoundFromArgument(state, reg, info)) {
+    if(!found) {
+        bool defined = false;
+        for(auto s : state->getRegRef(reg)) {
+            // BL would just define it as nullptr
+            if(s->getRegDef(reg)) {
+                defined = true;
+                break;
+            }
+        }
+        if(!defined && getBoundFromArgument(state, reg, info)) {
             found = true;
         }
     }
@@ -1233,7 +1241,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
 
     TreeCapture capture;
     if(IndexTableAccessForm::matches(state->getRegDef(reg), capture)) {
-        LOG(5, "Dereference from index table 0x" << std::hex
+        LOG(10, "Dereference from index table 0x" << std::hex
             << state->getInstruction()->getAddress());
         bool found = false;
 
