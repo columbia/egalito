@@ -122,6 +122,9 @@ std::vector<ControlFlow::id_t> Dominance::getPostDominators(
             exitNodes.push_back(node);
         }
     }
+    if(exitNodes.empty()) { // due to not knowing non-returing call yet
+        return {};
+    }
 
     auto cap = [](std::vector<ControlFlow::id_t> v1,
         std::vector<ControlFlow::id_t> v2) {

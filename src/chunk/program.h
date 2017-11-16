@@ -25,6 +25,7 @@ public:
     Module *getEgalito() const { return egalito; }
 
     void setEntryPoint(Chunk *chunk) { entryPoint = chunk; }
+    Chunk *getEntryPoint() const { return entryPoint; }
     address_t getEntryPointAddress();
 
     virtual void serialize(ChunkSerializerOperations &op,

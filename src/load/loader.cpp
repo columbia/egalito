@@ -20,6 +20,7 @@
 #include "pass/usegstable.h"
 #include "pass/jitgsfixup.h"
 #include "pass/cancelpush.h"
+#include "pass/debloat.h"
 #include "runtime/managegs.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -92,6 +93,15 @@ static bool isFeatureEnabled(const char *name) {
 }
 
 void EgalitoLoader::otherPasses() {
+#ifdef ARCH_AARCH64
+    // best if this could be run without injecting egalito
+    // this requires a data variable for all code pointer data
+    if(isFeatureEnabled("EGALITO_DEBLOAT")) {
+        auto program = setup.getConductor()->getProgram();
+        RUN_PASS(DebloatPass(program), program);
+    }
+#endif
+
 #if 0  // add call logging?
     LogCallsPass logCalls(setup.getConductor());
     // false = do not add tracing to Egalito's own functions
