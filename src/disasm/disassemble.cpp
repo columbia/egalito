@@ -723,17 +723,24 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
             s->getVirtualAddress(), s->getSize()));
         for(const auto& r : intervalList) {
             LOG0(10, "    " << r);
-            Function *function = nullptr;
             if(auto sym = dynamicSymbolList->find(r.getStart())) {
                 LOG(10, " ...from dynamic symbol");
                 assert(sym->getSize() == r.getSize());
-                function = this->function(sym, nullptr);
+                auto function = this->function(sym, nullptr);
+                functionList->getChildren()->add(function);
+                function->setParent(functionList);
             } else {
                 LOG(10, " ...fuzzy");
-                function = fuzzyFunction(r, s);
+                size_t processed = 0;
+                do {
+                    Range tmp(r.getStart() + processed,
+                        r.getSize() - processed);
+                    auto function = fuzzyFunction(tmp, s);
+                    processed += function->getSize() + 4;   // for next round
+                    functionList->getChildren()->add(function);
+                    function->setParent(functionList);
+                } while (processed < r.getSize());
             }
-            functionList->getChildren()->add(function);
-            function->setParent(functionList);
         }
     }
 

@@ -56,8 +56,6 @@ void RemovePadding::removeHead(Function *function) {
 
     if(assembly && assembly->getId() == ARM64_INS_NOP) {
         LOG(10, "    first instruction is NOP");
-        ChunkDumper dumper;
-        function->accept(&dumper);
 
         // __GNUC__ >= 5 for AARCH64
         assert(firstInstr->getAddress() % 8);
