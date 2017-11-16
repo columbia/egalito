@@ -69,6 +69,9 @@ void ControlFlowGraph::construct(Block *block) {
             // fall-through to next block
             fallThrough = true;
         }
+        if(cfi->getMnemonic() == "callq" && !cfi->returns()) {
+            fallThrough = false;
+        }
 #elif defined(ARCH_AARCH64)
         if(cfi->getMnemonic() != "b") {
             fallThrough = true;

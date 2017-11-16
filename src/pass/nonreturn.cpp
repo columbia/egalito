@@ -13,6 +13,7 @@
 #endif
 #include "log/log.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 // known to be non-returning in glibc (not all are standard)
 const std::vector<std::string> NonReturnFunction::knownList = {
@@ -46,6 +47,8 @@ void NonReturnFunction::visit(Module *module) {
 // graph, we should do this in two passes
 void NonReturnFunction::visit(Function *function) {
     if(inList(function)) return;
+
+    //TemporaryLogLevel tll("pass", 10, function->hasName("mabort"));
 
     // step-1
     std::vector<Instruction *> GNUErrorCalls;
@@ -106,7 +109,13 @@ bool NonReturnFunction::neverReturns(Function *function) {
                 if(!cfi->returns()) {
                     ControlFlowGraph cfg(function);
                     LOG(10, "--Function " << function->getName());
-                    IF_LOG(10) cfg.dump();
+                    IF_LOG(10) {
+                        ChunkDumper dump;
+                        function->accept(&dump);
+                        cfg.dump();
+                        cfg.dumpDot();
+                        std::cout.flush();
+                    }
                     Dominance dom(&cfg);
                     auto pdom = dom.getPostDominators(0);
                     auto nid = cfg.getIDFor(block);
@@ -174,7 +183,7 @@ std::tuple<bool, int> NonReturnFunction::getArg0Value(UDState *state) {
     };
 
 #ifdef ARCH_X86_64
-    FlowUtil::searchUpDef<ConstantForm>(state, X86Register::R0, pred);
+    FlowUtil::searchUpDef<ConstantForm>(state, X86Register::R5, pred);
 #elif defined(ARCH_AARCH64)
     FlowUtil::searchUpDef<ConstantForm>(state, AARCH64GPRegister::R0, pred);
 #endif
