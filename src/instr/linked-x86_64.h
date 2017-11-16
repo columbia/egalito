@@ -44,11 +44,12 @@ private:
     std::string opcode;
     std::string mnemonic;
     int displacementSize;
+    bool nonreturn;
 public:
     ControlFlowInstruction(unsigned int id, Instruction *source,
         std::string opcode, std::string mnemonic, int displacementSize)
         : id(id), source(source), opcode(opcode), mnemonic(mnemonic),
-        displacementSize(displacementSize) {}
+        displacementSize(displacementSize), nonreturn(false) {}
 
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
@@ -65,6 +66,8 @@ public:
     std::string getMnemonic() const { return mnemonic; }
     std::string getOpcode() const { return opcode; }
     int getDisplacementSize() const { return displacementSize; }
+    bool returns() const { return !nonreturn; }
+    void setNonreturn() { nonreturn = true; }
 
     // the following should only be called by PromoteJumpsPass
     int getId() const { return id; }

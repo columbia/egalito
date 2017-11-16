@@ -86,10 +86,16 @@ private:
 };
 
 class ControlFlowInstruction : public LinkedInstruction {
+private:
+    bool nonreturn;
 public:
-    using LinkedInstruction::LinkedInstruction;
+    ControlFlowInstruction(Instruction *source, const Assembly &assembly)
+        : LinkedInstruction(source, assembly), nonreturn(false) {}
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+
+    bool returns() const { return !nonreturn; }
+    void setNonreturn() { nonreturn = true; }
 };
 
 class LinkedLiteralInstruction : public LinkDecorator<LiteralInstruction> {

@@ -5,11 +5,11 @@
 #include "chunkpass.h"
 
 class ControlFlowInstruction;
+class UDState;
 
-// This should be run after links to PLTs are resolved
 class NonReturnFunction : public ChunkPass {
 private:
-    const static std::vector<std::string> standardNameList;
+    const static std::vector<std::string> knownList;
     std::vector<Function *> nonReturnList;
 
 public:
@@ -19,8 +19,12 @@ public:
 
     const std::vector<Function *>& getList() const { return nonReturnList; }
 private:
-    bool hasLinkToNonReturn(ControlFlowInstruction *cfi);
+    bool neverReturns(Function *function);
+    bool hasLinkToNeverReturn(ControlFlowInstruction *cfi);
     bool inList(Function *function);
+
+    bool hasLinkToGNUError(ControlFlowInstruction *cfi);
+    std::tuple<bool, int> getArg0Value(UDState *state);
 };
 
 #endif

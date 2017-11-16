@@ -40,6 +40,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     space->setModule(module);
     module->setElfSpace(space);
 
+    // this needs to run even for binaries with symbols
     RUN_PASS(RemovePadding(), module);
 
     space->setAliasMap(new FunctionAliasMap(module));
@@ -61,7 +62,10 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
         RUN_PASS(ExternalCalls(module->getPLTList()), module);
     }
 
-    // we need to run this before jump table passes
+    // all passes below here depend on data flow analysis and may need to
+    // be run multiple times
+
+    // we need to run this before jump table passes, too
     RUN_PASS(SplitBasicBlock(), module);
 
     RUN_PASS(JumpTablePass(), module);
@@ -72,13 +76,11 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
 
     LOG(1, "RUNNING SplitBasicBlock pass");
 
-    // this needs jumptable information and all NormalLinks
+    // run again with jump table information
     RUN_PASS(SplitBasicBlock(), module);
 
-    // spot non returning functions
+    // these rigid data flow analysis passes needs blocks to be split
     RUN_PASS(NonReturnFunction(), module);
-
-    // this needs all blocks to be split to basic blocks
     RUN_PASS(InferLinksPass(elf), module);
 
 #ifdef ARCH_AARCH64

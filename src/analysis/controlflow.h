@@ -82,8 +82,6 @@ public:
 private:
     void construct(Function *function);
     void construct(Block *block);
-    bool doesReturn(Function *function);
-    bool doesPLTReturn(PLTTrampoline *pltTrampoline);
 };
 
 #endif

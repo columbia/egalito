@@ -8,7 +8,9 @@
 #include "elf/symbol.h"
 #include "instr/concrete.h"
 #include "pass/chunkpass.h"
+
 #include "log/log.h"
+#include "chunk/dump.h"
 
 void ControlFlowNode::addLink(const ControlFlowLink &link) {
     links.emplace_back(new ControlFlowLink(link));
@@ -59,26 +61,20 @@ void ControlFlowGraph::construct(Function *function) {
 void ControlFlowGraph::construct(Block *block) {
     auto id = blockMapping[block];
     auto i = block->getChildren()->getIterable()->getLast();
+    auto link = i->getSemantic()->getLink();
     bool fallThrough = false;
     if(auto cfi = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
 #ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "jmp") {
             // fall-through to next block
-#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        if(cfi->getMnemonic() != "b") {
-#endif
             fallThrough = true;
         }
-
-        auto link = i->getSemantic()->getLink();
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-        if(cfi->getMnemonic() == "bl") {
-            if(auto plt = dynamic_cast<PLTLink *>(link)) {
-                if(!doesPLTReturn(plt->getPLTTrampoline())) fallThrough = false;
-            }
-            else if(auto func = dynamic_cast<Function *>(&*link->getTarget())) {
-                if(!doesReturn(func)) fallThrough = false;
-            }
+#elif defined(ARCH_AARCH64)
+        if(cfi->getMnemonic() != "b") {
+            fallThrough = true;
+        }
+        if(cfi->getMnemonic() == "bl" && !cfi->returns()) {
+            fallThrough = false;
         }
 #endif
 #ifdef ARCH_X86_64
@@ -173,44 +169,6 @@ void ControlFlowGraph::construct(Block *block) {
                     false));
         }
     }
-}
-
-bool ControlFlowGraph::doesReturn(Function *function) {
-    static const std::vector<std::string> noreturns = {
-        "__GI___libc_fatal", "__GI___assert_fail", "__stack_chk_fail",
-        "__malloc_assert", "_exit", "_dl_signal_error", "abort", "lose"
-    };
-
-    if(!function->returns()) return false;
-
-    for(auto fn : noreturns) {
-        if(function->getName() == fn) return false;
-    }
-    if(auto symbol = function->getSymbol()) {
-        for(auto s : symbol->getAliases()) {
-            for(auto fn : noreturns) {
-                if(std::string(s->getName()) == fn) return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-bool ControlFlowGraph::doesPLTReturn(PLTTrampoline *pltTrampoline) {
-    static const std::vector<std::string> PLTnoreturns = {
-        "__cxa_throw@plt", "exit@plt", "__stack_chk_fail@plt",
-        "_ZSt20__throw_out_of_rangePKc@plt",
-        "_ZSt19__throw_logic_errorPKc@plt",
-        "_ZSt17__throw_bad_allocv@plt",
-        "__assert_fail@plt", "error@plt"
-    };
-
-    for(auto plt : PLTnoreturns) {
-        if(pltTrampoline->getName() == plt) return false;
-    }
-
-    return true;
 }
 
 void ControlFlowGraph::dump() {

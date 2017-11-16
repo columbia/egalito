@@ -1,7 +1,9 @@
 #include "nonreturn.h"
 #include "analysis/controlflow.h"
-#include "analysis/walker.h"
 #include "analysis/dominance.h"
+#include "analysis/usedef.h"
+#include "analysis/usedefutil.h"
+#include "analysis/walker.h"
 #include "chunk/concrete.h"
 #ifdef ARCH_X86_64
     #include "instr/linked-x86_64.h"
@@ -12,8 +14,15 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-const std::vector<std::string> NonReturnFunction::standardNameList = {
-    "exit", "error"
+// known to be non-returning in glibc (not all are standard)
+const std::vector<std::string> NonReturnFunction::knownList = {
+    "exit", "_exit", "abort",
+    "__libc_fatal", "__assert_fail", "__stack_chk_fail",
+    "__malloc_assert", "_dl_signal_error",
+    "__cxa_throw",
+    "_ZSt20__throw_out_of_rangePKc",
+    "_ZSt19__throw_logic_errorPKc",
+    "_ZSt17__throw_bad_allocv",
 };
 
 void NonReturnFunction::visit(Module *module) {
@@ -33,16 +42,68 @@ void NonReturnFunction::visit(Module *module) {
     }
 }
 
+// Since Dominance requires an exit node to be spotted in the control flow
+// graph, we should do this in two passes
 void NonReturnFunction::visit(Function *function) {
     if(inList(function)) return;
 
-    size_t n = 0;
+    // step-1
+    std::vector<Instruction *> GNUErrorCalls;
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
                 instr->getSemantic())) {
 
-                if(hasLinkToNonReturn(cfi)) {
+                if(!cfi->returns()) continue;
+
+                if(hasLinkToNeverReturn(cfi)) {
+                    cfi->setNonreturn();
+                    continue;
+                }
+
+                if(hasLinkToGNUError(cfi)) {
+                    GNUErrorCalls.push_back(instr);
+                }
+            }
+        }
+    }
+
+    if(!GNUErrorCalls.empty()) {
+        ControlFlowGraph cfg(function);
+        UDConfiguration config(&cfg);
+        UDRegMemWorkingSet working(function, &cfg);
+        UseDef usedef(&config, &working);
+
+        SccOrder order(&cfg);
+        order.genFull(0);
+        usedef.analyze(order.get());
+
+        for(auto instr : GNUErrorCalls) {
+            bool found;
+            int value;
+            std::tie(found, value) = getArg0Value(working.getState(instr));
+            if(found && value != 0) {
+                auto cfi = dynamic_cast<ControlFlowInstruction *>(
+                    instr->getSemantic());
+                cfi->setNonreturn();
+            }
+        }
+    }
+
+    // step-2
+    if(neverReturns(function)) {
+        LOG(10, "=== " << function->getName() << " never returns");
+        nonReturnList.push_back(function);
+    }
+}
+
+bool NonReturnFunction::neverReturns(Function *function) {
+    for(auto block : CIter::children(function)) {
+        for(auto instr : CIter::children(block)) {
+            if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
+                instr->getSemantic())) {
+
+                if(!cfi->returns()) {
                     ControlFlowGraph cfg(function);
                     LOG(10, "--Function " << function->getName());
                     IF_LOG(10) cfg.dump();
@@ -53,20 +114,19 @@ void NonReturnFunction::visit(Function *function) {
                         continue;
                     }
 
-                    nonReturnList.push_back(function);
-                    return;
+                    return true;
                 }
             }
         }
-        n++;
     }
+    return false;
 }
 
-bool NonReturnFunction::hasLinkToNonReturn(ControlFlowInstruction *cfi) {
+bool NonReturnFunction::hasLinkToNeverReturn(ControlFlowInstruction *cfi) {
     if(auto pltLink = dynamic_cast<PLTLink *>(cfi->getLink())) {
         auto trampoline = pltLink->getPLTTrampoline();
         auto pltName = trampoline->getTargetSymbol()->getName();
-        for(auto name : standardNameList) {
+        for(auto name : knownList) {
             if(pltName == name) {
                 return true;
             }
@@ -75,12 +135,52 @@ bool NonReturnFunction::hasLinkToNonReturn(ControlFlowInstruction *cfi) {
     else if(auto target = dynamic_cast<Function *>(
         &*cfi->getLink()->getTarget())) {
 
-        if(inList(target)) {
-            return true;
+        if(!target->returns()) return true;
+        if(inList(target)) return true;
+        for(auto name : knownList) {
+            if(target->hasName(name)) return true;
         }
     }
 
     return false;
+}
+
+bool NonReturnFunction::hasLinkToGNUError(ControlFlowInstruction *cfi) {
+    if(auto pltLink = dynamic_cast<PLTLink *>(cfi->getLink())) {
+        auto trampoline = pltLink->getPLTTrampoline();
+        auto pltName = trampoline->getTargetSymbol()->getName();
+        return pltName == std::string("error");
+    }
+    else if(auto target = dynamic_cast<Function *>(
+        &*cfi->getLink()->getTarget())) {
+
+        return target->hasName("error");
+    }
+    return false;
+}
+
+std::tuple<bool, int> NonReturnFunction::getArg0Value(UDState *state) {
+    using ConstantForm =
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>;
+    bool found = false;
+    int value = 0;
+    auto pred = [&](UDState *state, TreeCapture cap) {
+        if(auto tree = dynamic_cast<TreeNodeConstant *>(cap.get(0))) {
+            found = true;
+            value = tree->getValue();
+            return true;
+        }
+        return false;
+    };
+
+#ifdef ARCH_X86_64
+    FlowUtil::searchUpDef<ConstantForm>(state, X86Register::R0, pred);
+#elif defined(ARCH_AARCH64)
+    FlowUtil::searchUpDef<ConstantForm>(state, AARCH64GPRegister::R0, pred);
+#endif
+
+    return std::make_tuple(found, value);
+
 }
 
 bool NonReturnFunction::inList(Function *function) {
