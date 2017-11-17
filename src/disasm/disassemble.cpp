@@ -1110,6 +1110,18 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
             return true;
         }
     }
+    if(ins->id == ARM64_INS_B) {
+        cs_arm64 *x = &ins->detail->arm64;
+        cs_arm64_op *op = &x->operands[0];
+        if(x->op_count == 1 && op->type == ARM64_OP_IMM) {
+            address_t dest = op->imm;
+            if(dest == ins->address + 4) {
+                LOG(10, " strange uncoditional jump to next address");
+                *target = dest;
+                return true;
+            }
+        }
+    }
 #elif defined(ARCH_ARM)
     #error "Not yet implemented"
 #endif
