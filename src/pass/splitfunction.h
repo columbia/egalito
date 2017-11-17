@@ -7,6 +7,9 @@ class FunctionList;
 class Function;
 
 class SplitFunction : public ChunkPass {
+private:
+    // must be an ordered container
+    std::vector<std::pair<Function *, Block *>> splitPoints;
 public:
     SplitFunction() {}
     virtual void visit(FunctionList *functionList);

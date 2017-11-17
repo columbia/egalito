@@ -26,7 +26,7 @@ const std::vector<std::string> NonReturnFunction::knownList = {
     "_ZSt17__throw_bad_allocv",
 };
 
-void NonReturnFunction::visit(Module *module) {
+void NonReturnFunction::visit(FunctionList *functionList) {
     size_t size = 0;
 
     //TemporaryLogLevel tll("pass", 10);
@@ -34,19 +34,14 @@ void NonReturnFunction::visit(Module *module) {
 
     do {
         size = nonReturnList.size();
-        recurse(module);
-    } while (size != nonReturnList.size());
-
-    for(auto f : nonReturnList) {
-        LOG(1, "marking " << f->getName() << " as non-returning");
-        f->setNonreturn();
-    }
+        recurse(functionList);
+    } while(size != nonReturnList.size());
 }
 
 // Since Dominance requires an exit node to be spotted in the control flow
 // graph, we should do this in two passes
 void NonReturnFunction::visit(Function *function) {
-    if(inList(function)) return;
+    if(!function->returns()) return;
 
     //TemporaryLogLevel tll("pass", 10, function->hasName("mabort"));
 
@@ -60,6 +55,8 @@ void NonReturnFunction::visit(Function *function) {
                 if(!cfi->returns()) continue;
 
                 if(hasLinkToNeverReturn(cfi)) {
+                    LOG(10, "non-returning call at "
+                        << std::hex << instr->getAddress());
                     cfi->setNonreturn();
                     continue;
                 }
@@ -96,6 +93,7 @@ void NonReturnFunction::visit(Function *function) {
     // step-2
     if(neverReturns(function)) {
         LOG(10, "=== " << function->getName() << " never returns");
+        function->setNonreturn();
         nonReturnList.push_back(function);
     }
 }

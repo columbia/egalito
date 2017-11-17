@@ -14,7 +14,7 @@ private:
 
 public:
     NonReturnFunction() {}
-    virtual void visit(Module *module);
+    virtual void visit(FunctionList *functionList);
     virtual void visit(Function *function);
 
     const std::vector<Function *>& getList() const { return nonReturnList; }

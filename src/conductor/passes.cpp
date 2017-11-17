@@ -79,10 +79,8 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     // run again with jump table information
     RUN_PASS(SplitBasicBlock(), module);
 
-    // these rigid data flow analysis passes needs blocks to be split
+    // need SplitBasicBlock()
     RUN_PASS(NonReturnFunction(), module);
-    RUN_PASS(InferLinksPass(elf), module);
-
 #ifdef ARCH_AARCH64
     if(!space->getSymbolList()) {
         RUN_PASS(SplitFunction(), module);
@@ -90,6 +88,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
         RUN_PASS(UpdateLink(), module);
     }
 #endif
+    RUN_PASS(InferLinksPass(elf), module);
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {

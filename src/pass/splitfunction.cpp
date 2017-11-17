@@ -5,22 +5,33 @@
 #include "chunk/concrete.h"
 #include "instr/semantic.h"
 #include "operation/mutator.h"
+#include "pass/nonreturn.h"
 
 #include "log/log.h"
+#include "log/temp.h"
+#include "chunk/dump.h"
 
 void SplitFunction::visit(FunctionList *functionList) {
-    // iterators will be invalidated
-    for(size_t i = 0;
-        i < functionList->getChildren()->getIterable()->getCount();
-        i++) {
+    NonReturnFunction nonReturnPass;
+    do {
+        splitPoints.clear();
+        recurse(functionList);
 
-        auto function = functionList->getChildren()->getIterable()->get(i);
-        visit(function);
-    }
+        for(auto pair : splitPoints) {
+            auto f = pair.first;
+            auto b = pair.second;
+            ChunkMutator(f).splitFunctionBefore(b);
+        }
+        if(!splitPoints.empty()) {
+            functionList->accept(&nonReturnPass);
+        }
+    }while(!splitPoints.empty());
 }
 
 void SplitFunction::visit(Function *function) {
     if(function->getSymbol()) return;
+
+    //TemporaryLogLevel tll("pass", 10);
 
     ControlFlowGraph cfg(function);
     Preorder order(&cfg);
@@ -33,6 +44,11 @@ void SplitFunction::visit(Function *function) {
             << " size " << function->getSize()
             << " might contain " << v.size() << " functions");
 
+        IF_LOG(10) {
+            cfg.dumpDot();
+            ChunkDumper dump;
+            function->accept(&dump);
+        }
 #if 0
         LOG(10, "orders");
         for(auto o : v) {
@@ -58,7 +74,7 @@ void SplitFunction::visit(Function *function) {
             }
 
             LOG(10, "   split at " << std::hex << block->getAddress());
-            ChunkMutator(function).splitFunctionBefore(block);
+            splitPoints.emplace_back(function, block);
         }
     }
 }
