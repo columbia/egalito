@@ -83,6 +83,8 @@ void NonReturnFunction::visit(Function *function) {
             int value;
             std::tie(found, value) = getArg0Value(working.getState(instr));
             if(found && value != 0) {
+                LOG(10, "non-returning call at "
+                    << std::hex << instr->getAddress());
                 auto cfi = dynamic_cast<ControlFlowInstruction *>(
                     instr->getSemantic());
                 cfi->setNonreturn();
@@ -106,8 +108,8 @@ bool NonReturnFunction::neverReturns(Function *function) {
 
                 if(!cfi->returns()) {
                     ControlFlowGraph cfg(function);
-                    LOG(10, "--Function " << function->getName());
-                    IF_LOG(10) {
+                    LOG(11, "--Function " << function->getName());
+                    IF_LOG(11) {
                         ChunkDumper dump;
                         function->accept(&dump);
                         cfg.dump();

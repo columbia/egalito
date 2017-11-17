@@ -65,8 +65,9 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     // all passes below here depend on data flow analysis and may need to
     // be run multiple times
 
-    // we need to run this before jump table passes, too
+    // we need to run these before jump table passes, too
     RUN_PASS(SplitBasicBlock(), module);
+    RUN_PASS(NonReturnFunction(), module);
 
     RUN_PASS(JumpTablePass(), module);
 #ifdef ARCH_X86_64
