@@ -47,7 +47,7 @@ ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 DISTORM_A = ../dep/distorm3/distorm3.a
-DISTORM_SO = -L ../dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(shell pwd)/../dep/distorm3/make/linux
+DISTORM_SO = -L ../dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(abspath ../dep/distorm3/make/linux)
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 
@@ -113,7 +113,7 @@ $(LOADER): $(LOADER_OBJECTS)
 $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS) $(DISTORM_A)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
-	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so $^ -o $@ $(DISTORM_SO)
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so -Wl,--no-undefined $^ $(CLDFLAGS) -o $@ $(DISTORM_SO)
 $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 	$(SHORT_LINK) -nostdlib -shared -fPIC -Wl,-soname,libaddon.so $^ -o $@
 
