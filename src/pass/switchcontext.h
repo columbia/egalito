@@ -10,9 +10,10 @@
 // that are not saved by the called function must be saved.
 
 #ifdef ARCH_X86_64
-// Save R11, R10, R9, R8, RDI, RSI, RDX, RCX, RAX
-#define EGALITO_CONTEXT_SIZE    (8*9)
-#define REGISTER_SAVE_LIST      {11, 10, 9, 8, 7, 6, 2, 1, 0}
+// Save R12, R11, R10, R9, R8, RDI, RSI, RDX, RCX, RAX
+// R12 is saved just for keeping the stack alignment
+#define EGALITO_CONTEXT_SIZE    (8*10)
+#define REGISTER_SAVE_LIST      {12, 11, 10, 9, 8, 7, 6, 2, 1, 0}
 
 // Save same as above, but not RAX
 #define RET_RAX_CONTEXT_SIZE            (8*8)
