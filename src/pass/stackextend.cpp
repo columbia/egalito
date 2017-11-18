@@ -55,14 +55,14 @@ void StackExtendPass::visit(Function *function) {
 }
 
 #ifdef ARCH_X86_64
-static size_t getLoadStackOffset(UDState *state) {
+static size_t getStackOffset(UDState *state) {
     typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternPhysicalRegisterIs<X86Register::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > StackAccessForm1;
 
     typedef TreePatternBinary<TreeNodeSubtraction,
-        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternPhysicalRegisterIs<X86Register::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > StackAccessForm2;
 
@@ -85,10 +85,21 @@ static size_t getLoadStackOffset(UDState *state) {
             return c->getValue();
         }
 
-        if(StackAccessForm1::matches(def.second, cap1)) { // add $0x10,%rsp
+        // add/sub $0x10,%rsp or lea 0x8(%rsp),%rdi
+        if(StackAccessForm1::matches(def.second, cap1)) {
+            auto semantic = state->getInstruction()->getSemantic();
+            if(semantic->getAssembly()->getId() == X86_INS_LEA) {
+                auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
+                return c->getValue();
+            }
             return 0;
         }
-        if(StackAccessForm2::matches(def.second, cap2)) { // sub $0x10,%rsp
+        if(StackAccessForm2::matches(def.second, cap2)) {
+            auto semantic = state->getInstruction()->getSemantic();
+            if(semantic->getAssembly()->getId() == X86_INS_LEA) {
+                auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
+                return c->getValue();
+            }
             return 0;
         }
     }
@@ -104,18 +115,18 @@ static size_t getLoadStackOffset(UDState *state) {
         }
     }
     state->dumpState();
-    throw "getLoadStackOffset: error";
+    throw "getStackOffset: error";
     //return 0;
 }
 
 static size_t getCurrentFrameSize(UDState *state) {
     typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternPhysicalRegisterIs<X86Register::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > StackAccessForm1;
 
     typedef TreePatternBinary<TreeNodeSubtraction,
-        TreePatternRegisterIs<X86_REG_RSP>,
+        TreePatternPhysicalRegisterIs<X86Register::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > StackAccessForm2;
 
@@ -134,9 +145,9 @@ static size_t getCurrentFrameSize(UDState *state) {
     };
     do {
         searching = false;
-        FlowUtil::searchUpDef<StackAccessForm1>(state, X86_REG_RSP, f);
+        FlowUtil::searchUpDef<StackAccessForm1>(state, X86Register::SP, f);
         if(!searching) {
-            FlowUtil::searchUpDef<StackAccessForm2>(state, X86_REG_RSP, f);
+            FlowUtil::searchUpDef<StackAccessForm2>(state, X86Register::SP, f);
         }
     } while (searching);
     return size;
@@ -173,7 +184,7 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
     SccOrder order(&cfg);
     order.genFull(0);
     //TemporaryLogLevel tll("analysis", 11);
-    //TemporaryLogLevel tll2("pass", 10);
+    //TemporaryLogLevel tll2("pass", 10, function->hasName("egalito_hook_jit_fixup"));
     usedef.analyze(order.get());
 
     for(auto block : CIter::children(function)) {
@@ -181,9 +192,9 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
             auto state = working.getState(instr);
             for(auto& ref : state->getRegRefList()) {
                 auto reg = ref.first;
-                if(reg == X86_REG_RSP) {
+                if(reg == X86Register::SP) {
                     LOG(10, std::hex << instr->getAddress() << " refs rsp");
-                    if(auto offset = getLoadStackOffset(state)) {
+                    if(auto offset = getStackOffset(state)) {
                         auto frameSize = getCurrentFrameSize(state);
                         LOG(10, "offset = " << offset
                             << " frame size = " << frameSize);
