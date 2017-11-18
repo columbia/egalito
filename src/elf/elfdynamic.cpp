@@ -26,7 +26,7 @@ void ElfDynamic::parse(ElfMap *elf, SharedLib *sharedLib) {
             LOG(2, "    depends on shared library [" << library << "]");
             dependencyList.push_back(std::make_pair(library, sharedLib));
         }
-        else if(type == DT_RPATH) {
+        else if(type == DT_RPATH || type == DT_RUNPATH) {
             this->rpath = strtab + value;
             LOG(2, "    rpath [" << rpath << "]");
         }
