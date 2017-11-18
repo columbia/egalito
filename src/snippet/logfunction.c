@@ -1,6 +1,5 @@
 #include <stdio.h>
-
-#define TARGET_IS_MAGENTA   1
+#include "config.h"
 
 #define LOG_MAX    128
 
