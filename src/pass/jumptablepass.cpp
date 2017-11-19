@@ -98,7 +98,7 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
             }
             else if(otherCount >= 0 && thisCount >= 0) {
                 if(otherCount != thisCount) {
-                    LOG(0, "WARNING: overlapping jump tables at "
+                    LOG(1, "WARNING: overlapping jump tables at "
                         << std::hex << descriptor->getAddress() << " in ["
                         << descriptor->getFunction()->getName()
                         << "] with different sizes! " << std::dec

@@ -40,8 +40,10 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     space->setModule(module);
     module->setElfSpace(space);
 
+#ifdef ARCH_AARCH64
     // this needs to run even for binaries with symbols
     RUN_PASS(RemovePadding(), module);
+#endif
 
     space->setAliasMap(new FunctionAliasMap(module));
 
