@@ -9,6 +9,7 @@
 
 extern Conductor *egalito_conductor;
 extern GSTable *egalito_gsTable;
+extern Chunk *egalito_gsCallback;
 extern Sandbox *egalito_sandbox;
 
 void InjectBridgePass::visit(Module *module) {
@@ -20,11 +21,13 @@ void InjectBridgePass::visit(Module *module) {
     } list[] = {
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
         EGALITO_BRIDGE_ENTRY(egalito_gsTable),
+        EGALITO_BRIDGE_ENTRY(egalito_gsCallback),
         EGALITO_BRIDGE_ENTRY(egalito_sandbox),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_entry_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_exit_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_instruction_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_jit_fixup_hook),
+        EGALITO_BRIDGE_ENTRY(egalito_hook_jit_reset_hook),
     };
 
     for(auto reloc : *relocList) {
