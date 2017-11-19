@@ -46,8 +46,10 @@ ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
 ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
+ifneq ("$(filter x86_64,$(P_ARCH))","")
 DISTORM_A = ../dep/distorm3/distorm3.a
 DISTORM_SO = -L ../dep/distorm3/make/linux/ -ldistorm3 -Wl,-rpath,$(abspath ../dep/distorm3/make/linux)
+endif
 
 BUILDTREE = $(sort $(dir $(ALL_OBJECTS)))
 

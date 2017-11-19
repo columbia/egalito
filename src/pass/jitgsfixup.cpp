@@ -120,6 +120,7 @@ void JitGSFixup::addResetCall() {
 
     set_jit_reset_hook(egalito_jit_gs_reset);
 
+#ifdef ARCH_X86_64
     Block *syscallBlock = nullptr;
     Instruction *syscall = nullptr;
     for(auto block : CIter::children(write)) {
@@ -143,4 +144,7 @@ out:
     cfi->setLink(new ExternalNormalLink(reset));
 
     ChunkMutator(syscallBlock).insertAfter(syscall, call);
+#elif defined(ARCH_AARCH64)
+    LOG(1, "JitGSFixup::addResetCall NYI");
+#endif
 }
