@@ -5,9 +5,14 @@
 #include "archive/stream.h"
 
 class Instruction;
+class ChunkSerializerOperations;
 
 class InstrSerializer {
+private:
+    ChunkSerializerOperations &op;
 public:
+    InstrSerializer(ChunkSerializerOperations &op) : op(op) {}
+
     void serialize(InstructionSemantic *semantic,
         ArchiveStreamWriter &writer);
     InstructionSemantic *deserialize(Instruction *instruction,

@@ -56,7 +56,7 @@ void Function::serialize(ChunkSerializerOperations &op,
             block->getChildren()->getIterable()->getCount()));
         for(auto instr : CIter::children(block)) {
 #if 1
-            InstrSerializer().serialize(instr->getSemantic(), writer);
+            InstrSerializer(op).serialize(instr->getSemantic(), writer);
 #else
             InstrWriterGetData instrWriter;
             instr->getSemantic()->accept(&instrWriter);
@@ -109,7 +109,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
                 auto instr = new Instruction();
-                auto semantic = InstrSerializer().deserialize(instr,
+                auto semantic = InstrSerializer(op).deserialize(instr,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);
                 totalSize += instr->getSize();

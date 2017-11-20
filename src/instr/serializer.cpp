@@ -1,3 +1,4 @@
+#include <cassert>
 #include "serializer.h"
 #include "visitor.h"
 #include "writer.h"
@@ -5,6 +6,7 @@
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"
 #include "disasm/handle.h"
+#include "chunk/serializer.h"
 #include "log/log.h"
 
 enum EgalitoInstrType {
@@ -23,9 +25,11 @@ enum EgalitoInstrType {
 
 class SemanticSerializer : public InstructionVisitor {
 private:
+    ChunkSerializerOperations &op;
     ArchiveStreamWriter &writer;
 public:
-    SemanticSerializer(ArchiveStreamWriter &writer) : writer(writer) {}
+    SemanticSerializer(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer) : op(op), writer(writer) {}
 private:
     void write(EgalitoInstrType type, InstructionSemantic *forBytes);
 public:
@@ -35,8 +39,7 @@ public:
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked)
         { write(TYPE_LinkedInstruction, linked); }
-    virtual void visit(ControlFlowInstruction *controlFlow)
-        { write(TYPE_ControlFlowInstruction, controlFlow); }
+    virtual void visit(ControlFlowInstruction *controlFlow);
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect)
@@ -61,10 +64,23 @@ void SemanticSerializer::write(EgalitoInstrType type,
     writer.writeAnyLength(instrWriter.get());
 }
 
+
+void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
+    write(TYPE_ControlFlowInstruction, controlFlow);
+    assert(controlFlow->getLink());
+
+    auto target = &*controlFlow->getLink()->getTarget();
+    FlatChunk::IDType id;
+    if(op.fetch(target, id)) {
+        writer.write(static_cast<uint64_t>(id));
+    }
+    else writer.write(static_cast<uint64_t>(-1));
+}
+
 void InstrSerializer::serialize(InstructionSemantic *semantic,
     ArchiveStreamWriter &writer) {
 
-    SemanticSerializer ss(writer);
+    SemanticSerializer ss(op, writer);
     semantic->accept(&ss);
 }
 
@@ -78,7 +94,6 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     case TYPE_RawInstruction:
     case TYPE_IsolatedInstruction:
     case TYPE_LinkedInstruction:
-    case TYPE_ControlFlowInstruction:
     case TYPE_ReturnInstruction:
     case TYPE_IndirectJumpInstruction:
     case TYPE_IndirectCallInstruction:
@@ -87,11 +102,23 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     case TYPE_LinkedLiteralInstruction: {
         return defaultDeserialize(instruction, address, reader);
     }
+    case TYPE_ControlFlowInstruction: {
+        auto semantic = defaultDeserialize(instruction, address, reader);
+        uint64_t id = 0;
+        reader.read(id);
+        if(id != static_cast<uint64_t>(-1)) {
+            Chunk *target = op.lookup(id);
+            LOG(1, "call instruction targets " << target->getName());
+            semantic->setLink(new NormalLink(target));
+        }
+        return semantic;
+    }
     default:
         break;
     }
 
-    LOG(1, "Unknown instruction type in InstrSerializer::deserialize!");
+    LOG(1, "Unknown instruction type " << std::dec << static_cast<int>(type)
+        << " in InstrSerializer::deserialize!");
     return nullptr;
 }
 

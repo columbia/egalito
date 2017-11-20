@@ -18,6 +18,7 @@ public:
     int getVersion() const { return archive->getVersion(); }
 
     FlatChunk::IDType assign(BaseType *object);
+    bool fetch(BaseType *object, FlatChunk::IDType &id);
 
     BaseType *lookup(FlatChunk::IDType id) const;
     FlatChunk *lookupFlat(FlatChunk::IDType id) const;
@@ -44,6 +45,19 @@ FlatChunk::IDType ArchiveIDOperations<BaseType>::assign(BaseType *object) {
     else {
         return static_cast<FlatChunk::IDType>(-1);
     }
+}
+
+template <typename BaseType>
+bool ArchiveIDOperations<BaseType>::fetch(BaseType *object,
+    FlatChunk::IDType &id) {
+
+    auto it = assignment.find(object);
+    if(it != assignment.end()) {
+        id = (*it).second;
+        return true;
+    }
+
+    return false;
 }
 
 template <typename BaseType>
