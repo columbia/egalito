@@ -55,7 +55,7 @@ void StackExtendPass::visit(Function *function) {
 }
 
 #ifdef ARCH_X86_64
-static size_t getStackOffset(UDState *state) {
+static std::tuple<bool, size_t> getStackOffset(UDState *state) {
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternPhysicalRegisterIs<X86Register::SP>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
@@ -78,11 +78,11 @@ static size_t getStackOffset(UDState *state) {
         TreeCapture cap1, cap2;
         if(StackDerefForm1::matches(def.second, cap1)) {
             auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
-            return c->getValue();
+            return std::make_tuple(true, c->getValue());
         }
         if(StackDerefForm2::matches(def.second, cap2)) {
             auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
-            return c->getValue();
+            return std::make_tuple(true, c->getValue());
         }
 
         // add/sub $0x10,%rsp or lea 0x8(%rsp),%rdi
@@ -90,32 +90,33 @@ static size_t getStackOffset(UDState *state) {
             auto semantic = state->getInstruction()->getSemantic();
             if(semantic->getAssembly()->getId() == X86_INS_LEA) {
                 auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
-                return c->getValue();
+                return std::make_tuple(true, c->getValue());
             }
-            return 0;
+            return std::make_tuple(true, 0);
         }
         if(StackAccessForm2::matches(def.second, cap2)) {
             auto semantic = state->getInstruction()->getSemantic();
             if(semantic->getAssembly()->getId() == X86_INS_LEA) {
                 auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
-                return c->getValue();
+                return std::make_tuple(true, c->getValue());
             }
-            return 0;
+            return std::make_tuple(true, 0);
         }
     }
     for(auto& def : state->getMemDefList()) {
         TreeCapture cap1, cap2;
         if(StackAccessForm1::matches(def.second, cap1)) {
             auto c = dynamic_cast<TreeNodeConstant *>(cap1.get(0));
-            return c->getValue();
+            return std::make_tuple(true, c->getValue());
         }
         if(StackAccessForm2::matches(def.second, cap2)) {
             auto c = dynamic_cast<TreeNodeConstant *>(cap2.get(0));
-            return c->getValue();
+            return std::make_tuple(true, c->getValue());
         }
     }
-    state->dumpState();
-    throw "getStackOffset: error";
+    //state->dumpState();
+    return std::make_tuple(false, 0);
+    //throw "getStackOffset: error";
     //return 0;
 }
 
@@ -149,14 +150,15 @@ static size_t getCurrentFrameSize(UDState *state) {
         if(!searching) {
             FlowUtil::searchUpDef<StackAccessForm2>(state, X86Register::SP, f);
         }
-    } while (searching);
+    } while(searching);
     return size;
 }
 #endif
 
 void StackExtendPass::adjustOffset(Instruction *instruction) {
 #ifdef ARCH_X86_64
-    LOG(1, "adjusting displacement in " << instruction->getAddress());
+    LOG(1, "adjusting displacement in "
+        << std::hex << instruction->getAddress());
     //ChunkDumper dumper;
     //instruction->accept(&dump);
 
@@ -181,27 +183,31 @@ void StackExtendPass::extendStack(Function *function, FrameType *frame) {
     IF_LOG(10) cfg.dump();
     IF_LOG(10) cfg.dumpDot();
 
+    //TemporaryLogLevel tll("analysis", 11);
     SccOrder order(&cfg);
     order.genFull(0);
-    //TemporaryLogLevel tll("analysis", 11);
-    //TemporaryLogLevel tll2("pass", 10, function->hasName("egalito_hook_jit_fixup"));
     usedef.analyze(order.get());
+
+    //TemporaryLogLevel tll2("pass", 10, function->hasName("egalito_hook_jit_fixup"));
 
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             auto state = working.getState(instr);
-            for(auto& ref : state->getRegRefList()) {
-                auto reg = ref.first;
-                if(reg == X86Register::SP) {
-                    LOG(10, std::hex << instr->getAddress() << " refs rsp");
-                    if(auto offset = getStackOffset(state)) {
-                        auto frameSize = getCurrentFrameSize(state);
-                        LOG(10, "offset = " << offset
-                            << " frame size = " << frameSize);
-                        if(frameSize <= offset) {
-                            adjustOffset(instr);
-                        }
-                    }
+            LOG(10, "/// " << std::hex << instr->getAddress());
+            IF_LOG(10) state->dumpState();
+            if(state->getRegDef(X86Register::SP)) {
+                continue;   // skip push & pop
+            }
+
+            bool found;
+            size_t offset;
+            std::tie(found, offset) = getStackOffset(state);
+            if(found) {
+                auto frameSize = getCurrentFrameSize(state);
+                LOG(10, "offset = " << offset
+                    << " frame size = " << frameSize);
+                if(frameSize <= offset) {
+                    adjustOffset(instr);
                 }
             }
         }
