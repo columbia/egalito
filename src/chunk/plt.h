@@ -45,7 +45,7 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 public:
     static size_t getPLTTrampolineSize();
-    static PLTList *parse(RelocList *relocList, ElfMap *elf);
+    static PLTList *parse(RelocList *relocList, ElfMap *elf, Module *modle);
     static bool parsePLTList(ElfMap *elf, RelocList *relocList, Module *module);
 private:
     static void parsePLTGOT(RelocList *relocList, ElfMap *elf,

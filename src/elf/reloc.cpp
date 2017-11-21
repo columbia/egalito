@@ -92,12 +92,6 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
                 }
             }
 
-            if(!sym && type == R_X86_64_IRELATIVE) {
-                sym = currentSymbolList->find(r->r_addend);
-                LOG(3, "        IRELATIVE reloc refers to 0x" << std::hex << r->r_addend
-                    << " [" << (sym ? sym->getName() : "???") << "]");
-            }
-
             Reloc *reloc = new Reloc(
                 address,                                // address
                 type,                                   // type

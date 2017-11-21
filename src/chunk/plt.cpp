@@ -9,6 +9,7 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dplt
 #include "log/log.h"
+#include "log/temp.h"
 
 class PLTRegistry {
 private:
@@ -139,7 +140,7 @@ void PLTList::accept(ChunkVisitor *visitor) {
 }
 
 bool PLTList::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
-    auto pltList = parse(relocList, elf);
+    auto pltList = parse(relocList, elf, module);
     if(pltList) {
         module->getChildren()->add(pltList);
         module->setPLTList(pltList);
@@ -148,24 +149,30 @@ bool PLTList::parsePLTList(ElfMap *elf, RelocList *relocList, Module *module) {
     return pltList != nullptr;
 }
 
-PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf) {
+PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
     auto pltSection = elf->findSection(".plt");
     if(!pltSection) return nullptr;
     auto header = pltSection->getHeader();
     auto section = elf->getSectionReadPtr<address_t>(pltSection);
 
+#ifdef ARCH_X86_64
+    #define R_JUMP_SLOT R_X86_64_JUMP_SLOT
+    #define R_IRELATIVE R_X86_64_IRELATIVE
+#elif defined(ARCH_AARCH64)
+    #define R_JUMP_SLOT R_AARCH64_JUMP_SLOT
+    #define R_IRELATIVE R_AARCH64_IRELATIVE
+#endif
+
     PLTRegistry *registry = new PLTRegistry();
     for(auto r : *relocList) {
-        if(r->getType() == R_X86_64_JUMP_SLOT
-            || r->getType() == R_AARCH64_JUMP_SLOT) {
-
-            LOG(1, "PLT entry at " << r->getAddress());
+        if(r->getType() == R_JUMP_SLOT) {
+            LOG(1, "PLT entry at " << r->getAddress()
+                << " to " << r->getAddend());
             registry->add(r->getAddress(), r);
         }
-        else if(r->getType() == R_X86_64_IRELATIVE
-            || r->getType() == R_AARCH64_IRELATIVE) {
-
-            LOG(1, "ifunc PLT entry at " << r->getAddress());
+        else if(r->getType() == R_IRELATIVE) {
+            LOG(1, "ifunc PLT entry at " << r->getAddress()
+                << " to " << r->getAddend());
             registry->add(r->getAddress(), r);
         }
     }
@@ -199,11 +206,14 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf) {
                 + (pltAddress + 2+4);  // target is RIP-relative
             LOG(1, "PLT value would be " << value);
             Reloc *r = registry->find(value);
-            if(r && r->getSymbol()) {
-                LOG(1, "Found PLT entry at " << pltAddress << " -> ["
-                    << r->getSymbol()->getName() << "]");
+            if(r) {
+                auto symbol = r->getSymbol();
+                if(!symbol) {
+                    symbol = module->getElfSpace()->getSymbolList()
+                        ->find(r->getAddend());
+                }
                 pltList->getChildren()->add(new PLTTrampoline(elf,
-                    pltAddress, r->getSymbol(), value));
+                    pltAddress, symbol, value));
             }
         }
     }
