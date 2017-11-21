@@ -30,7 +30,7 @@ public:
         mnemonic(mnemonic) {}
 
     std::string getMnemonic() const { return mnemonic; }
-    register_t getRegister() const { return reg; }
+    Register getRegister() const { return reg; }
 
     // After jump table passes have run, either the jumpTable pointer will be
     // set, or this jump has another purpose (e.g. indirect tail recursion).
@@ -48,7 +48,7 @@ public:
     IndirectCallInstruction(const Assembly &assembly, Register reg)
         : IsolatedInstruction(assembly), reg(reg) {}
 
-    register_t getRegister() const { return reg; }
+    Register getRegister() const { return reg; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
