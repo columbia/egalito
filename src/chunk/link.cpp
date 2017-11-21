@@ -146,7 +146,7 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
 }
 
 Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
-    Conductor *conductor, ElfSpace *elfSpace) {
+    Conductor *conductor, ElfSpace *elfSpace, bool afterMapping) {
 
     if(!symbol) return nullptr;
 
@@ -170,12 +170,12 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
     for(auto library : *conductor->getLibraryList()) {
         auto space = library->getElfSpace();
         if(space && space != elfSpace) {
-            if(auto link = resolveNameAsLinkHelper(name, space)) {
+            if(auto link = resolveNameAsLinkHelper(name, space, afterMapping)) {
                 return link;
             }
             else if(versionedName.size() > 0) {
                 if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
-                    space)) {
+                    space, afterMapping)) {
 
                     return link;
                 }
@@ -190,7 +190,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
-    ElfSpace *space) {
+    ElfSpace *space, bool afterMapping) {
 
     auto f = CIter::named(space->getModule()->getFunctionList())
         ->find(name);
@@ -221,8 +221,12 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
                 LOG(10, "    ...found as data ref! at "
                     << std::hex << symbol->getAddress() << " in "
                     << space->getModule()->getName());
+                auto address = symbol->getAddress();
+                if(afterMapping) {
+                    address += space->getElfMap()->getBaseAddress();
+                }
                 return LinkFactory::makeDataLink(space->getModule(),
-                    symbol->getAddress(), true);
+                    address, true);
             }
         }
     }

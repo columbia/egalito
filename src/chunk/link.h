@@ -183,7 +183,6 @@ public:
     void setTarget(address_t target) { this->target = target; }
 };
 
-
 // --- other links ---
 
 /** We know that this is a Link, but we're not sure what it points at yet.
@@ -248,7 +247,7 @@ public:
 
     /* Resolve outside the module using symbol info. */
     virtual Link *resolveExternally(Symbol *symbol, Conductor *conductor,
-        ElfSpace *elfSpace);
+        ElfSpace *elfSpace, bool afterMapping=false);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
@@ -256,7 +255,8 @@ public:
         Module *module);
 
 private:
-    Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space);
+    Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space,
+        bool afterMapping);
 };
 
 #endif
