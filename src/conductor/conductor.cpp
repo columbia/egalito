@@ -5,12 +5,12 @@
 #include "generate/debugelf.h"
 #include "pass/handlerelocs.h"
 #include "pass/handledatarelocs.h"
+#include "pass/handlecopyrelocs.h"
 #include "pass/injectbridge.h"
 #include "chunk/serializer.h"
 #include "pass/internalcalls.h"
 #include "pass/resolveplt.h"
 #include "pass/resolvetls.h"
-#include "pass/relocdata.h"
 #include "pass/fixjumptables.h"
 #include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
@@ -170,23 +170,27 @@ void Conductor::resolveVTables() {
     }
 }
 
+void Conductor::handleCopies() {
+    HandleCopyRelocs handleCopyRelocs(this);
+    program->accept(&handleCopyRelocs);
+}
+
 void Conductor::fixDataSections() {
     // first assign an effective address to each TLS region
     allocateTLSArea();
 
-#ifdef ARCH_X86_64
-    RelocDataPass relocData(this);
-    program->accept(&relocData);
-#endif
+    fixPointersInData();
 
+    // This has to come after all relocations in TLS are resolved
+    loadTLSData();
+}
+
+void Conductor::fixPointersInData() {
     FixJumpTablesPass fixJumpTables;
     program->accept(&fixJumpTables);
 
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);
-
-    // This has to come after all relocations in TLS are resolved
-    loadTLSData();
 }
 
 void Conductor::allocateTLSArea() {

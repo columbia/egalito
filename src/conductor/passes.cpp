@@ -20,7 +20,6 @@
 #include "pass/handlerelocs.h"
 #include "pass/handledatarelocs.h"
 #include "pass/inferlinks.h"
-#include "pass/relocdata.h"
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
 #include "pass/jtoverestimate.h"

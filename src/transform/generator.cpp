@@ -33,11 +33,6 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
         }
     }
 
-    auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
-    for(auto region : CIter::regions(module)) {
-        region->updateAddressFor(baseAddress);
-    }
-
     ClearSpatialPass clearSpatial;
     module->accept(&clearSpatial);
 }

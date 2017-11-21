@@ -17,12 +17,7 @@ void FixDataRegionsPass::visit(Module *module) {
 }
 
 void FixDataRegionsPass::visit(DataRegionList *dataRegionList) {
-#ifdef ARCH_X86_64
-    //visit(dataRegionList->getTLS());
     recurse(dataRegionList);
-#elif defined(ARCH_AARCH64)
-    recurse(dataRegionList);
-#endif
 }
 
 void FixDataRegionsPass::visit(DataRegion *dataRegion) {
@@ -32,6 +27,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
             auto target = var->getDest()->getTargetAddress();
+            // simply using var->getAddress() will fail due to TLS
             address_t address = var->getAddress()
                     + dataRegion->getMapBaseAddress()
                     - dsec->getAddress()

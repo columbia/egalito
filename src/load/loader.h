@@ -9,7 +9,9 @@ private:
 public:
     bool parse(const char *filename);
 
-    void generateCode(int *argc, char **argv[]);
+    /* these must be called in this order */
+    void setupEnvironment(int *argc, char **argv[]);
+    void generateCode();
     void run(int argc, char *argv[]);
 private:
     void otherPasses();

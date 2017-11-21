@@ -25,7 +25,9 @@ public:
     void resolveTLSLinks();
     void resolveWeak();
     void resolveVTables();
+    void handleCopies();
     void fixDataSections();
+    void fixPointersInData();
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);

@@ -49,19 +49,21 @@ bool EgalitoLoader::parse(const char *filename) {
     return true;
 }
 
-void EgalitoLoader::generateCode(int *argc, char **argv[]) {
-    SegMap::mapAllSegments(&setup);
-    setup.makeLoaderSandbox();
-    otherPasses();
-    setup.moveCode();
-    otherPassesAfterMove();
-
-    // set up execution environment (do this here for __environ)
+void EgalitoLoader::setupEnvironment(int *argc, char **argv[]) {
     adjustAuxiliaryVector(*argv, setup.getElfMap(), nullptr);
     auto adjust = removeLoaderFromArgv(*argv);
     initial_stack += adjust;
     *argv = (char **)((char *)*argv + adjust);
     LoaderEmulator::getInstance().useArgv(*argv);
+}
+
+void EgalitoLoader::generateCode() {
+    SegMap::mapAllSegments(&setup);
+    setup.getConductor()->handleCopies();
+    setup.makeLoaderSandbox();
+    otherPasses();
+    setup.moveCode();
+    otherPassesAfterMove();
 
     setup.getConductor()->fixDataSections();
     setup.getConductor()->writeDebugElf("symbols.elf");
@@ -183,7 +185,8 @@ int main(int argc, char *argv[]) {
 
     EgalitoLoader loader;
     if(loader.parse(program)) {
-        loader.generateCode(&argc, &argv);
+        loader.setupEnvironment(&argc, &argv);
+        loader.generateCode();
         loader.run(argc, argv);  // never returns
     }
 

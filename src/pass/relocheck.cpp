@@ -24,14 +24,11 @@ void ReloCheckPass::visit(Module *module) {
     for(auto region : CIter::regions(module)) {
         IF_LOG(10) region->accept(&dumper);
     }
-#if defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-libm.so.6");
     if(auto relocList = module->getElfSpace()->getRelocList()) {
         for(auto r : *relocList) {
             check(r, module);
         }
     }
-#endif
     recurse(module);
     checkDataVariable(module);
     LOG(1, "-- end");
@@ -86,6 +83,24 @@ void ReloCheckPass::checkDataVariable(Module *module) {
     }
 }
 
+static bool linkCheck(Reloc *r, Link *link, const std::stringstream &ss) {
+    if(dynamic_cast<UnresolvedLink *>(link)) {
+        LOG0(1, ss.str() << " NOT resolved!! ");
+        if(r->getSymbol()) {
+            LOG(1, std::hex << r->getSymbol()->getAddress()
+                << "(" << r->getSymbol()->getName() << ")");
+        }
+        else LOG(1, "");
+        return false;
+    }
+    else {
+        LOG(10, ss.str()
+            << " resolved to " << link->getTarget()->getName()
+            << " (" << link->getTargetAddress() << ")");
+        return true;
+    }
+}
+
 /*
  * there are two cases for unresolved:
  * (1) a symbol is defined in linker script which is outside the data regions
@@ -94,6 +109,10 @@ void ReloCheckPass::checkDataVariable(Module *module) {
 void ReloCheckPass::check(Reloc *r, Module *module) {
     std::stringstream ss;
 
+#ifdef ARCH_X86_64
+    if(r->getType() == R_X86_64_NONE) return;
+#endif
+
     ss << "relocation at " << std::hex << r->getAddress() << " with addend "
         << r->getAddend();
     auto flist = module->getFunctionList();
@@ -101,20 +120,21 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         = ChunkFind().findInnermostInsideInstruction(flist, r->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto v = dynamic_cast<LinkedInstruction *>(i->getSemantic())) {
-            if(dynamic_cast<UnresolvedLink *>(v->getLink())) {
-                LOG0(1, ss.str() << " NOT resolved!! ");
-                if(r->getSymbol()) {
-                    LOG(1, std::hex << r->getSymbol()->getAddress()
-                        << "(" << r->getSymbol()->getName() << ")");
-                }
-                else LOG(1, "");
-            }
-            else {
-                LOG(10, ss.str()
-                    << " resolved to " << v->getLink()->getTarget()->getName()
-                    << " (" << v->getLink()->getTargetAddress() << ")");
+            auto check = linkCheck(r, v->getLink(), ss);
+            if(!check) {
+                LOG(1, "    linkCheck failed for LinkedInstruction");
             }
         }
+#ifdef ARCH_X86_64
+        else if(auto v
+            = dynamic_cast<ControlFlowInstruction *>(i->getSemantic())) {
+
+            auto check = linkCheck(r, v->getLink(), ss);
+            if(!check) {
+                LOG(1, "    linkCheck failed for ControlFlowInstruction");
+            }
+        }
+#endif
 #ifdef ARCH_AARCH64
         else if(auto v
             = dynamic_cast<LinkedLiteralInstruction *>(i->getSemantic())) {

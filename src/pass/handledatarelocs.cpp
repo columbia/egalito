@@ -8,7 +8,7 @@
 #include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
-    //TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-libc.so.6");
     auto list = module->getDataRegionList();
 
     // make variables for all relocations located inside the regions
@@ -45,12 +45,18 @@ void HandleDataRelocsPass::visit(Module *module) {
 }
 
 Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
+    //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-libc.so.6");
+
+    Symbol *symbol = reloc->getSymbol();
+
 #ifdef ARCH_X86_64
+    if(reloc->getType() == R_X86_64_NONE) {
+        return nullptr;
+    }
     if(reloc->getType() == R_X86_64_RELATIVE) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
     }
     else if(reloc->getType() == R_X86_64_TPOFF64) {
-        Symbol *symbol = reloc->getSymbol();
         auto tls = module->getDataRegionList()->getTLS();
         if(symbol && symbol->getSectionIndex() == SHN_UNDEF) {
             tls = nullptr;
@@ -58,15 +64,23 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return new TLSDataOffsetLink(
             tls, reloc->getSymbol(), reloc->getAddend());
     }
-    return nullptr;
+    else if(reloc->getType() == R_X86_64_DTPMOD64) {
+        LOG(0, "WARNING: skipping R_X86_64_DTPMOD64 ("
+            << std::hex << reloc->getAddress()
+            << ") in " << module->getName());
+    }
+    if(reloc->getType() == R_X86_64_COPY) {
+        LOG(0, "WARNING: skipping R_X86_64_COPY ("
+            << std::hex << reloc->getAddress()
+            << ") in " << module->getName());
+        return nullptr;
+    }
 #else
     // We can't resolve the address yet, because a link may point to a TLS
     // in another module e.g. errno referred from libm (tls can be nullptr)
 #if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
     #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
 #endif
-    Symbol *symbol = reloc->getSymbol();
-
     if(reloc->getType() == R_AARCH64_TLS_TPREL
         || reloc->getType() == R_AARCH64_TLSDESC) {
 
@@ -77,6 +91,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return new TLSDataOffsetLink(
             tls, reloc->getSymbol(), reloc->getAddend());
     }
+#endif
 
     if(internal) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
@@ -98,5 +113,4 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         }
     }
     return nullptr;
-#endif
 }

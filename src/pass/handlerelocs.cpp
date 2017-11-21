@@ -33,7 +33,7 @@ void HandleRelocsPass::visit(Module *module) {
         }
 
         // we know r is inside this module, but we don't know where yet
-        LOG(2, "reloc inside " << instruction->getName() << " at "
+        LOG(10, "reloc inside " << instruction->getName() << " at "
             << r->getAddress() << " targets [" << target->getName() << "]");
 #endif
 

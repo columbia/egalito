@@ -5,6 +5,7 @@
 #include "load/segmap.h"
 #include "chunk/dump.h"
 #include "operation/find2.h"
+#include "pass/clearspatial.h"
 #include "log/registry.h"
 #include "log/log.h"
 
@@ -35,6 +36,15 @@ void ConductorSetup::parseElfFiles(const char *executable,
         conductor->parseLibraries();
     }
 
+    if(withSharedLibs) {
+        conductor->resolvePLTLinks();
+    }
+    conductor->resolveTLSLinks();
+    conductor->resolveWeak();
+    conductor->resolveVTables();
+
+    conductor->check();
+
     // set base addresses for any shared libraries that were pulled in
     int i = 0;
     for(auto lib : *conductor->getLibraryList()) {
@@ -45,14 +55,15 @@ void ConductorSetup::parseElfFiles(const char *executable,
         }
     }
 
-    if(withSharedLibs) {
-        conductor->resolvePLTLinks();
+    // change the address of regions accordingly (including executable's)
+    ClearSpatialPass clearSpatial;
+    for(auto module : CIter::children(conductor->getProgram())) {
+        auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
+        for(auto region : CIter::regions(module)) {
+            region->updateAddressFor(baseAddress);
+            module->accept(&clearSpatial);
+        }
     }
-    conductor->resolveTLSLinks();
-    conductor->resolveWeak();
-    conductor->resolveVTables();
-
-    conductor->check();
 }
 
 void ConductorSetup::parseEgalitoArchive(const char *archive) {
