@@ -266,11 +266,12 @@ void RelocDataPass::fixRelocation(Reloc *r) {
 
     auto elfMap = elfSpace->getElfMap();
 
-#ifdef ARCH_X86_64
+#if 0//def ARCH_X86_64
     address_t update = elfMap->getBaseAddress() + r->getAddress();
     address_t dest = 0;
     bool found = false;
 
+#if 0
     if(r->getType() == R_X86_64_GLOB_DAT) {
         found = FindAnywhere(conductor, elfSpace).resolveName(symbol, &dest);
     }
@@ -318,7 +319,9 @@ void RelocDataPass::fixRelocation(Reloc *r) {
         }
     }
 #endif
-    else if(r->getType() == R_X86_64_COPY) {
+    else
+#endif
+    if(r->getType() == R_X86_64_COPY) {
         LOG(10, "IT'S A COPY! " << std::hex << update);
         address_t other;
         size_t otherSize = (size_t)-1;
@@ -352,6 +355,18 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     Link *link = nullptr;
     //size_t destOffset = 0;
 
+#ifdef ARCH_X86_64
+    if(r->getType() == R_X86_64_NONE) {
+        return;
+    }
+    if(r->getType() == R_X86_64_RELATIVE
+        || r->getType() == R_X86_64_TPOFF64) {
+
+        return; // will be handled in FixDataRegions
+    }
+#endif
+
+#ifdef ARCH_AARCH64
 #if defined(R_AARCH64_TLS_TPREL64) && !defined(R_AARCH64_TLS_TPREL)
     #define R_AARCH64_TLS_TPREL R_AARCH64_TLS_TPREL64
 #endif
@@ -360,6 +375,7 @@ void RelocDataPass::fixRelocation(Reloc *r) {
 
         return; // will be handled in FixDataRegions
     }
+#endif
 
     auto list = module->getDataRegionList();
     auto sourceRegion = list->findRegionContaining(update);
@@ -393,6 +409,33 @@ void RelocDataPass::fixRelocation(Reloc *r) {
     }
 
     link = PerfectLinkResolver().resolveExternally(symbol, conductor, elfSpace);
+
+#ifdef ARCH_X86_64
+    if(r->getType() == R_X86_64_COPY) {
+        TemporaryLogLevel tll("dloadtime", 10);
+        TemporaryLogLevel tll2("chunk", 10);
+        // 1) copy the values (don't have to be relocated at this point)
+        // 2) duplicate the variables
+        LOG(1, "R_X86_64_COPY!!");
+        if(link) LOG(1, " found link");
+        else {
+            link = PerfectLinkResolver().resolveExternally(symbol, conductor, elfSpace);
+        }
+        if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
+            address_t update = elfMap->getBaseAddress() + r->getAddress();
+            address_t from = dlink->getTargetAddress();
+            size_t size = r->getSymbol()->getSize();
+            LOG(1, "copy " << size << " bytes from "
+                << std::hex << from << " to " << update);
+            std::memcpy((void *)update, (void *)from, size);
+            delete link;
+        }
+        else {
+            LOG(1, "WARNING: original data for copy relocation not found");
+        }
+        return;
+    }
+#endif
 
     // these shouldn't be necessary as long as relocations are available
 #if 0
