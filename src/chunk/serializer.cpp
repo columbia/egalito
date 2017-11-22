@@ -44,7 +44,7 @@ void ChunkSerializerOperations::serialize(Chunk *chunk,
 bool ChunkSerializerOperations::deserialize(FlatChunk *flat) {
     InMemoryStreamReader reader(flat);
     if(!flat->getInstance<Chunk>()) {
-        LOG(1, "WARNING: did not instantiate Chunk for flat");
+        LOG(1, "WARNING: did not instantiate Chunk for flat " << flat->getID());
         return false;
     }
 
@@ -118,13 +118,13 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new Marker(); },         // TYPE_Marker
 #else
         [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
-        [] () -> Chunk* { return nullptr; },
+        [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
-        [] () -> Chunk* { return nullptr; },
+        [] () -> Chunk* { return new PLTTrampoline(); },  // TYPE_PLTTrampoline
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
         [] () -> Chunk* { return nullptr; },
@@ -158,6 +158,10 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
             LOG(1, "ERROR: Chunk \"" << op.getDebugName(id) << "\" at index "
                 << std::dec << id << " was not serialized!");
             errors = true;
+        }
+        else {
+            LOG(1, "serialize chunk id " << std::dec << id
+                << " i.e. " << op.getDebugName(id));
         }
         id ++;
     }

@@ -52,6 +52,8 @@ void Function::serialize(ChunkSerializerOperations &op,
 #else  // compress data
     writer.write(static_cast<uint8_t>(1));
 
+    op.serializeChildren(this, writer);  // serialize empty children!
+
     writer.write(static_cast<uint64_t>(
         this->getChildren()->getIterable()->getCount()));
     for(auto block : CIter::children(this)) {
@@ -96,6 +98,8 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         op.deserializeChildren(this, reader);
     }
     else {
+        op.deserializeChildren(this, reader);  // deserialize empty children!
+
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
@@ -105,7 +109,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         uint64_t blockCount = 0;
         reader.read(blockCount);
         for(uint64_t b = 0; b < blockCount; b ++) {
-            Block *block = new Block();
+            Block *block = getChildren()->getIterable()->get(b); //new Block();
             block->setPosition(positionFactory->makePosition(
                 prevChunk1, block, this->getSize()));
 
@@ -115,7 +119,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             uint64_t instrCount = 0;
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
-                auto instr = new Instruction();
+                auto instr = block->getChildren()->getIterable()->get(i); //new Instruction();
                 auto semantic = InstrSerializer(op).deserialize(instr,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);

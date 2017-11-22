@@ -18,8 +18,10 @@ private:
     Symbol *targetSymbol;
     address_t gotPLTEntry;
 public:
+    PLTTrampoline() : sourceElf(nullptr), target(nullptr),
+        targetSymbol(nullptr), gotPLTEntry(0) {}
     PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol,
-                  address_t gotPLTEntry);
+        address_t gotPLTEntry);
 
     std::string getName() const;
 

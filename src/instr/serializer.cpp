@@ -117,8 +117,11 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         reader.read(id);
         if(id != static_cast<uint64_t>(-1)) {
             Chunk *target = op.lookup(id);
+            if(!target->getPosition()) {
+                target->setPosition(new AbsolutePosition(-1));
+            }
             LOG(1, "call instruction targets " << target->getName());
-            semantic->setLink(new NormalLink(target));
+            //semantic->setLink(new NormalLink(target));
         }
         return semantic;
     }

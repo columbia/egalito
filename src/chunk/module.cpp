@@ -27,11 +27,11 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     writer.writeAnyLength(getName());
 
-    auto functionListID = op.serialize(getFunctionList());
-    writer.write(functionListID);
-
     auto pltListID = op.serialize(getPLTList());
     writer.write(pltListID);
+
+    auto functionListID = op.serialize(getFunctionList());
+    writer.write(functionListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
@@ -43,11 +43,21 @@ bool Module::deserialize(ChunkSerializerOperations &op,
 
     LOG(1, "trying to parse Module [" << name << "]");
 
-    uint32_t id;
-    reader.read(id);
-    auto functionList = op.lookupAs<FunctionList>(id);
-    getChildren()->add(functionList);
-    setFunctionList(functionList);
+    {
+        uint32_t id;
+        reader.read(id);
+        auto pltList = op.lookupAs<PLTList>(id);
+        getChildren()->add(pltList);
+        setPLTList(pltList);
+    }
+
+    {
+        uint32_t id;
+        reader.read(id);
+        auto functionList = op.lookupAs<FunctionList>(id);
+        getChildren()->add(functionList);
+        setFunctionList(functionList);
+    }
 
     return reader.stillGood();
 }

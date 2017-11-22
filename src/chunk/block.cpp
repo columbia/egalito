@@ -23,13 +23,17 @@ std::string Block::getName() const {
 void Block::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+#if 0
     writer.write(static_cast<uint64_t>(getAddress()));
+#endif
     op.serializeChildren(this, writer);
 }
 
 bool Block::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    op.deserializeChildren(this, reader);
+#if 0
     uint64_t address = 0;
     reader.read(address);
     setPosition(new AbsolutePosition(address));
@@ -53,6 +57,7 @@ bool Block::deserialize(ChunkSerializerOperations &op,
     }
 
     mutator.updatePositions();
+#endif
 #endif
     return reader.stillGood();
 }
