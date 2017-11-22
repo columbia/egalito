@@ -34,6 +34,11 @@ public:
     address_t getGotPLTEntry() const
         { return sourceElf->getBaseAddress() + gotPLTEntry; }
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
@@ -42,6 +47,12 @@ class PLTList : public CollectionChunkImpl<PLTTrampoline> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 public:
     static size_t getPLTTrampolineSize();

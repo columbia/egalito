@@ -27,8 +27,11 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     writer.writeAnyLength(getName());
 
-    auto functionList = op.serialize(getFunctionList());
-    writer.write(functionList);
+    auto functionListID = op.serialize(getFunctionList());
+    writer.write(functionListID);
+
+    auto pltListID = op.serialize(getPLTList());
+    writer.write(pltListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,

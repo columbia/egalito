@@ -14,10 +14,13 @@ class Chunk;
 class ChunkSerializerOperations : public ArchiveIDOperations<Chunk> {
 private:
     EgalitoArchive *archive;
-    std::map<Chunk *, FlatChunk::IDType> assignment;
+    std::vector<std::string> debugNames;
 public:
     ChunkSerializerOperations(EgalitoArchive *archive)
         : ArchiveIDOperations(archive) {}
+
+    virtual FlatChunk::IDType assign(Chunk *object);
+    std::string getDebugName(FlatChunk::IDType id);
 
     FlatChunk::IDType serialize(Chunk *chunk);
     void serialize(Chunk *chunk, FlatChunk::IDType id);

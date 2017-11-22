@@ -14,10 +14,11 @@ private:
     std::map<BaseType *, FlatChunk::IDType> assignment;
 public:
     ArchiveIDOperations(EgalitoArchive *archive) : archive(archive) {}
+    virtual ~ArchiveIDOperations() {}
     
     int getVersion() const { return archive->getVersion(); }
 
-    FlatChunk::IDType assign(BaseType *object);
+    virtual FlatChunk::IDType assign(BaseType *object);
     bool fetch(BaseType *object, FlatChunk::IDType &id);
 
     BaseType *lookup(FlatChunk::IDType id) const;

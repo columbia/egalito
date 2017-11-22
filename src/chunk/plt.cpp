@@ -2,6 +2,7 @@
 #include "plt.h"
 #include "function.h"
 #include "module.h"
+#include "serializer.h"
 #include "visitor.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
@@ -122,6 +123,28 @@ void PLTTrampoline::writeTo(char *target) {
         << " from 0x" << getAddress());
 }
 
+void PLTTrampoline::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    auto targetID = static_cast<FlatChunk::IDType>(-1);
+    if(target) {
+        targetID = op.assign(target);
+    }
+
+    writer.write(static_cast<uint32_t>(targetID));
+}
+
+bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    uint32_t id;
+    reader.read(id);
+    auto newTarget = op.lookupAs<Chunk>(id);
+    setTarget(newTarget);
+
+    return reader.stillGood();
+}
+
 void PLTTrampoline::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
@@ -132,6 +155,19 @@ size_t PLTList::getPLTTrampolineSize() {
 #else
     return 16;
 #endif
+}
+
+void PLTList::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    op.serializeChildren(this, writer);
+}
+
+bool PLTList::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }
 
 void PLTList::accept(ChunkVisitor *visitor) {

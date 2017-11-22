@@ -11,6 +11,9 @@
 #include "operation/mutator.h"
 #include "log/log.h"
 
+#include "instr/concrete.h"
+#include "dump.h"
+
 Function::Function(address_t originalAddress)
     : symbol(nullptr), nonreturn(false) {
 
@@ -56,6 +59,10 @@ void Function::serialize(ChunkSerializerOperations &op,
             block->getChildren()->getIterable()->getCount()));
         for(auto instr : CIter::children(block)) {
 #if 1
+            if(dynamic_cast<ControlFlowInstruction *>(instr->getSemantic())) {
+                ChunkDumper dumper;
+                instr->accept(&dumper);
+            }
             InstrSerializer(op).serialize(instr->getSemantic(), writer);
 #else
             InstrWriterGetData instrWriter;

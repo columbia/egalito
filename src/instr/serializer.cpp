@@ -70,11 +70,20 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     assert(controlFlow->getLink());
 
     auto target = &*controlFlow->getLink()->getTarget();
+#if 0
     FlatChunk::IDType id;
     if(op.fetch(target, id)) {
         writer.write(static_cast<uint64_t>(id));
     }
     else writer.write(static_cast<uint64_t>(-1));
+#else
+    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
+    if(target) {
+        LOG(1, "call instruction targets " << target->getName());
+        id = op.assign(target);
+    }
+    writer.write(static_cast<uint64_t>(id));
+#endif
 }
 
 void InstrSerializer::serialize(InstructionSemantic *semantic,

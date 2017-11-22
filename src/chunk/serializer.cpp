@@ -9,6 +9,19 @@
 #include "archive/writer.h"
 #include "log/log.h"
 
+FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
+    auto id = ArchiveIDOperations<Chunk>::assign(object);
+    if(id != static_cast<FlatChunk::IDType>(-1)) {
+        if(debugNames.size() <= id) debugNames.resize(id + 1);
+        debugNames[id] = object->getName();
+    }
+    return id;
+}
+
+std::string ChunkSerializerOperations::getDebugName(FlatChunk::IDType id) {
+    return (id < debugNames.size() ? debugNames[id] : "???");
+}
+
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
     FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType());
@@ -137,13 +150,28 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
 
     LOG(1, "done with root serialize call");
 
-    EgalitoArchiveWriter(archive).write(filename);
+    // for sanity, make sure we serialized every Chunk that is referred to
+    bool errors = false;
+    FlatChunk::IDType id = 0;
+    for(auto flat : archive->getFlatList()) {
+        if(!flat) {
+            LOG(1, "ERROR: Chunk \"" << op.getDebugName(id) << "\" at index "
+                << std::dec << id << " was not serialized!");
+            errors = true;
+        }
+        id ++;
+    }
 
-    LOG(1, "done with writing");
+    if(errors) {
+        LOG(1, "Errors encountered during serialization, aborting");
+    }
+    else {
+        EgalitoArchiveWriter(archive).write(filename);
+
+        LOG(1, "done with writing");
+    }
 
     delete archive;
-
-    LOG(1, "done with deleting");
 }
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {
