@@ -7,6 +7,7 @@
 #include "elfdynamic.h"
 #include "elfmap.h"
 #include "elfxx.h"
+#include "util/feature.h"
 
 #include "log/log.h"
 
@@ -162,6 +163,12 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     if(filename == "ld-linux-x86-64.so.2") {
         LOG(2, "    skipping processing of ld.so for now");
         return;
+    }
+    if(!isFeatureEnabled("EGALITO_USE_DISASM")) {
+        if(filename == "libcapstone.so.4" || filename == "libdistorm3.so") {
+            LOG(2, "    skipping processing of disassembly libraries");
+            return;
+        }
     }
 
     // don't process this library again if already done
