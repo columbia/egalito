@@ -11,7 +11,7 @@ class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTTrampoline : public AddressableChunkImpl {
+class PLTTrampoline : public CompositeChunkImpl<Instruction> {
 private:
     ElfMap *sourceElf;
     Chunk *target;
@@ -19,7 +19,7 @@ private:
     address_t gotPLTEntry;
 public:
     PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol,
-                  address_t gotPLTEntry);
+        address_t gotPLTEntry);
 
     std::string getName() const;
 

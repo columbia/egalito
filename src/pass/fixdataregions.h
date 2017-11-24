@@ -3,6 +3,8 @@
 
 #include "chunkpass.h"
 
+class DataVariable;
+
 class FixDataRegionsPass : public ChunkPass {
 private:
     Program *program;
@@ -12,6 +14,8 @@ public:
     virtual void visit(Module *module);
     virtual void visit(DataRegionList *dataRegionList);
     virtual void visit(DataRegion *dataRegion);
+private:
+    bool isForIFuncJumpSlot(DataVariable *var);
 };
 
 #endif

@@ -58,9 +58,22 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            // cast is only necessary for old capstone in egalitoci
-            semantic = new IndirectJumpInstruction(
-                *ins, static_cast<Register>(op->mem.base), ins->mnemonic);
+            if(op->mem.base == X86_REG_RIP) {
+                Assembly assembly(*ins);
+                auto dispSize = determineDisplacementSize(&assembly);
+                size_t use = ins->size - dispSize;
+                auto disp = op->mem.disp + ins->size + ins->address;
+                auto cfi = new ControlFlowInstruction(
+                    ins->id, instruction,
+                    std::string((char *)ins->bytes, use),
+                    ins->mnemonic, dispSize);
+                cfi->setLink(new UnresolvedLink(disp));
+                semantic = cfi;
+            }
+            else {
+                semantic = new IndirectJumpInstruction(
+                    *ins, op->mem.base, ins->mnemonic);
+            }
         }
     }
     else if(ins->id == X86_INS_RET) {

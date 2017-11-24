@@ -18,17 +18,15 @@ void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
 
     this->conductor = new Conductor();
-    egalito_conductor = conductor;
+    ::egalito_conductor = conductor;
 
     this->elf = new ElfMap(executable);
-    setBaseAddress(elf, 0x4000000);
     conductor->parseExecutable(elf);
 
     findEntryPointFunction();
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
-        //setBaseAddress(egalito, 0x8000000l);  // use address assigned below
         conductor->parseEgalito(egalito);
     }
 
@@ -45,6 +43,9 @@ void ConductorSetup::parseElfFiles(const char *executable,
 
     conductor->check();
 
+    // At this point, all the effort for resolving the links should be
+    // performed (except for special cases)
+    setBaseAddress(elf, 0x4000000);
     // set base addresses for any shared libraries that were pulled in
     int i = 0;
     for(auto lib : *conductor->getLibraryList()) {

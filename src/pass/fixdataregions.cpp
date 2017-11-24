@@ -1,3 +1,4 @@
+#include <cassert>
 #include "fixdataregions.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
@@ -26,6 +27,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 #endif
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
+            if(isForIFuncJumpSlot(var)) continue;
             auto target = var->getDest()->getTargetAddress();
             // simply using var->getAddress() will fail due to TLS
             address_t address = var->getAddress()
@@ -38,3 +40,13 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
     }
 }
 
+bool FixDataRegionsPass::isForIFuncJumpSlot(DataVariable *var) {
+    auto f = dynamic_cast<Function *>(&*var->getDest()->getTarget());
+    if(!f) return false;
+
+    if(auto sym = f->getSymbol()) {
+        if(sym->getType() == Symbol::TYPE_IFUNC) return true;
+    }
+
+    return false;
+}
