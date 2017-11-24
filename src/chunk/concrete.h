@@ -20,6 +20,7 @@
 #include "gstable.h"
 
 #include "marker.h"
+#include "vtable.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"

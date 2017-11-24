@@ -28,6 +28,10 @@ void ChunkDumper::visit(JumpTableList *jumpTableList) {
 void ChunkDumper::visit(DataRegionList *dataRegionList) {
     recurse(dataRegionList);
 }
+void ChunkDumper::visit(VTableList *vtableList) {
+    LOG(1, "--[vtables]--");
+    recurse(vtableList);
+}
 
 void ChunkDumper::visit(Function *function) {
     LOG(4, "---[" << function->getName() << "]---");
@@ -102,6 +106,10 @@ void ChunkDumper::visit(MarkerList *markerList) {
         }
         else LOG(1, "");
     }
+}
+
+void ChunkDumper::visit(VTable *vtable) {
+    LOG(1, vtable->getName());
 }
 
 void InstrDumper::visit(RawInstruction *semantic) {

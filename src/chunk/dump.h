@@ -26,6 +26,7 @@ public:
     virtual void visit(PLTList *pltList);
     virtual void visit(JumpTableList *jumpTableList);
     virtual void visit(DataRegionList *dataRegionList);
+    virtual void visit(VTableList *vtable);
     virtual void visit(Function *function);
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
@@ -34,6 +35,7 @@ public:
     virtual void visit(JumpTableEntry *jumpTableEntry);
     virtual void visit(DataRegion *dataRegion);
     virtual void visit(MarkerList *markerList);
+    virtual void visit(VTable *vtable);
 };
 
 class InstrDumper : public InstructionVisitor {

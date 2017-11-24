@@ -36,6 +36,7 @@ public:
     virtual void visit(PLTList *pltList) { recurse(pltList); }
     virtual void visit(JumpTableList *jumpTableList) { recurse(jumpTableList); }
     virtual void visit(DataRegionList *dataRegionList) { recurse(dataRegionList); }
+    virtual void visit(VTableList *vtableList) { recurse(vtableList); }
     virtual void visit(Function *function) { recurse(function); }
     virtual void visit(Block *block) { recurse(block); }
     virtual void visit(Instruction *instruction) {}
@@ -44,6 +45,7 @@ public:
     virtual void visit(JumpTableEntry *jumpTableEntry) {}
     virtual void visit(DataRegion *dataRegion) {}
     virtual void visit(MarkerList *markerList) {}
+    virtual void visit(VTable *vtable) {}
 };
 
 #endif

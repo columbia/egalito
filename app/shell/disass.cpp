@@ -381,4 +381,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         CollapsePLTPass collapsePLT;
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }, "changes all instructions that target the PLT to use a direct reference");
+
+    topLevel->add("vtables", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(module && module->getVTableList()) {
+            ChunkDumper dumper;
+            module->getVTableList()->accept(&dumper);
+        }
+    }, "shows a list of all vtables in a module");
 }

@@ -11,6 +11,7 @@
 #include "chunk/dataregion.h"
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
+#include "disasm/objectoriented.h"
 #include "pass/fallthrough.h"
 #include "pass/nonreturn.h"
 #include "pass/splitbasicblock.h"
@@ -54,6 +55,13 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     DataRegionList::buildDataRegionList(elf, module);
 
     PLTList::parsePLTList(elf, relocList, module);
+
+#ifdef ARCH_X86_64
+    // this needs data regions
+    module->setVTableList(DisassembleVTables().makeVTableList(
+        elf, space->getSymbolList(), module));
+#endif
+
 
     // this needs data regions
     RUN_PASS(HandleDataRelocsInternalStrong(relocList), module);

@@ -7,6 +7,7 @@ class FunctionList;
 class PLTList;
 class JumpTableList;
 class DataRegionList;
+class VTableList;
 class Function;
 class Block;
 class Instruction;
@@ -18,5 +19,6 @@ class DataSection;
 class DataVariable;
 class MarkerList;
 class Marker;
+class VTable;
 
 #endif

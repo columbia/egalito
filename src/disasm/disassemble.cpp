@@ -9,6 +9,7 @@
 #include "disassemble.h"
 #include "dump.h"
 #include "makesemantic.h"
+#include "objectoriented.h"
 #include "elf/symbol.h"
 #include "chunk/chunk.h"
 #include "chunk/size.h"
