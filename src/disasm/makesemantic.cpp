@@ -57,10 +57,23 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         }
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
+        if(ins->id == X86_INS_CALL) {
+            // IndirectCallInstruction cannot be relocated if base is RIP;
+            // skip here and make LinkedInstruction afterward
+            if(op->mem.base != X86_REG_RIP) {
+                semantic = new IndirectCallInstruction(
+                    *ins, op->mem.base, op->mem.index,
+                    op->mem.scale, op->mem.disp);
+            }
+        }
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            // cast is only necessary for old capstone in egalitoci
-            semantic = new IndirectJumpInstruction(
-                *ins, static_cast<Register>(op->mem.base), ins->mnemonic);
+            // IndirectJumpInstruction cannot be relocated if base is RIP;
+            // skip here and make LinkedInstruction afterward
+            if(op->mem.base != X86_REG_RIP) {
+                semantic = new IndirectJumpInstruction(
+                    *ins, op->mem.base, ins->mnemonic, op->mem.index,
+                    op->mem.scale, op->mem.disp);
+            }
         }
     }
     else if(ins->id == X86_INS_RET) {

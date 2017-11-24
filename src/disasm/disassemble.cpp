@@ -1005,7 +1005,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
                         std::ostringstream stream;
                         stream << "original:      address: " << std::hex << ins->address << ", bytes:";
                         for(size_t i = 0; i < ins->size; i ++) {
-                            stream << std::hex << " " << (int)ins->bytes[i];
+                            stream << std::hex << " " << (unsigned char)ins->bytes[i];
                         }
                         LOG(1, stream.str());
                     }
@@ -1014,7 +1014,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
                         std::ostringstream stream;
                         stream << "reconstructed: address: " << std::hex << i->getAddress() << ", bytes:";
                         for(size_t i = 0; i < data.length(); i ++) {
-                            stream << std::hex << " " << (int)data[i];
+                            stream << std::hex << " " << (unsigned char)data[i];
                         }
                         LOG(1, stream.str());
                     }

@@ -1,5 +1,6 @@
 #include <cstring>  // for memcpy
 #include "plt.h"
+#include "ifunc.h"
 #include "function.h"
 #include "module.h"
 #include "visitor.h"
@@ -10,6 +11,7 @@
 #define DEBUG_GROUP dplt
 #include "log/log.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 class PLTRegistry {
 private:
@@ -52,49 +54,38 @@ bool PLTTrampoline::isIFunc() const {
     return false;
 }
 
+static IFuncList ifuncList;
+IFuncList *egalito_ifuncList = &ifuncList;
+extern "C" void ifunc_resolver();
+extern "C"
+void ifunc_resolve(address_t address) {
+    auto ifunc = egalito_ifuncList->getFor(address);
+    auto func = reinterpret_cast<IFuncList::IFuncType>(ifunc)();
+    *reinterpret_cast<address_t *>(address)
+        = reinterpret_cast<address_t>(func);
+}
+
+#include "instr/writer.h"
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
-    size_t offset = 0;
-#define ADD_BYTES(data, size) \
-    std::memcpy(target+offset, data, size), offset += size
-
     bool isIFunc = this->isIFunc();
     if(this->target) {
-        LOG(1, "making PLT entry for [" << this->target->getName()
+        LOG(10, "making PLT entry for [" << this->target->getName()
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
+    for(auto instr : CIter::children(this)) {
+        char *output = reinterpret_cast<char *>(instr->getAddress());
+        InstrWriterCString writer(output);
+        instr->getSemantic()->accept(&writer);
+    }
+
     address_t gotPLT = getGotPLTEntry();
-    if(!isIFunc) {
-        // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
-        ADD_BYTES("\xff\x25", 2);
-        address_t disp = gotPLT - (getAddress() + 2+4);
-        ADD_BYTES(&disp, 4);
-
-        // 68 NN NN NN NN    pushq  $0xNNNNNNNN
-        //ADD_BYTES("\x68", 1);
-        //address_t address = getAddress();
-        //ADD_BYTES(&address, 4);
+    if(isIFunc) {
+        ifuncList.add(gotPLT, getTarget());
+        *reinterpret_cast<address_t *>(gotPLT) = getAddress() + 10;
+        // dont't let fixDataSections overwrite this...
     }
-    else {
-        // make stack aligned properly for the next callq
-        // 48 83 ec 08          sub    $0x8,%rsp
-        ADD_BYTES("\x48\x83\xec\x08", 4);
-
-        // ff 15 NN NN NN NN    callq *0xNNNNNNNN(%rip)
-        ADD_BYTES("\xff\x15", 2);
-        address_t disp = gotPLT - (getAddress() + 2+4) - 4;
-        ADD_BYTES(&disp, 4);
-
-        // bring back the stack pointer for the next jmpq and align it
-        // 48 83 c4 08          add    $0x8,%rsp
-        ADD_BYTES("\x48\x83\xc4\x08", 4);
-
-        // ff e0    jmpq *%rax
-        ADD_BYTES("\xff\xe0", 2);
-    }
-
-#undef ADD_BYTES
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     static const uint32_t plt[] = {
         0x90000010, //adrp x16, .
@@ -129,7 +120,7 @@ void PLTTrampoline::accept(ChunkVisitor *visitor) {
 
 size_t PLTList::getPLTTrampolineSize() {
 #ifdef ARCH_X86_64
-    return 16;
+    return 32;  // must be big enough to hold indirection for JIT-shuffling
 #else
     return 16;
 #endif
@@ -212,8 +203,8 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                     symbol = module->getElfSpace()->getSymbolList()
                         ->find(r->getAddend());
                 }
-                pltList->getChildren()->add(new PLTTrampoline(elf,
-                    pltAddress, symbol, value));
+                pltList->getChildren()->add(new PLTTrampoline(
+                    elf, pltAddress, symbol, value));
             }
         }
     }
@@ -307,8 +298,8 @@ void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
-                pltList->getChildren()->add(new PLTTrampoline(elf,
-                    pltAddress, r->getSymbol(), value));
+                pltList->getChildren()->add(new PLTTrampoline(
+                    elf, pltAddress, r->getSymbol(), value));
             }
         }
     }

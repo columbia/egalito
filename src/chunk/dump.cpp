@@ -63,7 +63,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
     LOG(4, "---[" << trampoline->getName() << "]---");
-    LOG(1, "should be located at: 0x" << std::hex << trampoline->getAddress());
+    recurse(trampoline);
 }
 
 void ChunkDumper::visit(JumpTable *jumpTable) {

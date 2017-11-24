@@ -1,8 +1,10 @@
+#include <cassert>
 #include "config.h"
 #include "conductor.h"
 #include "passes.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
+#include "operation/find2.h"
 #include "pass/handlerelocs.h"
 #include "pass/handledatarelocs.h"
 #include "pass/handlecopyrelocs.h"
@@ -14,6 +16,7 @@
 #include "pass/fixjumptables.h"
 #include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
+#include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
@@ -108,6 +111,9 @@ void Conductor::resolvePLTLinks() {
     ResolvePLTPass resolvePLT(program);
     program->accept(&resolvePLT);
 
+    PopulatePLTPass populatePLT(this);
+    program->accept(&populatePLT);
+
     if(auto libc = getLibraryList()->getLibc()) {
         LibcHacksPass libcHacks(program);
         if(libc->getElfSpace()) {
@@ -139,20 +145,20 @@ void Conductor::resolveWeak() {
         }
 
         // theoretically this should be three passes, but in practice?
-        LOG(10, "[[[[1 HandleRelocsWeak]]]]" << module->getName());
+        LOG(10, "[[[1 HandleRelocsWeak]]]" << module->getName());
         HandleRelocsWeak handleRelocsPass(
             space->getElfMap(), space->getRelocList());
         module->accept(&handleRelocsPass);
 
-        LOG(10, "[[[[2 HandleDataRelocsExternalStrong]]]]" << module->getName());
+        LOG(10, "[[[2 HandleDataRelocsExternalStrong]]]" << module->getName());
         HandleDataRelocsExternalStrong pass1(space->getRelocList(), this);
         module->accept(&pass1);
 
-        LOG(10, "[[[[3 HandleDataRelocsInternalWeak]]]]" << module->getName());
+        LOG(10, "[[[3 HandleDataRelocsInternalWeak]]]" << module->getName());
         HandleDataRelocsInternalWeak pass2(space->getRelocList());
         module->accept(&pass2);
 
-        LOG(10, "[[[[4 HandleDataRelocsExternalWeak]]]]" << module->getName());
+        LOG(10, "[[[4 HandleDataRelocsExternalWeak]]]" << module->getName());
         HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
         module->accept(&pass3);
     }
