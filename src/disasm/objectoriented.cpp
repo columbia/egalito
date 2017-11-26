@@ -99,7 +99,9 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
             // the relocation must have been resolved already by the system
             // loader, i.e. we are examining running loader code
             auto symbol = symbolList->find(value);
-            if(symbol) {
+            if(symbol
+                && std::strcmp(symbol->getName(), "__cxa_pure_virtual") != 0) {
+
                 LOG(5, "    vtable entry targets ["
                     << symbol->getName() << "] via symbol");
                 link = new SymbolOnlyLink(symbol, value);
