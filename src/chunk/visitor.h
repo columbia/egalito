@@ -22,6 +22,7 @@ public:
     virtual void visit(DataRegion *dataRegion) = 0;
     virtual void visit(MarkerList *markerList) = 0;
     virtual void visit(VTable *vtable) = 0;
+    virtual void visit(VTableEntry *vtableEntry) = 0;
 };
 class ChunkListener : public ChunkVisitor {
 public:
@@ -41,6 +42,7 @@ public:
     virtual void visit(DataRegion *dataRegion) {}
     virtual void visit(MarkerList *markerList) {}
     virtual void visit(VTable *vtable) {}
+    virtual void visit(VTableEntry *vtableEntry) {}
 };
 
 #endif

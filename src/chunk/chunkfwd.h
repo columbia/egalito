@@ -20,5 +20,6 @@ class DataVariable;
 class MarkerList;
 class Marker;
 class VTable;
+class VTableEntry;
 
 #endif

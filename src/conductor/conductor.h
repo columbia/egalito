@@ -24,6 +24,7 @@ public:
     void resolvePLTLinks();
     void resolveTLSLinks();
     void resolveWeak();
+    void resolveVTables();
     void fixDataSections();
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");

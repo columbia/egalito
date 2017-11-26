@@ -15,6 +15,7 @@
 #include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
 #include "pass/relocheck.h"
+#include "disasm/objectoriented.h"
 #include "transform/data.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -154,6 +155,18 @@ void Conductor::resolveWeak() {
         LOG(10, "[[[[4 HandleDataRelocsExternalWeak]]]]" << module->getName());
         HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
         module->accept(&pass3);
+    }
+}
+
+void Conductor::resolveVTables() {
+    for(auto module : CIter::children(program)) {
+#ifdef ARCH_X86_64
+        // this needs data regions
+        module->setVTableList(DisassembleVTables().makeVTableList(
+            module->getElfSpace()->getElfMap(),
+            module->getElfSpace()->getSymbolList(),
+            module->getElfSpace()->getRelocList(), module, program));
+#endif
     }
 }
 

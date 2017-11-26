@@ -5,22 +5,27 @@
 #include "chunk.h"
 #include "chunklist.h"
 
-class VTable : public AddressableChunkImpl {
+class VTableEntry : public AddressableChunkImpl {
 private:
-    DataOffsetLink *vtableLink;
-    DataOffsetLink *typeinfoLink;
+    Link *link;
+public:
+    VTableEntry(Link *link = nullptr) : link(link) {}
+
+    Link *getLink() const { return link; }
+    void setLink(Link *link) { this->link = link; }
+
+    virtual void accept(ChunkVisitor *visitor);
+};
+
+class VTable : public CompositeChunkImpl<VTableEntry> {
+private:
     std::string className;
 public:
-    VTable() : vtableLink(nullptr), typeinfoLink(nullptr), className("???") {}
+    VTable() : className("???") {}
 
-    std::string getName() const;
-
-    DataOffsetLink *getVTableLink() const { return vtableLink; }
-    DataOffsetLink *getTypeinfoLink() const { return typeinfoLink; }
+    virtual std::string getName() const;
     std::string getClassName() const { return className; }
 
-    void setVTableLink(DataOffsetLink *link) { vtableLink = link; }
-    void setTypeinfoLink(DataOffsetLink *link) { typeinfoLink = link; }
     void setClassName(const std::string &name) { className = name; }
 
     virtual void accept(ChunkVisitor *visitor);

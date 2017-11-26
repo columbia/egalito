@@ -112,6 +112,10 @@ void ChunkDumper::visit(VTable *vtable) {
     LOG(1, vtable->getName());
 }
 
+void ChunkDumper::visit(VTableEntry *vtableEntry) {
+    LOG(1, "NYI");
+}
+
 void InstrDumper::visit(RawInstruction *semantic) {
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());

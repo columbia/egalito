@@ -36,6 +36,7 @@ public:
     virtual void visit(DataRegion *dataRegion);
     virtual void visit(MarkerList *markerList);
     virtual void visit(VTable *vtable);
+    virtual void visit(VTableEntry *vtableEntry);
 };
 
 class InstrDumper : public InstructionVisitor {

@@ -50,6 +50,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     }
     conductor->resolveTLSLinks();
     conductor->resolveWeak();
+    conductor->resolveVTables();
 
     conductor->check();
 }

@@ -1,6 +1,10 @@
 #include "vtable.h"
 #include "visitor.h"
 
+void VTableEntry::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
 std::string VTable::getName() const {
     return "vtable for " + className;
 }

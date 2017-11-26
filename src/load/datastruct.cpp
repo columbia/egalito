@@ -3,14 +3,13 @@
 #include "datastruct.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
+#include "elf/reloc.h"
 #include "disasm/objectoriented.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
 #include "chunk/vtable.h"
 #include "chunk/dump.h"
 #include "log/log.h"
-
-static int _data_struct_migrator_global;
 
 void DataStructMigrator::migrate(ConductorSetup &setup) {
     auto egalito = setup.getConductor()->getProgram()->getEgalito();
@@ -25,10 +24,12 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
 
     ElfMap *loaderElf = new ElfMap("/proc/self/exe");
     SymbolList *loaderSymbolList = SymbolList::buildSymbolList(loaderElf);
+    RelocList *loaderRelocList = RelocList::buildRelocList(
+        loaderElf, loaderSymbolList);
 
-    // construct the VTableList with a null Module
+    // construct the VTableList with a null Module & Program
     auto loaderVTableList = DisassembleVTables().makeVTableList(
-        loaderElf, loaderSymbolList, nullptr);
+        loaderElf, loaderSymbolList, loaderRelocList, nullptr, nullptr);
 
     // This relies on VTables having the same name in libegalito
     // as in the loader (i.e. no address in the name).
@@ -36,15 +37,43 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
         auto named = loaderVTableList->getChildren()->getNamed();
         auto loaderVTable = named->find(egalitoVTable->getName());
         if(loaderVTable) {
-            LOG(1, "migrating " << loaderVTable->getName());
+            migrateTable(loaderVTable, egalitoVTable);
         }
     }
 
     delete loaderVTableList;
+    delete loaderRelocList;
     delete loaderSymbolList;
     delete loaderElf;
 
     commit();
+}
+
+void DataStructMigrator::migrateTable(VTable *loaderVTable,
+    VTable *egalitoVTable) {
+
+    LOG(1, "migrating " << loaderVTable->getName());
+
+    if(egalitoVTable->getChildren()->genericGetSize()
+        != loaderVTable->getChildren()->genericGetSize()) {
+
+        LOG(1, "WARNING: vtable entry count mismatch for "
+            << loaderVTable->getName() << " -- recompile?");
+    }
+    else {
+        for(size_t i = 0; i < loaderVTable->getChildren()->genericGetSize();
+            i ++) {
+
+            auto loaderEntry = loaderVTable->getChildren()->getIterable()->get(i);
+            auto egalitoEntry = egalitoVTable->getChildren()->getIterable()->get(i);
+
+            if(!loaderEntry->getLink() || !egalitoEntry->getLink()) continue;
+
+            auto set = loaderEntry->getAddress();
+            auto value = egalitoEntry->getLink()->getTargetAddress();
+            fixupList.push_back(std::make_pair(set, value));
+        }
+    }
 }
 
 void DataStructMigrator::commit() {
