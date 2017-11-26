@@ -1,4 +1,5 @@
 #include <cassert>
+#include "config.h"
 #include "setup.h"
 #include "conductor.h"
 #include "transform/generator.h"
@@ -11,8 +12,8 @@
 
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
+ConductorSetup *egalito_conductor_setup __attribute__((weak));
 Conductor *egalito_conductor __attribute__((weak));
-Sandbox *egalito_sandbox __attribute__((weak));
 
 void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
@@ -43,20 +44,16 @@ void ConductorSetup::parseElfFiles(const char *executable,
 
     conductor->check();
 
-    // At this point, all the effort for resolving the links should be
-    // performed (except for special cases)
-    setBaseAddress(elf, 0x4000000);
-    // set base addresses for any shared libraries that were pulled in
+    // At this point, all the effort for resolving the links should have
+    // been performed (except for special cases)
+
     int i = 0;
     for(auto lib : *conductor->getLibraryList()) {
-        if(lib->getElfMap() == this->elf) continue;
-
         if(setBaseAddress(lib->getElfMap(), 0xa0000000 + i*0x1000000)) {
             i ++;
         }
     }
 
-    // change the address of regions accordingly (including executable's)
     ClearSpatialPass clearSpatial;
     for(auto module : CIter::children(conductor->getProgram())) {
         auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
@@ -88,11 +85,18 @@ void ConductorSetup::injectLibrary(const char *filename) {
     conductor->resolvePLTLinks();
 }
 
-void ConductorSetup::makeLoaderSandbox() {
-    auto backing = MemoryBacking(10 * 0x1000 * 0x1000);
-    this->sandbox = new SandboxImpl<MemoryBacking,
+void ConductorSetup::makeLoaderSandbox(bool flipping) {
+    auto backing = MemoryBacking(SANDBOX_BASE_ADDRESS, 10 * 0x1000 * 0x1000);
+    auto sandbox1 = new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing);
-    ::egalito_sandbox = sandbox;
+    this->sandbox = sandbox1;
+    if(!flipping) return;
+
+    auto backing2 = MemoryBacking(SANDBOX_BASE_ADDRESS2, 10 * 0x1000 * 0x1000);
+    auto sandbox2 = new SandboxImpl<MemoryBacking,
+        WatermarkAllocator<MemoryBacking>>(backing2);
+    this->flip = new SandboxFlipImpl<SandboxImpl<MemoryBacking,
+        WatermarkAllocator<MemoryBacking>>>(sandbox1, sandbox2);
 }
 
 void ConductorSetup::makeFileSandbox(const char *outputFile) {
@@ -147,6 +151,14 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
 
 void ConductorSetup::moveCodeMakeExecutable() {
     sandbox->finalize();
+}
+
+void ConductorSetup::flipSandboxBegin() {
+    sandbox = flip->flipBegin();
+}
+
+void ConductorSetup::flipSandboxEnd() {
+    flip->flipEnd();
 }
 
 void ConductorSetup::dumpElfSpace(ElfSpace *space) {

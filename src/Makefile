@@ -41,6 +41,8 @@ TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
+LOADERPIE_SOURCES = $(LOAD_SOURCES)
+LOADERPIE_OBJECTS = $(call obj-filename,$(LOADERPIE_SOURCES))
 ADDON_SOURCES = $(SNIPPET_SOURCES)
 ADDON_OBJECTS = $(call obj-filename,$(ADDON_SOURCES))
 ALL_SOURCES = $(sort $(LOADER_SOURCES) $(BINLOADER_SOURCES))
@@ -57,9 +59,10 @@ LOADER = $(BUILDDIR)loader
 LIBRARY = $(BUILDDIR)libegalito.a
 SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 ADDON_LIBRARY = $(BUILDDIR)libaddon.so
+LOADERPIE = $(BUILDDIR)loader-pie
 
 OUTPUTS = $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
-		$(ADDON_LIBRARY)
+		$(ADDON_LIBRARY) $(LOADERPIE)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
@@ -83,6 +86,7 @@ $(BUILDTREE): ../config/config.h
 	@if [ "$(P_ARCH)" != "`cat $@`" ]; then \
 		echo $(P_ARCH) > $@; \
 		ln -sf $(BUILDDIR)loader; \
+		ln -sf $(BUILDDIR)loader-pie; \
 		ln -sf $(BUILDDIR)libegalito.a; \
 		ln -sf $(BUILDDIR)libegalito.so; \
 		ln -sf $(BUILDDIR)libaddon.so; \
@@ -118,6 +122,8 @@ $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so -Wl,--no-undefined $^ $(CLDFLAGS) -o $@ $(DISTORM_SO)
 $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 	$(SHORT_LINK) -nostdlib -shared -fPIC -Wl,-soname,libaddon.so $^ -o $@
+$(LOADERPIE): $(LOADERPIE_OBJECTS) | $(SHARED_LIBRARY)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ /usr/lib64/crti.o /usr/lib64/gcc/x86_64-suse-linux/7/crtbegin.o $^ $(CLDFLAGS) -nostartfiles -L$(BUILDDIR) -Wl,-rpath=$(abspath .) -legalito $(DISTORM_SO) /usr/lib64/gcc/x86_64-suse-linux/7/crtend.o /usr/lib64/crtn.o
 
 # Other targets
 .PHONY: clean
