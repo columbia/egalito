@@ -8,6 +8,7 @@
 #include "emulator.h"
 #include "callinit.h"
 #include "preparetls.h"
+#include "datastruct.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
@@ -79,6 +80,9 @@ void EgalitoLoader::run(int argc, char *argv[]) {
     if(libc && libc->getElfSpace()) {
         CallInit::callInitFunctions(libc->getElfSpace(), argv);
     }
+
+    // update vtable pointers to new libegalito code
+    DataStructMigrator().migrate(setup);
 
     // jump to the interpreter/target program (never returns)
     _start2();

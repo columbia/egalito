@@ -8,7 +8,7 @@ VTableList *DisassembleVTables::makeVTableList(ElfMap *elfMap,
 
     // This detection strategy only works with full symbol info.
     if(!symbolList) return nullptr;
-    if(!module->getDataRegionList()) return nullptr;
+    //if(!module->getDataRegionList()) return nullptr;
 
 #ifdef ARCH_X86_64
     VTableList *vtableList = new VTableList();
