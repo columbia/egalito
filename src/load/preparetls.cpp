@@ -27,6 +27,14 @@ void PrepareTLS::prepare(Conductor *conductor) {
     LOG(1, "copying stack canary: 0x" << std::hex << canary);
     _head->stack_guard = canary;
 
+    uint64_t pointer_guard;
+    __asm__ __volatile__ (
+        "mov %@:%p1, %0"
+            : "=r"(pointer_guard)
+            : "i"(offsetof(my_tcbhead_t, pointer_guard))
+    );
+    _head->pointer_guard = pointer_guard;
+
     LOG(1, "set %""fs to point at " << main_tp);
     _set_fs(main_tp);
 #elif defined(ARCH_AARCH64)
