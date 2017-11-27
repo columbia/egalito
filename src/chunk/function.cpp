@@ -52,7 +52,8 @@ void Function::serialize(ChunkSerializerOperations &op,
 #else  // compress data
     writer.write(static_cast<uint8_t>(1));
 
-    op.serializeChildren(this, writer);  // serialize empty children!
+    //op.serializeChildren(this, writer);  // serialize empty children!
+    op.serializeChildrenIDsOnly(this, writer, 2);
 
     writer.write(static_cast<uint64_t>(
         this->getChildren()->getIterable()->getCount()));
@@ -98,12 +99,13 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         op.deserializeChildren(this, reader);
     }
     else {
-        op.deserializeChildren(this, reader);  // deserialize empty children!
+        //op.deserializeChildren(this, reader);  // deserialize empty children!
+        op.deserializeChildrenIDsOnly(this, reader, 2);
 
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
-        ChunkMutator mutator1(this);
+        //ChunkMutator mutator1(this);
 
         size_t totalSize = 0;
         uint64_t blockCount = 0;
@@ -114,7 +116,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                 prevChunk1, block, this->getSize()));
 
             Chunk *prevChunk2 = block;
-            ChunkMutator mutator2(block, false);
+            //ChunkMutator mutator2(block, true);
 
             uint64_t instrCount = 0;
             reader.read(instrCount);
@@ -127,13 +129,15 @@ bool Function::deserialize(ChunkSerializerOperations &op,
 
                 instr->setPosition(positionFactory->makePosition(
                     prevChunk2, instr, block->getSize()));
-                mutator2.append(instr);
+                //mutator2.append(instr);
                 prevChunk2 = instr;
             }
 
-            mutator1.append(block);
+            //mutator1.append(block);
             prevChunk1 = block;
         }
+
+        ChunkMutator(this, true);  // recalculate addresses
     }
     return reader.stillGood();
 }

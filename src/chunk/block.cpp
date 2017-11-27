@@ -26,13 +26,11 @@ void Block::serialize(ChunkSerializerOperations &op,
 #if 0
     writer.write(static_cast<uint64_t>(getAddress()));
 #endif
-    op.serializeChildren(this, writer);
 }
 
 bool Block::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    op.deserializeChildren(this, reader);
 #if 0
     uint64_t address = 0;
     reader.read(address);

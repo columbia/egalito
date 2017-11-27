@@ -29,7 +29,11 @@ public:
     void serializeChildren(Chunk *chunk,
         ArchiveStreamWriter &writer);
     void deserializeChildren(Chunk *chunk,
-        ArchiveStreamReader &reader);
+        ArchiveStreamReader &reader, bool addToChildList = true);
+    void serializeChildrenIDsOnly(Chunk *chunk,
+        ArchiveStreamWriter &writer, int level);
+    void deserializeChildrenIDsOnly(Chunk *chunk,
+        ArchiveStreamReader &reader, int level, bool addToChildList = true);
 };
 
 /** Highest-level archive serialization/deserialization.

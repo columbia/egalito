@@ -74,7 +74,7 @@ void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
 }
 
 void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
-    ArchiveStreamReader &reader) {
+    ArchiveStreamReader &reader, bool addToChildList) {
 
     uint32_t count;
     reader.read(count);
@@ -84,15 +84,69 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
         uint32_t id;
         reader.read(id);
         idList.push_back(id);
-        Chunk *child = lookup(id);
-        chunk->getChildren()->genericAdd(child);
-        child->setParent(chunk);
+        if(addToChildList) {
+            Chunk *child = lookup(id);
+            chunk->getChildren()->genericAdd(child);
+            child->setParent(chunk);
+        }
     }
 
     // we deserialize all Chunks, not in order
     /*for(auto id : idList) {
         this->deserialize(lookupFlat(id));
     }*/
+}
+
+void ChunkSerializerOperations::serializeChildrenIDsOnly(Chunk *chunk,
+    ArchiveStreamWriter &writer, int level) {
+
+    if(level <= 0) return;
+    assert(chunk->getChildren());
+
+    uint32_t count = chunk->getChildren()->genericGetSize();
+    writer.write(count);
+
+    for(auto child : chunk->getChildren()->genericIterable()) {
+        auto id = assign(child);
+        auto type = child->getFlatType();
+        FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(type, id);
+
+        writer.write(id);
+    }
+
+    if(level > 1) {
+        for(auto child : chunk->getChildren()->genericIterable()) {
+            serializeChildrenIDsOnly(child, writer, level - 1);
+        }
+    }
+}
+
+void ChunkSerializerOperations::deserializeChildrenIDsOnly(Chunk *chunk,
+    ArchiveStreamReader &reader, int level, bool addToChildList) {
+
+    if(level <= 0) return;
+
+    uint32_t count;
+    reader.read(count);
+
+    std::vector<FlatChunk::IDType> idList;
+    for(uint32_t i = 0; i < count; i ++) {
+        uint32_t id;
+        reader.read(id);
+        idList.push_back(id);
+        if(addToChildList) {
+            Chunk *child = lookup(id);
+            chunk->getChildren()->genericAdd(child);
+            child->setParent(chunk);
+        }
+    }
+
+    if(level > 1) {
+        for(auto id : idList) {
+            auto child = lookup(id);
+            deserializeChildrenIDsOnly(child, reader, level - 1);
+        }
+    }
 }
 
 Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
