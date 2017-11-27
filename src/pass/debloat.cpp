@@ -7,6 +7,7 @@
 #include "instr/semantic.h"
 #include "operation/find2.h"
 #include "operation/mutator.h"
+#include "util/feature.h"
 
 #include "log/log.h"
 #include "log/temp.h"
@@ -16,6 +17,7 @@ DebloatPass::DebloatPass(Program *program) : program(program), graph(program) {
     useFromEntry();
     useFromIndirectCallee();
     useFromCodeLinks();
+    useFromSpecialName();
 }
 
 void DebloatPass::visit(Module *module) {
@@ -69,7 +71,7 @@ void DebloatPass::useFromDynamicInitFini() {
                 auto f = CIter::spatial(module->getFunctionList())
                     ->findContaining(dyn->d_un.d_ptr);
                 assert(f);
-                usedList.insert(f);
+                markTreeAsUsed(f);
             }
             if(dyn->d_tag == DT_INIT_ARRAY) {
                 initArray = dyn->d_un.d_ptr;
@@ -103,11 +105,17 @@ void DebloatPass::useFromPointerArray(address_t start, size_t size,
 
     for(size_t sz = 0; sz < size; sz += sizeof(address_t)) {
         auto r = relocList->find(start + sz);
-        auto addr = r->getAddend();
-        auto f = CIter::spatial(module->getFunctionList())
-            ->findContaining(addr);
+        Function *f = nullptr;
+        if(auto addr = r->getAddend()) {
+            f = CIter::spatial(module->getFunctionList())
+                ->findContaining(addr);
+        }
+        else if(auto sym = r->getSymbol()) {
+            f = CIter::spatial(module->getFunctionList())
+                ->findContaining(sym->getAddress());
+        }
         assert(f);
-        usedList.insert(f);
+        markTreeAsUsed(f);
     }
 }
 
@@ -143,6 +151,21 @@ void DebloatPass::useFromCodeLinks() {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+void DebloatPass::useFromSpecialName() {
+    for(auto module : CIter::children(program)) {
+        for(auto function : CIter::functions(module)) {
+            if(isFeatureEnabled("EGALITO_USE_GS")) {
+                if(function->hasName("egalito_hook_jit_fixup")) {
+                    markTreeAsUsed(function);
+                }
+                else if(function->hasName("egalito_hook_jit_reset")) {
+                    markTreeAsUsed(function);
                 }
             }
         }

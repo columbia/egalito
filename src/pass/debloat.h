@@ -18,6 +18,7 @@ private:
     void useFromEntry();
     void useFromIndirectCallee();
     void useFromCodeLinks();
+    void useFromSpecialName();
     void markTreeAsUsed(Function *root);
 };
 
