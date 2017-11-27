@@ -23,6 +23,25 @@ enum EgalitoInstrType {
     TYPE_LinkedLiteralInstruction,
 };
 
+enum EgalitoLinkType {
+    TYPE_UNKNOWN_LINK = 0,
+    TYPE_ExternalAbsoluteNormalLink,
+    TYPE_ExternalNormalLink,
+    TYPE_AbsoluteNormalLink,
+    TYPE_NormalLink,
+    TYPE_ExternalOffsetLink,
+    TYPE_OffsetLink,
+    TYPE_PLTLink,
+    TYPE_JumpTableLink,
+    TYPE_SymbolOnlyLink,
+    TYPE_MarkerLink,
+    TYPE_AbsoluteDataLink,
+    TYPE_DataOffsetLink,
+    TYPE_TLSDataOffsetLink,
+    TYPE_UnresolvedLink,
+    TYPE_ImmAndDispLink,
+};
+
 class SemanticSerializer : public InstructionVisitor {
 private:
     ChunkSerializerOperations &op;
@@ -37,8 +56,7 @@ public:
         { write(TYPE_RawInstruction, raw); }
     virtual void visit(IsolatedInstruction *isolated)
         { write(TYPE_IsolatedInstruction, isolated); }
-    virtual void visit(LinkedInstruction *linked)
-        { write(TYPE_LinkedInstruction, linked); }
+    virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
@@ -52,6 +70,9 @@ public:
         { write(TYPE_LiteralInstruction, literal); }
     virtual void visit(LinkedLiteralInstruction *literal)
         { write(TYPE_LinkedLiteralInstruction, literal); }
+private:
+    void writeLink(Link *link);
+    void writeLinkTarget(Link *link);
 };
 
 void SemanticSerializer::write(EgalitoInstrType type,
@@ -64,11 +85,92 @@ void SemanticSerializer::write(EgalitoInstrType type,
     writer.writeAnyLength(instrWriter.get());
 }
 
+void SemanticSerializer::writeLink(Link *link) {
+    if(auto v = dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_ExternalAbsoluteNormalLink));
+        writeLinkTarget(link);
+    }
+    else if(auto v = dynamic_cast<ExternalNormalLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_ExternalNormalLink));
+        writeLinkTarget(link);
+    }
+    else if(auto v = dynamic_cast<AbsoluteNormalLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_AbsoluteNormalLink));
+        writeLinkTarget(link);
+    }
+    else if(auto v = dynamic_cast<NormalLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_NormalLink));
+        writeLinkTarget(link);
+    }
+    else if(auto v = dynamic_cast<ExternalOffsetLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_ExternalOffsetLink));
+
+    }
+    else if(auto v = dynamic_cast<OffsetLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_OffsetLink));
+    }
+    else if(auto v = dynamic_cast<PLTLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_PLTLink));
+
+    }
+    else if(auto v = dynamic_cast<JumpTableLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_JumpTableLink));
+
+    }
+    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_SymbolOnlyLink));
+
+    }
+    else if(auto v = dynamic_cast<MarkerLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_MarkerLink));
+
+    }
+    else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_AbsoluteDataLink));
+
+    }
+    else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_DataOffsetLink));
+
+    }
+    else if(auto v = dynamic_cast<TLSDataOffsetLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_TLSDataOffsetLink));
+
+    }
+    else if(auto v = dynamic_cast<UnresolvedLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_UnresolvedLink));
+
+    }
+    else if(auto v = dynamic_cast<ImmAndDispLink *>(link)) {
+        writer.write(static_cast<uint8_t>(TYPE_ImmAndDispLink));
+
+    }
+    else {
+        writer.write(static_cast<uint8_t>(TYPE_UNKNOWN_LINK));
+    }
+}
+
+void SemanticSerializer::writeLinkTarget(Link *link) {
+    auto target = &*link->getTarget();
+    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
+    if(target) {
+        id = op.assign(target);
+    }
+    writer.write(static_cast<uint64_t>(id));
+}
+
+void SemanticSerializer::visit(LinkedInstruction *linked) {
+    write(TYPE_LinkedInstruction, linked);
+    assert(linked->getLink());
+
+    writeLink(linked->getLink());
+}
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     write(TYPE_ControlFlowInstruction, controlFlow);
     assert(controlFlow->getLink());
 
+#if 0
     auto target = &*controlFlow->getLink()->getTarget();
 #if 0
     FlatChunk::IDType id;
@@ -83,6 +185,9 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
         id = op.assign(target);
     }
     writer.write(static_cast<uint64_t>(id));
+#endif
+#else
+    writeLink(controlFlow->getLink());
 #endif
 }
 
@@ -102,7 +207,14 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     switch(static_cast<EgalitoInstrType>(type)) {
     case TYPE_RawInstruction:
     case TYPE_IsolatedInstruction:
-    case TYPE_LinkedInstruction:
+        return defaultDeserialize(instruction, address, reader);
+    case TYPE_LinkedInstruction: {
+        auto semantic = defaultDeserialize(instruction, address, reader);
+        auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
+        delete semantic;
+        semantic2->setLink(deserializeLink(reader));
+        return semantic2;
+    }
     case TYPE_ReturnInstruction:
     case TYPE_IndirectJumpInstruction:
     case TYPE_IndirectCallInstruction:
@@ -113,16 +225,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     }
     case TYPE_ControlFlowInstruction: {
         auto semantic = defaultDeserialize(instruction, address, reader);
-        uint64_t id = 0;
-        reader.read(id);
-        if(id != static_cast<uint32_t>(-1)) {
-            Chunk *target = op.lookup(id);
-            if(!target->getPosition()) {
-                target->setPosition(new AbsolutePosition(-1));
-            }
-            LOG(1, "call instruction targets " << target->getName());
-            semantic->setLink(new NormalLink(target));
-        }
+        semantic->setLink(deserializeLink(reader));
         return semantic;
     }
     default:
@@ -155,4 +258,47 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
     RawByteStorage storage(bytes);
     return new RawInstruction(std::move(storage));
 #endif
+}
+
+Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
+    uint8_t type;
+    reader.read(type);
+
+    switch(type) {
+    case TYPE_ExternalAbsoluteNormalLink:
+        return new ExternalAbsoluteNormalLink(deserializeLinkTarget(reader));
+    case TYPE_ExternalNormalLink:
+        return new ExternalNormalLink(deserializeLinkTarget(reader));
+    case TYPE_AbsoluteNormalLink:
+        return new AbsoluteNormalLink(deserializeLinkTarget(reader));
+    case TYPE_NormalLink:
+        return new NormalLink(deserializeLinkTarget(reader));
+    case TYPE_ExternalOffsetLink:
+    case TYPE_OffsetLink:
+    case TYPE_PLTLink:
+    case TYPE_JumpTableLink:
+    case TYPE_SymbolOnlyLink:
+    case TYPE_MarkerLink:
+    case TYPE_AbsoluteDataLink:
+    case TYPE_DataOffsetLink:
+    case TYPE_TLSDataOffsetLink:
+    case TYPE_UnresolvedLink:
+    case TYPE_ImmAndDispLink:
+    case TYPE_UNKNOWN_LINK:
+    default:
+        return new UnresolvedLink(0);
+    }
+}
+
+Chunk *InstrSerializer::deserializeLinkTarget(ArchiveStreamReader &reader) {
+    uint64_t id = 0;
+    reader.read(id);
+    if(id != static_cast<uint32_t>(-1)) {
+        Chunk *target = op.lookup(id);
+        if(!target->getPosition()) {
+            target->setPosition(new AbsolutePosition(-1));
+        }
+        return target;
+    }
+    return nullptr;
 }

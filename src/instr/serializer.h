@@ -4,6 +4,7 @@
 #include "semantic.h"
 #include "archive/stream.h"
 
+class Chunk;
 class Instruction;
 class ChunkSerializerOperations;
 
@@ -20,6 +21,9 @@ public:
 private:
     InstructionSemantic *defaultDeserialize(Instruction *instruction,
         address_t address, ArchiveStreamReader &reader);
+
+    Link *deserializeLink(ArchiveStreamReader &reader);
+    Chunk *deserializeLinkTarget(ArchiveStreamReader &reader);
 };
 
 #endif
