@@ -185,6 +185,7 @@ Chunk *ChunkSerializer::deserialize(std::string filename) {
     // First instantiate objects, with the correct type, so that memory
     // addresses are fixed (and pointers can be set during deserialization).
     for(auto flat : archive->getFlatList()) {
+        LOG(1, "instantiate flat " << flat->getID());
         flat->setInstance(instantiate(flat));
     }
 

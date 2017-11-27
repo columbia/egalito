@@ -126,21 +126,40 @@ void PLTTrampoline::writeTo(char *target) {
 void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    LOG(1, "SERIALIZE PLTTrampoline " << getName());
+
     auto targetID = static_cast<FlatChunk::IDType>(-1);
     if(target) {
         targetID = op.assign(target);
     }
 
     writer.write(static_cast<uint32_t>(targetID));
+
+    if(targetSymbol) {
+        writer.writeAnyLength(targetSymbol->getName());
+    }
+    else {
+        writer.writeAnyLength("");
+    }
 }
 
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    LOG(1, "DESERIALIZE PLTTrampoline");
+
     uint32_t id;
     reader.read(id);
-    auto newTarget = op.lookupAs<Chunk>(id);
-    setTarget(newTarget);
+
+    if(id != static_cast<uint32_t>(-1)) {
+        auto newTarget = op.lookupAs<Chunk>(id);
+        setTarget(newTarget);
+    }
+
+    std::string name;
+    reader.readAnyLength(name);
+
+    LOG(1, "looks like it targets [" << name << "]");
 
     return reader.stillGood();
 }

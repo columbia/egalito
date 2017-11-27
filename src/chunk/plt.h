@@ -4,6 +4,7 @@
 #include <map>
 #include "chunk.h"
 #include "chunklist.h"
+#include "archive/chunktypes.h"
 #include "elf/reloc.h"
 #include "types.h"
 
@@ -11,7 +12,8 @@ class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTTrampoline : public AddressableChunkImpl {
+class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
+    AddressableChunkImpl> {
 private:
     ElfMap *sourceElf;
     Chunk *target;
@@ -45,7 +47,8 @@ public:
 };
 
 class Module;
-class PLTList : public CollectionChunkImpl<PLTTrampoline> {
+class PLTList : public ChunkSerializerImpl<TYPE_PLTList,
+    CollectionChunkImpl<PLTTrampoline>> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
