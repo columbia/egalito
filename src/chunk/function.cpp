@@ -115,22 +115,45 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             block->setPosition(positionFactory->makePosition(
                 prevChunk1, block, this->getSize()));
 
+            if(b > 0) {
+                block->setPreviousSibling(prevChunk1);
+                prevChunk1->setNextSibling(block);
+            }
+
             Chunk *prevChunk2 = block;
             //ChunkMutator mutator2(block, true);
+
+            LOG(1, "deserializing block in [" << getName() << "]");
 
             uint64_t instrCount = 0;
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
                 auto instr = block->getChildren()->getIterable()->get(i); //new Instruction();
+
+                if(i > 0) {
+                    instr->setPreviousSibling(prevChunk2);
+                    prevChunk2->setNextSibling(instr);
+                }
+
                 auto semantic = InstrSerializer(op).deserialize(instr,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);
-                totalSize += instr->getSize();
+
+                LOG(1, "    block size is " << block->getSize());
 
                 instr->setPosition(positionFactory->makePosition(
                     prevChunk2, instr, block->getSize()));
                 //mutator2.append(instr);
                 prevChunk2 = instr;
+
+                if(auto offset = dynamic_cast<OffsetPosition *>(instr->getPosition())) {
+                    LOG(1, "    looks like OffsetPosition with offset "
+                        << offset->getOffset());
+                }
+
+                totalSize += instr->getSize();
+                block->addToSize(instr->getSize());
+                ChunkMutator(block, true);  // recalculate addresses
             }
 
             //mutator1.append(block);

@@ -46,7 +46,6 @@ bool Module::deserialize(ChunkSerializerOperations &op,
     {
         uint32_t id;
         reader.read(id);
-        op.deserialize(op.lookupFlat(id));
         auto pltList = op.lookupAs<PLTList>(id);
         getChildren()->add(pltList);
         setPLTList(pltList);
@@ -55,7 +54,6 @@ bool Module::deserialize(ChunkSerializerOperations &op,
     {
         uint32_t id;
         reader.read(id);
-        op.deserialize(op.lookupFlat(id));
         auto functionList = op.lookupAs<FunctionList>(id);
         getChildren()->add(functionList);
         setFunctionList(functionList);
