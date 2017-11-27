@@ -41,7 +41,7 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
     Symbol *vtableSymbol, Symbol *typeinfoSymbol, Symbol *stringSymbol) {
 
     auto stringSection = elfMap->findSection(".rodata");
-    auto tableSection = elfMap->findSection(".data.rel.ro");
+    auto tableSection = elfMap->findSection(vtableSymbol->getSectionIndex());
     if(!stringSection || !tableSection) return nullptr;
 
     if(!typeinfoSymbol || !stringSymbol) {
@@ -99,16 +99,12 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
             // the relocation must have been resolved already by the system
             // loader, i.e. we are examining running loader code
             auto symbol = symbolList->find(value);
-            if(symbol
-                && std::strcmp(symbol->getName(), "__cxa_pure_virtual") != 0) {
-
+            if(symbol) {
                 LOG(5, "    vtable entry targets ["
                     << symbol->getName() << "] via symbol");
                 link = new SymbolOnlyLink(symbol, value);
             }
         }
-#if 0
-#endif
         if(link) {
             auto entry = new VTableEntry(link);
             entry->setPosition(new AbsolutePosition(vtableEntry));
