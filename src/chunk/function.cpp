@@ -105,13 +105,12 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
-        //ChunkMutator mutator1(this);
 
         size_t totalSize = 0;
         uint64_t blockCount = 0;
         reader.read(blockCount);
         for(uint64_t b = 0; b < blockCount; b ++) {
-            Block *block = getChildren()->getIterable()->get(b); //new Block();
+            Block *block = getChildren()->getIterable()->get(b);
             block->setPosition(positionFactory->makePosition(
                 prevChunk1, block, this->getSize()));
 
@@ -121,14 +120,11 @@ bool Function::deserialize(ChunkSerializerOperations &op,
             }
 
             Chunk *prevChunk2 = block;
-            //ChunkMutator mutator2(block, true);
-
-            LOG(1, "deserializing block in [" << getName() << "]");
 
             uint64_t instrCount = 0;
             reader.read(instrCount);
             for(uint64_t i = 0; i < instrCount; i ++) {
-                auto instr = block->getChildren()->getIterable()->get(i); //new Instruction();
+                auto instr = block->getChildren()->getIterable()->get(i);
 
                 if(i > 0) {
                     instr->setPreviousSibling(prevChunk2);
@@ -139,24 +135,16 @@ bool Function::deserialize(ChunkSerializerOperations &op,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);
 
-                LOG(1, "    block size is " << block->getSize());
-
                 instr->setPosition(positionFactory->makePosition(
                     prevChunk2, instr, block->getSize()));
-                //mutator2.append(instr);
                 prevChunk2 = instr;
-
-                if(auto offset = dynamic_cast<OffsetPosition *>(instr->getPosition())) {
-                    LOG(1, "    looks like OffsetPosition with offset "
-                        << offset->getOffset());
-                }
 
                 totalSize += instr->getSize();
                 block->addToSize(instr->getSize());
-                ChunkMutator(block, true);  // recalculate addresses
+                //ChunkMutator(block, true);  // recalculate addresses
             }
 
-            //mutator1.append(block);
+            this->addToSize(block->getSize());
             prevChunk1 = block;
         }
 
