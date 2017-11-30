@@ -18,6 +18,7 @@
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
 #include "pass/collapseplt.h"
+#include "pass/jitgssetup.h"
 #include "pass/usegstable.h"
 #include "pass/jitgsfixup.h"
 #include "pass/cancelpush.h"
@@ -88,7 +89,7 @@ void EgalitoLoader::run(int argc, char *argv[]) {
 
     auto libc = setup->getConductor()->getLibraryList()->getLibc();
     if(libc && libc->getElfSpace()) {
-        CallInit::callInitFunctions(libc->getElfSpace(), argv);
+        CallInit::makeInitArray(libc->getElfSpace(), argv);
     }
 
     // update vtable pointers to new libegalito code
@@ -101,14 +102,12 @@ void EgalitoLoader::run(int argc, char *argv[]) {
 static GSTable *gsTable;
 
 void EgalitoLoader::otherPasses() {
-#ifdef ARCH_AARCH64
-    // best if this could be run without injecting egalito
-    // this requires a data variable for all code pointer data
+    auto program = setup->getConductor()->getProgram();
+
+    // maybe better if run without injecting egalito
     if(isFeatureEnabled("EGALITO_DEBLOAT")) {
-        auto program = setup->getConductor()->getProgram();
         RUN_PASS(DebloatPass(program), program);
     }
-#endif
 
     if(isFeatureEnabled("EGALITO_LOG_CALL")) {
         LogCallsPass logCalls(setup->getConductor());
@@ -120,7 +119,7 @@ void EgalitoLoader::otherPasses() {
 #if 1  // add instruction logging?
     if(isFeatureEnabled("EGALITO_LOG_INSTRUCTION_PASS")) {
         RUN_PASS(LogInstructionPass(setup->getConductor()),
-            setup->getConductor()->getProgram()->getMain());
+            program->getMain());
     }
 #endif
 
@@ -140,11 +139,15 @@ void EgalitoLoader::otherPasses() {
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         gsTable = new GSTable();
         //setup->getConductor()->getProgram()->getChildren()->add(gsTable);
-        UseGSTablePass useGSTable(gsTable);
-        setup->getConductor()->acceptInAllModules(&useGSTable, true);
+
+        JitGSSetup jitGSSetup(setup->getConductor(), gsTable);
+        program->accept(&jitGSSetup);
+
+        UseGSTablePass useGSTable(setup->getConductor(), gsTable);
+        program->accept(&useGSTable);
 
         JitGSFixup jitGSFixup(setup->getConductor(), gsTable);
-        setup->getConductor()->getProgram()->accept(&jitGSFixup);
+        program->accept(&jitGSFixup);
     }
 #endif
 
@@ -155,7 +158,6 @@ void EgalitoLoader::otherPasses() {
 
     // enable CollapsePLTPass for better result
     if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
-        auto program = setup->getConductor()->getProgram();
         CancelPushPass cancelPush(program);
         program->accept(&cancelPush);
     }
@@ -169,6 +171,7 @@ void EgalitoLoader::otherPassesAfterMove() {
 #endif
 }
 
+#include <sys/personality.h>
 int main(int argc, char *argv[]) {
     if(argc < 2) {
         printUsage(argv[0]);
@@ -179,6 +182,9 @@ int main(int argc, char *argv[]) {
         printUsage(argv[0]);
         return -2;
     }
+
+    personality(personality(-1) & ~READ_IMPLIES_EXEC);
+
     GroupRegistry::getInstance()->dumpSettings();
 
     LOG(0, "loading ELF program [" << argv[1] << "]");

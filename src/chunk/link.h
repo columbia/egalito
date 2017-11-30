@@ -88,7 +88,7 @@ public:
         : originalAddress(originalAddress), pltTrampoline(pltTrampoline) {}
 
     PLTTrampoline *getPLTTrampoline() const { return pltTrampoline; }
-    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };
 

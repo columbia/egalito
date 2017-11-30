@@ -152,7 +152,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             std::cout << "no ELF files loaded\n";
             return;
         }
-        setup->makeLoaderSandbox();
+        setup->makeLoaderSandbox(false);
         setup->moveCodeAssignAddresses(true);
     }, "allocates a sandbox and assigns functions new addresses");
 
@@ -368,7 +368,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
         args.shouldHave(0);
         GSTable *gsTable = new GSTable();
-        UseGSTablePass useGSTable(gsTable);
+        UseGSTablePass useGSTable(setup->getConductor(), gsTable);
         setup->getConductor()->acceptInAllModules(&useGSTable, true);
     }, "indirects calls through the GS table");
 

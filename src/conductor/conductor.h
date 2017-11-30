@@ -25,6 +25,7 @@ public:
     void resolveTLSLinks();
     void resolveWeak();
     void resolveVTables();
+    void setupIFuncs();
     void handleCopies();
     void fixDataSections();
     void fixPointersInData();

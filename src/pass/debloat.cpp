@@ -35,7 +35,7 @@ void DebloatPass::visit(Module *module) {
         << std::dec << unused << " unnecessary functions (out of "
         << module->getFunctionList()->getChildren()->getIterable()->getCount()
         << ")");
-    if(module == program->getMain()) {
+    if(module == program->getMain() || module == program->getEgalito()) {
         for(auto f : CIter::functions(module)) {
             auto it = usedList.find(f);
             if(it == usedList.end()) {
@@ -160,6 +160,9 @@ void DebloatPass::useFromCodeLinks() {
 void DebloatPass::useFromSpecialName() {
     for(auto module : CIter::children(program)) {
         for(auto function : CIter::functions(module)) {
+            if(function->hasName("ifunc_resolver")){
+                markTreeAsUsed(function);
+            }
             if(isFeatureEnabled("EGALITO_USE_GS")) {
                 if(function->hasName("egalito_hook_jit_fixup")) {
                     markTreeAsUsed(function);
@@ -167,6 +170,14 @@ void DebloatPass::useFromSpecialName() {
                 else if(function->hasName("egalito_hook_jit_reset")) {
                     markTreeAsUsed(function);
                 }
+#if 0
+                else if(function->hasName("egalito_jit_gs_fixup")) {
+                    markTreeAsUsed(function);
+                }
+                else if(function->hasName("egalito_jit_gs_reset")) {
+                    markTreeAsUsed(function);
+                }
+#endif
             }
         }
     }

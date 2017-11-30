@@ -17,12 +17,21 @@ public:
     GSTableEntry(Chunk *target, uint32_t index)
         : target(target), resolver(nullptr), index(index) {}
 
-    void setLazyResolver(Chunk *resolver) { this->resolver = resolver; }
+    virtual void setLazyResolver(Chunk *resolver) { this->resolver = resolver; }
     Chunk *getTarget() const { return resolver ? resolver : target; }
     IndexType getIndex() const { return index; }
     IndexType getOffset() const;
 
+    // debugging
+    Chunk *getRealTarget() const { return target; }
+
     virtual void accept(ChunkVisitor *visitor);
+};
+
+class GSTableResolvedEntry : public GSTableEntry {
+    using GSTableEntry::GSTableEntry;
+public:
+    virtual void setLazyResolver(Chunk *resolver) {}
 };
 
 class GSTable : public CollectionChunkImpl<GSTableEntry> {
@@ -33,7 +42,8 @@ private:
 public:
     GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
 
-    GSTableEntry *makeEntryFor(Chunk *target);
+    GSTableEntry *makeEntryFor(Chunk *target, bool preResolved = false);
+    GSTableEntry *getEntryFor(Chunk *target);
     void setEscapeTarget(Chunk *target) { escapeTarget = target; }
 
     GSTableEntry::IndexType offsetToIndex(GSTableEntry::IndexType offset);

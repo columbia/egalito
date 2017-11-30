@@ -8,20 +8,34 @@
 
 class UseGSTablePass : public ChunkPass {
 private:
+    Conductor *conductor;
     GSTable *gsTable;
     bool transformDirectCalls;
+    bool transformIndirectCalls;
 public:
-    UseGSTablePass(GSTable *gsTable, bool transformDirectCalls = true)
-        : gsTable(gsTable), transformDirectCalls(transformDirectCalls) {}
+    UseGSTablePass(Conductor *conductor, GSTable *gsTable,
+        bool transformDirectCalls = true)
+        : conductor(conductor), gsTable(gsTable),
+        transformDirectCalls(transformDirectCalls),
+        transformIndirectCalls(true) {}
 
-    virtual void visit(Block *block);
 private:
-#ifdef ARCH_X86_64
+    virtual void visit(Module *module);
+    virtual void visit(Function *function);
+    virtual void visit(Block *block);
+    virtual void visit(DataRegion *dataRegion);
+    virtual void visit(PLTTrampoline *trampoline);
+    virtual void visit(VTable *vtable);
+    virtual void visit(VTableEntry *vtableEntry);
+
+    void redirectLinks(Instruction *instr);
+    void redirectFunctionPointerLinks(DataVariable *var);
     void rewriteDirectCall(Block *block, Instruction *instr);
     void rewriteTailRecursion(Block *block, Instruction *instr);
     void rewriteIndirectCall(Block *block, Instruction *instr);
     void rewriteIndirectTailRecursion(Block *block, Instruction *instr);
-#endif
+    void rewriteRIPrelativeCall(Block *block, Instruction *instr);
+    void rewriteRIPrelativeJump(Block *block, Instruction *instr);
 };
 
 #endif

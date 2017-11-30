@@ -4,6 +4,12 @@
 #include "chunk/position.h"
 #include "pass/positiondump.h"
 #include "instr/instr.h"
+#ifdef ARCH_X86_64
+    #include "instr/linked-x86_64.h"
+#endif
+#ifdef ARCH_AARCH64
+    #include "instr/linked-aarch64.h"
+#endif
 #include "log/log.h"
 
 void ChunkMutator::makePositionFor(Chunk *child) {
@@ -154,6 +160,13 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     auto sem2 = newChunk->getSemantic();
     insertPoint->setSemantic(sem2);
     newChunk->setSemantic(sem1);
+    // !!
+    if(auto linked = dynamic_cast<LinkedInstruction *>(sem1)) {
+        linked->setInstruction(newChunk);
+    }
+    if(auto linked = dynamic_cast<LinkedInstruction *>(sem2)) {
+        linked->setInstruction(insertPoint);
+    }
 }
 
 void ChunkMutator::remove(Chunk *child) {

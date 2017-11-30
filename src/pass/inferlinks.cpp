@@ -2,6 +2,7 @@
 #include "chunk/dump.h"
 #include "disasm/makesemantic.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 void InferLinksPass::visit(Module *module) {
     this->module = module;
@@ -18,6 +19,14 @@ void InferLinksPass::visit(Function *function) {
 
 void InferLinksPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
+    if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+        // if this is RIP-relative, we should try to convert this to
+        // ControlFlowInstruction
+        return;
+    }
+    if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        return;
+    }
     if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
         if(v->getLink()) return;
         auto assembly = v->getAssembly();
@@ -29,6 +38,8 @@ void InferLinksPass::visit(Instruction *instruction) {
         auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
         if(linked) {
             instruction->setSemantic(linked);
+            ChunkDumper d;
+            IF_LOG(10) instruction->accept(&d);
             delete v;
         }
 #elif defined(ARCH_ARM)

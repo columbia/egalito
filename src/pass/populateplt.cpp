@@ -7,6 +7,8 @@
 #include "operation/find2.h"
 #include "operation/mutator.h"
 #include "log/log.h"
+#include "log/temp.h"
+#include "chunk/dump.h"
 
 void PopulatePLTPass::visit(Module *module) {
     this->module = module;
@@ -24,16 +26,19 @@ void PopulatePLTPass::visit(PLTTrampoline *trampoline) {
 
 void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
 #if 0
-    // lea 0xNNNNNNNN(%rip), %r11
-    ADD_BYTES("\x4c\x8d\x1d", 3);
+    // we clobber r10 because PLT target function can never be nested
+    // inside the caller
+
+    // lea 0xNNNNNNNN(%rip), %r10
+    ADD_BYTES("\x4c\x8d\x15", 3);
     int disp = gotPLT - getAddress() - 7;
     ADD_BYTES(&disp, 4);
 
-    // jmpq *(%r11)
-    ADD_BYTES("\x41\xff\x23", 3);
+    // jmpq *(%r10)
+    ADD_BYTES("\x41\xff\x22", 3);
 
-    // pushq %r11
-    ADD_BYTES("\x41\x53", 2);
+    // pushq %r10
+    ADD_BYTES("\x41\x52", 2);
 
     // jmpq ifunc_resolver
     ADD_BYTES("\xe9", 1);
@@ -43,19 +48,19 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
     DisasmHandle handle(true);
     auto lea = new Instruction();
     auto lea_asm = DisassembleInstruction(handle).makeAssembly(
-        std::vector<unsigned char>({0x4c, 0x8d, 0x1d, 0, 0, 0, 0}));
+        std::vector<unsigned char>({0x4c, 0x8d, 0x15, 0, 0, 0, 0}));
     auto lea_linked = new LinkedInstruction(lea, lea_asm);
-    lea_linked->setIndex(0);
     lea->setSemantic(lea_linked);
     auto link = LinkFactory::makeDataLink(module, trampoline->getGotPLTEntry());
     assert(link);
     lea_linked->setLink(link);
+    lea_linked->setIndex(0);
 
     auto jmpq = DisassembleInstruction(handle).instruction(
-        std::vector<unsigned char>({0x41, 0xff, 0x23}));
+        std::vector<unsigned char>({0x41, 0xff, 0x22}));
 
     auto pushq = DisassembleInstruction(handle).instruction(
-        std::vector<unsigned char>({0x41, 0x53}));
+        std::vector<unsigned char>({0x41, 0x52}));
 
     auto jmpq2 = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0xe9, 0, 0, 0, 0}));
@@ -97,6 +102,17 @@ void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
     ADD_BYTES(&disp, 4);
 #endif
     DisasmHandle handle(true);
+    auto jmpq = new Instruction();
+    auto assembly = DisassembleInstruction(handle).makeAssembly(
+        {0xff, 0x25, 0, 0, 0, 0});
+    auto semantic = new LinkedInstruction(jmpq, assembly);
+    jmpq->setSemantic(semantic);
+    auto link = LinkFactory::makeDataLink(module, trampoline->getGotPLTEntry());
+    assert(link);
+    semantic->setLink(link);
+    semantic->setIndex(0);
+
+#if 0
     auto jmpq = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0xff, 0x25, 0, 0, 0, 0}));
     auto cfi = dynamic_cast<ControlFlowInstruction *>(jmpq->getSemantic());
@@ -104,6 +120,7 @@ void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
     assert(link);
     delete cfi->getLink();
     cfi->setLink(link);
+#endif
 
     auto block1 = new Block();
 

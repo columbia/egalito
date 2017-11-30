@@ -8,8 +8,10 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP djumptable
 #include "log/log.h"
+#include "log/temp.h"
 
 void FixJumpTablesPass::visit(Module *module) {
+    TemporaryLogLevel("djumptable", 10, module->getName() == "module-(egalito)");
     this->module = module;
     if(module->getJumpTableList()) {
         recurse(module->getJumpTableList());

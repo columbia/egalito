@@ -74,14 +74,14 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
             auto reloc = relocList->find(vtableEntry);
             if(reloc) {
                 if(auto relocSym = reloc->getSymbol()) {
-                    LOG(5, "    vtable entry targets ["
+                    LOG(10, "    vtable entry targets ["
                         << relocSym->getName() << "] via reloc");
                     auto target = ChunkFind2(program)
                         .findFunction(relocSym->getName(), module);
                     //auto target = CIter::named(module->getFunctionList())
                         //->find(relocSym->getName());
                     if(target) {
-                        LOG(5, "        found");
+                        LOG(10, "        found");
                         link = new AbsoluteNormalLink(target);
                     }
                 }
@@ -90,7 +90,7 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
             auto target = CIter::spatial(module->getFunctionList())
                 ->findContaining(value);
             if(target && target->getAddress() == value) {
-                LOG(5, "    vtable entry targets [" << target->getName() << "]");
+                LOG(9, "    vtable entry targets [" << target->getName() << "]");
                 link = new AbsoluteNormalLink(target);
             }
 #endif
@@ -100,7 +100,7 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
             // loader, i.e. we are examining running loader code
             auto symbol = symbolList->find(value);
             if(symbol) {
-                LOG(5, "    vtable entry targets ["
+                LOG(10, "    vtable entry targets ["
                     << symbol->getName() << "] via symbol");
                 link = new SymbolOnlyLink(symbol, value);
             }
@@ -119,7 +119,7 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
         stringSection->getReadAddress()
         + stringSection->convertVAToOffset(stringSymbol->getAddress()));
     vtable->setClassName(stringPointer);
-    LOG(1, "Found a vtable [" << vtableSymbol->getName()
+    LOG(10, "Found a vtable [" << vtableSymbol->getName()
         << "] for class [" << stringPointer << "]");
     return vtable;
 }

@@ -53,6 +53,10 @@ _start:
 _start2:
     .cfi_startproc
     .cfi_undefined %rip
+    push    %rbx                    # keep alignment
+    call    egalito_callInit
+    pop     %rbx
+
     mov     initial_stack, %rsp     # restore %rsp
     mov     saved_rdx, %rdx         # restore %rdx
 

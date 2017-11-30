@@ -11,8 +11,8 @@
 #include "chunk/dump.h"
 #include "log/log.h"
 
-void DataStructMigrator::migrate(ConductorSetup &setup) {
-    auto egalito = setup.getConductor()->getProgram()->getEgalito();
+void DataStructMigrator::migrate(ConductorSetup *setup) {
+    auto egalito = setup->getConductor()->getProgram()->getEgalito();
     if(!egalito) return;  // libegalito not injected
 
     auto egalitoVTableList = egalito->getVTableList();
@@ -28,6 +28,7 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
         loaderElf, loaderSymbolList);
 
     // construct the VTableList with a null Module & Program
+    LOG(1, "making loader VTable List");
     auto loaderVTableList = DisassembleVTables().makeVTableList(
         loaderElf, loaderSymbolList, loaderRelocList, nullptr, nullptr);
 
@@ -52,13 +53,20 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
 void DataStructMigrator::migrateTable(VTable *loaderVTable,
     VTable *egalitoVTable) {
 
-    LOG(1, "migrating " << loaderVTable->getName());
+    LOG(10, "migrating " << loaderVTable->getName());
 
     if(egalitoVTable->getChildren()->genericGetSize()
         != loaderVTable->getChildren()->genericGetSize()) {
 
         LOG(1, "WARNING: vtable entry count mismatch for "
             << loaderVTable->getName() << " -- recompile?");
+        ChunkDumper d;
+        LOG(1, "loaderVTable");
+        loaderVTable->accept(&d);
+        LOG(1, "egalitoVTable");
+        egalitoVTable->accept(&d);
+        std::cout.flush();
+        throw "migrateTable error";
     }
     else {
         for(size_t i = 0; i < loaderVTable->getChildren()->genericGetSize();
@@ -80,6 +88,17 @@ void DataStructMigrator::commit() {
     LOG(1, "Committing all updates to redirect loader vtables to libegalito");
     // NOTE: no virtual functions can be called after this point!
 
+#if 1
+    int i = 0;
+    for(auto fixup : fixupList) {
+        auto address = fixup.first;
+        auto value = fixup.second;
+        LOG(1, "    [" << std::hex << address << "] -> " << value);
+        if(++i == 5) break;
+    }
+    LOG(1, "    ...");
+#endif
+
     address_t minAddress = 0, maxAddress = 0;
     for(auto fixup : fixupList) {
         auto address = fixup.first;
@@ -89,7 +108,7 @@ void DataStructMigrator::commit() {
 
     // make memory writable, rounding to nearest page sizes
     minAddress = minAddress & ~0xfff;
-    maxAddress = (maxAddress + 0xfff) & ~0xfff;
+    maxAddress = (maxAddress + 1 + 0xfff) & ~0xfff;
     void *begin = reinterpret_cast<void *>(minAddress);
     mprotect(begin, maxAddress - minAddress, PROT_READ | PROT_WRITE);
 

@@ -42,6 +42,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
     conductor->resolveWeak();
     conductor->resolveVTables();
 
+    conductor->setupIFuncs();
+
     conductor->check();
 
     // At this point, all the effort for resolving the links should have

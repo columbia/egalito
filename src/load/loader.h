@@ -5,8 +5,9 @@
 
 class EgalitoLoader {
 private:
-    ConductorSetup setup;
+    ConductorSetup *setup;
 public:
+    EgalitoLoader();
     bool parse(const char *filename);
 
     /* these must be called in this order */

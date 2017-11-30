@@ -14,6 +14,7 @@
 #include "pass/resolveplt.h"
 #include "pass/resolvetls.h"
 #include "pass/fixjumptables.h"
+#include "pass/fixifuncslot.h"
 #include "pass/fixdataregions.h"
 #include "pass/libchacks.h"
 #include "pass/populateplt.h"
@@ -114,6 +115,7 @@ void Conductor::resolvePLTLinks() {
     PopulatePLTPass populatePLT(this);
     program->accept(&populatePLT);
 
+#if 0
     if(auto libc = getLibraryList()->getLibc()) {
         LibcHacksPass libcHacks(program);
         if(libc->getElfSpace()) {
@@ -123,6 +125,7 @@ void Conductor::resolvePLTLinks() {
             LOG(1, "WARNING: don't have ElfSpace anymore for LibcHacks...");
         }
     }
+#endif
 }
 
 void Conductor::resolveTLSLinks() {
@@ -174,6 +177,11 @@ void Conductor::resolveVTables() {
             module->getElfSpace()->getRelocList(), module, program));
 #endif
     }
+}
+
+void Conductor::setupIFuncs() {
+    FixIFuncSlotPass fixIFuncSlot;
+    program->accept(&fixIFuncSlot);
 }
 
 void Conductor::handleCopies() {

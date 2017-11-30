@@ -18,6 +18,10 @@ address_t OffsetLink::getTargetAddress() const {
     return target->getAddress() + offset;
 }
 
+ChunkRef PLTLink::getTarget() const {
+    return pltTrampoline;
+}
+
 address_t PLTLink::getTargetAddress() const {
     return pltTrampoline->getAddress();
 }

@@ -82,6 +82,9 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             address_t target
                 = (instruction->getAddress() + instruction->getSize())
                 + op->mem.disp;
+            LOG(10, "makeLinked "
+                << std::hex << std::hex << instruction->getAddress()
+                << " -> " << target);
             auto found = CIter::spatial(module->getFunctionList())
                 ->find(target);
             if(found) {
@@ -89,6 +92,19 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             }
             else {
                 dispLink = LinkFactory::makeDataLink(module, target, true);
+                if(dispLink) {
+                    // does target have a relocation?
+                    auto reloc =
+                        module->getElfSpace()->getRelocList()->find(target);
+                    if(reloc &&
+                        (reloc->getType() == R_X86_64_PC32
+                         || reloc->getType() == R_X86_64_PC16
+                         || reloc->getType() == R_X86_64_PC8
+                         || reloc->getType() == R_X86_64_PC64)) {
+
+                        LOG(0, "PC-relative relocation!");
+                    }
+                }
                 if(!dispLink) {
                     auto c = ChunkFind().findInnermostAt(
                         module->getFunctionList(), target);

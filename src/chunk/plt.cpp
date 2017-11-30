@@ -56,9 +56,8 @@ bool PLTTrampoline::isIFunc() const {
 
 static IFuncList ifuncList;
 IFuncList *egalito_ifuncList = &ifuncList;
-extern "C" void ifunc_resolver();
 extern "C"
-void ifunc_resolve(address_t address) {
+void ifunc_select(address_t address) {
     auto ifunc = egalito_ifuncList->getFor(address);
     auto func = reinterpret_cast<IFuncList::IFuncType>(ifunc)();
     *reinterpret_cast<address_t *>(address)
@@ -74,17 +73,22 @@ void PLTTrampoline::writeTo(char *target) {
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
-    for(auto instr : CIter::children(this)) {
-        char *output = reinterpret_cast<char *>(instr->getAddress());
-        InstrWriterCString writer(output);
-        instr->getSemantic()->accept(&writer);
+    for(auto block : CIter::children(this)) {
+        for(auto instr : CIter::children(block)) {
+            char *output = reinterpret_cast<char *>(instr->getAddress());
+            InstrWriterCString writer(output);
+            instr->getSemantic()->accept(&writer);
+        }
     }
 
     address_t gotPLT = getGotPLTEntry();
     if(isIFunc) {
         ifuncList.add(gotPLT, getTarget());
+
+#if 0 // we now have FixIFuncSlotPass
         *reinterpret_cast<address_t *>(gotPLT) = getAddress() + 10;
         // dont't let fixDataSections overwrite this...
+#endif
     }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     static const uint32_t plt[] = {
@@ -120,7 +124,7 @@ void PLTTrampoline::accept(ChunkVisitor *visitor) {
 
 size_t PLTList::getPLTTrampolineSize() {
 #ifdef ARCH_X86_64
-    return 32;  // must be big enough to hold indirection for JIT-shuffling
+    return 64;  // must be big enough to hold indirection for JIT-shuffling
 #else
     return 16;
 #endif

@@ -38,13 +38,14 @@ private:
     address_t base;
 public:
     /** May throw std::bad_alloc. */
-    MemoryBacking(size_t size);
+    MemoryBacking(address_t address, size_t size);
     MemoryBacking(const MemoryBacking &other)
         : SandboxBacking(other.getSize()), base(other.base) {}
     address_t getBase() const { return base; }
 
     void finalize();
     bool reopen();
+    bool recreate();
 };
 
 class ExeBacking : public MemoryBacking {
@@ -83,11 +84,14 @@ public:
 template <typename Backing>
 class WatermarkAllocator : public SandboxAllocator<Backing> {
 private:
+    address_t base;
     address_t watermark;
 public:
-    WatermarkAllocator(Backing *backing) : SandboxAllocator<Backing>(backing), watermark(backing->getBase()) {}
+    WatermarkAllocator(Backing *backing) : SandboxAllocator<Backing>(backing),
+        base(backing->getBase()), watermark(backing->getBase()) {}
 
     Slot allocate(size_t request);
+    void reset() { watermark = base; }
 };
 
 template <typename Backing>
@@ -114,6 +118,8 @@ public:
     virtual bool reopen() = 0;
 };
 
+template <typename T> struct id { typedef T type; };
+
 template <typename Backing, typename Allocator>
 class SandboxImpl : public Sandbox {
 private:
@@ -127,6 +133,52 @@ public:
         { return alloc.allocate(request); }
     virtual void finalize() { backing.finalize(); }
     virtual bool reopen() { return backing.reopen(); }
+
+    bool recreate() { return recreate(id<Backing>()); }
+private:
+    bool recreate(id<MemoryBacking>);
 };
 
+template <typename Backing, typename Allocator>
+bool SandboxImpl<Backing, Allocator>::recreate(id<MemoryBacking>) {
+    alloc.reset();
+    return backing.recreate();
+}
+
+class SandboxFlip {
+public:
+    virtual ~SandboxFlip() {}
+
+    virtual Sandbox *flipBegin() = 0;
+    virtual Sandbox *flipEnd() = 0;
+};
+
+template <typename SandboxImplType>
+class SandboxFlipImpl : public SandboxFlip {
+private:
+    SandboxImplType *sandbox[2];
+    size_t i;
+    bool flipping;
+
+public:
+    SandboxFlipImpl(SandboxImplType *one, SandboxImplType *other)
+        : SandboxFlip(), sandbox{one, other}, i(0), flipping(false) {}
+
+    virtual Sandbox *flipBegin();
+    virtual Sandbox *flipEnd();
+};
+
+template <typename SandboxImplType>
+Sandbox *SandboxFlipImpl<SandboxImplType>::flipBegin() {
+    i^= 1;
+    return sandbox[i];
+}
+
+template <typename SandboxImplType>
+Sandbox *SandboxFlipImpl<SandboxImplType>::flipEnd() {
+    if(flipping) {
+        sandbox[i^1]->recreate();
+    }
+    return sandbox[i];
+}
 #endif
