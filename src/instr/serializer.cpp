@@ -42,6 +42,7 @@ enum EgalitoLinkType {
     TYPE_ImmAndDispLink,
 };
 
+// this is only a separate class to implement a Visitor
 class SemanticSerializer : public InstructionVisitor {
 private:
     ChunkSerializerOperations &op;
@@ -70,10 +71,6 @@ public:
         { write(TYPE_LiteralInstruction, literal); }
     virtual void visit(LinkedLiteralInstruction *literal)
         { write(TYPE_LinkedLiteralInstruction, literal); }
-private:
-    void writeLink(Link *link);
-    void writeLinkReference(Chunk *ref);
-    void writeLinkTarget(Link *link);
 };
 
 void SemanticSerializer::write(EgalitoInstrType type,
@@ -86,101 +83,17 @@ void SemanticSerializer::write(EgalitoInstrType type,
     writer.writeBytes<uint8_t>(instrWriter.get());
 }
 
-void SemanticSerializer::writeLink(Link *link) {
-    if(auto v = dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalAbsoluteNormalLink);
-        writeLinkTarget(link);
-    }
-    else if(auto v = dynamic_cast<ExternalNormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalNormalLink);
-        writeLinkTarget(link);
-    }
-    else if(auto v = dynamic_cast<AbsoluteNormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_AbsoluteNormalLink);
-        writeLinkTarget(link);
-    }
-    else if(auto v = dynamic_cast<NormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_NormalLink);
-        writeLinkTarget(link);
-    }
-    else if(auto v = dynamic_cast<ExternalOffsetLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalOffsetLink);
-        auto target = link->getTarget();
-        writeLinkReference(&*target);
-        writer.write(link->getTargetAddress() - target->getAddress());
-    }
-    else if(auto v = dynamic_cast<OffsetLink *>(link)) {
-        writer.write<uint8_t>(TYPE_OffsetLink);
-        auto target = link->getTarget();
-        writeLinkReference(&*target);
-        writer.write(link->getTargetAddress() - target->getAddress());
-    }
-    else if(auto v = dynamic_cast<PLTLink *>(link)) {
-        writer.write<uint8_t>(TYPE_PLTLink);
-        writeLinkReference(v->getPLTTrampoline());
-    }
-    else if(auto v = dynamic_cast<JumpTableLink *>(link)) {
-        writer.write<uint8_t>(TYPE_JumpTableLink);
-
-    }
-    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
-        writer.write<uint8_t>(TYPE_SymbolOnlyLink);
-
-    }
-    else if(auto v = dynamic_cast<MarkerLink *>(link)) {
-        writer.write<uint8_t>(TYPE_MarkerLink);
-        LOG(0, "MarkerLink to " << link->getTargetAddress());
-    }
-    else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
-        writer.write<uint8_t>(TYPE_AbsoluteDataLink);
-        auto section = link->getTarget();
-        writeLinkReference(&*section);
-        writer.write(link->getTargetAddress() - section->getAddress());
-    }
-    else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
-        writer.write<uint8_t>(TYPE_DataOffsetLink);
-        auto section = link->getTarget();
-        writeLinkReference(&*section);
-        writer.write(link->getTargetAddress() - section->getAddress());
-    }
-    else if(auto v = dynamic_cast<TLSDataOffsetLink *>(link)) {
-        writer.write<uint8_t>(TYPE_TLSDataOffsetLink);
-
-    }
-    else if(auto v = dynamic_cast<UnresolvedLink *>(link)) {
-        writer.write<uint8_t>(TYPE_UnresolvedLink);
-
-    }
-    else if(auto v = dynamic_cast<ImmAndDispLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ImmAndDispLink);
-
-    }
-    else {
-        writer.write<uint8_t>(TYPE_UNKNOWN_LINK);
-    }
-}
-
-void SemanticSerializer::writeLinkReference(Chunk *ref) {
-    // supports null ref
-    writer.writeID(op.assign(ref));
-}
-
-void SemanticSerializer::writeLinkTarget(Link *link) {
-    auto target = &*link->getTarget();
-    writer.writeID(op.assign(target));  // support null target
-}
-
 void SemanticSerializer::visit(LinkedInstruction *linked) {
     write(TYPE_LinkedInstruction, linked);
     assert(linked->getLink());
-    writeLink(linked->getLink());
+    LinkSerializer(op).serialize(linked->getLink(), writer);
     writer.write<uint8_t>(linked->getIndex());
 }
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     write(TYPE_ControlFlowInstruction, controlFlow);
     assert(controlFlow->getLink());
-    writeLink(controlFlow->getLink());
+    LinkSerializer(op).serialize(controlFlow->getLink(), writer);
 }
 
 void InstrSerializer::serialize(InstructionSemantic *semantic,
@@ -203,7 +116,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         auto semantic = defaultDeserialize(instruction, address, reader);
         auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
         delete semantic;
-        semantic2->setLink(deserializeLink(reader));
+        semantic2->setLink(LinkSerializer(op).deserialize(reader));
         semantic2->setIndex(reader.read<uint8_t>());
         return semantic2;
     }
@@ -222,7 +135,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     }
     case TYPE_ControlFlowInstruction: {
         auto semantic = defaultDeserialize(instruction, address, reader);
-        semantic->setLink(deserializeLink(reader));
+        semantic->setLink(LinkSerializer(op).deserialize(reader));
         return semantic;
     }
     default:
@@ -256,8 +169,83 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
 #endif
 }
 
-Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
+void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
+    if(dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
+        writer.write<uint8_t>(TYPE_ExternalAbsoluteNormalLink);
+        writer.writeID(op.assign(&*link->getTarget()));
+    }
+    else if(dynamic_cast<ExternalNormalLink *>(link)) {
+        writer.write<uint8_t>(TYPE_ExternalNormalLink);
+        writer.writeID(op.assign(&*link->getTarget()));
+    }
+    else if(dynamic_cast<AbsoluteNormalLink *>(link)) {
+        writer.write<uint8_t>(TYPE_AbsoluteNormalLink);
+        writer.writeID(op.assign(&*link->getTarget()));
+    }
+    else if(dynamic_cast<NormalLink *>(link)) {
+        writer.write<uint8_t>(TYPE_NormalLink);
+        writer.writeID(op.assign(&*link->getTarget()));
+    }
+    else if(dynamic_cast<ExternalOffsetLink *>(link)) {
+        writer.write<uint8_t>(TYPE_ExternalOffsetLink);
+        auto target = link->getTarget();
+        writer.writeID(op.assign(&*target));
+        writer.write(link->getTargetAddress() - target->getAddress());
+    }
+    else if(dynamic_cast<OffsetLink *>(link)) {
+        writer.write<uint8_t>(TYPE_OffsetLink);
+        auto target = link->getTarget();
+        writer.writeID(op.assign(&*target));
+        writer.write(link->getTargetAddress() - target->getAddress());
+    }
+    else if(auto v = dynamic_cast<PLTLink *>(link)) {
+        writer.write<uint8_t>(TYPE_PLTLink);
+        writer.writeID(op.assign(v->getPLTTrampoline()));
+    }
+    else if(dynamic_cast<JumpTableLink *>(link)) {
+        writer.write<uint8_t>(TYPE_JumpTableLink);
+
+    }
+    else if(dynamic_cast<SymbolOnlyLink *>(link)) {
+        writer.write<uint8_t>(TYPE_SymbolOnlyLink);
+
+    }
+    else if(dynamic_cast<MarkerLink *>(link)) {
+        writer.write<uint8_t>(TYPE_MarkerLink);
+        LOG(0, "MarkerLink to " << link->getTargetAddress());
+    }
+    else if(dynamic_cast<AbsoluteDataLink *>(link)) {
+        writer.write<uint8_t>(TYPE_AbsoluteDataLink);
+        auto section = link->getTarget();
+        writer.writeID(op.assign(&*section));
+        writer.write(link->getTargetAddress() - section->getAddress());
+    }
+    else if(dynamic_cast<DataOffsetLink *>(link)) {
+        writer.write<uint8_t>(TYPE_DataOffsetLink);
+        auto section = link->getTarget();
+        writer.writeID(op.assign(&*section));
+        writer.write(link->getTargetAddress() - section->getAddress());
+    }
+    else if(dynamic_cast<TLSDataOffsetLink *>(link)) {
+        writer.write<uint8_t>(TYPE_TLSDataOffsetLink);
+
+    }
+    else if(dynamic_cast<UnresolvedLink *>(link)) {
+        writer.write<uint8_t>(TYPE_UnresolvedLink);
+
+    }
+    else if(dynamic_cast<ImmAndDispLink *>(link)) {
+        writer.write<uint8_t>(TYPE_ImmAndDispLink);
+
+    }
+    else {
+        writer.write<uint8_t>(TYPE_UNKNOWN_LINK);
+    }
+}
+
+Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
     auto type = reader.read<uint8_t>();
+    if(!reader.stillGood()) return nullptr;
 
     switch(type) {
     case TYPE_ExternalAbsoluteNormalLink:
@@ -306,7 +294,7 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
     }
 }
 
-Chunk *InstrSerializer::deserializeLinkTarget(ArchiveStreamReader &reader) {
+Chunk *LinkSerializer::deserializeLinkTarget(ArchiveStreamReader &reader) {
     auto id = reader.readID();  // can be NoneID
     Chunk *target = op.lookup(id);  // can be nullptr
     if(target && !target->getPosition()) {

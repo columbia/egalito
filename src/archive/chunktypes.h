@@ -1,6 +1,8 @@
 #ifndef EGALITO_ARCHIVE_CHUNK_TYPES_H
 #define EGALITO_ARCHIVE_CHUNK_TYPES_H
 
+#include <cstdint>
+
 enum EgalitoChunkType {
     TYPE_UNKNOWN = 0,
     TYPE_Program,
@@ -21,5 +23,8 @@ enum EgalitoChunkType {
     TYPE_MarkerList,
     TYPE_Marker,
 };
+
+uint8_t encodeChunkType(EgalitoChunkType type);
+EgalitoChunkType decodeChunkType(uint8_t encoded);
 
 #endif

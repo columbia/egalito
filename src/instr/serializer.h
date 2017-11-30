@@ -21,8 +21,17 @@ public:
 private:
     InstructionSemantic *defaultDeserialize(Instruction *instruction,
         address_t address, ArchiveStreamReader &reader);
+};
 
-    Link *deserializeLink(ArchiveStreamReader &reader);
+class LinkSerializer {
+private:
+    ChunkSerializerOperations &op;
+public:
+    LinkSerializer(ChunkSerializerOperations &op) : op(op) {}
+
+    void serialize(Link *link, ArchiveStreamWriter &writer);
+    Link *deserialize(ArchiveStreamReader &reader);
+private:
     Chunk *deserializeLinkTarget(ArchiveStreamReader &reader);
 };
 

@@ -33,6 +33,9 @@ void Module::serialize(ChunkSerializerOperations &op,
     auto functionListID = op.serialize(getFunctionList());
     writer.write(functionListID);
 
+    auto jumpTableListID = op.serialize(getJumpTableList());
+    writer.write(jumpTableListID);
+
     auto dataRegionListID = op.serialize(getDataRegionList());
     writer.write(dataRegionListID);
 }
@@ -56,6 +59,15 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         auto functionList = op.lookupAs<FunctionList>(id);
         getChildren()->add(functionList);
         setFunctionList(functionList);
+    }
+
+    {
+        auto id = reader.readID();
+        auto jumpTableList = op.lookupAs<JumpTableList>(id);
+        if(jumpTableList) {
+            getChildren()->add(jumpTableList);
+            setJumpTableList(jumpTableList);
+        }
     }
 
     {

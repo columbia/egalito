@@ -51,7 +51,7 @@ EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
 
     for(uint32_t i = 0; i < flatCount; i ++) {
         ArchiveStreamReader reader(file);
-        auto type   = reader.read<uint16_t>();
+        auto type   = decodeChunkType(reader.read<uint8_t>());
         auto id     = reader.read<uint32_t>();
         auto offset = reader.read<uint32_t>();
         auto size   = reader.read<uint32_t>();

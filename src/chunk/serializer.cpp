@@ -169,14 +169,14 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
 #else
         [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
         [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
-        [] () -> Chunk* { return nullptr; },
+        [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
         [] () -> Chunk* { return new DataRegionList(); }, // TYPE_DataRegionList
         [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
         [] () -> Chunk* { return new PLTTrampoline(); },  // TYPE_PLTTrampoline
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
+        [] () -> Chunk* { return new JumpTable(); },      // TYPE_JumpTable
+        [] () -> Chunk* { return new JumpTableEntry(); }, // TYPE_JumpTableEntry
         [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
         [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable

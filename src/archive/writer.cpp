@@ -38,7 +38,7 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
     for(auto flat : archive->getFlatList()) {
         LOG(10, "write FlatChunk id=" << flat->getID() << " type=" << flat->getType());
         ArchiveStreamWriter writer(file);
-        writer.write<uint16_t>(flat->getType());
+        writer.write<uint8_t>(encodeChunkType(EgalitoChunkType(flat->getType())));
         writer.write<uint32_t>(flat->getID());
         writer.write<uint32_t>(flat->getOffset());
         writer.write<uint32_t>(flat->getSize());

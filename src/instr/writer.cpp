@@ -126,4 +126,3 @@ void InstrWriterGetData::visit(LinkedLiteralInstruction *linked) {
     linked->writeTo(data);
 #endif
 }
-

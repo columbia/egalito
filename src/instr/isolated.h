@@ -13,4 +13,5 @@ class LiteralInstruction : public RawInstruction {
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
+
 #endif
