@@ -1,76 +1,89 @@
 #include <sstream>
+#include <string>
 #include <cstring>  // for std::strlen
 #include "stream.h"
 #include "flatchunk.h"
 
-// !!! on aarch64, the endianness may need to change here
-bool ArchiveStreamReader::read(uint8_t &value) {
+bool ArchiveStreamReader::readInto(uint8_t &value) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(value));
     return stream.operator bool ();
 }
 
-bool ArchiveStreamReader::read(uint16_t &value) {
+bool ArchiveStreamReader::readInto(uint16_t &value) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(value));
     return stream.operator bool ();
 }
 
-bool ArchiveStreamReader::read(uint32_t &value) {
+bool ArchiveStreamReader::readInto(uint32_t &value) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(value));
     return stream.operator bool ();
 }
 
-bool ArchiveStreamReader::read(uint64_t &value) {
+bool ArchiveStreamReader::readInto(uint64_t &value) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(value));
     return stream.operator bool ();
 }
 
-bool ArchiveStreamReader::read(std::string &value, size_t length) {
+bool ArchiveStreamReader::readInto(bool &flag) { 
+    uint8_t value;
+    bool success = readInto(value);
+    flag = (value == '1');
+    return success;
+}
+
+std::string ArchiveStreamReader::readString() {
+    std::string value;
+    std::getline(stream, value, '\0');
+    return std::move(value);
+}
+
+std::string ArchiveStreamReader::readFixedLengthBytes(size_t length) {
+    std::string value;
     value.resize(length);
     stream.read(&value[0], length);
-    return stream.operator bool ();
-}
-
-bool ArchiveStreamReader::readAnyLength(std::string &value) {
-    uint32_t length;
-    return this->read(length) && this->read(value, length);
+    return std::move(value);
 }
 
 bool ArchiveStreamReader::stillGood() {
     return stream.good();
 }
 
-void ArchiveStreamWriter::write(uint8_t value) {
+void ArchiveStreamWriter::writeValue(uint8_t value) {
     stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 
-void ArchiveStreamWriter::write(uint16_t value) {
+void ArchiveStreamWriter::writeValue(uint16_t value) {
     stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 
-void ArchiveStreamWriter::write(uint32_t value) {
+void ArchiveStreamWriter::writeValue(uint32_t value) {
     stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 
-void ArchiveStreamWriter::write(uint64_t value) {
+void ArchiveStreamWriter::writeValue(uint64_t value) {
     stream.write(reinterpret_cast<const char *>(&value), sizeof(value));
 }
 
-void ArchiveStreamWriter::write(const char *value) {
+void ArchiveStreamWriter::writeString(const char *value) {
+    stream.write(value, std::strlen(value) + 1);
+}
+
+void ArchiveStreamWriter::writeString(const std::string &value) {
+    stream.write(value.c_str(), value.length() + 1);
+}
+
+void ArchiveStreamWriter::writeFixedLengthBytes(const char *value,
+    size_t length) {
+
+    stream.write(value, length);
+}
+
+void ArchiveStreamWriter::writeRaw(const char *value) {
     stream.write(value, std::strlen(value));
 }
 
-void ArchiveStreamWriter::write(const std::string &value) {
+void ArchiveStreamWriter::writeRaw(const std::string &value) {
     stream.write(value.c_str(), value.length());
-}
-
-void ArchiveStreamWriter::writeAnyLength(const char *value) {
-    this->write(static_cast<uint32_t>(std::strlen(value)));
-    this->write(value);
-}
-
-void ArchiveStreamWriter::writeAnyLength(const std::string &value) {
-    this->write(static_cast<uint32_t>(value.length()));
-    this->write(value);
 }
 
 BufferedStreamWriter::BufferedStreamWriter(FlatChunk *flat)
