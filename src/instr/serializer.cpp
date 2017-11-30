@@ -175,6 +175,7 @@ void SemanticSerializer::visit(LinkedInstruction *linked) {
     assert(linked->getLink());
 
     writeLink(linked->getLink());
+    writer.write(static_cast<uint8_t>(linked->getIndex()));
 }
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
@@ -222,15 +223,23 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     case TYPE_LinkedInstruction: {
         auto semantic = defaultDeserialize(instruction, address, reader);
         auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
-        delete semantic;
+        //delete semantic;
         semantic2->setLink(deserializeLink(reader));
+        uint8_t index;
+        reader.read(index);
+        semantic2->setIndex(index);
         return semantic2;
     }
     case TYPE_ReturnInstruction:
+        return defaultDeserialize(instruction, address, reader);
     case TYPE_IndirectJumpInstruction:
+        return defaultDeserialize(instruction, address, reader);
     case TYPE_IndirectCallInstruction:
+        return defaultDeserialize(instruction, address, reader);
     case TYPE_StackFrameInstruction:
+        throw "StackFrameInstruction?";
     case TYPE_LiteralInstruction:
+        throw "LiteralInstruction?";
     case TYPE_LinkedLiteralInstruction: {
         return defaultDeserialize(instruction, address, reader);
     }
@@ -285,14 +294,19 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
     case TYPE_NormalLink:
         return new NormalLink(deserializeLinkTarget(reader));
     case TYPE_ExternalOffsetLink:
+        throw "unsupported: deserialize ExternalOffsetLink";
     case TYPE_OffsetLink:
+        throw "unsupported: deserialize OffsetLink";
         return new UnresolvedLink(0);
     case TYPE_PLTLink:
         return new PLTLink(0x0,
             dynamic_cast<PLTTrampoline *>(deserializeLinkTarget(reader)));
     case TYPE_JumpTableLink:
+        throw "unsupported: deserialize JumpTableLink";
     case TYPE_SymbolOnlyLink:
+        throw "unsupported: deserialize SymbolOnlyLink";
     case TYPE_MarkerLink:
+        throw "unsupported: deserialize MarkerLink";
     case TYPE_AbsoluteDataLink:
         return new UnresolvedLink(0);
     case TYPE_DataOffsetLink: {

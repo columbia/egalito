@@ -246,7 +246,7 @@ int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
         }
         return offset;
     }
-    LOG(0, "error");
+    LOG(0, "error in getDispOffset");
     return 0;
 #else
     throw "getDispOffset is only meaningful on x86";
