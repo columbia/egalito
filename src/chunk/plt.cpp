@@ -127,44 +127,24 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write(getAddress());
-
-    auto targetID = static_cast<FlatChunk::IDType>(-1);
-    if(target) {
-        targetID = op.assign(target);
-    }
-
-    writer.write(static_cast<uint32_t>(targetID));
-
-    if(targetSymbol) {
-        writer.writeAnyLength(targetSymbol->getName());
-    }
-    else {
-        writer.writeAnyLength("");
-    }
+    writer.write(op.assign(target));
+    writer.writeString(targetSymbol ? targetSymbol->getName() : "");
 }
 
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    address_t address;
-    reader.read(address);
-    setPosition(new AbsolutePosition(address));
+    setPosition(new AbsolutePosition(reader.read<address_t>()));
 
-    uint32_t id;
-    reader.read(id);
+    auto id = reader.read<FlatChunk::IDType>();
+    setTarget(op.lookupAs<Chunk>(id));  // can be nullptr
 
-    if(id != static_cast<uint32_t>(-1)) {
-        auto newTarget = op.lookupAs<Chunk>(id);
-        setTarget(newTarget);
-    }
-
-    std::string name;
-    reader.readAnyLength(name);
+    std::string name = reader.readString();
 
     LOG(1, "looks like it targets [" << name << "]");
 
     // hack to create a target of the right name, an orphan Symbol
-    if(id == static_cast<uint32_t>(-1)) {
+    if(id == FlatChunk::NoneID) {
         char *s = new char[name.length() + 1];
         std::strcpy(s, name.c_str());
         this->targetSymbol = new Symbol(0x0, 0, s,

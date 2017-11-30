@@ -63,12 +63,12 @@ bool DataSection::contains(address_t address) {
 void DataSection::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.write(size);
-    writer.write(align);
-    writer.write(originalOffset);
-    writer.write(static_cast<uint8_t>(code ? 1 : 0));
-    writer.write(static_cast<uint8_t>(bss ? 1 : 0));
-    writer.writeAnyLength(name);
+    writer.writeValue(size);
+    writer.writeValue(align);
+    writer.writeValue(originalOffset);
+    writer.writeValue(code);
+    writer.writeValue(bss);
+    writer.writeString(name);
 
     op.serializeChildren(this, writer);
 }
@@ -76,20 +76,16 @@ void DataSection::serialize(ChunkSerializerOperations &op,
 bool DataSection::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    reader.read(size);
-    reader.read(align);
-    reader.read(originalOffset);
-    uint8_t v;
-    reader.read(v);
-    this->code = (v != 0);
-    reader.read(v);
-    this->bss = (v != 0);
-    std::string std_name;
-    reader.readAnyLength(std_name);
+    reader.readInto(size);
+    reader.readInto(align);
+    reader.readInto(originalOffset);
+    reader.readInto(code);
+    reader.readInto(bss);
+    std::string std_name = reader.readString();
     this->name = new char[std_name.length() + 1];
     std::strcpy(const_cast<char *>(this->name), std_name.c_str());
 
-    this->setPosition(new AbsoluteOffsetPosition(this, originalOffset));
+    setPosition(new AbsoluteOffsetPosition(this, originalOffset));
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
@@ -170,15 +166,13 @@ void DataRegion::serialize(ChunkSerializerOperations &op,
 bool DataRegion::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    address_t address;
-    reader.read(address);
+    address_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
-    size_t size;
-    reader.read(size);
+    size_t size = reader.read<size_t>();
     setSize(size);
-    reader.read(this->originalAddress);
-    reader.read(this->startOffset);
-    reader.read(this->mappedAddress);
+    reader.readInto(this->originalAddress);
+    reader.readInto(this->startOffset);
+    reader.readInto(this->mappedAddress);
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();

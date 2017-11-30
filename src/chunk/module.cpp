@@ -25,7 +25,7 @@ void Module::setElfSpace(ElfSpace *space) {
 void Module::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.writeAnyLength(getName());
+    writer.writeString(getName());
 
     auto pltListID = op.serialize(getPLTList());
     writer.write(pltListID);
@@ -40,31 +40,26 @@ void Module::serialize(ChunkSerializerOperations &op,
 bool Module::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    std::string name;
-    reader.readAnyLength(name);
-    setName(name);
+    setName(reader.readString());
 
     LOG(1, "trying to parse Module [" << name << "]");
 
     {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         auto pltList = op.lookupAs<PLTList>(id);
         getChildren()->add(pltList);
         setPLTList(pltList);
     }
 
     {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         auto functionList = op.lookupAs<FunctionList>(id);
         getChildren()->add(functionList);
         setFunctionList(functionList);
     }
 
     {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         auto dataRegionList = op.lookupAs<DataRegionList>(id);
         if(dataRegionList) {
             getChildren()->add(dataRegionList);

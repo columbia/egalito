@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cstdint>
 
-class FlatChunk;
+#include "flatchunk.h"  // for FlatChunk::IDType
 
 class ArchiveStreamReader {
 private:
@@ -27,6 +27,7 @@ public:
         readInto(value);  // ignore return value, can check stillGood() later
         return value;
     }
+    FlatChunk::IDType readID() { return read<FlatChunk::IDType>(); }
 
     std::string readString();  // cannot contain NULLs
     template <typename SizeType = uint32_t>
@@ -53,6 +54,7 @@ public:
 
     template <typename ValueType>
     void write(ValueType value) { writeValue(value); }
+    void writeID(FlatChunk::IDType id) { writeValue(id); }
 
     void writeString(const char *value);
     void writeString(const std::string &value);
@@ -62,8 +64,7 @@ public:
         writeFixedLengthBytes(value.c_str(), value.length());
     }
     void writeFixedLengthBytes(const char *value, size_t length);
-    void writeRaw(const char *value);
-    void writeRaw(const std::string &value);
+    void writeFixedLengthBytes(const char *value);  // runs strlen
 
     virtual void flush() {}
 };

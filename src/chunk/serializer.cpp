@@ -11,7 +11,7 @@
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
     auto id = ArchiveIDOperations<Chunk>::assign(object);
-    if(id != static_cast<FlatChunk::IDType>(-1)) {
+    if(id != FlatChunk::NoneID) {
         if(debugNames.size() <= id) debugNames.resize(id + 1);
         debugNames[id] = object->getName();
     }
@@ -76,13 +76,11 @@ void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
 void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
     ArchiveStreamReader &reader, bool addToChildList) {
 
-    uint32_t count;
-    reader.read(count);
+    auto count = reader.read<uint32_t>();
 
     std::vector<FlatChunk::IDType> idList;
     for(uint32_t i = 0; i < count; i ++) {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         idList.push_back(id);
         if(addToChildList) {
             Chunk *child = lookup(id);
@@ -109,9 +107,9 @@ void ChunkSerializerOperations::serializeChildrenIDsOnly(Chunk *chunk,
     for(auto child : chunk->getChildren()->genericIterable()) {
         auto id = assign(child);
         auto type = child->getFlatType();
-        FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(type, id);
+        getArchive()->getFlatList().newFlatChunk(type, id);  // unused ret val
 
-        writer.write(id);
+        writer.writeID(id);
     }
 
     if(level > 1) {
@@ -126,13 +124,11 @@ void ChunkSerializerOperations::deserializeChildrenIDsOnly(Chunk *chunk,
 
     if(level <= 0) return;
 
-    uint32_t count;
-    reader.read(count);
+    auto count = reader.read<uint32_t>();
 
     std::vector<FlatChunk::IDType> idList;
     for(uint32_t i = 0; i < count; i ++) {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         idList.push_back(id);
         if(addToChildList) {
             Chunk *child = lookup(id);

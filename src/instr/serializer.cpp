@@ -79,107 +79,100 @@ private:
 void SemanticSerializer::write(EgalitoInstrType type,
     InstructionSemantic *forBytes) {
 
-    writer.write(static_cast<uint8_t>(type));
+    writer.write<uint8_t>(type);
 
     InstrWriterGetData instrWriter;
     forBytes->accept(&instrWriter);
-    writer.writeAnyLength(instrWriter.get());
+    writer.writeBytes<uint8_t>(instrWriter.get());
 }
 
 void SemanticSerializer::writeLink(Link *link) {
     if(auto v = dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_ExternalAbsoluteNormalLink));
+        writer.write<uint8_t>(TYPE_ExternalAbsoluteNormalLink);
         writeLinkTarget(link);
     }
     else if(auto v = dynamic_cast<ExternalNormalLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_ExternalNormalLink));
+        writer.write<uint8_t>(TYPE_ExternalNormalLink);
         writeLinkTarget(link);
     }
     else if(auto v = dynamic_cast<AbsoluteNormalLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_AbsoluteNormalLink));
+        writer.write<uint8_t>(TYPE_AbsoluteNormalLink);
         writeLinkTarget(link);
     }
     else if(auto v = dynamic_cast<NormalLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_NormalLink));
+        writer.write<uint8_t>(TYPE_NormalLink);
         writeLinkTarget(link);
     }
     else if(auto v = dynamic_cast<ExternalOffsetLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_ExternalOffsetLink));
+        writer.write<uint8_t>(TYPE_ExternalOffsetLink);
         auto target = link->getTarget();
         writeLinkReference(&*target);
         writer.write(link->getTargetAddress() - target->getAddress());
     }
     else if(auto v = dynamic_cast<OffsetLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_OffsetLink));
+        writer.write<uint8_t>(TYPE_OffsetLink);
         auto target = link->getTarget();
         writeLinkReference(&*target);
         writer.write(link->getTargetAddress() - target->getAddress());
     }
     else if(auto v = dynamic_cast<PLTLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_PLTLink));
+        writer.write<uint8_t>(TYPE_PLTLink);
         writeLinkReference(v->getPLTTrampoline());
     }
     else if(auto v = dynamic_cast<JumpTableLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_JumpTableLink));
+        writer.write<uint8_t>(TYPE_JumpTableLink);
 
     }
     else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_SymbolOnlyLink));
+        writer.write<uint8_t>(TYPE_SymbolOnlyLink);
 
     }
     else if(auto v = dynamic_cast<MarkerLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_MarkerLink));
+        writer.write<uint8_t>(TYPE_MarkerLink);
 
     }
     else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_AbsoluteDataLink));
+        writer.write<uint8_t>(TYPE_AbsoluteDataLink);
 
     }
     else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_DataOffsetLink));
+        writer.write<uint8_t>(TYPE_DataOffsetLink);
         auto section = link->getTarget();
         writeLinkReference(&*section);
         writer.write(link->getTargetAddress() - section->getAddress());
     }
     else if(auto v = dynamic_cast<TLSDataOffsetLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_TLSDataOffsetLink));
+        writer.write<uint8_t>(TYPE_TLSDataOffsetLink);
 
     }
     else if(auto v = dynamic_cast<UnresolvedLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_UnresolvedLink));
+        writer.write<uint8_t>(TYPE_UnresolvedLink);
 
     }
     else if(auto v = dynamic_cast<ImmAndDispLink *>(link)) {
-        writer.write(static_cast<uint8_t>(TYPE_ImmAndDispLink));
+        writer.write<uint8_t>(TYPE_ImmAndDispLink);
 
     }
     else {
-        writer.write(static_cast<uint8_t>(TYPE_UNKNOWN_LINK));
+        writer.write<uint8_t>(TYPE_UNKNOWN_LINK);
     }
 }
 
 void SemanticSerializer::writeLinkReference(Chunk *ref) {
-    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
-    if(ref) {
-        id = op.assign(ref);
-    }
-    writer.write(static_cast<uint64_t>(id));
+    // supports null ref
+    writer.writeID(op.assign(ref));
 }
 
 void SemanticSerializer::writeLinkTarget(Link *link) {
     auto target = &*link->getTarget();
-    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
-    if(target) {
-        id = op.assign(target);
-    }
-    writer.write(static_cast<uint64_t>(id));
+    writer.writeID(op.assign(target));  // support null target
 }
 
 void SemanticSerializer::visit(LinkedInstruction *linked) {
     write(TYPE_LinkedInstruction, linked);
     assert(linked->getLink());
     writeLink(linked->getLink());
-    writer.write(static_cast<uint8_t>(linked->getIndex()));
+    writer.write<uint8_t>(linked->getIndex());
 }
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
@@ -198,8 +191,7 @@ void InstrSerializer::serialize(InstructionSemantic *semantic,
 InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     address_t address, ArchiveStreamReader &reader) {
 
-    uint8_t type;
-    reader.read(type);
+    auto type = reader.read<uint8_t>();
 
     switch(static_cast<EgalitoInstrType>(type)) {
     case TYPE_RawInstruction:
@@ -210,9 +202,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
         delete semantic;
         semantic2->setLink(deserializeLink(reader));
-        uint8_t index;
-        reader.read(index);
-        semantic2->setIndex(index);
+        semantic2->setIndex(reader.read<uint8_t>());
         return semantic2;
     }
     case TYPE_ReturnInstruction:
@@ -245,8 +235,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
 InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instruction,
     address_t address, ArchiveStreamReader &reader) {
 
-    std::string bytes;
-    reader.readAnyLength(bytes);
+    std::string bytes = reader.readBytes<uint8_t>();
 #if 1
     try {
         static DisasmHandle handle(true);
@@ -266,8 +255,7 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
 }
 
 Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
-    uint8_t type;
-    reader.read(type);
+    auto type = reader.read<uint8_t>();
 
     switch(type) {
     case TYPE_ExternalAbsoluteNormalLink:
@@ -280,14 +268,12 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
         return new NormalLink(deserializeLinkTarget(reader));
     case TYPE_ExternalOffsetLink: {
         auto target = deserializeLinkTarget(reader);
-        address_t offset;
-        reader.read(offset);
+        auto offset = reader.read<address_t>();
         return new ExternalOffsetLink(target, offset);
     }
     case TYPE_OffsetLink: {
         auto target = deserializeLinkTarget(reader);
-        address_t offset;
-        reader.read(offset);
+        auto offset = reader.read<address_t>();
         return new OffsetLink(target, offset);
     }
     case TYPE_PLTLink:
@@ -303,8 +289,7 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
         return new UnresolvedLink(0);
     case TYPE_DataOffsetLink: {
         auto section = dynamic_cast<DataSection *>(deserializeLinkTarget(reader));
-        address_t offset;
-        reader.read(offset);
+        auto offset = reader.read<address_t>();
         return new DataOffsetLink(section, offset);
     }
     case TYPE_TLSDataOffsetLink:
@@ -317,14 +302,10 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
 }
 
 Chunk *InstrSerializer::deserializeLinkTarget(ArchiveStreamReader &reader) {
-    uint64_t id = 0;
-    reader.read(id);
-    if(id != static_cast<uint32_t>(-1)) {
-        Chunk *target = op.lookup(id);
-        if(!target->getPosition()) {
-            target->setPosition(new AbsolutePosition(-1));
-        }
-        return target;
+    auto id = reader.readID();  // can be NoneID
+    Chunk *target = op.lookup(id);  // can be nullptr
+    if(target && !target->getPosition()) {
+        target->setPosition(new AbsolutePosition(-1));
     }
-    return nullptr;
+    return target;
 }

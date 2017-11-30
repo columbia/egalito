@@ -24,7 +24,7 @@ void Block::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
 #if 0
-    writer.write(static_cast<uint64_t>(getAddress()));
+    writer.write(getAddress());
 #endif
 }
 
@@ -32,8 +32,7 @@ bool Block::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
 #if 0
-    uint64_t address = 0;
-    reader.read(address);
+    auto address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
 
     op.deserializeChildren(this, reader);

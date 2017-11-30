@@ -11,15 +11,14 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
     uint32_t &flatCount, uint32_t &version) {
 
     ArchiveStreamReader reader(file);
-    std::string line;
-    if(!reader.read(line, std::strlen(EgalitoArchive::SIGNATURE))
-        || line != EgalitoArchive::SIGNATURE) {
-
+    std::string line = reader.readFixedLengthBytes(
+        std::strlen(EgalitoArchive::SIGNATURE));
+    if(!reader.stillGood() || line != EgalitoArchive::SIGNATURE) {
         LOG(0, "Error: file signature does not match, not an Egalito archive");
         return false;
     }
 
-    if(!reader.read(version)) {
+    if(!reader.readInto(version)) {
         LOG(0, "Error: archive does not contain a version");
         return false;
     }
@@ -34,7 +33,7 @@ bool EgalitoArchiveReader::readHeader(std::ifstream &file,
         // fall-through
     }
 
-    if(!reader.read(flatCount) || flatCount == 0) {
+    if(!reader.readInto(flatCount) || flatCount == 0) {
         LOG(0, "Warning: empty Egalito archive");
         // fall-through
     }
@@ -51,18 +50,12 @@ EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
     EgalitoArchive *archive = new EgalitoArchive(filename, version);
 
     for(uint32_t i = 0; i < flatCount; i ++) {
-        uint16_t type;
-        uint32_t id;
-        uint32_t offset;
-        uint32_t size;
-        std::string data;
-
         ArchiveStreamReader reader(file);
-        reader.read(type);
-        reader.read(id);
-        reader.read(offset);
-        reader.read(size);
-        reader.read(data, size);
+        auto type   = reader.read<uint16_t>();
+        auto id     = reader.read<uint32_t>();
+        auto offset = reader.read<uint32_t>();
+        auto size   = reader.read<uint32_t>();
+        std::string data = reader.readFixedLengthBytes(size);
 
         if(!file) {
             LOG(0, "Error: unexpected EOF in archive");

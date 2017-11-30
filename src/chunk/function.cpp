@@ -43,23 +43,23 @@ void Function::serialize(ChunkSerializerOperations &op,
 
     LOG(10, "serialize function " << getName());
 
-    writer.write(static_cast<uint64_t>(getAddress()));
-    writer.writeAnyLength(getName());
+    writer.write(getAddress());
+    writer.writeString(getName());
 
 #if 0  // don't use compression
-    writer.write(static_cast<uint8_t>(0));
+    writer.writeValue(false);
     op.serializeChildren(this, writer);
 #else  // compress data
-    writer.write(static_cast<uint8_t>(1));
+    writer.writeValue(true);
 
     //op.serializeChildren(this, writer);  // serialize empty children!
     op.serializeChildrenIDsOnly(this, writer, 2);
 
-    writer.write(static_cast<uint64_t>(
-        this->getChildren()->getIterable()->getCount()));
+    writer.write<uint32_t>(
+        this->getChildren()->getIterable()->getCount());
     for(auto block : CIter::children(this)) {
-        writer.write(static_cast<uint64_t>(
-            block->getChildren()->getIterable()->getCount()));
+        writer.write<uint32_t>(
+            block->getChildren()->getIterable()->getCount());
         for(auto instr : CIter::children(block)) {
 #if 1
             if(dynamic_cast<ControlFlowInstruction *>(instr->getSemantic())) {
@@ -80,22 +80,12 @@ void Function::serialize(ChunkSerializerOperations &op,
 bool Function::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    uint64_t address;
-    std::string name;
-    reader.read(address);
-    reader.readAnyLength(name);
-
+    uint64_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
-    setName(name);
+    setName(reader.readString());
 
-    if(op.getVersion() == 2) {
-        op.deserializeChildren(this, reader);
-        return reader.stillGood();
-    }
-
-    uint8_t compressedMode = 0;
-    reader.read(compressedMode);
-    if(compressedMode == 0) {
+    bool compressedMode = reader.read<bool>();
+    if(!compressedMode) {
         op.deserializeChildren(this, reader);
     }
     else {
@@ -107,8 +97,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
         Chunk *prevChunk1 = this;
 
         size_t totalSize = 0;
-        uint64_t blockCount = 0;
-        reader.read(blockCount);
+        uint64_t blockCount = reader.read<uint32_t>();
         for(uint64_t b = 0; b < blockCount; b ++) {
             Block *block = getChildren()->getIterable()->get(b);
             block->setPosition(positionFactory->makePosition(
@@ -121,8 +110,7 @@ bool Function::deserialize(ChunkSerializerOperations &op,
 
             Chunk *prevChunk2 = block;
 
-            uint64_t instrCount = 0;
-            reader.read(instrCount);
+            uint64_t instrCount = reader.read<uint32_t>();
             for(uint64_t i = 0; i < instrCount; i ++) {
                 auto instr = block->getChildren()->getIterable()->get(i);
 

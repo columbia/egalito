@@ -18,6 +18,7 @@ public:
     
     int getVersion() const { return archive->getVersion(); }
 
+    // assign returns NoneID if object is nullptr.
     virtual FlatChunk::IDType assign(BaseType *object);
     bool fetch(BaseType *object, FlatChunk::IDType &id);
 
@@ -25,27 +26,26 @@ public:
     FlatChunk *lookupFlat(FlatChunk::IDType id) const;
 
     template <typename Type>
-    Type *lookupAs(FlatChunk::IDType id) const
-        { return archive->getFlatList().get(id)->getInstance<Type>(); }
+    Type *lookupAs(FlatChunk::IDType id) const {
+        if(id == FlatChunk::NoneID) return nullptr;
+        return archive->getFlatList().get(id)->getInstance<Type>();
+    }
 protected:
     EgalitoArchive *getArchive() const { return archive; }
 };
 
 template <typename BaseType>
 FlatChunk::IDType ArchiveIDOperations<BaseType>::assign(BaseType *object) {
+    if(!object) return FlatChunk::NoneID;
+
     auto it = assignment.find(object);
     if(it != assignment.end()) {
         return (*it).second;
     }
 
-    if(object) {
-        auto id = archive->getFlatList().getNextID();
-        assignment[object] = id;
-        return id;
-    }
-    else {
-        return static_cast<FlatChunk::IDType>(-1);
-    }
+    auto id = archive->getFlatList().getNextID();
+    assignment[object] = id;
+    return id;
 }
 
 template <typename BaseType>
@@ -63,7 +63,7 @@ bool ArchiveIDOperations<BaseType>::fetch(BaseType *object,
 
 template <typename BaseType>
 BaseType *ArchiveIDOperations<BaseType>::lookup(FlatChunk::IDType id) const {
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
+    if(id == FlatChunk::NoneID) return nullptr;
     return archive->getFlatList().get(id)->getInstance<BaseType>();
 }
 
@@ -71,7 +71,7 @@ template <typename BaseType>
 FlatChunk *ArchiveIDOperations<BaseType>
     ::lookupFlat(FlatChunk::IDType id) const {
 
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
+    if(id == FlatChunk::NoneID) return nullptr;
     return archive->getFlatList().get(id);
 }
 

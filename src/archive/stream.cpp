@@ -78,12 +78,8 @@ void ArchiveStreamWriter::writeFixedLengthBytes(const char *value,
     stream.write(value, length);
 }
 
-void ArchiveStreamWriter::writeRaw(const char *value) {
+void ArchiveStreamWriter::writeFixedLengthBytes(const char *value) {
     stream.write(value, std::strlen(value));
-}
-
-void ArchiveStreamWriter::writeRaw(const std::string &value) {
-    stream.write(value.c_str(), value.length());
 }
 
 BufferedStreamWriter::BufferedStreamWriter(FlatChunk *flat)
