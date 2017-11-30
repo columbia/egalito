@@ -61,8 +61,7 @@ public:
     virtual void visit(ControlFlowInstruction *controlFlow);
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
-    virtual void visit(IndirectJumpInstruction *indirect)
-        { write(TYPE_IndirectJumpInstruction, indirect); }
+    virtual void visit(IndirectJumpInstruction *indirect);
     virtual void visit(IndirectCallInstruction *indirect)
         { write(TYPE_IndirectCallInstruction, indirect); }
     virtual void visit(StackFrameInstruction *stackFrame)
@@ -96,6 +95,17 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
 }
 
+void SemanticSerializer::visit(IndirectJumpInstruction *indirect) {
+    write(TYPE_IndirectJumpInstruction, indirect);
+    writer.writeString(indirect->getMnemonic());
+    writer.write<uint8_t>(indirect->getRegister());
+
+    writer.write<uint32_t>(indirect->getJumpTables().size());
+    for(auto jumpTable : indirect->getJumpTables()) {
+        writer.writeID(op.assign(jumpTable));
+    }
+}
+
 void InstrSerializer::serialize(InstructionSemantic *semantic,
     ArchiveStreamWriter &writer) {
 
@@ -122,8 +132,21 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     }
     case TYPE_ReturnInstruction:
         return defaultDeserialize(instruction, address, reader);
-    case TYPE_IndirectJumpInstruction:
-        return defaultDeserialize(instruction, address, reader);
+    case TYPE_IndirectJumpInstruction: {
+        auto semantic = defaultDeserialize(instruction, address, reader);
+        auto mnemonic = reader.readString();
+        auto reg = reader.read<uint8_t>();
+        auto semantic2 = new IndirectJumpInstruction(
+            *semantic->getAssembly(),
+            static_cast<Register>(reg), mnemonic);
+        delete semantic;
+        auto tableCount = reader.read<uint32_t>();
+        for(uint32_t i = 0; i < tableCount; i ++) {
+            semantic2->addJumpTable(op.lookupAs<JumpTable>(reader.readID()));
+        }
+        return semantic2;
+    }
+
     case TYPE_IndirectCallInstruction:
         return defaultDeserialize(instruction, address, reader);
     case TYPE_StackFrameInstruction:
@@ -204,15 +227,15 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
     }
     else if(dynamic_cast<JumpTableLink *>(link)) {
         writer.write<uint8_t>(TYPE_JumpTableLink);
-
+        writer.writeID(op.assign(&*link->getTarget()));
     }
     else if(dynamic_cast<SymbolOnlyLink *>(link)) {
         writer.write<uint8_t>(TYPE_SymbolOnlyLink);
-
+        LOG(0, "SymbolOnlyLink serialization not supported");
     }
     else if(dynamic_cast<MarkerLink *>(link)) {
         writer.write<uint8_t>(TYPE_MarkerLink);
-        LOG(0, "MarkerLink to " << link->getTargetAddress());
+        LOG(0, "MarkerLink serialization not supported");
     }
     else if(dynamic_cast<AbsoluteDataLink *>(link)) {
         writer.write<uint8_t>(TYPE_AbsoluteDataLink);
@@ -228,15 +251,16 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
     }
     else if(dynamic_cast<TLSDataOffsetLink *>(link)) {
         writer.write<uint8_t>(TYPE_TLSDataOffsetLink);
-
+        LOG(0, "TLSDataOffsetLink serialization not supported");
     }
     else if(dynamic_cast<UnresolvedLink *>(link)) {
         writer.write<uint8_t>(TYPE_UnresolvedLink);
-
+        writer.write(link->getTargetAddress());
     }
-    else if(dynamic_cast<ImmAndDispLink *>(link)) {
+    else if(auto v = dynamic_cast<ImmAndDispLink *>(link)) {
         writer.write<uint8_t>(TYPE_ImmAndDispLink);
-
+        writer.writeID(op.assign(&*v->getImmLink()->getTarget()));
+        serialize(v->getDispLink(), writer);
     }
     else {
         writer.write<uint8_t>(TYPE_UNKNOWN_LINK);
@@ -270,9 +294,10 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
         return new PLTLink(0x0,
             dynamic_cast<PLTTrampoline *>(deserializeLinkTarget(reader)));
     case TYPE_JumpTableLink:
-        throw "unsupported: deserialize JumpTableLink";
+        return new JumpTableLink(
+            dynamic_cast<JumpTable *>(deserializeLinkTarget(reader)));
     case TYPE_SymbolOnlyLink:
-        throw "unsupported: deserialize SymbolOnlyLink";
+        return new UnresolvedLink(0);  // unsupported
     case TYPE_MarkerLink:
         return new UnresolvedLink(0);  // unsupported
     case TYPE_AbsoluteDataLink: {
@@ -286,8 +311,14 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
         return new DataOffsetLink(section, offset);
     }
     case TYPE_TLSDataOffsetLink:
+        return new UnresolvedLink(0);  // unsupported
     case TYPE_UnresolvedLink:
-    case TYPE_ImmAndDispLink:
+        return new UnresolvedLink(reader.read<address_t>());
+    case TYPE_ImmAndDispLink: {
+        auto immLink = new NormalLink(op.lookup(reader.readID()));
+        auto dispLink = deserialize(reader);
+        return new ImmAndDispLink(immLink, dispLink);
+    }
     case TYPE_UNKNOWN_LINK:
     default:
         return new UnresolvedLink(0);

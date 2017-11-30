@@ -148,9 +148,8 @@ void ChunkSerializerOperations::deserializeChildrenIDsOnly(Chunk *chunk,
 Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
     std::function<Chunk *()> constructor[] = {
         [] () -> Chunk* { return nullptr; },              // TYPE_UNKNOWN
-        [] () -> Chunk* { return new Program(nullptr); },        // TYPE_Program
+        [] () -> Chunk* { return new Program(); },        // TYPE_Program
         [] () -> Chunk* { return new Module(); },         // TYPE_Module
-#if 0
         [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
         [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
         [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
@@ -164,25 +163,8 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
         [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
-        [] () -> Chunk* { return new MarkerList(); },     // TYPE_MarkerList
-        [] () -> Chunk* { return new Marker(); },         // TYPE_Marker
-#else
-        [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
-        [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
-        [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
-        [] () -> Chunk* { return new DataRegionList(); }, // TYPE_DataRegionList
-        [] () -> Chunk* { return new Function(); },       // TYPE_Function
-        [] () -> Chunk* { return new Block(); },          // TYPE_Block
-        [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
-        [] () -> Chunk* { return new PLTTrampoline(); },  // TYPE_PLTTrampoline
-        [] () -> Chunk* { return new JumpTable(); },      // TYPE_JumpTable
-        [] () -> Chunk* { return new JumpTableEntry(); }, // TYPE_JumpTableEntry
-        [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
-        [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
-        [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-#endif
+        [] () -> Chunk* { return nullptr; },    // TYPE_MarkerList
+        [] () -> Chunk* { return nullptr; },    // TYPE_Marker
     };
 
     assert(flat != nullptr);

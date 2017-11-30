@@ -195,9 +195,20 @@ void InstrDumper::visit(IndirectJumpInstruction *semantic) {
     std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
+    std::string jumpTableDescription;
+    if(semantic->isForJumpTable()) {
+        auto jumpTable = semantic->getJumpTables()[0];
+        std::ostringstream tableStream;
+        tableStream << "jumptable@" << std::hex << jumpTable->getAddress()
+            << ",entries=" << std::dec << jumpTable->getEntryCount();
+        jumpTableDescription = tableStream.str();
+    }
+
     DisasmDump::printInstructionRaw(address,
         pos, name.str().c_str(),
-        semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+        semantic->getAssembly()->getOpStr().c_str(),
+        semantic->isForJumpTable() ? jumpTableDescription.c_str() : nullptr,
+        bytes2.c_str(),
         false);
 }
 
