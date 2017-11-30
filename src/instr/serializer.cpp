@@ -105,10 +105,15 @@ void SemanticSerializer::writeLink(Link *link) {
     }
     else if(auto v = dynamic_cast<ExternalOffsetLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_ExternalOffsetLink));
-
+        auto target = link->getTarget();
+        writeLinkReference(&*target);
+        writer.write(link->getTargetAddress() - target->getAddress());
     }
     else if(auto v = dynamic_cast<OffsetLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_OffsetLink));
+        auto target = link->getTarget();
+        writeLinkReference(&*target);
+        writer.write(link->getTargetAddress() - target->getAddress());
     }
     else if(auto v = dynamic_cast<PLTLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_PLTLink));
@@ -173,7 +178,6 @@ void SemanticSerializer::writeLinkTarget(Link *link) {
 void SemanticSerializer::visit(LinkedInstruction *linked) {
     write(TYPE_LinkedInstruction, linked);
     assert(linked->getLink());
-
     writeLink(linked->getLink());
     writer.write(static_cast<uint8_t>(linked->getIndex()));
 }
@@ -181,26 +185,7 @@ void SemanticSerializer::visit(LinkedInstruction *linked) {
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     write(TYPE_ControlFlowInstruction, controlFlow);
     assert(controlFlow->getLink());
-
-#if 0
-    auto target = &*controlFlow->getLink()->getTarget();
-#if 0
-    FlatChunk::IDType id;
-    if(op.fetch(target, id)) {
-        writer.write(static_cast<uint64_t>(id));
-    }
-    else writer.write(static_cast<uint64_t>(-1));
-#else
-    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
-    if(target) {
-        LOG(1, "call instruction targets " << target->getName());
-        id = op.assign(target);
-    }
-    writer.write(static_cast<uint64_t>(id));
-#endif
-#else
     writeLink(controlFlow->getLink());
-#endif
 }
 
 void InstrSerializer::serialize(InstructionSemantic *semantic,
@@ -223,7 +208,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     case TYPE_LinkedInstruction: {
         auto semantic = defaultDeserialize(instruction, address, reader);
         auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
-        //delete semantic;
+        delete semantic;
         semantic2->setLink(deserializeLink(reader));
         uint8_t index;
         reader.read(index);
@@ -293,11 +278,18 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
         return new AbsoluteNormalLink(deserializeLinkTarget(reader));
     case TYPE_NormalLink:
         return new NormalLink(deserializeLinkTarget(reader));
-    case TYPE_ExternalOffsetLink:
-        throw "unsupported: deserialize ExternalOffsetLink";
-    case TYPE_OffsetLink:
-        throw "unsupported: deserialize OffsetLink";
-        return new UnresolvedLink(0);
+    case TYPE_ExternalOffsetLink: {
+        auto target = deserializeLinkTarget(reader);
+        address_t offset;
+        reader.read(offset);
+        return new ExternalOffsetLink(target, offset);
+    }
+    case TYPE_OffsetLink: {
+        auto target = deserializeLinkTarget(reader);
+        address_t offset;
+        reader.read(offset);
+        return new OffsetLink(target, offset);
+    }
     case TYPE_PLTLink:
         return new PLTLink(0x0,
             dynamic_cast<PLTTrampoline *>(deserializeLinkTarget(reader)));

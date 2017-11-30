@@ -126,7 +126,7 @@ void PLTTrampoline::writeTo(char *target) {
 void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    LOG(1, "SERIALIZE PLTTrampoline " << getName());
+    writer.write(getAddress());
 
     auto targetID = static_cast<FlatChunk::IDType>(-1);
     if(target) {
@@ -146,7 +146,9 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    LOG(1, "DESERIALIZE PLTTrampoline");
+    address_t address;
+    reader.read(address);
+    setPosition(new AbsolutePosition(address));
 
     uint32_t id;
     reader.read(id);
