@@ -72,6 +72,7 @@ public:
         { write(TYPE_LinkedLiteralInstruction, literal); }
 private:
     void writeLink(Link *link);
+    void writeLinkReference(Chunk *ref);
     void writeLinkTarget(Link *link);
 };
 
@@ -111,7 +112,7 @@ void SemanticSerializer::writeLink(Link *link) {
     }
     else if(auto v = dynamic_cast<PLTLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_PLTLink));
-
+        writeLinkReference(v->getPLTTrampoline());
     }
     else if(auto v = dynamic_cast<JumpTableLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_JumpTableLink));
@@ -131,7 +132,9 @@ void SemanticSerializer::writeLink(Link *link) {
     }
     else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_DataOffsetLink));
-
+        auto section = link->getTarget();
+        writeLinkReference(&*section);
+        writer.write(link->getTargetAddress() - section->getAddress());
     }
     else if(auto v = dynamic_cast<TLSDataOffsetLink *>(link)) {
         writer.write(static_cast<uint8_t>(TYPE_TLSDataOffsetLink));
@@ -148,6 +151,14 @@ void SemanticSerializer::writeLink(Link *link) {
     else {
         writer.write(static_cast<uint8_t>(TYPE_UNKNOWN_LINK));
     }
+}
+
+void SemanticSerializer::writeLinkReference(Chunk *ref) {
+    FlatChunk::IDType id = static_cast<FlatChunk::IDType>(-1);
+    if(ref) {
+        id = op.assign(ref);
+    }
+    writer.write(static_cast<uint64_t>(id));
 }
 
 void SemanticSerializer::writeLinkTarget(Link *link) {
@@ -275,12 +286,21 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
         return new NormalLink(deserializeLinkTarget(reader));
     case TYPE_ExternalOffsetLink:
     case TYPE_OffsetLink:
+        return new UnresolvedLink(0);
     case TYPE_PLTLink:
+        return new PLTLink(0x0,
+            dynamic_cast<PLTTrampoline *>(deserializeLinkTarget(reader)));
     case TYPE_JumpTableLink:
     case TYPE_SymbolOnlyLink:
     case TYPE_MarkerLink:
     case TYPE_AbsoluteDataLink:
-    case TYPE_DataOffsetLink:
+        return new UnresolvedLink(0);
+    case TYPE_DataOffsetLink: {
+        auto section = dynamic_cast<DataSection *>(deserializeLinkTarget(reader));
+        address_t offset;
+        reader.read(offset);
+        return new DataOffsetLink(section, offset);
+    }
     case TYPE_TLSDataOffsetLink:
     case TYPE_UnresolvedLink:
     case TYPE_ImmAndDispLink:

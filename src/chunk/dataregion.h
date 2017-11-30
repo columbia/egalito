@@ -6,6 +6,7 @@
 #include "chunklist.h"
 #include "util/iter.h"
 #include "elf/elfxx.h"
+#include "archive/chunktypes.h"
 
 class Link;
 class ElfMap;
@@ -13,19 +14,27 @@ class Module;
 
 class DataRegion;
 
-class DataVariable : public AddressableChunkImpl {
+class DataVariable : public ChunkSerializerImpl<TYPE_DataVariable,
+    AddressableChunkImpl> {
 private:
     Link *dest;
 public:
+    DataVariable() : dest(nullptr) {}
     DataVariable(DataRegion *region, address_t address, Link *dest);
 
     Link *getDest() const { return dest; }
     void setDest(Link *dest) { this->dest = dest; }
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor) {}
 };
 
-class DataSection : public CompositeChunkImpl<DataVariable> {
+class DataSection : public ChunkSerializerImpl<TYPE_DataSection,
+    CompositeChunkImpl<DataVariable>> {
 private:
     size_t size;
     size_t align;
@@ -35,6 +44,8 @@ private:
     const char *name;
 
 public:
+    DataSection() : size(0), align(0), originalOffset(0),
+        code(false), bss(false), name(nullptr) {}
     DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr);
     virtual size_t getSize() const { return size; }
     bool contains(address_t address);
@@ -43,10 +54,17 @@ public:
     bool isCode() const { return code; }
     bool isBss() const { return bss; }
     virtual std::string getName() const;
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor) {}
 };
 
-class DataRegion : public CompositeChunkImpl<DataSection> {
+class DataRegion : public ChunkSerializerImpl<TYPE_DataRegion,
+    CompositeChunkImpl<DataSection>> {
 private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
@@ -55,6 +73,8 @@ private:
     size_t startOffset;
     address_t mappedAddress;
 public:
+    DataRegion() : phdr(nullptr), originalAddress(0), startOffset(0),
+        mappedAddress(0) {}
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
 
@@ -72,7 +92,7 @@ public:
     size_t getBssSize() const { return phdr->p_memsz - phdr->p_filesz; }
     size_t getAlignment() const { return phdr->p_align; }
 
-    virtual size_t getSize() const { return phdr->p_memsz; }
+    //virtual size_t getSize() const { return phdr->p_memsz; }
 
     void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
@@ -85,6 +105,11 @@ public:
         { return ConcreteIterable<VariableListType>(variableList); }
     DataVariable *findVariable(address_t address) const;
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
@@ -95,6 +120,7 @@ class TLSDataRegion : public DataRegion {
 private:
     address_t tlsOffset;
 public:
+    TLSDataRegion() : tlsOffset(0) {}
     TLSDataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr)
         : DataRegion(elfMap, phdr), tlsOffset(0) {}
 
@@ -108,7 +134,8 @@ public:
     address_t getTLSOffset() const { return tlsOffset; }
 };
 
-class DataRegionList : public CollectionChunkImpl<DataRegion> {
+class DataRegionList : public ChunkSerializerImpl<TYPE_DataRegionList,
+    CollectionChunkImpl<DataRegion>> {
 private:
     TLSDataRegion *tls;
 public:
@@ -123,6 +150,11 @@ public:
         bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
 };

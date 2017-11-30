@@ -32,6 +32,9 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto functionListID = op.serialize(getFunctionList());
     writer.write(functionListID);
+
+    auto dataRegionListID = op.serialize(getDataRegionList());
+    writer.write(dataRegionListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
@@ -57,6 +60,16 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         auto functionList = op.lookupAs<FunctionList>(id);
         getChildren()->add(functionList);
         setFunctionList(functionList);
+    }
+
+    {
+        uint32_t id;
+        reader.read(id);
+        auto dataRegionList = op.lookupAs<DataRegionList>(id);
+        if(dataRegionList) {
+            getChildren()->add(dataRegionList);
+            setDataRegionList(dataRegionList);
+        }
     }
 
     return reader.stillGood();

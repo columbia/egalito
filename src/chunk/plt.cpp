@@ -161,6 +161,14 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
 
     LOG(1, "looks like it targets [" << name << "]");
 
+    // hack to create a target of the right name, an orphan Symbol
+    if(id == static_cast<uint32_t>(-1)) {
+        char *s = new char[name.length() + 1];
+        std::strcpy(s, name.c_str());
+        this->targetSymbol = new Symbol(0x0, 0, s,
+            Symbol::TYPE_FUNC, Symbol::BIND_LOCAL, 0, 0);
+    }
+
     return reader.stillGood();
 }
 

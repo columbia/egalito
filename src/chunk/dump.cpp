@@ -76,6 +76,9 @@ void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
 
 void ChunkDumper::visit(DataRegion *dataRegion) {
     LOG(1, "---[" << dataRegion->getName() << "]---");
+    LOG(1, "position is " << std::hex << dataRegion->getPosition());
+    LOG(1, "address is " << std::hex << dataRegion->getAddress());
+    LOG(1, "size is " << std::hex << dataRegion->getSize());
     LOG(1, std::hex <<
         dataRegion->getAddress() << " + " << dataRegion->getSize());
     for(auto sec : CIter::children(dataRegion)) {
