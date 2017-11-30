@@ -129,11 +129,13 @@ void SemanticSerializer::writeLink(Link *link) {
     }
     else if(auto v = dynamic_cast<MarkerLink *>(link)) {
         writer.write<uint8_t>(TYPE_MarkerLink);
-
+        LOG(0, "MarkerLink to " << link->getTargetAddress());
     }
     else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
         writer.write<uint8_t>(TYPE_AbsoluteDataLink);
-
+        auto section = link->getTarget();
+        writeLinkReference(&*section);
+        writer.write(link->getTargetAddress() - section->getAddress());
     }
     else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
         writer.write<uint8_t>(TYPE_DataOffsetLink);
@@ -284,9 +286,12 @@ Link *InstrSerializer::deserializeLink(ArchiveStreamReader &reader) {
     case TYPE_SymbolOnlyLink:
         throw "unsupported: deserialize SymbolOnlyLink";
     case TYPE_MarkerLink:
-        throw "unsupported: deserialize MarkerLink";
-    case TYPE_AbsoluteDataLink:
-        return new UnresolvedLink(0);
+        return new UnresolvedLink(0);  // unsupported
+    case TYPE_AbsoluteDataLink: {
+        auto section = dynamic_cast<DataSection *>(deserializeLinkTarget(reader));
+        auto offset = reader.read<address_t>();
+        return new AbsoluteDataLink(section, offset);
+    }
     case TYPE_DataOffsetLink: {
         auto section = dynamic_cast<DataSection *>(deserializeLinkTarget(reader));
         auto offset = reader.read<address_t>();
