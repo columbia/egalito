@@ -128,6 +128,12 @@ public:
     InstructionSemantic *instructionSemantic(Instruction *instr,
         const std::vector<unsigned char> &bytes, address_t address = 0);
 
+    Assembly *allocateAssembly(const std::string &bytes,
+        address_t address = 0);
+    Assembly *allocateAssembly(const std::vector<unsigned char> &bytes,
+        address_t address = 0);
+    Assembly makeAssembly(const std::string &bytes,
+        address_t address = 0);
     Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
 private:

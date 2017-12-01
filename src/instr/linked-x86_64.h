@@ -4,19 +4,17 @@
 #include "semantic.h"
 #include "isolated.h"
 
-// Defines LinkedInstruction and ControlFlowInstruction for x86_64.
+// Defines LinkedInstruction, ControlFlowInstruction, etc for x86_64.
 
 #ifdef ARCH_X86_64
 class Module;
 
-class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
+class LinkedInstruction : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;
     int opIndex;
 public:
-    LinkedInstruction(Instruction *i, const Assembly &assembly)
-        : LinkDecorator<DisassembledInstruction>(assembly),
-        instruction(i), opIndex(-1) {}
+    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1) {}
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
@@ -54,11 +52,17 @@ public:
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
 
+    virtual const std::string &getData() const
+        { throw "Can't call getData() on ControlFlowInstruction"; }
+
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
     int getDispOffset() const { return opcode.size(); }
 
-    virtual Assembly *getAssembly() { return nullptr; }
+    virtual InstructionStorage::AssemblyPtr getAssembly()
+        { return InstructionStorage::AssemblyPtr(); }
+    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
@@ -79,7 +83,7 @@ public:
 };
 
 // no link yet
-class StackFrameInstruction : public RawInstruction {
+class StackFrameInstruction : public SemanticImpl {
 private:
     unsigned int id;
     size_t opCodeSize;
@@ -89,6 +93,11 @@ public:
     StackFrameInstruction(Assembly *assembly);
 
     virtual size_t getSize() const { return opCodeSize + displacementSize; }
+
+    virtual InstructionStorage::AssemblyPtr getAssembly()
+        { return InstructionStorage::AssemblyPtr(); }
+    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
 
     void writeTo(char *target);
     void writeTo(std::string &target);
@@ -100,9 +109,8 @@ public:
 };
 
 // not used for X86, but we need a definition for visitors
-class LinkedLiteralInstruction : public RawInstruction {
+class LinkedLiteralInstruction : public IsolatedInstruction {
 public:
-    using RawInstruction::RawInstruction;
 };
 #endif
 

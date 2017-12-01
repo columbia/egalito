@@ -43,7 +43,6 @@ private:
 public:
     InstrDumper(address_t address, int pos) : address(address), pos(pos) {}
 
-    virtual void visit(RawInstruction *semantic);
     virtual void visit(IsolatedInstruction *semantic);
     virtual void visit(LinkedInstruction *semantic);
     virtual void visit(ControlFlowInstruction *semantic);

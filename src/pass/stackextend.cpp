@@ -160,9 +160,6 @@ void StackExtendPass::adjustOffset(Instruction *instruction) {
     //ChunkDumper dumper;
     //instruction->accept(&dump);
 
-    auto v
-        = dynamic_cast<DisassembledInstruction *>(instruction->getSemantic());
-    assert(!!v);
     auto sfi = new StackFrameInstruction(v->getAssembly());
     sfi->addToDisplacementValue(extendSize);
     instruction->setSemantic(sfi);

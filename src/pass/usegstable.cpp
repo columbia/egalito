@@ -50,9 +50,10 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 
     // callq  *%gs:0xdeadbeef
     DisasmHandle handle(true);
-    auto assembly = DisassembleInstruction(handle).makeAssembly(
-        {0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0});
-    auto semantic = new LinkedInstruction(instr, assembly);
+    auto assembly = DisassembleInstruction(handle).allocateAssembly(
+        std::vector<unsigned char>({0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0}));
+    auto semantic = new LinkedInstruction(instr);
+    semantic->setAssembly(assembly);
 
     auto gsEntry = gsTable->makeEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));

@@ -4,7 +4,26 @@
 #include "semantic.h"
 #include "register.h"
 
-#include "isolated.h"
+class IsolatedInstruction : public SemanticImpl {
+public:
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+class LiteralInstruction : public SemanticImpl {
+public:
+    // Cannot disassemble a LiteralInstruction.
+    virtual InstructionStorage::AssemblyPtr getAssembly()
+        { return InstructionStorage::AssemblyPtr(); }
+    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+        { throw "Can't call setAssembly() on LiteralInstruction"; }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+class LinkedInstruction;
+class ControlFlowInstruction;
+class StackFrameInstruction;
+class LinkedLiteralInstruction;
 
 #include "linked-x86_64.h"
 #include "linked-aarch64.h"
@@ -12,8 +31,6 @@
 
 class ReturnInstruction : public IsolatedInstruction {
 public:
-    using IsolatedInstruction::IsolatedInstruction;
-
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -24,10 +41,8 @@ private:
     std::string mnemonic;
     std::vector<JumpTable *> jumpTables;
 public:
-    IndirectJumpInstruction(const Assembly &assembly, Register reg,
-        const std::string &mnemonic)
-        : IsolatedInstruction(assembly), reg(reg),
-        mnemonic(mnemonic) {}
+    IndirectJumpInstruction(Register reg, const std::string &mnemonic)
+        : reg(reg), mnemonic(mnemonic) {}
 
     std::string getMnemonic() const { return mnemonic; }
     register_t getRegister() const { return reg; }
@@ -45,8 +60,7 @@ class IndirectCallInstruction : public IsolatedInstruction {
 private:
     Register reg;
 public:
-    IndirectCallInstruction(const Assembly &assembly, Register reg)
-        : IsolatedInstruction(assembly), reg(reg) {}
+    IndirectCallInstruction(Register reg) : reg(reg) {}
 
     register_t getRegister() const { return reg; }
 
@@ -56,8 +70,6 @@ public:
 // brk and hlt
 class BreakInstruction : public IsolatedInstruction {
 public:
-    using IsolatedInstruction::IsolatedInstruction;
-
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 

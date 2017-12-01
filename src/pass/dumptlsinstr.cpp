@@ -4,10 +4,7 @@
 #include "log/log.h"
 
 void DumpTLSInstrPass::visit(Instruction *instruction) {
-    auto semantic = instruction->getSemantic();
-    auto v = dynamic_cast<DisassembledInstruction *>(semantic);
-    if(!v) return;
-    auto assembly = v->getAssembly();
+    auto assembly = instruction->getSemantic()->getAssembly();
     if(!assembly) return;
 
 #ifdef ARCH_X86_64

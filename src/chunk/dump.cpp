@@ -107,21 +107,14 @@ void ChunkDumper::visit(MarkerList *markerList) {
     }
 }
 
-void InstrDumper::visit(RawInstruction *semantic) {
-    std::string data = getBytes(semantic);
-    std::vector<unsigned char> v(data.begin(), data.end());
-    Assembly assembly = Disassemble::makeAssembly(v, address);
-    DisasmDump::printInstruction(address, &assembly, pos, nullptr);
-}
-
 void InstrDumper::visit(IsolatedInstruction *semantic) {
-    Assembly *assembly = semantic->getAssembly();
-    DisasmDump::printInstruction(address, assembly, pos, nullptr);
+    auto assembly = semantic->getAssembly();
+    DisasmDump::printInstruction(address, &*assembly, pos, nullptr);
 }
 
 void InstrDumper::visit(LinkedInstruction *semantic) {
     semantic->regenerateAssembly();
-    Assembly *assembly = semantic->getAssembly();
+    auto assembly = semantic->getAssembly();
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
     if(auto v = dynamic_cast<GSTableLink *>(link)) {
@@ -129,17 +122,17 @@ void InstrDumper::visit(LinkedInstruction *semantic) {
         targetName << target->getName() << "@gs["
             << v->getEntry()->getIndex() << "]";
         DisasmDump::printInstruction(
-            address, assembly, pos, targetName.str().c_str());
+            address, &*assembly, pos, targetName.str().c_str());
         return;
     }
     if(target) {
         DisasmDump::printInstruction(
-            address, assembly, pos, target->getName().c_str());
+            address, &*assembly, pos, target->getName().c_str());
     }
     else {
         unsigned long targetAddress = link->getTargetAddress();
         DisasmDump::printInstructionCalculated(
-            address, assembly, pos, targetAddress);
+            address, &*assembly, pos, targetAddress);
     }
 }
 
@@ -226,7 +219,7 @@ void InstrDumper::visit(StackFrameInstruction *semantic) {
 #ifdef ARCH_X86_64
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());
-    Assembly assembly = Disassemble::makeAssembly(v, address);
+    auto assembly = Disassemble::makeAssembly(v, address);
     DisasmDump::printInstruction(address, &assembly, pos, nullptr);
 #endif
 }

@@ -57,15 +57,12 @@ int LinkedInstruction::getDispOffset() const {
 }
 
 void LinkedInstruction::regenerateAssembly() {
-    // Recreate the internal capstone data structure.
+    // Recreate the internal capstone data structure and Assembly.
     // Useful for printing the instruction (ChunkDumper).
-    std::string data = getStorage().getData();
-    std::vector<unsigned char> dataVector(data.begin(), data.end());
-    Assembly assembly = Disassemble::makeAssembly(
-        dataVector, instruction->getAddress());
+    getStorage()->clearAssembly();
 
-    DisassembledStorage storage(assembly);
-    setStorage(std::move(storage));
+    setAssembly(AssemblyFactory::buildAssembly(
+        getStorage(), instruction->getAddress()));
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
@@ -127,7 +124,8 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         return nullptr;
     }
 
-    auto linked = new LinkedInstruction(instruction, *assembly);
+    auto linked = new LinkedInstruction(instruction);
+    linked->setAssembly(std::make_shared(assembly));
     if(immIndex >= 0 && dispIndex >= 0) {
         auto dualLink = new ImmAndDispLink(immLink, dispLink);
         linked->setIndex(-1);
@@ -190,8 +188,8 @@ static size_t determineDisplacementSize(Assembly *assembly) {
     throw "don't know how to determined displacement size";
 }
 
-StackFrameInstruction::StackFrameInstruction(Assembly *assembly)
-    : RawInstruction(std::string(assembly->getBytes())) {
+StackFrameInstruction::StackFrameInstruction(Assembly *assembly) {
+    getStorage()->setData(std::string(assembly->getBytes()));
 
     this->id = assembly->getId();
 

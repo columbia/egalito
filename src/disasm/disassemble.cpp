@@ -241,6 +241,36 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
         address);
 }
 
+Assembly DisassembleInstruction::allocateAssembly(const std::string &bytes,
+    address_t address) {
+
+    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.c_str()),
+        bytes.length(), address);
+    Assembly *assembly = new Assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
+Assembly DisassembleInstruction::allocateAssembly(
+    const std::vector<unsigned char> &bytes, address_t address) {
+
+    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+        bytes.size(), address);
+    Assembly *assembly = new Assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
+Assembly DisassembleInstruction::makeAssembly(const std::string &bytes,
+    address_t address) {
+
+    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.c_str()),
+        bytes.length(), address);
+    Assembly assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &str, address_t address) {
 
