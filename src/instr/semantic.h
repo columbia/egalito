@@ -25,7 +25,7 @@ public:
     virtual Link *getLink() const = 0;
     virtual void setLink(Link *newLink) = 0;
 
-    virtual InstructionStorage::AssemblyPtr getAssembly() = 0;
+    virtual AssemblyPtr getAssembly() = 0;
 
     virtual void accept(InstructionVisitor *visitor) = 0;
 };
@@ -37,9 +37,9 @@ public:
     virtual const std::string &getData() const { return storage.getData(); }
     virtual size_t getSize() const { return storage.getSize(); }
 
-    virtual InstructionStorage::AssemblyPtr getAssembly()
+    virtual AssemblyPtr getAssembly()
         { return storage.getAssembly(0x0); }
-    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+    virtual void setAssembly(AssemblyPtr assembly)
         { storage.setAssembly(assembly); }
 protected:
     InstructionStorage *getStorage() { return &storage; }

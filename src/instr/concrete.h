@@ -12,9 +12,8 @@ public:
 class LiteralInstruction : public SemanticImpl {
 public:
     // Cannot disassemble a LiteralInstruction.
-    virtual InstructionStorage::AssemblyPtr getAssembly()
-        { return InstructionStorage::AssemblyPtr(); }
-    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+    virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
+    virtual void setAssembly(AssemblyPtr assembly)
         { throw "Can't call setAssembly() on LiteralInstruction"; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }

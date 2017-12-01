@@ -3,9 +3,7 @@
 #include "disasm/handle.h"
 #include "disasm/disassemble.h"
 
-InstructionStorage::AssemblyPtr InstructionStorage::getAssembly(
-    address_t address) {
-
+AssemblyPtr InstructionStorage::getAssembly(address_t address) {
     AssemblyPtr ptr = assembly.lock();
     if(!ptr) {
         ptr = AssemblyFactory::getInstance()->buildAssembly(this, address);
@@ -21,8 +19,8 @@ void InstructionStorage::setAssembly(AssemblyPtr assembly) {
 
 AssemblyFactory AssemblyFactory::instance;
 
-AssemblyFactory::AssemblyPtr AssemblyFactory::buildAssembly(
-    InstructionStorage *storage, address_t address) {
+AssemblyPtr AssemblyFactory::buildAssembly(InstructionStorage *storage,
+    address_t address) {
 
     static DisasmHandle handle(true);
     auto assembly = DisassembleInstruction(handle, true)

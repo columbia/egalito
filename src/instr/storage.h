@@ -6,9 +6,9 @@
 #include <memory>  // for std::shared_ptr
 #include "assembly.h"
 
+typedef std::shared_ptr<Assembly> AssemblyPtr;
+
 class InstructionStorage {
-public:
-    typedef std::shared_ptr<Assembly> AssemblyPtr;
 private:
     std::string rawData;
     std::weak_ptr<Assembly> assembly;
@@ -24,15 +24,11 @@ public:
 };
 
 class AssemblyFactory {
-public:
-    typedef InstructionStorage::AssemblyPtr AssemblyPtr;
 private:
     static AssemblyFactory instance;
 public:
     static AssemblyFactory *getInstance() { return &instance; }
 private:
-    friend class InstructionStorage;
-
     std::vector<AssemblyPtr> assemblyList;
 public:
     AssemblyPtr buildAssembly(InstructionStorage *storage, address_t address);

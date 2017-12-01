@@ -26,7 +26,7 @@ public:
     int getIndex() const { return opIndex; }
 
     static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, Assembly *assembly);
+        Instruction *instruction, AssemblyPtr assembly);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
@@ -59,9 +59,8 @@ public:
     void writeTo(std::string &target, bool useDisp);
     int getDispOffset() const { return opcode.size(); }
 
-    virtual InstructionStorage::AssemblyPtr getAssembly()
-        { return InstructionStorage::AssemblyPtr(); }
-    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+    virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
+    virtual void setAssembly(AssemblyPtr assembly)
         { throw "Can't call setAssembly() on ControlFlowInstruction"; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
@@ -94,9 +93,8 @@ public:
 
     virtual size_t getSize() const { return opCodeSize + displacementSize; }
 
-    virtual InstructionStorage::AssemblyPtr getAssembly()
-        { return InstructionStorage::AssemblyPtr(); }
-    virtual void setAssembly(InstructionStorage::AssemblyPtr assembly)
+    virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
+    virtual void setAssembly(AssemblyPtr assembly)
         { throw "Can't call setAssembly() on ControlFlowInstruction"; }
 
     void writeTo(char *target);

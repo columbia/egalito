@@ -261,24 +261,16 @@ Assembly DisassembleInstruction::allocateAssembly(
     return assembly;
 }
 
-Assembly DisassembleInstruction::makeAssembly(const std::string &bytes,
+AssemblyPtr DisassembleInstruction::makeAssemblyPtr(const std::string &bytes,
     address_t address) {
 
-    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.c_str()),
-        bytes.length(), address);
-    Assembly assembly(*insn);
-    cs_free(insn, 1);
-    return assembly;
+    return std::make_shared(allocateAssembly(bytes, address));
 }
 
-Assembly DisassembleInstruction::makeAssembly(
-    const std::vector<unsigned char> &str, address_t address) {
+AssemblyPtr DisassembleInstruction::makeAssemblyPtr(
+    const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(str.data()),
-        str.size(), address);
-    Assembly assembly(*insn);
-    cs_free(insn, 1);
-    return assembly;
+    return std::make_shared(allocateAssembly(bytes, address));
 }
 
 cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
