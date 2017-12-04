@@ -160,6 +160,9 @@ void DebloatPass::useFromCodeLinks() {
 void DebloatPass::useFromSpecialName() {
     for(auto module : CIter::children(program)) {
         for(auto function : CIter::functions(module)) {
+            if(function->hasName("ifunc_resolver")){
+                markTreeAsUsed(function);
+            }
             if(isFeatureEnabled("EGALITO_USE_GS")) {
                 if(function->hasName("egalito_hook_jit_fixup")) {
                     markTreeAsUsed(function);
