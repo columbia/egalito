@@ -21,6 +21,7 @@
 
 #include "marker.h"
 #include "vtable.h"
+#include "ifunc.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"
