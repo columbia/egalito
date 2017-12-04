@@ -3,18 +3,20 @@
 
 #include <vector>
 #include <utility>
-#include "conductor/setup.h"
 #include "types.h"
 
+class ConductorSetup;
+class VTableList;
 class VTable;
 
 class DataStructMigrator {
 private:
     std::vector<std::pair<address_t, uint64_t>> fixupList;
 public:
-    void migrate(ConductorSetup &setup);
+    void migrate(ConductorSetup *setup);
 private:
-    void migrateTable(VTable *loaderVTable, VTable *egalitoVTable);
+    void migrateList(VTableList *loaderVTableList, VTableList *sourceList);
+    void migrateTable(VTable *loaderVTableList, VTable *egalitoVTable);
     void commit();
 };
 

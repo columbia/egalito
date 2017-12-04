@@ -10,9 +10,10 @@
 #include "chunk/vtable.h"
 #include "chunk/dump.h"
 #include "log/log.h"
+#include "log/temp.h"
 
-void DataStructMigrator::migrate(ConductorSetup &setup) {
-    auto egalito = setup.getConductor()->getProgram()->getEgalito();
+void DataStructMigrator::migrate(ConductorSetup *setup) {
+    auto egalito = setup->getConductor()->getProgram()->getEgalito();
     if(!egalito) return;  // libegalito not injected
 
     auto egalitoVTableList = egalito->getVTableList();
@@ -21,6 +22,15 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
             " cannot migrate data structures");
         return;
     }
+
+    Module *libstdcxx = nullptr;
+    for(auto module : CIter::children(setup->getConductor()->getProgram())) {
+        if(module->getName() == "module-libstdc++.so.6") {
+            libstdcxx = module;
+            break;
+        }
+    }
+    auto libstdcxxVTableList = libstdcxx->getVTableList();
 
     ElfMap *loaderElf = new ElfMap("/proc/self/exe");
     SymbolList *loaderSymbolList = SymbolList::buildSymbolList(loaderElf);
@@ -31,15 +41,8 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
     auto loaderVTableList = DisassembleVTables().makeVTableList(
         loaderElf, loaderSymbolList, loaderRelocList, nullptr, nullptr);
 
-    // This relies on VTables having the same name in libegalito
-    // as in the loader (i.e. no address in the name).
-    for(auto egalitoVTable : CIter::children(egalitoVTableList)) {
-        auto named = loaderVTableList->getChildren()->getNamed();
-        auto loaderVTable = named->find(egalitoVTable->getName());
-        if(loaderVTable) {
-            migrateTable(loaderVTable, egalitoVTable);
-        }
-    }
+    migrateList(loaderVTableList, egalitoVTableList);
+    migrateList(loaderVTableList, libstdcxxVTableList);
 
     delete loaderVTableList;
     delete loaderRelocList;
@@ -49,12 +52,37 @@ void DataStructMigrator::migrate(ConductorSetup &setup) {
     commit();
 }
 
+void DataStructMigrator::migrateList(VTableList *loaderVTableList,
+    VTableList *sourceList) {
+
+    // This relies on VTables having the same name in libegalito
+    // as in the loader (i.e. no address in the name).
+    for(auto vtable : CIter::children(sourceList)) {
+#if 0   // we can not use named iterator for local objects
+        auto named = loaderVTableList->getChildren()->getNamed();
+        auto loaderVTable = named->find(vtable->getName());
+        if(loaderVTable) {
+            migrateTable(loaderVTable, vtable);
+        }
+#endif
+        for(auto loaderVTable : CIter::children(loaderVTableList)) {
+            if(loaderVTable->getName() == vtable->getName()
+                && loaderVTable->getChildren()->getIterable()->getCount()
+                    == vtable->getChildren()->getIterable()->getCount()) {
+
+                migrateTable(loaderVTable, vtable);
+                break;
+            }
+        }
+    }
+}
+
 void DataStructMigrator::migrateTable(VTable *loaderVTable,
-    VTable *egalitoVTable) {
+    VTable *sourceVTable) {
 
-    LOG(1, "migrating " << loaderVTable->getName());
+    LOG(10, "migrating " << loaderVTable->getName());
 
-    if(egalitoVTable->getChildren()->genericGetSize()
+    if(sourceVTable->getChildren()->genericGetSize()
         != loaderVTable->getChildren()->genericGetSize()) {
 
         LOG(1, "WARNING: vtable entry count mismatch for "
@@ -65,7 +93,7 @@ void DataStructMigrator::migrateTable(VTable *loaderVTable,
             i ++) {
 
             auto loaderEntry = loaderVTable->getChildren()->getIterable()->get(i);
-            auto egalitoEntry = egalitoVTable->getChildren()->getIterable()->get(i);
+            auto egalitoEntry = sourceVTable->getChildren()->getIterable()->get(i);
 
             if(!loaderEntry->getLink() || !egalitoEntry->getLink()) continue;
 
@@ -80,6 +108,17 @@ void DataStructMigrator::commit() {
     LOG(1, "Committing all updates to redirect loader vtables to libegalito");
     // NOTE: no virtual functions can be called after this point!
 
+#if 1
+    int i = 0;
+    for(auto fixup : fixupList) {
+        auto address = fixup.first;
+        auto value = fixup.second;
+        LOG(10, "    [" << std::hex << address << "] -> " << value);
+        if(++i == 5) break;
+    }
+    LOG(10, "    ...");
+#endif
+
     address_t minAddress = 0, maxAddress = 0;
     for(auto fixup : fixupList) {
         auto address = fixup.first;
@@ -89,7 +128,7 @@ void DataStructMigrator::commit() {
 
     // make memory writable, rounding to nearest page sizes
     minAddress = minAddress & ~0xfff;
-    maxAddress = (maxAddress + 0xfff) & ~0xfff;
+    maxAddress = (maxAddress + 1 + 0xfff) & ~0xfff;
     void *begin = reinterpret_cast<void *>(minAddress);
     mprotect(begin, maxAddress - minAddress, PROT_READ | PROT_WRITE);
 
