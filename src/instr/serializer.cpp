@@ -59,8 +59,7 @@ public:
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
-    virtual void visit(IndirectCallInstruction *indirect)
-        { write(TYPE_IndirectCallInstruction, indirect); }
+    virtual void visit(IndirectCallInstruction *indirect);
     virtual void visit(StackFrameInstruction *stackFrame)
         { write(TYPE_StackFrameInstruction, stackFrame); }
     virtual void visit(LiteralInstruction *literal)
@@ -87,20 +86,40 @@ void SemanticSerializer::visit(LinkedInstruction *linked) {
 }
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
-    write(TYPE_ControlFlowInstruction, controlFlow);
+    writer.write<uint8_t>(TYPE_ControlFlowInstruction);
+    writer.write<uint32_t>(controlFlow->getId());
+    writer.writeID(op.assign(controlFlow->getSource()));
+    writer.writeBytes<uint8_t>(controlFlow->getOpcode());
+    writer.writeString(controlFlow->getMnemonic());
+    writer.write<uint8_t>(controlFlow->getDisplacementSize());
+    writer.write<bool>(controlFlow->returns());
+
     assert(controlFlow->getLink());
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
 }
 
 void SemanticSerializer::visit(IndirectJumpInstruction *indirect) {
-    write(TYPE_IndirectJumpInstruction, indirect);
+    writer.write<uint8_t>(TYPE_IndirectJumpInstruction);
     writer.writeString(indirect->getMnemonic());
     writer.write<uint8_t>(indirect->getRegister());
+
+    InstrWriterGetData instrWriter;
+    indirect->accept(&instrWriter);
+    writer.writeBytes<uint8_t>(instrWriter.get());
 
     writer.write<uint32_t>(indirect->getJumpTables().size());
     for(auto jumpTable : indirect->getJumpTables()) {
         writer.writeID(op.assign(jumpTable));
     }
+}
+
+void SemanticSerializer::visit(IndirectCallInstruction *indirect) {
+    writer.write<uint8_t>(TYPE_IndirectCallInstruction);
+    writer.write<uint32_t>(indirect->getRegister());
+
+    InstrWriterGetData instrWriter;
+    indirect->accept(&instrWriter);
+    writer.writeBytes<uint8_t>(instrWriter.get());
 }
 
 void InstrSerializer::serialize(InstructionSemantic *semantic,
@@ -117,52 +136,42 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
 
     switch(static_cast<EgalitoInstrType>(type)) {
     case TYPE_IsolatedInstruction: {
-#if 0
-        return defaultDeserialize(instruction, address, reader);
-#else
         auto semantic = new IsolatedInstruction();
-        std::string bytes = reader.readBytes<uint8_t>();
-        semantic->setData(bytes);
+        semantic->setData(reader.readBytes<uint8_t>());
         return semantic;
-#endif
     }
     case TYPE_LinkedInstruction: {
-#if 0
-        auto semantic = defaultDeserialize(instruction, address, reader);
-        auto semantic2 = new LinkedInstruction(instruction);
-        semantic2->setAssembly(semantic->getAssembly());
-        delete semantic;
-        semantic2->setLink(LinkSerializer(op).deserialize(reader));
-        semantic2->setIndex(reader.read<uint8_t>());
-        return semantic2;
-#else
         auto semantic = new LinkedInstruction(instruction);
-        std::string bytes = reader.readBytes<uint8_t>();
-        semantic->setData(bytes);
+        semantic->setData(reader.readBytes<uint8_t>());
         semantic->setLink(LinkSerializer(op).deserialize(reader));
         semantic->setIndex(reader.read<uint8_t>());
         return semantic;
-#endif
     }
-    case TYPE_ReturnInstruction:
-        return defaultDeserialize(instruction, address, reader);
+    case TYPE_ReturnInstruction: {
+        auto semantic = new ReturnInstruction();
+        semantic->setData(reader.readBytes<uint8_t>());
+        return semantic;
+    }
     case TYPE_IndirectJumpInstruction: {
-        auto semantic = defaultDeserialize(instruction, address, reader);
         auto mnemonic = reader.readString();
         auto reg = reader.read<uint8_t>();
-        auto semantic2 = new IndirectJumpInstruction(
+        auto semantic = new IndirectJumpInstruction(
             static_cast<Register>(reg), mnemonic);
-        semantic2->setAssembly(semantic->getAssembly());
-        delete semantic;
+        semantic->setData(reader.readBytes<uint8_t>());
+
         auto tableCount = reader.read<uint32_t>();
         for(uint32_t i = 0; i < tableCount; i ++) {
-            semantic2->addJumpTable(op.lookupAs<JumpTable>(reader.readID()));
+            semantic->addJumpTable(op.lookupAs<JumpTable>(reader.readID()));
         }
-        return semantic2;
+        return semantic;
     }
-
-    case TYPE_IndirectCallInstruction:
-        return defaultDeserialize(instruction, address, reader);
+    case TYPE_IndirectCallInstruction: {
+        auto reg = reader.read<uint32_t>();
+        auto semantic = new IndirectCallInstruction(
+            static_cast<Register>(reg));
+        semantic->setData(reader.readBytes<uint8_t>());
+        return semantic;
+    }
     case TYPE_StackFrameInstruction:
         throw "StackFrameInstruction?";
     case TYPE_LiteralInstruction:
@@ -171,7 +180,16 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         return defaultDeserialize(instruction, address, reader);
     }
     case TYPE_ControlFlowInstruction: {
-        auto semantic = defaultDeserialize(instruction, address, reader);
+        auto id = reader.read<uint32_t>();  // NOT a chunk ID
+        auto source = op.lookupAs<Instruction>(reader.readID());
+        auto opcode = reader.readBytes<uint8_t>();
+        auto mnemonic = reader.readString();
+        auto dispSize = reader.read<uint8_t>();
+        auto semantic = new ControlFlowInstruction(id, source, opcode,
+            mnemonic, dispSize);
+        bool returns = reader.read<bool>();
+        if(!returns) semantic->setNonreturn();
+
         semantic->setLink(LinkSerializer(op).deserialize(reader));
         return semantic;
     }
