@@ -116,9 +116,18 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     auto type = reader.read<uint8_t>();
 
     switch(static_cast<EgalitoInstrType>(type)) {
-    case TYPE_IsolatedInstruction:
+    case TYPE_IsolatedInstruction: {
+#if 0
         return defaultDeserialize(instruction, address, reader);
+#else
+        auto semantic = new IsolatedInstruction();
+        std::string bytes = reader.readBytes<uint8_t>();
+        semantic->setData(bytes);
+        return semantic;
+#endif
+    }
     case TYPE_LinkedInstruction: {
+#if 0
         auto semantic = defaultDeserialize(instruction, address, reader);
         auto semantic2 = new LinkedInstruction(instruction);
         semantic2->setAssembly(semantic->getAssembly());
@@ -126,6 +135,14 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         semantic2->setLink(LinkSerializer(op).deserialize(reader));
         semantic2->setIndex(reader.read<uint8_t>());
         return semantic2;
+#else
+        auto semantic = new LinkedInstruction(instruction);
+        std::string bytes = reader.readBytes<uint8_t>();
+        semantic->setData(bytes);
+        semantic->setLink(LinkSerializer(op).deserialize(reader));
+        semantic->setIndex(reader.read<uint8_t>());
+        return semantic;
+#endif
     }
     case TYPE_ReturnInstruction:
         return defaultDeserialize(instruction, address, reader);
