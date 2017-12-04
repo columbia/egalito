@@ -41,6 +41,7 @@ _start:
     push    %rsi                    # place argc back
     push    %rsp                    # make stack frame
 
+    # these are the functions in loader!!!
     mov     $__libc_csu_fini, %r8
     mov     $__libc_csu_init, %rcx
     mov     $main, %rdi
@@ -53,6 +54,10 @@ _start:
 _start2:
     .cfi_startproc
     .cfi_undefined %rip
+    push    %rbx                    # keep alignment
+    call    egalito_callInit
+    pop     %rbx
+
     mov     initial_stack, %rsp     # restore %rsp
     mov     saved_rdx, %rdx         # restore %rdx
 

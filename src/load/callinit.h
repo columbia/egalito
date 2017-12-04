@@ -5,7 +5,8 @@ class ElfSpace;
 
 class CallInit {
 public:
-    static void callInitFunctions(ElfSpace *space, char **argv);
+    static void makeInitArray(ElfSpace *space, int argc, char **argv,
+        char **envp);
 };
 
 #endif

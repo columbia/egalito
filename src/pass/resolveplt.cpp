@@ -1,6 +1,7 @@
 #include "resolveplt.h"
 #include "elf/symbol.h"
 #include "chunk/program.h"
+#include "load/emulator.h"
 #include "operation/find2.h"
 
 #include "log/log.h"
@@ -18,9 +19,11 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     if(pltTrampoline->getTarget()) return;  // already resolved
 
     auto symbol = pltTrampoline->getTargetSymbol();
-    auto found = ChunkFind2(program)
-        .findFunction(symbol->getName(), module);
+    auto found = ChunkFind2(program).findFunction(symbol->getName(), module);
 
+    if(!found) {
+        found = LoaderEmulator::getInstance().findFunction(symbol->getName());
+    }
     if(found) {
         pltTrampoline->setTarget(found);
     }

@@ -1,6 +1,8 @@
-#include <cassert>
 #include <cstring>  // for memcpy in generated code
 #include "emulator.h"
+#include "chunk/link.h"
+#include "conductor/conductor.h"
+#include "operation/find2.h"
 
 namespace Emulation {
     #include "../dep/rtld/rtld.h"
@@ -22,58 +24,119 @@ namespace Emulation {
         #include "../dep/rtld/rtld_data2.c"
     }
 
-    static int function_not_implemented(void) { return 0; }
+    int function_not_implemented(void) { return 0; }
 }
 
-void LoaderEmulator::useArgv(char **argv) {
-    Emulation::_dl_argv = argv;
-    addSymbol("_dl_argv", Emulation::_dl_argv);
+static void createDataVariable2(address_t address, void *target,
+    Module *egalito) {
 
-    char **environ = argv;
-    while(*environ) environ ++;
-    environ ++;
-    Emulation::__environ = environ;
+    auto targetAddress = reinterpret_cast<address_t>(target);
+    address += egalito->getElfSpace()->getElfMap()->getBaseAddress();
+    auto region = egalito->getDataRegionList()->findRegionContaining(address);
+    auto link = new StackLink(targetAddress);
+    auto var = new DataVariable(region, address, link);
+    region->addVariable(var);
+}
+
+void LoaderEmulator::setArgumentLinks(char **argv, char **envp) {
+    auto symbolList = egalito->getElfSpace()->getSymbolList();
+
+    auto dl_argv = symbolList->find("_ZN9Emulation8_dl_argvE");
+    createDataVariable2(dl_argv->getAddress(), argv, egalito);
+
+    auto environ = symbolList->find("_ZN9Emulation9__environE");
+    createDataVariable2(environ->getAddress(), envp, egalito);
 }
 
 LoaderEmulator LoaderEmulator::instance;
 
-LoaderEmulator::LoaderEmulator() {
-    addSymbol("__environ", &Emulation::__environ);
-    addSymbol("environ", &Emulation::__environ);
+void LoaderEmulator::setup(Conductor *conductor) {
+    const char *functions[] = {
+        "_dl_find_dso_for_object",
+        "__tunable_get_val",
+        "__tunable_set_val",
+        "__tls_get_addr"
+    };
 
-    addSymbol("_dl_starting_up", Emulation::_dl_starting_up);
-    addSymbol("__libc_enable_secure", &Emulation::__libc_enable_secure);
-    //addSymbol("__libc_enable_secure", Emulation::not_yet_implemented);
+    this->egalito = conductor->getProgram()->getEgalito();
+    auto f = ChunkFind2(conductor).findFunctionInModule(
+        "_ZN9Emulation24function_not_implementedEv", egalito);
 
-    addSymbol("_dl_find_dso_for_object", (void *)Emulation::function_not_implemented);
-    addSymbol("__tunable_get_val", (void *)Emulation::function_not_implemented);
-    addSymbol("__tunable_set_val", (void *)Emulation::function_not_implemented);
-    addSymbol("__tls_get_addr", (void *)Emulation::function_not_implemented);
+    for(auto name : functions) {
+        addFunction(name, f);
+    }
 
-    Emulation::init_rtld_global(&Emulation::_rtld_global);
-    Emulation::init_rtld_global_ro(&Emulation::_rtld_global_ro);
+    struct {
+        const char *name;
+        const char *emulationName;
+    } data[] = {
+        "_rtld_global",     "_ZN9Emulation12_rtld_globalE",
+        "_rtld_global_ro",  "_ZN9Emulation15_rtld_global_roE",
+        "_dl_argv",         "_ZN9Emulation8_dl_argvE",
+        "__environ",        "_ZN9Emulation9__environE",
+        "environ",          "_ZN9Emulation9__environE",
+        "_dl_starting_up",  "_ZN9Emulation15_dl_starting_upE",
+        "__libc_enable_secure", "_ZN9Emulation20__libc_enable_secureE"
+    };
 
-    Emulation::_rtld_global._dl_rtld_lock_recursive
-        = (void *)&Emulation::function_not_implemented;
-    Emulation::_rtld_global._dl_rtld_unlock_recursive
-        = (void *)&Emulation::function_not_implemented;
-
-    addSymbol("_rtld_global", &Emulation::_rtld_global);
-    addSymbol("_rtld_global_ro", &Emulation::_rtld_global_ro);
-
-    Emulation::_rtld_global_ro._dl_lookup_symbol_x
-        = (void *)&Emulation::function_not_implemented;
+    auto symbolList = egalito->getElfSpace()->getSymbolList();
+    for(auto& d : data) {
+        auto sym = symbolList->find(d.emulationName);
+        auto addr = sym->getAddress();
+        addData(d.name, addr);
+    }
 }
 
-address_t LoaderEmulator::findSymbol(const std::string &symbol) {
-    auto it = symbolMap.find(symbol);
-    return (it != symbolMap.end() ? (*it).second : 0);
+void LoaderEmulator::addFunction(const std::string &symbol,
+    Function *function) {
+
+    functionMap[symbol] = function;
 }
 
-void LoaderEmulator::addSymbol(const std::string &symbol, const void *address) {
-    symbolMap[symbol] = reinterpret_cast<address_t>(address);
+void LoaderEmulator::addData(const std::string &symbol, address_t address) {
+    dataMap[symbol] = address;
 }
 
-void LoaderEmulator::addSymbol(const std::string &symbol, address_t address) {
-    symbolMap[symbol] = address;
+Function *LoaderEmulator::findFunction(const std::string &symbol) {
+    auto it = functionMap.find(symbol);
+    return (it != functionMap.end() ? (*it).second : nullptr);
+}
+
+Link *LoaderEmulator::makeDataLink(const std::string &symbol) {
+    auto it = dataMap.find(symbol);
+    if(it == dataMap.end()) return nullptr;
+
+    return LinkFactory::makeDataLink(egalito, (*it).second, true);
+}
+
+static void createDataVariable(void *p, Function *target, Module *egalito) {
+    address_t addr = reinterpret_cast<address_t>(p);
+    auto region = egalito->getDataRegionList()->findRegionContaining(addr);
+
+    auto link = new ExternalNormalLink(target);
+
+    auto var = new DataVariable(region, addr, link);
+    region->addVariable(var);
+}
+
+void LoaderEmulator::initRT(Conductor *conductor) {
+    auto sym = egalito->getElfSpace()->getSymbolList()->find(
+        "_ZN9Emulation12_rtld_globalE");
+    auto addr = sym->getAddress()
+        + egalito->getElfSpace()->getElfMap()->getBaseAddress();
+    auto rtld = reinterpret_cast<Emulation::my_rtld_global *>(addr);
+    Emulation::init_rtld_global(rtld);
+
+    auto symRo = egalito->getElfSpace()->getSymbolList()->find(
+        "_ZN9Emulation15_rtld_global_roE");
+    auto addrRo = symRo->getAddress()
+        + egalito->getElfSpace()->getElfMap()->getBaseAddress();
+    auto rtldRo = reinterpret_cast<Emulation::my_rtld_global_ro *>(addrRo);
+    Emulation::init_rtld_global_ro(rtldRo);
+
+    auto f = ChunkFind2(conductor).findFunctionInModule(
+        "_ZN9Emulation24function_not_implementedEv", egalito);
+    createDataVariable(&rtld->_dl_rtld_lock_recursive, f, egalito);
+    createDataVariable(&rtld->_dl_rtld_unlock_recursive, f, egalito);
+    createDataVariable(&rtldRo->_dl_lookup_symbol_x, f, egalito);
 }

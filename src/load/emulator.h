@@ -6,25 +6,33 @@
 #include "types.h"
 
 class Conductor;
+class Module;
+class Function;
+class Link;
 
 /** Emulate functionality provided by ld.so. */
 class LoaderEmulator {
 private:
+    Module *egalito;
     static LoaderEmulator instance;
 public:
     static LoaderEmulator &getInstance() { return instance; }
 private:
-    std::map<std::string, address_t> symbolMap;
+    std::map<std::string, Function *> functionMap;
+    std::map<std::string, address_t> dataMap;
 public:
-    void useArgv(char **argv);
-    void setGlobalConductor(Conductor *conductor);
+    void setup(Conductor *conductor);
 
-    address_t findSymbol(const std::string &symbol);
+    void setArgumentLinks(char **argv, char **envp);
+    void initRT(Conductor *conductor);
+
+    Function *findFunction(const std::string &symbol);
+    Link *makeDataLink(const std::string &symbol);
 private:
-    LoaderEmulator();
+    LoaderEmulator() : egalito(nullptr) {}
 
-    void addSymbol(const std::string &symbol, const void *address);
-    void addSymbol(const std::string &symbol, address_t address);
+    void addFunction(const std::string &symbol, Function *function);
+    void addData(const std::string &symbol, address_t address);
 };
 
 #endif

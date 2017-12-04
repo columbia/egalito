@@ -4,6 +4,7 @@
 #include "conductor.h"
 #include "transform/generator.h"
 #include "load/segmap.h"
+#include "load/emulator.h"
 #include "chunk/dump.h"
 #include "operation/find2.h"
 #include "pass/clearspatial.h"
@@ -29,6 +30,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
         conductor->parseEgalito(egalito);
+        LoaderEmulator::getInstance().setup(conductor);
     }
 
     if(withSharedLibs) {
