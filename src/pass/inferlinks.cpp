@@ -18,6 +18,14 @@ void InferLinksPass::visit(Function *function) {
 
 void InferLinksPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
+    if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+        // if this is RIP-relative, we should try to convert this to
+        // ControlFlowInstruction
+        return;
+    }
+    if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        return;
+    }
     if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
         if(v->getLink()) return;
         auto assembly = v->getAssembly();
