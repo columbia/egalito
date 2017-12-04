@@ -7,10 +7,15 @@
 #include "snippet/hook.h"
 #include "log/log.h"
 
+class ConductorSetup;
+class SandboxFlip;
+class IFuncList;
+
+extern ConductorSetup *egalito_conductor_setup;
 extern Conductor *egalito_conductor;
 extern GSTable *egalito_gsTable;
 extern Chunk *egalito_gsCallback;
-extern Sandbox *egalito_sandbox;
+extern IFuncList *egalito_ifuncList;
 
 void InjectBridgePass::visit(Module *module) {
 #define EGALITO_BRIDGE_ENTRY(name) \
@@ -19,14 +24,14 @@ void InjectBridgePass::visit(Module *module) {
         const char *name;
         address_t address;
     } list[] = {
+        EGALITO_BRIDGE_ENTRY(egalito_conductor_setup),
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
         EGALITO_BRIDGE_ENTRY(egalito_gsTable),
         EGALITO_BRIDGE_ENTRY(egalito_gsCallback),
-        EGALITO_BRIDGE_ENTRY(egalito_sandbox),
+        EGALITO_BRIDGE_ENTRY(egalito_ifuncList),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_entry_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_function_exit_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_instruction_hook),
-        EGALITO_BRIDGE_ENTRY(egalito_hook_jit_fixup_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_jit_reset_hook),
     };
 

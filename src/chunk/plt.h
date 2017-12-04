@@ -4,6 +4,7 @@
 #include <map>
 #include "chunk.h"
 #include "chunklist.h"
+#include "block.h"
 #include "elf/reloc.h"
 #include "types.h"
 
@@ -11,7 +12,7 @@ class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTTrampoline : public CompositeChunkImpl<Instruction> {
+class PLTTrampoline : public CompositeChunkImpl<Block> {
 private:
     ElfMap *sourceElf;
     Chunk *target;

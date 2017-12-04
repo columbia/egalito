@@ -5,12 +5,14 @@
 
 class ChunkVisitor;
 class Module;
+class IFuncList;
 
 class Conductor {
 private:
     ElfForest *forest;
     Program *program;
     address_t mainThreadPointer;
+    IFuncList *ifuncList;
 public:
     Conductor();
     ~Conductor();
@@ -25,7 +27,7 @@ public:
     void resolveTLSLinks();
     void resolveWeak();
     void resolveVTables();
-    void handleCopies();
+    void setupIFuncLazySelector();
     void fixDataSections();
     void fixPointersInData();
 
@@ -37,6 +39,7 @@ public:
     LibraryList *getLibraryList() const { return forest->getLibraryList(); }
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
+    IFuncList *getIFuncList() const { return ifuncList; }
 
     void check();
 private:

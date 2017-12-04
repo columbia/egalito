@@ -2,6 +2,7 @@
 #include "config.h"
 #include "conductor.h"
 #include "passes.h"
+#include "chunk/ifunc.h"
 #include "elf/elfmap.h"
 #include "generate/debugelf.h"
 #include "operation/find2.h"
@@ -14,14 +15,16 @@
 #include "pass/resolveplt.h"
 #include "pass/resolvetls.h"
 #include "pass/fixjumptables.h"
+#include "pass/ifunclazy.h"
 #include "pass/fixdataregions.h"
-#include "pass/libchacks.h"
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
 #include "log/log.h"
 #include "log/temp.h"
+
+IFuncList *egalito_ifuncList __attribute__((weak));
 
 Conductor::Conductor() {
     forest = new ElfForest();
@@ -113,16 +116,6 @@ void Conductor::resolvePLTLinks() {
 
     PopulatePLTPass populatePLT(this);
     program->accept(&populatePLT);
-
-    if(auto libc = getLibraryList()->getLibc()) {
-        LibcHacksPass libcHacks(program);
-        if(libc->getElfSpace()) {
-            libc->getElfSpace()->getModule()->accept(&libcHacks);
-        }
-        else {
-            LOG(1, "WARNING: don't have ElfSpace anymore for LibcHacks...");
-        }
-    }
 }
 
 void Conductor::resolveTLSLinks() {
@@ -176,14 +169,20 @@ void Conductor::resolveVTables() {
     }
 }
 
-void Conductor::handleCopies() {
-    HandleCopyRelocs handleCopyRelocs(this);
-    program->accept(&handleCopyRelocs);
+void Conductor::setupIFuncLazySelector() {
+    this->ifuncList = new IFuncList();
+    ::egalito_ifuncList = ifuncList;
+
+    IFuncLazyPass ifuncLazyPass(ifuncList);
+    program->accept(&ifuncLazyPass);
 }
 
 void Conductor::fixDataSections() {
     // first assign an effective address to each TLS region
     allocateTLSArea();
+
+    HandleCopyRelocs handleCopyRelocs(this);
+    program->accept(&handleCopyRelocs);
 
     fixPointersInData();
 

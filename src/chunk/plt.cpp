@@ -6,6 +6,7 @@
 #include "visitor.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
+#include "instr/writer.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dplt
@@ -54,18 +55,6 @@ bool PLTTrampoline::isIFunc() const {
     return false;
 }
 
-static IFuncList ifuncList;
-IFuncList *egalito_ifuncList = &ifuncList;
-extern "C" void ifunc_resolver();
-extern "C"
-void ifunc_resolve(address_t address) {
-    auto ifunc = egalito_ifuncList->getFor(address);
-    auto func = reinterpret_cast<IFuncList::IFuncType>(ifunc)();
-    *reinterpret_cast<address_t *>(address)
-        = reinterpret_cast<address_t>(func);
-}
-
-#include "instr/writer.h"
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
@@ -74,17 +63,12 @@ void PLTTrampoline::writeTo(char *target) {
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
-    for(auto instr : CIter::children(this)) {
-        char *output = reinterpret_cast<char *>(instr->getAddress());
-        InstrWriterCString writer(output);
-        instr->getSemantic()->accept(&writer);
-    }
-
-    address_t gotPLT = getGotPLTEntry();
-    if(isIFunc) {
-        ifuncList.add(gotPLT, getTarget());
-        *reinterpret_cast<address_t *>(gotPLT) = getAddress() + 10;
-        // dont't let fixDataSections overwrite this...
+    for(auto block : CIter::children(this)) {
+        for(auto instr : CIter::children(block)) {
+            char *output = reinterpret_cast<char *>(instr->getAddress());
+            InstrWriterCString writer(output);
+            instr->getSemantic()->accept(&writer);
+        }
     }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     static const uint32_t plt[] = {
@@ -110,7 +94,7 @@ void PLTTrampoline::writeTo(char *target) {
     *(uint32_t *)(target + 8) = plt[2];
 #endif
 
-    LOG(1, "created PLT entry to " << std::hex << (void *)gotPLT
+    LOG(1, "created PLT entry to " << std::hex << (void *)getGotPLTEntry()
         << " from 0x" << getAddress());
 }
 
@@ -120,7 +104,7 @@ void PLTTrampoline::accept(ChunkVisitor *visitor) {
 
 size_t PLTList::getPLTTrampolineSize() {
 #ifdef ARCH_X86_64
-    return 32;  // must be big enough to hold indirection for JIT-shuffling
+    return 64;  // must be big enough to hold indirection for JIT-shuffling
 #else
     return 16;
 #endif
