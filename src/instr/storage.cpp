@@ -23,6 +23,10 @@ AssemblyPtr InstructionStorage::getAssembly(address_t address) {
 void InstructionStorage::setAssembly(AssemblyPtr assembly) {
     AssemblyFactory::getInstance()->registerAssembly(assembly);
     this->assembly = assembly;
+
+    if(rawData.empty()) {
+        rawData.assign(assembly->getBytes(), assembly->getSize());
+    }
 }
 
 AssemblyFactory AssemblyFactory::instance;

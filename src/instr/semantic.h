@@ -37,6 +37,8 @@ private:
 public:
     virtual const std::string &getData() const { return storage.getData(); }
     virtual size_t getSize() const { return storage.getSize(); }
+    virtual void setData(const std::string &data)
+        { storage.setData(data); }
 
     virtual AssemblyPtr getAssembly()
         { return storage.getAssembly(0x0); }

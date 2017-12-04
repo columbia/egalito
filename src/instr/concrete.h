@@ -10,9 +10,6 @@ public:
     virtual void setLink(Link *link)
         { throw "Can't call setLink() on any IsolatedInstruction"; }
 
-    virtual void setData(const std::string &data)
-        { getStorage()->setData(data); }
-
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -26,9 +23,6 @@ public:
     virtual Link *getLink() const { return nullptr; }
     virtual void setLink(Link *link)
         { throw "Can't call setLink() on any LiteralInstruction"; }
-
-    virtual void setData(const std::string &data)
-        { getStorage()->setData(data); }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
