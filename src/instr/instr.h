@@ -24,7 +24,6 @@ public:
         { this->semantic = semantic; }
 
     virtual size_t getSize() const;
-    virtual void setSize(size_t value);
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

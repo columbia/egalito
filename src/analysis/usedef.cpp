@@ -456,7 +456,7 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
 #elif defined(ARCH_AARCH64)
     #define INVALID_ID  ARM64_INS_INVALID
 #endif
-    Assembly *assembly = instruction->getSemantic()->getAssembly();
+    AssemblyPtr assembly = instruction->getSemantic()->getAssembly();
     int id = INVALID_ID;
     if(assembly) {
         id = assembly->getId();
@@ -599,11 +599,11 @@ TreeNode *UseDef::shiftExtend(TreeNode *tree, arm64_shifter type,
     return tree;
 }
 
-void UseDef::fillImm(UDState *state, Assembly *assembly) {
+void UseDef::fillImm(UDState *state, AssemblyPtr assembly) {
     throw "NYI: fillImm";
 }
 
-void UseDef::fillReg(UDState *state, Assembly *assembly) {
+void UseDef::fillReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
@@ -611,7 +611,7 @@ void UseDef::fillReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_X86_64
     int reg0, reg1;
     size_t width0, width1;
@@ -661,7 +661,7 @@ void UseDef::fillRegToReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
+void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
 #ifdef ARCH_X86_64
     auto mem = assembly->getAsmOperands()->getOperands()[0].mem;
     int reg1;
@@ -744,7 +744,7 @@ void UseDef::fillMemToReg(UDState *state, Assembly *assembly, size_t width) {
 #endif
 }
 
-void UseDef::fillImmToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_X86_64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].imm;
     auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
@@ -797,7 +797,7 @@ void UseDef::fillImmToReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillRegRegToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
@@ -842,7 +842,7 @@ void UseDef::fillRegRegToReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillMemImmToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillMemImmToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
@@ -878,7 +878,7 @@ void UseDef::fillMemImmToReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegToMem(UDState *state, Assembly *assembly, size_t width) {
+void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
 #ifdef ARCH_X86_64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0;
@@ -946,7 +946,7 @@ void UseDef::fillRegToMem(UDState *state, Assembly *assembly, size_t width) {
 #endif
 }
 
-void UseDef::fillRegImmToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
@@ -989,7 +989,7 @@ void UseDef::fillRegImmToReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillMemToRegReg(UDState *state, Assembly *assembly) {
+void UseDef::fillMemToRegReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
@@ -1034,7 +1034,7 @@ void UseDef::fillMemToRegReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegRegToMem(UDState *state, Assembly *assembly) {
+void UseDef::fillRegRegToMem(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     assert(!assembly->isPostIndex());
 
@@ -1074,7 +1074,7 @@ void UseDef::fillRegRegToMem(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegRegImmToMem(UDState *state, Assembly *assembly) {
+void UseDef::fillRegRegImmToMem(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
@@ -1114,7 +1114,7 @@ void UseDef::fillRegRegImmToMem(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
+void UseDef::fillMemImmToRegReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     assert(assembly->isPostIndex());
 
@@ -1159,7 +1159,7 @@ void UseDef::fillMemImmToRegReg(UDState *state, Assembly *assembly) {
 #endif
 }
 
-void UseDef::fillRegRegRegToReg(UDState *state, Assembly *assembly) {
+void UseDef::fillRegRegRegToReg(UDState *state, AssemblyPtr assembly) {
 #ifdef ARCH_AARCH64
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
@@ -1269,7 +1269,7 @@ TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
     }
     return memTree;
 }
-void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
+void UseDef::fillAddOrSub(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         fillImmToReg(state, assembly);
@@ -1286,7 +1286,7 @@ void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillAnd(UDState *state, Assembly *assembly) {
+void UseDef::fillAnd(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         fillImmToReg(state, assembly);
@@ -1295,7 +1295,7 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillBsf(UDState *state, Assembly *assembly) {
+void UseDef::fillBsf(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
         int reg0, reg1;
@@ -1310,7 +1310,7 @@ void UseDef::fillBsf(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillBt(UDState *state, Assembly *assembly) {
+void UseDef::fillBt(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
         int reg0, reg1;
@@ -1341,7 +1341,7 @@ void UseDef::fillBt(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillCall(UDState *state, Assembly *assembly) {
+void UseDef::fillCall(UDState *state, AssemblyPtr assembly) {
     useReg(state, 0);
     defReg(state, 0, nullptr);
     for(int i = 2; i < 6; i++) {
@@ -1353,7 +1353,7 @@ void UseDef::fillCall(UDState *state, Assembly *assembly) {
         defReg(state, i, nullptr);
     }
 }
-void UseDef::fillCmp(UDState *state, Assembly *assembly) {
+void UseDef::fillCmp(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
         int reg0, reg1;
@@ -1401,47 +1401,47 @@ void UseDef::fillCmp(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillJa(UDState *state, Assembly *assembly) {
+void UseDef::fillJa(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJae(UDState *state, Assembly *assembly) {
+void UseDef::fillJae(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJb(UDState *state, Assembly *assembly) {
+void UseDef::fillJb(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJbe(UDState *state, Assembly *assembly) {
+void UseDef::fillJbe(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJe(UDState *state, Assembly *assembly) {
+void UseDef::fillJe(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJne(UDState *state, Assembly *assembly) {
+void UseDef::fillJne(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJg(UDState *state, Assembly *assembly) {
+void UseDef::fillJg(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJge(UDState *state, Assembly *assembly) {
+void UseDef::fillJge(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJl(UDState *state, Assembly *assembly) {
+void UseDef::fillJl(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJle(UDState *state, Assembly *assembly) {
+void UseDef::fillJle(UDState *state, AssemblyPtr assembly) {
     useReg(state, X86Register::FLAGS);
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillJmp(UDState *state, Assembly *assembly) {
+void UseDef::fillJmp(UDState *state, AssemblyPtr assembly) {
     auto semantic = state->getInstruction()->getSemantic();
     if(auto ij = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
         if(ij->getRegister() != X86_REG_RIP) {
@@ -1455,7 +1455,7 @@ void UseDef::fillJmp(UDState *state, Assembly *assembly) {
     }
     //LOG(1, "does this instruction use/def any other registers?");
 }
-void UseDef::fillLea(UDState *state, Assembly *assembly) {
+void UseDef::fillLea(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_MEM_REG) {
         size_t width = inferAccessWidth(
@@ -1466,7 +1466,7 @@ void UseDef::fillLea(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillMov(UDState *state, Assembly *assembly) {
+void UseDef::fillMov(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         size_t width = inferAccessWidth(
@@ -1485,7 +1485,7 @@ void UseDef::fillMov(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillMovabs(UDState *state, Assembly *assembly) {
+void UseDef::fillMovabs(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     assert(mode == AssemblyOperands::MODE_IMM_REG);
     if(mode == AssemblyOperands::MODE_IMM_REG) {
@@ -1495,13 +1495,13 @@ void UseDef::fillMovabs(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillMovsxd(UDState *state, Assembly *assembly) {
+void UseDef::fillMovsxd(UDState *state, AssemblyPtr assembly) {
     fillMov(state, assembly);
 }
-void UseDef::fillMovzx(UDState *state, Assembly *assembly) {
+void UseDef::fillMovzx(UDState *state, AssemblyPtr assembly) {
     fillMov(state, assembly);
 }
-void UseDef::fillPush(UDState *state, Assembly *assembly) {
+void UseDef::fillPush(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG) {
         size_t width = inferAccessWidth(
@@ -1515,7 +1515,7 @@ void UseDef::fillPush(UDState *state, Assembly *assembly) {
 #endif
 
 #ifdef ARCH_AARCH64
-void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
+void UseDef::fillAddOrSub(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_IMM) {
         fillRegImmToReg(state, assembly);
@@ -1527,13 +1527,13 @@ void UseDef::fillAddOrSub(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillAdr(UDState *state, Assembly *assembly) {
+void UseDef::fillAdr(UDState *state, AssemblyPtr assembly) {
     fillImmToReg(state, assembly);
 }
-void UseDef::fillAdrp(UDState *state, Assembly *assembly) {
+void UseDef::fillAdrp(UDState *state, AssemblyPtr assembly) {
     fillImmToReg(state, assembly);
 }
-void UseDef::fillAnd(UDState *state, Assembly *assembly) {
+void UseDef::fillAnd(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_IMM) {
         fillRegImmToReg(state, assembly);
@@ -1545,12 +1545,12 @@ void UseDef::fillAnd(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillB(UDState *state, Assembly *assembly) {
+void UseDef::fillB(UDState *state, AssemblyPtr assembly) {
     if(assembly->getMnemonic() != "b") {
         useReg(state, AARCH64GPRegister::NZCV);
     }
 }
-void UseDef::fillBl(UDState *state, Assembly *assembly) {
+void UseDef::fillBl(UDState *state, AssemblyPtr assembly) {
     for(int i = 0; i < 19; i++) {
         useReg(state, i);
         defReg(state, i, nullptr);
@@ -1562,7 +1562,7 @@ void UseDef::fillBl(UDState *state, Assembly *assembly) {
         defReg(state, 17, nullptr);
     }
 }
-void UseDef::fillBlr(UDState *state, Assembly *assembly) {
+void UseDef::fillBlr(UDState *state, AssemblyPtr assembly) {
     fillReg(state, assembly);
 
     for(int i = 0; i < 9; i++) {
@@ -1574,7 +1574,7 @@ void UseDef::fillBlr(UDState *state, Assembly *assembly) {
     }
     defReg(state, 30, nullptr);
 }
-void UseDef::fillBr(UDState *state, Assembly *assembly) {
+void UseDef::fillBr(UDState *state, AssemblyPtr assembly) {
     fillReg(state, assembly);
 
     auto instr = state->getInstruction();
@@ -1589,7 +1589,7 @@ void UseDef::fillBr(UDState *state, Assembly *assembly) {
         }
     }
 }
-void UseDef::fillCbz(UDState *state, Assembly *assembly) {
+void UseDef::fillCbz(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1600,7 +1600,7 @@ void UseDef::fillCbz(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodeConstant>(0));
     defReg(state, AARCH64GPRegister::ONETIME_NZCV, tree);
 }
-void UseDef::fillCbnz(UDState *state, Assembly *assembly) {
+void UseDef::fillCbnz(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1611,7 +1611,7 @@ void UseDef::fillCbnz(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodeConstant>(0));
     defReg(state, AARCH64GPRegister::ONETIME_NZCV, tree);
 }
-void UseDef::fillCmp(UDState *state, Assembly *assembly) {
+void UseDef::fillCmp(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1623,7 +1623,7 @@ void UseDef::fillCmp(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodeConstant>(imm));
     defReg(state, AARCH64GPRegister::NZCV, tree);
 }
-void UseDef::fillCsel(UDState *state, Assembly *assembly) {
+void UseDef::fillCsel(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1632,7 +1632,7 @@ void UseDef::fillCsel(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
     LOG(10, "NYI: " << assembly->getMnemonic());
 }
-void UseDef::fillCset(UDState *state, Assembly *assembly) {
+void UseDef::fillCset(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1641,7 +1641,7 @@ void UseDef::fillCset(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
     LOG(10, "NYI: " << assembly->getMnemonic());
 }
-void UseDef::fillEor(UDState *state, Assembly *assembly) {
+void UseDef::fillEor(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1650,7 +1650,7 @@ void UseDef::fillEor(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
     LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
-void UseDef::fillLdaxr(UDState *state, Assembly *assembly) {
+void UseDef::fillLdaxr(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         size_t width = (assembly->getBytes()[3] & 0b01000000) ? 8 : 4;
@@ -1660,7 +1660,7 @@ void UseDef::fillLdaxr(UDState *state, Assembly *assembly) {
         throw "unknown mode for LDAXR";
     }
 }
-void UseDef::fillLdp(UDState *state, Assembly *assembly) {
+void UseDef::fillLdp(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_MEM) {
         fillMemToRegReg(state, assembly);
@@ -1672,7 +1672,7 @@ void UseDef::fillLdp(UDState *state, Assembly *assembly) {
         throw "unknown mode for LDP";
     }
 }
-void UseDef::fillLdr(UDState *state, Assembly *assembly) {
+void UseDef::fillLdr(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         size_t width = (assembly->getBytes()[3] & 0b01000000) ? 8 : 4;
@@ -1688,7 +1688,7 @@ void UseDef::fillLdr(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdrh(UDState *state, Assembly *assembly) {
+void UseDef::fillLdrh(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillMemToReg(state, assembly, 2);
@@ -1697,7 +1697,7 @@ void UseDef::fillLdrh(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdrb(UDState *state, Assembly *assembly) {
+void UseDef::fillLdrb(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillMemToReg(state, assembly, 1);
@@ -1706,7 +1706,7 @@ void UseDef::fillLdrb(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdrsw(UDState *state, Assembly *assembly) {
+void UseDef::fillLdrsw(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillMemToReg(state, assembly, 4);
@@ -1715,7 +1715,7 @@ void UseDef::fillLdrsw(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdrsh(UDState *state, Assembly *assembly) {
+void UseDef::fillLdrsh(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillMemToReg(state, assembly, 2);
@@ -1724,7 +1724,7 @@ void UseDef::fillLdrsh(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdrsb(UDState *state, Assembly *assembly) {
+void UseDef::fillLdrsb(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillMemToReg(state, assembly, 1);
@@ -1733,7 +1733,7 @@ void UseDef::fillLdrsb(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLdur(UDState *state, Assembly *assembly) {
+void UseDef::fillLdur(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         size_t width = (assembly->getBytes()[3] & 0b01000000) ? 8 : 4;
@@ -1743,7 +1743,7 @@ void UseDef::fillLdur(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillLsl(UDState *state, Assembly *assembly) {
+void UseDef::fillLsl(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_IMM) {
         fillRegImmToReg(state, assembly);
@@ -1755,7 +1755,7 @@ void UseDef::fillLsl(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillMadd(UDState *state, Assembly *assembly) {
+void UseDef::fillMadd(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_REG_REG) {
         fillRegRegRegToReg(state, assembly);
@@ -1764,10 +1764,10 @@ void UseDef::fillMadd(UDState *state, Assembly *assembly) {
         throw "unknown mode for Madd";
     }
 }
-void UseDef::fillNop(UDState *state, Assembly *assembly) {
+void UseDef::fillNop(UDState *state, AssemblyPtr assembly) {
     /* Nothing to do */
 }
-void UseDef::fillOrr(UDState *state, Assembly *assembly) {
+void UseDef::fillOrr(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1776,7 +1776,7 @@ void UseDef::fillOrr(UDState *state, Assembly *assembly) {
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
     LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
-void UseDef::fillMov(UDState *state, Assembly *assembly) {
+void UseDef::fillMov(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
         fillRegToReg(state, assembly);
@@ -1788,7 +1788,7 @@ void UseDef::fillMov(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillMrs(UDState *state, Assembly *assembly) {
+void UseDef::fillMrs(UDState *state, AssemblyPtr assembly) {
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
     int reg0 = AARCH64GPRegister::convertToPhysical(op0);
     size_t width0 = AARCH64GPRegister::getWidth(reg0, op0);
@@ -1796,12 +1796,12 @@ void UseDef::fillMrs(UDState *state, Assembly *assembly) {
         reg0,
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
 }
-void UseDef::fillRet(UDState *state, Assembly *assembly) {
+void UseDef::fillRet(UDState *state, AssemblyPtr assembly) {
     for(int i = 0; i < 8; i++) {
         useReg(state, i);
     }
 }
-void UseDef::fillStp(UDState *state, Assembly *assembly) {
+void UseDef::fillStp(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG_MEM) {
         fillRegRegToMem(state, assembly);
@@ -1813,7 +1813,7 @@ void UseDef::fillStp(UDState *state, Assembly *assembly) {
         throw "unknown mode for STP";
     }
 }
-void UseDef::fillStr(UDState *state, Assembly *assembly) {
+void UseDef::fillStr(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         size_t width = (assembly->getBytes()[3] & 0b01000000) ? 8 : 4;
@@ -1823,7 +1823,7 @@ void UseDef::fillStr(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillStrb(UDState *state, Assembly *assembly) {
+void UseDef::fillStrb(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillRegToMem(state, assembly, 1);
@@ -1832,7 +1832,7 @@ void UseDef::fillStrb(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillStrh(UDState *state, Assembly *assembly) {
+void UseDef::fillStrh(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
         fillRegToMem(state, assembly, 2);
@@ -1841,7 +1841,7 @@ void UseDef::fillStrh(UDState *state, Assembly *assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
-void UseDef::fillSxtw(UDState *state, Assembly *assembly) {
+void UseDef::fillSxtw(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
         LOG(10, "NYI fully: " << assembly->getMnemonic());

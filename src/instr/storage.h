@@ -3,10 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <memory>  // for std::shared_ptr
 #include "assembly.h"
-
-typedef std::shared_ptr<Assembly> AssemblyPtr;
 
 class InstructionStorage {
 private:

@@ -7,6 +7,7 @@
 // Defines LinkedInstruction, ControlFlowInstruction, etc for x86_64.
 
 #ifdef ARCH_X86_64
+class Instruction;
 class Module;
 
 class LinkedInstruction : public LinkDecorator<SemanticImpl> {
@@ -89,13 +90,17 @@ private:
     size_t displacementSize;
     long int displacement;
 public:
-    StackFrameInstruction(Assembly *assembly);
+    StackFrameInstruction(AssemblyPtr assembly);
 
     virtual size_t getSize() const { return opCodeSize + displacementSize; }
 
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)
-        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
+        { throw "Can't call setAssembly() on StackFrameInstruction"; }
+
+    virtual Link *getLink() const { return nullptr; }
+    virtual void setLink(Link *link)
+        { throw "Can't call setLink() on StackFrameInstruction"; }
 
     void writeTo(char *target);
     void writeTo(std::string &target);
@@ -107,7 +112,7 @@ public:
 };
 
 // not used for X86, but we need a definition for visitors
-class LinkedLiteralInstruction : public IsolatedInstruction {
+class LinkedLiteralInstruction : public SemanticImpl {
 public:
 };
 #endif

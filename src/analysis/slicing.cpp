@@ -79,7 +79,7 @@ private:
     } a3;
 #endif
 public:
-    SlicingInstructionState(SearchState *state, Assembly *assembly)
+    SlicingInstructionState(SearchState *state, AssemblyPtr assembly)
         : state(state), memTree(nullptr) { determineMode(assembly); }
 
     arg1_t *get1() { return &a1; }
@@ -98,7 +98,7 @@ public:
     void defaultDetectRegMem(bool overwriteTarget);
     void defaultDetectRegImmReg(bool overwriteTarget);
 private:
-    void determineMode(Assembly *assembly);
+    void determineMode(AssemblyPtr assembly);
     bool convertRegisterSize(Register &reg);
     SearchState *getState() const { return state; }
 };
@@ -108,7 +108,7 @@ SearchState::~SearchState() {
 }
 
 
-void SlicingInstructionState::determineMode(Assembly *assembly) {
+void SlicingInstructionState::determineMode(AssemblyPtr assembly) {
     mode = MODE_UNKNOWN;
     auto asmOps = assembly->getAsmOperands();
 #ifdef ARCH_X86_64

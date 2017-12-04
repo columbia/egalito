@@ -3,6 +3,14 @@
 #include "disasm/handle.h"
 #include "disasm/disassemble.h"
 
+const std::string &InstructionStorage::getData() const {
+    return rawData;
+}
+
+size_t InstructionStorage::getSize() const {
+    return rawData.size();
+}
+
 AssemblyPtr InstructionStorage::getAssembly(address_t address) {
     AssemblyPtr ptr = assembly.lock();
     if(!ptr) {
@@ -25,7 +33,7 @@ AssemblyPtr AssemblyFactory::buildAssembly(InstructionStorage *storage,
     static DisasmHandle handle(true);
     auto assembly = DisassembleInstruction(handle, true)
         .allocateAssembly(storage->getData(), address);
-    auto ptr = std::make_shared(assembly);
+    auto ptr = AssemblyPtr(assembly);
     assemblyList.push_back(ptr);
     return ptr;
 }

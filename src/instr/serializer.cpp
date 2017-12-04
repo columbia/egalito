@@ -11,7 +11,6 @@
 
 enum EgalitoInstrType {
     TYPE_UNKNOWN_INSTR = 0,
-    TYPE_RawInstruction,
     TYPE_IsolatedInstruction,
     TYPE_LinkedInstruction,
     TYPE_ControlFlowInstruction,
@@ -53,8 +52,6 @@ public:
 private:
     void write(EgalitoInstrType type, InstructionSemantic *forBytes);
 public:
-    virtual void visit(RawInstruction *raw)
-        { write(TYPE_RawInstruction, raw); }
     virtual void visit(IsolatedInstruction *isolated)
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked);
@@ -119,12 +116,12 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
     auto type = reader.read<uint8_t>();
 
     switch(static_cast<EgalitoInstrType>(type)) {
-    case TYPE_RawInstruction:
     case TYPE_IsolatedInstruction:
         return defaultDeserialize(instruction, address, reader);
     case TYPE_LinkedInstruction: {
         auto semantic = defaultDeserialize(instruction, address, reader);
-        auto semantic2 = new LinkedInstruction(instruction, *semantic->getAssembly());
+        auto semantic2 = new LinkedInstruction(instruction);
+        semantic2->setAssembly(semantic->getAssembly());
         delete semantic;
         semantic2->setLink(LinkSerializer(op).deserialize(reader));
         semantic2->setIndex(reader.read<uint8_t>());
@@ -137,8 +134,8 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         auto mnemonic = reader.readString();
         auto reg = reader.read<uint8_t>();
         auto semantic2 = new IndirectJumpInstruction(
-            *semantic->getAssembly(),
             static_cast<Register>(reg), mnemonic);
+        semantic2->setAssembly(semantic->getAssembly());
         delete semantic;
         auto tableCount = reader.read<uint32_t>();
         for(uint32_t i = 0; i < tableCount; i ++) {
@@ -183,8 +180,9 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
     }
     catch(const char *what) {
         LOG(1, "DISASSEMBLY ERROR: " << what);
-        RawByteStorage storage(bytes);
-        return new RawInstruction(std::move(storage));
+        auto ins = new IsolatedInstruction();
+        ins->setData(bytes);
+        return ins;
     }
 #else
     RawByteStorage storage(bytes);

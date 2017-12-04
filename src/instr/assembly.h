@@ -4,6 +4,7 @@
 #include <types.h>
 #include <string>
 #include <vector>
+#include <memory>  // for std::shared_ptr
 
 #include <capstone/capstone.h>
 
@@ -139,5 +140,8 @@ public:
 private:
     void overrideCapstone(const cs_insn &insn);
 };
+
+// We use shared pointers to Assembly instances, not raw pointers.
+typedef std::shared_ptr<Assembly> AssemblyPtr;
 
 #endif

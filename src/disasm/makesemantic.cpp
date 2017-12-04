@@ -49,22 +49,25 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_REG) {
         if(ins->id == X86_INS_CALL) {
-            semantic = new IndirectCallInstruction(*ins, op->reg);
+            semantic = new IndirectCallInstruction(op->reg);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            semantic = new IndirectJumpInstruction(
-                *ins, op->reg, ins->mnemonic);
+            semantic = new IndirectJumpInstruction(op->reg, ins->mnemonic);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
             // cast is only necessary for old capstone in egalitoci
             semantic = new IndirectJumpInstruction(
-                *ins, static_cast<Register>(op->mem.base), ins->mnemonic);
+                static_cast<Register>(op->mem.base), ins->mnemonic);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
     }
     else if(ins->id == X86_INS_RET) {
-        semantic = new ReturnInstruction(DisassembledStorage(*ins));
+        semantic = new ReturnInstruction();
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
     }
 #elif defined(ARCH_AARCH64)
     cs_arm64 *x = &ins->detail->arm64;

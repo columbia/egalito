@@ -49,30 +49,32 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
     }
 
     auto semantic = instruction->getSemantic();
-    if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
-        auto assembly = v->getAssembly();
-        if(!assembly) return;
+    auto assembly = semantic->getAssembly();
+
 #ifdef ARCH_X86_64
-        auto linked
-            = LinkedInstruction::makeLinked(module, instruction, assembly);
-#else
-        auto linked = LinkedInstruction::makeLinked(module, instruction,
-            assembly, r, resolveWeak);
-#endif
-        if(linked) {
-            instruction->setSemantic(linked);
-            delete v;
-        }
+    auto linked
+        = LinkedInstruction::makeLinked(module, instruction, assembly);
+    if(linked) {
+        instruction->setSemantic(linked);
+        delete semantic;
     }
-#ifdef ARCH_AARCH64
-    else if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
-        //TemporaryLogLevel tll("chunk", 10);
+#else
+    InstructionSemantic *linked;
+    if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
         auto raw = v->getStorage().getData();
         auto linked = LinkedLiteralInstruction::makeLinked(module, instruction,
             raw, r, resolveWeak);
         if(linked) {
             instruction->setSemantic(linked);
-            delete v;
+            delete semantic;
+        }
+    }
+    else {
+        auto linked = LinkedInstruction::makeLinked(module, instruction,
+            assembly, r, resolveWeak);
+        if(linked) {
+            instruction->setSemantic(linked);
+            delete semantic;
         }
     }
 #endif
@@ -96,22 +98,20 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
             delete oldLink;
         }
     }
-    else if(auto v = dynamic_cast<DisassembledInstruction *>(
-        instruction->getSemantic())) {
-
+    else {
+        auto semantic = instruction->getSemantic();
         auto assembly = v->getAssembly();
-        if(!assembly) return;
-
-        auto linked = new LinkedInstruction(instruction, *assembly);
+        auto linked = new LinkedInstruction(instruction);
+        linked->setAssembly(assembly);
         instruction->setSemantic(linked);
-        delete v;
+        delete semantic;
 
         auto targetAddress = r->getSymbol()->getAddress() + r->getAddend();
 
         for(size_t op = 0;
             op < linked->getAssembly()->getAsmOperands()->getOpCount();
             op ++) {
-            int opOffset = MakeSemantic::getDispOffset(linked->getAssembly(), op);
+            int opOffset = MakeSemantic::getDispOffset(&*linked->getAssembly(), op);
             if(r->getAddress() - instruction->getAddress()
                 == (address_t)opOffset) {
 
@@ -120,7 +120,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction,
         }
 
         bool isRelative = MakeSemantic::isRIPRelative(
-            linked->getAssembly(), linked->getIndex());
+            &*linked->getAssembly(), linked->getIndex());
         auto newLink = module->getDataRegionList()->createDataLink(
             targetAddress, module, isRelative);
         linked->setLink(newLink);

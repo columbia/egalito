@@ -26,10 +26,6 @@ size_t Instruction::getSize() const {
     return semantic->getSize();
 }
 
-void Instruction::setSize(size_t value) {
-    semantic->setSize(value);
-}
-
 void Instruction::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 

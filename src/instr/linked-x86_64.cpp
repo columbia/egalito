@@ -10,7 +10,7 @@
 
 #ifdef ARCH_X86_64
 int LinkedInstruction::getDispSize() {
-    return MakeSemantic::determineDisplacementSize(getAssembly());
+    return MakeSemantic::determineDisplacementSize(&*getAssembly());
 }
 
 unsigned LinkedInstruction::calculateDisplacement() {
@@ -25,10 +25,10 @@ unsigned LinkedInstruction::calculateDisplacement() {
 }
 
 void LinkedInstruction::writeTo(char *target, bool useDisp) {
-    Assembly *assembly = getAssembly();
+    auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
-    int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
+    int dispOffset = MakeSemantic::getDispOffset(&*assembly, opIndex);
     int i = 0;
     std::memcpy(target + i, assembly->getBytes() + i, dispOffset);
     i += dispOffset;
@@ -39,10 +39,10 @@ void LinkedInstruction::writeTo(char *target, bool useDisp) {
 }
 
 void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
-    Assembly *assembly = getAssembly();
+    auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
-    int dispOffset = MakeSemantic::getDispOffset(assembly, opIndex);
+    int dispOffset = MakeSemantic::getDispOffset(&*assembly, opIndex);
     target.append(reinterpret_cast<const char *>(assembly->getBytes()),
         dispOffset);
     target.append(reinterpret_cast<const char *>(&newDisp), dispSize);
@@ -53,7 +53,7 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
 
 int LinkedInstruction::getDispOffset() const {
     auto assembly = const_cast<LinkedInstruction *>(this)->getAssembly();
-    return MakeSemantic::getDispOffset(assembly, opIndex);
+    return MakeSemantic::getDispOffset(&*assembly, opIndex);
 }
 
 void LinkedInstruction::regenerateAssembly() {
@@ -61,12 +61,12 @@ void LinkedInstruction::regenerateAssembly() {
     // Useful for printing the instruction (ChunkDumper).
     getStorage()->clearAssembly();
 
-    setAssembly(AssemblyFactory::buildAssembly(
+    setAssembly(AssemblyFactory::getInstance()->buildAssembly(
         getStorage(), instruction->getAddress()));
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
-    Instruction *instruction, Assembly *assembly) {
+    Instruction *instruction, AssemblyPtr assembly) {
 
     auto asmOps = assembly->getAsmOperands();
     int immIndex = -1;
@@ -75,7 +75,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Link *dispLink = nullptr;
     for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
         const cs_x86_op *op = &asmOps->getOperands()[i];
-        if(MakeSemantic::isRIPRelative(assembly, i)) {
+        if(MakeSemantic::isRIPRelative(&*assembly, i)) {
             address_t target
                 = (instruction->getAddress() + instruction->getSize())
                 + op->mem.disp;
@@ -125,7 +125,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     }
 
     auto linked = new LinkedInstruction(instruction);
-    linked->setAssembly(std::make_shared(assembly));
+    linked->setAssembly(assembly);
     if(immIndex >= 0 && dispIndex >= 0) {
         auto dualLink = new ImmAndDispLink(immLink, dispLink);
         linked->setIndex(-1);
@@ -169,12 +169,12 @@ diff_t ControlFlowInstruction::calculateDisplacement() {
 }
 
 void StackFrameInstruction::writeTo(char *target) {
-    std::memcpy(target, getStorage().getData().c_str(), opCodeSize);
+    std::memcpy(target, getStorage()->getData().c_str(), opCodeSize);
     std::memcpy(target + opCodeSize, &displacement, displacementSize);
 }
 
 void StackFrameInstruction::writeTo(std::string &target) {
-    target.append(getStorage().getData(), 0, opCodeSize);
+    target.append(getStorage()->getData(), 0, opCodeSize);
     target.append(
         reinterpret_cast<const char *>(&displacement), displacementSize);
 }
@@ -188,12 +188,13 @@ static size_t determineDisplacementSize(Assembly *assembly) {
     throw "don't know how to determined displacement size";
 }
 
-StackFrameInstruction::StackFrameInstruction(Assembly *assembly) {
+StackFrameInstruction::StackFrameInstruction(AssemblyPtr assembly) {
     getStorage()->setData(std::string(assembly->getBytes()));
+    setAssembly(assembly);
 
     this->id = assembly->getId();
 
-    this->displacementSize = determineDisplacementSize(assembly);
+    this->displacementSize = determineDisplacementSize(&*assembly);
     this->opCodeSize = assembly->getSize() - displacementSize;
     auto asmOps = assembly->getAsmOperands();
     for(size_t i = 0; i < asmOps->getOpCount(); i++) {

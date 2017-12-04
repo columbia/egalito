@@ -6,6 +6,13 @@
 
 class IsolatedInstruction : public SemanticImpl {
 public:
+    virtual Link *getLink() const { return nullptr; }
+    virtual void setLink(Link *link)
+        { throw "Can't call setLink() on any IsolatedInstruction"; }
+
+    virtual void setData(const std::string &data)
+        { getStorage()->setData(data); }
+
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -15,6 +22,13 @@ public:
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)
         { throw "Can't call setAssembly() on LiteralInstruction"; }
+
+    virtual Link *getLink() const { return nullptr; }
+    virtual void setLink(Link *link)
+        { throw "Can't call setLink() on any LiteralInstruction"; }
+
+    virtual void setData(const std::string &data)
+        { getStorage()->setData(data); }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };

@@ -26,6 +26,7 @@ public:
     virtual void setLink(Link *newLink) = 0;
 
     virtual AssemblyPtr getAssembly() = 0;
+    virtual void setAssembly(AssemblyPtr assembly) = 0;
 
     virtual void accept(InstructionVisitor *visitor) = 0;
 };

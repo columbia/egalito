@@ -45,7 +45,7 @@ TEST_CASE("Disassemble Instructions", "[disasm][ins]") {
     }
 #endif
 
-    DisassembledInstruction *disasmIns = static_cast<DisassembledInstruction *>(ins->getSemantic());
+    auto disasmIns = ins->getSemantic();
 
     const char *expectedBytes = reinterpret_cast<const char *>(bytes.data());
     const char *actualBytes = disasmIns->getAssembly()->getBytes();

@@ -137,6 +137,8 @@ public:
         address_t address = 0);
     AssemblyPtr makeAssemblyPtr(const std::vector<unsigned char> &bytes,
         address_t address = 0);
+    Assembly makeAssembly(const std::vector<unsigned char> &bytes,
+        address_t address = 0);
 private:
     cs_insn *runDisassembly(const uint8_t *bytes, size_t size,
         address_t address);
