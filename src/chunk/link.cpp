@@ -18,6 +18,10 @@ address_t OffsetLink::getTargetAddress() const {
     return target->getAddress() + offset;
 }
 
+ChunkRef PLTLink::getTarget() const {
+    return pltTrampoline;
+}
+
 address_t PLTLink::getTargetAddress() const {
     return pltTrampoline->getAddress();
 }
@@ -161,10 +165,13 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
         versionedName.append(ver->getName());
     }
 
-    // we cannot make a useful link to emulator symbol yet
-    if(auto addr = LoaderEmulator::getInstance().findSymbol(name)) {
-        LOG(10, "    symbol only link to emulator! at " << std::hex << addr);
-        return new SymbolOnlyLink(symbol, addr);
+    if(auto func = LoaderEmulator::getInstance().findFunction(name)) {
+        LOG(10, "    link to emulated function!");
+        return new ExternalNormalLink(func);
+    }
+    if(auto link = LoaderEmulator::getInstance().makeDataLink(name)) {
+        LOG(10, "    link to emulated data!");
+        return link;
     }
 
     for(auto library : *conductor->getLibraryList()) {

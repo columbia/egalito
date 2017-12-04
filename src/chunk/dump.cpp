@@ -110,10 +110,17 @@ void ChunkDumper::visit(MarkerList *markerList) {
 
 void ChunkDumper::visit(VTable *vtable) {
     LOG(1, vtable->getName());
+    recurse(vtable);
 }
 
 void ChunkDumper::visit(VTableEntry *vtableEntry) {
-    LOG(1, "NYI");
+    if(auto target = vtableEntry->getLink()->getTarget()) {
+        LOG(1, " " << std::hex << vtableEntry->getLink()->getTargetAddress()
+            << " " << target->getName());
+    }
+    else {
+        LOG(1, " " << std::hex << vtableEntry->getLink()->getTargetAddress());
+    }
 }
 
 void InstrDumper::visit(RawInstruction *semantic) {
@@ -157,19 +164,19 @@ void InstrDumper::visit(ControlFlowInstruction *semantic) {
     auto target = link ? link->getTarget() : nullptr;
 
     std::ostringstream targetName;
-    if(target) {
+    if(auto v = dynamic_cast<PLTLink *>(link)) {
+        targetName << v->getPLTTrampoline()->getName();
+    }
+    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
+        targetName << v->getSymbol()->getName() << "@symonly";
+    }
+    else if(target) {
         if(target->getName() != "???") {
             targetName << target->getName().c_str();
         }
         else {
             targetName << "target-" << std::hex << &target;
         }
-    }
-    else if(auto v = dynamic_cast<PLTLink *>(link)) {
-        targetName << v->getPLTTrampoline()->getName();
-    }
-    else if(auto v = dynamic_cast<SymbolOnlyLink *>(link)) {
-        targetName << v->getSymbol()->getName() << "@symonly";
     }
     else targetName << "[unresolved]";
 

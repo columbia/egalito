@@ -88,7 +88,7 @@ public:
         : originalAddress(originalAddress), pltTrampoline(pltTrampoline) {}
 
     PLTTrampoline *getPLTTrampoline() const { return pltTrampoline; }
-    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };
 
@@ -115,6 +115,16 @@ public:
     Symbol *getSymbol() const { return symbol; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const { return target; }
+};
+
+class StackLink : public Link {
+private:
+    address_t targetAddress;
+public:
+    StackLink(address_t target) : targetAddress(target) {}
+
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return targetAddress; }
 };
 
 class Marker;
