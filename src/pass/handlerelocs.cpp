@@ -47,6 +47,14 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         // and ExternalCalls pass deal with it
         return;
     }
+    if(dynamic_cast<IndirectCallInstruction *>(instruction->getSemantic())) {
+        // if this is RIP-relative, we should try to convert this to
+        // ControlFlowInstruction
+        return;
+    }
+    if(dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
+        return;
+    }
 
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
