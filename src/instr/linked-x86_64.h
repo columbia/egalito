@@ -27,6 +27,10 @@ public:
     void setIndex(int index) { opIndex = index; }
     int getIndex() const { return opIndex; }
 
+    // should be only necessary in insertBeforeJumpTo
+    void setInstruction(Instruction *instruction)
+        { this->instruction = instruction; }
+
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, Assembly *assembly);
 
