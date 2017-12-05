@@ -31,7 +31,6 @@ void Program::serialize(ChunkSerializerOperations &op,
 
     LOG(1, "entry point is " << entryPoint);
     writer.write(op.assign(entryPoint));
-    //writer.write(static_cast<FlatChunk::IDType>(-1));
 
     op.serializeChildren(this, writer);
     LOG(1, "done serializing program");
@@ -40,9 +39,7 @@ void Program::serialize(ChunkSerializerOperations &op,
 bool Program::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    FlatChunk::IDType id;
-    reader.read(id);
-    entryPoint = op.lookup(id);
+    entryPoint = op.lookup(reader.readID());
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();

@@ -6,12 +6,12 @@
 #include "controlflow.h"
 #include "slicingmatch.h"
 #include "instr/register.h"
+#include "instr/assembly.h"
 
 class Module;
 class Function;
 class Instruction;
 class TreeNode;
-class Assembly;
 
 class UDState;
 
@@ -303,7 +303,7 @@ public:
 
 class UseDef {
 public:
-    typedef void (UseDef::*HandlerType)(UDState *state, Assembly *assembly);
+    typedef void (UseDef::*HandlerType)(UDState *state, AssemblyPtr assembly);
 
 private:
     UDConfiguration *config;
@@ -328,20 +328,20 @@ private:
     void fillState(UDState *state);
     bool callIfEnabled(UDState *state, Instruction *instruction);
 
-    void fillImm(UDState *state, Assembly *assembly);
-    void fillReg(UDState *state, Assembly *assembly);
-    void fillRegToReg(UDState *state, Assembly *assembly);
-    void fillMemToReg(UDState *state, Assembly *assembly, size_t width);
-    void fillImmToReg(UDState *state, Assembly *assembly);
-    void fillRegRegToReg(UDState *state, Assembly *assembly);
-    void fillMemImmToReg(UDState *state, Assembly *assembly);
-    void fillRegToMem(UDState *state, Assembly *assembly, size_t width);
-    void fillRegImmToReg(UDState *state, Assembly *assembly);
-    void fillRegRegToMem(UDState *state, Assembly *assembly);
-    void fillMemToRegReg(UDState *state, Assembly *assembly);
-    void fillRegRegImmToMem(UDState *state, Assembly *assembly);
-    void fillRegRegRegToReg(UDState *state, Assembly *assembly);
-    void fillMemImmToRegReg(UDState *state, Assembly *assembly);
+    void fillImm(UDState *state, AssemblyPtr assembly);
+    void fillReg(UDState *state, AssemblyPtr assembly);
+    void fillRegToReg(UDState *state, AssemblyPtr assembly);
+    void fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width);
+    void fillImmToReg(UDState *state, AssemblyPtr assembly);
+    void fillRegRegToReg(UDState *state, AssemblyPtr assembly);
+    void fillMemImmToReg(UDState *state, AssemblyPtr assembly);
+    void fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width);
+    void fillRegImmToReg(UDState *state, AssemblyPtr assembly);
+    void fillRegRegToMem(UDState *state, AssemblyPtr assembly);
+    void fillMemToRegReg(UDState *state, AssemblyPtr assembly);
+    void fillRegRegImmToMem(UDState *state, AssemblyPtr assembly);
+    void fillRegRegRegToReg(UDState *state, AssemblyPtr assembly);
+    void fillMemImmToRegReg(UDState *state, AssemblyPtr assembly);
 
     void defReg(UDState *state, int reg, TreeNode *tree);
     void useReg(UDState *state, int reg);
@@ -355,67 +355,67 @@ private:
     size_t inferAccessWidth(const cs_x86_op *op);
     std::tuple<int, size_t> getPhysicalRegister(int reg);
     TreeNode *makeMemTree(UDState *state, const x86_op_mem& mem);
-    void fillAddOrSub(UDState *state, Assembly *assembly);
-    void fillAnd(UDState *state, Assembly *assembly);
-    void fillBsf(UDState *state, Assembly *assembly);
-    void fillBt(UDState *state, Assembly *assembly);
-    void fillCmp(UDState *state, Assembly *assembly);
-    void fillCall(UDState *state, Assembly *assembly);
-    void fillJa(UDState *state, Assembly *assembly);
-    void fillJae(UDState *state, Assembly *assembly);
-    void fillJb(UDState *state, Assembly *assembly);
-    void fillJbe(UDState *state, Assembly *assembly);
-    void fillJe(UDState *state, Assembly *assembly);
-    void fillJne(UDState *state, Assembly *assembly);
-    void fillJg(UDState *state, Assembly *assembly);
-    void fillJge(UDState *state, Assembly *assembly);
-    void fillJl(UDState *state, Assembly *assembly);
-    void fillJle(UDState *state, Assembly *assembly);
-    void fillJmp(UDState *state, Assembly *assembly);
-    void fillLea(UDState *state, Assembly *assembly);
-    void fillMov(UDState *state, Assembly *assembly);
-    void fillMovabs(UDState *state, Assembly *assembly);
-    void fillMovsxd(UDState *state, Assembly *assembly);
-    void fillMovzx(UDState *state, Assembly *assembly);
-    void fillPush(UDState *state, Assembly *assembly);
+    void fillAddOrSub(UDState *state, AssemblyPtr assembly);
+    void fillAnd(UDState *state, AssemblyPtr assembly);
+    void fillBsf(UDState *state, AssemblyPtr assembly);
+    void fillBt(UDState *state, AssemblyPtr assembly);
+    void fillCmp(UDState *state, AssemblyPtr assembly);
+    void fillCall(UDState *state, AssemblyPtr assembly);
+    void fillJa(UDState *state, AssemblyPtr assembly);
+    void fillJae(UDState *state, AssemblyPtr assembly);
+    void fillJb(UDState *state, AssemblyPtr assembly);
+    void fillJbe(UDState *state, AssemblyPtr assembly);
+    void fillJe(UDState *state, AssemblyPtr assembly);
+    void fillJne(UDState *state, AssemblyPtr assembly);
+    void fillJg(UDState *state, AssemblyPtr assembly);
+    void fillJge(UDState *state, AssemblyPtr assembly);
+    void fillJl(UDState *state, AssemblyPtr assembly);
+    void fillJle(UDState *state, AssemblyPtr assembly);
+    void fillJmp(UDState *state, AssemblyPtr assembly);
+    void fillLea(UDState *state, AssemblyPtr assembly);
+    void fillMov(UDState *state, AssemblyPtr assembly);
+    void fillMovabs(UDState *state, AssemblyPtr assembly);
+    void fillMovsxd(UDState *state, AssemblyPtr assembly);
+    void fillMovzx(UDState *state, AssemblyPtr assembly);
+    void fillPush(UDState *state, AssemblyPtr assembly);
 #endif
 
 #ifdef ARCH_AARCH64
-    void fillAddOrSub(UDState *state, Assembly *assembly);
-    void fillAdr(UDState *state, Assembly *assembly);
-    void fillAdrp(UDState *state, Assembly *assembly);
-    void fillAnd(UDState *state, Assembly *assembly);
-    void fillBl(UDState *state, Assembly *assembly);
-    void fillBlr(UDState *state, Assembly *assembly);
-    void fillB(UDState *state, Assembly *assembly);
-    void fillBr(UDState *state, Assembly *assembly);
-    void fillCbz(UDState *state, Assembly *assembly);
-    void fillCbnz(UDState *state, Assembly *assembly);
-    void fillCmp(UDState *state, Assembly *assembly);
-    void fillCsel(UDState *state, Assembly *assembly);
-    void fillCset(UDState *state, Assembly *assembly);
-    void fillEor(UDState *state, Assembly *assembly);
-    void fillLdaxr(UDState *state, Assembly *assembly);
-    void fillLdp(UDState *state, Assembly *assembly);
-    void fillLdr(UDState *state, Assembly *assembly);
-    void fillLdrh(UDState *state, Assembly *assembly);
-    void fillLdrb(UDState *state, Assembly *assembly);
-    void fillLdrsw(UDState *state, Assembly *assembly);
-    void fillLdrsh(UDState *state, Assembly *assembly);
-    void fillLdrsb(UDState *state, Assembly *assembly);
-    void fillLdur(UDState *state, Assembly *assembly);
-    void fillLsl(UDState *state, Assembly *assembly);
-    void fillMadd(UDState *state, Assembly *assembly);
-    void fillMov(UDState *state, Assembly *assembly);
-    void fillMrs(UDState *state, Assembly *assembly);
-    void fillNop(UDState *state, Assembly *assembly);
-    void fillOrr(UDState *state, Assembly *assembly);
-    void fillRet(UDState *state, Assembly *assembly);
-    void fillStp(UDState *state, Assembly *assembly);
-    void fillStr(UDState *state, Assembly *assembly);
-    void fillStrb(UDState *state, Assembly *assembly);
-    void fillStrh(UDState *state, Assembly *assembly);
-    void fillSxtw(UDState *state, Assembly *assembly);
+    void fillAddOrSub(UDState *state, AssemblyPtr assembly);
+    void fillAdr(UDState *state, AssemblyPtr assembly);
+    void fillAdrp(UDState *state, AssemblyPtr assembly);
+    void fillAnd(UDState *state, AssemblyPtr assembly);
+    void fillBl(UDState *state, AssemblyPtr assembly);
+    void fillBlr(UDState *state, AssemblyPtr assembly);
+    void fillB(UDState *state, AssemblyPtr assembly);
+    void fillBr(UDState *state, AssemblyPtr assembly);
+    void fillCbz(UDState *state, AssemblyPtr assembly);
+    void fillCbnz(UDState *state, AssemblyPtr assembly);
+    void fillCmp(UDState *state, AssemblyPtr assembly);
+    void fillCsel(UDState *state, AssemblyPtr assembly);
+    void fillCset(UDState *state, AssemblyPtr assembly);
+    void fillEor(UDState *state, AssemblyPtr assembly);
+    void fillLdaxr(UDState *state, AssemblyPtr assembly);
+    void fillLdp(UDState *state, AssemblyPtr assembly);
+    void fillLdr(UDState *state, AssemblyPtr assembly);
+    void fillLdrh(UDState *state, AssemblyPtr assembly);
+    void fillLdrb(UDState *state, AssemblyPtr assembly);
+    void fillLdrsw(UDState *state, AssemblyPtr assembly);
+    void fillLdrsh(UDState *state, AssemblyPtr assembly);
+    void fillLdrsb(UDState *state, AssemblyPtr assembly);
+    void fillLdur(UDState *state, AssemblyPtr assembly);
+    void fillLsl(UDState *state, AssemblyPtr assembly);
+    void fillMadd(UDState *state, AssemblyPtr assembly);
+    void fillMov(UDState *state, AssemblyPtr assembly);
+    void fillMrs(UDState *state, AssemblyPtr assembly);
+    void fillNop(UDState *state, AssemblyPtr assembly);
+    void fillOrr(UDState *state, AssemblyPtr assembly);
+    void fillRet(UDState *state, AssemblyPtr assembly);
+    void fillStp(UDState *state, AssemblyPtr assembly);
+    void fillStr(UDState *state, AssemblyPtr assembly);
+    void fillStrb(UDState *state, AssemblyPtr assembly);
+    void fillStrh(UDState *state, AssemblyPtr assembly);
+    void fillSxtw(UDState *state, AssemblyPtr assembly);
 #endif
 };
 

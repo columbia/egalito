@@ -5,6 +5,7 @@
 #include "chunk.h"
 #include "chunklist.h"
 #include "block.h"
+#include "archive/chunktypes.h"
 #include "elf/reloc.h"
 #include "types.h"
 
@@ -12,13 +13,16 @@ class ElfMap;
 class Chunk;
 class Symbol;
 
-class PLTTrampoline : public CompositeChunkImpl<Block> {
+class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
+    CompositeChunkImpl<Block>> {
 private:
     ElfMap *sourceElf;
     Chunk *target;
     Symbol *targetSymbol;
     address_t gotPLTEntry;
 public:
+    PLTTrampoline() : sourceElf(nullptr), target(nullptr),
+        targetSymbol(nullptr), gotPLTEntry(0) {}
     PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol,
         address_t gotPLTEntry);
 
@@ -35,14 +39,26 @@ public:
     address_t getGotPLTEntry() const
         { return sourceElf->getBaseAddress() + gotPLTEntry; }
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
 class Module;
-class PLTList : public CollectionChunkImpl<PLTTrampoline> {
+class PLTList : public ChunkSerializerImpl<TYPE_PLTList,
+    CollectionChunkImpl<PLTTrampoline>> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 public:
     static size_t getPLTTrampolineSize();

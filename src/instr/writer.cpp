@@ -3,18 +3,6 @@
 #include "chunk/link.h"
 #include "concrete.h"
 
-// RawInstruction
-void InstrWriterCString::visit(RawInstruction *raw) {
-    auto storage = raw->getStorage();
-    std::memcpy(target, storage.getData().c_str(), storage.getSize());
-}
-void InstrWriterCppString::visit(RawInstruction *raw) {
-    target.append(raw->getStorage().getData());
-}
-void InstrWriterGetData::visit(RawInstruction *raw) {
-    data = raw->getStorage().getData();
-}
-
 // IsolatedInstruction
 void InstrWriterCString::visit(IsolatedInstruction *isolated) {
     auto assembly = isolated->getAssembly();
@@ -101,13 +89,13 @@ void InstrWriterGetData::visit(StackFrameInstruction *stackFrame) {
 
 // LiteralInstruction
 void InstrWriterCString::visit(LiteralInstruction *literal) {
-    visit(static_cast<RawInstruction *>(literal));
+    std::memcpy(target, literal->getData().c_str(), literal->getSize());
 }
 void InstrWriterCppString::visit(LiteralInstruction *literal) {
-    visit(static_cast<RawInstruction *>(literal));
+    target.append(literal->getData());
 }
 void InstrWriterGetData::visit(LiteralInstruction *literal) {
-    visit(static_cast<RawInstruction *>(literal));
+    data = literal->getData();
 }
 
 // LinkedLiteralInstruction
@@ -126,4 +114,3 @@ void InstrWriterGetData::visit(LinkedLiteralInstruction *linked) {
     linked->writeTo(data);
 #endif
 }
-

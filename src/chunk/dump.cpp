@@ -80,6 +80,9 @@ void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
 
 void ChunkDumper::visit(DataRegion *dataRegion) {
     LOG(1, "---[" << dataRegion->getName() << "]---");
+    LOG(1, "position is " << std::hex << dataRegion->getPosition());
+    LOG(1, "address is " << std::hex << dataRegion->getAddress());
+    LOG(1, "size is " << std::hex << dataRegion->getSize());
     LOG(1, std::hex <<
         dataRegion->getAddress() << " + " << dataRegion->getSize());
     for(auto sec : CIter::children(dataRegion)) {
@@ -123,21 +126,14 @@ void ChunkDumper::visit(VTableEntry *vtableEntry) {
     }
 }
 
-void InstrDumper::visit(RawInstruction *semantic) {
-    std::string data = getBytes(semantic);
-    std::vector<unsigned char> v(data.begin(), data.end());
-    Assembly assembly = Disassemble::makeAssembly(v, address);
-    DisasmDump::printInstruction(address, &assembly, pos, nullptr);
-}
-
 void InstrDumper::visit(IsolatedInstruction *semantic) {
-    Assembly *assembly = semantic->getAssembly();
-    DisasmDump::printInstruction(address, assembly, pos, nullptr);
+    auto assembly = semantic->getAssembly();
+    DisasmDump::printInstruction(address, &*assembly, pos, nullptr);
 }
 
 void InstrDumper::visit(LinkedInstruction *semantic) {
     semantic->regenerateAssembly();
-    Assembly *assembly = semantic->getAssembly();
+    auto assembly = semantic->getAssembly();
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
     if(auto v = dynamic_cast<GSTableLink *>(link)) {
@@ -145,17 +141,17 @@ void InstrDumper::visit(LinkedInstruction *semantic) {
         targetName << target->getName() << "@gs["
             << v->getEntry()->getIndex() << "]";
         DisasmDump::printInstruction(
-            address, assembly, pos, targetName.str().c_str());
+            address, &*assembly, pos, targetName.str().c_str());
         return;
     }
     if(target) {
         DisasmDump::printInstruction(
-            address, assembly, pos, target->getName().c_str());
+            address, &*assembly, pos, target->getName().c_str());
     }
     else {
         unsigned long targetAddress = link->getTargetAddress();
         DisasmDump::printInstructionCalculated(
-            address, assembly, pos, targetAddress);
+            address, &*assembly, pos, targetAddress);
     }
 }
 
@@ -211,9 +207,20 @@ void InstrDumper::visit(IndirectJumpInstruction *semantic) {
     std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
+    std::string jumpTableDescription;
+    if(semantic->isForJumpTable()) {
+        auto jumpTable = semantic->getJumpTables()[0];
+        std::ostringstream tableStream;
+        tableStream << "jumptable@" << std::hex << jumpTable->getAddress()
+            << ",entries=" << std::dec << jumpTable->getEntryCount();
+        jumpTableDescription = tableStream.str();
+    }
+
     DisasmDump::printInstructionRaw(address,
         pos, name.str().c_str(),
-        semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+        semantic->getAssembly()->getOpStr().c_str(),
+        semantic->isForJumpTable() ? jumpTableDescription.c_str() : nullptr,
+        bytes2.c_str(),
         false);
 }
 
@@ -231,7 +238,7 @@ void InstrDumper::visit(StackFrameInstruction *semantic) {
 #ifdef ARCH_X86_64
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());
-    Assembly assembly = Disassemble::makeAssembly(v, address);
+    auto assembly = Disassemble::makeAssembly(v, address);
     DisasmDump::printInstruction(address, &assembly, pos, nullptr);
 #endif
 }

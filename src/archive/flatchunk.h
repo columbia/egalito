@@ -13,6 +13,8 @@ public:
     typedef uint16_t FlatType;
     typedef uint32_t IDType;
     typedef uint32_t OffsetType;
+public:
+    static const IDType NoneID = static_cast<IDType>(-1);
 private:
     FlatType type;
     IDType id;
@@ -55,6 +57,7 @@ public:
     void addFlatChunk(FlatChunk *flat);
 
     FlatChunk *get(FlatListType::size_type i);
+    const FlatChunk *get(FlatListType::size_type i) const;
     FlatChunk::IDType getNextID() { return nextID ++; }
     size_t getCount() const { return flatList.size(); }
 

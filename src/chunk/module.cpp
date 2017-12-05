@@ -25,26 +25,59 @@ void Module::setElfSpace(ElfSpace *space) {
 void Module::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.writeAnyLength(getName());
+    writer.writeString(getName());
 
-    auto functionList = op.serialize(getFunctionList());
-    writer.write(functionList);
+    auto pltListID = op.serialize(getPLTList());
+    writer.write(pltListID);
+
+    auto functionListID = op.serialize(getFunctionList());
+    writer.write(functionListID);
+
+    auto jumpTableListID = op.serialize(getJumpTableList());
+    writer.write(jumpTableListID);
+
+    auto dataRegionListID = op.serialize(getDataRegionList());
+    writer.write(dataRegionListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    std::string name;
-    reader.readAnyLength(name);
-    setName(name);
+    setName(reader.readString());
 
     LOG(1, "trying to parse Module [" << name << "]");
 
-    uint32_t id;
-    reader.read(id);
-    auto functionList = op.lookupAs<FunctionList>(id);
-    getChildren()->add(functionList);
-    setFunctionList(functionList);
+    {
+        auto id = reader.readID();
+        auto pltList = op.lookupAs<PLTList>(id);
+        getChildren()->add(pltList);
+        setPLTList(pltList);
+    }
+
+    {
+        auto id = reader.readID();
+        auto functionList = op.lookupAs<FunctionList>(id);
+        getChildren()->add(functionList);
+        setFunctionList(functionList);
+    }
+
+    {
+        auto id = reader.readID();
+        auto jumpTableList = op.lookupAs<JumpTableList>(id);
+        if(jumpTableList) {
+            getChildren()->add(jumpTableList);
+            setJumpTableList(jumpTableList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto dataRegionList = op.lookupAs<DataRegionList>(id);
+        if(dataRegionList) {
+            getChildren()->add(dataRegionList);
+            setDataRegionList(dataRegionList);
+        }
+    }
 
     return reader.stillGood();
 }

@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <vector>
-#include <memory>  // for std::shared_ptr
 #include "position.h"  // for Position
 #include "size.h"  // for ComputedSize, Range
 #include "link.h"  // for Link

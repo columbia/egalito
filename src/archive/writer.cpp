@@ -30,19 +30,19 @@ void EgalitoArchiveWriter::writeData(std::string filename) {
     // write the file header
     {
         ArchiveStreamWriter writer(file);
-        writer.write(EgalitoArchive::SIGNATURE);
-        writer.write(EgalitoArchive::VERSION);
-        writer.write(static_cast<uint32_t>(archive->getFlatList().getCount()));
+        writer.writeFixedLengthBytes(EgalitoArchive::SIGNATURE);
+        writer.write<uint32_t>(EgalitoArchive::VERSION);
+        writer.write<uint32_t>(archive->getFlatList().getCount());
     }
 
     for(auto flat : archive->getFlatList()) {
         LOG(10, "write FlatChunk id=" << flat->getID() << " type=" << flat->getType());
         ArchiveStreamWriter writer(file);
-        writer.write(flat->getType());
-        writer.write(flat->getID());
-        writer.write(flat->getOffset());
-        writer.write(flat->getSize());
-        writer.write(flat->getData());
+        writer.write<uint8_t>(encodeChunkType(EgalitoChunkType(flat->getType())));
+        writer.write<uint32_t>(flat->getID());
+        writer.write<uint32_t>(flat->getOffset());
+        writer.write<uint32_t>(flat->getSize());
+        writer.writeFixedLengthBytes(flat->getData().c_str(), flat->getSize());
     }
 
     file.close();

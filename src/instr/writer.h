@@ -17,7 +17,6 @@ private:
 public:
     InstrWriterCString(char *target) : target(target) {}
 
-    virtual void visit(RawInstruction *raw);
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
@@ -32,7 +31,6 @@ private:
 public:
     InstrWriterCppString(std::string &target) : target(target) {}
 
-    virtual void visit(RawInstruction *raw);
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
@@ -46,7 +44,6 @@ private:
     std::string data;
 public:
     std::string get() { return std::move(data); }
-    virtual void visit(RawInstruction *raw);
     virtual void visit(IsolatedInstruction *isolated);
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);

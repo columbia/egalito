@@ -15,7 +15,7 @@ private:
     ElfSpaceList *spaceList;
     Chunk *entryPoint;
 public:
-    Program(ElfSpaceList *spaceList);
+    Program(ElfSpaceList *spaceList = nullptr);
 
     void add(Module *module);
     void setMain(Module *module);

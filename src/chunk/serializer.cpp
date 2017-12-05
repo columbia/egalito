@@ -9,8 +9,21 @@
 #include "archive/writer.h"
 #include "log/log.h"
 
+FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
+    auto id = ArchiveIDOperations<Chunk>::assign(object);
+    if(id != FlatChunk::NoneID) {
+        if(debugNames.size() <= id) debugNames.resize(id + 1);
+        debugNames[id] = object->getName();
+    }
+    return id;
+}
+
+std::string ChunkSerializerOperations::getDebugName(FlatChunk::IDType id) {
+    return (id < debugNames.size() ? debugNames[id] : "???");
+}
+
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
-    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+    FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType());
     BufferedStreamWriter writer(flat);
 
@@ -21,7 +34,7 @@ FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
 void ChunkSerializerOperations::serialize(Chunk *chunk,
     FlatChunk::IDType id) {
 
-    FlatChunk *flat = archive->getFlatList().newFlatChunk(
+    FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType(), id);
     BufferedStreamWriter writer(flat);
 
@@ -31,7 +44,7 @@ void ChunkSerializerOperations::serialize(Chunk *chunk,
 bool ChunkSerializerOperations::deserialize(FlatChunk *flat) {
     InMemoryStreamReader reader(flat);
     if(!flat->getInstance<Chunk>()) {
-        LOG(1, "WARNING: did not instantiate Chunk for flat");
+        LOG(1, "WARNING: did not instantiate Chunk for flat " << flat->getID());
         return false;
     }
 
@@ -61,19 +74,19 @@ void ChunkSerializerOperations::serializeChildren(Chunk *chunk,
 }
 
 void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
-    ArchiveStreamReader &reader) {
+    ArchiveStreamReader &reader, bool addToChildList) {
 
-    uint32_t count;
-    reader.read(count);
+    auto count = reader.read<uint32_t>();
 
     std::vector<FlatChunk::IDType> idList;
     for(uint32_t i = 0; i < count; i ++) {
-        uint32_t id;
-        reader.read(id);
+        auto id = reader.readID();
         idList.push_back(id);
-        Chunk *child = lookup(id);
-        chunk->getChildren()->genericAdd(child);
-        child->setParent(chunk);
+        if(addToChildList) {
+            Chunk *child = lookup(id);
+            chunk->getChildren()->genericAdd(child);
+            child->setParent(chunk);
+        }
     }
 
     // we deserialize all Chunks, not in order
@@ -82,28 +95,61 @@ void ChunkSerializerOperations::deserializeChildren(Chunk *chunk,
     }*/
 }
 
-FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *chunk) {
-    auto it = assignment.find(chunk);
-    if(it != assignment.end()) {
-        return (*it).second;
+void ChunkSerializerOperations::serializeChildrenIDsOnly(Chunk *chunk,
+    ArchiveStreamWriter &writer, int level) {
+
+    if(level <= 0) return;
+    assert(chunk->getChildren());
+
+    uint32_t count = chunk->getChildren()->genericGetSize();
+    writer.write(count);
+
+    for(auto child : chunk->getChildren()->genericIterable()) {
+        auto id = assign(child);
+        auto type = child->getFlatType();
+        getArchive()->getFlatList().newFlatChunk(type, id);  // unused ret val
+
+        writer.writeID(id);
     }
 
-    if(chunk) {
-        auto id = archive->getFlatList().getNextID();
-        assignment[chunk] = id;
-        return id;
-    }
-    else {
-        return static_cast<FlatChunk::IDType>(-1);
+    if(level > 1) {
+        for(auto child : chunk->getChildren()->genericIterable()) {
+            serializeChildrenIDsOnly(child, writer, level - 1);
+        }
     }
 }
 
-Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
+void ChunkSerializerOperations::deserializeChildrenIDsOnly(Chunk *chunk,
+    ArchiveStreamReader &reader, int level, bool addToChildList) {
+
+    if(level <= 0) return;
+
+    auto count = reader.read<uint32_t>();
+
+    std::vector<FlatChunk::IDType> idList;
+    for(uint32_t i = 0; i < count; i ++) {
+        auto id = reader.readID();
+        idList.push_back(id);
+        if(addToChildList) {
+            Chunk *child = lookup(id);
+            chunk->getChildren()->genericAdd(child);
+            child->setParent(chunk);
+        }
+    }
+
+    if(level > 1) {
+        for(auto id : idList) {
+            auto child = lookup(id);
+            deserializeChildrenIDsOnly(child, reader, level - 1);
+        }
+    }
+}
+
+Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
     std::function<Chunk *()> constructor[] = {
         [] () -> Chunk* { return nullptr; },              // TYPE_UNKNOWN
-        [] () -> Chunk* { return new Program(nullptr); },        // TYPE_Program
+        [] () -> Chunk* { return new Program(); },        // TYPE_Program
         [] () -> Chunk* { return new Module(); },         // TYPE_Module
-#if 0
         [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
         [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
         [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
@@ -117,25 +163,8 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
         [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
-        [] () -> Chunk* { return new MarkerList(); },     // TYPE_MarkerList
-        [] () -> Chunk* { return new Marker(); },         // TYPE_Marker
-#else
-        [] () -> Chunk* { return new FunctionList(); },   // TYPE_FunctionList
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return new Function(); },       // TYPE_Function
-        [] () -> Chunk* { return new Block(); },          // TYPE_Block
-        [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-        [] () -> Chunk* { return nullptr; },
-#endif
+        [] () -> Chunk* { return nullptr; },    // TYPE_MarkerList
+        [] () -> Chunk* { return nullptr; },    // TYPE_Marker
     };
 
     assert(flat != nullptr);
@@ -143,16 +172,6 @@ Chunk *ChunkSerializerOperations::instantiate(FlatChunk *flat) {
     assert(type < sizeof(constructor)/sizeof(*constructor));
 
     return (constructor[type])();
-}
-
-Chunk *ChunkSerializerOperations::lookup(FlatChunk::IDType id) {
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
-    return archive->getFlatList().get(id)->getInstance<Chunk>();
-}
-
-FlatChunk *ChunkSerializerOperations::lookupFlat(FlatChunk::IDType id) {
-    if(id == static_cast<FlatChunk::IDType>(-1)) return nullptr;
-    return archive->getFlatList().get(id);
 }
 
 void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
@@ -163,32 +182,53 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
 
     LOG(1, "done with root serialize call");
 
-    EgalitoArchiveWriter(archive).write(filename);
+    // for sanity, make sure we serialized every Chunk that is referred to
+    bool errors = false;
+    FlatChunk::IDType id = 0;
+    for(auto flat : archive->getFlatList()) {
+        if(!flat) {
+            LOG(1, "ERROR: Chunk \"" << op.getDebugName(id) << "\" at index "
+                << std::dec << id << " was not serialized!");
+            errors = true;
+        }
+        else {
+            LOG(1, "serialize chunk id " << std::dec << id
+                << " i.e. " << op.getDebugName(id));
+        }
+        id ++;
+    }
 
-    LOG(1, "done with writing");
+    if(errors) {
+        LOG(1, "Errors encountered during serialization, aborting");
+    }
+    else {
+        EgalitoArchiveWriter(archive).write(filename);
+
+        LOG(1, "done with writing");
+    }
 
     delete archive;
-
-    LOG(1, "done with deleting");
 }
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {
     EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
     ChunkSerializerOperations op(archive);
 
+    // First instantiate objects, with the correct type, so that memory
+    // addresses are fixed (and pointers can be set during deserialization).
     for(auto flat : archive->getFlatList()) {
-        flat->setInstance(op.instantiate(flat));
+        flat->setInstance(instantiate(flat));
     }
 
-    /*for(auto flat : archive->getFlatList()) {
-        op.deserialize(flat);
-    }*/
+    // Deserialize in reverse order so that tree leaves will be fully
+    // initialized before their parents are constructed.
     for(auto it = archive->getFlatList().rbegin();
         it != archive->getFlatList().rend(); it ++) {
 
         op.deserialize(*it);
     }
 
+    // We assume node 0 is the root.
     auto root = op.lookup(0);
     delete archive;
     return root;

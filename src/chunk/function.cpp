@@ -7,8 +7,12 @@
 #include "disasm/disassemble.h"
 #include "instr/writer.h"
 #include "instr/semantic.h"
+#include "instr/serializer.h"
 #include "operation/mutator.h"
 #include "log/log.h"
+
+#include "instr/concrete.h"
+#include "dump.h"
 
 Function::Function(address_t originalAddress)
     : symbol(nullptr), nonreturn(false) {
@@ -25,7 +29,7 @@ Function::Function(Symbol *symbol) : symbol(symbol), nonreturn(false) {
 bool Function::hasName(std::string name) const {
     if(!symbol) return false;
     if(symbol->getName() == name) return true;
-    for(auto s : getSymbol()->getAliases()) {
+    for(auto s : symbol->getAliases()) {
         if(std::string(s->getName()) == name) {
             return true;
         }
@@ -39,24 +43,35 @@ void Function::serialize(ChunkSerializerOperations &op,
 
     LOG(10, "serialize function " << getName());
 
-    writer.write(static_cast<uint64_t>(getAddress()));
-    writer.writeAnyLength(getName());
+    writer.write(getAddress());
+    writer.writeString(getName());
 
 #if 0  // don't use compression
-    writer.write(static_cast<uint8_t>(0));
+    writer.writeValue(false);
     op.serializeChildren(this, writer);
 #else  // compress data
-    writer.write(static_cast<uint8_t>(1));
+    writer.writeValue(true);
 
-    writer.write(static_cast<uint64_t>(
-        this->getChildren()->getIterable()->getCount()));
+    //op.serializeChildren(this, writer);  // serialize empty children!
+    op.serializeChildrenIDsOnly(this, writer, 2);
+
+    writer.write<uint32_t>(
+        this->getChildren()->getIterable()->getCount());
     for(auto block : CIter::children(this)) {
-        writer.write(static_cast<uint64_t>(
-            block->getChildren()->getIterable()->getCount()));
+        writer.write<uint32_t>(
+            block->getChildren()->getIterable()->getCount());
         for(auto instr : CIter::children(block)) {
+#if 1
+            if(dynamic_cast<ControlFlowInstruction *>(instr->getSemantic())) {
+                ChunkDumper dumper;
+                instr->accept(&dumper);
+            }
+            InstrSerializer(op).serialize(instr->getSemantic(), writer);
+#else
             InstrWriterGetData instrWriter;
             instr->getSemantic()->accept(&instrWriter);
             writer.writeAnyLength(instrWriter.get());
+#endif
         }
     }
 #endif
@@ -65,75 +80,63 @@ void Function::serialize(ChunkSerializerOperations &op,
 bool Function::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    uint64_t address;
-    std::string name;
-    reader.read(address);
-    reader.readAnyLength(name);
-
+    uint64_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
-    setName(name);
+    setName(reader.readString());
 
-    if(op.getVersion() == 2) {
-        op.deserializeChildren(this, reader);
-        return reader.stillGood();
-    }
-
-    uint8_t compressedMode = 0;
-    reader.read(compressedMode);
-    if(compressedMode == 0) {
+    bool compressedMode = reader.read<bool>();
+    if(!compressedMode) {
         op.deserializeChildren(this, reader);
     }
     else {
+        //op.deserializeChildren(this, reader);  // deserialize empty children!
+        op.deserializeChildrenIDsOnly(this, reader, 2);
+
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
         Chunk *prevChunk1 = this;
-        ChunkMutator mutator1(this);
 
         size_t totalSize = 0;
-        uint64_t blockCount = 0;
-        reader.read(blockCount);
+        uint64_t blockCount = reader.read<uint32_t>();
         for(uint64_t b = 0; b < blockCount; b ++) {
-            Block *block = new Block();
+            Block *block = getChildren()->getIterable()->get(b);
             block->setPosition(positionFactory->makePosition(
                 prevChunk1, block, this->getSize()));
 
-            Chunk *prevChunk2 = block;
-            ChunkMutator mutator2(block, false);
+            if(b > 0) {
+                block->setPreviousSibling(prevChunk1);
+                prevChunk1->setNextSibling(block);
+            }
 
-            uint64_t instrCount = 0;
-            reader.read(instrCount);
+            Chunk *prevChunk2 = block;
+
+            uint64_t instrCount = reader.read<uint32_t>();
             for(uint64_t i = 0; i < instrCount; i ++) {
-                std::string bytes;
-                reader.readAnyLength(bytes);
-                static DisasmHandle handle(true);
-                Instruction *instr = nullptr;
-#if 1
-                try {
-                    instr = DisassembleInstruction(handle, true)
-                        .instruction(bytes, address + totalSize);
+                auto instr = block->getChildren()->getIterable()->get(i);
+
+                if(i > 0) {
+                    instr->setPreviousSibling(prevChunk2);
+                    prevChunk2->setNextSibling(instr);
                 }
-                catch(const char *what) {
-                    LOG(1, "DISASSEMBLY ERROR: " << what);
-                    instr = new Instruction();
-                    RawByteStorage storage(bytes);
-                    instr->setSemantic(new RawInstruction(std::move(storage)));
-                }
-#else
-                instr = new Instruction();
-                RawByteStorage storage(bytes);
-                instr->setSemantic(new RawInstruction(std::move(storage)));
-#endif
-                totalSize += instr->getSize();
+
+                auto semantic = InstrSerializer(op).deserialize(instr,
+                    address + totalSize, reader);
+                instr->setSemantic(semantic);
 
                 instr->setPosition(positionFactory->makePosition(
                     prevChunk2, instr, block->getSize()));
-                mutator2.append(instr);
                 prevChunk2 = instr;
+
+                totalSize += instr->getSize();
+                block->addToSize(instr->getSize());
+                //ChunkMutator(block, true);  // recalculate addresses
             }
 
-            mutator1.append(block);
+            this->addToSize(block->getSize());
             prevChunk1 = block;
         }
+
+        ChunkMutator(this, true);  // recalculate addresses
     }
     return reader.stillGood();
 }

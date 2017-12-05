@@ -3,6 +3,7 @@
 #include "ifunc.h"
 #include "function.h"
 #include "module.h"
+#include "serializer.h"
 #include "visitor.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
@@ -98,6 +99,37 @@ void PLTTrampoline::writeTo(char *target) {
         << " from 0x" << getAddress());
 }
 
+void PLTTrampoline::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    writer.write(getAddress());
+    writer.write(op.assign(target));
+    writer.writeString(targetSymbol ? targetSymbol->getName() : "");
+}
+
+bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    setPosition(new AbsolutePosition(reader.read<address_t>()));
+
+    auto id = reader.read<FlatChunk::IDType>();
+    setTarget(op.lookupAs<Chunk>(id));  // can be nullptr
+
+    std::string name = reader.readString();
+
+    LOG(1, "looks like it targets [" << name << "]");
+
+    // hack to create a target of the right name, an orphan Symbol
+    if(id == FlatChunk::NoneID) {
+        char *s = new char[name.length() + 1];
+        std::strcpy(s, name.c_str());
+        this->targetSymbol = new Symbol(0x0, 0, s,
+            Symbol::TYPE_FUNC, Symbol::BIND_LOCAL, 0, 0);
+    }
+
+    return reader.stillGood();
+}
+
 void PLTTrampoline::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
@@ -108,6 +140,19 @@ size_t PLTList::getPLTTrampolineSize() {
 #else
     return 16;
 #endif
+}
+
+void PLTList::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    op.serializeChildren(this, writer);
+}
+
+bool PLTList::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }
 
 void PLTList::accept(ChunkVisitor *visitor) {

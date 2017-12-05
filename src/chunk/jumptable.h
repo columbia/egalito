@@ -3,19 +3,26 @@
 
 #include "chunk.h"
 #include "chunklist.h"
+#include "archive/chunktypes.h"
 
 class JumpTableDescriptor;
 class Function;
 class Instruction;
 class ElfMap;
 
-class JumpTableEntry : public AddressableChunkImpl {
+class JumpTableEntry : public ChunkSerializerImpl<TYPE_JumpTableEntry,
+    AddressableChunkImpl> {
 private:
     Link *link;
 public:
-    JumpTableEntry(Link *link) : link(link) {}
+    JumpTableEntry(Link *link = nullptr) : link(link) {}
 
     Link *getLink() const { return link; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
 };
@@ -26,11 +33,13 @@ public:
     If the jump table could not be fully analyzed, getEntryCount() will return
     -1 and there will be no JumpTableEntry children.
 */
-class JumpTable : public CompositeChunkImpl<JumpTableEntry> {
+class JumpTable : public ChunkSerializerImpl<TYPE_JumpTable,
+    CompositeChunkImpl<JumpTableEntry>> {
 private:
     JumpTableDescriptor *descriptor;
     std::vector<Instruction *> jumpInstrList;
 public:
+    JumpTable() : descriptor(nullptr) {}
     JumpTable(ElfMap *elf, JumpTableDescriptor *descriptor);
 
     Function *getFunction() const;
@@ -42,11 +51,22 @@ public:
         { this->descriptor = descriptor; }
     void addJumpInstruction(Instruction *instr);
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class JumpTableList : public CollectionChunkImpl<JumpTable> {
+class JumpTableList : public ChunkSerializerImpl<TYPE_JumpTableList,
+    CollectionChunkImpl<JumpTable>> {
 public:
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 

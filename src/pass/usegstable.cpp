@@ -178,9 +178,9 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 #ifdef ARCH_X86_64
     // callq  *%gs:0xdeadbeef
     DisasmHandle handle(true);
-    auto assembly = DisassembleInstruction(handle).makeAssembly(
-        {0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0});
-    auto semantic = new LinkedInstruction(instr, assembly);
+    auto semantic = new LinkedInstruction(instr);
+    semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
+        std::vector<unsigned char>({0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0})));
 
     //can be PLTTrampoline
     //assert(dynamic_cast<Function *>(target));

@@ -4,6 +4,7 @@
 #include <climits>
 #include <string>
 #include "types.h"
+#include "instr/storage.h"
 #include "elf/symbol.h"
 
 class Assembly;

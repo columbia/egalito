@@ -22,7 +22,7 @@ public:
     /** Create an authoritative function from symbol information. */
     Function(Symbol *symbol);
 
-    virtual Symbol *getSymbol() const { return symbol; }
+    Symbol *getSymbol() const { return symbol; }
     virtual std::string getName() const { return name; }
     virtual void setName(const std::string &name) { this->name = name; }
 

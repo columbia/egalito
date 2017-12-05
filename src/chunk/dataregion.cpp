@@ -1,8 +1,10 @@
 #include <iomanip>
+#include <cstring>  // for debugging
 #include "dataregion.h"
 #include "link.h"
 #include "position.h"
 #include "concrete.h"
+#include "serializer.h"
 #include "visitor.h"
 #include "chunk/aliasmap.h"
 #include "chunk/dump.h"
@@ -12,6 +14,33 @@
 #include "util/streamasstring.h"
 #include "log/log.h"
 #include "log/temp.h"
+
+DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
+    : dest(dest) {
+
+    auto section = CIter::spatial(region)->findContaining(address);
+    if(!section) {
+        LOG(10, "in " << region->getName() << ", address " << address);
+        ChunkDumper dumper;
+        region->accept(&dumper);
+        throw "no section contains this variable!";
+    }
+
+    auto offset = address - section->getAddress();
+    this->setPosition(new AbsoluteOffsetPosition(this, offset));
+    ChunkMutator(section).append(this);
+}
+
+void DataVariable::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+}
+
+bool DataVariable::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    return reader.stillGood();
+}
 
 DataSection::DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
     : size(shdr->sh_size), align(shdr->sh_addralign),
@@ -31,20 +60,35 @@ bool DataSection::contains(address_t address) {
     return getRange().contains(address);
 }
 
-DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
-    : dest(dest) {
+void DataSection::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
 
-    auto section = CIter::spatial(region)->findContaining(address);
-    if(!section) {
-        LOG(10, "in " << region->getName() << ", address " << address);
-        ChunkDumper dumper;
-        region->accept(&dumper);
-        throw "no section contains this variable!";
-    }
+    writer.writeValue(size);
+    writer.writeValue(align);
+    writer.writeValue(originalOffset);
+    writer.writeValue(code);
+    writer.writeValue(bss);
+    writer.writeString(name);
 
-    auto offset = address - section->getAddress();
-    this->setPosition(new AbsoluteOffsetPosition(this, offset));
-    ChunkMutator(section).append(this);
+    op.serializeChildren(this, writer);
+}
+
+bool DataSection::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    reader.readInto(size);
+    reader.readInto(align);
+    reader.readInto(originalOffset);
+    reader.readInto(code);
+    reader.readInto(bss);
+    std::string std_name = reader.readString();
+    this->name = new char[std_name.length() + 1];
+    std::strcpy(const_cast<char *>(this->name), std_name.c_str());
+
+    setPosition(new AbsoluteOffsetPosition(this, originalOffset));
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
@@ -105,6 +149,33 @@ DataSection *DataRegion::findDataSectionContaining(address_t address) {
         }
     }
     return nullptr;
+}
+
+void DataRegion::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    writer.write(getAddress());
+    writer.write(getSize());
+    writer.write(originalAddress);
+    writer.write(startOffset);
+    writer.write(mappedAddress);
+
+    op.serializeChildren(this, writer);
+}
+
+bool DataRegion::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    address_t address = reader.read<address_t>();
+    setPosition(new AbsolutePosition(address));
+    size_t size = reader.read<size_t>();
+    setSize(size);
+    reader.readInto(this->originalAddress);
+    reader.readInto(this->startOffset);
+    reader.readInto(this->mappedAddress);
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }
 
 void DataRegion::accept(ChunkVisitor *visitor) {
@@ -232,4 +303,17 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
     }
 
     module->setMarkerList(new MarkerList());
+}
+
+void DataRegionList::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    op.serializeChildren(this, writer);
+}
+
+bool DataRegionList::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }

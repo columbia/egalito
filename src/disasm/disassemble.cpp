@@ -195,13 +195,17 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
 
     if(!semantic) {
+        //LOG(1, "Warning: unknown instruction, defaulting to Isolated");
         if(details) {
-            semantic = new DisassembledInstruction(Assembly(*ins));
+            semantic = new IsolatedInstruction();
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
         else {
             std::string raw;
             raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
-            semantic = new RawInstruction(raw);
+            auto isolated = new IsolatedInstruction();
+            isolated->setData(raw);
+            semantic = isolated;
         }
     }
     instr->setSemantic(semantic);
@@ -220,13 +224,17 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
 
     if(!semantic) {
+        //LOG(1, "Warning: unknown instruction, defaulting to Isolated");
         if(details) {
-            semantic = new DisassembledInstruction(Assembly(*ins));
+            semantic = new IsolatedInstruction();
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
         else {
             std::string raw;
             raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
-            semantic = new RawInstruction(raw);
+            auto isolated = new IsolatedInstruction();
+            isolated->setData(raw);
+            semantic = isolated;
         }
     }
     instr->setSemantic(semantic);
@@ -242,12 +250,46 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
         address);
 }
 
-Assembly DisassembleInstruction::makeAssembly(
-    const std::vector<unsigned char> &str, address_t address) {
+Assembly *DisassembleInstruction::allocateAssembly(const std::string &bytes,
+    address_t address) {
 
-    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(str.data()),
-        str.size(), address);
-    Assembly assembly(*insn);
+    cs_insn *insn = runDisassembly(
+        reinterpret_cast<const uint8_t *>(bytes.c_str()),
+        bytes.length(), address);
+    Assembly *assembly = new Assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
+Assembly *DisassembleInstruction::allocateAssembly(
+    const std::vector<unsigned char> &bytes, address_t address) {
+
+    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+        bytes.size(), address);
+    Assembly *assembly = new Assembly(*insn);
+    cs_free(insn, 1);
+    return assembly;
+}
+
+AssemblyPtr DisassembleInstruction::makeAssemblyPtr(const std::string &bytes,
+    address_t address) {
+
+    return AssemblyPtr(allocateAssembly(bytes, address));
+}
+
+AssemblyPtr DisassembleInstruction::makeAssemblyPtr(
+    const std::vector<unsigned char> &bytes, address_t address) {
+
+    return AssemblyPtr(allocateAssembly(bytes, address));
+}
+
+Assembly DisassembleInstruction::makeAssembly(
+    const std::vector<unsigned char> &bytes, address_t address) {
+
+    cs_insn *insn = runDisassembly(
+        reinterpret_cast<const uint8_t *>(bytes.data()),
+        bytes.size(), address);
+    Assembly assembly{*insn};
     cs_free(insn, 1);
     return assembly;
 }
@@ -904,7 +946,8 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
         auto instr = new Instruction();
         std::string raw;
         raw.assign(reinterpret_cast<char *>(readAddress + sz), 4);
-        auto li = new LiteralInstruction(raw);
+        auto li = new LiteralInstruction();
+        li->setData(raw);
         instr->setSemantic(li);
         instr->setPosition(
             positionFactory->makePosition(prevChunk, instr, block->getSize()));
@@ -978,7 +1021,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     }
 
 #ifdef ARCH_X86_64
-    {
+    if(false) {
         size_t j = 0;
         for(auto b : CIter::children(function)) {
             for(auto i : CIter::children(b)) {

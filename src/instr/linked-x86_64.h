@@ -4,19 +4,18 @@
 #include "semantic.h"
 #include "isolated.h"
 
-// Defines LinkedInstruction and ControlFlowInstruction for x86_64.
+// Defines LinkedInstruction, ControlFlowInstruction, etc for x86_64.
 
 #ifdef ARCH_X86_64
+class Instruction;
 class Module;
 
-class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
+class LinkedInstruction : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;
     int opIndex;
 public:
-    LinkedInstruction(Instruction *i, const Assembly &assembly)
-        : LinkDecorator<DisassembledInstruction>(assembly),
-        instruction(i), opIndex(-1) {}
+    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1) {}
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
@@ -32,7 +31,7 @@ public:
         { this->instruction = instruction; }
 
     static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, Assembly *assembly);
+        Instruction *instruction, AssemblyPtr assembly);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
@@ -58,11 +57,16 @@ public:
     virtual size_t getSize() const { return opcode.size() + displacementSize; }
     virtual void setSize(size_t value);
 
+    virtual const std::string &getData() const
+        { throw "Can't call getData() on ControlFlowInstruction"; }
+
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
     int getDispOffset() const { return opcode.size(); }
 
-    virtual Assembly *getAssembly() { return nullptr; }
+    virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
+    virtual void setAssembly(AssemblyPtr assembly)
+        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
@@ -83,16 +87,24 @@ public:
 };
 
 // no link yet
-class StackFrameInstruction : public RawInstruction {
+class StackFrameInstruction : public SemanticImpl {
 private:
     unsigned int id;
     size_t opCodeSize;
     size_t displacementSize;
     long int displacement;
 public:
-    StackFrameInstruction(Assembly *assembly);
+    StackFrameInstruction(AssemblyPtr assembly);
 
     virtual size_t getSize() const { return opCodeSize + displacementSize; }
+
+    virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
+    virtual void setAssembly(AssemblyPtr assembly)
+        { throw "Can't call setAssembly() on StackFrameInstruction"; }
+
+    virtual Link *getLink() const { return nullptr; }
+    virtual void setLink(Link *link)
+        { throw "Can't call setLink() on StackFrameInstruction"; }
 
     void writeTo(char *target);
     void writeTo(std::string &target);
@@ -101,6 +113,11 @@ public:
 
     int getId() const { return id; }
     void addToDisplacementValue(long int add);
+};
+
+// not used for X86, but we need a definition for visitors
+class LinkedLiteralInstruction : public SemanticImpl {
+public:
 };
 #endif
 

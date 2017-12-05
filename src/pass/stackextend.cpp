@@ -159,17 +159,13 @@ void StackExtendPass::adjustOffset(Instruction *instruction) {
 #ifdef ARCH_X86_64
     LOG(1, "adjusting displacement in "
         << std::hex << instruction->getAddress());
-    //ChunkDumper dumper;
-    //instruction->accept(&dump);
 
-    auto v
-        = dynamic_cast<DisassembledInstruction *>(instruction->getSemantic());
-    assert(!!v);
-    auto sfi = new StackFrameInstruction(v->getAssembly());
+    auto semantic = instruction->getSemantic();
+
+    auto sfi = new StackFrameInstruction(semantic->getAssembly());
     sfi->addToDisplacementValue(extendSize);
     instruction->setSemantic(sfi);
-    //instruction->accept(&dump);
-    delete v;
+    delete semantic;
 #endif
 }
 

@@ -431,6 +431,8 @@ void ChunkMutator::updateAuthorityHelper(Chunk *root) {
 }
 
 void ChunkMutator::updatePositionHelper(Chunk *root) {
+    if(!root->getPosition()) return;
+
     // Must recalculate root's position before descending into children,
     // since some Position types depend on parents.
     root->getPosition()->recalculate();
