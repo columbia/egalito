@@ -7,6 +7,7 @@
 #include "archive/stream.h"
 #include "archive/reader.h"
 #include "archive/writer.h"
+#include "util/timing.h"
 #include "log/log.h"
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
@@ -220,12 +221,15 @@ Chunk *ChunkSerializer::deserialize(std::string filename) {
         flat->setInstance(instantiate(flat));
     }
 
-    // Deserialize in reverse order so that tree leaves will be fully
-    // initialized before their parents are constructed.
-    for(auto it = archive->getFlatList().rbegin();
-        it != archive->getFlatList().rend(); it ++) {
+    {
+        EgalitoTiming ttt("total for all deserialize() calls");
+        // Deserialize in reverse order so that tree leaves will be fully
+        // initialized before their parents are constructed.
+        for(auto it = archive->getFlatList().rbegin();
+            it != archive->getFlatList().rend(); it ++) {
 
-        op.deserialize(*it);
+            op.deserialize(*it);
+        }
     }
 
     // We assume node 0 is the root.

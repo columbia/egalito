@@ -9,6 +9,7 @@
 #include "chunk/dump.h"
 
 void HandleCopyRelocs::visit(Module *module) {
+    if(!module->getElfSpace()) return;
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;
 

@@ -27,6 +27,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 #endif
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
+            if(!var->getDest()) continue;
             if(isForIFuncJumpSlot(var)) continue;
             auto target = var->getDest()->getTargetAddress();
             // simply using var->getAddress() will fail due to TLS
