@@ -47,9 +47,10 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
 #endif
     DisasmHandle handle(true);
     auto lea = new Instruction();
-    auto lea_asm = DisassembleInstruction(handle).makeAssembly(
+    auto lea_asm = DisassembleInstruction(handle).makeAssemblyPtr(
         std::vector<unsigned char>({0x4c, 0x8d, 0x15, 0, 0, 0, 0}));
-    auto lea_linked = new LinkedInstruction(lea, lea_asm);
+    auto lea_linked = new LinkedInstruction(lea);
+    lea_linked->setAssembly(lea_asm);
     lea->setSemantic(lea_linked);
     auto link = LinkFactory::makeDataLink(module, trampoline->getGotPLTEntry());
     assert(link);
@@ -103,9 +104,10 @@ void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
 #endif
     DisasmHandle handle(true);
     auto jmpq = new Instruction();
-    auto assembly = DisassembleInstruction(handle).makeAssembly(
-        {0xff, 0x25, 0, 0, 0, 0});
-    auto semantic = new LinkedInstruction(jmpq, assembly);
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(
+        std::vector<unsigned char>{0xff, 0x25, 0, 0, 0, 0});
+    auto semantic = new LinkedInstruction(jmpq);
+    semantic->setAssembly(assembly);
     jmpq->setSemantic(semantic);
     auto link = LinkFactory::makeDataLink(module, trampoline->getGotPLTEntry());
     assert(link);

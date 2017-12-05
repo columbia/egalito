@@ -229,9 +229,10 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
 #ifdef ARCH_X86_64
     DisasmHandle handle(true);
     // jmpq *%gs:0xdeadbeef
-    auto assembly = DisassembleInstruction(handle).makeAssembly(
-        {0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0});
-    auto semantic = new LinkedInstruction(instr, assembly);
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(
+        std::vector<unsigned char>{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0});
+    auto semantic = new LinkedInstruction(instr);
+    semantic->setAssembly(assembly);
 
     // assert(dynamic_cast<Function *>(target));
     auto gsEntry = gsTable->makeEntryFor(target);
@@ -280,8 +281,9 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     // %reg should not be overwritten for call!!
     // callq  *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x13};
-    auto assembly = DisassembleInstruction(handle).makeAssembly(bin);
-    auto semantic = new IndirectCallInstruction(assembly, X86_REG_R11);
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectCallInstruction(X86_REG_R11);
+    semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
@@ -393,9 +395,9 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block,
     // %reg should not be overwritten for PLT
     // jmpq  *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
-    auto assembly = DisassembleInstruction(handle).makeAssembly(bin);
-    auto semantic = new IndirectJumpInstruction(assembly, i->getRegister(),
-        "jmpq");
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
@@ -589,17 +591,19 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
 
     // callq *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x13};
-    auto assembly = DisassembleInstruction(handle).makeAssembly(bin);
-    auto semantic = new IndirectCallInstruction(assembly, X86_REG_R11);
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectCallInstruction(X86_REG_R11);
+    semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
 
     // movq EA, %r11
     std::vector<unsigned char> bin2{0x4c, 0x8b, 0x1d, 0, 0, 0, 0};
-    auto assembly2 = DisassembleInstruction(handle).makeAssembly(bin2);
+    auto assembly2 = DisassembleInstruction(handle).makeAssemblyPtr(bin2);
     auto movEA = new Instruction();
-    auto semantic2 = new LinkedInstruction(movEA, assembly2);
+    auto semantic2 = new LinkedInstruction(movEA);
+    semantic2->setAssembly(assembly2);
     semantic2->setLink(i->getLink());
     semantic2->setIndex(0);
     movEA->setSemantic(semantic2);
@@ -638,17 +642,19 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
 
     // jmpq %gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
-    auto assembly = DisassembleInstruction(handle).makeAssembly(bin);
-    auto semantic = new IndirectCallInstruction(assembly, X86_REG_R11);
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectCallInstruction(X86_REG_R11);
+    semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
 
     // movq EA, %r11
     std::vector<unsigned char> bin2{0x4c, 0x8b, 0x1d, 0x34, 0, 0, 0, 0};
-    auto assembly2 = DisassembleInstruction(handle).makeAssembly(bin2);
+    auto assembly2 = DisassembleInstruction(handle).makeAssemblyPtr(bin2);
     auto movEA = new Instruction();
-    auto semantic2 = new LinkedInstruction(movEA, assembly2);
+    auto semantic2 = new LinkedInstruction(movEA);
+    semantic2->setAssembly(assembly2);
     Chunk *target = &*i->getLink()->getTarget();
     auto gsEntry = gsTable->makeEntryFor(target);
     semantic2->setLink(new GSTableLink(gsEntry));

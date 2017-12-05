@@ -63,8 +63,9 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             // skip here and make LinkedInstruction afterward
             if(op->mem.base != X86_REG_RIP) {
                 semantic = new IndirectCallInstruction(
-                    *ins, op->mem.base, op->mem.index,
+                    op->mem.base, op->mem.index,
                     op->mem.scale, op->mem.disp);
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
         }
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
