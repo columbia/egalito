@@ -65,8 +65,10 @@ int BinGen::generate() {
     changeMapAddress(mainModule, 0xa0000000);
     SegMap::mapAllSegments(setup);
 
+#if 0
     RelocDataPass relocData(setup->getConductor());
     setup->getConductor()->getProgram()->accept(&relocData);
+#endif
 
     ReloCheckPass checker;
     setup->getConductor()->getProgram()->accept(&checker);

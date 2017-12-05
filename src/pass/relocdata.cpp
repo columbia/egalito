@@ -1,3 +1,4 @@
+#if 0
 #include <cstring>
 #include <cassert>
 #include "relocdata.h"
@@ -26,6 +27,7 @@ static Symbol *findSymbol(ElfSpace *elfSpace, address_t address) {
     return symbolList ? symbolList->find(address) : nullptr;
 }
 
+#if 0
 bool FindAnywhere::resolveName(const Symbol *symbol, address_t *address,
     bool allowInternal) {
 
@@ -195,6 +197,7 @@ bool FindAnywhere::resolveObjectHelper(const char *name, address_t *address,
     return false;
 }
 #endif
+#endif
 
 void RelocDataPass::visit(Program *program) {
     // resolve relocations in library-depends order (because e.g. COPY relocs)
@@ -246,6 +249,7 @@ void RelocDataPass::visit(Module *module) {
 }
 
 void RelocDataPass::fixRelocation(Reloc *r) {
+#if 0
     const char *name = 0;
     Symbol *symbol = r->getSymbol(); // we need symbol even if it has no name
     if(r->getSymbol() && *r->getSymbol()->getName()) {
@@ -494,4 +498,6 @@ void RelocDataPass::fixRelocation(Reloc *r) {
             << " addend " << r->getAddend());
     }
 #endif
+#endif
 }
+#endif

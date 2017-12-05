@@ -1,6 +1,7 @@
 #ifndef EGALITO_PASS_RELOCDATA_H
 #define EGALITO_PASS_RELOCDATA_H
 
+#if 0
 #include "chunkpass.h"
 #include "elf/reloc.h"
 
@@ -9,6 +10,7 @@ class ElfSpace;
 class Conductor;
 class Link;
 
+#if 0
 class FindAnywhere {
 private:
     Conductor *conductor;
@@ -34,6 +36,7 @@ private:
         size_t *size, ElfSpace *space);
 #endif
 };
+#endif
 
 /** Fixes relocations in the data section prior to running code.
 
@@ -53,5 +56,6 @@ public:
 private:
     void fixRelocation(Reloc *r);
 };
+#endif
 
 #endif
