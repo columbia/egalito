@@ -57,8 +57,15 @@ int LinkedInstruction::getDispOffset() const {
 }
 
 void LinkedInstruction::regenerateAssembly() {
-    // Recreate the internal capstone data structure and Assembly.
-    // Useful for printing the instruction (ChunkDumper).
+    // Regenerate the raw std::string representation, and then the Assembly
+    // that corresponds to it, using the current Instruction address. This
+    // is needed whenever the raw bytes are accessed after the link target
+    // or source address changes (useful for ChunkDumper).
+
+    std::string data;
+    writeTo(data, true);
+    setData(data);
+
     getStorage()->clearAssembly();
 
     setAssembly(AssemblyFactory::getInstance()->buildAssembly(

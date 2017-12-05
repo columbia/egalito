@@ -39,6 +39,7 @@ static void createDataVariable2(address_t address, void *target,
 }
 
 void LoaderEmulator::setArgumentLinks(char **argv, char **envp) {
+    if(!egalito || !egalito->getElfSpace()) return;
     auto symbolList = egalito->getElfSpace()->getSymbolList();
 
     auto dl_argv = symbolList->find("_ZN9Emulation8_dl_argvE");
@@ -120,6 +121,7 @@ static void createDataVariable(void *p, Function *target, Module *egalito) {
 }
 
 void LoaderEmulator::initRT(Conductor *conductor) {
+    if(!egalito || !egalito->getElfSpace()) return;
     auto sym = egalito->getElfSpace()->getSymbolList()->find(
         "_ZN9Emulation12_rtld_globalE");
     auto addr = sym->getAddress()
