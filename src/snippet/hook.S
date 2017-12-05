@@ -107,10 +107,7 @@ egalito_hook_instruction:
    .global egalito_hook_jit_fixup
 egalito_hook_jit_fixup:
 #ifdef ARCH_X86_64
-    # for direct call: mm0 = 0, mm1 = offset
-    # for direct jump: mm0 = 1, mm1 = offset
-    # for indirect call: mm0 = 2, mm1 = offset
-    # for indirect jump: mm0 = 3, mm1 = offset
+    # mm1 = gstable offset
     sub     $0x8, %rsp
     push    %rax
     push    %rcx
@@ -136,39 +133,6 @@ egalito_hook_jit_fixup:
     movq    %mm1, %rdi
     movq    %rdi, 0x50(%rsp)
 
-    movq    %mm0, %rcx
-    cmp     $0x0, %rcx
-    je      direct_call
-
-    cmp     $0x1, %rcx
-    je      direct_jump
-
-    cmp     $0x2, %rcx
-    je      indirect_call
-
-    cmp     $0x3, %rcx
-    je      indirect_jump
-
-    jmp     .   # shouldn't happen
-
-indirect_jump:
-    movq    $0x1, %rsi
-    jmp     jump_common
-
-indirect_call:
-    movq    $0x0, %rsi
-    jmp     call_common
-
-direct_jump:
-    movq    $0x1, %rsi
-    jmp     jump_common
-
-direct_call:
-    movq    $0x0, %rsi
-    jmp     call_common
-
-call_common:
-jump_common:
     callq   *%gs:(%rax)
 
 #if 1
@@ -193,16 +157,7 @@ jump_common:
     add     $0x8, %rsp
     jmpq    *-0x8(%rsp)
 
-#if 0
-call_common:
-    lea     0x58(%rsp), %rdi
-    callq   *(%rax)
-    movb    $0x0, (%rbx)
-    pop     %rbx
-#endif
-
 in_code:
-    movq    %mm0, %rcx
     movq    %mm1, %rdi  # offset
     jmp     .
 #if 0

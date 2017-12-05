@@ -154,11 +154,6 @@ void UseGSTablePass::redirectLinks(Instruction *instr) {
     }
 }
 
-static uint32_t directCallID = 0;
-static uint32_t directTailJumpID = 1;
-static uint32_t indirectCallID = 2;
-static uint32_t indirectTailJumpID = 3;
-
 void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     LOG0(10, "    rewriting direct call");
     IF_LOG(10) {
@@ -182,8 +177,6 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
         std::vector<unsigned char>({0x65, 0xff, 0x14, 0x25, 0, 0, 0, 0})));
 
-    //can be PLTTrampoline
-    //assert(dynamic_cast<Function *>(target));
     auto gsEntry = gsTable->makeEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);  // !!!
@@ -193,18 +186,11 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
         semantic->getSize() - i->getSize());
     delete i;
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &directCallID;
-    std::memcpy(&bin[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin);
-
     // movd offset = 0x4(%rip), %mm1
     auto movOffset = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
 
-    ChunkMutator(block).insertBeforeJumpTo(instr, movID);
-    ChunkMutator(block).insertAfter(instr, movOffset);
+    ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
 #endif
 }
 
@@ -244,18 +230,11 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
         semantic->getSize() - i->getSize());
     delete i;
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &directTailJumpID;
-    std::memcpy(&bin[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin);
-
     // movd offset = 0x4(%rip), %mm1
     auto movOffset = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
 
-    ChunkMutator(block).insertBeforeJumpTo(instr, movID);
-    ChunkMutator(block).insertAfter(instr, movOffset);
+    ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
 #endif
 }
 
@@ -354,18 +333,11 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     }
     auto movEA = DisassembleInstruction(handle).instruction(bin2);
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin3{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &indirectCallID;
-    std::memcpy(&bin3[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin3);
-
     // movq %r11, %mm1
     std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
     auto movOffset = DisassembleInstruction(handle).instruction(bin4);
 
     ChunkMutator(block).insertBeforeJumpTo(instr, movEA);
-    ChunkMutator(block).insertAfter(instr, movID);
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
@@ -468,24 +440,17 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block,
     }
     auto movEA = DisassembleInstruction(handle).instruction(bin2);
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin3{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &indirectTailJumpID;
-    std::memcpy(&bin3[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin3);
-
     // movq %r11, %mm1
     std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
     auto movOffset = DisassembleInstruction(handle).instruction(bin4);
 
     if(movEA) {
         ChunkMutator(block).insertBeforeJumpTo(instr, movEA);
-        ChunkMutator(block).insertAfter(instr, movID);
+        ChunkMutator(block).insertAfter(instr, movOffset);
     }
     else {
-        ChunkMutator(block).insertBeforeJumpTo(instr, movID);
+        ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
     }
-    ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
 #endif
@@ -608,18 +573,11 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
     semantic2->setIndex(0);
     movEA->setSemantic(semantic2);
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin3{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &indirectCallID;
-    std::memcpy(&bin3[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin3);
-
     // movq %r11, %mm1
     std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
     auto movOffset = DisassembleInstruction(handle).instruction(bin4);
 
     ChunkMutator(block).insertBeforeJumpTo(instr, movEA);
-    ChunkMutator(block).insertAfter(instr, movID);
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
@@ -661,18 +619,11 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
     semantic2->setIndex(0);
     movEA->setSemantic(semantic2);
 
-    // movq ID, %mm0
-    std::vector<unsigned char> bin3{0x0f, 0x64, 0x04, 0x25, 0, 0, 0, 0};
-    auto tmp = &indirectCallID;
-    std::memcpy(&bin3[4], &tmp, 4);
-    auto movID = DisassembleInstruction(handle).instruction(bin3);
-
     // movq %r11, %mm1
     std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
     auto movOffset = DisassembleInstruction(handle).instruction(bin4);
 
     ChunkMutator(block).insertBeforeJumpTo(instr, movEA);
-    ChunkMutator(block).insertAfter(instr, movID);
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;

@@ -29,8 +29,6 @@ void InjectBridgePass::visit(Module *module) {
         EGALITO_BRIDGE_ENTRY(egalito_gsTable),
         EGALITO_BRIDGE_ENTRY(egalito_gsCallback),
         EGALITO_BRIDGE_ENTRY(egalito_ifuncList),
-        EGALITO_BRIDGE_ENTRY(egalito_hook_function_entry_hook),
-        EGALITO_BRIDGE_ENTRY(egalito_hook_function_exit_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_instruction_hook),
         EGALITO_BRIDGE_ENTRY(egalito_hook_jit_reset_hook),
     };

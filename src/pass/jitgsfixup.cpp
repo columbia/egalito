@@ -19,9 +19,9 @@ Chunk *egalito_gsCallback;
 extern ConductorSetup *egalito_conductor_setup;
 
 extern "C"
-size_t egalito_jit_gs_fixup(size_t offset, bool tail) {
+size_t egalito_jit_gs_fixup(size_t offset) {
     size_t index = egalito_gsTable->offsetToIndex(offset);
-    egalito_printf("(JIT-fixup index=%d tail=%d ", (int)index, tail);
+    egalito_printf("(JIT-fixup index=%d ", (int)index);
 
     auto target = ManageGS::resolve(egalito_gsTable, index);
     egalito_printf("target=[%s])\n", target->getName().c_str());
