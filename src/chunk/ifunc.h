@@ -3,9 +3,9 @@
 
 #include <vector>
 #include <map>
-#include "chunk/chunk.h"
-#include "chunk/chunklist.h"
-#include "chunk/link.h"
+#include "chunk.h"
+#include "chunklist.h"
+#include "link.h"
 
 class IFunc : public ChunkImpl {
 private:
