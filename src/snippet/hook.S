@@ -107,19 +107,117 @@ egalito_hook_instruction:
    .global egalito_hook_jit_fixup
 egalito_hook_jit_fixup:
 #ifdef ARCH_X86_64
+    # for direct call: mm0 = 0, mm1 = offset
+    # for direct jump: mm0 = 1, mm1 = offset
+    # for indirect call: mm0 = 2, mm1 = offset
+    # for indirect jump: mm0 = 3, mm1 = offset
+    sub     $0x8, %rsp
+    push    %rax
+    push    %rcx
+    push    %rdx
+    push    %rsi
+    push    %rdi
+    push    %r8
+    push    %r9
+    push    %r10
+    push    %r11
+#if 1
+    # this guards resetting inside egalito_printf
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     cmpb    $0x0, (%rax)
-    jne     1f
+    jne     in_code
+    movb    $0x1, (%rax)
+#endif
+
     push    %rbx
     mov     %rax, %rbx
-    movb    $0x1, (%rax)
-    lea     0x8(%rsp), %rdi  # lea, not mov
-    mov     egalito_hook_jit_fixup_hook@gotpcrel(%rip), %rax
+
+    mov     egalito_jit_gs_fixup@gotpcrel(%rip), %rax
+    movq    %mm1, %rdi
+    movq    %rdi, 0x50(%rsp)
+
+    movq    %mm0, %rcx
+    cmp     $0x0, %rcx
+    je      direct_call
+
+    cmp     $0x1, %rcx
+    je      direct_jump
+
+    cmp     $0x2, %rcx
+    je      indirect_call
+
+    cmp     $0x3, %rcx
+    je      indirect_jump
+
+    jmp     .   # shouldn't happen
+
+indirect_jump:
+    movq    $0x1, %rsi
+    jmp     jump_common
+
+indirect_call:
+    movq    $0x0, %rsi
+    jmp     call_common
+
+direct_jump:
+    movq    $0x1, %rsi
+    jmp     jump_common
+
+direct_call:
+    movq    $0x0, %rsi
+    jmp     call_common
+
+call_common:
+jump_common:
+    callq   *%gs:(%rax)
+
+#if 1
+    movb    $0x0, (%rbx)
+#endif
+
+    movq    0x50(%rsp), %r11
+    movq    %gs:(%r11), %r11
+    movq    %r11, 0x50(%rsp)
+
+    pop     %rbx
+
+    pop     %r11
+    pop     %r10
+    pop     %r9
+    pop     %r8
+    pop     %rdi
+    pop     %rsi
+    pop     %rdx
+    pop     %rcx
+    pop     %rax
+    add     $0x8, %rsp
+    jmpq    *-0x8(%rsp)
+
+#if 0
+call_common:
+    lea     0x58(%rsp), %rdi
     callq   *(%rax)
     movb    $0x0, (%rbx)
     pop     %rbx
-1:
+#endif
+
+in_code:
+    movq    %mm0, %rcx
+    movq    %mm1, %rdi  # offset
+    jmp     .
+#if 0
+    pop     %r12
+    pop     %r11
+    pop     %r10
+    pop     %r9
+    pop     %r8
+    pop     %rdi
+    pop     %rsi
+    pop     %rdx
+    pop     %rcx
+    pop     %rax
     retq
+#endif
 #elif defined(ARCH_AARCH64)
     brk     0   /* NYI */
 #endif
@@ -181,12 +279,19 @@ egalito_hook_instruction_hook:
     .type egalito_hook_instruction_hook, STT_OBJECT
     .size egalito_hook_instruction_hook, .-egalito_hook_instruction_hook
 
-    .global egalito_hook_jit_fixup_hook
-    .weak egalito_hook_jit_fixup_hook
-egalito_hook_jit_fixup_hook:
+    .global egalito_hook_jit_fixup_direct_hook
+    .weak egalito_hook_jit_fixup_direct_hook
+egalito_hook_jit_fixup_direct_hook:
     .skip 8
-    .type egalito_hook_jit_fixup_hook, STT_OBJECT
-    .size egalito_hook_jit_fixup_hook, .-egalito_hook_jit_fixup_hook
+    .type egalito_hook_jit_fixup_direct_hook, STT_OBJECT
+    .size egalito_hook_jit_fixup_direct_hook, .-egalito_hook_jit_fixup_direct_hook
+
+    .global egalito_hook_jit_fixup_indirect_hook
+    .weak egalito_hook_jit_fixup_indirect_hook
+egalito_hook_jit_fixup_indirect_hook:
+    .skip 8
+    .type egalito_hook_jit_fixup_indirect_hook, STT_OBJECT
+    .size egalito_hook_jit_fixup_indirect_hook, .-egalito_hook_jit_fixup_indirect_hook
 
     .global egalito_hook_jit_reset_hook
     .weak egalito_hook_jit_reset_hook

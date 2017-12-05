@@ -10,6 +10,7 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dassign
 #include "log/log.h"
+#include "log/temp.h"
 
 void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     for(auto f : CIter::functions(module)) {
@@ -59,6 +60,7 @@ void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
     char *output = reinterpret_cast<char *>(function->getAddress());
     for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
+            LOG(10, " at " << std::hex << i->getAddress());
             if(useDisps) {
                 InstrWriterCString writer(output);
                 i->getSemantic()->accept(&writer);

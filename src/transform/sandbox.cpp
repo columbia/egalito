@@ -14,8 +14,10 @@ bool Slot::append(uint8_t *data, size_t size) {
     return true;
 }
 
-MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
-    base = (address_t) mmap((void *)SANDBOX_BASE_ADDRESS, size,
+MemoryBacking::MemoryBacking(address_t address, size_t size)
+    : SandboxBacking(size) {
+
+    base = (address_t) mmap((void *)address, size,
         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS
 #ifdef ARCH_X86_64
         | MAP_32BIT
@@ -24,7 +26,7 @@ MemoryBacking::MemoryBacking(size_t size) : SandboxBacking(size) {
     if(base == (address_t)-1) {
         throw std::bad_alloc();
     }
-    if(base != SANDBOX_BASE_ADDRESS) throw "Overlapping with other regions?";
+    if(base != address) throw "Overlapping with other regions?";
 }
 
 void MemoryBacking::finalize() {
@@ -32,12 +34,32 @@ void MemoryBacking::finalize() {
 }
 
 bool MemoryBacking::reopen() {
-    mprotect((void *)base, getSize(), PROT_READ | PROT_WRITE);
+    mprotect((void *)base, getSize(), PROT_READ | PROT_WRITE | PROT_EXEC);
     return true;
 }
 
+bool MemoryBacking::recreate() {
+    if(munmap((void *)base, getSize()) < 0) {
+        return -1;
+    }
+    auto b = (address_t) mmap((void *)base, getSize(),
+        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS
+#ifdef ARCH_X86_64
+        | MAP_32BIT
+#endif
+        , -1, 0);
+    if(b == (address_t)-1) {
+        throw std::bad_alloc();
+    }
+    if(base != b) throw "Overlapping with other regions?";
+    base = b;
+
+    return 0;
+}
+
 ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)
-    : MemoryBacking(MAX_SANDBOX_SIZE), elfSpace(elfSpace), filename(filename) {
+    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
+    elfSpace(elfSpace), filename(filename) {
 
 }
 
@@ -51,7 +73,8 @@ void ExeBacking::finalize() {
 }
 
 ObjBacking::ObjBacking(ElfSpace *elfSpace, std::string filename)
-    : MemoryBacking(MAX_SANDBOX_SIZE), elfSpace(elfSpace), filename(filename) {
+    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
+    elfSpace(elfSpace), filename(filename) {
 
 }
 

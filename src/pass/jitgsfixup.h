@@ -16,7 +16,6 @@ public:
 
     virtual void visit(Program *program);
 private:
-    void resetGSTable();
     void addResetCall();
 };
 

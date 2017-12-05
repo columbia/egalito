@@ -2,6 +2,7 @@
 #include "switchcontext.h"
 #include "chunk/concrete.h"
 #include "conductor/conductor.h"
+#include "conductor/setup.h"
 #include "disasm/disassemble.h"
 #include "instr/linked-x86_64.h"
 #include "instr/semantic.h"
@@ -15,50 +16,59 @@
 
 GSTable *egalito_gsTable;
 Chunk *egalito_gsCallback;
-extern Sandbox *egalito_sandbox;
+extern ConductorSetup *egalito_conductor_setup;
 
 extern "C"
-void egalito_jit_gs_fixup(unsigned long *address) {
-    uint32_t offset = *reinterpret_cast<uint32_t *>(*address - 4);
-    uint32_t index = egalito_gsTable->offsetToIndex(offset);
+size_t egalito_jit_gs_fixup(size_t offset, bool tail) {
+    size_t index = egalito_gsTable->offsetToIndex(offset);
+    egalito_printf("(JIT-fixup index=%d tail=%d ", (int)index, tail);
 
-    egalito_printf("(JIT-fixup address=0x%lx index=%d ", *address, index);
+    auto target = ManageGS::resolve(egalito_gsTable, index);
+    egalito_printf("target=[%s])\n", target->getName().c_str());
 
-    auto entry = egalito_gsTable->getAtIndex(index);
-    if(entry) {
-        entry->setLazyResolver(nullptr);
-        auto target = entry->getTarget();
-        egalito_printf("target=[%s])\n", target->getName().c_str());
-
-        if(auto targetFunc = dynamic_cast<Function *>(target)) {
-            egalito_sandbox->reopen();
-            Generator generator(true);
-            generator.copyFunctionToSandbox(targetFunc, egalito_sandbox);
-            egalito_sandbox->finalize();
+    Function *targetFunction = dynamic_cast<Function *>(target);
+    if(!targetFunction) {
+        if(dynamic_cast<Instruction *>(target)) {
+            targetFunction = dynamic_cast<Function *>(
+                target->getParent()->getParent());
+        }
+        else if(dynamic_cast<PLTTrampoline *>(target)) {
+            //???
         }
         else {
-            egalito_printf("JIT fixup error: target is not a function!\n");
-        }
+            egalito_printf("parent = %s\n",
+                   target->getParent()->getParent()->getName().c_str());
 
-        ManageGS::setEntry(egalito_gsTable, index, target->getAddress());
-        *address -= 8;  // size of call instruction; re-run it
+            egalito_printf("JIT error, target not known!\n");
+            while(1);
+        }
     }
-    else {
-        egalito_printf("JIT jump error, target not known! Will likely crash.\n");
+
+#if 0
+    egalito_conductor_setup->flipSandboxEnd();
+#endif
+
+    // Generator does not support generating PLT yet
+    if(targetFunction) {
+        auto gsEntry = egalito_gsTable->getEntryFor(targetFunction);
+        if(gsEntry && !gsEntry->mapped()) {
+            auto sandbox = egalito_conductor_setup->getSandbox();
+            sandbox->reopen();
+            Generator generator(true);
+            generator.copyFunctionToSandbox(targetFunction, sandbox);
+            //generator.copyFunctionToSandbox(target, sandbox);
+            sandbox->finalize();
+        }
     }
+
+    ManageGS::setEntry(egalito_gsTable, index, target->getAddress());
+    return offset;
 }
 
 extern "C"
 void egalito_jit_gs_reset(void) {
     egalito_printf("resetting...\n");
-
-    address_t *array = static_cast<address_t *>(
-        egalito_gsTable->getTableAddress());
-
-    for(auto entry : CIter::children(egalito_gsTable)) {
-        entry->setLazyResolver(egalito_gsCallback);
-        array[entry->getIndex()] = egalito_gsCallback->getAddress();
-    }
+    ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
 }
 
 JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)
@@ -67,7 +77,7 @@ JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)
 }
 
 void JitGSFixup::visit(Program *program) {
-    auto lib = conductor->getLibraryList()->get("(egalito)");
+    auto lib = program->getEgalito();
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
 
     callback = ChunkFind2(conductor).findFunctionInModule(
@@ -75,25 +85,16 @@ void JitGSFixup::visit(Program *program) {
     if(!callback) {
         throw "JitGSFixup can't find hook function";
     }
-
-    SwitchContextPass switcher;
-    callback->accept(&switcher);
-
-    set_jit_fixup_hook(egalito_jit_gs_fixup);
-
-    ::egalito_gsTable = gsTable;
-    resetGSTable();
-
     ::egalito_gsCallback = callback;
 
-    addResetCall();
-}
-
-void JitGSFixup::resetGSTable() {
+    ::egalito_gsTable = gsTable;
+    // ManageGS methods cannot be used until 'runtime', because there is no
+    // buffer yet
     for(auto entry : CIter::children(gsTable)) {
-        LOG(12, "set resolver for " << entry->getTarget()->getName());
         entry->setLazyResolver(callback);
     }
+
+    //addResetCall();
 }
 
 void JitGSFixup::addResetCall() {

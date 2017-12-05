@@ -9,6 +9,7 @@
 #include "chunk/concrete.h"
 #include "chunk/serializer.h"
 #include "chunk/gstable.h"  // for testing
+#include "chunk/ifunc.h"    // for testing
 #include "generate/bingen.h"
 #include "operation/find.h"
 #include "operation/find2.h"
@@ -152,7 +153,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             std::cout << "no ELF files loaded\n";
             return;
         }
-        setup->makeLoaderSandbox();
+        setup->makeLoaderSandbox(false);
         setup->moveCodeAssignAddresses(true);
     }, "allocates a sandbox and assigns functions new addresses");
 
@@ -368,7 +369,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
         args.shouldHave(0);
         GSTable *gsTable = new GSTable();
-        UseGSTablePass useGSTable(gsTable);
+        IFuncList *ifuncList = new IFuncList(); // dummy
+        UseGSTablePass useGSTable(setup->getConductor(), gsTable, ifuncList);
         setup->getConductor()->acceptInAllModules(&useGSTable, true);
     }, "indirects calls through the GS table");
 
