@@ -1,5 +1,6 @@
 #include "external.h"
 #include "program.h"
+#include "function.h"
 #include "operation/find2.h"
 #include "log/log.h"
 
@@ -40,4 +41,28 @@ void ExternalData::resolveOneSymbol(Program *program, ExternalSymbol *xSymbol) {
         LOG(1, "WARNING: don't know how to resolve external symbol \""
             << xSymbol << "\" of type " << xSymbol->getType());
     }
+}
+
+ExternalModule *ExternalFactory::makeExternalModule(const std::string &name) {
+    auto data = makeExternalData();
+    auto xModule = new ExternalModule(name);
+    data->addExternalModule(xModule);
+    return xModule;
+}
+
+ExternalSymbol *ExternalFactory::makeExternalSymbol(Symbol *symbol) {
+    auto data = makeExternalData();
+    auto xSymbol = new ExternalSymbol(
+        symbol->getName(),
+        symbol->getType(),
+        symbol->getBind());
+    data->addExternalSymbol(xSymbol);
+    return xSymbol;
+}
+
+ExternalData *ExternalFactory::makeExternalData() {
+    if(!module->getExternalData()) {
+        module->setExternalData(new ExternalData());
+    }
+    return module->getExternalData();
 }

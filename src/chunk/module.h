@@ -12,6 +12,7 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 class VTableList;
+class ExternalData;
 
 class Module : public ChunkSerializerImpl<TYPE_Module,
     CompositeChunkImpl<Chunk>> {
@@ -25,10 +26,11 @@ private:
     DataRegionList *dataRegionList;
     MarkerList *markerList;
     VTableList *vtableList;
+    ExternalData *externalData;
 public:
     Module() : elfSpace(nullptr), functionList(nullptr), pltList(nullptr),
         jumpTableList(nullptr), dataRegionList(nullptr), markerList(nullptr),
-        vtableList(nullptr) {}
+        vtableList(nullptr), externalData(nullptr) {}
 
     std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
@@ -42,6 +44,7 @@ public:
     DataRegionList *getDataRegionList() const { return dataRegionList; }
     MarkerList *getMarkerList() const { return markerList; }
     VTableList *getVTableList() const { return vtableList; }
+    ExternalData *getExternalData() const { return externalData; }
 
     void setFunctionList(FunctionList *list) { functionList = list; }
     void setPLTList(PLTList *list) { pltList = list; }
@@ -49,6 +52,7 @@ public:
     void setDataRegionList(DataRegionList *list) { dataRegionList = list; }
     void setMarkerList(MarkerList *list) { markerList = list; }
     void setVTableList(VTableList *list) { vtableList = list; }
+    void setExternalData(ExternalData *data) { externalData = data; }
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

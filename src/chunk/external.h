@@ -5,7 +5,6 @@
 #include <vector>
 #include "elf/symbol.h"
 #include "module.h"
-#include "function.h"
 
 class Program;
 
@@ -70,8 +69,27 @@ public:
     std::vector<ExternalModule *> &getExternalModules()
         { return externalModules; }
     void resolveAllSymbols(Program *program);
+
+    void addSearchPath(const std::string &path)
+        { searchPaths.push_back(path); }
+    void addExternalModule(ExternalModule *xModule)
+        { externalModules.push_back(xModule); }
+    void addExternalSymbol(ExternalSymbol *xSymbol)
+        { externalSymbols.push_back(xSymbol); }
 private:
     void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);
+};
+
+class ExternalFactory {
+private:
+    Module *module;
+public:
+    ExternalFactory(Module *module) : module(module) {}
+
+    ExternalModule *makeExternalModule(const std::string &name);
+    ExternalSymbol *makeExternalSymbol(Symbol *symbol);
+private:
+    ExternalData *makeExternalData();
 };
 
 #endif
