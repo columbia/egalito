@@ -62,7 +62,7 @@ ADDON_LIBRARY = $(BUILDDIR)libaddon.so
 LOADERPIE = $(BUILDDIR)loader-pie
 
 OUTPUTS = $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
-		$(ADDON_LIBRARY) $(LOADERPIE)
+		$(ADDON_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 
 GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
@@ -86,7 +86,6 @@ $(BUILDTREE): ../config/config.h
 	@if [ "$(P_ARCH)" != "`cat $@`" ]; then \
 		echo $(P_ARCH) > $@; \
 		ln -sf $(BUILDDIR)loader; \
-		ln -sf $(BUILDDIR)loader-pie; \
 		ln -sf $(BUILDDIR)libegalito.a; \
 		ln -sf $(BUILDDIR)libegalito.so; \
 		ln -sf $(BUILDDIR)libaddon.so; \
