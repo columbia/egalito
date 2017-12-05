@@ -8,7 +8,7 @@
 #include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
-    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-libc.so.6");
+    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(executable)");
     auto list = module->getDataRegionList();
 
     // make variables for all relocations located inside the regions
@@ -68,6 +68,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         LOG(0, "WARNING: skipping R_X86_64_DTPMOD64 ("
             << std::hex << reloc->getAddress()
             << ") in " << module->getName());
+        return nullptr;
     }
     if(reloc->getType() == R_X86_64_COPY) {
         LOG(0, "WARNING: skipping R_X86_64_COPY ("
@@ -75,6 +76,17 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             << ") in " << module->getName());
         return nullptr;
     }
+#if 0
+    if(reloc->getType() == R_X86_64_PC32
+        || reloc->getType() == R_X86_64_PC16
+        || reloc->getType() == R_X86_64_PC8
+        || reloc->getType() == R_X86_64_PC64) {
+
+        // creating a variable for these requires instruction address
+        LOG(9, "WARNING: skipping PC-relative relocations");
+        return nullptr;
+    }
+#endif
 #else
     // We can't resolve the address yet, because a link may point to a TLS
     // in another module e.g. errno referred from libm (tls can be nullptr)
