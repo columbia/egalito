@@ -23,7 +23,8 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
         "_ZNK16AbsolutePosition3getEv",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.249",
+        //"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.249",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.296",
         "_ZNK11GSTableLink16getTargetAddressEv",
         "_ZNK12GSTableEntry9getOffsetEv",
         "_ZN10ChunkFind228findFunctionContainingHelperEmP6Module",
@@ -53,9 +54,9 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE6reopenEv",
         "_ZN13MemoryBacking6reopenEv",
         "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE8finalizeEv",
-        "_ZN12SemanticImplI19DisassembledStorageE6acceptEP18InstructionVisitor",
-        "_ZN18InstrWriterCString5visitEP12SemanticImplI19DisassembledStorageE",
-        "_ZNK12SemanticImplI19DisassembledStorageE7getSizeEv",
+        //"_ZN12SemanticImplI19DisassembledStorageE6acceptEP18InstructionVisitor",
+        //"_ZN18InstrWriterCString5visitEP12SemanticImplI19DisassembledStorageE",
+        //"_ZNK12SemanticImplI19DisassembledStorageE7getSizeEv",
         "_ZN17LinkedInstruction6acceptEP18InstructionVisitor",
         "_ZN18InstrWriterCString5visitEP17LinkedInstruction",
         "_ZN18InstrWriterCString5visitEP22ControlFlowInstruction",
@@ -80,10 +81,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "ifunc_select",
         "_ZNK9IFuncList6getForEm",
         "_ZNK13PLTTrampoline7getNameB5cxx11Ev",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.87",
         "_ZNK11Instruction7getNameB5cxx11Ev",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.29",
-        //"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.52",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.91",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.23",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.51",
     };
     for(auto name : resolvers) {
         makeResolvedEntry(name, egalito);
@@ -230,9 +231,14 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
 }
 
 void JitGSSetup::makeResolvedEntry(const char *name, Module *module) {
-    auto f = ChunkFind2(conductor).findFunctionInModule(name, module);
-    assert(f);
-    gsTable->makeEntryFor(f, true);
+    bool found = false;
+    for(auto f : CIter::functions(module)) {
+        if(f->hasName(name)) {
+            gsTable->makeEntryFor(f, true);
+            found = true;
+        }
+    }
+    assert(found);
 }
 
 void JitGSSetup::makeResolvedEntryForPLT(std::string name, Program *program) {
