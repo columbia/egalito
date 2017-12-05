@@ -5,6 +5,7 @@
 #include "flatchunk.h"
 #include "stream.h"
 #include "chunk/chunk.h"
+#include "chunk/external.h"
 #include "log/log.h"
 
 bool EgalitoArchiveReader::readHeader(std::ifstream &file,
@@ -71,4 +72,15 @@ EgalitoArchive *EgalitoArchiveReader::read(std::string filename) {
 
     file.close();
     return archive;
+}
+
+EgalitoArchive *EgalitoArchiveReader::read(std::string filename,
+    ExternalData *externalData) {
+
+    for(auto path : externalData->getSearchPaths()) {
+        auto archive = read(path + "/" + filename);
+        if(archive) return archive;
+    }
+
+    return read(filename);  // try the unadorned filename last
 }

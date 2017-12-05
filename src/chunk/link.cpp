@@ -1,6 +1,7 @@
 #include "link.h"
 #include "chunk/concrete.h"
 #include "chunk/aliasmap.h"
+#include "chunk/external.h"
 #include "conductor/conductor.h"
 #include "elf/reloc.h"
 #include "elf/elfspace.h"
@@ -60,6 +61,29 @@ ChunkRef TLSDataOffsetLink::getTarget() const {
 
 address_t TLSDataOffsetLink::getTargetAddress() const {
     return tls->getTLSOffset() + target;
+}
+
+ChunkRef ExternalModuleLink::getTarget() const {
+    return xModule->getResolved();
+}
+
+address_t ExternalModuleLink::getTargetAddress() const {
+    throw "retrieving the base address of a Module is not yet implemented";
+}
+
+ChunkRef ExternalSymbolLink::getTarget() const {
+    return xSymbol->getResolved();
+}
+
+address_t ExternalSymbolLink::getTargetAddress() const {
+    if(auto resolved = getTarget()) {
+        return resolved->getAddress();
+    }
+    else {
+        LOG(1, "WARNING: getting the address of an ExternalSymbol"
+            " before it is resolved");
+        return 0;
+    }
 }
 
 Link *LinkFactory::makeNormalLink(ChunkRef target, bool isRelative,
