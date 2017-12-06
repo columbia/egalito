@@ -8,6 +8,7 @@
 #include "program.h"
 
 #include "module.h"
+#include "library.h"
 
 #include "function.h"
 #include "block.h"
@@ -22,6 +23,7 @@
 #include "marker.h"
 #include "vtable.h"
 #include "ifunc.h"
+#include "external.h"
 
 #define INCLUDE_FROM_CONCRETE_H
 #include "chunkiter.h"

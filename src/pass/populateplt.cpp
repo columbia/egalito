@@ -65,13 +65,13 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
 
     auto jmpq2 = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0xe9, 0, 0, 0, 0}));
-    auto lib = conductor->getLibraryList()->get("(egalito)");
+    auto lib = conductor->getProgram()->getEgalito();
     if(!lib) {
         LOG(1, "PopulatePLTPass requires libegalito.so");
         throw "PopulatePLTPass error";
     }
     auto resolver = ChunkFind2(conductor).findFunctionInModule(
-        "ifunc_resolver", lib->getElfSpace()->getModule());
+        "ifunc_resolver", lib);
     auto jmpq2_cfi = dynamic_cast<ControlFlowInstruction *>(
         jmpq2->getSemantic());
     auto link2 = LinkFactory::makeNormalLink(resolver, true, true);

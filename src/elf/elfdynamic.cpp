@@ -36,7 +36,7 @@ void ElfDynamic::parse(ElfMap *elf, SharedLib *sharedLib) {
     resolveLibraries();
 }
 
-template<typename Out>
+template <typename Out>
 static void split(const std::string &s, char delim, Out result) {
     std::stringstream ss;
     ss.str(s);
@@ -152,7 +152,8 @@ void ElfDynamic::resolveLibraries() {
             }
         }
         if(!found) {
-            LOG(0, "WARNING: can't find shared library [" << library << "] in search path");
+            LOG(0, "WARNING: can't find shared library ["
+                << library << "] in search path");
         }
     }
 }

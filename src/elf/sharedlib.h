@@ -37,7 +37,7 @@ public:
     std::set<SharedLib *> &getParentDependList() { return parentDependList; }
 };
 
-class LibraryList {
+class SharedLibList {
 protected:
     typedef std::vector<SharedLib *> LibraryListType;
 private:

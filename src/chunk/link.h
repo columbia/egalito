@@ -193,32 +193,6 @@ public:
     void setTarget(address_t target) { this->target = target; }
 };
 
-// --- external links ---
-
-class ExternalModule;
-class ExternalModuleLink : public Link {
-private:
-    ExternalModule *xModule;
-public:
-    ExternalModuleLink(ExternalModule *xModule) : xModule(xModule) {}
-
-    virtual ChunkRef getTarget() const;
-    virtual address_t getTargetAddress() const;
-    ExternalModule *getExternalModule() const { return xModule; }
-};
-
-class ExternalSymbol;
-class ExternalSymbolLink : public Link {
-private:
-    ExternalSymbol *xSymbol;
-public:
-    ExternalSymbolLink(ExternalSymbol *xSymbol) : xSymbol(xSymbol) {}
-
-    virtual ChunkRef getTarget() const;
-    virtual address_t getTargetAddress() const;
-    ExternalSymbol *getExternalSymbol() const { return xSymbol; }
-};
-
 // --- other links ---
 
 /** We know that this is a Link, but we're not sure what it points at yet.

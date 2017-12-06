@@ -1,7 +1,7 @@
 #include "elfforest.h"
 
 ElfForest::ElfForest() {
-    libraryList = new LibraryList();
+    libraryList = new SharedLibList();
     spaceList = new ElfSpaceList();
 }
 

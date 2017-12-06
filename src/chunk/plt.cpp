@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstring>  // for memcpy
 #include "plt.h"
 #include "ifunc.h"
@@ -38,10 +39,12 @@ PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
 }
 
 std::string PLTTrampoline::getName() const {
+    assert(externalSymbol != nullptr);
     return externalSymbol->getName() + std::string("@plt");
 }
 
 Chunk *PLTTrampoline::getTarget() const {
+    assert(externalSymbol != nullptr);
     return externalSymbol->getResolved();
 }
 
@@ -60,8 +63,8 @@ bool PLTTrampoline::isIFunc() const {
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
-    if(this->target) {
-        LOG(10, "making PLT entry for [" << this->target->getName()
+    if(externalSymbol) {
+        LOG(10, "making PLT entry for [" << externalSymbol->getName()
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
@@ -104,10 +107,7 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write(getAddress());
-    writer.writeString(externalSymbol->getName());
-    writer.write<uint32_t>(externalSymbol->getType());
-    writer.write<uint32_t>(externalSymbol->getBind());
-    writer.writeID(op.assign(externalSymbol->getResolved()));
+    writer.writeID(op.assign(externalSymbol));
     writer.write(gotPLTEntry);
 }
 
@@ -115,28 +115,8 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
     setPosition(new AbsolutePosition(reader.read<address_t>()));
-
-    std::string name = reader.readString();
-    auto type = reader.read<uint32_t>();
-    auto bind = reader.read<uint32_t>();
-    auto resolved = reader.readID();
-
-    new ExternalSymbol(name, type, bind);
-
-    auto id = reader.read<FlatChunk::IDType>();
-    setTarget(op.lookupAs<Chunk>(id));  // can be nullptr
-
-    std::string name = reader.readString();
-
-    LOG(1, "looks like it targets [" << name << "]");
-
-    // hack to create a target of the right name, an orphan Symbol
-    if(id == FlatChunk::NoneID) {
-        char *s = new char[name.length() + 1];
-        std::strcpy(s, name.c_str());
-        this->targetSymbol = new Symbol(0x0, 0, s,
-            Symbol::TYPE_FUNC, Symbol::BIND_LOCAL, 0, 0);
-    }
+    externalSymbol = op.lookupAs<ExternalSymbol>(reader.readID());
+    gotPLTEntry = reader.read<address_t>();
 
     return reader.stillGood();
 }
@@ -243,7 +223,7 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                     symbol = module->getElfSpace()->getSymbolList()
                         ->find(r->getAddend());
                 }
-                auto externalSymbol = ExternalFactory(module)
+                auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(symbol);
                 pltList->getChildren()->add(
                     new PLTTrampoline(elf, pltAddress, externalSymbol, value));
@@ -285,7 +265,7 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
 
-                auto externalSymbol = ExternalFactory(module)
+                auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(r->getSymbol());
                 pltList->getChildren()->add(
                     new PLTTrampoline(elf, pltAddress, externalSymbol, value));
@@ -335,7 +315,7 @@ void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
-                auto externalSymbol = ExternalFactory(module)
+                auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(r->getSymbol());
                 pltList->getChildren()->add(
                     new PLTTrampoline(elf, pltAddress, externalSymbol, value));

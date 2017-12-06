@@ -55,13 +55,13 @@ void egalito_log_function_ret(unsigned long address) {
 }
 
 LogCallsPass::LogCallsPass(Conductor *conductor) {
-    auto lib = conductor->getLibraryList()->get("(egalito)");
+    auto lib = conductor->getProgram()->getEgalito();
     if(!lib) throw "LogCallsPass requires libegalito.so to be transformed";
 
     loggingBegin = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_function_entry", lib->getElfSpace()->getModule());
+        "egalito_hook_function_entry", lib);
     loggingEnd = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_function_exit", lib->getElfSpace()->getModule());
+        "egalito_hook_function_exit", lib);
     if(!loggingBegin || !loggingEnd) {
         throw "LogCallsPass can't find log functions";
     }

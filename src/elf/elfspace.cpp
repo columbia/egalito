@@ -24,7 +24,7 @@ ElfSpace::~ElfSpace() {
     delete aliasMap;
 }
 
-void ElfSpace::findDependencies(LibraryList *libraryList) {
+void ElfSpace::findDependencies(SharedLibList *libraryList) {
     ElfDynamic dynamic(libraryList);
     dynamic.parse(elf, library);
 }

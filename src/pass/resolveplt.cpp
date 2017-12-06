@@ -18,14 +18,20 @@ void ResolvePLTPass::visit(PLTList *pltList) {
 void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     if(pltTrampoline->getTarget()) return;  // already resolved
 
-    auto symbol = pltTrampoline->getTargetSymbol();
-    auto found = ChunkFind2(program).findFunction(symbol->getName(), module);
+    auto symbol = pltTrampoline->getExternalSymbol();
+    auto found = ChunkFind2(program).findFunction(
+        symbol->getName().c_str(), module);
 
     if(!found) {
         found = LoaderEmulator::getInstance().findFunction(symbol->getName());
     }
     if(found) {
-        pltTrampoline->setTarget(found);
+        symbol->setResolved(found);
+
+        if(found->getParent()) {
+            symbol->setResolvedModule(dynamic_cast<Module *>(
+                found->getParent()->getParent()));
+        }
     }
     else {
         LOG(12, "unresolved pltTrampoline target "

@@ -134,7 +134,7 @@ bool NonReturnFunction::neverReturns(Function *function) {
 bool NonReturnFunction::hasLinkToNeverReturn(ControlFlowInstruction *cfi) {
     if(auto pltLink = dynamic_cast<PLTLink *>(cfi->getLink())) {
         auto trampoline = pltLink->getPLTTrampoline();
-        auto pltName = trampoline->getTargetSymbol()->getName();
+        auto pltName = trampoline->getExternalSymbol()->getName();
         for(auto name : knownList) {
             if(pltName == name) {
                 return true;
@@ -157,7 +157,7 @@ bool NonReturnFunction::hasLinkToNeverReturn(ControlFlowInstruction *cfi) {
 bool NonReturnFunction::hasLinkToGNUError(ControlFlowInstruction *cfi) {
     if(auto pltLink = dynamic_cast<PLTLink *>(cfi->getLink())) {
         auto trampoline = pltLink->getPLTTrampoline();
-        auto pltName = trampoline->getTargetSymbol()->getName();
+        auto pltName = trampoline->getExternalSymbol()->getName();
         return pltName == std::string("error");
     }
     else if(auto target = dynamic_cast<Function *>(

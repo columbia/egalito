@@ -2,27 +2,36 @@
 #define EGALITO_CHUNK_PROGRAM_H
 
 #include "chunk.h"
-#include "module.h"
+#include "chunklist.h"
 #include "archive/chunktypes.h"
 
-class ElfSpaceList;
+class Module;
+class Library;
+class LibraryList;
 
+/** Root class for the entire Chunk heirarchy. The children of this class are
+    Modules, which are parsed from individual ELF files. The Program also
+    stores a LibraryList (not in the child list) which indicates the Modules
+    that are needed to resolve all references but which may not be loaded.
+*/
 class Program : public ChunkSerializerImpl<TYPE_Program,
     CollectionChunkImpl<Module>> {
 private:
-    Module *main;
-    Module *egalito;
-    ElfSpaceList *spaceList;
+    LibraryList *libraryList;
     Chunk *entryPoint;
 public:
-    Program(ElfSpaceList *spaceList = nullptr);
+    Program() : libraryList(nullptr), entryPoint(nullptr) {}
 
     void add(Module *module);
-    void setMain(Module *module);
-    void setEgalito(Module *module);
+    void add(Library *library);
 
-    Module *getMain() const { return main; }
-    Module *getEgalito() const { return egalito; }
+    Module *getMain() const;
+    Module *getEgalito() const;
+    Module *getLibc() const;
+    Module *getLibcpp() const;
+
+    LibraryList *getLibraryList() const { return libraryList; }
+    void setLibraryList(LibraryList *list) { libraryList = list; }
 
     void setEntryPoint(Chunk *chunk) { entryPoint = chunk; }
     Chunk *getEntryPoint() const { return entryPoint; }

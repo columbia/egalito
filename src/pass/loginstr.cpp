@@ -36,11 +36,11 @@ void egalito_log_instruction(unsigned long address) {
 }
 
 LogInstructionPass::LogInstructionPass(Conductor *conductor) {
-    auto lib = conductor->getLibraryList()->get("(egalito)");
+    auto lib = conductor->getProgram()->getEgalito();
     if(!lib) throw "LogInstructionPass requires libegalito.so to be transformed";
 
     loggingFunc = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_instruction", lib->getElfSpace()->getModule());
+        "egalito_hook_instruction", lib);
     if(!loggingFunc) {
         throw "LogInstructionPass can't find log functions";
     }

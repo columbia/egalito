@@ -11,6 +11,8 @@ enum EgalitoChunkType {
     TYPE_PLTList,
     TYPE_JumpTableList,
     TYPE_DataRegionList,
+    TYPE_ExternalSymbolList,
+    TYPE_LibraryList,
     TYPE_Function,
     TYPE_Block,
     TYPE_Instruction,
@@ -22,6 +24,8 @@ enum EgalitoChunkType {
     TYPE_DataVariable,
     TYPE_MarkerList,
     TYPE_Marker,
+    TYPE_ExternalSymbol,
+    TYPE_Library,
 };
 
 uint8_t encodeChunkType(EgalitoChunkType type);

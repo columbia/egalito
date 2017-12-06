@@ -5,19 +5,21 @@
 #include <vector>
 #include <set>
 #include "chunk.h"
+#include "chunklist.h"
+#include "archive/chunktypes.h"
 
-class ElfSpace;
+class Module;
 
 /** Represents a shared library dependency, or rather a Module which may or
     may not be present. If only one Module is present because a single ELF file
     is being parsed, for instance, it may depend on many other ELF files, which
-    will all appear in the Library list.
+    will all appear in the LibraryList.
 */
 class Library : public ChunkSerializerImpl<TYPE_Library, ChunkImpl> {
 public:
     enum Role {
         ROLE_UNKNOWN,
-        ROLE_EXECUTABLE,    // target executable
+        ROLE_MAIN,          // target executable
         ROLE_EGALITO,       // injected libegalito
         ROLE_LIBC,
         ROLE_LIBCPP,
@@ -29,14 +31,13 @@ private:
     std::string name;
     Role role;
     Module *module;
-    ElfSpace *elfSpace;
     std::string resolvedPath;
 public:
-    Library() : module(nullptr), elfSpace(nullptr) {}
+    Library() : role(ROLE_UNKNOWN), module(nullptr) {}
     Library(const std::string &name, Role role) : name(name), role(role),
-        module(nullptr), elfSpace(nullptr) {}
+        module(nullptr) {}
 
-    const std::string &getName() const { return name; }
+    std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
 
     /** Returns the module corresponding to this library, or NULL if it has
@@ -46,12 +47,17 @@ public:
     void setModule(Module *module) { this->module = module; }
 
     Role getRole() const { return role; }
-    ElfSpace *getElfSpace() const { return elfSpace; }
     void setRole(Role role) { this->role = role; }
-    void setElfSpace(ElfSpace *elfSpace) { this->elfSpace = elfSpace; }
 
     const std::string &getResolvedPath() const { return resolvedPath; }
     void setResolvedPath(const std::string &path) { resolvedPath = path; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
+    virtual void accept(ChunkVisitor *visitor);
 };
 
 class LibraryList : public ChunkSerializerImpl<TYPE_LibraryList,
@@ -59,15 +65,25 @@ class LibraryList : public ChunkSerializerImpl<TYPE_LibraryList,
 private:
     std::vector<std::string> searchPaths;
     std::set<std::string> searchPathSet;
-    Library roleMap[Library::ROLES];
+    Library *roleMap[Library::ROLES];
 public:
+    Library *find(const std::string &name);
+
     void saveRole(Library *library);
     Library *byRole(Library::Role role);
+    Module *moduleByRole(Library::Role role);
 
-    Library *getExecutable() const { return roleMap[Library::ROLE_EXECUTABLE]; }
+    Library *getMain() const { return roleMap[Library::ROLE_MAIN]; }
     Library *getEgalito() const { return roleMap[Library::ROLE_EGALITO]; }
     Library *getLibc() const { return roleMap[Library::ROLE_LIBC]; }
     Library *getLibcpp() const { return roleMap[Library::ROLE_LIBCPP]; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
+    virtual void accept(ChunkVisitor *visitor);
 };
 
 #endif

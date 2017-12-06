@@ -6,13 +6,13 @@
 
 class ElfForest {
 private:
-    LibraryList *libraryList;
+    SharedLibList *libraryList;
     ElfSpaceList *spaceList;
 public:
     ElfForest();
     ~ElfForest();
 
-    LibraryList *getLibraryList() const { return libraryList; }
+    SharedLibList *getLibraryList() const { return libraryList; }
     ElfSpaceList *getSpaceList() const { return spaceList; }
     ElfSpace *getMainSpace() const { return spaceList->getMain(); }
 };

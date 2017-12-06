@@ -60,6 +60,11 @@ public:
         { return CIterChildren<PLTList>(module->getPLTList()); }
     static CIterChildren<DataRegionList> regions(Module *module)
         { return CIterChildren<DataRegionList>(module->getDataRegionList()); }
+
+    static CIterChildren<Program> modules(Program *program)
+        { return CIterChildren<Program>(program); }
+    static CIterChildren<LibraryList> libraries(Program *program)
+        { return CIterChildren<LibraryList>(program->getLibraryList()); }
 };
 
 #endif

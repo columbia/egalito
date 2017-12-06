@@ -72,7 +72,7 @@ std::string SharedLib::getAlternativeSymbolFile() const {
     return "";
 }
 
-void LibraryList::add(SharedLib *library) {
+void SharedLibList::add(SharedLib *library) {
     auto it = libraryMap.find(library->getFullPath());
     if(it != libraryMap.end()) return;  // already present
 
@@ -80,7 +80,7 @@ void LibraryList::add(SharedLib *library) {
     libraryList.push_back(library);
 }
 
-void LibraryList::addToFront(SharedLib *library) {
+void SharedLibList::addToFront(SharedLib *library) {
     auto it = libraryMap.find(library->getFullPath());
     if(it != libraryMap.end()) return;  // already present
 
@@ -90,7 +90,7 @@ void LibraryList::addToFront(SharedLib *library) {
     libraryList.insert(libraryList.begin(), library);
 }
 
-SharedLib *LibraryList::get(const std::string &name) {
+SharedLib *SharedLibList::get(const std::string &name) {
     auto it = libraryMap.find(name);
     return (it != libraryMap.end() ? (*it).second : nullptr);
 }
@@ -99,7 +99,7 @@ SharedLib *LibraryList::get(const std::string &name) {
 #define LIBC_PATH   "/lib/x86_64-linux-gnu/libc.so.6"
 #endif
 
-SharedLib *LibraryList::getLibc() {
+SharedLib *SharedLibList::getLibc() {
     auto manual = get(LIBC_PATH);
     if(manual) return manual;
 

@@ -35,8 +35,9 @@ public:
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);
 
     Program *getProgram() const { return program; }
+    LibraryList *getLibraryList() const { return program->getLibraryList(); }
     ElfSpace *getMainSpace() const { return forest->getMainSpace(); }
-    LibraryList *getLibraryList() const { return forest->getLibraryList(); }
+    SharedLibList *getSharedLibList() const { return forest->getLibraryList(); }
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
     IFuncList *getIFuncList() const { return ifuncList; }

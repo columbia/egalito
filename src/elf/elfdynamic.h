@@ -14,9 +14,9 @@ private:
     // stores library names, and the library which created the dependency
     std::vector<std::pair<std::string, SharedLib *>> dependencyList;
     const char *rpath;
-    LibraryList *libraryList;
+    SharedLibList *libraryList;
 public:
-    ElfDynamic(LibraryList *libraryList)
+    ElfDynamic(SharedLibList *libraryList)
         : rpath(nullptr), libraryList(libraryList) {}
     void parse(ElfMap *elf, SharedLib *sharedLib);
     void resolveLibraries();

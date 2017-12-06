@@ -50,14 +50,15 @@ void ConductorSetup::parseElfFiles(const char *executable,
     // been performed (except for special cases)
 
     int i = 0;
-    for(auto lib : *conductor->getLibraryList()) {
-        if(setBaseAddress(lib->getElfMap(), 0xa0000000 + i*0x1000000)) {
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto elfMap = module->getElfSpace()->getElfMap();
+        if(setBaseAddress(elfMap, 0xa0000000 + i*0x1000000)) {
             i ++;
         }
     }
 
     ClearSpatialPass clearSpatial;
-    for(auto module : CIter::children(conductor->getProgram())) {
+    for(auto module : CIter::modules(conductor->getProgram())) {
         auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
         for(auto region : CIter::regions(module)) {
             region->updateAddressFor(baseAddress);
@@ -126,7 +127,9 @@ void ConductorSetup::moveCode(bool useDisps) {
 void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
     Generator generator(useDisps);
 
-    for(auto lib : *conductor->getLibraryList()) {
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto lib = conductor->getSharedLibList()->get(
+            module->getLibrary()->getName());
         LOG(1, "depends for library " << lib->getShortName());
         for(auto dep : lib->getParentDependList()) {
             LOG(1, "    parent dep " << dep->getShortName());
@@ -136,20 +139,16 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
         }
     }
 
-    for(auto lib : *conductor->getLibraryList()) {
-        if(!lib->getElfSpace()) continue;
-        generator.pickAddressesInSandbox(
-            lib->getElfSpace()->getModule(), sandbox);
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        generator.pickAddressesInSandbox(module, sandbox);
     }
 }
 
 void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
     Generator generator(useDisps);
 
-    for(auto lib : *conductor->getLibraryList()) {
-        if(!lib->getElfSpace()) continue;
-        generator.copyCodeToSandbox(
-            lib->getElfSpace()->getModule(), sandbox);
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        generator.copyCodeToSandbox(module, sandbox);
     }
 }
 

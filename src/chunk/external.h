@@ -2,9 +2,10 @@
 #define EGALITO_CHUNK_EXTERNAL_H
 
 #include <string>
-#include <vector>
 #include "chunk.h"
+#include "chunklist.h"
 #include "elf/symbol.h"
+#include "archive/chunktypes.h"
 
 class Chunk;
 class Program;
@@ -22,7 +23,7 @@ public:
     ExternalSymbol(const std::string &name, Symbol::SymbolType type,
         Symbol::BindingType bind) : name(name), type(type), bind(bind) {}
 
-    const std::string &getName() const { return name; }
+    std::string getName() const { return name; }
     void setResolved(Chunk *chunk) { this->resolved = chunk; }
     Chunk *getResolved() const { return resolved; }
     void setResolvedModule(Module *module) { resolvedModule = module; }
@@ -30,29 +31,40 @@ public:
 
     Symbol::SymbolType getType() const { return type; }
     Symbol::BindingType getBind() const { return bind; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
+    virtual void accept(ChunkVisitor *visitor);
 };
 
-class ExternalSymbolList : public ChunkSerializeImpl<TYPE_ExternalSymbolList,
+class ExternalSymbolList : public ChunkSerializerImpl<TYPE_ExternalSymbolList,
     CompositeChunkImpl<ExternalSymbol>> {
 public:
-    void addExternalSymbol(ExternalSymbol *xSymbol)
-        { externalSymbols.push_back(xSymbol); }
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
+    virtual void accept(ChunkVisitor *visitor);
 };
 
 class ExternalSymbolFactory {
 private:
     Module *module;
 public:
-    ExternalFactory(Module *module) : module(module) {}
+    ExternalSymbolFactory(Module *module) : module(module) {}
 
     ExternalSymbol *makeExternalSymbol(Symbol *symbol);
     ExternalSymbol *makeExternalSymbol(const std::string &name,
         Symbol::SymbolType type, Symbol::BindingType bind, Chunk *resolved);
 
     void resolveAllSymbols(Program *program);
+    static void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);
 private:
-    ExternalData *makeExternalSymbolList();
-    void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);
+    ExternalSymbolList *makeExternalSymbolList();
 };
 
 #endif

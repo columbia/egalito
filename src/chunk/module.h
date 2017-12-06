@@ -5,6 +5,7 @@
 #include "chunklist.h"
 #include "archive/chunktypes.h"
 
+class Library;
 class ElfSpace;
 class FunctionList;
 class PLTList;
@@ -12,13 +13,14 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 class VTableList;
-class ExternalData;
+class ExternalSymbolList;
 
 class Module : public ChunkSerializerImpl<TYPE_Module,
     CompositeChunkImpl<Chunk>> {
 private:
-    ElfSpace *elfSpace;
     std::string name;
+    Library *library;
+    ElfSpace *elfSpace;
 private:
     FunctionList *functionList;
     PLTList *pltList;
@@ -28,15 +30,17 @@ private:
     VTableList *vtableList;
     ExternalSymbolList *externalSymbolList;
 public:
-    Module() : elfSpace(nullptr), functionList(nullptr), pltList(nullptr),
-        jumpTableList(nullptr), dataRegionList(nullptr), markerList(nullptr),
-        vtableList(nullptr), externalSymbolList(nullptr) {}
+    Module() : library(nullptr), elfSpace(nullptr), functionList(nullptr),
+        pltList(nullptr), jumpTableList(nullptr), dataRegionList(nullptr),
+        markerList(nullptr), vtableList(nullptr), externalSymbolList(nullptr) {}
 
     std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
 
-    void setElfSpace(ElfSpace *space);
+    void setElfSpace(ElfSpace *elfSpace);
     ElfSpace *getElfSpace() const { return elfSpace; }
+    void setLibrary(Library *library);
+    Library *getLibrary() const { return library; }
 
     FunctionList *getFunctionList() const { return functionList; }
     PLTList *getPLTList() const { return pltList; }
