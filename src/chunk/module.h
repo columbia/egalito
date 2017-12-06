@@ -26,11 +26,11 @@ private:
     DataRegionList *dataRegionList;
     MarkerList *markerList;
     VTableList *vtableList;
-    ExternalData *externalData;
+    ExternalSymbolList *externalSymbolList;
 public:
     Module() : elfSpace(nullptr), functionList(nullptr), pltList(nullptr),
         jumpTableList(nullptr), dataRegionList(nullptr), markerList(nullptr),
-        vtableList(nullptr), externalData(nullptr) {}
+        vtableList(nullptr), externalSymbolList(nullptr) {}
 
     std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
@@ -44,7 +44,8 @@ public:
     DataRegionList *getDataRegionList() const { return dataRegionList; }
     MarkerList *getMarkerList() const { return markerList; }
     VTableList *getVTableList() const { return vtableList; }
-    ExternalData *getExternalData() const { return externalData; }
+    ExternalSymbolList *getExternalSymbolList() const
+        { return externalSymbolList; }
 
     void setFunctionList(FunctionList *list) { functionList = list; }
     void setPLTList(PLTList *list) { pltList = list; }
@@ -52,7 +53,8 @@ public:
     void setDataRegionList(DataRegionList *list) { dataRegionList = list; }
     void setMarkerList(MarkerList *list) { markerList = list; }
     void setVTableList(VTableList *list) { vtableList = list; }
-    void setExternalData(ExternalData *data) { externalData = data; }
+    void setExternalSymbolList(ExternalSymbolList *list)
+        { externalSymbolList = list; }
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

@@ -8,6 +8,8 @@ class PLTList;
 class JumpTableList;
 class DataRegionList;
 class VTableList;
+class ExternalSymbolList;
+class LibraryList;
 class Function;
 class Block;
 class Instruction;
@@ -21,5 +23,7 @@ class MarkerList;
 class Marker;
 class VTable;
 class VTableEntry;
+class ExternalSymbol;
+class Library;
 
 #endif

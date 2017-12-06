@@ -3,34 +3,15 @@
 
 #include <string>
 #include <vector>
+#include "chunk.h"
 #include "elf/symbol.h"
-#include "module.h"
 
+class Chunk;
 class Program;
+class Module;
 
-class ExternalChunk {
-public:
-    virtual ~ExternalChunk() {}
-
-    virtual Chunk *getResolved() const = 0;
-};
-
-class ExternalModule : public ExternalChunk {
-private:
-    std::string name;
-    Module *resolved;
-    std::string resolvedPath;
-public:
-    ExternalModule(const std::string &name) : name(name), resolved(nullptr) {}
-
-    const std::string &getName() const { return name; }
-    void setResolved(Module *module) { this->resolved = module; }
-    Module *getResolved() const { return resolved; }
-    void setResolvedPath(const std::string &path) { resolvedPath = path; }
-    const std::string getResolvedPath() const { return resolvedPath; }
-};
-
-class ExternalSymbol : public ExternalChunk {
+class ExternalSymbol : public ChunkSerializerImpl<TYPE_ExternalSymbol,
+    ChunkImpl> {
 private:
     std::string name;
     Symbol::SymbolType type;
@@ -51,45 +32,27 @@ public:
     Symbol::BindingType getBind() const { return bind; }
 };
 
-class ExternalData {
-private:
-    std::string originalElfName;
-    std::vector<std::string> searchPaths;
-    std::vector<ExternalModule *> externalModules;
-    std::vector<ExternalSymbol *> externalSymbols;
+class ExternalSymbolList : public ChunkSerializeImpl<TYPE_ExternalSymbolList,
+    CompositeChunkImpl<ExternalSymbol>> {
 public:
-    const std::string &getOriginalElfName() const { return originalElfName; }
-    void setOriginalElfName(const std::string &name)
-        { originalElfName = name; }
-
-    const std::vector<std::string> &getSearchPaths() const
-        { return searchPaths; }
-
-    void registerModule(Module *module);
-    std::vector<ExternalModule *> &getExternalModules()
-        { return externalModules; }
-    void resolveAllSymbols(Program *program);
-
-    void addSearchPath(const std::string &path)
-        { searchPaths.push_back(path); }
-    void addExternalModule(ExternalModule *xModule)
-        { externalModules.push_back(xModule); }
     void addExternalSymbol(ExternalSymbol *xSymbol)
         { externalSymbols.push_back(xSymbol); }
-private:
-    void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);
 };
 
-class ExternalFactory {
+class ExternalSymbolFactory {
 private:
     Module *module;
 public:
     ExternalFactory(Module *module) : module(module) {}
 
-    ExternalModule *makeExternalModule(const std::string &name);
     ExternalSymbol *makeExternalSymbol(Symbol *symbol);
+    ExternalSymbol *makeExternalSymbol(const std::string &name,
+        Symbol::SymbolType type, Symbol::BindingType bind, Chunk *resolved);
+
+    void resolveAllSymbols(Program *program);
 private:
-    ExternalData *makeExternalData();
+    ExternalData *makeExternalSymbolList();
+    void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);
 };
 
 #endif

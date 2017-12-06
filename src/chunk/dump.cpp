@@ -32,6 +32,14 @@ void ChunkDumper::visit(VTableList *vtableList) {
     LOG(1, "--[vtables]--");
     recurse(vtableList);
 }
+void ChunkDumper::visit(ExternalSymbolList *externalSymbolList) {
+    LOG(1, "--[external-symbols]--");
+    recurse(externalSymbolList);
+}
+void ChunkDumper::visit(LibraryList *libraryList) {
+    LOG(1, "--[libraries]--");
+    recurse(libraryList);
+}
 
 void ChunkDumper::visit(Function *function) {
     LOG(4, "---[" << function->getName() << "]---");
@@ -123,6 +131,21 @@ void ChunkDumper::visit(VTableEntry *vtableEntry) {
     }
     else {
         LOG(1, " " << std::hex << vtableEntry->getLink()->getTargetAddress());
+    }
+}
+
+void ChunkDumper::visit(ExternalSymbol *externalSymbol) {
+    LOG(1, "external ref for \"" << externalSymbol->getName()
+        << "\" type " << static_cast<int>(externalSymbol->getType())
+        << " bind " << static_cast<int>(externalSymbol->getBind())
+        << " resolved to 0x" << std::hex << externalSymbol->getResolved());
+}
+
+void ChunkDumper::visit(Library *library) {
+    LOG(1, "library \"" << library->getName() << "\"");
+    if(library->getModule()) {
+        LOG(1, "    loaded as " << library->getModule()->getName() << " from "
+            << library->getResolvedPath());
     }
 }
 
