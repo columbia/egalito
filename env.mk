@@ -122,8 +122,10 @@ $(BUILDDIR)%.o: %.c
 	$(SHORT_CC) $(CFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.o: %.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
+$(BUILDDIR)%.so: %.s
+	$(SHORT_AS) -fPIC -c $< -o $@
 $(BUILDDIR)%.so: %.S
-	$(SHORT_AS) -fPIC $(AFLAGS) -c -o $@ $<
+	$(SHORT_AS) -fPIC $(AFLAGS) $(DEPFLAGS) -c -o $@ $<
 $(BUILDDIR)%.so: %.c
 	$(SHORT_CC) -fPIC $(CFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') -c -o $@ $<
 $(BUILDDIR)%.so: %.cpp

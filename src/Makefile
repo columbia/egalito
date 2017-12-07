@@ -37,7 +37,8 @@ TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
 		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
 		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(ARCHIVE_SOURCES) $(UTIL_SOURCES) \
-		$(SNIPPET_SOURCES) $(RUNTIME_SOURCES) load/emulator.cpp load/segmap.cpp
+		$(SNIPPET_SOURCES) $(RUNTIME_SOURCES) load/emulator.cpp load/segmap.cpp \
+		load/callinit.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))
@@ -104,8 +105,6 @@ DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 
 # Special files
 $(BUILDDIR)load/usage.o: load/usage.cpp load/usage.h
-	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
-$(BUILDDIR)main/usage.o: main/usage.cpp main/usage.h
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DDEBUG_GROUP=$(shell echo $< | perl -ne 'm|^(\w+)/|g;print lc($$1)') '-DLIBC_PATH="$(shell /usr/bin/ldd /bin/ls | grep libc.so | awk '{ print $$3 }')"' -c -o $@ $<
