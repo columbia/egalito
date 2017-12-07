@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cassert>
 #include "handlecopyrelocs.h"
 #include "conductor/conductor.h"
 #include "elf/elfmap.h"
@@ -6,30 +7,21 @@
 
 #include "log/log.h"
 #include "log/temp.h"
-#include "chunk/dump.h"
 
 void HandleCopyRelocs::visit(Module *module) {
     if(!module->getElfSpace()) return;
+
+    this->module = module;
+
+    //TemporaryLogLevel tll("pass", 10);
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;
-
-    ChunkDumper d;
-    for(auto r : *relocList) {
-        if(r->getType() == R_X86_64_COPY) {
-            for(auto m : CIter::children(conductor->getProgram())) {
-                if(m->getName() == "module-libc.so.6") {
-                    m->getDataRegionList()->accept(&d);
-                }
-            }
-            break;
-        }
-    }
 
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
             TemporaryLogLevel tll("chunk", 10);
 
-            LOG(1, "R_X86_64_COPY!!");
+            LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
                 true);
@@ -51,27 +43,23 @@ void HandleCopyRelocs::visit(Module *module) {
 void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
     size_t size) {
 
-    if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
-        auto from = dlink->getTargetAddress();
-        LOG(1, "copy " << size << " bytes from "
-            << std::hex << from << " to " << address);
-        std::memcpy((void *)address, (void *)from, size);
+    auto from = link->getTargetAddress();
+    std::memcpy((void *)address, (void *)from, size);
+    LOG(10, "copy from " << std::hex << from << " to " << address
+        << " size " << size);
 
-        Range range(address, size);
-        auto section = dynamic_cast<DataSection *>(&*dlink->getTarget());
-        for(auto var : CIter::children(section)) {
-            if(range.contains(var->getAddress())) {
-                LOG(0, "copyAndDuplicate: NYI"
-                    << " (var must be duplicated for the copied data)");
+    Range range(from, size);
+    auto section = dynamic_cast<DataSection *>(&*link->getTarget());
+    std::vector<DataVariable *> existing;
+    for(auto var : CIter::children(section)) {
+        LOG(1, "var = " << std::hex << var->getAddress());
+        if(range.contains(var->getAddress())) {
+            if(dynamic_cast<NormalLink *>(var->getDest())) {
+                existing.push_back(var);
             }
         }
     }
-    else if(auto slink = dynamic_cast<SymbolOnlyLink *>(link)) {
-        // must be emulated
-        auto from = slink->getTargetAddress();
-        // look RelocData implementation!!
-        LOG(1, "copy " << size << " bytes from "
-            << std::hex << from << " to " << address);
-        std::memcpy((void *)address, (void *)from, size);
+    if(!existing.empty()) {
+        LOG(0, "copyAndDuplicate: duplication is NYI");
     }
 }

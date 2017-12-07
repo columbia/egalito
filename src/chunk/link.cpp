@@ -177,7 +177,9 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
         LOG(10, "    link to emulated function!");
         return new ExternalNormalLink(func);
     }
-    if(auto link = LoaderEmulator::getInstance().makeDataLink(name)) {
+    if(auto link = LoaderEmulator::getInstance().makeDataLink(name,
+        afterMapping)) {
+
         LOG(10, "    link to emulated data!");
         return link;
     }
