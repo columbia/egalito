@@ -38,21 +38,21 @@ Conductor::~Conductor() {
 }
 
 void Conductor::parseExecutable(ElfMap *elf) {
-    auto library = new SharedLib("(executable)", "(executable)", elf);
-    getSharedLibList()->addToFront(library);
-    auto space = parse(elf, library);
+    auto sharedLib = new SharedLib("(executable)", "(executable)", elf);
+    getSharedLibList()->addToFront(sharedLib);
+    auto module = parse(elf, sharedLib);
 
-    program->setMain(space->getModule());
-    getSpaceList()->setMain(space);
+    getProgram()->add(module);
+    getProgram()->add(new Library(sharedLib->getName(), Library::ROLE_MAIN));
 }
 
 void Conductor::parseEgalito(ElfMap *elf) {
     auto library = new SharedLib("(egalito)", "(egalito)", elf);
     getLibraryList()->add(library);
-    auto space = parse(elf, library);
+    auto module = parse(elf, library);
 
-    program->setEgalito(space->getModule());
-    getSpaceList()->setEgalito(space);
+    getProgram()->add(module);
+    getProgram()->add(new Library(sharedLib->getName(), Library::ROLE_EGALITO));
 }
 
 void Conductor::parseLibraries() {
@@ -74,7 +74,7 @@ Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
     return space->getModule();
 }
 
-ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
+Module *Conductor::parse(ElfMap *elf, SharedLib *library) {
     ElfSpace *space = new ElfSpace(elf, library);
     library->setElfSpace(space);
 
@@ -87,9 +87,9 @@ ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
         << space->getName() << "] ---");
     ConductorPasses(this).newElfPasses(space);
 
-    program->getChildren()->add(space->getModule());
-    getSpaceList()->add(space);
-    return space;
+    auto module = space->getModule();
+    program->add(module);
+    return module;
 }
 
 void Conductor::parseEgalitoArchive(const char *archive) {
@@ -269,6 +269,10 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
 
         module->accept(visitor);
     }
+}
+
+ElfSpace *Conductor::getMainSpace() const {
+    return getProgram()->getMain()->getElfSpace();
 }
 
 void Conductor::check() {

@@ -36,8 +36,10 @@ public:
 
     Program *getProgram() const { return program; }
     LibraryList *getLibraryList() const { return program->getLibraryList(); }
-    ElfSpace *getMainSpace() const { return forest->getMainSpace(); }
     SharedLibList *getSharedLibList() const { return forest->getLibraryList(); }
+
+    // deprecated, please use getProgram()->getMain()
+    ElfSpace *getMainSpace() const;
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
     IFuncList *getIFuncList() const { return ifuncList; }
@@ -45,7 +47,7 @@ public:
     void check();
 private:
     ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
-    ElfSpace *parse(ElfMap *elf, SharedLib *library);
+    Module *parse(ElfMap *elf, SharedLib *library);
     void allocateTLSArea();
     void loadTLSData();
 };

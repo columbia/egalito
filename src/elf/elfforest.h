@@ -14,7 +14,6 @@ public:
 
     SharedLibList *getLibraryList() const { return libraryList; }
     ElfSpaceList *getSpaceList() const { return spaceList; }
-    ElfSpace *getMainSpace() const { return spaceList->getMain(); }
 };
 
 #endif
