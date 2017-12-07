@@ -13,7 +13,7 @@ public:
         Instruction *instruction, cs_insn *ins);
 
     static bool isRIPRelative(Assembly *assembly, int opIndex);
-    static int determineDisplacementSize(Assembly *assembly);
+    static int determineDisplacementSize(Assembly *assembly, int opIndex);
     static int getDispOffset(Assembly *assembly, int opIndex);
 };
 

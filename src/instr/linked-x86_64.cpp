@@ -10,14 +10,15 @@
 
 #ifdef ARCH_X86_64
 int LinkedInstruction::getDispSize() {
-    return MakeSemantic::determineDisplacementSize(&*getAssembly());
+    return MakeSemantic::determineDisplacementSize(&*getAssembly(), opIndex);
 }
 
 unsigned LinkedInstruction::calculateDisplacement() {
     unsigned int disp = getLink()->getTargetAddress();
     if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
         && !dynamic_cast<AbsoluteDataLink *>(getLink())
-        && !dynamic_cast<GSTableLink *>(getLink())) {
+        && !dynamic_cast<GSTableLink *>(getLink())
+        && !dynamic_cast<DistanceLink *>(getLink())) {
 
         disp -= (instruction->getAddress() + getSize());
     }
@@ -197,7 +198,7 @@ static size_t determineDisplacementSize(Assembly *assembly) {
 
 StackFrameInstruction::StackFrameInstruction(AssemblyPtr assembly) {
     getStorage()->setData(std::string(assembly->getBytes()));
-    setAssembly(assembly);
+    //setAssembly(assembly);
 
     this->id = assembly->getId();
 

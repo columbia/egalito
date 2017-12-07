@@ -36,7 +36,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         }
         else if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
             Assembly assembly(*ins);
-            auto dispSize = determineDisplacementSize(&assembly);
+            auto dispSize = determineDisplacementSize(&assembly, 0);
             size_t use = ins->size - dispSize;
             unsigned long imm = op->imm;
             auto cfi = new ControlFlowInstruction(
@@ -152,7 +152,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
-int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
+int MakeSemantic::determineDisplacementSize(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM
     _DInst _instr[256];
@@ -163,30 +163,28 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly) {
     ci.codeOffset   = 0;  // address, don't need a real value here
     ci.dt           = Decode64Bits;
     ci.features     = DF_NONE;
-    
+
     unsigned count = 0;
     if(distorm_decompose(&ci, &instr, 1, &count) != DECRES_SUCCESS
         || count != 1) {
 
+        LOG(1, "WARNING: distorm failed");
         return 0;
     }
 
     if(instr.flags == FLAG_NOT_DECODABLE) return 0;
 
     int dispSize = -1;
-    for(size_t i = 0; i < OPERANDS_NO; i ++) {
-        int type = instr.ops[i].type;
-        if(type == O_NONE) break;
-        if(type == O_SMEM || type == O_MEM || type == O_DISP) {
-            dispSize = instr.dispSize / 8;
-            break;
-        }
-        if(type == O_IMM || type == O_IMM1 || type == O_IMM2
-            || type == O_PC || type == O_PTR) {
+    // capstone and distorm use the opposite index
+    size_t i = assembly->getAsmOperands()->getOpCount() - 1 - opIndex;
+    int type = instr.ops[i].type;
+    if(type == O_SMEM || type == O_MEM || type == O_DISP) {
+        dispSize = instr.dispSize / 8;
+    }
+    if(type == O_IMM || type == O_IMM1 || type == O_IMM2
+        || type == O_PC || type == O_PTR) {
 
-            dispSize = instr.ops[i].size / 8;
-            break;
-        }
+        dispSize = instr.ops[i].size / 8;
     }
 
     if(dispSize >= 0) {
@@ -232,7 +230,7 @@ int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
     auto op = &assembly->getAsmOperands()->getOperands()[opIndex];
     if(op->type == X86_OP_MEM) {
-        int dispSize = determineDisplacementSize(assembly);
+        int dispSize = determineDisplacementSize(assembly, opIndex);
         int offset = assembly->getSize() - dispSize;
 
         while(offset > 0) {
@@ -248,7 +246,7 @@ int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
         return offset;
     }
     else if(op->type == X86_OP_IMM) {
-        int dispSize = determineDisplacementSize(assembly);
+        int dispSize = determineDisplacementSize(assembly, opIndex);
         int offset = assembly->getSize() - dispSize;
 
         while(offset > 0) {
