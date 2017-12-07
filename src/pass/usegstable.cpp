@@ -14,7 +14,7 @@
 void UseGSTablePass::visit(Program *program) {
     redirectEgalitoFunctionPointers();
     recurse(program);
-    rewriteBootArguments();
+    overwriteBootArguments();
 }
 
 void UseGSTablePass::visit(Module *module) {
@@ -62,6 +62,8 @@ void UseGSTablePass::visit(Block *block) {
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeCalls;
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeJumps;
 
+    std::vector<std::pair<Block *, Instruction *>> functionReturns;
+
     ChunkDumper d;
     for(auto instr : CIter::children(block)) {
         IF_LOG(11) {
@@ -98,6 +100,11 @@ void UseGSTablePass::visit(Block *block) {
                 RIPrelativeJumps.emplace_back(block, instr);
             }
         }
+        if(dynamic_cast<ReturnInstruction *>(semantic)) {
+#if REWRITE_RA == 1
+            functionReturns.emplace_back(block, instr);
+#endif
+        }
     }
 
     for(auto pair : directCalls) {
@@ -117,6 +124,9 @@ void UseGSTablePass::visit(Block *block) {
     }
     for(auto pair : RIPrelativeJumps) {
         rewriteRIPrelativeJump(pair.first, pair.second);
+    }
+    for(auto pair : functionReturns) {
+        rewriteReturn(pair.first, pair.second);
     }
 }
 
@@ -171,6 +181,48 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     }
 
 #ifdef ARCH_X86_64
+#if REWRITE_RA == 1
+    DisasmHandle handle(true);
+
+    // jmpq *%gs:Offset
+    auto semantic = new LinkedInstruction(instr);
+    std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0};
+    semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin));
+    auto gsEntry = gsTable->makeEntryFor(target);
+    semantic->setLink(new GSTableLink(gsEntry));
+    semantic->setIndex(0);
+    instr->setSemantic(semantic);
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+
+    // push RA1 = gs offset
+    std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
+    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    uint32_t tmp1 = gsEntrySelf->getOffset();
+    std::memcpy(&pushB1[1], &tmp1, 4);
+    auto push1 = DisassembleInstruction(handle).instruction(pushB1);
+
+    // movl instr offset, 0x4(%rsp)
+    auto movRA = new Instruction();
+    auto semantic2 = new LinkedInstruction(movRA);
+    std::vector<unsigned char> movB{0xc7, 0x44, 0x24, 0x04, 0, 0, 0, 0};
+    semantic2->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(movB));
+    semantic2->setLink(new DistanceLink(block->getParent(), push1)); // instr!
+    semantic2->setIndex(0);
+    movRA->setSemantic(semantic2);
+
+    // movd offset = 0x4(%rip), %mm1
+    auto movOffset = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
+
+    ChunkMutator m(block);
+    //m.insertBeforeJumpTo(instr, push2);
+    m.insertBeforeJumpTo(instr, push1);
+    m.insertAfter(instr, movRA);
+    m.insertAfter(movRA, movOffset);
+
+    delete i;
+#else
     // callq  *%gs:0xdeadbeef
     DisasmHandle handle(true);
     auto semantic = new LinkedInstruction(instr);
@@ -191,6 +243,7 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
         std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
 
     ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
+#endif
 #endif
 }
 
@@ -247,6 +300,130 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
         instr->accept(&d);
     }
 #ifdef ARCH_X86_64
+#if REWRITE_RA == 1
+    DisasmHandle handle(true);
+    auto i = static_cast<IndirectCallInstruction *>(instr->getSemantic());
+    auto cs_reg = i->getRegister();
+    assert(cs_reg != X86_REG_RIP);
+    auto reg = X86Register::convertToPhysical(cs_reg);
+    auto indexReg = X86Register::convertToPhysical(i->getIndexRegister());
+    auto scale = i->getScale();
+    int64_t displacement = i->getDisplacement();
+
+    // jmpq *%gs:(%r11)
+    std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    semantic->setAssembly(assembly);
+    instr->setSemantic(semantic);
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+
+    // push RA1 = gs offset
+    std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
+    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    uint32_t tmp1 = gsEntrySelf->getOffset();
+    std::memcpy(&pushB1[1], &tmp1, 4);
+    auto push1 = DisassembleInstruction(handle).instruction(pushB1);
+
+#if 0
+    // push RA2 = instr offset
+    auto push2 = new Instruction();
+    auto pushS = new LinkedInstruction(push2);
+    std::vector<unsigned char> pushB{0x68, 0, 0, 0, 0};
+    pushS->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(pushB));
+    pushS->setLink(new DistanceLink(block->getParent(), push2));    // instr!
+    pushS->setIndex(0);
+    push2->setSemantic(pushS);
+#endif
+    // movl instr offset, 0x4(%rsp)
+    auto movRA = new Instruction();
+    auto semantic2 = new LinkedInstruction(movRA);
+    std::vector<unsigned char> movB{0xc7, 0x44, 0x24, 0x04, 0, 0, 0, 0};
+    semantic2->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(movB));
+    semantic2->setLink(new DistanceLink(block->getParent(), push1)); // instr!
+    semantic2->setIndex(0);
+    movRA->setSemantic(semantic2);
+
+    // movq EA, %r11
+    std::vector<unsigned char> bin2;
+    if(i->hasMemoryOperand()) {
+        if(indexReg == X86Register::INVALID) {
+            // movq disp(%reg), %r11
+            bin2.resize(3);
+            unsigned char rex = 0x4c;
+            if(reg >= 8) rex |= 0b0001;
+            bin2[0] = rex;
+            bin2[1] = 0x8b;
+            if(reg >= 8) {
+                bin2[2] = 0x98 + reg - 8;
+                //bin2[2] = 0x80 | (reg - 8) << 3 | (reg - 8);
+                if(reg == 12) {
+                    bin2.push_back(0x24);
+                }
+            }
+            else {
+                bin2[2] = 0x98 + reg;
+                //bin2[2] = 0x80 | reg << 3 | reg;
+                if(reg == 4) {
+                    bin2.push_back(0x24);
+                }
+            }
+        }
+        else {
+            // movq disp(%reg, %index, scale), %r11
+            bin2.resize(4);
+            unsigned char rex = 0x4c;
+            if(reg >= 8) rex |= 0b0001;
+            if(indexReg >= 8) rex |= 0b0010;
+            bin2[0] = rex;
+            bin2[1] = 0x8b;
+            //unsigned char operand = 0x84;
+            //if(reg >= 8) operand |= (reg - 8) << 3;
+            //else         operand |= reg << 3;
+            unsigned char operand = 0x9c;
+            bin2[2] = operand;
+            // scale | index(3) | base(3)
+            size_t bits = 0;
+            while(scale /= 2) bits++;
+            unsigned char sib = bits << 6;
+            if(reg >= 8) sib |= (reg - 8);
+            else         sib |= reg;
+            if(indexReg > 8) sib |= (indexReg - 8) << 3;
+            else             sib |= indexReg << 3;
+            bin2[3] = sib;
+        }
+        for(int i = 0; i < 4; i++) {
+            bin2.push_back(displacement & 0xff);
+            displacement >>= 8;
+        }
+    }
+    else {
+        // movq %reg, %r11
+        unsigned char rex = 0x49;
+        if(reg >= 8) rex |= 0b0010;
+        bin2.push_back(rex);
+        bin2.push_back(0x89);
+        unsigned char operand = 0xc3;
+        if(reg >= 8) operand |= (reg - 8) << 3;
+        else         operand |= reg << 3;
+        bin2.push_back(operand);
+    }
+    auto movEA = DisassembleInstruction(handle).instruction(bin2);
+
+    // movq %r11, %mm1
+    std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
+    auto movOffset = DisassembleInstruction(handle).instruction(bin4);
+
+    ChunkMutator m(block);
+    //m.insertBeforeJumpTo(instr, push2);
+    m.insertBeforeJumpTo(instr, push1);
+    m.insertAfter(instr, movRA);
+    m.insertAfter(movRA, movEA);
+    m.insertAfter(movEA, movOffset);
+
+    delete i;
+#else
     auto i = static_cast<IndirectCallInstruction *>(instr->getSemantic());
     auto cs_reg = i->getRegister();
     assert(cs_reg != X86_REG_RIP);
@@ -341,6 +518,7 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
+#endif
 #endif
 }
 
@@ -554,6 +732,65 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
 
     DisasmHandle handle(true);
 
+#if REWRITE_RA == 1
+    // jmpq *%gs:(%r11)
+    std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmpq");
+    semantic->setAssembly(assembly);
+    instr->setSemantic(semantic);
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+
+    // push RA1 = gs offset
+    std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
+    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    uint32_t tmp1 = gsEntrySelf->getOffset();
+    std::memcpy(&pushB1[1], &tmp1, 4);
+    auto push1 = DisassembleInstruction(handle).instruction(pushB1);
+
+#if 0
+    // push RA2 = instr offset
+    auto push2 = new Instruction();
+    auto pushS = new LinkedInstruction(push2);
+    std::vector<unsigned char> pushB{0x68, 0, 0, 0, 0};
+    pushS->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(pushB));
+    pushS->setLink(new DistanceLink(block->getParent(), push2));    // instr!
+    pushS->setIndex(0);
+    push2->setSemantic(pushS);
+#endif
+    // movl instr offset, 0x4(%rsp)
+    auto movRA = new Instruction();
+    auto semantic2 = new LinkedInstruction(movRA);
+    std::vector<unsigned char> movB{0xc7, 0x44, 0x24, 0x04, 0, 0, 0, 0};
+    semantic2->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(movB));
+    semantic2->setLink(new DistanceLink(block->getParent(), push1)); // instr!
+    semantic2->setIndex(0);
+    movRA->setSemantic(semantic2);
+
+    // movq EA, %r11
+    std::vector<unsigned char> bin3{0x4c, 0x8b, 0x1d, 0, 0, 0, 0};
+    auto assembly3 = DisassembleInstruction(handle).makeAssemblyPtr(bin3);
+    auto movEA = new Instruction();
+    auto semantic3 = new LinkedInstruction(movEA);
+    semantic3->setAssembly(assembly3);
+    semantic3->setLink(i->getLink());
+    semantic3->setIndex(0);
+    movEA->setSemantic(semantic3);
+
+    // movq %r11, %mm1
+    std::vector<unsigned char> bin4{0x49, 0x0f, 0x6e, 0xcb};
+    auto movOffset = DisassembleInstruction(handle).instruction(bin4);
+
+    ChunkMutator m(block);
+    //m.insertBeforeJumpTo(instr, push2);
+    m.insertBeforeJumpTo(instr, push1);
+    m.insertAfter(instr, movRA);
+    m.insertAfter(movRA, movEA);
+    m.insertAfter(movEA, movOffset);
+
+    delete i;
+#else
     // callq *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x13};
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
@@ -581,6 +818,7 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
+#endif
 #endif
 }
 
@@ -630,7 +868,62 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
 #endif
 }
 
-void UseGSTablePass::rewriteBootArguments() {
+void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
+    auto i = static_cast<ReturnInstruction *>(instr->getSemantic());
+    DisasmHandle handle(true);
+
+    // pop %r11
+    auto pop = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x41, 0x5b}));
+
+#if 0
+    // movq %gs:(%r11), %r11
+    auto movq = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x65, 0x4d, 0x8b, 0x1b}));
+
+    // add (%rsp), %r11,
+    auto add = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x4c, 0x03, 0x1c, 0x24}));
+
+    // sub $-8, %rsp
+    auto sub = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x48, 0x83, 0xec, 0xf8}));
+#endif
+#if 0
+    // mov %r11d, %r11d
+    auto movq1 = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x45, 0x89, 0xdb}));
+#endif
+
+    // movq %gs:(%r11d), %r11
+    auto movq2 = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x65, 0x67, 0x4d, 0x8b, 0x1b}));
+
+    // add -0x4(%rsp), %r11d,
+    auto add = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x44, 0x03, 0x5c, 0x24, 0xfc}));
+
+    // jmpq *%r11
+    std::vector<unsigned char> bin{0x41, 0xff, 0xe3};
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmpq");
+    semantic->setAssembly(assembly);
+    instr->setSemantic(semantic);
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+    delete i;
+
+    ChunkMutator m(block);
+    m.insertBeforeJumpTo(instr, pop);
+    //m.insertAfter(instr, movq);
+    //m.insertAfter(movq, add);
+    //m.insertAfter(add, sub);
+    m.insertAfter(instr, movq2);
+    //m.insertAfter(movq1, movq2);
+    m.insertAfter(movq2, add);
+}
+
+void UseGSTablePass::overwriteBootArguments() {
     Module *libc = nullptr;
     for(auto module : CIter::children(conductor->getProgram())) {
         if(module->getName() == "module-libc.so.6") {

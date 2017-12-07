@@ -8,6 +8,8 @@
 
 class IFuncList;
 
+#define REWRITE_RA  1
+
 class UseGSTablePass : public ChunkPass {
 private:
     Conductor *conductor;
@@ -36,7 +38,8 @@ private:
     void rewriteIndirectTailRecursion(Block *block, Instruction *instr);
     void rewriteRIPrelativeCall(Block *block, Instruction *instr);
     void rewriteRIPrelativeJump(Block *block, Instruction *instr);
-    void rewriteBootArguments();
+    void rewriteReturn(Block *block, Instruction *instr);
+    void overwriteBootArguments();
 };
 
 #endif

@@ -17,6 +17,7 @@
 #define DEBUG_GROUP load
 #include "log/log.h"
 
+// must fit in the 32bits; see usegstable.cpp
 #define FUNCTION_TABLE_SIZE 64 * 0x1000
 
 extern "C" int arch_prctl(int code, unsigned long addr);
