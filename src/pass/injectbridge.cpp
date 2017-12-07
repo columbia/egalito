@@ -11,6 +11,10 @@ class ConductorSetup;
 class SandboxFlip;
 class IFuncList;
 
+extern address_t egalito_entry;
+extern const char *egalito_initial_stack;
+extern address_t egalito_init_array[];
+
 extern ConductorSetup *egalito_conductor_setup;
 extern Conductor *egalito_conductor;
 extern GSTable *egalito_gsTable;
@@ -24,6 +28,9 @@ void InjectBridgePass::visit(Module *module) {
         const char *name;
         address_t address;
     } list[] = {
+        EGALITO_BRIDGE_ENTRY(egalito_entry),
+        EGALITO_BRIDGE_ENTRY(egalito_initial_stack),
+        EGALITO_BRIDGE_ENTRY(egalito_init_array),
         EGALITO_BRIDGE_ENTRY(egalito_conductor_setup),
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
         EGALITO_BRIDGE_ENTRY(egalito_gsTable),

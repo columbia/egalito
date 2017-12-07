@@ -28,11 +28,13 @@
 #include "log/registry.h"
 #include "log/log.h"
 
-extern address_t entry;
-extern const char *initial_stack;
+extern address_t egalito_entry;
+extern const char *egalito_initial_stack;
 extern "C" void _start2(void);
 
 extern ConductorSetup *egalito_conductor_setup;
+
+static GSTable *gsTable;
 
 EgalitoLoader::EgalitoLoader() {
     this->setup = new ConductorSetup();
@@ -61,7 +63,7 @@ bool EgalitoLoader::parse(const char *filename) {
 void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
     adjustAuxiliaryVector(argv, setup->getElfMap(), nullptr);
     auto adjust = removeLoaderFromArgv(argv);
-    initial_stack += adjust;
+    egalito_initial_stack += adjust;
     argv = (char **)((char *)argv + adjust);
 
     char **environ = argv;
@@ -70,7 +72,6 @@ void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
     this->argc = argc;
     this->argv = argv;
     this->envp = environ;
-
     LoaderEmulator::getInstance().setArgumentLinks(argv, envp);
 
     SegMap::mapAllSegments(setup);
@@ -90,28 +91,38 @@ void EgalitoLoader::generateCode() {
 }
 
 void EgalitoLoader::run() {
-    ::entry = setup->getEntryPoint();
-    CLOG(0, "jumping to entry point at 0x%lx", entry);
-
-    PrepareTLS::prepare(setup->getConductor());
-
     auto libc = setup->getConductor()->getLibraryList()->getLibc();
     if(libc && libc->getElfSpace()) {
-        //CallInit::makeInitArray(libc->getElfSpace(), argv);
-        CallInit::makeInitArray(libc->getElfSpace(), argc, argv, envp);
+        CallInit::makeInitArray(libc->getElfSpace(), argc, argv, envp, gsTable);
     }
+
+    auto entry = setup->getConductor()->getProgram()->getEntryPoint();
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        auto gsEntry = gsTable->makeEntryFor(entry);
+        ::egalito_entry = gsEntry->getOffset();
+        CLOG(0, "entry point at gs@[%ld]", egalito_entry);
+    }
+    else {
+        ::egalito_entry = entry->getAddress();
+        CLOG(0, "entry point at 0x%lx", egalito_entry);
+    }
+
+    auto start2 = CallInit::getStart2(setup->getConductor());
 
     std::cout.flush();
     std::fflush(stdout);
 
+    // --- last point accesses to loader TLS is valid
+    PrepareTLS::prepare(setup->getConductor());
+
+    // --- last point virtual functions work ---
     // update vtable pointers to new libegalito code
     DataStructMigrator().migrate(setup);
 
-    // jump to the interpreter/target program (never returns)
-    _start2();
+    // jump to the target program (never returns)
+    //_start2();
+    start2();
 }
-
-static GSTable *gsTable;
 
 void EgalitoLoader::otherPasses() {
     auto program = setup->getConductor()->getProgram();

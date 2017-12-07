@@ -11,7 +11,9 @@ void JitGSSetup::visit(Program *program) {
 
 void JitGSSetup::makeResolverGSEntries(Module *egalito) {
     const auto resolvers = {
+        "egalito_hook_jit_fixup",
         "egalito_jit_gs_fixup",
+        "_start2",
         "_ZN7GSTable13offsetToIndexEj",
         "_ZN8ManageGS7resolveEP7GSTablej",
         "_ZN9Generator21copyFunctionToSandboxEP8FunctionP7Sandbox",
@@ -23,7 +25,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
         "_ZNK16AbsolutePosition3getEv",
-        //"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.249",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.296",
         "_ZNK11GSTableLink16getTargetAddressEv",
         "_ZNK12GSTableEntry9getOffsetEv",
@@ -54,9 +55,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE6reopenEv",
         "_ZN13MemoryBacking6reopenEv",
         "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE8finalizeEv",
-        //"_ZN12SemanticImplI19DisassembledStorageE6acceptEP18InstructionVisitor",
-        //"_ZN18InstrWriterCString5visitEP12SemanticImplI19DisassembledStorageE",
-        //"_ZNK12SemanticImplI19DisassembledStorageE7getSizeEv",
         "_ZN17LinkedInstruction6acceptEP18InstructionVisitor",
         "_ZN18InstrWriterCString5visitEP17LinkedInstruction",
         "_ZN18InstrWriterCString5visitEP22ControlFlowInstruction",
@@ -64,7 +62,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZN18InstrWriterCString5visitEP18LiteralInstruction",
         "_ZN17LinkedInstruction7writeToEPcb",
         "_ZN17LinkedInstruction11getDispSizeEv",
-        "_ZN12MakeSemantic25determineDisplacementSizeEP8Assembly",
+        "_ZN12MakeSemantic25determineDisplacementSizeEP8Assemblyi",
         "_ZN17LinkedInstruction21calculateDisplacementEv",
         "_ZNK14DataOffsetLink16getTargetAddressEv",
         "_ZNK14OffsetPosition3getEv",

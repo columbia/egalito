@@ -1,17 +1,6 @@
 .global _start
-.global _start2
 .global _set_fs
 .global _get_fs
-.global entry
-.global initial_stack
-
-.section .bss
-initial_stack:
-    .skip   8
-saved_rdx:
-    .skip   8
-entry:
-    .skip   8
 
 .section .text
 
@@ -21,8 +10,8 @@ _start:
     .cfi_startproc
     .cfi_undefined %rip
     xor     %rbp, %rbp
-    mov     %rsp, initial_stack     # save top of stack
-    mov     %rdx, saved_rdx
+    mov     %rsp, egalito_initial_stack     # save top of stack
+    #mov     %rdx, egalito_saved_rdx
 
     # Set up arguments for __libc_start_main, on the stack and in registers:
     #   main:       %rdi
@@ -41,33 +30,12 @@ _start:
     push    %rsi                    # place argc back
     push    %rsp                    # make stack frame
 
-    # these are the functions in loader!!!
     mov     $__libc_csu_fini, %r8
     mov     $__libc_csu_init, %rcx
     mov     $main, %rdi
 
     mov     %rsp, %rbp
     call    __libc_start_main@plt   # this does not return
-    hlt
-    .cfi_endproc
-
-_start2:
-    .cfi_startproc
-    .cfi_undefined %rip
-    push    %rbx                    # keep alignment
-    call    egalito_callInit
-    pop     %rbx
-
-    mov     initial_stack, %rsp     # restore %rsp
-    mov     saved_rdx, %rdx         # restore %rdx
-
-    ##pop     %r9                     # get argc
-    ##dec     %r9                     # subtract from argc
-    ##pop     %r10                    # remove loader from argv array
-    ##push    %r9                     # put argc back
-
-    mov     entry, %rbx
-    jmp     *%rbx                   # jump to entry point
     hlt
     .cfi_endproc
 

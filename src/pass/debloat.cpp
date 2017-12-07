@@ -160,6 +160,9 @@ void DebloatPass::useFromCodeLinks() {
 void DebloatPass::useFromSpecialName() {
     for(auto module : CIter::children(program)) {
         for(auto function : CIter::functions(module)) {
+            if(function->hasName("_start2")){
+                markTreeAsUsed(function);
+            }
             if(function->hasName("ifunc_resolver")){
                 markTreeAsUsed(function);
             }
