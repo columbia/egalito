@@ -46,6 +46,14 @@ address_t GSTableLink::getTargetAddress() const {
     return entry->getOffset();
 }
 
+ChunkRef DistanceLink::getTarget() const {
+    return target;
+}
+
+address_t DistanceLink::getTargetAddress() const {
+    return target->getAddress() + target->getSize() - base->getAddress();
+}
+
 ChunkRef DataOffsetLink::getTarget() const {
     return section;
 }
