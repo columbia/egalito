@@ -50,6 +50,7 @@ public:
     void setRole(Role role) { this->role = role; }
 
     const std::string &getResolvedPath() const { return resolvedPath; }
+    const char *getResolvedPathCStr() const { return resolvedPath.c_str(); }
     void setResolvedPath(const std::string &path) { resolvedPath = path; }
 
     virtual void serialize(ChunkSerializerOperations &op,
@@ -60,6 +61,7 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 public:
     static Library::Role guessRole(const std::string &name);
+    static const char *roleAsString(Role role);
 };
 
 class LibraryList : public ChunkSerializerImpl<TYPE_LibraryList,
@@ -81,6 +83,11 @@ public:
     Library *getEgalito() const { return roleMap[Library::ROLE_EGALITO]; }
     Library *getLibc() const { return roleMap[Library::ROLE_LIBC]; }
     Library *getLibcpp() const { return roleMap[Library::ROLE_LIBCPP]; }
+
+    void addSearchPath(const std::string &path);
+    void addSearchPathToFront(const std::string &path);
+    const std::vector<std::string> &getSearchPaths() const
+        { return searchPaths; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

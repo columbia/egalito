@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "chunk/program.h"
+#include "chunk/module.h"
 #include "chunk/library.h"
 
 class ElfMap;

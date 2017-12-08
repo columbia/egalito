@@ -1,6 +1,8 @@
 #include <cstring>  // for memcpy in generated code
 #include "emulator.h"
 #include "chunk/link.h"
+#include "chunk/concrete.h"
+#include "elf/elfspace.h"
 #include "conductor/conductor.h"
 #include "operation/find2.h"
 

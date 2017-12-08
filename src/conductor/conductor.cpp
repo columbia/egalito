@@ -30,6 +30,7 @@ IFuncList *egalito_ifuncList __attribute__((weak));
 
 Conductor::Conductor() {
     program = new Program();
+    program->setLibraryList(new LibraryList());
 }
 
 Conductor::~Conductor() {
@@ -39,15 +40,11 @@ Conductor::~Conductor() {
 void Conductor::parseExecutable(ElfMap *elf) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
     auto module = parse(elf, library);
-    getProgram()->add(library);
-    getProgram()->add(module);
 }
 
 void Conductor::parseEgalito(ElfMap *elf) {
     auto library = new Library("(egalito)", Library::ROLE_EGALITO);
     auto module = parse(elf, library);
-    getProgram()->add(library);
-    getProgram()->add(module);
 }
 
 void Conductor::parseLibraries() {
@@ -60,33 +57,33 @@ void Conductor::parseLibraries() {
             continue;  // already parsed
         }
 
-        parse(library->getModule()->getElfSpace()->getElfMap(), library);
+        ElfMap *elf = new ElfMap(library->getResolvedPathCStr());
+        auto module = parse(elf, library);
     }
 }
 
 Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
     auto library = new Library("(addon)", Library::ROLE_SUPPORT);
     auto module = parse(elf, library);
-    getProgram()->add(library);
-    getProgram()->add(module);
     return module;
 }
 
 Module *Conductor::parse(ElfMap *elf, Library *library) {
+    program->add(library);  // add current lib before its dependencies
+
     ElfSpace *space = new ElfSpace(elf, library->getName(),
         library->getResolvedPath());
 
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
         << space->getName() << "] ===");
-    ElfDynamic(getLibraryList()).parse(elf, library);
     space->findSymbolsAndRelocs();
+    ElfDynamic(getLibraryList()).parse(elf, library);
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");
     ConductorPasses(this).newElfPasses(space);
 
     auto module = space->getModule();  // created in previous line
-    module->setElfSpace(space);
     program->add(module);
     return module;
 }

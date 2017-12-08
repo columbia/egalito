@@ -20,6 +20,7 @@ private:
     Chunk *resolved;
     Module *resolvedModule;
 public:
+    ExternalSymbol() : type(Symbol::TYPE_UNKNOWN), bind(Symbol::BIND_LOCAL) {}
     ExternalSymbol(const std::string &name, Symbol::SymbolType type,
         Symbol::BindingType bind) : name(name), type(type), bind(bind) {}
 

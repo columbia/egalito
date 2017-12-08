@@ -179,7 +179,7 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
 
     LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
 
-    ElfMap *elf = new ElfMap(fullPath.c_str());
+    //ElfMap *elf = new ElfMap(fullPath.c_str());
     auto library = new Library(filename, Library::guessRole(filename));
     library->setResolvedPath(fullPath);
     libraryList->add(library);

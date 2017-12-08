@@ -68,8 +68,8 @@ address_t Program::getEntryPointAddress() {
 void Program::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.writeID(op.assign(libraryList));
-    op.serialize(libraryList);
+    auto libraryListID = op.serialize(libraryList);
+    writer.writeID(libraryListID);
     op.serializeChildren(this, writer);
 
     LOG(1, "entry point is " << entryPoint);

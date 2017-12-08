@@ -101,11 +101,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         auto mainModule = conductor->getMainSpace()->getModule();
         if(findInstrInModule(mainModule, addr)) return;
 
-        for(auto library : *conductor->getLibraryList()) {
-            auto space = library->getElfSpace();
-            if(!space) continue;
-
-            if(findInstrInModule(space->getModule(), addr)) return;
+        for(auto module : CIter::modules(conductor->getProgram())) {
+            if(findInstrInModule(module, addr)) return;
         }
     }, "disassembles a single instruction");
 
@@ -393,4 +390,48 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->getVTableList()->accept(&dumper);
         }
     }, "shows a list of all vtables in a module");
+
+    topLevel->add("libraries", [&] (Arguments args) {
+        args.shouldHave(0);
+        auto list = setup->getConductor()->getLibraryList();
+        if(!list) {
+            std::cout << "no libraries present\n";
+            return;
+        }
+        for(auto library : CIter::children(list)) {
+            std::cout << library->getName() << " as "
+                << Library::roleAsString(library->getRole()) << std::endl;
+            if(!library->getResolvedPath().empty()) {
+                std::cout << "    full path "
+                    << library->getResolvedPath() << std::endl;
+            }
+            if(library->getModule()) {
+                std::cout << "    loaded as "
+                    << library->getModule()->getName() << std::endl;
+            }
+        }
+    }, "shows a list of all recorded libraries");
+
+    topLevel->add("librarypaths", [&] (Arguments args) {
+        args.shouldHave(0);
+        auto list = setup->getConductor()->getLibraryList();
+        if(!list) {
+            std::cout << "no libraries present\n";
+            return;
+        }
+        for(auto path : list->getSearchPaths()) {
+            std::cout << path << std::endl;
+        }
+    }, "shows a list of all recorded libraries");
+
+    topLevel->add("externalsyms", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(!module->getExternalSymbolList()) return;
+        for(auto xSymbol : CIter::children(module->getExternalSymbolList())) {
+            std::cout << xSymbol->getName() << " type " << int(xSymbol->getType())
+                << " bind " << int(xSymbol->getBind()) << std::endl;
+        }
+    }, "shows a list of all recorded libraries");
 }

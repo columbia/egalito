@@ -36,6 +36,19 @@ Library::Role Library::guessRole(const std::string &name) {
     return ROLE_NORMAL;
 }
 
+const char *Library::roleAsString(Role role) {
+    switch(role) {
+    case ROLE_UNKNOWN:  return "UNKNOWN";
+    case ROLE_MAIN:     return "MAIN";
+    case ROLE_EGALITO:  return "EGALITO";
+    case ROLE_LIBC:     return "LIBC";
+    case ROLE_LIBCPP:   return "LIBCPP";
+    case ROLE_NORMAL:   return "NORMAL";
+    case ROLE_SUPPORT:  return "SUPPORT";
+    default:            return "???";
+    }
+}
+
 bool LibraryList::add(Library *library) {
     if(auto other = find(library->getName())) {
         if(library->getRole() != other->getRole()) {
@@ -44,7 +57,7 @@ bool LibraryList::add(Library *library) {
         }
 
         // already have this library, don't add it
-        delete library;
+        //if(library != other) delete library;
         return false;
     }
 
@@ -52,29 +65,6 @@ bool LibraryList::add(Library *library) {
     saveRole(library);
 
     return true;
-}
-
-void LibraryList::serialize(ChunkSerializerOperations &op,
-    ArchiveStreamWriter &writer) {
-
-    writer.write<uint16_t>(searchPaths.size());
-    for(auto path : searchPaths) {
-        writer.writeString(path);
-    }
-
-    op.serializeChildren(this, writer);
-}
-
-bool LibraryList::deserialize(ChunkSerializerOperations &op,
-    ArchiveStreamReader &reader) {
-
-    uint16_t paths = reader.read<uint16_t>();
-    for(uint16_t i = 0; i < paths; i ++) {
-        searchPaths.push_back(reader.readString());
-    }
-
-    op.deserializeChildren(this, reader);
-    return reader.stillGood();
 }
 
 void LibraryList::accept(ChunkVisitor *visitor) {
@@ -102,4 +92,42 @@ Library *LibraryList::byRole(Library::Role role) {
 Module *LibraryList::moduleByRole(Library::Role role) {
     auto library = roleMap[role];
     return library ? library->getModule() : nullptr;
+}
+
+void LibraryList::addSearchPath(const std::string &path) {
+    if(searchPathSet.find(path) != searchPathSet.end()) return;
+
+    searchPaths.push_back(path);
+    searchPathSet.insert(path);
+}
+
+void LibraryList::addSearchPathToFront(const std::string &path) {
+    if(searchPathSet.find(path) != searchPathSet.end()) return;
+
+    searchPaths.insert(searchPaths.begin(), path);
+    searchPathSet.insert(path);
+}
+
+void LibraryList::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    writer.write<uint16_t>(searchPaths.size());
+    for(auto path : searchPaths) {
+        writer.writeString(path);
+    }
+
+    op.serializeChildren(this, writer);
+}
+
+bool LibraryList::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    uint16_t paths = reader.read<uint16_t>();
+    for(uint16_t i = 0; i < paths; i ++) {
+        searchPaths.push_back(reader.readString());
+        searchPathSet.insert(searchPaths.back());
+    }
+
+    op.deserializeChildren(this, reader);
+    return reader.stillGood();
 }

@@ -95,8 +95,8 @@ void EgalitoLoader::run() {
 
     PrepareTLS::prepare(setup->getConductor());
 
-    auto libc = setup->getConductor()->getLibraryList()->getLibc();
-    if(libc && libc->getElfSpace()) {
+    auto libc = setup->getConductor()->getProgram()->getLibc();
+    if(libc) {
         //CallInit::makeInitArray(libc->getElfSpace(), argv);
         CallInit::makeInitArray(libc->getElfSpace(), argc, argv, envp);
     }

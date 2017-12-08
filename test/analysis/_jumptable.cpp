@@ -17,7 +17,7 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
     Conductor conductor;
     conductor.parseExecutable(&elf);
 
-    auto module = conductor.getMainSpace()->getModule();
+    auto module = conductor.getProgram()->getMain();
     auto f = CIter::named(module->getFunctionList())->find("main");
 
     JumpTableSearch jt;
@@ -69,11 +69,10 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
     conductor.parseExecutable(&elf);
     conductor.parseLibraries();
 
-    auto libc = conductor.getLibraryList()->getLibc();
+    auto module = conductor.getProgram()->getLibc();
     INFO("looking for libc.so in depends...");
-    REQUIRE(libc != nullptr);
+    REQUIRE(module != nullptr);
 
-    auto module = libc->getElfSpace()->getModule();
     struct {
         const char *name;
         int expected;
@@ -129,11 +128,10 @@ TEST_CASE("check completeness of jump tables in libc", "[analysis][full][.]") {
     conductor.parseExecutable(&elf);
     conductor.parseLibraries();
 
-    auto libc = conductor.getLibraryList()->getLibc();
+    auto module = conductor.getProgram()->getLibc();
     INFO("looking for libc.so in depends...");
-    REQUIRE(libc != nullptr);
+    REQUIRE(module != nullptr);
 
-    auto module = libc->getElfSpace()->getModule();
 #if 1
     std::vector<Function *> partial;
     for(auto f : CIter::functions(module)) {

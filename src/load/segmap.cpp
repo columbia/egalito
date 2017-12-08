@@ -26,13 +26,13 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
     }
 
     ClearSpatialPass clearSpatial;
-    for(auto lib : *setup->getConductor()->getLibraryList()) {
-        auto map = lib->getElfMap();
+    for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
+        auto map = module->getElfSpace()->getElfMap();
         if(map && map != elf && map != egalito) {
             SegMap::mapSegments(*map, map->getBaseAddress());
         }
     }
-    for(auto module : CIter::children(setup->getConductor()->getProgram())) {
+    for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
         for(auto region : CIter::regions(module)) {
             region->accept(&clearSpatial);
         }

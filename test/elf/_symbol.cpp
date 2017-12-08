@@ -5,7 +5,7 @@
 
 TEST_CASE("Build Symbol List", "[elf][symbollist]") {
     ElfMap *elf = new ElfMap(TESTDIR "hello");
-    ElfSpace *elfSpace = new ElfSpace(elf, nullptr);
+    ElfSpace *elfSpace = new ElfSpace(elf, "", "");
 
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
     CHECK(symbolList->getCount() > 0);

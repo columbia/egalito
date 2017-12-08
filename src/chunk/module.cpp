@@ -39,6 +39,9 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto dataRegionListID = op.serialize(getDataRegionList());
     writer.write(dataRegionListID);
+
+    auto externalSymbolListID = op.serialize(getExternalSymbolList());
+    writer.write(externalSymbolListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
@@ -78,6 +81,15 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         if(dataRegionList) {
             getChildren()->add(dataRegionList);
             setDataRegionList(dataRegionList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto externalSymbolList = op.lookupAs<ExternalSymbolList>(id);
+        if(externalSymbolList) {
+            getChildren()->add(externalSymbolList);
+            setExternalSymbolList(externalSymbolList);
         }
     }
 

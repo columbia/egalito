@@ -1,4 +1,6 @@
 #include "framework/include.h"
+#include "elf/elfmap.h"
+#include "elf/elfspace.h"
 #include "analysis/walker.h"
 #include "analysis/controlflow.h"
 #include "conductor/conductor.h"

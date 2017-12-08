@@ -36,7 +36,7 @@ public:
     void setModule(Module *module) { this->module = module; }
 
     std::string getName() const { return name; }
-    std::string getFullPath() const { return name; }
+    std::string getFullPath() const { return fullPath; }
 
     SymbolList *getSymbolList() const { return symbolList; }
     SymbolList *getDynamicSymbolList() const { return dynamicSymbolList; }

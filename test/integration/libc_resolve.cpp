@@ -57,11 +57,11 @@ TEST_CASE("make sure all links in libc are resolved", "[integration][full][.]") 
     conductor.parseExecutable(&elf);
     conductor.parseLibraries();
 
-    auto libc = conductor.getLibraryList()->getLibc();
+    auto libc = conductor.getProgram()->getLibc();
     REQUIRE(libc != nullptr);
 
     _Pass pass;
-    libc->getElfSpace()->getModule()->accept(&pass);
+    libc->accept(&pass);
 
     SECTION("libc has at least a few links") {
         CHECK(pass.getTotal() > 100);
