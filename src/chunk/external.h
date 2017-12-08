@@ -20,9 +20,11 @@ private:
     Chunk *resolved;
     Module *resolvedModule;
 public:
-    ExternalSymbol() : type(Symbol::TYPE_UNKNOWN), bind(Symbol::BIND_LOCAL) {}
+    ExternalSymbol() : type(Symbol::TYPE_UNKNOWN), bind(Symbol::BIND_LOCAL),
+        resolved(nullptr), resolvedModule(nullptr) {}
     ExternalSymbol(const std::string &name, Symbol::SymbolType type,
-        Symbol::BindingType bind) : name(name), type(type), bind(bind) {}
+        Symbol::BindingType bind) : name(name), type(type), bind(bind),
+        resolved(nullptr), resolvedModule(nullptr) {}
 
     std::string getName() const { return name; }
     void setResolved(Chunk *chunk) { this->resolved = chunk; }

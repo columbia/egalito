@@ -432,6 +432,24 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         for(auto xSymbol : CIter::children(module->getExternalSymbolList())) {
             std::cout << xSymbol->getName() << " type " << int(xSymbol->getType())
                 << " bind " << int(xSymbol->getBind()) << std::endl;
+            if(xSymbol->getResolved()) {
+                std::cout << "    resolved to "
+                    << xSymbol->getResolved()->getName() << " in "
+                    << xSymbol->getResolvedModule()->getName() << std::endl;
+            }
         }
-    }, "shows a list of all recorded libraries");
+    }, "shows a list of all external symbols in a module");
+
+    topLevel->add("unresolvedsyms", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(!module->getExternalSymbolList()) return;
+        for(auto xSymbol : CIter::children(module->getExternalSymbolList())) {
+            if(!xSymbol->getResolved()) {
+                std::cout << xSymbol->getName() << " type " << int(xSymbol->getType())
+                    << " bind " << int(xSymbol->getBind()) << std::endl;
+            }
+        }
+    }, "shows a list of all unresolved external symbols in a module");
 }

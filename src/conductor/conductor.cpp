@@ -170,8 +170,10 @@ void Conductor::setupIFuncLazySelector() {
     this->ifuncList = new IFuncList();
     ::egalito_ifuncList = ifuncList;
 
+#if 0
     IFuncLazyPass ifuncLazyPass(ifuncList);
     program->accept(&ifuncLazyPass);
+#endif
 }
 
 void Conductor::fixDataSections() {
