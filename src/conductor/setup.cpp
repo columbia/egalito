@@ -94,13 +94,14 @@ void ConductorSetup::makeLoaderSandbox(bool flipping) {
     this->sandbox = sandbox1;
     if(!flipping) return;
 
-#ifdef SANDBOX_BASE_ADDRESS2
+#ifndef SANDBOX_BASE_ADDRESS2
+#define SANDBOX_BASE_ADDRESS2   ((SANDBOX_BASE_ADDRESS) + 10 * 0x1000 * 0x1000)
+#endif
     auto backing2 = MemoryBacking(SANDBOX_BASE_ADDRESS2, 10 * 0x1000 * 0x1000);
     auto sandbox2 = new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing2);
     this->flip = new SandboxFlipImpl<SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>>(sandbox1, sandbox2);
-#endif
 }
 
 void ConductorSetup::makeFileSandbox(const char *outputFile) {
