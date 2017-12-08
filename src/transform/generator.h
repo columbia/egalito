@@ -3,6 +3,8 @@
 
 #include "sandbox.h"
 
+class PLTTrampoline;
+
 class Generator {
 private:
     bool useDisps;
@@ -12,6 +14,7 @@ public:
     void copyCodeToSandbox(Module *module, Sandbox *sandbox);
     void copyFunctionToSandbox(Function *function, Sandbox *sandbox);
     void copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox);
+    void copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox);
 
     void jumpToSandbox(Sandbox *sandbox, Module *module,
         const char *function = "main");

@@ -27,13 +27,17 @@ size_t egalito_jit_gs_fixup(size_t offset) {
     egalito_printf("target=[%s])\n", target->getName().c_str());
 
     Function *targetFunction = dynamic_cast<Function *>(target);
+    PLTTrampoline *targetTrampoline = nullptr;
+    Chunk *targetChunk = targetFunction;
     if(!targetFunction) {
         if(dynamic_cast<Instruction *>(target)) {
             targetFunction = dynamic_cast<Function *>(
                 target->getParent()->getParent());
+            targetChunk = targetFunction;
         }
-        else if(dynamic_cast<PLTTrampoline *>(target)) {
-            //???
+        else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
+            targetTrampoline = trampoline;
+            targetChunk = trampoline;
         }
         else {
             egalito_printf("parent = %s\n",
@@ -48,15 +52,18 @@ size_t egalito_jit_gs_fixup(size_t offset) {
     egalito_conductor_setup->flipSandboxEnd();
 #endif
 
-    // Generator does not support generating PLT yet
-    if(targetFunction) {
-        auto gsEntry = egalito_gsTable->getEntryFor(targetFunction);
+    if(targetChunk) {
+        auto gsEntry = egalito_gsTable->getEntryFor(targetChunk);
         if(gsEntry && !gsEntry->mapped()) {
             auto sandbox = egalito_conductor_setup->getSandbox();
             sandbox->reopen();
             Generator generator(true);
-            generator.copyFunctionToSandbox(targetFunction, sandbox);
-            //generator.copyFunctionToSandbox(target, sandbox);
+            if(targetFunction) {
+                generator.copyFunctionToSandbox(targetFunction, sandbox);
+            }
+            else if(targetTrampoline) {
+                generator.copyPLTToSandbox(targetTrampoline, sandbox);
+            }
             sandbox->finalize();
         }
     }

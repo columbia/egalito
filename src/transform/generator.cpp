@@ -78,10 +78,16 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
-            char *output = reinterpret_cast<char *>(plt->getAddress());
-            plt->writeTo(output);
+            copyPLTToSandbox(plt, sandbox);
+            //char *output = reinterpret_cast<char *>(plt->getAddress());
+            //plt->writeTo(output);
         }
     }
+}
+
+void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
+    char *output = reinterpret_cast<char *>(trampoline->getAddress());
+    trampoline->writeTo(output);
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
