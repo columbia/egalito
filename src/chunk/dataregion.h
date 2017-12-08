@@ -18,10 +18,14 @@ class DataRegion;
 class DataVariable : public ChunkSerializerImpl<TYPE_DataVariable,
     AddressableChunkImpl> {
 private:
+    std::string name;
     Link *dest;
 public:
     DataVariable() : dest(nullptr) {}
     DataVariable(DataRegion *region, address_t address, Link *dest);
+
+    std::string getName() const { return name; }
+    void setName(const std::string &name) { this->name = name; }
 
     Link *getDest() const { return dest; }
     void setDest(Link *dest) { this->dest = dest; }
@@ -98,6 +102,7 @@ public:
     DataSection *findDataSectionContaining(address_t address);
 
     void addVariable(DataVariable *variable);
+    DataVariable *findVariable(const std::string &name);
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
     DataVariable *findVariable(address_t address) const;

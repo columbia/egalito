@@ -12,6 +12,8 @@ static size_t init_index = 3;
 void CallInit::makeInitArray(ElfSpace *space, int argc, char **argv,
     char **envp) {
 
+    if(!space) return;
+
     auto elf = space->getElfMap();
     auto module = space->getModule();
 

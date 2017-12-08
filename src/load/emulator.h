@@ -9,6 +9,7 @@ class Conductor;
 class Module;
 class Function;
 class Link;
+class DataVariable;
 
 /** Emulate functionality provided by ld.so. */
 class LoaderEmulator {
@@ -30,6 +31,8 @@ public:
     Link *makeDataLink(const std::string &symbol);
 private:
     LoaderEmulator() : egalito(nullptr) {}
+
+    DataVariable *findEgalitoDataVariable(const char *name);
 
     void addFunction(const std::string &symbol, Function *function);
     void addData(const std::string &symbol, address_t address);

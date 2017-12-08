@@ -38,6 +38,9 @@ void HandleDataRelocsPass::visit(Module *module) {
                 else LOG(10, " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
                 auto var = new DataVariable(sourceRegion, addr, link);
+                if(reloc->getSymbol()) {
+                    var->setName(reloc->getSymbol()->getName());
+                }
                 sourceRegion->addVariable(var);
             }
         }

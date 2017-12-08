@@ -452,4 +452,20 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a list of all unresolved external symbols in a module");
+
+    topLevel->add("datavars", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        for(auto region : CIter::children(module->getDataRegionList())) {
+            for(auto var : region->variableIterable()) {
+                std::cout << "var at 0x" << std::hex << var->getAddress()
+                    << " name " << var->getName();
+                if(var->getDest() && var->getDest()->getTarget()) {
+                    std::cout << " link to " << var->getDest()->getTarget()->getName();
+                }
+                std::cout << std::endl;
+            }
+        }
+    }, "shows a list of all data variables");
 }

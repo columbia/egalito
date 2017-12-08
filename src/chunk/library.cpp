@@ -2,6 +2,7 @@
 #include "module.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "concrete.h"  // for CIter
 #include "log/log.h"
 
 void Library::serialize(ChunkSerializerOperations &op,
@@ -129,5 +130,9 @@ bool LibraryList::deserialize(ChunkSerializerOperations &op,
     }
 
     op.deserializeChildren(this, reader);
+    for(auto lib : CIter::children(this)) {
+        saveRole(lib);
+    }
+
     return reader.stillGood();
 }

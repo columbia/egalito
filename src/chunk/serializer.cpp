@@ -197,7 +197,7 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
             errors = true;
         }
         else {
-            LOG(1, "serialize chunk id " << std::dec << id
+            LOG(10, "serialize chunk id " << std::dec << id
                 << " i.e. " << op.getDebugName(id));
         }
         id ++;

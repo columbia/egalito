@@ -362,7 +362,12 @@ Chunk *LinkSerializer::deserializeLinkTarget(ArchiveStreamReader &reader) {
     auto id = reader.readID();  // can be NoneID
     Chunk *target = op.lookup(id);  // can be nullptr
     if(target && !target->getPosition()) {
-        target->setPosition(new AbsolutePosition(-1));
+        try {
+            target->setPosition(new AbsolutePosition(-1));
+        }
+        catch(const char *) {
+            // can't set position for this type
+        }
     }
     return target;
 }

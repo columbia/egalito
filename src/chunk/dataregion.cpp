@@ -4,6 +4,7 @@
 #include "position.h"
 #include "concrete.h"
 #include "serializer.h"
+#include "instr/serializer.h"
 #include "visitor.h"
 #include "chunk/aliasmap.h"
 #include "chunk/dump.h"
@@ -27,17 +28,27 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
 
     auto offset = address - section->getAddress();
     this->setPosition(new AbsoluteOffsetPosition(this, offset));
+    region->setParent(nullptr);
     ChunkMutator(section).append(this);
 }
 
 void DataVariable::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    writer.writeID(op.assign(getParent()));
+    writer.write<address_t>(
+        static_cast<AbsoluteOffsetPosition *>(getPosition())->getOffset());
+    writer.writeString(name);
+    LinkSerializer(op).serialize(dest, writer);
 }
 
 bool DataVariable::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    setParent(op.lookup(reader.readID()));
+    setPosition(new AbsoluteOffsetPosition(this, reader.read<address_t>()));
+    name = reader.readString();
+    dest = LinkSerializer(op).deserialize(reader);
     return reader.stillGood();
 }
 
@@ -123,6 +134,16 @@ void DataRegion::addVariable(DataVariable *variable) {
     variableList.push_back(variable);
 }
 
+DataVariable *DataRegion::findVariable(const std::string &name) {
+    // !!! linear search for now
+    for(auto var : variableList) {
+        if(var->getName() == name) {
+            return var;
+        }
+    }
+    return nullptr;
+}
+
 DataVariable *DataRegion::findVariable(address_t address) const {
     for(auto var : variableList) {
         if(var->getAddress() == address) {
@@ -151,12 +172,18 @@ void DataRegion::serialize(ChunkSerializerOperations &op,
     writer.write(alignment);
     writer.writeBytes<uint64_t>(dataBytes);
 
+    writer.write<uint64_t>(variableList.size());
+    for(auto var : variableList) {
+        writer.writeID(op.serialize(var));
+    }
+
     op.serializeChildren(this, writer);
 }
 
 bool DataRegion::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    setParent(nullptr);
     address_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
     setSize(reader.read<size_t>());
@@ -164,6 +191,11 @@ bool DataRegion::deserialize(ChunkSerializerOperations &op,
     reader.readInto(this->permissions);
     reader.readInto(this->alignment);
     dataBytes = std::move(reader.readBytes<uint64_t>());
+
+    uint64_t varCount = reader.read<uint64_t>();
+    for(uint64_t i = 0; i < varCount; i ++) {
+        variableList.push_back(op.lookupAs<DataVariable>(reader.readID()));
+    }
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
