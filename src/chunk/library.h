@@ -58,6 +58,8 @@ public:
         ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
+public:
+    static Library::Role guessRole(const std::string &name);
 };
 
 class LibraryList : public ChunkSerializerImpl<TYPE_LibraryList,
@@ -67,6 +69,8 @@ private:
     std::set<std::string> searchPathSet;
     Library *roleMap[Library::ROLES];
 public:
+    bool add(Library *library);
+
     Library *find(const std::string &name);
 
     void saveRole(Library *library);

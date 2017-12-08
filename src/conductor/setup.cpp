@@ -128,18 +128,6 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
     Generator generator(useDisps);
 
     for(auto module : CIter::modules(conductor->getProgram())) {
-        auto lib = conductor->getSharedLibList()->get(
-            module->getLibrary()->getName());
-        LOG(1, "depends for library " << lib->getShortName());
-        for(auto dep : lib->getParentDependList()) {
-            LOG(1, "    parent dep " << dep->getShortName());
-        }
-        for(auto dep : lib->getDependencyList()) {
-            LOG(1, "    dep " << dep->getShortName());
-        }
-    }
-
-    for(auto module : CIter::modules(conductor->getProgram())) {
         generator.pickAddressesInSandbox(module, sandbox);
     }
 }

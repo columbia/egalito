@@ -1,15 +1,17 @@
 #ifndef EGALITO_CONDUCTOR_CONDUCTOR_H
 #define EGALITO_CONDUCTOR_CONDUCTOR_H
 
-#include "elf/elfforest.h"
+#include "types.h"
+#include "chunk/program.h"
+#include "chunk/library.h"
 
-class ChunkVisitor;
+class ElfMap;
 class Module;
+class ChunkVisitor;
 class IFuncList;
 
 class Conductor {
 private:
-    ElfForest *forest;
     Program *program;
     address_t mainThreadPointer;
     IFuncList *ifuncList;
@@ -36,7 +38,6 @@ public:
 
     Program *getProgram() const { return program; }
     LibraryList *getLibraryList() const { return program->getLibraryList(); }
-    SharedLibList *getSharedLibList() const { return forest->getLibraryList(); }
 
     // deprecated, please use getProgram()->getMain()
     ElfSpace *getMainSpace() const;
@@ -46,8 +47,7 @@ public:
 
     void check();
 private:
-    ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
-    Module *parse(ElfMap *elf, SharedLib *library);
+    Module *parse(ElfMap *elf, Library *library);
     void allocateTLSArea();
     void loadTLSData();
 };

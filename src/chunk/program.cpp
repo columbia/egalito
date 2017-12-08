@@ -27,13 +27,9 @@ void Program::add(Module *module) {
 void Program::add(Library *library) {
     assert(libraryList != nullptr);
 
-    if(libraryList->getChildren()->getNamed()->find(library->getName())) {
-        // we already have this library
-        return;
+    if(!libraryList->add(library)) {
+        return;  // duplicate library
     }
-
-    libraryList->getChildren()->add(library);
-    libraryList->saveRole(library);
 
     if(!library->getModule()) {
         auto moduleName = "module-" + library->getName();

@@ -11,7 +11,7 @@
 
 #include "log/log.h"
 
-void ElfDynamic::parse(ElfMap *elf, SharedLib *sharedLib) {
+void ElfDynamic::parse(ElfMap *elf, Library *library) {
     auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
     if(!dynamic) return;  // statically linked
     auto strtab = elf->getDynstrtab();
@@ -23,9 +23,9 @@ void ElfDynamic::parse(ElfMap *elf, SharedLib *sharedLib) {
         unsigned long value = pointer[1];
 
         if(type == DT_NEEDED) {
-            auto library = strtab + value;
-            LOG(2, "    depends on shared library [" << library << "]");
-            dependencyList.push_back(std::make_pair(library, sharedLib));
+            auto name = strtab + value;
+            LOG(2, "    depends on shared library [" << name << "]");
+            dependencyList.push_back(std::make_pair(name, library));
         }
         else if(type == DT_RPATH || type == DT_RUNPATH) {
             this->rpath = strtab + value;
@@ -159,7 +159,7 @@ void ElfDynamic::resolveLibraries() {
 }
 
 void ElfDynamic::processLibrary(const std::string &fullPath,
-    const std::string &filename, SharedLib *depend) {
+    const std::string &filename, Library *depend) {
 
     if(filename == "ld-linux-x86-64.so.2") {
         LOG(2, "    skipping processing of ld.so for now");
@@ -173,21 +173,16 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     }
 
     // don't process this library again if already done
-    if(libraryList->contains(fullPath)) {
-        SharedLib *library = libraryList->get(fullPath);
-        library->addParentDepend(depend);  // but do add dependencies
-        depend->addDependency(library);
+    if(libraryList->find(filename)) {
         return;
     }
 
     LOG(2, "    process [" << fullPath << "] a.k.a. " << filename);
 
     ElfMap *elf = new ElfMap(fullPath.c_str());
-    auto library = new SharedLib(fullPath, filename, elf);
+    auto library = new Library(filename, Library::guessRole(filename));
+    library->setResolvedPath(fullPath);
     libraryList->add(library);
-
-    library->addParentDepend(depend);
-    depend->addDependency(library);
 
     LOG(2, "    added new library [" << filename << "]");
 }

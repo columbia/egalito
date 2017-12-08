@@ -4,6 +4,7 @@
 #include "passes.h"
 #include "chunk/ifunc.h"
 #include "elf/elfmap.h"
+#include "elf/elfdynamic.h"
 #include "generate/debugelf.h"
 #include "operation/find2.h"
 #include "pass/handlerelocs.h"
@@ -28,66 +29,64 @@
 IFuncList *egalito_ifuncList __attribute__((weak));
 
 Conductor::Conductor() {
-    forest = new ElfForest();
     program = new Program();
 }
 
 Conductor::~Conductor() {
-    delete forest;
     delete program;
 }
 
 void Conductor::parseExecutable(ElfMap *elf) {
-    auto sharedLib = new SharedLib("(executable)", "(executable)", elf);
-    getSharedLibList()->addToFront(sharedLib);
-    auto module = parse(elf, sharedLib);
-
+    auto library = new Library("(executable)", Library::ROLE_MAIN);
+    auto module = parse(elf, library);
+    getProgram()->add(library);
     getProgram()->add(module);
-    getProgram()->add(new Library(sharedLib->getName(), Library::ROLE_MAIN));
 }
 
 void Conductor::parseEgalito(ElfMap *elf) {
-    auto library = new SharedLib("(egalito)", "(egalito)", elf);
-    getLibraryList()->add(library);
+    auto library = new Library("(egalito)", Library::ROLE_EGALITO);
     auto module = parse(elf, library);
-
+    getProgram()->add(library);
     getProgram()->add(module);
-    getProgram()->add(new Library(sharedLib->getName(), Library::ROLE_EGALITO));
 }
 
 void Conductor::parseLibraries() {
+    auto iterable = getLibraryList()->getChildren()->getIterable();
+
     // we use an index here because the list can change as we iterate
-    for(size_t i = 0; i < getSharedLibList()->getCount(); i ++) {
-        auto library = getSharedLibList()->get(i);
-        auto space = library->getElfSpace();
+    for(size_t i = 0; i < iterable->getCount(); i ++) {
+        auto library = iterable->get(i);
+        if(library->getModule()) {
+            continue;  // already parsed
+        }
 
-        if(space) continue;  // already parsed (e.g. libegalito, executable)
-
-        parse(library->getElfMap(), library);
+        parse(library->getModule()->getElfSpace()->getElfMap(), library);
     }
 }
 
 Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
-    auto library = new SharedLib("(addon)", "(addon)", elf);
-    getLibraryList()->add(library);
-    auto space = parse(elf, library);
-    return space->getModule();
+    auto library = new Library("(addon)", Library::ROLE_SUPPORT);
+    auto module = parse(elf, library);
+    getProgram()->add(library);
+    getProgram()->add(module);
+    return module;
 }
 
-Module *Conductor::parse(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library);
-    library->setElfSpace(space);
+Module *Conductor::parse(ElfMap *elf, Library *library) {
+    ElfSpace *space = new ElfSpace(elf, library->getName(),
+        library->getResolvedPath());
 
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
         << space->getName() << "] ===");
-    space->findDependencies(getLibraryList());
+    ElfDynamic(getLibraryList()).parse(elf, library);
     space->findSymbolsAndRelocs();
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");
     ConductorPasses(this).newElfPasses(space);
 
-    auto module = space->getModule();
+    auto module = space->getModule();  // created in previous line
+    module->setElfSpace(space);
     program->add(module);
     return module;
 }

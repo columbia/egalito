@@ -13,65 +13,8 @@
 #define DEBUG_GROUP elf
 #include "log/log.h"
 
-std::string SharedLib::getAlternativeSymbolFile() const {
-#ifdef USR_LIB_DEBUG_BY_HASH
-    auto buildIdSection = elfMap->findSection(".note.gnu.build-id");
-    if(buildIdSection) {
-        auto buildIdHeader = buildIdSection->getHeader();
-        auto section = elfMap->getSectionReadPtr<const char *>(buildIdSection);
-        auto note = elfMap->getSectionReadPtr<ElfXX_Nhdr *>(buildIdSection);
-        auto sectionEnd = reinterpret_cast<const ElfXX_Nhdr *>(section + buildIdHeader->sh_size);
-        while(note < sectionEnd) {
-            if(note->n_type == NT_GNU_BUILD_ID) {
-                const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
-
-                std::ostringstream symbolFile;
-                symbolFile << "/usr/lib/debug/.build-id/";
-
-                for(size_t i = 0; i < note->n_descsz; i ++) {
-                    symbolFile << std::setw(2) << std::setfill('0') << std::hex
-                        << ((int)p[i] & 0xff);
-                    if(i == 0) symbolFile << "/";
-                }
-                symbolFile << ".debug";
 
 #if 0
-                LOG0(3, "        build ID: ");
-                for(size_t i = 0; i < note->n_descsz; i ++) {
-                    LOG0(3, std::hex << ((int)p[i] & 0xff));
-                }
-                LOG(3, "");
-
-                LOG(3, symbolFile.str());
-#endif
-                return symbolFile.str();
-            }
-
-            size_t align = ~((1 << buildIdHeader->sh_addralign) - 1);
-            note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
-        }
-    }
-#elif defined(USR_LIB_DEBUG_BY_NAME)
-    std::ostringstream symbolFile;
-    symbolFile << "/usr/lib/debug";
-    char realPath[PATH_MAX];
-    if(realpath(fullPath.c_str(), realPath)) {
-        auto debuglink = elfMap->findSection(".gnu_debuglink");
-        if(debuglink) {
-            auto name = elfMap->getSectionReadPtr<char *>(debuglink);
-            symbolFile << dirname(realPath) << "/" << name;
-        }
-        else {
-            symbolFile << realPath << ".debug";
-        }
-        return symbolFile.str();
-    }
-#else
-    #error "Please define one of USR_LIB_DEBUG_BY_{NAME,HASH} in config/*.h"
-#endif
-    return "";
-}
-
 void SharedLibList::add(SharedLib *library) {
     auto it = libraryMap.find(library->getFullPath());
     if(it != libraryMap.end()) return;  // already present
@@ -114,3 +57,4 @@ SharedLib *SharedLibList::getLibc() {
     return nullptr;
 }
 #undef LIBC_PATH
+#endif

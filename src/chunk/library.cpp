@@ -2,6 +2,7 @@
 #include "module.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "log/log.h"
 
 void Library::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
@@ -25,6 +26,32 @@ bool Library::deserialize(ChunkSerializerOperations &op,
 
 void Library::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
+}
+
+Library::Role Library::guessRole(const std::string &name) {
+    if(name.find("libc.so") != std::string::npos) return ROLE_LIBC;
+    if(name.find("libstdc++.so") != std::string::npos) return ROLE_LIBCPP;
+    if(name.find("libegalito.so") != std::string::npos) return ROLE_EGALITO;
+
+    return ROLE_NORMAL;
+}
+
+bool LibraryList::add(Library *library) {
+    if(auto other = find(library->getName())) {
+        if(library->getRole() != other->getRole()) {
+            LOG(1, "WARNING: trying to add library \"" << library->getName()
+                << "\" a second time with different Role, skipping");
+        }
+
+        // already have this library, don't add it
+        delete library;
+        return false;
+    }
+
+    getChildren()->add(library);
+    saveRole(library);
+
+    return true;
 }
 
 void LibraryList::serialize(ChunkSerializerOperations &op,

@@ -91,7 +91,7 @@ private:
     std::vector<ElfXX_Versym> verList;          // indexed by symbolIndex
     std::map<size_t, const char *> nameList;    // indexed by versionIndex
 public:
-    SymbolVersionList(ElfMap *elfmap);
+    SymbolVersionList(ElfMap *elfMap);
 
     const char *getVersionName(size_t symbolIndex) const;
     bool isHidden(size_t symbolIndex) const;
@@ -135,11 +135,11 @@ public:
     virtual Symbol *findMappingBelowOrAt(Symbol *symbol) { return nullptr; }
     virtual Symbol *findMappingAbove(Symbol *symbol) { return nullptr; }
 
-    static SymbolList *buildSymbolList(SharedLib *library);
-    static SymbolList *buildSymbolList(ElfMap *elfmap);
-    static SymbolList *buildDynamicSymbolList(ElfMap *elfmap);
+    static SymbolList *buildSymbolList(ElfMap *elfMap, std::string symbolFile);
+    static SymbolList *buildSymbolList(ElfMap *elfMap);
+    static SymbolList *buildDynamicSymbolList(ElfMap *elfMap);
 private:
-    static SymbolList *buildAnySymbolList(ElfMap *elfmap,
+    static SymbolList *buildAnySymbolList(ElfMap *elfMap,
         const char *sectionName, unsigned sectionType);
     static Symbol *findSizeZero(SymbolList *list, const char *sym);
 };
