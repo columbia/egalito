@@ -21,7 +21,6 @@
 #include "pass/relocheck.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
-#include "util/feature.h"
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -115,7 +114,7 @@ void Conductor::resolvePLTLinks() {
     ResolvePLTPass resolvePLT(program);
     program->accept(&resolvePLT);
 
-    if(isFeatureEnabled("EGALITO_USE_GS")) {
+    if(program->getEgalito()) {
         PopulatePLTPass populatePLT(this);
         program->accept(&populatePLT);
     }

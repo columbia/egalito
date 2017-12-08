@@ -172,7 +172,7 @@ private:
     mutable address_t cache;
 public:
     GenerationalPositionDecorator(ChunkRef chunk)
-        : PositionType(chunk) { updateAuthority(); recalculate(); }
+        : PositionType(chunk), authority(nullptr) { updateAuthority(); recalculate(); }
 
     virtual address_t get() const;
     virtual void set(address_t value);
