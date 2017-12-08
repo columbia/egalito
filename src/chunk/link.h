@@ -155,6 +155,16 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+class DistanceLink : public Link {
+private:
+    ChunkRef base;
+    ChunkRef target;
+public:
+    DistanceLink(ChunkRef base, ChunkRef target) : base(base), target(target) {}
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const; // distance
+};
+
 // --- data links ---
 
 class DataSection;

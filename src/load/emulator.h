@@ -28,7 +28,7 @@ public:
     void initRT(Conductor *conductor);
 
     Function *findFunction(const std::string &symbol);
-    Link *makeDataLink(const std::string &symbol);
+    Link *makeDataLink(const std::string &symbol, bool afterMapping);
 private:
     LoaderEmulator() : egalito(nullptr) {}
 

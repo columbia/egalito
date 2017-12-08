@@ -133,7 +133,13 @@ egalito_hook_jit_fixup:
     movq    %mm1, %rdi
     movq    %rdi, 0x50(%rsp)
 
+#if 1   //REWRITE_RA == 1
+    pushq   $0x8                # !!! hard coded offset
+    movl    $0x41, 0x4(%rsp)    # !!! hard coded offset
+    jmpq    *%gs:(%rax)
+#else
     callq   *%gs:(%rax)
+#endif
 
 #if 1
     movb    $0x0, (%rbx)
@@ -233,20 +239,6 @@ egalito_hook_instruction_hook:
     .skip 8
     .type egalito_hook_instruction_hook, STT_OBJECT
     .size egalito_hook_instruction_hook, .-egalito_hook_instruction_hook
-
-    .global egalito_hook_jit_fixup_direct_hook
-    .weak egalito_hook_jit_fixup_direct_hook
-egalito_hook_jit_fixup_direct_hook:
-    .skip 8
-    .type egalito_hook_jit_fixup_direct_hook, STT_OBJECT
-    .size egalito_hook_jit_fixup_direct_hook, .-egalito_hook_jit_fixup_direct_hook
-
-    .global egalito_hook_jit_fixup_indirect_hook
-    .weak egalito_hook_jit_fixup_indirect_hook
-egalito_hook_jit_fixup_indirect_hook:
-    .skip 8
-    .type egalito_hook_jit_fixup_indirect_hook, STT_OBJECT
-    .size egalito_hook_jit_fixup_indirect_hook, .-egalito_hook_jit_fixup_indirect_hook
 
     .global egalito_hook_jit_reset_hook
     .weak egalito_hook_jit_reset_hook

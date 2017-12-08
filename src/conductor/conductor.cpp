@@ -22,7 +22,6 @@
 #include "pass/relocheck.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
-#include "util/feature.h"
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -116,7 +115,7 @@ void Conductor::resolvePLTLinks() {
     ResolvePLTPass resolvePLT(program);
     program->accept(&resolvePLT);
 
-    if(isFeatureEnabled("EGALITO_USE_GS")) {
+    if(program->getEgalito()) {
         PopulatePLTPass populatePLT(this);
         program->accept(&populatePLT);
     }
@@ -185,10 +184,10 @@ void Conductor::fixDataSections() {
     // first assign an effective address to each TLS region
     allocateTLSArea();
 
+    fixPointersInData();
+
     HandleCopyRelocs handleCopyRelocs(this);
     program->accept(&handleCopyRelocs);
-
-    fixPointersInData();
 
     // This has to come after all relocations in TLS are resolved
     loadTLSData();

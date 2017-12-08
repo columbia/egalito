@@ -112,11 +112,18 @@ Function *LoaderEmulator::findFunction(const std::string &symbol) {
     return (it != functionMap.end() ? (*it).second : nullptr);
 }
 
-Link *LoaderEmulator::makeDataLink(const std::string &symbol) {
+Link *LoaderEmulator::makeDataLink(const std::string &symbol,
+    bool afterMapping) {
+
     auto it = dataMap.find(symbol);
     if(it == dataMap.end()) return nullptr;
 
-    return LinkFactory::makeDataLink(egalito, (*it).second, true);
+    auto addr = (*it).second;
+    if(afterMapping) {
+        addr += egalito->getElfSpace()->getElfMap()->getBaseAddress();
+    }
+
+    return LinkFactory::makeDataLink(egalito, addr, true);
 }
 
 DataVariable *LoaderEmulator::findEgalitoDataVariable(const char *name) {
