@@ -6,6 +6,7 @@
 #include "types.h"
 
 class ConductorSetup;
+class DataRegion;
 
 class SegMap {
 public:
@@ -13,6 +14,7 @@ public:
     static void mapSegments(ElfMap &elf, address_t baseAddress = 0);
 private:
     static void mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr, address_t baseAddress);
+    static void mapRegion(DataRegion *region);
 };
 
 #endif

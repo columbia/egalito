@@ -51,7 +51,9 @@ Chunk *PLTTrampoline::getTarget() const {
 bool PLTTrampoline::isIFunc() const {
 #ifdef ARCH_X86_64
     if(auto v = dynamic_cast<Function *>(getTarget())) {
-        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) {
+        if(v->getSymbol()
+            && v->getSymbol()->getType() == Symbol::TYPE_IFUNC) {
+
             return true;
         }
     }

@@ -1,5 +1,4 @@
 #include <iomanip>
-#include <cstring>  // for debugging
 #include "dataregion.h"
 #include "link.h"
 #include "position.h"
@@ -42,14 +41,19 @@ bool DataVariable::deserialize(ChunkSerializerOperations &op,
     return reader.stillGood();
 }
 
-DataSection::DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr)
-    : size(shdr->sh_size), align(shdr->sh_addralign),
-      code(shdr->sh_flags & SHF_EXECINSTR), bss(shdr->sh_type == SHT_NOBITS),
-      name(elfMap->getSHStrtab() + shdr->sh_name) {
+DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
+    ElfXX_Shdr *shdr) {
 
-    address_t offset = shdr->sh_addr - phdr->p_vaddr;
-    this->setPosition(new AbsoluteOffsetPosition(this, offset));
-    originalOffset = offset;
+    name = std::string(elfMap->getSHStrtab() + shdr->sh_name);
+    alignment = shdr->sh_addralign;
+    originalOffset = shdr->sh_addr - segmentAddress; //shdr->sh_addr - phdr->p_vaddr;
+    setPosition(new AbsoluteOffsetPosition(this, originalOffset));
+    setSize(shdr->sh_size);
+
+    // !!! there is probably a better way to determine the type!
+    if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
+    else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
+    else type = TYPE_UNKNOWN;
 }
 
 std::string DataSection::getName() const {
@@ -63,12 +67,11 @@ bool DataSection::contains(address_t address) {
 void DataSection::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.writeValue(size);
-    writer.writeValue(align);
-    writer.writeValue(originalOffset);
-    writer.writeValue(code);
-    writer.writeValue(bss);
+    writer.write<size_t>(getSize());
     writer.writeString(name);
+    writer.write(alignment);
+    writer.write(originalOffset);
+    writer.write<uint8_t>(type);
 
     op.serializeChildren(this, writer);
 }
@@ -76,14 +79,11 @@ void DataSection::serialize(ChunkSerializerOperations &op,
 bool DataSection::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    reader.readInto(size);
-    reader.readInto(align);
+    setSize(reader.read<size_t>());
+    name = reader.readString();
+    reader.readInto(alignment);
     reader.readInto(originalOffset);
-    reader.readInto(code);
-    reader.readInto(bss);
-    std::string std_name = reader.readString();
-    this->name = new char[std_name.length() + 1];
-    std::strcpy(const_cast<char *>(this->name), std_name.c_str());
+    type = static_cast<Type>(reader.read<uint8_t>());
 
     setPosition(new AbsoluteOffsetPosition(this, originalOffset));
 
@@ -92,20 +92,15 @@ bool DataSection::deserialize(ChunkSerializerOperations &op,
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
-    this->phdr = phdr;
     setPosition(new AbsolutePosition(phdr->p_vaddr));
     setSize(phdr->p_memsz);
     originalAddress = getAddress();
-    startOffset = 0;
-    mappedAddress = 0;
-    if(!writable()) {
-        if(auto sec = elfMap->findSection(".rodata")) {
-            startOffset = sec->getVirtualAddress() - getOriginalAddress();
-        }
-        else {
-            startOffset = getSize();
-        }
-    }
+    permissions = phdr->p_flags;
+    alignment = phdr->p_align;
+
+    auto readAddress = elfMap->getCharmap() + phdr->p_offset;
+    dataBytes.assign(readAddress, phdr->p_filesz);
+    // note: dataBytes may store less than getSize(). Padded with zeros.
 }
 
 std::string DataRegion::getName() const {
@@ -114,23 +109,18 @@ std::string DataRegion::getName() const {
     return stream;
 }
 
-void DataRegion::addVariable(DataVariable *variable) {
-    variableList.push_back(variable);
-}
-
 bool DataRegion::contains(address_t address) {
     return getRange().contains(address);
 }
 
-bool DataRegion::endsWith(address_t address) {
-    return getRange().endsWith(address);
-}
-
 void DataRegion::updateAddressFor(address_t baseAddress) {
     LOG(1, "UPDATE address for DataRegion from " << std::hex
-        << getAddress() << " to " << (baseAddress + phdr->p_vaddr));
-    getPosition()->set(baseAddress + phdr->p_vaddr);
-    mappedAddress = baseAddress + phdr->p_vaddr;
+        << getAddress() << " to " << (baseAddress + originalAddress));
+    getPosition()->set(baseAddress + originalAddress);
+}
+
+void DataRegion::addVariable(DataVariable *variable) {
+    variableList.push_back(variable);
 }
 
 DataVariable *DataRegion::findVariable(address_t address) const {
@@ -157,8 +147,9 @@ void DataRegion::serialize(ChunkSerializerOperations &op,
     writer.write(getAddress());
     writer.write(getSize());
     writer.write(originalAddress);
-    writer.write(startOffset);
-    writer.write(mappedAddress);
+    writer.write(permissions);
+    writer.write(alignment);
+    writer.writeBytes<uint64_t>(dataBytes);
 
     op.serializeChildren(this, writer);
 }
@@ -168,11 +159,11 @@ bool DataRegion::deserialize(ChunkSerializerOperations &op,
 
     address_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
-    size_t size = reader.read<size_t>();
-    setSize(size);
+    setSize(reader.read<size_t>());
     reader.readInto(this->originalAddress);
-    reader.readInto(this->startOffset);
-    reader.readInto(this->mappedAddress);
+    reader.readInto(this->permissions);
+    reader.readInto(this->alignment);
+    dataBytes = std::move(reader.readBytes<uint64_t>());
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
@@ -193,8 +184,8 @@ void TLSDataRegion::setBaseAddress(address_t baseAddress) {
 }
 
 bool TLSDataRegion::containsData(address_t address) {
-    auto phdr = getPhdr();
-    return Range(getAddress(), phdr->p_filesz).contains(address);
+    auto size = getSizeOfInitializedData();
+    return Range(getAddress(), size).contains(address);
 }
 
 void DataRegionList::accept(ChunkVisitor *visitor) {
@@ -211,7 +202,7 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
         if(region->contains(target)) {
             auto dsec = CIter::spatial(region)->findContaining(target);
             if(dsec) {
-                if(dsec->isCode()) {
+                if(dsec->getType() == DataSection::TYPE_CODE) {
                     if(ChunkFind().findInnermostAt(
                         module->getFunctionList(), target)) {
 
@@ -290,7 +281,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
         else {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
-        auto ds = new DataSection(elfMap, region->getPhdr(), shdr);
+        auto ds = new DataSection(elfMap, region->getAddress(), shdr);
         ChunkMutator(region).append(ds);
     }
 

@@ -100,6 +100,11 @@ void Conductor::parseEgalitoArchive(const char *archive) {
         LOG(1, "Using full Chunk tree from archive [" << archive << "]");
         this->program = p;
     }
+    /*else if(auto module = dynamic_cast<Module *>(newData)) {
+        LOG(1, "Using Module \"" << module->getName()
+            << "\" from archive [" << archive << "]");
+        program->add(module);
+    }*/
     else {
         LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }

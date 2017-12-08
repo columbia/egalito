@@ -8,6 +8,7 @@
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
 #include "pass/clearspatial.h"
+#include "transform/data.h"
 #include "log/log.h"
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
@@ -17,6 +18,7 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
     auto elf = setup->getElfMap();
     auto egalito = setup->getEgalitoElfMap();
 
+#if 0
     // map PT_LOAD sections into memory
     if(elf) {
         SegMap::mapSegments(*elf, elf->getBaseAddress());
@@ -27,13 +29,28 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
 
     ClearSpatialPass clearSpatial;
     for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
+#if 0
         auto map = module->getElfSpace()->getElfMap();
         if(map && map != elf && map != egalito) {
             SegMap::mapSegments(*map, map->getBaseAddress());
         }
+#else
+        for(auto region : CIter::regions(module)) {
+            mapRegion(region);
+        }
+#endif
     }
+#else
     for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
         for(auto region : CIter::regions(module)) {
+            mapRegion(region);
+        }
+    }
+    ClearSpatialPass clearSpatial;
+#endif
+    for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            //DataLoader(0).loadRegion(nullptr, region);
             region->accept(&clearSpatial);
         }
     }
@@ -117,4 +134,33 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
                 0, filesz_pages - filesz_orig);
         }
     }
+}
+
+void SegMap::mapRegion(DataRegion *region) {
+    int prot = 0;
+    if(region->readable()) prot |= PROT_READ;
+    if(region->writable()) prot |= PROT_WRITE;
+    // disable exec for now, only Sandbox should contain code
+    //if(region->executable()) prot |= PROT_EXEC;
+
+    prot |= PROT_WRITE;  // !!! hack for updating jump tables. And for memcpy below
+
+    address_t address = region->getAddress();
+    address_t address_rounded = ROUND_DOWN(address);
+    size_t address_offset = address - address_rounded;
+    size_t memsz_pages = ROUND_UP(region->getSize() + address_offset);
+
+    LOG(1, "mmap " << std::hex << address_rounded << " pages=" << memsz_pages);
+
+    // map enough pages for all data (including zero pages)
+    void *mem = mmap((void *)address_rounded,
+        memsz_pages,
+        prot,
+        MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+        -1, 0);
+    if(mem == nullptr) throw "mmap DataRegion returned NULL!";
+    const std::string &dataBytes = region->getDataBytes();
+    LOG(1, "memcpy " << std::hex << (void *)dataBytes.c_str() << " to " << address
+        << " size " << dataBytes.length());
+    std::memcpy((void *)address, dataBytes.c_str(), dataBytes.length());
 }

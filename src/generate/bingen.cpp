@@ -604,8 +604,7 @@ address_t BinGen::writeOutData(Module *module, address_t pos, bool writable) {
         if(region->writable() != writable) continue;
 
         LOG(1, "region at " << std::hex << region->getAddress());
-        LOG(1, "  offset " << region->getStartOffset());
-        LOG(1, "  mem size " << region->getPhdr()->p_memsz);
+        LOG(1, "  mem size " << region->getSize());
 
         for(auto dsec : CIter::children(region)) {
             if(dsec->isCode()) continue;
@@ -613,7 +612,7 @@ address_t BinGen::writeOutData(Module *module, address_t pos, bool writable) {
 
             auto vstart = dsec->getAddress();
             auto lstart
-                = region->getMapBaseAddress() + dsec->getOriginalOffset();
+                = region->getAddress() + dsec->getOriginalOffset();
             if(pos != vstart) {
                 LOG(1, "adding padding of size " << (vstart - pos));
                 std::string zero(vstart - pos, 0);

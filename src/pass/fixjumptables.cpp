@@ -22,6 +22,7 @@ void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {
 }
 
 void FixJumpTablesPass::visit(JumpTable *jumpTable) {
+    return;  // !!! TEMPORARY
 #ifdef ARCH_X86_64
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
