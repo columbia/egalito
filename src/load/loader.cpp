@@ -91,7 +91,7 @@ void EgalitoLoader::generateCode() {
 }
 
 void EgalitoLoader::run() {
-    auto libc = setup->getConductor()->getLibraryList()->getLibc();
+    auto libc = setup->getConductor()->getProgram()->getLibc();
     if(libc && libc->getElfSpace()) {
         CallInit::makeInitArray(libc->getElfSpace(), argc, argv, envp, gsTable);
     }
