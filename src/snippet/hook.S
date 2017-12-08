@@ -134,9 +134,10 @@ egalito_hook_jit_fixup:
     movq    %rdi, 0x50(%rsp)
 
 #if 1   //REWRITE_RA == 1
-    pushq   $0x8                # !!! hard coded offset
-    movl    $0x41, 0x4(%rsp)    # !!! hard coded offset
+    pushq   $0x0                # !!! special entry
+    movl    $(1f-egalito_hook_jit_fixup), 0x4(%rsp)
     jmpq    *%gs:(%rax)
+1:
 #else
     callq   *%gs:(%rax)
 #endif
@@ -185,6 +186,52 @@ in_code:
     .type egalito_hook_jit_fixup, STT_FUNC
     .size egalito_hook_jit_fixup, .-egalito_hook_jit_fixup
 
+    .global egalito_hook_jit_fixup_return
+egalito_hook_jit_fixup_return:
+    pop     %r11
+1:
+    movq    %gs:(%r11d), %r11
+    cmpq    %gs:0x0, %r11
+    je      2f
+    add     -0x4(%rsp), %r11d
+    jmpq    *%r11
+2:
+    mov     -0x8(%rsp), %r11
+    test    %r11d, %r11d
+    jne     3f
+    movq    %gs:(%r11d), %r11
+    add     -0x4(%rsp), %r11d
+    jmpq    *%r11
+3:
+    push    %rax
+    push    %rcx
+    push    %rdx
+    push    %rsi
+    push    %rdi
+    push    %r8
+    push    %r9
+    push    %r10
+    push    %r11
+
+    movl    %r11d, %edi
+
+    pushq   $0x8                # !!! special entry
+    movl    $(4f-egalito_hook_jit_fixup_return), 0x4(%rsp)
+    jmpq    *%gs:(%rax)
+4:
+    pop     %r11
+    pop     %r10
+    pop     %r9
+    pop     %r8
+    pop     %rdi
+    pop     %rsi
+    pop     %rdx
+    pop     %rcx
+    pop     %rax
+
+    jmp     1b
+    .type egalito_hook_jit_fixup_return, STT_FUNC
+    .size egalito_hook_jit_fixup_return, .-egalito_hook_jit_fixup_return
 
    .global egalito_hook_jit_reset
 egalito_hook_jit_reset:

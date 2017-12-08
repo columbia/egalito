@@ -13,6 +13,13 @@ void GSTableEntry::accept(ChunkVisitor *visitor) {
     // NYI
 }
 
+void GSTable::makeReservedEntry(Chunk *target, GSTableEntry::IndexType index) {
+    assert(index < reserved);
+    auto entry = new GSTableResolvedEntry(target, index);
+    getChildren()->add(entry);
+    entryMap[target] = entry;
+}
+
 GSTableEntry *GSTable::makeEntryFor(Chunk *target, bool preResolved) {
     auto entry = getEntryFor(target);
     if(!entry) {
@@ -37,8 +44,7 @@ GSTableEntry *GSTable::getEntryFor(Chunk *target) {
 }
 
 GSTableEntry::IndexType GSTable::nextIndex() const {
-    // reserve index 0 for future use
-    return entryMap.size() + 1;
+    return entryMap.size() + reserved;
 }
 
 GSTableEntry::IndexType GSTable::offsetToIndex(GSTableEntry::IndexType offset) {
@@ -46,9 +52,9 @@ GSTableEntry::IndexType GSTable::offsetToIndex(GSTableEntry::IndexType offset) {
 }
 
 GSTableEntry *GSTable::getAtIndex(GSTableEntry::IndexType index) {
-    index -= 1;
+    index -= reserved;
     if(index >= getChildren()->getIterable()->getCount()) {
-        LOG(0, "table overflow?");
+        LOG(1, "table overflow?");
         return nullptr;
     }
 

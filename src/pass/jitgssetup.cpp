@@ -5,13 +5,26 @@
 #include "log/log.h"
 
 void JitGSSetup::visit(Program *program) {
+    makeReservedGSEntries(program->getEgalito());
     makeResolverGSEntries(program->getEgalito());
     makeSupportGSEntries(program);
 }
 
+void JitGSSetup::makeReservedGSEntries(Module *egalito) {
+    const auto reserved = {
+        "egalito_hook_jit_fixup",           // hardcoded as gs@[0]
+        "egalito_hook_jit_fixup_return",    // hardcoded as gs@[1]
+    };
+    size_t i = 0;
+    for(auto name : reserved) {
+        auto f = ChunkFind2(conductor).findFunctionInModule(name, egalito);
+        assert(f);
+        gsTable->makeReservedEntry(f, i++);
+    }
+}
+
 void JitGSSetup::makeResolverGSEntries(Module *egalito) {
     const auto resolvers = {
-        "egalito_hook_jit_fixup",
         "egalito_jit_gs_fixup",
         "_start2",
         "_ZN7GSTable13offsetToIndexEj",
@@ -68,6 +81,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK14OffsetPosition3getEv",
 
         "_ZN13MemoryBacking8finalizeEv",
+        "_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS3_EESH_IJEEEEESt17_Rb_tree_iteratorIS6_ESt23_Rb_tree_const_iteratorIS6_EDpOT_.isra.98",
         // for debugging
         "egalito_printf",
         "egalito_vfprintf",

@@ -29,10 +29,11 @@ void UseGSTablePass::visit(Function *function) {
     //TemporaryLogLevel tll("pass", 11, function->hasName("ifunc_resolver"));
     //TemporaryLogLevel tll("pass", 10);
 
-    // already uses gs
-    if(!function->hasName("egalito_hook_jit_fixup")) {
-        recurse(function);
-    }
+    // already use gs
+    if(function->hasName("egalito_hook_jit_fixup")) return;
+    if(function->hasName("egalito_hook_jit_fixup_return")) return;
+
+    recurse(function);
 }
 
 void UseGSTablePass::visit(Block *block) {
@@ -872,6 +873,7 @@ void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
     auto i = static_cast<ReturnInstruction *>(instr->getSemantic());
     DisasmHandle handle(true);
 
+#if 0
     // pop %r11
     auto pop = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x41, 0x5b}));
@@ -899,7 +901,7 @@ void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
     auto movq2 = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x65, 0x67, 0x4d, 0x8b, 0x1b}));
 
-    // add -0x4(%rsp), %r11d,
+    // add -0x4(%rsp), %r11d
     auto add = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x44, 0x03, 0x5c, 0x24, 0xfc}));
 
@@ -921,6 +923,17 @@ void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
     m.insertAfter(instr, movq2);
     //m.insertAfter(movq1, movq2);
     m.insertAfter(movq2, add);
+#else
+    // jmpq *%gs:0x8
+    std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0x8, 0, 0, 0};
+    auto jmpq = new IsolatedInstruction();
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    jmpq->setAssembly(assembly);
+    instr->setSemantic(jmpq);
+    ChunkMutator(block).modifiedChildSize(instr,
+        jmpq->getSize() - i->getSize());
+    delete i;
+#endif
 }
 
 void UseGSTablePass::overwriteBootArguments() {
