@@ -510,7 +510,7 @@ void UseDef::defReg(UDState *state, int reg, TreeNode *tree) {
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg
             << std::hex << " at " << state->getInstruction()->getAddress());
-        throw "error";
+        throw "error defReg";
     }
 #endif
     if(reg != -1) {
@@ -524,7 +524,7 @@ void UseDef::useReg(UDState *state, int reg) {
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg
             << std::hex << " at " << state->getInstruction()->getAddress());
-        throw "error";
+        throw "error useReg";
     }
 #endif
     for(auto o : working->getRegSet(reg)) {
@@ -550,7 +550,7 @@ void UseDef::defMem(UDState *state, TreeNode *place, int reg) {
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg
             << std::hex << " at " << state->getInstruction()->getAddress());
-        throw "error";
+        throw "error defMem";
     }
 #endif
     state->addMemDef(reg, place);
@@ -562,7 +562,7 @@ void UseDef::useMem(UDState *state, TreeNode *place, int reg) {
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg
             << std::hex << " at " << state->getInstruction()->getAddress());
-        throw "error";
+        throw "error useMem";
     }
 #endif
     working->copyFromMemSetFor(state, reg, place);
@@ -1450,9 +1450,12 @@ void UseDef::fillJmp(UDState *state, AssemblyPtr assembly) {
             useReg(state, reg);
         }
     }
+#if 0
+    // %gs: direct jump becomes IsolatedInstruction
     else if(!dynamic_cast<ControlFlowInstruction *>(semantic)) {
         throw "what is this?";
     }
+#endif
     //LOG(1, "does this instruction use/def any other registers?");
 }
 void UseDef::fillLea(UDState *state, AssemblyPtr assembly) {

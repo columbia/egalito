@@ -71,7 +71,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
             // IndirectJumpInstruction cannot be relocated if base is RIP;
             // skip here and make LinkedInstruction afterward
-            if(op->mem.base != X86_REG_RIP) {
+            if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
                 semantic = new IndirectJumpInstruction(
                     op->mem.base, ins->mnemonic, op->mem.index,
                     op->mem.scale, op->mem.disp);
