@@ -39,21 +39,7 @@ bool MemoryBacking::reopen() {
 }
 
 bool MemoryBacking::recreate() {
-    if(munmap((void *)base, getSize()) < 0) {
-        return -1;
-    }
-    auto b = (address_t) mmap((void *)base, getSize(),
-        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS
-#ifdef ARCH_X86_64
-        | MAP_32BIT
-#endif
-        , -1, 0);
-    if(b == (address_t)-1) {
-        throw std::bad_alloc();
-    }
-    if(base != b) throw "Overlapping with other regions?";
-    base = b;
-
+    std::memset((void *)base, 0, getSize());
     return 0;
 }
 

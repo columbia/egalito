@@ -151,6 +151,8 @@ public:
 
     virtual Sandbox *flipBegin() = 0;
     virtual Sandbox *flipEnd() = 0;
+    virtual Sandbox *get() const = 0;
+    virtual Sandbox *get2() const = 0;
 };
 
 template <typename SandboxImplType>
@@ -166,6 +168,8 @@ public:
 
     virtual Sandbox *flipBegin();
     virtual Sandbox *flipEnd();
+    virtual Sandbox *get() const { return sandbox[i]; }
+    virtual Sandbox *get2() const { return sandbox[i^1]; }
 };
 
 template <typename SandboxImplType>

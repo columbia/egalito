@@ -147,12 +147,10 @@ egalito_hook_jit_fixup:
 #endif
 
     movq    0x50(%rsp), %r11
-    movq    %gs:(%r11), %r11
-    movq    %r11, 0x50(%rsp)
 
     pop     %rbx
 
-    pop     %r11
+    pop     %r10    # discard
     pop     %r10
     pop     %r9
     pop     %r8
@@ -162,7 +160,7 @@ egalito_hook_jit_fixup:
     pop     %rcx
     pop     %rax
     add     $0x8, %rsp
-    jmpq    *-0x8(%rsp)
+    jmpq    *%gs:(%r11) # displacement should be zero
 
 in_code:
     movq    %mm1, %rdi  # offset
@@ -233,27 +231,53 @@ egalito_hook_jit_fixup_return:
     .type egalito_hook_jit_fixup_return, STT_FUNC
     .size egalito_hook_jit_fixup_return, .-egalito_hook_jit_fixup_return
 
-   .global egalito_hook_jit_reset
-egalito_hook_jit_reset:
+   .global egalito_hook_jit_reset_on_syscall
+egalito_hook_jit_reset_on_syscall:
 #ifdef ARCH_X86_64
+    # ok to clobber r10 & 11 (see AMD64 Linux Kernel Conventions)
+    # syscall arguments(rdi, rsi, rdx, rcx, r8, r9) and return value(rax)
+    # are preserved
+    push    %rax
+    push    %rcx
+    push    %rdx
+    push    %rsi
+    push    %rdi
+    push    %r8
+    push    %r9
+
+#if 1
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     cmpb    $0x0, (%rax)
-    jne     1f
-    push    %rbx
-    mov     %rax, %rbx
+    jne     2f
     movb    $0x1, (%rax)
-    mov     egalito_hook_jit_reset_hook@gotpcrel(%rip), %rax
-    callq   *(%rax)
-    movb    $0x0, (%rbx)
-    pop     %rbx
+#endif
+
+    # REWRITE_RA == 1
+    pushq   $0x10
+    movl    $(1f-egalito_hook_jit_reset_on_syscall), 0x4(%rsp)
+    mov     egalito_jit_gs_reset@gotpcrel(%rip), %rax
+    jmpq    *%gs:(%rax)
+
 1:
-    retq
+#if 1
+    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
+    movb    $0x0, (%rax)
+
+2:
+#endif
+    pop     %r9
+    pop     %r8
+    pop     %rdi
+    pop     %rsi
+    pop     %rdx
+    pop     %rcx
+    pop     %rax
+    jmpq    *%gs:0x8
 #elif defined(ARCH_AARCH64)
     brk     0   /* NYI */
 #endif
-    .type egalito_hook_jit_reset, STT_FUNC
-    .size egalito_hook_jit_reset, .-egalito_hook_jit_reset
-
+    .type egalito_hook_jit_reset_on_syscall, STT_FUNC
+    .size egalito_hook_jit_reset_on_syscall, .-egalito_hook_jit_reset_on_syscall
 
 //
 // begin .bss section
@@ -287,9 +311,3 @@ egalito_hook_instruction_hook:
     .type egalito_hook_instruction_hook, STT_OBJECT
     .size egalito_hook_instruction_hook, .-egalito_hook_instruction_hook
 
-    .global egalito_hook_jit_reset_hook
-    .weak egalito_hook_jit_reset_hook
-egalito_hook_jit_reset_hook:
-    .skip 8
-    .type egalito_hook_jit_reset_hook, STT_OBJECT
-    .size egalito_hook_jit_reset_hook, .-egalito_hook_jit_reset_hook

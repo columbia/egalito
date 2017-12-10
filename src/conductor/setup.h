@@ -45,6 +45,7 @@ public:
     ElfMap *getEgalitoElfMap() const { return egalito; }
     Conductor *getConductor() const { return conductor; }
     Sandbox *getSandbox() const { return sandbox; }
+    Sandbox *getSandbox2() const;
     void flipSandboxBegin();
     void flipSandboxEnd();
 public:

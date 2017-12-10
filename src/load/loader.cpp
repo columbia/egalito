@@ -191,6 +191,7 @@ void EgalitoLoader::otherPassesAfterMove() {
 #if 1
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         ManageGS::init(gsTable);
+        setup->flipSandboxBegin();
     }
 #endif
 }

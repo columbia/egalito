@@ -1,3 +1,5 @@
+#include <cctype>
+#include <cstring>
 #include <cassert>
 #include "jitgssetup.h"
 #include "conductor/conductor.h"
@@ -14,6 +16,7 @@ void JitGSSetup::makeReservedGSEntries(Module *egalito) {
     const auto reserved = {
         "egalito_hook_jit_fixup",           // hardcoded as gs@[0]
         "egalito_hook_jit_fixup_return",    // hardcoded as gs@[1]
+        "egalito_hook_jit_reset_on_syscall",// hardcoded as gs@[2]
     };
     size_t i = 0;
     for(auto name : reserved) {
@@ -24,24 +27,42 @@ void JitGSSetup::makeReservedGSEntries(Module *egalito) {
 }
 
 void JitGSSetup::makeResolverGSEntries(Module *egalito) {
+    const auto resolverClasses = {
+        "ManageGS",
+        "ChunkFind2",
+        "GSTable",
+        "GSTableEntry",
+        "Generator",
+        "SandboxImplI13MemoryBacking",
+        "MemoryBacking",
+        "InstrWriterCString",
+        "ChunkMutator",
+        "Instruction",
+        "AbsolutePosition",
+        "Position",
+        "InstructionStorage",
+        "IsolatedInstruction",
+        "ControlFlowInstruction",
+        "IndirectCallInstruction",
+        "IndirectJumpInstruction",
+        "PLTList",
+        "PLTTrampoline",
+        "DistanceLink",
+        "MarkerLink",
+        "SectionEndMarker",
+    };
+    for(auto name : resolverClasses) {
+        makeResolvedEntryForClass(name, egalito);
+    }
+
     const auto resolvers = {
         "egalito_jit_gs_fixup",
+        "egalito_jit_gs_reset",
         "_start2",
-        "_ZN7GSTable13offsetToIndexEj",
-        "_ZN8ManageGS7resolveEP7GSTablej",
-        "_ZN9Generator21copyFunctionToSandboxEP8FunctionP7Sandbox",
-        "_ZN8ManageGS8setEntryEP7GSTablejm",
-        "_ZN10ChunkFind2C1EP9Conductor",
-        "_ZN10ChunkFind222findFunctionContainingEm",
-        "_ZN7GSTable10getAtIndexEj",
-        "_ZN12GSTableEntry15setLazyResolverEP5Chunk",
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
-        "_ZNK16AbsolutePosition3getEv",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.296",
         "_ZNK11GSTableLink16getTargetAddressEv",
-        "_ZNK12GSTableEntry9getOffsetEv",
-        "_ZN10ChunkFind228findFunctionContainingHelperEmP6Module",
         "_ZN13ChunkListImplI8FunctionE13createSpatialEv",
         "_ZN9Emulation24function_not_implementedEv",
         "_ZNSt8_Rb_treeImSt4pairIKmP8FunctionESt10_Select1stIS4_ESt4lessImESaIS4_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS4_ERS1_",
@@ -49,30 +70,15 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK9ChunkImpl8getRangeEv",
         "_ZNK21ComputedSizeDecoratorI22ChunkPositionDecoratorI9ChunkImplEE7getSizeEv",
         "_ZNK5Range8containsEm",
-        "_ZN7GSTable12makeEntryForEP5Chunkb",
-        "_ZN7GSTable11getEntryForEP5Chunk",
-        "_ZNK7GSTable9nextIndexEv",
         "_ZN13ChunkListImplI12GSTableEntryE3addEPS0_",
         "_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS6_ERS3_",
         "_ZN12MakeSemantic13getDispOffsetEP8Assemblyi",
-        "_ZN22ControlFlowInstruction6acceptEP18InstructionVisitor",
-        "_ZN22ControlFlowInstruction7writeToEPcb",
-        "_ZN22ControlFlowInstruction21calculateDisplacementEv",
         "_ZNK10NormalLink16getTargetAddressEv",
-        "_ZNK22ControlFlowInstruction7getSizeEv",
-        "_ZN23IndirectCallInstruction6acceptEP18InstructionVisitor",
         "_ZN18InstructionVisitor5visitEP23IndirectCallInstruction",
         "_ZN17ReturnInstruction6acceptEP18InstructionVisitor",
         "_ZN18InstructionVisitor5visitEP17ReturnInstruction",
 
-        "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE6reopenEv",
-        "_ZN13MemoryBacking6reopenEv",
-        "_ZN11SandboxImplI13MemoryBacking18WatermarkAllocatorIS0_EE8finalizeEv",
         "_ZN17LinkedInstruction6acceptEP18InstructionVisitor",
-        "_ZN18InstrWriterCString5visitEP17LinkedInstruction",
-        "_ZN18InstrWriterCString5visitEP22ControlFlowInstruction",
-        "_ZN18InstrWriterCString5visitEP21StackFrameInstruction",
-        "_ZN18InstrWriterCString5visitEP18LiteralInstruction",
         "_ZN17LinkedInstruction7writeToEPcb",
         "_ZN17LinkedInstruction11getDispSizeEv",
         "_ZN12MakeSemantic25determineDisplacementSizeEP8Assemblyi",
@@ -80,7 +86,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK14DataOffsetLink16getTargetAddressEv",
         "_ZNK14OffsetPosition3getEv",
 
-        "_ZN13MemoryBacking8finalizeEv",
         "_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS3_EESH_IJEEEEESt17_Rb_tree_iteratorIS6_ESt23_Rb_tree_const_iteratorIS6_EDpOT_.isra.98",
         // for debugging
         "egalito_printf",
@@ -92,8 +97,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "ifunc_resolver",
         "ifunc_select",
         "_ZNK9IFuncList6getForEm",
-        "_ZNK13PLTTrampoline7getNameB5cxx11Ev",
-        "_ZNK11Instruction7getNameB5cxx11Ev",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.91",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.23",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.51",
@@ -248,6 +251,24 @@ void JitGSSetup::makeResolvedEntry(const char *name, Module *module) {
         if(f->hasName(name)) {
             gsTable->makeEntryFor(f, true);
             found = true;
+        }
+    }
+    assert(found);
+}
+
+void JitGSSetup::makeResolvedEntryForClass(const char *name, Module *module) {
+    bool found = false;
+    for(auto f : CIter::functions(module)) {
+        auto fname = f->getName();
+        const char *cname = fname.c_str();
+        if(cname[0] == '_' && cname[1] == 'Z') {
+            const char *p = cname + 2;
+            while(!isdigit(*p)) ++p;
+            while(isdigit(*p)) ++p;
+            if(std::strncmp(p, name, strlen(name)) == 0) {
+                gsTable->makeEntryFor(f, true);
+                found = true;
+            }
         }
     }
     assert(found);

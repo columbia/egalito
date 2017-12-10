@@ -1,8 +1,9 @@
 #ifndef EGALITO_PASS_JITGSSETUP_H
 #define EGALITO_PASS_JITGSSETUP_H
+
 #include "chunkpass.h"
 
-class Conductor;
+class ConductorSetup;
 class GSTable;
 
 class JitGSSetup : public ChunkPass {
@@ -18,6 +19,7 @@ private:
     void makeResolverGSEntries(Module *egalito);
     void makeSupportGSEntries(Program *program);
     void makeResolvedEntry(const char *name, Module *module);
+    void makeResolvedEntryForClass(const char *name, Module *module);
     void makeResolvedEntryForPLT(std::string name, Program *program);
 };
 

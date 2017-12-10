@@ -21,7 +21,6 @@ public:
     Chunk *getTarget() const { return resolver ? resolver : target; }
     IndexType getIndex() const { return index; }
     IndexType getOffset() const;
-    bool mapped() const { return target != resolver; }
 
     // debugging
     Chunk *getRealTarget() const { return target; }
@@ -40,7 +39,7 @@ private:
     Chunk *escapeTarget;
     std::map<Chunk *, GSTableEntry *> entryMap;
     void *tableAddress;
-    size_t reserved = 2;
+    size_t reserved = 3;
 public:
     GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
 

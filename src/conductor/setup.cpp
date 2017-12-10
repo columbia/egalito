@@ -158,6 +158,10 @@ void ConductorSetup::moveCodeMakeExecutable() {
     sandbox->finalize();
 }
 
+Sandbox *ConductorSetup::getSandbox2() const {
+    return (flip) ? flip->get2() : nullptr;
+}
+
 void ConductorSetup::flipSandboxBegin() {
     sandbox = flip->flipBegin();
 }

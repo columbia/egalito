@@ -1,3 +1,4 @@
+#include <cstring>
 #include "jitgsfixup.h"
 #include "switchcontext.h"
 #include "chunk/concrete.h"
@@ -53,19 +54,18 @@ size_t egalito_jit_gs_fixup(size_t offset) {
 #endif
 
     if(targetChunk) {
-        auto gsEntry = egalito_gsTable->getEntryFor(targetChunk);
-        if(gsEntry && !gsEntry->mapped()) {
-            auto sandbox = egalito_conductor_setup->getSandbox();
-            sandbox->reopen();
-            Generator generator(true);
-            if(targetFunction) {
-                generator.copyFunctionToSandbox(targetFunction, sandbox);
-            }
-            else if(targetTrampoline) {
-                generator.copyPLTToSandbox(targetTrampoline, sandbox);
-            }
-            sandbox->finalize();
+        auto sandbox = egalito_conductor_setup->getSandbox();
+        sandbox->reopen();
+        Generator generator(true);
+        if(targetFunction) {
+            generator.instantiate(targetFunction, sandbox);
+            egalito_printf("%lx\n", targetFunction->getAddress());
         }
+        else if(targetTrampoline) {
+            generator.instantiate(targetTrampoline, sandbox);
+            egalito_printf("%lx\n", targetTrampoline->getAddress());
+        }
+        sandbox->finalize();
     }
 
     ManageGS::setEntry(egalito_gsTable, index, target->getAddress());
@@ -75,7 +75,7 @@ size_t egalito_jit_gs_fixup(size_t offset) {
 extern "C"
 void egalito_jit_gs_reset(void) {
     egalito_printf("resetting...\n");
-    ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
+    //ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
 }
 
 JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)
@@ -101,15 +101,17 @@ void JitGSFixup::visit(Program *program) {
         entry->setLazyResolver(callback);
     }
 
-    //addResetCall();
+    addResetCall();
 }
 
 void JitGSFixup::addResetCall() {
     auto lib = conductor->getLibraryList()->get("(egalito)");
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
 
+    // this can only be hooked around function call or system call
+    // as it assumes that r11 is clobberable.
     auto reset = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_jit_reset", lib->getElfSpace()->getModule());
+        "egalito_hook_jit_reset_on_syscall", lib->getElfSpace()->getModule());
     if(!reset) {
         throw "JitGSFixup can't find hook function";
     }
@@ -123,35 +125,67 @@ void JitGSFixup::addResetCall() {
         throw "JitGSFixup can't find write function";
     }
 
-    SwitchContextPass switcher;
-    reset->accept(&switcher);
-
-    set_jit_reset_hook(egalito_jit_gs_reset);
-
 #ifdef ARCH_X86_64
-    Block *syscallBlock = nullptr;
-    Instruction *syscall = nullptr;
-    for(auto block : CIter::children(write)) {
-        for(auto instr : CIter::children(block)) {
-            if(auto assembly = instr->getSemantic()->getAssembly()) {
+    Block *block = nullptr;
+    Instruction *instr = nullptr;
+    bool next = false;
+    for(auto b : CIter::children(write)) {
+        for(auto i : CIter::children(b)) {
+            if(next) {
+                block = b;
+                instr = i;
+                goto out;
+            }
+            if(auto assembly = i->getSemantic()->getAssembly()) {
                 if(assembly->getMnemonic() == "syscall") {
-                    syscallBlock = block;
-                    syscall = instr;
-                    goto out;
+                    next = true;
                 }
             }
         }
     }
 
-    if(!syscall) return;
+    if(!instr) return;
 
 out:
-    auto call = Disassemble::instruction({0xe8, 0, 0, 0, 0});
-    auto semantic = call->getSemantic();
-    auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic);
-    cfi->setLink(new ExternalNormalLink(reset));
+    // this modification must follow index-based ABI
+    DisasmHandle handle(true);
 
-    ChunkMutator(syscallBlock).insertAfter(syscall, call);
+    // jmpq *%gs:Offset
+    auto jmpq = new Instruction();
+    auto semantic = new LinkedInstruction(jmpq);
+    std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0};
+    semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin));
+    auto gsEntry = gsTable->makeEntryFor(reset);
+    semantic->setLink(new GSTableLink(gsEntry));
+    semantic->setIndex(0);
+    jmpq->setSemantic(semantic);
+
+    // push RA1 = gs offset
+    std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
+    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    uint32_t tmp1 = gsEntrySelf->getOffset();
+    std::memcpy(&pushB1[1], &tmp1, 4);
+    auto push1 = DisassembleInstruction(handle).instruction(pushB1);
+
+    // movl instr offset, 0x4(%rsp)
+    auto movRA = new Instruction();
+    auto semantic2 = new LinkedInstruction(movRA);
+    std::vector<unsigned char> movB{0xc7, 0x44, 0x24, 0x04, 0, 0, 0, 0};
+    semantic2->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(movB));
+    semantic2->setLink(new DistanceLink(block->getParent(), jmpq));
+    semantic2->setIndex(0);
+    movRA->setSemantic(semantic2);
+
+    // movd offset = 0x4(%rip), %mm1
+    auto movOffset = DisassembleInstruction(handle).instruction(
+        std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
+
+    ChunkMutator m(block);
+    m.insertBeforeJumpTo(instr, push1);
+    m.insertAfter(instr, movRA);
+    m.insertAfter(movRA, movOffset);
+    m.insertAfter(movOffset, jmpq);
+    // we may need to split the block
 #elif defined(ARCH_AARCH64)
     LOG(1, "JitGSFixup::addResetCall NYI");
 #endif

@@ -169,7 +169,7 @@ void DebloatPass::useFromSpecialName() {
             if(isFeatureEnabled("EGALITO_USE_GS")) {
                 if(function->hasName("egalito_hook_jit_fixup")
                     || function->hasName("egalito_hook_jit_fixup_return")
-                    || function->hasName("egalito_hook_jit_reset")) {
+                    || function->hasName("egalito_hook_jit_reset_on_syscall")) {
 
                     markTreeAsUsed(function);
                 }

@@ -38,6 +38,28 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     module->accept(&clearSpatial);
 }
 
+void Generator::pickFunctionAddressInSandbox(Function *function,
+    Sandbox *sandbox) {
+
+    auto slot = sandbox->allocate(function->getSize());
+    ChunkMutator(function).setPosition(slot.getAddress());
+#if 0
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+#endif
+}
+
+void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
+    Sandbox *sandbox) {
+
+    auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
+    ChunkMutator(trampoline).setPosition(slot.getAddress());
+#if 0
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+#endif
+}
+
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
     LOG(1, "Copying code into sandbox");
     for(auto f : CIter::functions(module)) {
@@ -54,6 +76,15 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
     }
 
     copyPLTEntriesToSandbox(module, sandbox);
+}
+
+void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
+    if(module->getPLTList()) {
+        LOG(1, "Copying PLT entries into sandbox");
+        for(auto plt : CIter::plts(module)) {
+            copyPLTToSandbox(plt, sandbox);
+        }
+    }
 }
 
 void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
@@ -74,20 +105,19 @@ void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
     }
 }
 
-void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
-    if(module->getPLTList()) {
-        LOG(1, "Copying PLT entries into sandbox");
-        for(auto plt : CIter::plts(module)) {
-            copyPLTToSandbox(plt, sandbox);
-            //char *output = reinterpret_cast<char *>(plt->getAddress());
-            //plt->writeTo(output);
-        }
-    }
-}
-
 void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
     char *output = reinterpret_cast<char *>(trampoline->getAddress());
     trampoline->writeTo(output);
+}
+
+void Generator::instantiate(Function *function, Sandbox *sandbox) {
+    pickFunctionAddressInSandbox(function, sandbox);
+    copyFunctionToSandbox(function, sandbox);
+}
+
+void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
+    pickPLTAddressInSandbox(trampoline, sandbox);
+    copyPLTToSandbox(trampoline, sandbox);
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

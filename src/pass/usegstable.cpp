@@ -32,6 +32,7 @@ void UseGSTablePass::visit(Function *function) {
     // already use gs
     if(function->hasName("egalito_hook_jit_fixup")) return;
     if(function->hasName("egalito_hook_jit_fixup_return")) return;
+    if(function->hasName("egalito_hook_jit_reset_on_syscall")) return;
 
     recurse(function);
 }
@@ -402,7 +403,7 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     else {
         // movq %reg, %r11
         unsigned char rex = 0x49;
-        if(reg >= 8) rex |= 0b0010;
+        if(reg >= 8) rex |= 0b0100;
         bin2.push_back(rex);
         bin2.push_back(0x89);
         unsigned char operand = 0xc3;
