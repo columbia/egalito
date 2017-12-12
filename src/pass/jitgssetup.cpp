@@ -7,31 +7,29 @@
 #include "log/log.h"
 
 void JitGSSetup::visit(Program *program) {
-    makeReservedGSEntries(program->getEgalito());
+    makeHardwiredGSEntries(program->getEgalito());
     makeResolverGSEntries(program->getEgalito());
     makeSupportGSEntries(program);
 }
 
-void JitGSSetup::makeReservedGSEntries(Module *egalito) {
+void JitGSSetup::makeHardwiredGSEntries(Module *egalito) {
     const auto reserved = {
         "egalito_hook_jit_fixup",           // hardcoded as gs@[0]
         "egalito_hook_jit_fixup_return",    // hardcoded as gs@[1]
         "egalito_hook_jit_reset_on_syscall",// hardcoded as gs@[2]
     };
-    size_t i = 0;
     for(auto name : reserved) {
-        auto f = ChunkFind2(conductor).findFunctionInModule(name, egalito);
-        assert(f);
-        gsTable->makeReservedEntry(f, i++);
+        makeResolvedEntry(name, egalito);
     }
 }
 
 void JitGSSetup::makeResolverGSEntries(Module *egalito) {
+    // matches any class that starts with
     const auto resolverClasses = {
         "ManageGS",
         "ChunkFind2",
         "GSTable",
-        "GSTableEntry",
+        //"GSTableEntry",
         "Generator",
         "SandboxImplI13MemoryBacking",
         "MemoryBacking",
@@ -50,6 +48,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "DistanceLink",
         "MarkerLink",
         "SectionEndMarker",
+        "PLTLink",
+        "OffsetLink",
+
+        "SandboxFlipImpl",
     };
     for(auto name : resolverClasses) {
         makeResolvedEntryForClass(name, egalito);
@@ -86,7 +88,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK14DataOffsetLink16getTargetAddressEv",
         "_ZNK14OffsetPosition3getEv",
 
-        "_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS3_EESH_IJEEEEESt17_Rb_tree_iteratorIS6_ESt23_Rb_tree_const_iteratorIS6_EDpOT_.isra.98",
+        //"_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS3_EESH_IJEEEEESt17_Rb_tree_iteratorIS6_ESt23_Rb_tree_const_iteratorIS6_EDpOT_.isra.98",
         // for debugging
         "egalito_printf",
         "egalito_vfprintf",
@@ -111,6 +113,16 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
         if(module->getName() == "module-libc.so.6") {
             makeResolvedEntry("write", module);
             makeResolvedEntry("memcpy", module);
+            makeResolvedEntry("__memcpy_erms", module);
+            makeResolvedEntry("__memcpy_sse2_unaligned_erms", module);
+            makeResolvedEntry("__memcpy_ssse3_back", module);
+            makeResolvedEntry("__memcpy_avx512_unaligned_erms", module);
+            makeResolvedEntry("__memcpy_ssse3", module);
+            makeResolvedEntry("__memcpy_sse2_unaligned", module);
+            makeResolvedEntry("__memcpy_avx512_unaligned", module);
+            makeResolvedEntry("__memcpy_avx_unaligned_erms", module);
+            makeResolvedEntry("__memcpy_avx512_no_vzeroupper", module);
+            makeResolvedEntry("__memcpy_avx_unaligned", module);
             makeResolvedEntry("malloc", module);
             makeResolvedEntry("malloc_hook_ini", module);
             makeResolvedEntry("ptmalloc_init.part.3", module);
@@ -136,11 +148,21 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("__gconv_btwoc_ascii", module);
             makeResolvedEntry("wctype_l", module);
             makeResolvedEntry("memcmp", module);
+            makeResolvedEntry("__memcmp_sse2", module);
+            makeResolvedEntry("__memcmp_avx2_movbe", module);
+            makeResolvedEntry("__memcmp_ssse3", module);
+            makeResolvedEntry("__memcmp_sse4_1", module);
             makeResolvedEntry("strcmp", module);
+            makeResolvedEntry("__strcmp_sse2_unaligned", module);
+            makeResolvedEntry("__strcmp_ssse3", module);
+            makeResolvedEntry("__strcmp_sse2", module);
+            makeResolvedEntry("__strcmp_sse42", module);
             makeResolvedEntry("free", module);
             makeResolvedEntry("_int_free", module);
             makeResolvedEntry("tcache_put", module);
             makeResolvedEntry("tcache_get", module);
+            makeResolvedEntry("memset", module);
+            makeResolvedEntry("__memset_avx2_erms", module);
         }
         else if(module->getName() == "module-libstdc++.so.6") {
             makeResolvedEntry("__dynamic_cast", module);
@@ -222,6 +244,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm", module);
             makeResolvedEntry("_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE5c_strEv", module);
             makeResolvedEntry("_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7compareEPKc", module);
+            makeResolvedEntry("_ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PPv", module);
+            makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm", module);
         }
         else if(module->getName() == "module-libdistorm3.so") {
             makeResolvedEntry("distorm_decompose64", module);
@@ -230,6 +254,7 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("prefixes_decode", module);
             makeResolvedEntry("prefixes_ignore", module);
             makeResolvedEntry("inst_lookup", module);
+            makeResolvedEntry("inst_lookup_prefixed", module);
             makeResolvedEntry("operands_extract", module);
             makeResolvedEntry("operands_extract_modrm", module);
             makeResolvedEntry("prefixes_use_segment", module);
@@ -243,6 +268,7 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
     makeResolvedEntryForPLT("memmove@plt", program);
     makeResolvedEntryForPLT("memcmp@plt", program);
     makeResolvedEntryForPLT("strcmp@plt", program);
+    makeResolvedEntryForPLT("memset@plt", program);
 }
 
 void JitGSSetup::makeResolvedEntry(const char *name, Module *module) {

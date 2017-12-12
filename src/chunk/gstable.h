@@ -39,7 +39,6 @@ private:
     Chunk *escapeTarget;
     std::map<Chunk *, GSTableEntry *> entryMap;
     void *tableAddress;
-    size_t reserved = 3;
 public:
     GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
 

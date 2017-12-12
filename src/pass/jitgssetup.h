@@ -15,7 +15,7 @@ public:
         : conductor(conductor), gsTable(gsTable) {}
     virtual void visit(Program *program);
 private:
-    void makeReservedGSEntries(Module *egalito);
+    void makeHardwiredGSEntries(Module *egalito);
     void makeResolverGSEntries(Module *egalito);
     void makeSupportGSEntries(Program *program);
     void makeResolvedEntry(const char *name, Module *module);
