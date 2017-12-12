@@ -26,6 +26,7 @@ private:
     virtual void visit(Block *block);
     virtual void visit(DataRegion *dataRegion);
     virtual void visit(PLTTrampoline *trampoline);
+    virtual void visit(JumpTableEntry *jumpTableEntry);
     virtual void visit(VTable *vtable);
     virtual void visit(VTableEntry *vtableEntry);
 
@@ -36,6 +37,7 @@ private:
     void rewriteTailRecursion(Block *block, Instruction *instr);
     void rewriteIndirectCall(Block *block, Instruction *instr);
     void rewriteIndirectTailRecursion(Block *block, Instruction *instr);
+    void rewriteJumpTableJump(Block *block, Instruction *instr);
     void rewriteRIPrelativeCall(Block *block, Instruction *instr);
     void rewriteRIPrelativeJump(Block *block, Instruction *instr);
     void rewriteReturn(Block *block, Instruction *instr);

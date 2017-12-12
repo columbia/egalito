@@ -72,10 +72,14 @@ void ChunkDumper::visit(JumpTable *jumpTable) {
         << std::hex << jumpTable->getAddress() << " with "
         << std::dec << jumpTable->getEntryCount()
         << " entries");
+    recurse(jumpTable);
 }
 
 void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
-    LOG(1, "NYI");
+    LOG0(1, "    " << std::hex << jumpTableEntry->getAddress());
+    if(auto link = jumpTableEntry->getLink()) {
+        LOG(1, " (should be) pointing to " << link->getTargetAddress());
+    }
 }
 
 void ChunkDumper::visit(DataRegion *dataRegion) {

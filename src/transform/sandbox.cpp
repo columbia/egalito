@@ -34,7 +34,7 @@ void MemoryBacking::finalize() {
 }
 
 bool MemoryBacking::reopen() {
-    mprotect((void *)base, getSize(), PROT_READ | PROT_WRITE | PROT_EXEC);
+    mprotect((void *)base, getSize(), PROT_READ | PROT_WRITE);
     return true;
 }
 

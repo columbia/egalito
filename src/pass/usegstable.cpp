@@ -61,6 +61,8 @@ void UseGSTablePass::visit(Block *block) {
     std::vector<std::pair<Block *, Instruction *>> indirectCalls;
     std::vector<std::pair<Block *, Instruction *>> indirectTailRecursions;
 
+    std::vector<std::pair<Block *, Instruction *>> jumpTableJumps;
+
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeCalls;
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeJumps;
 
@@ -92,6 +94,9 @@ void UseGSTablePass::visit(Block *block) {
             if(!v->isForJumpTable()) {
                 indirectTailRecursions.emplace_back(block, instr);
             }
+            else {
+                jumpTableJumps.emplace_back(block, instr);
+            }
         }
         if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
             auto assembly = v->getAssembly();
@@ -120,6 +125,9 @@ void UseGSTablePass::visit(Block *block) {
     }
     for(auto pair : indirectTailRecursions) {
         rewriteIndirectTailRecursion(pair.first, pair.second);
+    }
+    for(auto pair : jumpTableJumps) {
+        rewriteJumpTableJump(pair.first, pair.second);
     }
     for(auto pair : RIPrelativeCalls) {
         rewriteRIPrelativeCall(pair.first, pair.second);
@@ -636,6 +644,48 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block,
 #endif
 }
 
+void UseGSTablePass::rewriteJumpTableJump(Block *block, Instruction *instr) {
+#ifdef ARCH_X86_64
+    auto i = static_cast<IndirectJumpInstruction *>(instr->getSemantic());
+    auto cs_reg = i->getRegister();
+    auto reg = X86Register::convertToPhysical(cs_reg);
+#endif
+
+    DisasmHandle handle(true);
+    // jmp %gs:(%reg)
+    std::vector<unsigned char> bin{0x65};
+    if(reg >= 8) {
+        bin.push_back(0x41);
+    }
+    bin.push_back(0xff);
+    if(reg >= 8) {
+        if(reg == 12) {
+            bin.push_back(0x24); bin.push_back(0x24);
+        }
+        else if(reg == 13) {
+            bin.push_back(0x65); bin.push_back(0x00);
+        }
+        else {
+            bin.push_back(0x20 + reg - 8);
+        }
+    }
+    else {
+        if(reg == 5) {
+            bin.push_back(0x65); bin.push_back(0x00);
+        }
+        else {
+            bin.push_back(0x20 + reg);
+        }
+    }
+    auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    semantic->setAssembly(assembly);
+    instr->setSemantic(semantic);
+    ChunkMutator(block).modifiedChildSize(instr,
+        semantic->getSize() - i->getSize());
+    delete i;
+}
+
 void UseGSTablePass::visit(DataRegion *dataRegion) {
     //TemporaryLogLevel tll("pass", 10);
     for(auto var : dataRegion->variableIterable()) {
@@ -652,6 +702,25 @@ void UseGSTablePass::visit(PLTTrampoline *trampoline) {
     if(trampoline->isIFunc()) {
         recurse(trampoline);
     }
+}
+
+void UseGSTablePass::visit(JumpTableEntry *jumpTableEntry) {
+    auto link = jumpTableEntry->getLink();
+    auto target = link->getTarget();
+    if(target == nullptr) {
+        LOG(1, "WARNING: unknown target for jump table entry "
+            << jumpTableEntry->getAddress());
+        return;
+    }
+    assert(dynamic_cast<Instruction *>(target));
+
+    bool preResolve = false;
+    if(auto pe = gsTable->getEntryFor(target->getParent()->getParent())) {
+        if(dynamic_cast<GSTableResolvedEntry *>(pe)) preResolve = true;
+    }
+    auto gsEntry = gsTable->makeEntryFor(target, preResolve);
+    jumpTableEntry->setLink(new GSTableLink(gsEntry));
+    delete link;
 }
 
 void UseGSTablePass::visit(VTable *vtable) {

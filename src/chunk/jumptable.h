@@ -18,6 +18,7 @@ public:
     JumpTableEntry(Link *link = nullptr) : link(link) {}
 
     Link *getLink() const { return link; }
+    void setLink(Link *link) { this->link = link; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

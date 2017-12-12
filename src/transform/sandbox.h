@@ -149,10 +149,9 @@ class SandboxFlip {
 public:
     virtual ~SandboxFlip() {}
 
-    virtual Sandbox *flipBegin() = 0;
-    virtual Sandbox *flipEnd() = 0;
+    virtual void flip() = 0;
     virtual Sandbox *get() const = 0;
-    virtual Sandbox *get2() const = 0;
+    virtual void recreate() const = 0;
 };
 
 template <typename SandboxImplType>
@@ -160,29 +159,14 @@ class SandboxFlipImpl : public SandboxFlip {
 private:
     SandboxImplType *sandbox[2];
     size_t i;
-    bool flipping;
 
 public:
     SandboxFlipImpl(SandboxImplType *one, SandboxImplType *other)
-        : SandboxFlip(), sandbox{one, other}, i(0), flipping(false) {}
+        : SandboxFlip(), sandbox{one, other}, i(0) {}
 
-    virtual Sandbox *flipBegin();
-    virtual Sandbox *flipEnd();
+    virtual void flip() { i^= 1; }
     virtual Sandbox *get() const { return sandbox[i]; }
-    virtual Sandbox *get2() const { return sandbox[i^1]; }
+    virtual void recreate() const { sandbox[i]->recreate(); }
 };
 
-template <typename SandboxImplType>
-Sandbox *SandboxFlipImpl<SandboxImplType>::flipBegin() {
-    i^= 1;
-    return sandbox[i];
-}
-
-template <typename SandboxImplType>
-Sandbox *SandboxFlipImpl<SandboxImplType>::flipEnd() {
-    if(flipping) {
-        sandbox[i^1]->recreate();
-    }
-    return sandbox[i];
-}
 #endif

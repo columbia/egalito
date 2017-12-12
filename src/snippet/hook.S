@@ -211,12 +211,28 @@ egalito_hook_jit_fixup_return:
     push    %r10
     push    %r11
 
+#if 1
+    # this guards resetting inside egalito_printf
+    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
+    movb    $0x1, (%rax)
+#endif
+
+    push    %rbx
+    mov     %rax, %rbx
+
+    mov     egalito_jit_gs_fixup@gotpcrel(%rip), %rax
     movl    %r11d, %edi
 
     pushq   $0x8                # !!! special entry
     movl    $(4f-egalito_hook_jit_fixup_return), 0x4(%rsp)
     jmpq    *%gs:(%rax)
 4:
+#if 1
+    movb    $0x0, (%rbx)
+#endif
+
+    pop     %rbx
+
     pop     %r11
     pop     %r10
     pop     %r9
@@ -227,6 +243,7 @@ egalito_hook_jit_fixup_return:
     pop     %rcx
     pop     %rax
 
+    movq    %r11, -0x8(%rsp)
     jmp     1b
     .type egalito_hook_jit_fixup_return, STT_FUNC
     .size egalito_hook_jit_fixup_return, .-egalito_hook_jit_fixup_return
@@ -253,12 +270,14 @@ egalito_hook_jit_reset_on_syscall:
 #endif
 
     # REWRITE_RA == 1
+    push    %rbx    # for alignment
     pushq   $0x10
     movl    $(1f-egalito_hook_jit_reset_on_syscall), 0x4(%rsp)
     mov     egalito_jit_gs_reset@gotpcrel(%rip), %rax
     jmpq    *%gs:(%rax)
 
 1:
+    pop     %rbx
 #if 1
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     movb    $0x0, (%rax)

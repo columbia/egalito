@@ -24,6 +24,7 @@
 #include "pass/cancelpush.h"
 #include "pass/debloat.h"
 #include "runtime/managegs.h"
+#include "transform/sandbox.h"
 #include "util/feature.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -112,7 +113,7 @@ void EgalitoLoader::run() {
     std::cout.flush();
     std::fflush(stdout);
 
-    // --- last point accesses to loader TLS is valid
+    // --- last point accesses to loader TLS work
     PrepareTLS::prepare(setup->getConductor());
 
     // --- last point virtual functions work ---
@@ -191,7 +192,8 @@ void EgalitoLoader::otherPassesAfterMove() {
 #if 1
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         ManageGS::init(gsTable);
-        setup->flipSandboxBegin();
+        setup->getSandboxFlip()->flip();
+        // we should be able to delete the old code by now
     }
 #endif
 }

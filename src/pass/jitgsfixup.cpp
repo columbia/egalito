@@ -49,12 +49,9 @@ size_t egalito_jit_gs_fixup(size_t offset) {
         }
     }
 
-#if 0
-    egalito_conductor_setup->flipSandboxEnd();
-#endif
-
     if(targetChunk) {
-        auto sandbox = egalito_conductor_setup->getSandbox();
+        auto flip = egalito_conductor_setup->getSandboxFlip();
+        auto sandbox = flip->get();
         sandbox->reopen();
         Generator generator(true);
         if(targetFunction) {
@@ -75,7 +72,37 @@ size_t egalito_jit_gs_fixup(size_t offset) {
 extern "C"
 void egalito_jit_gs_reset(void) {
     egalito_printf("resetting...\n");
-    //ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
+
+    auto flip = egalito_conductor_setup->getSandboxFlip();
+    auto sandbox = flip->get();
+    sandbox->reopen();
+    flip->recreate();   // better if we only clear the unused after copy?
+    Generator generator(true);
+    for(auto gsEntry : CIter::children(egalito_gsTable)) {
+        if(dynamic_cast<GSTableResolvedEntry *>(gsEntry)) {
+            auto target = gsEntry->getTarget();
+            egalito_printf("%s ", target->getName().c_str());
+            if(auto f = dynamic_cast<Function *>(target)) {
+                generator.instantiate(f, sandbox);
+                egalito_printf("%lx\n", f->getAddress());
+            }
+            else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
+                generator.instantiate(trampoline, sandbox);
+                egalito_printf("%lx\n", trampoline->getAddress());
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    sandbox->finalize();
+
+    ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
+    flip->flip();
+    // we should clear the old code by now
 }
 
 JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)

@@ -34,9 +34,9 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
 
     for(auto entry : CIter::children(jumpTable)) {
         auto link = entry->getLink();
-        address_t target = link->getTargetAddress();
         address_t slot = elfMap->getBaseAddress() + entry->getAddress();
 
+        address_t target = link->getTargetAddress();
         // for relative jump tables
         target -= elfMap->getBaseAddress() + descriptor->getAddress();
 
@@ -44,7 +44,7 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
         case 4:
             LOG(1, "set slot " << std::hex << slot
                 << " to point to " << std::hex << target);
-            *reinterpret_cast<uint32_t *>(slot) = target;
+            *reinterpret_cast<int32_t *>(slot) = target;
             break;
         default:
             LOG(1, "Error: unknown jump table scale "

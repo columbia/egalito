@@ -51,7 +51,9 @@ void ConductorSetup::parseElfFiles(const char *executable,
 
     int i = 0;
     for(auto lib : *conductor->getLibraryList()) {
-        if(setBaseAddress(lib->getElfMap(), 0xa0000000 + i*0x1000000)) {
+        // this address has to be low enough to express negative offset in
+        // jump table slots (to represent an index)
+        if(setBaseAddress(lib->getElfMap(), 0x60000000 + i*0x1000000)) {
             i ++;
         }
     }
@@ -156,18 +158,6 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
 
 void ConductorSetup::moveCodeMakeExecutable() {
     sandbox->finalize();
-}
-
-Sandbox *ConductorSetup::getSandbox2() const {
-    return (flip) ? flip->get2() : nullptr;
-}
-
-void ConductorSetup::flipSandboxBegin() {
-    sandbox = flip->flipBegin();
-}
-
-void ConductorSetup::flipSandboxEnd() {
-    flip->flipEnd();
 }
 
 void ConductorSetup::dumpElfSpace(ElfSpace *space) {
