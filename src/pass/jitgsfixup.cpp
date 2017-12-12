@@ -103,6 +103,9 @@ void egalito_jit_gs_reset(void) {
     ManageGS::resetEntries(egalito_gsTable, egalito_gsCallback);
     flip->flip();
     // we should clear the old code by now
+    flip->get()->reopen();
+    flip->recreate();
+    flip->get()->finalize();
 }
 
 JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)

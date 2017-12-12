@@ -162,7 +162,16 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("tcache_put", module);
             makeResolvedEntry("tcache_get", module);
             makeResolvedEntry("memset", module);
+            makeResolvedEntry("__memset_avx512_unaligned_erms", module);
+            makeResolvedEntry("__memset_erms", module);
+            makeResolvedEntry("__memset_avx512_unaligned", module);
+            makeResolvedEntry("__memset_avx2_unaligned_erms", module);
+            makeResolvedEntry("__memset_avx2_unaligned", module);
+            makeResolvedEntry("__memset_sse2_unaligned", module);
             makeResolvedEntry("__memset_avx2_erms", module);
+            makeResolvedEntry("__memset_sse2_unaligned_erms", module);
+            makeResolvedEntry("__memset_avx512_erms", module);
+            makeResolvedEntry("__memset_avx512_no_vzeroupper", module);
         }
         else if(module->getName() == "module-libstdc++.so.6") {
             makeResolvedEntry("__dynamic_cast", module);

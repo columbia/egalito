@@ -159,7 +159,6 @@ void EgalitoLoader::otherPasses() {
     }
 #endif
 
-#if 1
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         gsTable = new GSTable();
         //setup->getConductor()->getProgram()->getChildren()->add(gsTable);
@@ -174,7 +173,6 @@ void EgalitoLoader::otherPasses() {
         JitGSFixup jitGSFixup(setup->getConductor(), gsTable);
         program->accept(&jitGSFixup);
     }
-#endif
 
 #ifdef ARCH_X86_64
     PromoteJumpsPass promoteJumps;
@@ -189,13 +187,14 @@ void EgalitoLoader::otherPasses() {
 }
 
 void EgalitoLoader::otherPassesAfterMove() {
-#if 1
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         ManageGS::init(gsTable);
-        setup->getSandboxFlip()->flip();
-        // we should be able to delete the old code by now
+        auto flip = setup->getSandboxFlip();
+        flip->flip();
+        flip->get()->reopen();
+        flip->recreate();
+        flip->get()->finalize();
     }
-#endif
 }
 
 #include <sys/personality.h>
