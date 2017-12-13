@@ -55,7 +55,7 @@ void CallInit::makeInitArray(ElfSpace *space, int argc, char **argv,
         }
     }
     assert(init_index + 1 <= EGALITO_INIT_ARRAY_SZ);
-    egalito_init_array[0] = init_index - 1;
+    egalito_init_array[0] = init_index;
 }
 
 auto CallInit::getStart2(Conductor *conductor) -> Start2Type {
