@@ -224,7 +224,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
         return new NormalLink(alias);
     }
 
-    if(auto list = space->getSymbolList()) {
+    if(auto list = space->getDynamicSymbolList()) {
         if(auto symbol = list->find(name)) {
             if(symbol->isMarker()) {
                 return LinkFactory::makeMarkerLink(space->getModule(),
