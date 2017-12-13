@@ -88,24 +88,28 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     cs_arm64_op *op = &x->operands[0];
     if(ins->id == ARM64_INS_BR) {
         semantic = new IndirectJumpInstruction(
-            *ins, static_cast<Register>(op->reg), ins->mnemonic);
+            static_cast<Register>(op->reg), ins->mnemonic);
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
     }
     else if(ins->id == ARM64_INS_BLR) {
-        semantic = new IndirectCallInstruction(
-            *ins, static_cast<Register>(op->reg));
+        semantic = new IndirectCallInstruction(static_cast<Register>(op->reg));
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
     }
     else if(cs_insn_group(handle.raw(), ins, ARM64_GRP_JUMP)
         || ins->id == ARM64_INS_BL) {
 
-        auto i = new ControlFlowInstruction(instruction, *ins);
-        i->setLink(new UnresolvedLink(i->getOriginalOffset()));
+        auto i = new ControlFlowInstruction(instruction);
         semantic = i;
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        semantic->setLink(new UnresolvedLink(i->getOriginalOffset()));
     }
     else if(ins->id == ARM64_INS_RET) {
-        semantic = new ReturnInstruction(DisassembledStorage(*ins));
+        semantic = new ReturnInstruction();
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
     }
     else if(ins->id == ARM64_INS_BRK || ins->id == ARM64_INS_HLT) {
-        semantic = new BreakInstruction(DisassembledStorage(*ins));
+        semantic = new BreakInstruction();
+        semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
     }
 #elif defined(ARCH_ARM)
     cs_arm *x = &ins->detail->arm;

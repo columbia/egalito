@@ -56,7 +56,7 @@ void ResolveTLSPass::resolveTLSLink(TLSDataOffsetLink *link) {
 
     if(auto sym = link->getSymbol()) {
         if(sym->getBind() != Symbol::BIND_WEAK) {
-            LOG(1, "[fixdataregion] unresolved non weak symbol");
+            LOG(1, "[resolveTLSLink] unresolved non weak symbol");
         }
     }
 }

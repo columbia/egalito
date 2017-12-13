@@ -27,7 +27,12 @@ RUNTIME_SOURCES     = $(wildcard runtime/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 UTIL_SOURCES        = $(wildcard util/*.cpp)
 CMINUS_SOURCES      = $(wildcard cminus/*.c)
-SNIPPET_SOURCES     = $(wildcard snippet/*.S snippet/*.c)
+SNIPPET_SOURCES     = $(wildcard snippet/*.c)
+ifeq (aarch64,$(P_ARCH))
+	SNIPPET_SOURCES += snippet/start2-aarch64.S snippet/hook-aarch64.S
+else ifeq (x86_64,$(P_ARCH))
+	SNIPPET_SOURCES += snippet/start2-x86_64.S snippet/hook-x86_64.S
+endif
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -113,7 +118,7 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 $(LOADER): $(LOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
-		-Wl,-Ttext-segment=0x7400000 -Wl,-Trodata-segment=0x7600000 $(DISTORM_A)
+		-Wl,-Ttext-segment=0x60000000 $(DISTORM_A)
 $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS) $(DISTORM_A)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)

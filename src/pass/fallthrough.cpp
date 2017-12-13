@@ -33,18 +33,20 @@ void FallThroughFunctionPass::visit(Function *function) {
             if(target) {
                 LOG(10, "target = " << target->getName());
                 // add a branch instruction to the 'target' instruction
-#ifdef ARCH_X86_64
-#elif defined(ARCH_AARCH64)
+#ifdef ARCH_AARCH64
+                DisasmHandle handle(true);
                 auto bin = AARCH64InstructionBinary(
                     0x14000000 | targetAddress >> 2);
                 auto branch = new Instruction();
-                auto semantic = new ControlFlowInstruction(branch,
-                    Disassemble::makeAssembly(bin.getVector()));
+                auto semantic = new ControlFlowInstruction(branch);
+                semantic->setAssembly(DisassembleInstruction(handle)
+                    .makeAssemblyPtr(bin.getVector()));
                 semantic->setLink(new ExternalNormalLink(target));
                 branch->setSemantic(semantic);
 
                 ChunkMutator(block).insertAfter(instr, branch);
 #else
+                LOG(9, "FallThroughFunctionPass: NYI");
 #endif
             }
             else {

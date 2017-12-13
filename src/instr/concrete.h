@@ -19,6 +19,7 @@ public:
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)
         { throw "Can't call setAssembly() on LiteralInstruction"; }
+    const std::string &getData() { return getStorage()->getData(); }
 
     virtual Link *getLink() const { return nullptr; }
     virtual void setLink(Link *link)

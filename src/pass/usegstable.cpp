@@ -649,7 +649,6 @@ void UseGSTablePass::rewriteJumpTableJump(Block *block, Instruction *instr) {
     auto i = static_cast<IndirectJumpInstruction *>(instr->getSemantic());
     auto cs_reg = i->getRegister();
     auto reg = X86Register::convertToPhysical(cs_reg);
-#endif
 
     DisasmHandle handle(true);
     // jmp %gs:(%reg)
@@ -684,6 +683,7 @@ void UseGSTablePass::rewriteJumpTableJump(Block *block, Instruction *instr) {
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
     delete i;
+#endif
 }
 
 void UseGSTablePass::visit(DataRegion *dataRegion) {

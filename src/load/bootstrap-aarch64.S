@@ -13,20 +13,7 @@
 
 #define PTR_SIZE    (1<<PTR_LOG_SIZE)
 
-.global initial_stack
-.global entry
-.global _start2
 .global _set_tpidr_el0
-
-.section .bss
-.align 8    //only GOT requires 8-byte alignment?
-initial_stack:
-    .skip   8
-saved_x0:
-    .skip   8
-entry:
-    .skip   PTR_SIZE
-
 
 /* This is the canonical entry point, usually the first thing in the text
 	 segment.
@@ -58,12 +45,12 @@ entry:
 _start:
 	# save for _start2
 	add     x2, sp, #0
-	ldr     x1, =initial_stack
+	ldr     x1, =egalito_initial_stack
 	str     x2, [x1]
-	#adrp    x1, :pg_hi21:initial_stack
-	#str     x2, [x1, #:lo12:initial_stack]
-	ldr     x1, =saved_x0
-	str     x0, [x1]
+	#adrp    x1, :pg_hi21:egalito_initial_stack
+	#str     x2, [x1, #:lo12:egalito_initial_stack]
+	#ldr     x1, =saved_x0
+	#str     x0, [x1]
 	#adrp    x1, :pg_hi21:saved_x0
 	#str     x0, [x1, #:lo12:saved_x0]
 
@@ -105,24 +92,6 @@ _start:
 
 	/* should never get here....*/
 	bl	abort
-
-_start2:
-    ldr     x1, =initial_stack
-    ldr     x1, [x1]
-    #adrp    x1, :pg_hi21:initial_stack
-    #ldr     x1, [x1, #:lo12:initial_stack]
-    mov     sp, x1
-    ldr     x1, =saved_x0
-    ldr     x0, [x1]
-    #adrp    x1, :pg_hi21:saved_x0
-    #ldr     x0, [x1, #:lo12:saved_x0]
-
-    ldr     x1, =entry
-    ldr     x1, [x1]
-    #adrp    x1, :pg_hi21:entry
-    #ldr     x1, [x1, #:lo12:entry]
-    br      x1
-    bl      abort
 
 _set_tpidr_el0:
     msr     tpidr_el0, x0

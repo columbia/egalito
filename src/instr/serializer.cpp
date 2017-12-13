@@ -82,16 +82,24 @@ void SemanticSerializer::visit(LinkedInstruction *linked) {
     write(TYPE_LinkedInstruction, linked);
     assert(linked->getLink());
     LinkSerializer(op).serialize(linked->getLink(), writer);
+#ifdef ARCH_X86_64
     writer.write<uint8_t>(linked->getIndex());
+#endif
 }
 
 void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     writer.write<uint8_t>(TYPE_ControlFlowInstruction);
+#ifdef ARCH_X86_64
     writer.write<uint32_t>(controlFlow->getId());
+#endif
     writer.writeID(op.assign(controlFlow->getSource()));
+#ifdef ARCH_X86_64
     writer.writeBytes<uint8_t>(controlFlow->getOpcode());
+#endif
     writer.writeString(controlFlow->getMnemonic());
+#ifdef ARCH_X86_64
     writer.write<uint8_t>(controlFlow->getDisplacementSize());
+#endif
     writer.write<bool>(controlFlow->returns());
 
     assert(controlFlow->getLink());
@@ -144,7 +152,9 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         auto semantic = new LinkedInstruction(instruction);
         semantic->setData(reader.readBytes<uint8_t>());
         semantic->setLink(LinkSerializer(op).deserialize(reader));
+#ifdef ARCH_X86_64
         semantic->setIndex(reader.read<uint8_t>());
+#endif
         return semantic;
     }
     case TYPE_ReturnInstruction: {
@@ -180,6 +190,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         return defaultDeserialize(instruction, address, reader);
     }
     case TYPE_ControlFlowInstruction: {
+#ifdef ARCH_X86_64
         auto id = reader.read<uint32_t>();  // NOT a chunk ID
         auto source = op.lookupAs<Instruction>(reader.readID());
         auto opcode = reader.readBytes<uint8_t>();
@@ -187,6 +198,9 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         auto dispSize = reader.read<uint8_t>();
         auto semantic = new ControlFlowInstruction(id, source, opcode,
             mnemonic, dispSize);
+#elif defined(ARCH_AARCH64)
+        auto semantic = new ControlFlowInstruction(instruction);
+#endif
         bool returns = reader.read<bool>();
         if(!returns) semantic->setNonreturn();
 

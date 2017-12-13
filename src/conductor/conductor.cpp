@@ -161,13 +161,11 @@ void Conductor::resolveWeak() {
 
 void Conductor::resolveVTables() {
     for(auto module : CIter::children(program)) {
-#ifdef ARCH_X86_64
         // this needs data regions
         module->setVTableList(DisassembleVTables().makeVTableList(
             module->getElfSpace()->getElfMap(),
             module->getElfSpace()->getSymbolList(),
             module->getElfSpace()->getRelocList(), module, program));
-#endif
     }
 }
 

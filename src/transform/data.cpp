@@ -1,11 +1,13 @@
 #include <cstring>  // for memcpy, memset
 #include <sys/mman.h>
+#include <fstream>
 #include "data.h"
 #include "chunk/tls.h"
 #include "../dep/rtld/pthread.h"
 #include "../dep/rtld/tcbhead.h"
 #include "elf/elfspace.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
@@ -30,6 +32,12 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
             -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
         if(mem != (void *)tlsBaseAddress) {
+            TemporaryLogLevel tll("transform", 1);
+            LOG(1, "allocateTLS failed");
+            std::ifstream ms("/proc/self/maps");
+            LOG(1, ms.rdbuf());
+
+            std::cout.flush();
             throw "Overlapping with other regions?";
         }
     }

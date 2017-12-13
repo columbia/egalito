@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cstring>  // for std::memset
 
 #include <sys/mman.h>
@@ -9,6 +10,7 @@
 #include "conductor/conductor.h"
 #include "pass/clearspatial.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 #define ROUND_DOWN(x)   ((x) & ~0xfff)
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
@@ -41,11 +43,22 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
 
 void SegMap::mapSegments(ElfMap &elf, address_t baseAddress) {
     auto segmentList = elf.getSegmentList();
-    for(void *s : segmentList) {
-        Elf64_Phdr *phdr = static_cast<Elf64_Phdr *>(s);
-        if(phdr->p_type != PT_LOAD) continue;
+    try {
+        for(void *s : segmentList) {
+            Elf64_Phdr *phdr = static_cast<Elf64_Phdr *>(s);
+            if(phdr->p_type != PT_LOAD) continue;
 
-        mapElfSegment(elf, phdr, baseAddress);
+            mapElfSegment(elf, phdr, baseAddress);
+        }
+    }
+    catch (const char *s) {
+        TemporaryLogLevel tll("load", 1);
+        LOG(1, s);
+
+        std::ifstream ms("/proc/self/maps");
+        LOG(1, ms.rdbuf());
+
+        std::cout.flush();
     }
 }
 
@@ -85,7 +98,11 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
             MAP_ANONYMOUS | MAP_PRIVATE,
             -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
-        if(mem != (void *)address) throw "Overlapping with other regions?";
+        if(mem != (void *)address) {
+            LOG(1, "1) mapped to " << std::hex << mem
+                << " instead of " << address);
+            throw "Overlapping with other regions?";
+        }
         if(filesz_pages > 0) {
             munmap(mem, filesz_pages);
             mem = mmap(mem, filesz_pages, prot,
@@ -99,7 +116,11 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
                     0, filesz_pages - filesz_orig);
             }
             if(mem == (void *)-1) throw "Out of memory?";
-            if(mem != (void *)address) throw "Overlapping with other regions?";
+            if(mem != (void *)address) {
+                LOG(1, "2) mapped to " << std::hex << mem
+                    << " instead of " << address);
+                throw "Overlapping with other regions?";
+            }
         }
     }
     else {
@@ -111,7 +132,11 @@ void SegMap::mapElfSegment(ElfMap &elf, Elf64_Phdr *phdr,
             elf.getFileDescriptor(),
             offset);
         if(mem == (void *)-1) throw "Out of memory?";
-        if(mem != (void *)address) throw "Overlapping with other regions?";
+        if(mem != (void *)address) {
+            LOG(1, "3) mapped to " << std::hex << mem
+                << " instead of " << address);
+            throw "Overlapping with other regions?";
+        }
         if(filesz_orig != filesz_pages) {
             std::memset(static_cast<char *>(mem) + filesz_orig,
                 0, filesz_pages - filesz_orig);

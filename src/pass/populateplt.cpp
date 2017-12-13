@@ -25,6 +25,7 @@ void PopulatePLTPass::visit(PLTTrampoline *trampoline) {
 }
 
 void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
+#ifdef ARCH_X86_64
 #if 0
     // we clobber r10 because PLT target function can never be nested
     // inside the caller
@@ -93,9 +94,11 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
     ChunkMutator m2(block2);
     m2.append(pushq);
     m2.append(jmpq2);
+#endif
 }
 
 void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
+#ifdef ARCH_X86_64
 #if 0
     // ff 25 NN NN NN NN    jmpq *0xNNNNNNNN(%rip)
     ADD_BYTES("\xff\x25", 2);
@@ -121,5 +124,6 @@ void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
 
     ChunkMutator m1(block1);
     m1.append(jmpq);
+#endif
 }
 

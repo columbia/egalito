@@ -67,11 +67,9 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         delete semantic;
     }
 #else
-    InstructionSemantic *linked;
     if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
-        auto raw = v->getStorage().getData();
         auto linked = LinkedLiteralInstruction::makeLinked(module, instruction,
-            raw, r, resolveWeak);
+            v->getData(), r, resolveWeak);
         if(linked) {
             instruction->setSemantic(linked);
             delete semantic;

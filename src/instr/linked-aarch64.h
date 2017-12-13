@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "semantic.h"
+#include "concrete.h"
 #include "isolated.h"
 #include "chunk/chunkfwd.h"
 
@@ -11,7 +12,7 @@
 #if defined(ARCH_AARCH64)
 class Reloc;
 
-class LinkedInstruction : public LinkDecorator<DisassembledInstruction> {
+class LinkedInstruction : public LinkDecorator<SemanticImpl> {
 public:
     enum Mode {
         AARCH64_IM_ADRP = 0,
@@ -48,28 +49,34 @@ private:
 
     const static AARCH64_modeInfo_t AARCH64_ImInfo[AARCH64_IM_MAX];
 
-    Instruction *source;
+    Instruction *instruction;
     const AARCH64_modeInfo_t *modeInfo;
 
 public:
-    LinkedInstruction(Instruction *source,
-                      const Assembly &assembly);
+    LinkedInstruction(Instruction *instruction);
+    virtual ~LinkedInstruction() {}
+
+    virtual void setAssembly(AssemblyPtr assembly);
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
 
     void regenerateAssembly();
 
-    Instruction *getSource() const { return source; }
+    Instruction *getSource() const { return instruction; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
     const AARCH64_modeInfo_t *getModeInfo() const { return modeInfo; }
-    int64_t getOriginalOffset() const;
+    virtual int64_t getOriginalOffset() const;
 
     uint32_t rebuild();
 
+    // should be only necessary in insertBeforeJumpTo
+    void setInstruction(Instruction *instruction)
+        { this->instruction = instruction; }
+
     static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, Assembly *assembly, Reloc *reloc,
+        Instruction *instruction, AssemblyPtr assembly, Reloc *reloc,
         bool resolveWeak);
     static void makeAllLinked(Module *module);
 
@@ -89,8 +96,8 @@ class ControlFlowInstruction : public LinkedInstruction {
 private:
     bool nonreturn;
 public:
-    ControlFlowInstruction(Instruction *source, const Assembly &assembly)
-        : LinkedInstruction(source, assembly), nonreturn(false) {}
+    ControlFlowInstruction(Instruction *instruction)
+        : LinkedInstruction(instruction), nonreturn(false) {}
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
@@ -100,8 +107,9 @@ public:
 
 class LinkedLiteralInstruction : public LinkDecorator<LiteralInstruction> {
 public:
-    LinkedLiteralInstruction(Instruction *source, const std::string rawData)
-        : LinkDecorator<LiteralInstruction>(rawData) {}
+    LinkedLiteralInstruction(Instruction *instruction,
+        const std::string rawData)
+        : LinkDecorator<LiteralInstruction>() { setData(rawData); }
 
     static LinkedLiteralInstruction *makeLinked(Module *module,
         Instruction *instruction, std::string raw, Reloc *reloc,
@@ -114,6 +122,10 @@ public:
 private:
     uint32_t relocate();
 };
+
+class StackFrameInstruction : public SemanticImpl {
+};
+
 #endif
 
 #endif

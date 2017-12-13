@@ -22,10 +22,13 @@
 #include "log/temp.h"
 
 #if defined(ARCH_AARCH64)
-LinkedInstruction::LinkedInstruction(Instruction *source,
-    const Assembly &assembly)
-    : LinkDecorator<DisassembledInstruction>(assembly), source(source),
-    modeInfo(&AARCH64_ImInfo[getMode(assembly)]) {
+LinkedInstruction::LinkedInstruction(Instruction *instruction)
+    : instruction(instruction), modeInfo(nullptr) {
+}
+
+void LinkedInstruction::setAssembly(AssemblyPtr assembly) {
+    modeInfo = &AARCH64_ImInfo[getMode(*assembly)];
+    LinkDecorator<SemanticImpl>::setAssembly(assembly);
 }
 
 const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AARCH64_IM_MAX] = {
@@ -212,7 +215,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
 
 uint32_t LinkedInstruction::rebuild() {
     uint32_t fixedBytes;
-    std::memcpy(&fixedBytes, getAssembly()->getBytes(), 4);
+    std::memcpy(&fixedBytes, &getData()[0], 4);
     fixedBytes &= modeInfo->fixedMask;
 
     address_t dest = getLink()->getTargetAddress();
@@ -296,21 +299,26 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
 }
 
 void LinkedInstruction::regenerateAssembly() {
-    auto data = AARCH64InstructionBinary(rebuild());
-    Assembly assembly = Disassemble::makeAssembly(
-        data.getVector(), getSource()->getAddress());
-    getStorage().setAssembly(std::move(assembly));
+    std::string data;
+    writeTo(data, true);
+    setData(data);
+
+    getStorage()->clearAssembly();
+
+    setAssembly(AssemblyFactory::getInstance()->buildAssembly(
+        getStorage(), instruction->getAddress()));
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
-    Instruction *instruction, Assembly *assembly, Reloc *reloc,
+    Instruction *instruction, AssemblyPtr assembly, Reloc *reloc,
     bool resolveWeak) {
 
     auto link
         = PerfectLinkResolver().resolveInternally(reloc, module, resolveWeak);
     if(link) {
-        auto linked = new LinkedInstruction(instruction, *assembly);
+        auto linked = new LinkedInstruction(instruction);
         linked->setLink(link);
+        linked->setAssembly(assembly);
         return linked;
     }
 
@@ -369,7 +377,8 @@ void LinkedInstruction::resolveLinks(Module *module,
         LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
-        auto linked = new LinkedInstruction(instruction, *assembly);
+        auto linked = new LinkedInstruction(instruction);
+        linked->setAssembly(assembly);
 
         auto link = PerfectLinkResolver().resolveInferred(
             address, instruction, module);

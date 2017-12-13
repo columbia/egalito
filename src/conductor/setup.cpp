@@ -53,7 +53,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     for(auto lib : *conductor->getLibraryList()) {
         // this address has to be low enough to express negative offset in
         // jump table slots (to represent an index)
-        if(setBaseAddress(lib->getElfMap(), 0x60000000 + i*0x1000000)) {
+        if(setBaseAddress(lib->getElfMap(), 0x10000000 + i*0x1000000)) {
             i ++;
         }
     }

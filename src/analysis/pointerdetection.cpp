@@ -34,22 +34,22 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
             for(auto instr : CIter::children(block)) {
                 auto semantic = instr->getSemantic();
                 if(dynamic_cast<LinkedInstruction *>(semantic)) continue;
-                if(auto v = dynamic_cast<DisassembledInstruction *>(semantic)) {
-                    auto link = v->getLink();
-                    if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
-                    auto assembly = v->getAssembly();
-                    if(!assembly) continue;
-                    if(assembly->getId() == ARM64_INS_LDR) {
-                        if((assembly->getBytes()[3] & 0xBF) == 0x18) {
-                            detectAtLDR(working->getState(instr));
-                        }
+                if(dynamic_cast<LiteralInstruction *>(semantic)) continue;
+
+                auto link = semantic->getLink();
+                if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
+                auto assembly = semantic->getAssembly();
+                if(!assembly) continue;
+                if(assembly->getId() == ARM64_INS_LDR) {
+                    if((assembly->getBytes()[3] & 0xBF) == 0x18) {
+                        detectAtLDR(working->getState(instr));
                     }
-                    else if(assembly->getId() == ARM64_INS_ADR) {
-                        detectAtADR(working->getState(instr));
-                    }
-                    else if(assembly->getId() == ARM64_INS_ADRP) {
-                        detectAtADRP(working->getState(instr));
-                    }
+                }
+                else if(assembly->getId() == ARM64_INS_ADR) {
+                    detectAtADR(working->getState(instr));
+                }
+                else if(assembly->getId() == ARM64_INS_ADRP) {
+                    detectAtADRP(working->getState(instr));
                 }
             }
         }
