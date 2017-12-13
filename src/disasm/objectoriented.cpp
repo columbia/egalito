@@ -15,7 +15,6 @@ VTableList *DisassembleVTables::makeVTableList(ElfMap *elfMap,
     if(!symbolList) return nullptr;
     //if(!module->getDataRegionList()) return nullptr;
 
-#ifdef ARCH_X86_64
     VTableList *vtableList = new VTableList();
 
     for(auto symbol : *symbolList) {
@@ -34,9 +33,6 @@ VTableList *DisassembleVTables::makeVTableList(ElfMap *elfMap,
     }
 
     return vtableList;
-#else
-    return nullptr;  // not supported
-#endif
 }
 
 VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
