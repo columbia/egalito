@@ -111,17 +111,17 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     assert(symbol);
     if(std::strcmp(symbol->getName(), "") != 0) {
         if(weak || symbol->getBind() != Symbol::BIND_WEAK) {
+            auto link = PerfectLinkResolver().resolveExternally(
+                symbol, conductor, module->getElfSpace());
             if(reloc->getAddend() > 0) {
-                auto addr = symbol->getAddress() + reloc->getAddend();
-                auto symbolList = module->getElfSpace()->getSymbolList();
-                if(symbolList) {
-                    if(auto s = symbolList->find(addr)) {
-                        symbol = s;
-                    }
+                if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
+                    dlink->setAddend(reloc->getAddend());
+                }
+                else {
+                    throw "resolveVariableLink: unexpected addend > 0";
                 }
             }
-            return PerfectLinkResolver().resolveExternally(symbol, conductor,
-                module->getElfSpace());
+            return link;
         }
     }
     return nullptr;

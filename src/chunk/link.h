@@ -172,10 +172,12 @@ class DataOffsetLink : public Link {
 private:
     DataSection *section;
     address_t target;
+    size_t addend;
 public:
     DataOffsetLink(DataSection *section, address_t target)
-        : section(section), target(target) {}
+        : section(section), target(target), addend(0) {}
 
+    void setAddend(size_t addend) { this->addend = addend; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };

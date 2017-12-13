@@ -59,7 +59,7 @@ ChunkRef DataOffsetLink::getTarget() const {
 }
 
 address_t DataOffsetLink::getTargetAddress() const {
-    return section->getAddress() + target;
+    return section->getAddress() + target + addend;
 }
 
 ChunkRef TLSDataOffsetLink::getTarget() const {
