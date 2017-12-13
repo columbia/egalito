@@ -1,7 +1,7 @@
+#ifdef ARCH_X86_64
     .text
     .global ifunc_resolver
 ifunc_resolver:
-#ifdef ARCH_X86_64
     /* this isn't a context switch; so save registers manually */
     /* there may be some more registers (e.g. XMM) */
     push    %rax
@@ -24,8 +24,6 @@ ifunc_resolver:
     pop     %rax
     pop     %r11    # pushed by plt
     jmpq    *(%r11)
-#elif defined(ARCH_AARCH64)
-    brk     0   /* NYI */
-#endif
     .type ifunc_resolver, STT_FUNC
     .size ifunc_resolver, .-ifunc_resolver
+#endif

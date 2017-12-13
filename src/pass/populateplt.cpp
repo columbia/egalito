@@ -73,10 +73,10 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
     }
     auto resolver = ChunkFind2(conductor).findFunctionInModule(
         "ifunc_resolver", lib->getElfSpace()->getModule());
+    assert(resolver);
     auto jmpq2_cfi = dynamic_cast<ControlFlowInstruction *>(
         jmpq2->getSemantic());
     auto link2 = LinkFactory::makeNormalLink(resolver, true, true);
-    assert(link2);
     delete jmpq2_cfi->getLink();
     jmpq2_cfi->setLink(link2);
 

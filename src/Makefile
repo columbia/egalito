@@ -31,7 +31,8 @@ SNIPPET_SOURCES     = $(wildcard snippet/*.c)
 ifeq (aarch64,$(P_ARCH))
 	SNIPPET_SOURCES += snippet/start2-aarch64.S snippet/hook-aarch64.S
 else ifeq (x86_64,$(P_ARCH))
-	SNIPPET_SOURCES += snippet/start2-x86_64.S snippet/hook-x86_64.S
+	SNIPPET_SOURCES += snippet/start2-x86_64.S snippet/ifunc-x86_64.S \
+		snippet/hook-x86_64.S
 endif
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
