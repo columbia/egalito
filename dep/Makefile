@@ -29,6 +29,6 @@ capstone:
 	-@cd capstone \
 		&& rm -fr install \
 		&& git checkout $(capstone-VERSION) >& /dev/null \
-		&& $(MAKE) \
-		&& env PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install \
+		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
+		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install \
 		&& git checkout next >& /dev/null
