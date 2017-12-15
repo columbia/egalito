@@ -181,9 +181,13 @@ void SegMap::mapRegion(DataRegion *region) {
     void *mem = mmap((void *)address_rounded,
         memsz_pages,
         prot,
-        MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+        MAP_ANONYMOUS | MAP_PRIVATE,
         -1, 0);
     if(mem == nullptr) throw "mmap DataRegion returned NULL!";
+    if(mem != (void *)address_rounded) {
+        LOG(1, "mmap DataRegion: overlapping?");
+        throw "error: mapRegion";
+    }
     const std::string &dataBytes = region->getDataBytes();
     LOG(1, "memcpy " << std::hex << (void *)dataBytes.c_str() << " to " << address
         << " size " << dataBytes.length());
