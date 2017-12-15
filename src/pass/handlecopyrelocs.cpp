@@ -19,7 +19,7 @@ void HandleCopyRelocs::visit(Module *module) {
 
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
-            TemporaryLogLevel tll("chunk", 10);
+            //TemporaryLogLevel tll("chunk", 10);
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             auto link = PerfectLinkResolver().resolveExternally(
@@ -52,7 +52,7 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
     auto section = dynamic_cast<DataSection *>(&*link->getTarget());
     std::vector<DataVariable *> existing;
     for(auto var : CIter::children(section)) {
-        LOG(1, "var = " << std::hex << var->getAddress());
+        LOG(10, "var = " << std::hex << var->getAddress());
         if(range.contains(var->getAddress())) {
             if(dynamic_cast<NormalLink *>(var->getDest())) {
                 existing.push_back(var);
