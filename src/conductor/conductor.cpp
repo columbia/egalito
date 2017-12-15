@@ -199,7 +199,7 @@ void Conductor::fixPointersInData() {
 }
 
 void Conductor::allocateTLSArea() {
-    const static address_t base = 0xd0000000;
+    const static address_t base = 0x20000000;
     DataLoader dataLoader(base);
 
     // calculate size
@@ -241,7 +241,7 @@ void Conductor::allocateTLSArea() {
 }
 
 void Conductor::loadTLSData() {
-    const static address_t base = 0xd0000000;
+    const static address_t base = 0x20000000;
     DataLoader dataLoader(base);
     for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
