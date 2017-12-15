@@ -24,16 +24,17 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 #ifdef ARCH_X86_64
     if(!dataRegion) return;
 #endif
+
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
-            if(!var->getDest()) continue;
-            if(isForIFuncJumpSlot(var)) continue;
+            if(!var->getDest()) {
+                continue;
+            }
+            if(isForIFuncJumpSlot(var)) {
+                continue;
+            }
             auto target = var->getDest()->getTargetAddress();
-            // simply using var->getAddress() will fail due to TLS
-            address_t address = var->getAddress()
-                    + dataRegion->getAddress()
-                    - dsec->getAddress()
-                    + dsec->getOriginalOffset();
+            address_t address = var->getAddress();
             LOG(10, "set variable " << std::hex << address << " => " << target);
             *reinterpret_cast<address_t *>(address) = target;
         }
