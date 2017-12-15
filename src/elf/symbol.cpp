@@ -119,11 +119,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap,
         }
     }
 
-    auto section = elfMap->findSection(".symtab");
-    if(section && section->getHeader()->sh_type == SHT_SYMTAB) {
-        return buildSymbolList(elfMap);
-    }
-    return nullptr;
+    return buildSymbolList(elfMap);
 }
 
 Symbol *SymbolList::findSizeZero(SymbolList *list, const char *sym) {
@@ -132,6 +128,11 @@ Symbol *SymbolList::findSizeZero(SymbolList *list, const char *sym) {
 }
 
 SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
+    auto section = elfMap->findSection(".symtab");
+    if(!section || section->getHeader()->sh_type != SHT_SYMTAB) {
+        return nullptr;
+    }
+
     auto list = buildAnySymbolList(elfMap, ".symtab", SHT_SYMTAB);
 
     if(auto s = findSizeZero(list, "_start")) {

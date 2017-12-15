@@ -77,7 +77,7 @@ TEST_CASE("Fuzzy-function disassemble", "[disasm]") {
 
     ElfMap *strippedElf = new ElfMap(TESTDIR "hello-s");
     SymbolList *strippedSymbolList = SymbolList::buildSymbolList(strippedElf);
-    CHECK(strippedSymbolList->getCount() == 0);
+    CHECK(!strippedSymbolList);
     SymbolList *dynamicSymbolList = nullptr;
     RelocList *relocList = nullptr;
 #ifdef ARCH_AARCH64
