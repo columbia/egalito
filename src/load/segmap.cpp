@@ -17,10 +17,10 @@
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
 void SegMap::mapAllSegments(ConductorSetup *setup) {
+#if 0
     auto elf = setup->getElfMap();
     auto egalito = setup->getEgalitoElfMap();
 
-#if 0
     // map PT_LOAD sections into memory
     if(elf) {
         SegMap::mapSegments(*elf, elf->getBaseAddress());

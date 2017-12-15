@@ -38,12 +38,12 @@ Conductor::~Conductor() {
 
 void Conductor::parseExecutable(ElfMap *elf) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
-    auto module = parse(elf, library);
+    parse(elf, library);
 }
 
 void Conductor::parseEgalito(ElfMap *elf) {
     auto library = new Library("(egalito)", Library::ROLE_EGALITO);
-    auto module = parse(elf, library);
+    parse(elf, library);
 }
 
 void Conductor::parseLibraries() {
@@ -57,7 +57,7 @@ void Conductor::parseLibraries() {
         }
 
         ElfMap *elf = new ElfMap(library->getResolvedPathCStr());
-        auto module = parse(elf, library);
+        parse(elf, library);
     }
 }
 

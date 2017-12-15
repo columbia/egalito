@@ -239,8 +239,8 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
     auto deferred = makeDeferredForLink(source);
 
-    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
 #if 0  // ExternalSymbol can no longer be converted to a Symbol
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
     deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
         auto sit = SymbolInTable(SymbolInTable::TYPE_UNDEF,
             link->getPLTTrampoline()->getTargetSymbol());

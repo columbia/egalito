@@ -185,7 +185,7 @@ void LoaderEmulator::initRT(Conductor *conductor) {
 
     auto rtld_ro = findEgalitoDataVariable("_ZN9Emulation15_rtld_global_roE");
     auto rtld_ro_casted = reinterpret_cast<Emulation::my_rtld_global_ro *>(
-        rtld->getDest()->getTargetAddress());
+        rtld_ro->getDest()->getTargetAddress());
     Emulation::init_rtld_global_ro(rtld_ro_casted);
 
     LOG(1, "initialize rtld_global at " << rtld_casted);

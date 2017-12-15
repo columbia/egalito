@@ -192,19 +192,19 @@ void ObjGen::makeSymbolInText(Function *func, const std::string &textSection) {
         });
     }
 
+#if 0  // ExternalSymbol can no longer be converted to a Symbol
     for(auto block : CIter::children(func)) {
         for(auto instr : CIter::children(block)) {
             if(auto link = instr->getSemantic()->getLink()) {
                 if(auto sol = dynamic_cast<PLTLink *>(link)) {
-#if 0  // ExternalSymbol can no longer be converted to a Symbol
                     auto sym = sol->getPLTTrampoline()->getTargetSymbol();
                     symtab->addUndefinedSymbol(sym);
                     LOG(1, "undefined symbol with name " << sym->getName());
-#endif
                 }
             }
         }
     }
+#endif
 }
 
 void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
