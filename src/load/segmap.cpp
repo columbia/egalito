@@ -45,6 +45,7 @@ void SegMap::mapAllSegments(ConductorSetup *setup) {
 #else
     for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
         for(auto region : CIter::regions(module)) {
+            if(dynamic_cast<TLSDataRegion *>(region)) continue;
             mapRegion(region);
         }
     }
@@ -189,7 +190,7 @@ void SegMap::mapRegion(DataRegion *region) {
         throw "error: mapRegion";
     }
     const std::string &dataBytes = region->getDataBytes();
-    LOG(1, "memcpy " << std::hex << (void *)dataBytes.c_str() << " to " << address
-        << " size " << dataBytes.length());
+    LOG(1, "memcpy " << std::hex << (void *)dataBytes.c_str()
+        << " to " << address << " size " << dataBytes.length());
     std::memcpy((void *)address, dataBytes.c_str(), dataBytes.length());
 }
