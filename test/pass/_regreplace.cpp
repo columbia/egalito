@@ -25,7 +25,7 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
 
 #if 0
     // expects glibc
-    auto module = libc->getElfSpace()->getModule();
+    auto module = conductor.getProgram()->getLibc();
     auto f = dynamic_cast<Function *>(
         //CIter::named(module->getFunctionList())->find("__offtime"));
         CIter::named(module->getFunctionList())->find("_des_crypt"));
@@ -54,7 +54,7 @@ TEST_CASE("replace x18 in libc", "[pass][full][aarch64][.]") {
 #else
     AARCH64RegBits rb;
     PhysicalRegister<AARCH64GPRegister> r18(AARCH64GPRegister::R18, true);
-    auto module = libc->getElfSpace()->getModule();
+    auto module = conductor.getProgram()->getLibc();
     for(auto f : CIter::functions(module)) {
         f->accept(&replacer);
         for(auto block : CIter::children(f)) {

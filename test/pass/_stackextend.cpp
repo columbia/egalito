@@ -45,7 +45,7 @@ TEST_CASE("extend simple stack frames", "[pass][fast][aarch64]") {
     Conductor conductor;
     conductor.parseExecutable(&elf);
 
-    auto module = conductor.getMainSpace()->getModule();
+    auto module = conductor.getProgram()->getMain();
 
     std::map<Function *, size_t> funcsize;
     for(auto f : CIter::functions(module)) {
@@ -115,7 +115,7 @@ TEST_CASE("extend stack frames in libc", "[pass][full][aarch64][.]") {
     REQUIRE(libc != nullptr);
 
     // expects glibc
-    auto module = libc->getElfSpace()->getModule();
+    auto module = conductor.getProgram()->getLibc();
     auto f = CIter::named(module->getFunctionList())->find("__offtime");
     REQUIRE(f != nullptr);
 

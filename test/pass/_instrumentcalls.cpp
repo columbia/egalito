@@ -34,7 +34,7 @@ TEST_CASE("instrument a function", "[pass][fast][aarch64]") {
     Conductor conductor;
     conductor.parseExecutable(&elf);
 
-    auto module = conductor.getMainSpace()->getModule();
+    auto module = conductor.getProgram()->getMain();
     auto entry = CIter::named(module->getFunctionList())->find("entryAdvice");
     auto exit = CIter::named(module->getFunctionList())->find("exitAdvice");
 
