@@ -63,7 +63,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_start2",
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.296",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.292",
         "_ZNK11GSTableLink16getTargetAddressEv",
         "_ZN13ChunkListImplI8FunctionE13createSpatialEv",
         "_ZN9Emulation24function_not_implementedEv",
@@ -88,7 +88,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZNK14DataOffsetLink16getTargetAddressEv",
         "_ZNK14OffsetPosition3getEv",
 
-        //"_ZNSt8_Rb_treeIP5ChunkSt4pairIKS1_P12GSTableEntryESt10_Select1stIS6_ESt4lessIS1_ESaIS6_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS3_EESH_IJEEEEESt17_Rb_tree_iteratorIS6_ESt23_Rb_tree_const_iteratorIS6_EDpOT_.isra.98",
         // for debugging
         "egalito_printf",
         "egalito_vfprintf",
@@ -99,9 +98,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "ifunc_resolver",
         "ifunc_select",
         "_ZNK9IFuncList6getForEm",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.91",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.72",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.23",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.51",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.25",
     };
     for(auto name : resolvers) {
         makeResolvedEntry(name, egalito);
@@ -255,6 +255,7 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7compareEPKc", module);
             makeResolvedEntry("_ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PPv", module);
             makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm", module);
+            makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_appendEPKcm", module);
         }
         else if(module->getName() == "module-libdistorm3.so") {
             makeResolvedEntry("distorm_decompose64", module);
