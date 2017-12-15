@@ -9,7 +9,7 @@
 
 #define USR_LIB_DEBUG_BY_NAME
 #define CACHE_DIR "_cache"
-#define SANDBOX_BASE_ADDRESS    0x80000000
+#define SANDBOX_BASE_ADDRESS    0x40000000
 
 /* app */
 
