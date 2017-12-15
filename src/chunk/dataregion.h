@@ -79,15 +79,17 @@ private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
     address_t originalAddress;
+    size_t size;
     uint32_t permissions;
     address_t alignment;
     std::string dataBytes;
 public:
-    DataRegion() : originalAddress(0), permissions(0), alignment(0) {}
+    DataRegion() : originalAddress(0), size(0), permissions(0), alignment(0) {}
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
 
     virtual std::string getName() const;
+    virtual size_t getSize() const { return size; }
     const std::string &getDataBytes() const { return dataBytes; }
     size_t getSizeOfInitializedData() const { return dataBytes.length(); }
 

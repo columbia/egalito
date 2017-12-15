@@ -104,7 +104,7 @@ bool DataSection::deserialize(ChunkSerializerOperations &op,
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     setPosition(new AbsolutePosition(phdr->p_vaddr));
-    setSize(phdr->p_memsz);
+    size = phdr->p_memsz;   // size must not be calculated from children
     originalAddress = getAddress();
     permissions = phdr->p_flags;
     alignment = phdr->p_align;
@@ -186,7 +186,7 @@ bool DataRegion::deserialize(ChunkSerializerOperations &op,
     setParent(nullptr);
     address_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
-    setSize(reader.read<size_t>());
+    reader.readInto(this->size);
     reader.readInto(this->originalAddress);
     reader.readInto(this->permissions);
     reader.readInto(this->alignment);
