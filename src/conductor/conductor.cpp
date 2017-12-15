@@ -172,23 +172,22 @@ void Conductor::setupIFuncLazySelector() {
     this->ifuncList = new IFuncList();
     ::egalito_ifuncList = ifuncList;
 
-#if 0
+#ifndef EXPERIMENTAL_ARCHIVE
     IFuncLazyPass ifuncLazyPass(ifuncList);
     program->accept(&ifuncLazyPass);
 #endif
 }
 
 void Conductor::fixDataSections() {
-    // first assign an effective address to each TLS region
     allocateTLSArea();
+    loadTLSData();
 
     fixPointersInData();
 
     HandleCopyRelocs handleCopyRelocs(this);
     program->accept(&handleCopyRelocs);
 
-    // This has to come after all relocations in TLS are resolved
-    loadTLSData();
+    // copy back the TLSData to original .tdata place for other threads
 }
 
 void Conductor::fixPointersInData() {
@@ -212,8 +211,9 @@ void Conductor::allocateTLSArea() {
 
     if(!size) return;
 
-    // allocate headers
     address_t offset = 0;
+
+    // allocate headers
     mainThreadPointer = dataLoader.allocateTLS(size, &offset);
 
     // actually assign address

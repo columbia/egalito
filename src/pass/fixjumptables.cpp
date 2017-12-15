@@ -1,4 +1,5 @@
 #include <iomanip>
+#include "config.h"
 #include "fixjumptables.h"
 #include "chunk/chunkiter.h"
 #include "chunk/dump.h"
@@ -22,7 +23,10 @@ void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {
 }
 
 void FixJumpTablesPass::visit(JumpTable *jumpTable) {
+#ifdef EXPERIMENTAL_ARCHIVE
     return;  // !!! TEMPORARY
+#endif
+
 #ifdef ARCH_X86_64
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
