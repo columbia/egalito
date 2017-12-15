@@ -13,6 +13,8 @@ public:
     virtual void visit(JumpTableList *jumpTableList) = 0;
     virtual void visit(DataRegionList *dataRegionList) = 0;
     virtual void visit(VTableList *vtableList) = 0;
+    virtual void visit(ExternalSymbolList *externalSymbolList) = 0;
+    virtual void visit(LibraryList *libraryList) = 0;
     virtual void visit(Function *function) = 0;
     virtual void visit(Block *block) = 0;
     virtual void visit(Instruction *instruction) = 0;
@@ -23,6 +25,8 @@ public:
     virtual void visit(MarkerList *markerList) = 0;
     virtual void visit(VTable *vtable) = 0;
     virtual void visit(VTableEntry *vtableEntry) = 0;
+    virtual void visit(ExternalSymbol *externalSymbol) = 0;
+    virtual void visit(Library *library) = 0;
 };
 class ChunkListener : public ChunkVisitor {
 public:
@@ -33,6 +37,8 @@ public:
     virtual void visit(JumpTableList *jumpTableList) {}
     virtual void visit(DataRegionList *dataRegionList) {}
     virtual void visit(VTableList *vtableList) {}
+    virtual void visit(ExternalSymbolList *externalSymbolList) {}
+    virtual void visit(LibraryList *libraryList) {}
     virtual void visit(Function *function) {}
     virtual void visit(Block *block) {}
     virtual void visit(Instruction *instruction) {}
@@ -43,6 +49,8 @@ public:
     virtual void visit(MarkerList *markerList) {}
     virtual void visit(VTable *vtable) {}
     virtual void visit(VTableEntry *vtableEntry) {}
+    virtual void visit(ExternalSymbol *externalSymbol) {}
+    virtual void visit(Library *library) {}
 };
 
 #endif

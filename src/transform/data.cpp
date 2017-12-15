@@ -46,6 +46,7 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
 }
 
 void DataLoader::loadRegion(ElfMap *elfMap, DataRegion *region) {
+#if 0
     auto phdr = region->getPhdr();
     address_t sourceAddr = elfMap->getBaseAddress() + phdr->p_vaddr;
     char *source = reinterpret_cast<char *>(sourceAddr);
@@ -56,6 +57,15 @@ void DataLoader::loadRegion(ElfMap *elfMap, DataRegion *region) {
     LOG(1, "    clearing " << (void *)(output + phdr->p_filesz)
         << " + " << (phdr->p_memsz - phdr->p_filesz));
     std::memset(output + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
+#else
+    const std::string &source = region->getDataBytes();
+    char *output = reinterpret_cast<char *>(region->getAddress());
+
+    LOG(1, "loading DataRegion " << region->getName()
+        << " at 0x" << std::hex << region->getAddress());
+
+    std::memcpy(output, source.c_str(), source.length());
+    size_t zeroBytes = region->getSize() - source.length();
+    std::memset(output + source.length(), 0, zeroBytes);
+#endif
 }
-
-

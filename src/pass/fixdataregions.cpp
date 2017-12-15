@@ -1,6 +1,5 @@
 #include <cassert>
 #include "fixdataregions.h"
-#include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -32,7 +31,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
             auto target = var->getDest()->getTargetAddress();
             // simply using var->getAddress() will fail due to TLS
             address_t address = var->getAddress()
-                    + dataRegion->getMapBaseAddress()
+                    + dataRegion->getAddress()
                     - dsec->getAddress()
                     + dsec->getOriginalOffset();
             LOG(10, "set variable " << std::hex << address << " => " << target);

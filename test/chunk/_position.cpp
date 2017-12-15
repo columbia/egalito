@@ -90,7 +90,7 @@ TEST_CASE("position validation for simple main with default Position type", "[ch
     Conductor conductor;
     conductor.parseExecutable(&elf);
 
-    auto module = conductor.getMainSpace()->getModule();
+    auto module = conductor.getProgram()->getMain();
     auto func = CIter::named(module->getFunctionList())->find("main");
 
     SECTION("position validation immediately after disassembly") {
@@ -133,7 +133,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
             Conductor conductor;
             conductor.parseExecutable(&elf);
 
-            auto module = conductor.getMainSpace()->getModule();
+            auto module = conductor.getProgram()->getMain();
             auto func = CIter::named(module->getFunctionList())->find("main");
 
             SECTION("position validation immediately after disassembly") {

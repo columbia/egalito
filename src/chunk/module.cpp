@@ -1,31 +1,32 @@
 #include <string>
-#include <sstream>
 #include "module.h"
+#include "library.h"
 #include "elf/elfspace.h"
 #include "elf/sharedlib.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "util/streamasstring.h"
 #include "log/log.h"
 
-void Module::setElfSpace(ElfSpace *space) {
-    elfSpace = space;
+void Module::setElfSpace(ElfSpace *elfSpace) {
+    this->elfSpace = elfSpace;
 
     // set name based on ElfSpace
-    std::ostringstream stream;
-    auto lib = elfSpace->getLibrary();
-    if(lib) {
-        stream << "module-" << lib->getShortName();
-    }
-    else {
-        stream << "module-main";
-    }
-    setName(stream.str());
+    setName(StreamAsString() << "module-" << elfSpace->getName());
+}
+
+void Module::setLibrary(Library *library) {
+    this->library = library;
+
+    // set name based on Library
+    setName(StreamAsString() << "module-" << library->getName());
 }
 
 void Module::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.writeString(getName());
+    writer.writeID(op.assign(library));
 
     auto pltListID = op.serialize(getPLTList());
     writer.write(pltListID);
@@ -38,12 +39,16 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto dataRegionListID = op.serialize(getDataRegionList());
     writer.write(dataRegionListID);
+
+    auto externalSymbolListID = op.serialize(getExternalSymbolList());
+    writer.write(externalSymbolListID);
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
     setName(reader.readString());
+    library = op.lookupAs<Library>(reader.readID());
 
     LOG(1, "trying to parse Module [" << name << "]");
 
@@ -76,6 +81,15 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         if(dataRegionList) {
             getChildren()->add(dataRegionList);
             setDataRegionList(dataRegionList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto externalSymbolList = op.lookupAs<ExternalSymbolList>(id);
+        if(externalSymbolList) {
+            getChildren()->add(externalSymbolList);
+            setExternalSymbolList(externalSymbolList);
         }
     }
 

@@ -23,13 +23,7 @@ void DataStructMigrator::migrate(ConductorSetup *setup) {
         return;
     }
 
-    Module *libstdcxx = nullptr;
-    for(auto module : CIter::children(setup->getConductor()->getProgram())) {
-        if(module->getName() == "module-libstdc++.so.6") {
-            libstdcxx = module;
-            break;
-        }
-    }
+    Module *libstdcxx = setup->getConductor()->getProgram()->getLibcpp();
     auto libstdcxxVTableList = libstdcxx->getVTableList();
 
     ElfMap *loaderElf = new ElfMap("/proc/self/exe");
@@ -54,6 +48,12 @@ void DataStructMigrator::migrate(ConductorSetup *setup) {
 
 void DataStructMigrator::migrateList(VTableList *loaderVTableList,
     VTableList *sourceList) {
+
+    if(!sourceList) {
+        LOG(1, "No vtables known. libstdc++6-dbg not installed?");
+        LOG(1, "Skipping vtable migration for this library");
+        return;
+    }
 
     // This relies on VTables having the same name in libegalito
     // as in the loader (i.e. no address in the name).

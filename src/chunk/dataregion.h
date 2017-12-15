@@ -2,6 +2,7 @@
 #define EGALITO_CHUNK_DATA_REGION_H
 
 #include <vector>
+#include <string>
 #include "chunk.h"
 #include "chunklist.h"
 #include "util/iter.h"
@@ -17,10 +18,14 @@ class DataRegion;
 class DataVariable : public ChunkSerializerImpl<TYPE_DataVariable,
     AddressableChunkImpl> {
 private:
+    std::string name;
     Link *dest;
 public:
     DataVariable() : dest(nullptr) {}
     DataVariable(DataRegion *region, address_t address, Link *dest);
+
+    std::string getName() const { return name; }
+    void setName(const std::string &name) { this->name = name; }
 
     Link *getDest() const { return dest; }
     void setDest(Link *dest) { this->dest = dest; }
@@ -35,25 +40,30 @@ public:
 
 class DataSection : public ChunkSerializerImpl<TYPE_DataSection,
     CompositeChunkImpl<DataVariable>> {
-private:
-    size_t size;
-    size_t align;
-    address_t originalOffset;
-    bool code;
-    bool bss;
-    const char *name;
-
 public:
-    DataSection() : size(0), align(0), originalOffset(0),
-        code(false), bss(false), name(nullptr) {}
-    DataSection(ElfMap *elfMap, ElfXX_Phdr *phdr, ElfXX_Shdr *shdr);
-    virtual size_t getSize() const { return size; }
-    bool contains(address_t address);
-    size_t getAlignment() const { return align; }
-    address_t getOriginalOffset() const { return originalOffset; }
-    bool isCode() const { return code; }
-    bool isBss() const { return bss; }
+    enum Type {
+        TYPE_UNKNOWN,
+        TYPE_BSS,
+        TYPE_DATA,
+        TYPE_CODE,
+    };
+private:
+    std::string name;
+    address_t alignment;
+    address_t originalOffset;
+    Type type;
+public:
+    DataSection() : alignment(0), originalOffset(0), type(TYPE_UNKNOWN) {}
+    DataSection(ElfMap *elfMap, address_t segmentAddress, ElfXX_Shdr *shdr);
+
     virtual std::string getName() const;
+    bool contains(address_t address);
+
+    size_t getAlignment() const { return alignment; }
+    address_t getOriginalOffset() const { return originalOffset; }
+    Type getType() const { return type; }
+    bool isCode() const { return type == TYPE_CODE; }
+    bool isBss() const { return type == TYPE_BSS; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
@@ -68,39 +78,31 @@ class DataRegion : public ChunkSerializerImpl<TYPE_DataRegion,
 private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
-    ElfXX_Phdr *phdr;
     address_t originalAddress;
-    size_t startOffset;
-    address_t mappedAddress;
+    uint32_t permissions;
+    address_t alignment;
+    std::string dataBytes;
 public:
-    DataRegion() : phdr(nullptr), originalAddress(0), startOffset(0),
-        mappedAddress(0) {}
+    DataRegion() : originalAddress(0), permissions(0), alignment(0) {}
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
 
     virtual std::string getName() const;
+    const std::string &getDataBytes() const { return dataBytes; }
+    size_t getSizeOfInitializedData() const { return dataBytes.length(); }
 
-    ElfXX_Phdr *getPhdr() const { return phdr; }
-
-    void addVariable(DataVariable *variable);
     bool contains(address_t address);
-    bool endsWith(address_t address);
-    bool writable() const { return phdr->p_flags & PF_W; }
-    bool executable() const { return phdr->p_flags & PF_X; }
-    bool bssOnly() const { return phdr->p_filesz == 0; }
-    size_t getDataSize() const { return phdr->p_filesz - startOffset; }
-    size_t getBssSize() const { return phdr->p_memsz - phdr->p_filesz; }
-    size_t getAlignment() const { return phdr->p_align; }
-
-    //virtual size_t getSize() const { return phdr->p_memsz; }
+    bool readable() const { return permissions & PF_R; }
+    bool writable() const { return permissions & PF_W; }
+    bool executable() const { return permissions & PF_X; }
 
     void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }
-    size_t getStartOffset() const { return startOffset; }
-    address_t getMapBaseAddress() const { return mappedAddress; }
 
     DataSection *findDataSectionContaining(address_t address);
 
+    void addVariable(DataVariable *variable);
+    DataVariable *findVariable(const std::string &name);
     ConcreteIterable<VariableListType> variableIterable()
         { return ConcreteIterable<VariableListType>(variableList); }
     DataVariable *findVariable(address_t address) const;

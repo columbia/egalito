@@ -184,8 +184,8 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
         return link;
     }
 
-    for(auto library : *conductor->getLibraryList()) {
-        auto space = library->getElfSpace();
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto space = module->getElfSpace();
         if(space && space != elfSpace) {
             if(auto link = resolveNameAsLinkHelper(name, space, afterMapping)) {
                 return link;

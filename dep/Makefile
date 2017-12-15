@@ -12,6 +12,7 @@ all: rtld capstone distorm3
 	-@touch built
 clean:
 	-$(call short-make,rtld,clean)
+	-@rm -f built
 realclean:
 	-$(call short-make,rtld,clean)
 	-$(call short-make,distorm3/make/linux,clean)

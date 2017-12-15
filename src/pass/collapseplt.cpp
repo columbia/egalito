@@ -16,9 +16,9 @@ void CollapsePLTPass::visit(Instruction *instr) {
             delete pltLink;
         }
         else {
-            assert(trampoline->getTargetSymbol());
+            assert(trampoline->getExternalSymbol());
             LOG(9, "Unresolved PLT entry from " << instr->getName()
-                << " to [" << trampoline->getTargetSymbol()->getName() << "]");
+                << " to [" << trampoline->getExternalSymbol()->getName() << "]");
         }
     }
 }

@@ -155,6 +155,8 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new PLTList(); },        // TYPE_PLTList
         [] () -> Chunk* { return new JumpTableList(); },  // TYPE_JumpTableList
         [] () -> Chunk* { return new DataRegionList(); }, // TYPE_DataRegionList
+        [] () -> Chunk* { return new ExternalSymbolList(); }, // TYPE_ExternalSymbolList
+        [] () -> Chunk* { return new LibraryList(); },    // TYPE_LibraryList
         [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
@@ -166,6 +168,8 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
         [] () -> Chunk* { return nullptr; },    // TYPE_MarkerList
         [] () -> Chunk* { return nullptr; },    // TYPE_Marker
+        [] () -> Chunk* { return new ExternalSymbol(); }, // TYPE_ExternalSymbol
+        [] () -> Chunk* { return new Library(); },        // TYPE_Library
     };
 
     assert(flat != nullptr);
@@ -193,7 +197,7 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
             errors = true;
         }
         else {
-            LOG(1, "serialize chunk id " << std::dec << id
+            LOG(10, "serialize chunk id " << std::dec << id
                 << " i.e. " << op.getDebugName(id));
         }
         id ++;

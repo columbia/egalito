@@ -18,6 +18,8 @@ void CallInit::makeInitArray(ElfSpace *space, int argc, char **argv,
     egalito_init_array[3] = (address_t)envp;
     size_t init_index = 4;
 
+    if(!space) return;
+
     auto elf = space->getElfMap();
     auto module = space->getModule();
 

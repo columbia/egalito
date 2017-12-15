@@ -118,7 +118,7 @@ void JitGSFixup::visit(Program *program) {
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
 
     callback = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_jit_fixup", lib->getElfSpace()->getModule());
+        "egalito_hook_jit_fixup", lib);
     if(!callback) {
         throw "JitGSFixup can't find hook function";
     }
@@ -135,22 +135,22 @@ void JitGSFixup::visit(Program *program) {
 }
 
 void JitGSFixup::addResetCall() {
-    auto lib = conductor->getLibraryList()->get("(egalito)");
+    auto lib = conductor->getProgram()->getEgalito();
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
 
     // this can only be hooked around function call or system call
     // as it assumes that r11 is clobberable.
     auto reset = ChunkFind2(conductor).findFunctionInModule(
-        "egalito_hook_jit_reset_on_syscall", lib->getElfSpace()->getModule());
+        "egalito_hook_jit_reset_on_syscall", lib);
     if(!reset) {
         throw "JitGSFixup can't find hook function";
     }
 
-    auto libc = conductor->getLibraryList()->getLibc();
+    auto libc = conductor->getProgram()->getLibc();
     if(!libc) throw "JitGSFixup requires libc.so to do continuous shuffling";
 
     auto write = ChunkFind2(conductor).findFunctionInModule(
-        "__write", libc->getElfSpace()->getModule());
+        "__write", libc);
     if(!write) {
         throw "JitGSFixup can't find write function";
     }

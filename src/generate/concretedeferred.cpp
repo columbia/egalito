@@ -240,15 +240,17 @@ RelocSectionContent::DeferredType *RelocSectionContent
     auto deferred = makeDeferredForLink(source);
 
     auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+#if 0  // ExternalSymbol can no longer be converted to a Symbol
     deferred->addFunction([this, symtab, link] (ElfXX_Rela *rela) {
         auto sit = SymbolInTable(SymbolInTable::TYPE_UNDEF,
             link->getPLTTrampoline()->getTargetSymbol());
         auto elfSym = symtab->find(sit);
         size_t index = symtab->indexOf(elfSym);
         if(index == (size_t)-1) LOG(1, "ERROR with target "
-            << link->getPLTTrampoline()->getTargetSymbol()->getName());
+            << link->getPLTTrampoline()->getExternalSymbol()->getName());
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
     });
+#endif
 
     return deferred;
 }

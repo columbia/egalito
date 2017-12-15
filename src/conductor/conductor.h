@@ -1,15 +1,18 @@
 #ifndef EGALITO_CONDUCTOR_CONDUCTOR_H
 #define EGALITO_CONDUCTOR_CONDUCTOR_H
 
-#include "elf/elfforest.h"
+#include "types.h"
+#include "chunk/program.h"
+#include "chunk/module.h"
+#include "chunk/library.h"
 
-class ChunkVisitor;
+class ElfMap;
 class Module;
+class ChunkVisitor;
 class IFuncList;
 
 class Conductor {
 private:
-    ElfForest *forest;
     Program *program;
     address_t mainThreadPointer;
     IFuncList *ifuncList;
@@ -35,16 +38,17 @@ public:
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);
 
     Program *getProgram() const { return program; }
-    ElfSpace *getMainSpace() const { return forest->getMainSpace(); }
-    LibraryList *getLibraryList() const { return forest->getLibraryList(); }
+    LibraryList *getLibraryList() const { return program->getLibraryList(); }
+
+    // deprecated, please use getProgram()->getMain()
+    ElfSpace *getMainSpace() const;
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
     IFuncList *getIFuncList() const { return ifuncList; }
 
     void check();
 private:
-    ElfSpaceList *getSpaceList() const { return forest->getSpaceList(); }
-    ElfSpace *parse(ElfMap *elf, SharedLib *library);
+    Module *parse(ElfMap *elf, Library *library);
     void allocateTLSArea();
     void loadTLSData();
 };

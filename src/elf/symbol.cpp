@@ -104,15 +104,15 @@ Symbol *SymbolList::find(address_t address) {
     }
 }
 
-SymbolList *SymbolList::buildSymbolList(SharedLib *library) {
-    ElfMap *elfMap = library->getElfMap();
-    auto altFile = library->getAlternativeSymbolFile();
-    if(altFile.size() > 0) {
+SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap,
+    std::string symbolFile) {
+
+    if(symbolFile.size() > 0) {
         try {
             // we intentionally do not free this symbolFile; it
             // needs to stay mapped into memory so strings remain valid
-            ElfMap *symbolFile = new ElfMap(altFile.c_str());
-            return buildSymbolList(symbolFile);
+            ElfMap *symbolElf = new ElfMap(symbolFile.c_str());
+            return buildSymbolList(symbolElf);
         }
         catch(const char *s) {
             // the debug symbol file does not exist
@@ -131,8 +131,8 @@ Symbol *SymbolList::findSizeZero(SymbolList *list, const char *sym) {
     return (s && s->getSize() == 0 ? s : nullptr);
 }
 
-SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
-    auto list = buildAnySymbolList(elfmap, ".symtab", SHT_SYMTAB);
+SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
+    auto list = buildAnySymbolList(elfMap, ".symtab", SHT_SYMTAB);
 
     if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
@@ -145,12 +145,12 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     }
 
     if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
-        auto init = elfmap->findSection(".init");
+        auto init = elfMap->findSection(".init");
         if(init) s->setSize(init->getHeader()->sh_size);
         if(init) LOG(6, "setting the size of _init to " << init->getHeader()->sh_size);
     }
     if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
-        auto fini = elfmap->findSection(".fini");
+        auto fini = elfMap->findSection(".fini");
         if(fini) s->setSize(fini->getHeader()->sh_size);
         if(fini) LOG(6, "setting the size of _init to " << fini->getHeader()->sh_size);
     }
@@ -220,25 +220,25 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfmap) {
     return list;
 }
 
-SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
-    auto list = buildAnySymbolList(elfmap, ".dynsym", SHT_DYNSYM);
+SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfMap) {
+    auto list = buildAnySymbolList(elfMap, ".dynsym", SHT_DYNSYM);
 
     if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
-        if(auto init = elfmap->findSection(".init")) {
+        if(auto init = elfMap->findSection(".init")) {
             s->setSize(init->getHeader()->sh_size);
             LOG(6, "setting the size of _init to "
                 << init->getHeader()->sh_size);
         }
     }
     if(auto s = list->find("_fini")) {  // musl incorrectly sets this to 4
-        if(auto fini = elfmap->findSection(".fini")) {
+        if(auto fini = elfMap->findSection(".fini")) {
             s->setSize(fini->getHeader()->sh_size);
             LOG(6, "setting the size of _init to "
                 << fini->getHeader()->sh_size);
         }
     }
 
-    SymbolVersionList versionList(elfmap);
+    SymbolVersionList versionList(elfMap);
     for(auto sym : *list) {
         auto index = sym->getIndex();
         auto verName = versionList.getVersionName(index);
@@ -251,7 +251,7 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfmap) {
     return list;
 }
 
-SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
+SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfMap,
     const char *sectionName, unsigned sectionType) {
 
 #ifdef ARCH_X86_64
@@ -260,16 +260,16 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
     SymbolList *list = new SymbolListWithMapping();
 #endif
 
-    auto section = elfmap->findSection(sectionName);
+    auto section = elfMap->findSection(sectionName);
     if(!section || section->getHeader()->sh_type != sectionType) {
         LOG(1, "Warning: no symbol table " << sectionName << " in ELF file");
         return list;
     }
 
     const char *strtab = (sectionType == SHT_DYNSYM
-        ? elfmap->getDynstrtab() : elfmap->getStrtab());
+        ? elfMap->getDynstrtab() : elfMap->getStrtab());
 
-    auto sym = elfmap->getSectionReadPtr<ElfXX_Sym *>(section);
+    auto sym = elfMap->getSectionReadPtr<ElfXX_Sym *>(section);
     auto s = section->getHeader();
     int symcount = s->sh_size / s->sh_entsize;
     for(int j = 0; j < symcount; j ++, sym ++) {
@@ -297,9 +297,9 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfmap,
         // sym->st_shndx will be 0 for load-time relocations in dynsym
         auto shndx = sym->st_shndx;
 
-        if(elfmap->isObjectFile()) {
+        if(elfMap->isObjectFile()) {
             LOG0(5, "symbol name: " << sym->st_name << " shndx " << shndx);
-            auto symSection = elfmap->findSection(shndx);
+            auto symSection = elfMap->findSection(shndx);
             // will be null if COM section...
             if(symSection) {
                 // Convert Offset to Virtual address.
@@ -454,15 +454,15 @@ void SymbolVersionList::dump() const {
     }
 }
 
-SymbolVersionList::SymbolVersionList(ElfMap *elfmap) {
-    auto ver_section = elfmap->findSection(".gnu.version");
+SymbolVersionList::SymbolVersionList(ElfMap *elfMap) {
+    auto ver_section = elfMap->findSection(".gnu.version");
     if(!ver_section) {
         return;
     }
 
-    const char *strtab = elfmap->getDynstrtab();
+    const char *strtab = elfMap->getDynstrtab();
 
-    auto versym = elfmap->getSectionReadPtr<ElfXX_Versym *>(ver_section);
+    auto versym = elfMap->getSectionReadPtr<ElfXX_Versym *>(ver_section);
     auto s = ver_section->getHeader();
     int count = s->sh_size / s->sh_entsize;
     LOG(10, "Section .gnu.version has " << count << " entries");
@@ -473,9 +473,9 @@ SymbolVersionList::SymbolVersionList(ElfMap *elfmap) {
     addName(0, "");
     addName(1, "");
 
-    auto d_section = elfmap->findSection(".gnu.version_d");
+    auto d_section = elfMap->findSection(".gnu.version_d");
     if(d_section) {
-        auto verdef = elfmap->getSectionReadPtr<ElfXX_Verdef *>(d_section);
+        auto verdef = elfMap->getSectionReadPtr<ElfXX_Verdef *>(d_section);
         auto s = d_section->getHeader();
         size_t size = s->sh_size;
         LOG(10, "Section .gnu.version_d has " << size << " bytes");
@@ -504,9 +504,9 @@ SymbolVersionList::SymbolVersionList(ElfMap *elfmap) {
         } while (offset > 0);
     }
 
-    auto r_section = elfmap->findSection(".gnu.version_r");
+    auto r_section = elfMap->findSection(".gnu.version_r");
     if(r_section) {
-        auto verneed = elfmap->getSectionReadPtr<ElfXX_Verneed *>(r_section);
+        auto verneed = elfMap->getSectionReadPtr<ElfXX_Verneed *>(r_section);
         auto s = r_section->getHeader();
         size_t size = s->sh_size;
         LOG(10, "Section .gnu.version_r has " << size << " bytes");

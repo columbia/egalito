@@ -1,8 +1,10 @@
+#include <cassert>
 #include <cstring>  // for memcpy
 #include "plt.h"
 #include "ifunc.h"
 #include "function.h"
 #include "module.h"
+#include "external.h"
 #include "serializer.h"
 #include "visitor.h"
 #include "elf/elfspace.h"
@@ -29,25 +31,29 @@ Reloc *PLTRegistry::find(address_t address) {
 }
 
 PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
-    Symbol *targetSymbol, address_t gotPLTEntry) : sourceElf(sourceElf),
-    target(nullptr), targetSymbol(targetSymbol), gotPLTEntry(gotPLTEntry) {
+    ExternalSymbol *externalSymbol, address_t gotPLTEntry)
+    : sourceElf(sourceElf), externalSymbol(externalSymbol),
+    gotPLTEntry(gotPLTEntry) {
 
     setPosition(new AbsolutePosition(address));
 }
 
 std::string PLTTrampoline::getName() const {
-    if(getTargetSymbol()) {
-        return getTargetSymbol()->getName() + std::string("@plt");
-    }
-    else {
-        return "???@plt";
-    }
+    assert(externalSymbol != nullptr);
+    return externalSymbol->getName() + std::string("@plt");
+}
+
+Chunk *PLTTrampoline::getTarget() const {
+    assert(externalSymbol != nullptr);
+    return externalSymbol->getResolved();
 }
 
 bool PLTTrampoline::isIFunc() const {
 #ifdef ARCH_X86_64
-    if(auto v = dynamic_cast<Function *>(target)) {
-        if(v->getSymbol()->getType() == Symbol::TYPE_IFUNC) {
+    if(auto v = dynamic_cast<Function *>(getTarget())) {
+        if(v->getSymbol()
+            && v->getSymbol()->getType() == Symbol::TYPE_IFUNC) {
+
             return true;
         }
     }
@@ -59,8 +65,8 @@ bool PLTTrampoline::isIFunc() const {
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
-    if(this->target) {
-        LOG(10, "making PLT entry for [" << this->target->getName()
+    if(externalSymbol) {
+        LOG(10, "making PLT entry for [" << externalSymbol->getName()
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
@@ -103,29 +109,16 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write(getAddress());
-    writer.write(op.assign(target));
-    writer.writeString(targetSymbol ? targetSymbol->getName() : "");
+    writer.writeID(op.assign(externalSymbol));
+    writer.write(gotPLTEntry);
 }
 
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
     setPosition(new AbsolutePosition(reader.read<address_t>()));
-
-    auto id = reader.read<FlatChunk::IDType>();
-    setTarget(op.lookupAs<Chunk>(id));  // can be nullptr
-
-    std::string name = reader.readString();
-
-    LOG(1, "looks like it targets [" << name << "]");
-
-    // hack to create a target of the right name, an orphan Symbol
-    if(id == FlatChunk::NoneID) {
-        char *s = new char[name.length() + 1];
-        std::strcpy(s, name.c_str());
-        this->targetSymbol = new Symbol(0x0, 0, s,
-            Symbol::TYPE_FUNC, Symbol::BIND_LOCAL, 0, 0);
-    }
+    externalSymbol = op.lookupAs<ExternalSymbol>(reader.readID());
+    gotPLTEntry = reader.read<address_t>();
 
     return reader.stillGood();
 }
@@ -232,8 +225,10 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                     symbol = module->getElfSpace()->getSymbolList()
                         ->find(r->getAddend());
                 }
-                pltList->getChildren()->add(new PLTTrampoline(
-                    elf, pltAddress, symbol, value));
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(symbol);
+                pltList->getChildren()->add(
+                    new PLTTrampoline(elf, pltAddress, externalSymbol, value));
             }
         }
     }
@@ -251,14 +246,6 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
     // note: we skip the first PLT entry, which is 2x the size of others
     for(size_t i = 2 * ENTRY_SIZE; i < header->sh_size; i += ENTRY_SIZE) {
         auto entry = section + i;
-
-#if 0
-        LOG(1, "CONSIDER PLT entry at " << entry);
-        LOG(1, "1st instr is " << (int)*reinterpret_cast<const unsigned int *>(entry));
-        LOG(1, "2nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*1));
-        LOG(1, "3nd instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*2));
-        LOG(1, "4th instr is " << (int)*reinterpret_cast<const unsigned int *>(entry+4*3));
-#endif
 
         if((*reinterpret_cast<const unsigned char *>(entry+3) & 0x9f) == 0x90) {
             address_t pltAddress = header->sh_addr + i;
@@ -279,19 +266,22 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT entry at " << pltAddress << " -> ["
                     << r->getSymbolName() << "]");
-                pltList->getChildren()->add(new PLTTrampoline(
-                    elf, pltAddress, r->getSymbol(), value));
+
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(r->getSymbol());
+                pltList->getChildren()->add(
+                    new PLTTrampoline(elf, pltAddress, externalSymbol, value));
             }
         }
     }
 #endif
 
-    parsePLTGOT(relocList, elf, pltList);
+    parsePLTGOT(relocList, elf, pltList, module);
     return pltList;
 }
 
 void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
-    PLTList *pltList) {
+    PLTList *pltList, Module *module) {
 
     auto pltgot = elf->findSection(".plt.got");
     if(!pltgot) return;  // no .plt.got section
@@ -327,8 +317,10 @@ void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
             if(r && r->getSymbol()) {
                 LOG(1, "Found PLT.GOT entry at " << pltAddress << " -> ["
                     << r->getSymbol()->getName() << "]");
-                pltList->getChildren()->add(new PLTTrampoline(
-                    elf, pltAddress, r->getSymbol(), value));
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(r->getSymbol());
+                pltList->getChildren()->add(
+                    new PLTTrampoline(elf, pltAddress, externalSymbol, value));
             }
         }
     }

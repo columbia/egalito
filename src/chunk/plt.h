@@ -12,27 +12,29 @@
 class ElfMap;
 class Chunk;
 class Symbol;
+class ExternalSymbol;
 
 class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
     CompositeChunkImpl<Block>> {
 private:
     ElfMap *sourceElf;
-    Chunk *target;
-    Symbol *targetSymbol;
+    ExternalSymbol *externalSymbol;
     address_t gotPLTEntry;
 public:
-    PLTTrampoline() : sourceElf(nullptr), target(nullptr),
-        targetSymbol(nullptr), gotPLTEntry(0) {}
-    PLTTrampoline(ElfMap *sourceElf, address_t address, Symbol *targetSymbol,
-        address_t gotPLTEntry);
+    PLTTrampoline() : sourceElf(nullptr), externalSymbol(nullptr),
+        gotPLTEntry(0) {}
+    PLTTrampoline(ElfMap *sourceElf, address_t address,
+        ExternalSymbol *externalSymbol, address_t gotPLTEntry);
 
     std::string getName() const;
 
     ElfMap *getSourceElf() const { return sourceElf; }
-    Chunk *getTarget() const { return target; }
-    Symbol *getTargetSymbol() const { return targetSymbol; }
+    Chunk *getTarget() const;
+    //Symbol *getTargetSymbol() const { return targetSymbol; }
 
-    void setTarget(Chunk *target) { this->target = target; }
+    //void setTarget(Chunk *target) { this->target = target; }
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
 
     bool isIFunc() const;
     void writeTo(char *target);
@@ -62,11 +64,11 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 public:
     static size_t getPLTTrampolineSize();
-    static PLTList *parse(RelocList *relocList, ElfMap *elf, Module *modle);
+    static PLTList *parse(RelocList *relocList, ElfMap *elf, Module *module);
     static bool parsePLTList(ElfMap *elf, RelocList *relocList, Module *module);
 private:
     static void parsePLTGOT(RelocList *relocList, ElfMap *elf,
-        PLTList *pltList);
+        PLTList *pltList, Module *module);
 };
 
 #endif

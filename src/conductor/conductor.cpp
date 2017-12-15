@@ -4,6 +4,7 @@
 #include "passes.h"
 #include "chunk/ifunc.h"
 #include "elf/elfmap.h"
+#include "elf/elfdynamic.h"
 #include "generate/debugelf.h"
 #include "operation/find2.h"
 #include "pass/handlerelocs.h"
@@ -27,68 +28,63 @@
 IFuncList *egalito_ifuncList __attribute__((weak));
 
 Conductor::Conductor() {
-    forest = new ElfForest();
-    program = new Program(forest->getSpaceList());
+    program = new Program();
+    program->setLibraryList(new LibraryList());
 }
 
 Conductor::~Conductor() {
-    delete forest;
     delete program;
 }
 
 void Conductor::parseExecutable(ElfMap *elf) {
-    auto library = new SharedLib("(executable)", "(executable)", elf);
-    getLibraryList()->addToFront(library);
-    auto space = parse(elf, library);
-
-    program->setMain(space->getModule());
-    getSpaceList()->setMain(space);
+    auto library = new Library("(executable)", Library::ROLE_MAIN);
+    auto module = parse(elf, library);
 }
 
 void Conductor::parseEgalito(ElfMap *elf) {
-    auto library = new SharedLib("(egalito)", "(egalito)", elf);
-    getLibraryList()->add(library);
-    auto space = parse(elf, library);
-
-    program->setEgalito(space->getModule());
-    getSpaceList()->setEgalito(space);
+    auto library = new Library("(egalito)", Library::ROLE_EGALITO);
+    auto module = parse(elf, library);
 }
 
 void Conductor::parseLibraries() {
+    auto iterable = getLibraryList()->getChildren()->getIterable();
+
     // we use an index here because the list can change as we iterate
-    for(size_t i = 0; i < getLibraryList()->getCount(); i ++) {
-        auto library = getLibraryList()->get(i);
-        auto space = library->getElfSpace();
+    for(size_t i = 0; i < iterable->getCount(); i ++) {
+        auto library = iterable->get(i);
+        if(library->getModule()) {
+            continue;  // already parsed
+        }
 
-        if(space) continue;  // already parsed (e.g. libegalito, executable)
-
-        parse(library->getElfMap(), library);
+        ElfMap *elf = new ElfMap(library->getResolvedPathCStr());
+        auto module = parse(elf, library);
     }
 }
 
 Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
-    auto library = new SharedLib("(addon)", "(addon)", elf);
-    getLibraryList()->add(library);
-    auto space = parse(elf, library);
-    return space->getModule();
+    auto library = new Library("(addon)", Library::ROLE_SUPPORT);
+    auto module = parse(elf, library);
+    return module;
 }
 
-ElfSpace *Conductor::parse(ElfMap *elf, SharedLib *library) {
-    ElfSpace *space = new ElfSpace(elf, library);
-    library->setElfSpace(space);
+Module *Conductor::parse(ElfMap *elf, Library *library) {
+    program->add(library);  // add current lib before its dependencies
+
+    ElfSpace *space = new ElfSpace(elf, library->getName(),
+        library->getResolvedPath());
 
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
         << space->getName() << "] ===");
-    space->findDependencies(getLibraryList());
     space->findSymbolsAndRelocs();
+    ElfDynamic(getLibraryList()).parse(elf, library);
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");
     ConductorPasses(this).newElfPasses(space);
 
-    program->getChildren()->add(space->getModule());
-    getSpaceList()->add(space);
-    return space;
+    auto module = space->getModule();  // created in previous line
+    program->add(module);
+    return module;
 }
 
 void Conductor::parseEgalitoArchive(const char *archive) {
@@ -103,6 +99,11 @@ void Conductor::parseEgalitoArchive(const char *archive) {
         LOG(1, "Using full Chunk tree from archive [" << archive << "]");
         this->program = p;
     }
+    /*else if(auto module = dynamic_cast<Module *>(newData)) {
+        LOG(1, "Using Module \"" << module->getName()
+            << "\" from archive [" << archive << "]");
+        program->add(module);
+    }*/
     else {
         LOG(1, "Not using archive, only a subset of the Chunk tree is present");
     }
@@ -129,10 +130,8 @@ void Conductor::resolveWeak() {
     //TemporaryLogLevel tll("conductor", 10);
     //TemporaryLogLevel tll2("chunk", 10);
 
-    for(auto lib : *getLibraryList()) {
-        auto space = lib->getElfSpace();
-        if(!space) continue;    // could be nullptr for parse etshell
-        auto module = space->getModule();
+    for(auto module : CIter::modules(program)) {
+        auto space = module->getElfSpace();
 
         if(module->getName() == "module-(egalito)") {
             InjectBridgePass bridge(space->getRelocList());
@@ -160,7 +159,7 @@ void Conductor::resolveWeak() {
 }
 
 void Conductor::resolveVTables() {
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         // this needs data regions
         module->setVTableList(DisassembleVTables().makeVTableList(
             module->getElfSpace()->getElfMap(),
@@ -173,8 +172,10 @@ void Conductor::setupIFuncLazySelector() {
     this->ifuncList = new IFuncList();
     ::egalito_ifuncList = ifuncList;
 
+#if 0
     IFuncLazyPass ifuncLazyPass(ifuncList);
     program->accept(&ifuncLazyPass);
+#endif
 }
 
 void Conductor::fixDataSections() {
@@ -204,7 +205,7 @@ void Conductor::allocateTLSArea() {
 
     // calculate size
     size_t size = 0;
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) size += tls->getSize();
     }
@@ -216,7 +217,7 @@ void Conductor::allocateTLSArea() {
     mainThreadPointer = dataLoader.allocateTLS(size, &offset);
 
     // actually assign address
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
 #ifdef ARCH_X86_64
@@ -242,7 +243,7 @@ void Conductor::allocateTLSArea() {
 void Conductor::loadTLSData() {
     const static address_t base = 0xd0000000;
     DataLoader dataLoader(base);
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
             dataLoader.loadRegion(module->getElfSpace()->getElfMap(), tls);
@@ -253,7 +254,7 @@ void Conductor::loadTLSData() {
 void Conductor::writeDebugElf(const char *filename, const char *suffix) {
     DebugElf debugElf;
 
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         for(auto func : CIter::functions(module)) {
             debugElf.add(func, suffix);
         }
@@ -263,11 +264,15 @@ void Conductor::writeDebugElf(const char *filename, const char *suffix) {
 }
 
 void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
-    for(auto module : CIter::children(program)) {
+    for(auto module : CIter::modules(program)) {
         if(!inEgalito && module == program->getEgalito()) continue;
 
         module->accept(visitor);
     }
+}
+
+ElfSpace *Conductor::getMainSpace() const {
+    return getProgram()->getMain()->getElfSpace();
 }
 
 void Conductor::check() {
