@@ -139,6 +139,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("mprotect", module);
             makeResolvedEntry("mmap", module);
             makeResolvedEntry("strlen", module);
+            makeResolvedEntry("__strlen_avx2", module);
+            makeResolvedEntry("__strlen_sse2", module);
             makeResolvedEntry("memmove", module);
             makeResolvedEntry("newlocale", module);
             makeResolvedEntry("uselocale", module);
