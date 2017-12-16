@@ -1,30 +1,12 @@
 #include "ifunc.h"
-#include "chunk/gstable.h"
-#include "conductor/setup.h"
-#include "operation/find2.h"
-#include "runtime/managegs.h"
 
-extern ConductorSetup *egalito_conductor_setup;
-extern GSTable *egalito_gsTable;
 extern IFuncList *egalito_ifuncList;
 
 extern "C"
 void ifunc_select(address_t address) {
     auto ifunc = egalito_ifuncList->getFor(address);
     auto funcaddr = reinterpret_cast<address_t>(ifunc());
-    //this recursively needs IFUNC
-    //if(!isFeatureEnabled("USE_GS_TABLE")) {
-    if(!egalito_gsTable) {
-        *reinterpret_cast<address_t *>(address) = funcaddr;
-    }
-    else {
-        auto conductor = egalito_conductor_setup->getConductor();
-        auto targetFunc
-            = ChunkFind2(conductor).findFunctionContaining(funcaddr);
-        auto gsEntry = egalito_gsTable->makeEntryFor(targetFunc);
-        ManageGS::setEntry(egalito_gsTable, gsEntry->getIndex(), funcaddr);
-        *reinterpret_cast<address_t *>(address) = gsEntry->getOffset();
-    }
+    *reinterpret_cast<address_t *>(address) = funcaddr;
 }
 
 void IFuncList::addIFuncFor(address_t address, Chunk *target) {

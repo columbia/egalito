@@ -21,7 +21,9 @@ void UseGSTablePass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(egalito)");
     LOG(1, "UseGSTablePass " << module->getName());
     recurse(module->getDataRegionList());
-    recurse(module->getVTableList());
+    if(auto vtableList = module->getVTableList()) {
+        recurse(vtableList);
+    }
     recurse(module);
 }
 
@@ -66,6 +68,8 @@ void UseGSTablePass::visit(Block *block) {
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeCalls;
     std::vector<std::pair<Block *, Instruction *>> RIPrelativeJumps;
 
+    std::vector<std::pair<Block *, Instruction *>> pointerLoads;
+
     std::vector<std::pair<Block *, Instruction *>> functionReturns;
 
     ChunkDumper d;
@@ -106,6 +110,9 @@ void UseGSTablePass::visit(Block *block) {
             if(assembly->getId() == X86_INS_JMP) {
                 RIPrelativeJumps.emplace_back(block, instr);
             }
+            if(assembly->getId() == X86_INS_LEA) {
+                pointerLoads.emplace_back(block, instr);
+            }
         }
         if(dynamic_cast<ReturnInstruction *>(semantic)) {
 #if REWRITE_RA == 1
@@ -134,6 +141,9 @@ void UseGSTablePass::visit(Block *block) {
     }
     for(auto pair : RIPrelativeJumps) {
         rewriteRIPrelativeJump(pair.first, pair.second);
+    }
+    for(auto pair : pointerLoads) {
+        rewritePointerLoad(pair.first, pair.second);
     }
     for(auto pair : functionReturns) {
         rewriteReturn(pair.first, pair.second);
@@ -936,6 +946,41 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
     ChunkMutator(block).insertAfter(instr, movOffset);
 
     delete i;
+#endif
+}
+
+void UseGSTablePass::rewritePointerLoad(Block *block, Instruction *instr) {
+#ifdef ARCH_X86_64
+    auto semantic = instr->getSemantic();
+    auto i = static_cast<LinkedInstruction *>(semantic);
+    DisasmHandle handle(true);
+
+    auto link = i->getLink();
+    if(!dynamic_cast<NormalLink *>(link)) return;
+
+    auto assembly = i->getAssembly();
+    auto cs_reg = assembly->getAsmOperands()->getOperands()[1].reg;
+    auto reg = X86Register::convertToPhysical(cs_reg);
+
+    Chunk *target = &*link->getTarget();
+    auto gsEntry = gsTable->makeEntryFor(target);
+
+    // mov $ID, %reg
+    std::vector<unsigned char> bin(7);
+    unsigned char rex = 0x48;
+    if(reg >= 8) rex |= 0b0001;
+    bin[0] = rex;
+    bin[1] = 0xc7;
+    unsigned char operand = 0xc0;
+    if(reg >= 8) operand |= (reg - 8);
+    else         operand |= reg;
+    bin[2] = operand;
+    uint32_t tmp = gsEntry->getOffset();
+    std::memcpy(&bin[3], &tmp, 4);
+    auto mov = DisassembleInstruction(handle).instructionSemantic(instr, bin);
+    instr->setSemantic(mov);
+    delete link;
+    delete semantic;
 #endif
 }
 

@@ -40,6 +40,7 @@ private:
     void rewriteJumpTableJump(Block *block, Instruction *instr);
     void rewriteRIPrelativeCall(Block *block, Instruction *instr);
     void rewriteRIPrelativeJump(Block *block, Instruction *instr);
+    void rewritePointerLoad(Block *block, Instruction *instr);
     void rewriteReturn(Block *block, Instruction *instr);
     void overwriteBootArguments();
 };
