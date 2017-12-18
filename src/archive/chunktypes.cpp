@@ -11,6 +11,7 @@ uint8_t encodeChunkType(EgalitoChunkType type) {
         'R',    // TYPE_DataRegionList
         'S',    // TYPE_ExternalSymbolList
         'L',    // TYPE_LibraryList
+        'Q',    // TYPE_VTableList
         'f',    // TYPE_Function
         'b',    // TYPE_Block
         'i',    // TYPE_Instruction
@@ -23,6 +24,8 @@ uint8_t encodeChunkType(EgalitoChunkType type) {
         'v',    // TYPE_DataVariable
         'A',    // TYPE_MarkerList
         'a',    // TYPE_Marker
+        'V',    // TYPE_VTable
+        'p',    // TYPE_VTableEntry
         's',    // TYPE_ExternalSymbol
         'l',    // TYPE_Library
     };
@@ -40,6 +43,7 @@ EgalitoChunkType decodeChunkType(uint8_t encoded) {
     case 'R': return TYPE_DataRegionList;
     case 'S': return TYPE_ExternalSymbolList;
     case 'L': return TYPE_LibraryList;
+    case 'Q': return TYPE_VTableList;
     case 'f': return TYPE_Function;
     case 'b': return TYPE_Block;
     case 'i': return TYPE_Instruction;
@@ -52,6 +56,8 @@ EgalitoChunkType decodeChunkType(uint8_t encoded) {
     case 'v': return TYPE_DataVariable;
     case 'A': return TYPE_MarkerList;
     case 'a': return TYPE_Marker;
+    case 'V': return TYPE_VTable;
+    case 'p': return TYPE_VTableEntry;
     case 's': return TYPE_ExternalSymbol;
     case 'l': return TYPE_Library;
     }
