@@ -74,7 +74,7 @@ public:
 };
 
 class DataRegion : public ChunkSerializerImpl<TYPE_DataRegion,
-    CompositeChunkImpl<DataSection>> {
+    ChildListDecorator<AddressableChunkImpl, DataSection>> {
 private:
     typedef std::vector<DataVariable *> VariableListType;
     VariableListType variableList;
@@ -92,6 +92,7 @@ public:
     virtual size_t getSize() const { return size; }
     const std::string &getDataBytes() const { return dataBytes; }
     size_t getSizeOfInitializedData() const { return dataBytes.length(); }
+    virtual void addToSize(diff_t add) { /* ignored */ }
 
     bool contains(address_t address);
     bool readable() const { return permissions & PF_R; }
