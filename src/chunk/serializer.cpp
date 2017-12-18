@@ -164,6 +164,7 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new JumpTable(); },      // TYPE_JumpTable
         [] () -> Chunk* { return new JumpTableEntry(); }, // TYPE_JumpTableEntry
         [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
+        [] () -> Chunk* { return new TLSDataRegion(); },  // TYPE_TLSDataRegion
         [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
         [] () -> Chunk* { return nullptr; },    // TYPE_MarkerList

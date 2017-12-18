@@ -18,6 +18,7 @@ uint8_t encodeChunkType(EgalitoChunkType type) {
         'J',    // TYPE_JumpTable
         'j',    // TYPE_JumpTableEntry
         'D',    // TYPE_DataRegion
+        ':',    // TYPE_TLSDataRegion
         'd',    // TYPE_DataSection
         'v',    // TYPE_DataVariable
         'A',    // TYPE_MarkerList
@@ -46,6 +47,7 @@ EgalitoChunkType decodeChunkType(uint8_t encoded) {
     case 'J': return TYPE_JumpTable;
     case 'j': return TYPE_JumpTableEntry;
     case 'D': return TYPE_DataRegion;
+    case ':': return TYPE_TLSDataRegion;
     case 'd': return TYPE_DataSection;
     case 'v': return TYPE_DataVariable;
     case 'A': return TYPE_MarkerList;

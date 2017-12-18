@@ -148,7 +148,7 @@ class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
 template <size_t flatType, typename ChunkType>
 class ChunkSerializerImpl : public ChunkType {
 public:
-    virtual size_t getFlatType() const final { return flatType; }
+    virtual size_t getFlatType() const /*final*/ { return flatType; }
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer) = 0;
     virtual bool deserialize(ChunkSerializerOperations &op,

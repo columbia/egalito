@@ -137,6 +137,13 @@ public:
 
     void setTLSOffset(address_t offset) { tlsOffset = offset; }
     address_t getTLSOffset() const { return tlsOffset; }
+
+    virtual size_t getFlatType() const final { return TYPE_TLSDataRegion; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
 };
 
 class DataRegionList : public ChunkSerializerImpl<TYPE_DataRegionList,

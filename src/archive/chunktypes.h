@@ -20,6 +20,7 @@ enum EgalitoChunkType {
     TYPE_JumpTable,
     TYPE_JumpTableEntry,
     TYPE_DataRegion,
+    TYPE_TLSDataRegion,
     TYPE_DataSection,
     TYPE_DataVariable,
     TYPE_MarkerList,

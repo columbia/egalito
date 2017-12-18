@@ -220,6 +220,22 @@ bool TLSDataRegion::containsData(address_t address) {
     return Range(getAddress(), size).contains(address);
 }
 
+void TLSDataRegion::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    DataRegion::serialize(op, writer);
+    writer.write(tlsOffset);
+}
+
+bool TLSDataRegion::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    DataRegion::deserialize(op, reader);
+    reader.readInto(tlsOffset);
+
+    return reader.stillGood();
+}
+
 void DataRegionList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
