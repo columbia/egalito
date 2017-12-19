@@ -11,7 +11,14 @@
 
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
+#define EGALITO_RESERVE_SIZE    (0x10)
+
 address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
+    // reserve 0x10 for special use:
+    // [0]: JIT temporary
+    // [1]: reserved
+    size += EGALITO_RESERVE_SIZE;
+
 #ifdef ARCH_X86_64
     // header is at the end
     address_t tp = tlsBaseAddress + size;
@@ -19,7 +26,8 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // header is at the beginning
     address_t tp = tlsBaseAddress + sizeof(struct my_pthread);
-    if(offset) *offset += sizeof(struct my_pthread);
+    size += sizeof(struct my_pthread);
+    if(offset) *offset += sizeof(struct my_pthread) + EGALITO_RESERVE_SIZE;
 #endif
 
     if(size > 0) {

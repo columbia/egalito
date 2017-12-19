@@ -97,10 +97,12 @@ egalito_hook_jit_fixup:
 #endif
 
     movq    0x50(%rsp), %r11
+    movq    %gs:(%r11), %r11    #
+    movq    %r11, %fs:-0x8      #
 
     pop     %rbx
 
-    pop     %r10    # discard
+    pop     %r11                #
     pop     %r10
     pop     %r9
     pop     %r8
@@ -110,7 +112,8 @@ egalito_hook_jit_fixup:
     pop     %rcx
     pop     %rax
     add     $0x8, %rsp
-    jmpq    *%gs:(%r11) # displacement should be zero
+    #jmpq    *%gs:(%r11) # displacement should be zero
+    jmpq    *%fs:-0x8
 
 in_code:
     movq    %mm1, %rdi  # offset

@@ -2,6 +2,8 @@
 #include <cstring>
 #include "usegstable.h"
 #include "chunk/concrete.h"
+#include "chunk/gstable.h"
+#include "chunk/link.h"
 #include "conductor/conductor.h"
 #include "instr/concrete.h"
 #include "operation/find2.h"
@@ -20,15 +22,14 @@ void UseGSTablePass::visit(Program *program) {
 void UseGSTablePass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(egalito)");
     LOG(1, "UseGSTablePass " << module->getName());
+    recurse(module);
     recurse(module->getDataRegionList());
     if(auto vtableList = module->getVTableList()) {
         recurse(vtableList);
     }
-    recurse(module);
 }
 
 void UseGSTablePass::visit(Function *function) {
-    //TemporaryLogLevel tll("pass", 11, function->hasName("ifunc_resolver"));
     //TemporaryLogLevel tll("pass", 10);
 
     // already use gs
@@ -37,9 +38,11 @@ void UseGSTablePass::visit(Function *function) {
     if(function->hasName("egalito_hook_jit_reset_on_syscall")) return;
 
     recurse(function);
+    convert();
 }
 
 void UseGSTablePass::visit(Block *block) {
+#if 0
     std::vector<Instruction *> pointerLinks;
     for(auto instr : CIter::children(block)) {
         auto semantic = instr->getSemantic();
@@ -57,20 +60,7 @@ void UseGSTablePass::visit(Block *block) {
     for(auto instr : pointerLinks) {
         redirectLinks(instr);
     }
-
-    std::vector<std::pair<Block *, Instruction *>> directCalls;
-    std::vector<std::pair<Block *, Instruction *>> tailRecursions;
-    std::vector<std::pair<Block *, Instruction *>> indirectCalls;
-    std::vector<std::pair<Block *, Instruction *>> indirectTailRecursions;
-
-    std::vector<std::pair<Block *, Instruction *>> jumpTableJumps;
-
-    std::vector<std::pair<Block *, Instruction *>> RIPrelativeCalls;
-    std::vector<std::pair<Block *, Instruction *>> RIPrelativeJumps;
-
-    std::vector<std::pair<Block *, Instruction *>> pointerLoads;
-
-    std::vector<std::pair<Block *, Instruction *>> functionReturns;
+#endif
 
     ChunkDumper d;
     for(auto instr : CIter::children(block)) {
@@ -107,11 +97,19 @@ void UseGSTablePass::visit(Block *block) {
             if(assembly->getId() == X86_INS_CALL) {
                 RIPrelativeCalls.emplace_back(block, instr);
             }
-            if(assembly->getId() == X86_INS_JMP) {
+            else if(assembly->getId() == X86_INS_JMP) {
                 RIPrelativeJumps.emplace_back(block, instr);
             }
-            if(assembly->getId() == X86_INS_LEA) {
+            else if(assembly->getId() == X86_INS_LEA) {
                 pointerLoads.emplace_back(block, instr);
+            }
+            else if(auto link = v->getLink()) {
+                if(dynamic_cast<ExternalNormalLink *>(link)
+                    || dynamic_cast<ExternalOffsetLink *>(link)
+                    || dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
+
+                    pointerLinks.emplace_back(block, instr);
+                }
             }
         }
         if(dynamic_cast<ReturnInstruction *>(semantic)) {
@@ -120,34 +118,53 @@ void UseGSTablePass::visit(Block *block) {
 #endif
         }
     }
+}
 
+void UseGSTablePass::convert() {
     for(auto pair : directCalls) {
         rewriteDirectCall(pair.first, pair.second);
     }
+    directCalls.clear();
     for(auto pair : tailRecursions) {
         rewriteTailRecursion(pair.first, pair.second);
     }
+    tailRecursions.clear();
     for(auto pair : indirectCalls) {
         rewriteIndirectCall(pair.first, pair.second);
     }
+    indirectCalls.clear();
     for(auto pair : indirectTailRecursions) {
         rewriteIndirectTailRecursion(pair.first, pair.second);
     }
+    indirectTailRecursions.clear();
     for(auto pair : jumpTableJumps) {
         rewriteJumpTableJump(pair.first, pair.second);
     }
+    jumpTableJumps.clear();
     for(auto pair : RIPrelativeCalls) {
         rewriteRIPrelativeCall(pair.first, pair.second);
     }
+    RIPrelativeCalls.clear();
     for(auto pair : RIPrelativeJumps) {
         rewriteRIPrelativeJump(pair.first, pair.second);
     }
+    RIPrelativeJumps.clear();
     for(auto pair : pointerLoads) {
         rewritePointerLoad(pair.first, pair.second);
     }
+    pointerLoads.clear();
+    for(auto pair : pointerLinks) {
+        ChunkDumper d;
+        LOG(1, "pointerLinks");
+        pair.second->accept(&d);
+        std::cout.flush();
+        assert(0);
+    }
+    pointerLinks.clear();
     for(auto pair : functionReturns) {
         rewriteReturn(pair.first, pair.second);
     }
+    functionReturns.clear();
 }
 
 void UseGSTablePass::redirectEgalitoFunctionPointers() {
@@ -273,7 +290,6 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
         ChunkDumper d;
         instr->accept(&d);
     }
-
     auto i = static_cast<ControlFlowInstruction *>(instr->getSemantic());
     if(!i->getLink()) return;
 
@@ -301,13 +317,63 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
 
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
-    delete i;
 
     // movd offset = 0x4(%rip), %mm1
     auto movOffset = DisassembleInstruction(handle).instruction(
         std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
 
-    ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
+    Instruction *jcc = nullptr;
+    if(i->getMnemonic() != "jmp") {
+        jcc = new Instruction();
+        ControlFlowInstruction *cfi = nullptr;
+        // source instruction must be 'instr', because of
+        // insertBeforeJumpTo() used below
+        if(i->getMnemonic() == "ja") {          // opposite: jna == jbe
+            cfi = new ControlFlowInstruction(
+                X86_INS_JBE, instr, "\x0f\x86", "jbe", 4);
+        }
+        else if(i->getMnemonic() == "jae") {    // opposite: jnae == jb
+            cfi = new ControlFlowInstruction(
+                X86_INS_JB, instr, "\x0f\x82", "jb", 4);
+        }
+        else if(i->getMnemonic() == "jb") {     // opposite: jnb == jae
+            cfi = new ControlFlowInstruction(
+                X86_INS_JAE, instr, "\x0f\x83", "jae", 4);
+        }
+        else if(i->getMnemonic() == "je") {     // opposite: jne
+            cfi = new ControlFlowInstruction(
+                X86_INS_JNE, instr, "\x0f\x85", "jne", 4);
+        }
+        else if(i->getMnemonic() == "jne") {    // opposite: je
+            cfi = new ControlFlowInstruction(
+                X86_INS_JE, instr, "\x0f\x84", "je", 4);
+        }
+        else {
+            LOG(0, "WARNING: conditional jump? " << i->getMnemonic()
+                << " at " << std::hex << instr->getAddress());
+            assert(0);
+        }
+        assert(!movOffset->getNextSibling());
+        auto next = block->getNextSibling();
+        auto nextI = *next->getChildren()->genericIterable().begin();
+        assert(nextI);
+        cfi->setLink(new NormalLink(nextI));
+        jcc->setSemantic(cfi);
+    }
+
+    if(jcc) {
+        ChunkMutator(block).insertBeforeJumpTo(instr, jcc);
+        ChunkMutator(block).removeLast();
+        auto block2 = new Block();
+        ChunkMutator(block2).append(movOffset);
+        ChunkMutator(block2).append(jcc);
+        ChunkMutator(block->getParent()).insertAfter(block, block2);
+    }
+    else {
+        ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
+    }
+
+    delete i;
 #endif
 }
 
@@ -333,7 +399,7 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
     // jmpq *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
-    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmp");
     semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
@@ -566,7 +632,7 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block,
     // jmpq  *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
-    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmp");
     semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
@@ -687,12 +753,27 @@ void UseGSTablePass::rewriteJumpTableJump(Block *block, Instruction *instr) {
         }
     }
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
-    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmpq");
+    auto semantic = new IndirectJumpInstruction(i->getRegister(), "jmp");
     semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
         semantic->getSize() - i->getSize());
     delete i;
+
+    // movq %reg, %mm1
+    std::vector<unsigned char> bin2;
+    unsigned char rex = 0x48;
+    if(reg >= 8) rex |= 0b0001;
+    bin2.push_back(rex);
+    bin2.push_back(0x0f);
+    bin2.push_back(0x6e);
+    unsigned char operand = 0xc8;
+    if(reg >= 8) operand |= reg - 8;
+    else         operand |= reg;
+    bin2.push_back(operand);
+
+    auto movOffset = DisassembleInstruction(handle).instruction(bin2);
+    ChunkMutator(block).insertBeforeJumpTo(instr, movOffset);
 #endif
 }
 
@@ -710,7 +791,9 @@ void UseGSTablePass::visit(DataRegion *dataRegion) {
 void UseGSTablePass::visit(PLTTrampoline *trampoline) {
     // expects CollapsePLTPass
     if(trampoline->isIFunc()) {
+        LOG(1, "converting ifunc plt");
         recurse(trampoline);
+        convert();
     }
 }
 
@@ -817,7 +900,7 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
     // jmpq *%gs:(%r11)
     std::vector<unsigned char> bin{0x65, 0x41, 0xff, 0x23};
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
-    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmpq");
+    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmp");
     semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,
@@ -1023,7 +1106,7 @@ void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
     // jmpq *%r11
     std::vector<unsigned char> bin{0x41, 0xff, 0xe3};
     auto assembly = DisassembleInstruction(handle).makeAssemblyPtr(bin);
-    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmpq");
+    auto semantic = new IndirectJumpInstruction(X86_REG_R11, "jmp");
     semantic->setAssembly(assembly);
     instr->setSemantic(semantic);
     ChunkMutator(block).modifiedChildSize(instr,

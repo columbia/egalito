@@ -1,11 +1,10 @@
 #ifndef EGALITO_PASS_USE_GS_TABLE_H
 #define EGALITO_PASS_USE_GS_TABLE_H
 
-#include <map>
+#include <vector>
 #include "chunkpass.h"
-#include "chunk/link.h"
-#include "chunk/gstable.h"
 
+class GSTable;
 class IFuncList;
 
 #define REWRITE_RA  1
@@ -15,6 +14,21 @@ private:
     Conductor *conductor;
     GSTable *gsTable;
     IFuncList *ifuncList;
+
+    std::vector<std::pair<Block *, Instruction *>> directCalls;
+    std::vector<std::pair<Block *, Instruction *>> tailRecursions;
+    std::vector<std::pair<Block *, Instruction *>> indirectCalls;
+    std::vector<std::pair<Block *, Instruction *>> indirectTailRecursions;
+
+    std::vector<std::pair<Block *, Instruction *>> jumpTableJumps;
+
+    std::vector<std::pair<Block *, Instruction *>> RIPrelativeCalls;
+    std::vector<std::pair<Block *, Instruction *>> RIPrelativeJumps;
+
+    std::vector<std::pair<Block *, Instruction *>> pointerLoads;
+    std::vector<std::pair<Block *, Instruction *>> pointerLinks;
+
+    std::vector<std::pair<Block *, Instruction *>> functionReturns;
 public:
     UseGSTablePass(Conductor *conductor, GSTable *gsTable, IFuncList *ifuncList)
         : conductor(conductor), gsTable(gsTable), ifuncList(ifuncList) {}
@@ -30,6 +44,7 @@ private:
     virtual void visit(VTable *vtable);
     virtual void visit(VTableEntry *vtableEntry);
 
+    void convert();
     void redirectEgalitoFunctionPointers();
     void redirectLinks(Instruction *instr);
     void redirectFunctionPointerLinks(DataVariable *var);

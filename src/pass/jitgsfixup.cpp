@@ -34,7 +34,7 @@ size_t egalito_jit_gs_fixup(size_t offset) {
         if(dynamic_cast<Instruction *>(target)) {
             targetFunction = dynamic_cast<Function *>(
                 target->getParent()->getParent());
-            targetChunk = targetFunction;
+            //targetChunk = targetFunction;
         }
         else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
             targetTrampoline = trampoline;
@@ -48,6 +48,9 @@ size_t egalito_jit_gs_fixup(size_t offset) {
             while(1);
         }
     }
+
+    // instantiate does not set resolver to nullptr, so resolved() does not
+    // work
 
     if(targetChunk) {
         auto flip = egalito_conductor_setup->getSandboxFlip();
@@ -63,6 +66,9 @@ size_t egalito_jit_gs_fixup(size_t offset) {
             egalito_printf("%lx\n", targetTrampoline->getAddress());
         }
         sandbox->finalize();
+    }
+    else {
+        egalito_printf("    not jitting\n");
     }
 
     ManageGS::setEntry(egalito_gsTable, index, target->getAddress());

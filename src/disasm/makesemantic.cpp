@@ -27,8 +27,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             unsigned long imm = op->imm;
             auto cfi = new ControlFlowInstruction(
                 ins->id, instruction,
-                std::string((char *)ins->bytes,
-                ins->size - 4),
+                std::string((char *)ins->bytes, ins->size - 4),
                 ins->mnemonic,
                 4);
             cfi->setLink(new UnresolvedLink(imm));
