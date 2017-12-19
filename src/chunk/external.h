@@ -17,13 +17,15 @@ private:
     std::string name;
     Symbol::SymbolType type;
     Symbol::BindingType bind;
+    const SymbolVersion *version;
     Chunk *resolved;
     Module *resolvedModule;
 public:
     ExternalSymbol() : type(Symbol::TYPE_UNKNOWN), bind(Symbol::BIND_LOCAL),
-        resolved(nullptr), resolvedModule(nullptr) {}
+        version(nullptr), resolved(nullptr), resolvedModule(nullptr) {}
     ExternalSymbol(const std::string &name, Symbol::SymbolType type,
-        Symbol::BindingType bind) : name(name), type(type), bind(bind),
+        Symbol::BindingType bind, const SymbolVersion *version)
+        : name(name), type(type), bind(bind), version(version),
         resolved(nullptr), resolvedModule(nullptr) {}
 
     std::string getName() const { return name; }
@@ -34,6 +36,7 @@ public:
 
     Symbol::SymbolType getType() const { return type; }
     Symbol::BindingType getBind() const { return bind; }
+    const SymbolVersion *getVersion() const { return version; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
@@ -62,7 +65,8 @@ public:
 
     ExternalSymbol *makeExternalSymbol(Symbol *symbol);
     ExternalSymbol *makeExternalSymbol(const std::string &name,
-        Symbol::SymbolType type, Symbol::BindingType bind, Chunk *resolved);
+        Symbol::SymbolType type, Symbol::BindingType bind,
+        const SymbolVersion *version, Chunk *resolved);
 
     void resolveAllSymbols(Program *program);
     static void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);

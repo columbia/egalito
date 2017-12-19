@@ -49,12 +49,12 @@ void ExternalSymbolList::accept(ChunkVisitor *visitor) {
 
 ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(Symbol *symbol) {
     return makeExternalSymbol(symbol->getName(),
-        symbol->getType(), symbol->getBind(), nullptr);
+        symbol->getType(), symbol->getBind(), symbol->getVersion(), nullptr);
 }
 
 ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(
     const std::string &name, Symbol::SymbolType type, Symbol::BindingType bind,
-    Chunk *resolved) {
+    const SymbolVersion *version, Chunk *resolved) {
 
     auto symbolList = makeExternalSymbolList();
     // !!! linear search
@@ -66,7 +66,7 @@ ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(
         }
     }
 
-    auto xSymbol = new ExternalSymbol(name, type, bind);
+    auto xSymbol = new ExternalSymbol(name, type, bind, version);
     xSymbol->setResolved(resolved);
     symbolList->getChildren()->add(xSymbol);
     return xSymbol;
