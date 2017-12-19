@@ -90,7 +90,11 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             auto found = CIter::spatial(module->getFunctionList())
                 ->find(target);
             if(found) {
-                dispLink = new ExternalNormalLink(found);
+                if(found == instruction->getParent()->getParent()) {
+                    dispLink = new NormalLink(found);
+                } else {
+                    dispLink = new ExternalNormalLink(found);
+                }
             }
             else {
                 dispLink = LinkFactory::makeDataLink(module, target, true);

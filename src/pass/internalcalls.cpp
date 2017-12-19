@@ -29,7 +29,9 @@ void InternalCalls::visit(Instruction *instruction) {
     // Common case for call instructions: point at another function
     if(!found) {
         found = functionList->getChildren()->getSpatial()->find(targetAddress);
-        if(found) isExternal = true;
+        if(found && found != instruction->getParent()->getParent()) {
+            isExternal = true;
+        }
     }
     // Common case for jumps: internal jump elsewhere within function
     if(!found) {
@@ -70,7 +72,9 @@ void InternalCalls::visit(Instruction *instruction) {
             if(found) break;
         }
 #endif
-        if(found) isExternal = true;
+        if(found && found != instruction->getParent()->getParent()) {
+            isExternal = true;
+        }
     }
 
     if(found) {
