@@ -3,6 +3,21 @@
 #include "operation/mutator.h"
 #include "instr/concrete.h"
 #include "log/log.h"
+#include "log/temp.h"
+#include "chunk/dump.h"
+
+void PromoteJumpsPass::visit(Function *function) {
+    TemporaryLogLevel tll("pass", 11, function->hasName("ngx_http_rewrite_merge_loc_conf"));
+    changed = false;
+    recurse(function);
+    while(changed) {
+        changed = false;
+        recurse(function);
+    }
+
+    ChunkDumper d;
+    IF_LOG(11) function->accept(&d);
+}
 
 void PromoteJumpsPass::visit(Instruction *instruction) {
 #ifdef ARCH_X86_64
@@ -32,6 +47,7 @@ void PromoteJumpsPass::visit(Instruction *instruction) {
 }
 
 void PromoteJumpsPass::promote(Instruction *instruction) {
+    changed = true;
 #ifdef ARCH_X86_64
     LOG(10, "promote jump instruction " << instruction->getName());
     auto v = dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());

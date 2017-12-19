@@ -5,7 +5,10 @@
 
 /** This whole pass is x86_64-specific. */
 class PromoteJumpsPass : public ChunkPass {
+private:
+    bool changed;
 public:
+    virtual void visit(Function *function);
     virtual void visit(Instruction *instruction);
 
     template <typename NarrowType>
