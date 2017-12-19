@@ -158,19 +158,32 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
 }
 
 Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
-    Conductor *conductor, ElfSpace *elfSpace, bool afterMapping) {
+    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping) {
 
-    if(!symbol) return nullptr;
+    return resolveExternally2(symbol->getName(), symbol->getVersion(),
+        conductor, elfSpace, weak, afterMapping);
+}
 
-    const char *name = symbol->getName();
-    LOG(10, "(resolveExternally) SEARCH for " << name);
+Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
+    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping) {
+
+    return resolveExternally2(externalSymbol->getName().c_str(),
+        externalSymbol->getVersion(), conductor, elfSpace, weak,
+        afterMapping);
+}
+
+Link *PerfectLinkResolver::resolveExternally2(const char *name,
+    const SymbolVersion *version, Conductor *conductor, ElfSpace *elfSpace,
+    bool weak, bool afterMapping) {
+
+    LOG(10, "(resolveExternally) SEARCH for " << name << ", weak? " << weak);
 
     std::string versionedName;
-    if(auto ver = symbol->getVersion()) {
+    if(version) {
         versionedName.append(name);
         versionedName.push_back('@');
-        if(!ver->isHidden()) versionedName.push_back('@');
-        versionedName.append(ver->getName());
+        if(!version->isHidden()) versionedName.push_back('@');
+        versionedName.append(version->getName());
     }
 
     if(auto func = LoaderEmulator::getInstance().findFunction(name)) {
@@ -184,30 +197,74 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
         return link;
     }
 
+    auto dependencies = elfSpace->getModule()->getLibrary()->getDependencies();
     for(auto module : CIter::modules(conductor->getProgram())) {
+        if(dependencies.find(module->getLibrary()) == dependencies.end()) {
+            continue;
+        }
         auto space = module->getElfSpace();
         if(space && space != elfSpace) {
-            if(auto link = resolveNameAsLinkHelper(name, space, afterMapping)) {
-                return link;
-            }
-            else if(versionedName.size() > 0) {
-                if(auto link = resolveNameAsLinkHelper(versionedName.c_str(),
-                    space, afterMapping)) {
+            if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+                space, weak, afterMapping)) {
 
-                    return link;
-                }
+                return link;
             }
         }
     }
 
-    // this should only happen for functions in a shared library which aren't
-    // pulled in.
+    // weak definition
+    if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(), elfSpace,
+        weak, afterMapping)) {
+
+        LOG(10, "    link to weak definition in "
+            << elfSpace->getModule()->getName());
+        return link;
+    }
+
+    // weak reference
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto space = module->getElfSpace();
+        if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+            space, weak, afterMapping)) {
+
+            LOG(10, "    link (weak) to definition in "
+                << space->getModule()->getName());
+            return link;
+        }
+    }
+
+    // this should only happen for functions in a missing shared library
     LOG(9, "NOT FOUND: failed to make link to " << name);
     return nullptr;
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
-    ElfSpace *space, bool afterMapping) {
+    const char *versionedName, ElfSpace *space, bool weak, bool afterMapping) {
+
+    if(auto link = resolveNameAsLinkHelper2(name, space, weak, afterMapping)) {
+        return link;
+    }
+    if(!versionedName) return nullptr;
+    return resolveNameAsLinkHelper2(versionedName, space, weak, afterMapping);
+}
+
+Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
+    ElfSpace *space, bool weak, bool afterMapping) {
+
+    Symbol *symbol = nullptr;
+    auto list = space->getDynamicSymbolList();
+    if(!list) {
+        LOG(11, "no dynamic symbol list " << space->getModule()->getName());
+        return nullptr;
+    }
+    symbol = list->find(name);
+    if(!symbol) {
+        LOG(11, "no symbol " << space->getModule()->getName());
+        return nullptr;
+    }
+    if(!weak) {
+        if(symbol->getBind() == Symbol::BIND_WEAK) return nullptr;
+    }
 
     auto f = CIter::named(space->getModule()->getFunctionList())
         ->find(name);
@@ -224,28 +281,24 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
         return new NormalLink(alias);
     }
 
-    if(auto list = space->getDynamicSymbolList()) {
-        if(auto symbol = list->find(name)) {
-            if(symbol->isMarker()) {
-                return LinkFactory::makeMarkerLink(space->getModule(),
-                    space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-                    symbol);
-            }
-            if(symbol->getAddress() > 0
-                && symbol->getType() != Symbol::TYPE_FUNC
-                && symbol->getType() != Symbol::TYPE_IFUNC) {
+    if(symbol->isMarker()) {
+        return LinkFactory::makeMarkerLink(space->getModule(),
+            space->getElfMap()->getBaseAddress() + symbol->getAddress(),
+            symbol);
+    }
+    if(symbol->getAddress() > 0
+        && symbol->getType() != Symbol::TYPE_FUNC
+        && symbol->getType() != Symbol::TYPE_IFUNC) {
 
-                LOG(10, "    ...found as data ref! at "
-                    << std::hex << symbol->getAddress() << " in "
-                    << space->getModule()->getName());
-                auto address = symbol->getAddress();
-                if(afterMapping) {
-                    address += space->getElfMap()->getBaseAddress();
-                }
-                return LinkFactory::makeDataLink(space->getModule(),
-                    address, true);
-            }
+        LOG(10, "    ...found as data ref! at "
+            << std::hex << symbol->getAddress() << " in "
+            << space->getModule()->getName());
+        auto address = symbol->getAddress();
+        if(afterMapping) {
+            address += space->getElfMap()->getBaseAddress();
         }
+        return LinkFactory::makeDataLink(space->getModule(),
+            address, true);
     }
 
     return nullptr;

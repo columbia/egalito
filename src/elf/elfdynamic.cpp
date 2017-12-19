@@ -173,7 +173,8 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     }
 
     // don't process this library again if already done
-    if(libraryList->find(filename)) {
+    if(auto library = libraryList->find(filename)) {
+        depend->addDependency(library);
         return;
     }
 
@@ -183,6 +184,8 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     auto library = new Library(filename, Library::guessRole(filename));
     library->setResolvedPath(fullPath);
     libraryList->add(library);
+
+    depend->addDependency(library);
 
     LOG(2, "    added new library [" << filename << "]");
 }

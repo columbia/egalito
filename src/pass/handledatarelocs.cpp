@@ -115,8 +115,8 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     if(std::strcmp(symbol->getName(), "") != 0) {
         if(weak || symbol->getBind() != Symbol::BIND_WEAK) {
             auto link = PerfectLinkResolver().resolveExternally(
-                symbol, conductor, module->getElfSpace());
-            if(reloc->getAddend() > 0) {
+                symbol, conductor, module->getElfSpace(), weak);
+            if(link && reloc->getAddend() > 0) {
                 if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
                     dlink->setAddend(reloc->getAddend());
                 }

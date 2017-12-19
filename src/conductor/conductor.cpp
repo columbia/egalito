@@ -112,7 +112,7 @@ void Conductor::parseEgalitoArchive(const char *archive) {
 }
 
 void Conductor::resolvePLTLinks() {
-    ResolvePLTPass resolvePLT(program);
+    ResolvePLTPass resolvePLT(this);
     program->accept(&resolvePLT);
 
     if(program->getEgalito()) {
@@ -127,9 +127,6 @@ void Conductor::resolveTLSLinks() {
 }
 
 void Conductor::resolveWeak() {
-    //TemporaryLogLevel tll("conductor", 10);
-    //TemporaryLogLevel tll2("chunk", 10);
-
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();
 
@@ -138,21 +135,20 @@ void Conductor::resolveWeak() {
             module->accept(&bridge);
         }
 
-        // theoretically this should be three passes, but in practice?
-        LOG(10, "[[[1 HandleRelocsWeak]]]" << module->getName());
+        LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(
             space->getElfMap(), space->getRelocList());
         module->accept(&handleRelocsPass);
 
-        LOG(10, "[[[2 HandleDataRelocsExternalStrong]]]" << module->getName());
+        LOG(10, "[[[2 HandleDataRelocsExternalStrong]]] " << module->getName());
         HandleDataRelocsExternalStrong pass1(space->getRelocList(), this);
         module->accept(&pass1);
 
-        LOG(10, "[[[3 HandleDataRelocsInternalWeak]]]" << module->getName());
+        LOG(10, "[[[3 HandleDataRelocsInternalWeak]]] " << module->getName());
         HandleDataRelocsInternalWeak pass2(space->getRelocList());
         module->accept(&pass2);
 
-        LOG(10, "[[[4 HandleDataRelocsExternalWeak]]]" << module->getName());
+        LOG(10, "[[[4 HandleDataRelocsExternalWeak]]] " << module->getName());
         HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
         module->accept(&pass3);
     }

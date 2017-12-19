@@ -258,6 +258,8 @@ class Reloc;
 class Instruction;
 class Conductor;
 class ElfSpace;
+class ExternalSymbol;
+class SymbolVersion;
 
 /** This resolver assumes that we have both relocations and symbols.
  */
@@ -265,20 +267,26 @@ class PerfectLinkResolver {
 public:
     /* Resolve within the same module using address info in a relocation.
      * Only returns nullptr if undefined within the module. */
-    virtual Link *resolveInternally(Reloc *reloc, Module *module, bool weak);
+    Link *resolveInternally(Reloc *reloc, Module *module, bool weak);
 
     /* Resolve outside the module using symbol info. */
-    virtual Link *resolveExternally(Symbol *symbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool afterMapping=false);
+    Link *resolveExternally(Symbol *symbol, Conductor *conductor,
+        ElfSpace *elfSpace, bool weak, bool afterMapping=false);
+    Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
+        ElfSpace *elfSpace, bool weak, bool afterMapping=false);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
-    virtual Link *resolveInferred(address_t address, Instruction *instruction,
+    Link *resolveInferred(address_t address, Instruction *instruction,
         Module *module);
 
 private:
-    Link *resolveNameAsLinkHelper(const char *name, ElfSpace *space,
-        bool afterMapping);
+    Link *resolveExternally2(const char *name, const SymbolVersion *version,
+        Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping);
+    Link *resolveNameAsLinkHelper(const char *name, const char *versionedName,
+        ElfSpace *space, bool weak, bool afterMapping);
+    Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
+        bool weak, bool afterMapping);
 };
 
 #endif

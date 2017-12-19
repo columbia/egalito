@@ -32,6 +32,7 @@ private:
     Role role;
     Module *module;
     std::string resolvedPath;
+    std::set<Library *> dependencies;
 public:
     Library() : role(ROLE_UNKNOWN), module(nullptr) {}
     Library(const std::string &name, Role role) : name(name), role(role),
@@ -52,6 +53,9 @@ public:
     const std::string &getResolvedPath() const { return resolvedPath; }
     const char *getResolvedPathCStr() const { return resolvedPath.c_str(); }
     void setResolvedPath(const std::string &path) { resolvedPath = path; }
+
+    const std::set<Library *> getDependencies() { return dependencies; }
+    void addDependency(Library *library) { dependencies.insert(library); }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

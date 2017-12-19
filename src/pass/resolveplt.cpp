@@ -5,8 +5,11 @@
 #include "operation/find2.h"
 
 #include "log/log.h"
+#include "log/temp.h"
 
 void ResolvePLTPass::visit(Module *module) {
+    LOG(1, "resolving PLT for " << module->getName());
+    TemporaryLogLevel tll("chunk", 10);
     this->module = module;
     recurse(module);
 }
@@ -19,22 +22,33 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     if(pltTrampoline->getTarget()) return;  // already resolved
 
     auto symbol = pltTrampoline->getExternalSymbol();
-    auto found = ChunkFind2(program).findFunction(
-        symbol->getName().c_str(), module);
-
-    if(!found) {
-        found = LoaderEmulator::getInstance().findFunction(symbol->getName());
+    auto link = PerfectLinkResolver().resolveExternally(symbol, conductor,
+        module->getElfSpace(), false);
+    if(!link) {
+        link = PerfectLinkResolver().resolveExternally(symbol, conductor,
+            module->getElfSpace(), true);
     }
-    if(found) {
-        symbol->setResolved(found);
+    Chunk *target = nullptr;
+    if(link) {
+        target = link->getTarget();
+        delete link;
+    }
 
-        if(found->getParent()) {
+    if(!target) {
+        target = LoaderEmulator::getInstance().findFunction(symbol->getName());
+    }
+    if(target) {
+        LOG(1, "PLT to " << symbol->getName() << " resolved to " <<
+            target->getName() << " in " << target->getParent()->getParent()->getName());
+        symbol->setResolved(target);
+
+        if(target->getParent()) {
             symbol->setResolvedModule(dynamic_cast<Module *>(
-                found->getParent()->getParent()));
+                target->getParent()->getParent()));
         }
     }
     else {
-        LOG(12, "unresolved pltTrampoline target "
+        LOG(1, "unresolved pltTrampoline target "
             << symbol->getName() << " unused?");
     }
 }
