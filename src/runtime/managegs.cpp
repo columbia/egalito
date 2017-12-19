@@ -35,12 +35,21 @@ void ManageGS::init(GSTable *gsTable) {
 
     address_t *array = static_cast<address_t *>(buffer);
     for(auto entry : CIter::children(gsTable)) {
-        LOG(1, "    gs@[" << std::dec << entry->getIndex() << "] -> "
-            << std::hex << entry->getTarget()->getAddress()
-            << " = " << entry->getTarget()->getName()
+        LOG0(1, "    gs@[" << std::dec << entry->getIndex() << "] -> "
+            << entry->getTarget()->getName()
             << " -> "
             << std::hex << entry->getRealTarget()->getAddress()
             << " = " << entry->getRealTarget()->getName());
+        bool b = false;
+        if(auto p = entry->getRealTarget()->getParent()) {
+            if(auto pp = p->getParent()) {
+                LOG(1, " in " << pp->getName());
+                b = true;
+            }
+        }
+        if(!b) {
+            LOG(1, "");
+        }
         array[entry->getIndex()] = entry->getTarget()->getAddress();
     }
 
