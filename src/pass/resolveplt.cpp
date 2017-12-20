@@ -37,7 +37,7 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
         target = LoaderEmulator::getInstance().findFunction(symbol->getName());
     }
     if(target) {
-        LOG(1, "PLT to " << symbol->getName() << " resolved to " <<
+        LOG(10, "PLT to " << symbol->getName() << " resolved to " <<
             target->getName() << " in " << target->getParent()->getParent()->getName());
         symbol->setResolved(target);
 

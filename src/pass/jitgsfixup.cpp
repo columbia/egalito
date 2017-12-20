@@ -137,10 +137,10 @@ void JitGSFixup::visit(Program *program) {
         entry->setLazyResolver(callback);
     }
 
-    addResetCall();
+    addResetCalls();
 }
 
-void JitGSFixup::addResetCall() {
+void JitGSFixup::addResetCalls() {
     auto lib = conductor->getProgram()->getEgalito();
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
 
@@ -152,20 +152,26 @@ void JitGSFixup::addResetCall() {
         throw "JitGSFixup can't find hook function";
     }
 
-    auto libc = conductor->getProgram()->getLibc();
-    if(!libc) throw "JitGSFixup requires libc.so to do continuous shuffling";
-
-    auto write = ChunkFind2(conductor).findFunctionInModule(
-        "__write", libc);
-    if(!write) {
-        throw "JitGSFixup can't find write function";
+    if(auto libc = conductor->getProgram()->getLibc()) {
+        addResetCall("write", libc, reset);
     }
 
+    if(auto libpthread = conductor->getProgram()->getLibraryList()
+        ->find("libpthread.so.0")) {
+
+        addResetCall("write", libpthread->getModule(), reset);
+    }
+}
+
+void JitGSFixup::addResetCall(const char *name, Module *module, Chunk *reset) {
 #ifdef ARCH_X86_64
+    auto function = ChunkFind2(conductor).findFunctionInModule(name, module);
+    if(!function) return;
+
     Block *block = nullptr;
     Instruction *instr = nullptr;
     bool next = false;
-    for(auto b : CIter::children(write)) {
+    for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
             if(next) {
                 block = b;

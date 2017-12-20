@@ -5,6 +5,7 @@
 
 class Conductor;
 class GSTable;
+class Module;
 
 class JitGSFixup : public ChunkPass {
 private:
@@ -16,7 +17,8 @@ public:
 
     virtual void visit(Program *program);
 private:
-    void addResetCall();
+    void addResetCalls();
+    void addResetCall(const char *name, Module *module, Chunk *reset);
 };
 
 #endif
