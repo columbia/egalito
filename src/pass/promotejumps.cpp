@@ -7,7 +7,6 @@
 #include "chunk/dump.h"
 
 void PromoteJumpsPass::visit(Function *function) {
-    TemporaryLogLevel tll("pass", 11, function->hasName("ngx_http_rewrite_merge_loc_conf"));
     changed = false;
     recurse(function);
     while(changed) {

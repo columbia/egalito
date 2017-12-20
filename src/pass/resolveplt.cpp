@@ -9,7 +9,6 @@
 
 void ResolvePLTPass::visit(Module *module) {
     LOG(1, "resolving PLT for " << module->getName());
-    TemporaryLogLevel tll("chunk", 10);
     this->module = module;
     recurse(module);
 }
