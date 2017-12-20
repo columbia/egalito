@@ -157,6 +157,7 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new DataRegionList(); }, // TYPE_DataRegionList
         [] () -> Chunk* { return new ExternalSymbolList(); }, // TYPE_ExternalSymbolList
         [] () -> Chunk* { return new LibraryList(); },    // TYPE_LibraryList
+        [] () -> Chunk* { return new VTableList(); },     // TYPE_VTableList
         [] () -> Chunk* { return new Function(); },       // TYPE_Function
         [] () -> Chunk* { return new Block(); },          // TYPE_Block
         [] () -> Chunk* { return new Instruction(); },    // TYPE_Instruction
@@ -164,10 +165,13 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
         [] () -> Chunk* { return new JumpTable(); },      // TYPE_JumpTable
         [] () -> Chunk* { return new JumpTableEntry(); }, // TYPE_JumpTableEntry
         [] () -> Chunk* { return new DataRegion(); },     // TYPE_DataRegion
+        [] () -> Chunk* { return new TLSDataRegion(); },  // TYPE_TLSDataRegion
         [] () -> Chunk* { return new DataSection(); },    // TYPE_DataSection
         [] () -> Chunk* { return new DataVariable(); },   // TYPE_DataVariable
         [] () -> Chunk* { return nullptr; },    // TYPE_MarkerList
         [] () -> Chunk* { return nullptr; },    // TYPE_Marker
+        [] () -> Chunk* { return new VTable(); },         // TYPE_VTable
+        [] () -> Chunk* { return new VTableEntry(); },    // TYPE_VTableEntry
         [] () -> Chunk* { return new ExternalSymbol(); }, // TYPE_ExternalSymbol
         [] () -> Chunk* { return new Library(); },        // TYPE_Library
     };

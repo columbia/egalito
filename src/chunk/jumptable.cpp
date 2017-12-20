@@ -1,6 +1,7 @@
 #include <cassert>
 #include "jumptable.h"
 #include "serializer.h"
+#include "position.h"
 #include "visitor.h"
 #include "analysis/jumptable.h"
 #include "instr/concrete.h"
@@ -11,6 +12,8 @@
 void JumpTableEntry::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    writer.write(getAddress());
+
     // we may not write anything if the Link is null
     if(link) {
         LinkSerializer(op).serialize(link, writer);
@@ -19,6 +22,9 @@ void JumpTableEntry::serialize(ChunkSerializerOperations &op,
 
 bool JumpTableEntry::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
+
+    setPosition(PositionFactory::getInstance()
+        ->makeAbsolutePosition(reader.read<address_t>()));
 
     link = LinkSerializer(op).deserialize(reader);
 

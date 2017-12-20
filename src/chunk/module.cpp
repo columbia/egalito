@@ -40,6 +40,9 @@ void Module::serialize(ChunkSerializerOperations &op,
     auto dataRegionListID = op.serialize(getDataRegionList());
     writer.write(dataRegionListID);
 
+    auto vtableListID = getVTableList() ? op.serialize(getVTableList()) : FlatChunk::NoneID;
+    writer.write(vtableListID);
+
     auto externalSymbolListID = op.serialize(getExternalSymbolList());
     writer.write(externalSymbolListID);
 }
@@ -81,6 +84,15 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         if(dataRegionList) {
             getChildren()->add(dataRegionList);
             setDataRegionList(dataRegionList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto vtableList = op.lookupAs<VTableList>(id);
+        if(vtableList) {
+            getChildren()->add(vtableList);
+            setVTableList(vtableList);
         }
     }
 

@@ -4,8 +4,10 @@
 #include <string>
 #include "chunk.h"
 #include "chunklist.h"
+#include "archive/chunktypes.h"
 
-class VTableEntry : public AddressableChunkImpl {
+class VTableEntry : public ChunkSerializerImpl<TYPE_VTableEntry,
+    AddressableChunkImpl> {
 private:
     Link *link;
 public:
@@ -14,10 +16,16 @@ public:
     Link *getLink() const { return link; }
     void setLink(Link *link) { this->link = link; }
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class VTable : public CompositeChunkImpl<VTableEntry> {
+class VTable : public ChunkSerializerImpl<TYPE_VTable,
+    CompositeChunkImpl<VTableEntry>> {
 private:
     std::string className;
 public:
@@ -28,13 +36,25 @@ public:
 
     void setClassName(const std::string &name) { className = name; }
 
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class VTableList : public CollectionChunkImpl<VTable> {
+class VTableList : public ChunkSerializerImpl<TYPE_VTableList,
+    CollectionChunkImpl<VTable>> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
     virtual void accept(ChunkVisitor *visitor);
 };
 
