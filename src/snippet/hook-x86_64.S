@@ -57,8 +57,7 @@ egalito_hook_instruction:
 
    .global egalito_hook_jit_fixup
 egalito_hook_jit_fixup:
-    # mm1 = gstable offset
-    sub     $0x8, %rsp
+    /* mm1 = gstable offset */
     push    %rax
     push    %rcx
     push    %rdx
@@ -68,8 +67,25 @@ egalito_hook_jit_fixup:
     push    %r9
     push    %r10
     push    %r11
+    /*
+     for jump table jumps, we may need to save xmm registes as well
+     if so, do the same in egalito_hook_jit_fixup_return
+    */
+
+    push    %rsp
+    /*
+     we can't assume 0x10 alignment of SP for jump table jumps
+     it must end with 8 on entry of a function
+    */
+    test    $0xF, %rsp
+    jne     2f
+    pop     %r11
+    sub     $0x10, %rsp
+    mov     %r11, (%rsp)
+2:
+
 #if 1
-    # this guards resetting inside egalito_printf
+    /* this guards resetting inside egalito_printf */
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     cmpb    $0x0, (%rax)
     jne     in_code
@@ -81,28 +97,25 @@ egalito_hook_jit_fixup:
 
     mov     egalito_jit_gs_fixup@gotpcrel(%rip), %rax
     movq    %mm1, %rdi
-    movq    %rdi, 0x50(%rsp)
+    movq    %rdi, %fs:-0x10
 
-#if 1   //REWRITE_RA == 1
-    pushq   $0x0                # !!! special entry
+    pushq   $0x0                /* !!! special entry */
     movl    $(1f-egalito_hook_jit_fixup), 0x4(%rsp)
     jmpq    *%gs:(%rax)
 1:
-#else
-    callq   *%gs:(%rax)
-#endif
 
 #if 1
     movb    $0x0, (%rbx)
 #endif
 
-    movq    0x50(%rsp), %r11
-    movq    %gs:(%r11), %r11    #
-    movq    %r11, %fs:-0x8      #
+    movq    %fs:-0x10, %r11
+    movq    %gs:(%r11), %r11
+    movq    %r11, %fs:-0x10
 
     pop     %rbx
+    pop     %rsp
 
-    pop     %r11                #
+    pop     %r11
     pop     %r10
     pop     %r9
     pop     %r8
@@ -111,12 +124,10 @@ egalito_hook_jit_fixup:
     pop     %rdx
     pop     %rcx
     pop     %rax
-    add     $0x8, %rsp
-    #jmpq    *%gs:(%r11) # displacement should be zero
-    jmpq    *%fs:-0x8
+    jmpq    *%fs:-0x10
 
 in_code:
-    movq    %mm1, %rdi  # offset
+    movq    %mm1, %rdi  /* offset */
     jmp     .
 #if 0
     pop     %r12
@@ -162,10 +173,22 @@ egalito_hook_jit_fixup_return:
     push    %r11
 
 #if 1
-    # this guards resetting inside egalito_printf
+    /* this guards resetting inside egalito_printf */
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     movb    $0x1, (%rax)
 #endif
+
+    push    %rsp
+    /*
+     we can't assume 0x10 alignment of SP for return (again!)
+     because we can reach here from egalito_hook_jit_reset_on_syscall
+    */
+    test    $0xF, %rsp
+    jne     5f
+    pop     %r10
+    sub     $0x10, %rsp
+    mov     %r10, (%rsp)
+5:
 
     push    %rbx
     mov     %rax, %rbx
@@ -182,6 +205,7 @@ egalito_hook_jit_fixup_return:
 #endif
 
     pop     %rbx
+    pop     %rsp
 
     pop     %r11
     pop     %r10
@@ -200,16 +224,16 @@ egalito_hook_jit_fixup_return:
 
    .global egalito_hook_jit_reset_on_syscall
 egalito_hook_jit_reset_on_syscall:
-    # ok to clobber r10 & 11 (see AMD64 Linux Kernel Conventions)
-    # syscall arguments(rdi, rsi, rdx, rcx, r8, r9) and return value(rax)
-    # are preserved
+    /*
+     ok to clobber rcx & r11 (see AMD64 Linux Kernel Conventions)
+    */
     push    %rax
-    push    %rcx
     push    %rdx
     push    %rsi
     push    %rdi
     push    %r8
     push    %r9
+    push    %r10
 
 #if 1
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
@@ -218,27 +242,37 @@ egalito_hook_jit_reset_on_syscall:
     movb    $0x1, (%rax)
 #endif
 
-    # REWRITE_RA == 1
-    push    %rbx    # for alignment
+    push    %rsp
+    /*
+     we can't assume 0x10 alignment of SP for syscall either
+     it must end with 8 on entry of a function
+    */
+    test    $0xF, %rsp
+    je      3f
+    pop     %r11
+    sub     $0x10, %rsp
+    mov     %r11, (%rsp)
+3:
+
     pushq   $0x10
     movl    $(1f-egalito_hook_jit_reset_on_syscall), 0x4(%rsp)
     mov     egalito_jit_gs_reset@gotpcrel(%rip), %rax
     jmpq    *%gs:(%rax)
 
 1:
-    pop     %rbx
+    pop     %rsp
 #if 1
     mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
     movb    $0x0, (%rax)
 
 2:
 #endif
+    pop     %r10
     pop     %r9
     pop     %r8
     pop     %rdi
     pop     %rsi
     pop     %rdx
-    pop     %rcx
     pop     %rax
     jmpq    *%gs:0x8
     .type egalito_hook_jit_reset_on_syscall, STT_FUNC
