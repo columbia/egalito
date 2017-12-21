@@ -211,6 +211,7 @@ void Conductor::allocateTLSArea() {
 
     // allocate headers
     mainThreadPointer = dataLoader.allocateTLS(size, &offset);
+    LOG(1, "mainThreadPointer is at " << std::hex << mainThreadPointer);
 
     // actually assign address
     for(auto module : CIter::modules(program)) {
