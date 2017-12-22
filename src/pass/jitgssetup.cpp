@@ -55,6 +55,9 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "OffsetLink",
 
         "SandboxFlipImpl",
+
+        // for JIT'ting libegalito ctors
+        "STLIterator",
     };
     for(auto name : resolverClasses) {
         makeResolvedEntryForClass(name, egalito);
@@ -83,6 +86,14 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZN12MakeSemantic25determineDisplacementSizeEP8Assemblyi",
         "_ZNK14DataOffsetLink16getTargetAddressEv",
         "_ZNK14OffsetPosition3getEv",
+
+        // for JIT'ting libegalito ctors
+        "_ZNK18ChildListDecoratorI21ComputedSizeDecoratorI22ChunkPositionDecoratorI9ChunkImplEE5BlockE11getChildrenEv",
+        "_ZN13ChunkListImplI5BlockE15genericIterableEv",
+        "_ZN14OffsetPosition11recalculateEv",
+        "_ZNK18ChildListDecoratorI21ComputedSizeDecoratorI22ChunkPositionDecoratorI9ChunkImplEE11InstructionE11getChildrenEv",
+        "_ZN13ChunkListImplI11InstructionE15genericIterableEv",
+        "_ZNK9ChunkImpl11getChildrenEv",
 
         // for debugging
         "egalito_printf",
@@ -180,6 +191,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("_ZStL23local_Rb_tree_decrementPSt18_Rb_tree_node_base", module);
             makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_replaceEmmPKcm", module);
             makeResolvedEntry("_ZNK10__cxxabiv117__class_type_info12__do_dyncastElNS0_10__sub_kindEPKS0_PKvS3_S5_RNS0_16__dyncast_resultE", module);
+            // for JIT'ting libegalito ctors
+            makeResolvedEntry("_ZdlPvm", module),
             // for debugging?
             makeResolvedEntry("_ZNSt8ios_baseC1Ev", module);
             makeResolvedEntry("_ZNSt6localeC1Ev", module);

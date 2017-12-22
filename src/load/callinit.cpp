@@ -57,10 +57,6 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
 #if 1
         // libpthread constructors need actual emulation
         if(module->getName() == "module-libpthread.so.0") continue;
-
-        // we may need to be careful for libegalito.so about what's linked
-        // to loader and what not (for now, just skip it)
-        if(module->getLibrary()->getRole() == Library::ROLE_EGALITO) continue;
 #endif
 
         auto _init = ChunkFind2().findFunctionInModule("_init", module);

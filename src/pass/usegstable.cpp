@@ -791,7 +791,6 @@ void UseGSTablePass::visit(DataRegion *dataRegion) {
 void UseGSTablePass::visit(PLTTrampoline *trampoline) {
     // expects CollapsePLTPass
     if(trampoline->isIFunc()) {
-        LOG(1, "converting ifunc plt");
         recurse(trampoline);
         convert();
     }
