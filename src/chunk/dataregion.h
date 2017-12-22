@@ -46,6 +46,8 @@ public:
         TYPE_BSS,
         TYPE_DATA,
         TYPE_CODE,
+        TYPE_INIT_ARRAY,
+        TYPE_FINI_ARRAY,
     };
 private:
     std::string name;

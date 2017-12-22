@@ -64,6 +64,8 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     // !!! there is probably a better way to determine the type!
     if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
     else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
+    else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
+    else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
     else type = TYPE_UNKNOWN;
 }
 

@@ -234,7 +234,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
     }
 
     // this should only happen for functions in a missing shared library
-    LOG(9, "NOT FOUND: failed to make link to " << name);
+    LOG(10, "NOT FOUND: failed to make link to " << name);
     return nullptr;
 }
 
