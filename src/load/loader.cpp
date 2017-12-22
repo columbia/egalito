@@ -92,10 +92,8 @@ void EgalitoLoader::generateCode() {
 }
 
 void EgalitoLoader::run() {
-    auto libc = setup->getConductor()->getProgram()->getLibc();
-    if(libc && libc->getElfSpace()) {
-        CallInit::makeInitArray(libc->getElfSpace(), argc, argv, envp, gsTable);
-    }
+    auto program = setup->getConductor()->getProgram();
+    CallInit::makeInitArray(program, argc, argv, envp, gsTable);
 
     auto entry = setup->getConductor()->getProgram()->getEntryPoint();
     if(isFeatureEnabled("EGALITO_USE_GS")) {

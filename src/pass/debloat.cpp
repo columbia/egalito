@@ -97,8 +97,8 @@ void DebloatPass::useFromPointerArray(address_t start, size_t size,
 
     if(start == 0 || size == 0) return;
 
-    // since this is dynamic, all the pointers in this array have
-    // relocations with initial value being zero (so don't read the value)
+    // since this is dynamic, all the pointers in this array should have
+    // a relocation (so don't read the value)
 
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;

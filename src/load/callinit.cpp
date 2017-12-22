@@ -7,10 +7,10 @@
 #include "operation/find2.h"
 #include "log/log.h"
 
-#define EGALITO_INIT_ARRAY_SZ   16
+#define EGALITO_INIT_ARRAY_SZ   256
 address_t egalito_init_array[EGALITO_INIT_ARRAY_SZ];
 
-void CallInit::makeInitArray(ElfSpace *space, int argc, char **argv,
+void CallInit::makeInitArray(Program *program, int argc, char **argv,
     char **envp, GSTable *gsTable) {
 
     egalito_init_array[1] = (address_t)argc;
@@ -18,40 +18,92 @@ void CallInit::makeInitArray(ElfSpace *space, int argc, char **argv,
     egalito_init_array[3] = (address_t)envp;
     size_t init_index = 4;
 
-    if(!space) return;
-
-    auto elf = space->getElfMap();
-    auto module = space->getModule();
-
-    auto _init = ChunkFind2().findFunctionInModule("_init", module);
-    if(_init) {
-        if(gsTable) {
-            auto gsEntry = gsTable->makeEntryFor(_init);
-            egalito_init_array[init_index++] = gsEntry->getOffset();
+    std::vector<Module *> order;
+    std::set<Library *> met;
+    size_t size;
+    do {
+        size = met.size();
+        for(auto module : CIter::modules(program)) {
+            auto library = module->getLibrary();
+            if(met.find(library) != met.end()) continue;
+            bool allmet = true;
+            for(auto dep : library->getDependencies()) {
+                if(met.find(dep) == met.end()) {
+                    allmet = false;
+                    break;
+                }
+            }
+            if(allmet) {
+                order.push_back(module);
+                met.insert(library);
+            }
         }
-        else {
-            egalito_init_array[init_index++] = _init->getAddress();
+    } while(size != met.size());
+
+    for(auto module : CIter::modules(program)) {
+        if(met.find(module->getLibrary()) == met.end()) {
+            LOG(1, "library dependency not found for " << module->getName());
+            order.push_back(module);
         }
     }
 
-    auto init_array = elf->findSection(".init_array");
-    if(init_array) {
-        unsigned long *array = elf->getSectionReadPtr<unsigned long *>(
-            init_array);
-        for(size_t i = 0;
-            i < init_array->getHeader()->sh_size / sizeof(*array);
-            i ++) {
+    LOG(1, "constructors must be called in this order");
+    for(auto module : order) {
+        LOG(1, "    " << module->getName());
+    }
 
-            auto found = space->getSymbolList()->find(array[i]);
-            if(found) {
-                auto chunk = CIter::named(module->getFunctionList())
-                    ->find(found->getName());
-                if(gsTable) {
-                    auto gsEntry = gsTable->makeEntryFor(chunk);
-                    egalito_init_array[init_index++] = gsEntry->getOffset();
-                }
-                else {
-                    egalito_init_array[init_index++] = chunk->getAddress();
+    for(auto module : order) {
+        LOG(1, "module " << module->getName());
+#if 1
+        // libpthread constructors need actual emulation
+        if(module->getName() == "module-libpthread.so.0") continue;
+
+        // we may need to be careful for libegalito.so about what's linked
+        // to loader and what not (for now, just skip it)
+        if(module->getLibrary()->getRole() == Library::ROLE_EGALITO) continue;
+#endif
+
+        auto _init = ChunkFind2().findFunctionInModule("_init", module);
+        if(_init) {
+            LOG(1, "adding _init to egalito_init_array");
+            if(gsTable) {
+                auto gsEntry = gsTable->makeEntryFor(_init);
+                egalito_init_array[init_index++] = gsEntry->getOffset();
+            }
+            else {
+                egalito_init_array[init_index++] = _init->getAddress();
+            }
+        }
+
+        // we should look into the section in memory mapped region to get the
+        // relocated pointers
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+                if(section->getType() == DataSection::TYPE_INIT_ARRAY) {
+                    address_t *array
+                        = reinterpret_cast<address_t *>(section->getAddress());
+                    size_t count = section->getSize() / sizeof(*array);
+                    for(size_t i = 0; i < count; i++) {
+                        if(gsTable) {
+                            auto index = gsTable->offsetToIndex(array[i]);
+                            auto gsEntry = gsTable->getAtIndex(index);
+                            LOG(1, "adding "
+                                << gsEntry->getRealTarget()->getName()
+                                << " to egalito_init_array");
+                            egalito_init_array[init_index++]
+                                = gsEntry->getOffset();
+                        }
+                        else {
+                            auto chunk
+                                = CIter::spatial(module->getFunctionList())
+                                ->findContaining(array[i]);
+                            assert(chunk);
+                            LOG(1, "adding " << chunk->getName()
+                                << " to egalito_init_array");
+                            egalito_init_array[init_index++]
+                                = chunk->getAddress();
+                        }
+                    }
                 }
             }
         }
