@@ -18,8 +18,16 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
     egalito_init_array[3] = (address_t)envp;
     size_t init_index = 4;
 
+    // This is just a heuristics. For example of an exception, libpthread
+    // needs other libraries but has DF_1_INITFIRST flag set.
     std::vector<Module *> order;
     std::set<Library *> met;
+    for(auto module : CIter::modules(program)) {
+        if(module->getName() == "module-libpthread.so.0") {
+            order.push_back(module);
+            met.insert(module->getLibrary());
+        }
+    }
     size_t size;
     do {
         size = met.size();
