@@ -15,6 +15,7 @@ class Conductor {
 private:
     Program *program;
     address_t mainThreadPointer;
+    size_t TLSOffsetFromTCB;
     IFuncList *ifuncList;
 public:
     Conductor();
@@ -46,11 +47,14 @@ public:
     address_t getMainThreadPointer() const { return mainThreadPointer; }
     IFuncList *getIFuncList() const { return ifuncList; }
 
+    void loadTLSDataFor(address_t tcb);
+
     void check();
 private:
     Module *parse(ElfMap *elf, Library *library);
-    void allocateTLSArea();
+    void allocateTLSArea(address_t base);
     void loadTLSData();
+    void backupTLSData();
 };
 
 #endif

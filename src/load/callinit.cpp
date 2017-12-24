@@ -62,7 +62,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
 
     for(auto module : order) {
         LOG(1, "module " << module->getName());
-#if 1
+#if 0
         // libpthread constructors need actual emulation
         if(module->getName() == "module-libpthread.so.0") continue;
 #endif

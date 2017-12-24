@@ -11,35 +11,28 @@
 
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 
-#define EGALITO_RESERVE_SIZE    (0x10)
-
-address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
-    // reserve 0x10 for special use:
-    // [0]: JIT temporary
-    // [1]: reserved
-    size += EGALITO_RESERVE_SIZE;
-
+address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
 #ifdef ARCH_X86_64
     // header is at the end
-    address_t tp = tlsBaseAddress + size;
-    size += sizeof(struct my_tcbhead_t);  // add space for header
+    address_t tp = base + size;
+    //size += sizeof(struct my_tcbhead_t);  // add space for header
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // header is at the beginning
-    address_t tp = tlsBaseAddress + sizeof(struct my_pthread);
-    size += sizeof(struct my_pthread);
-    if(offset) *offset += sizeof(struct my_pthread) + EGALITO_RESERVE_SIZE;
+    address_t tp = base + sizeof(struct my_pthread);
+    *offset += sizeof(struct my_pthread);
 #endif
+    size += sizeof(struct my_pthread);
 
     if(size > 0) {
         LOG(1, "mapping TLS region into memory at 0x"
-            << std::hex << tlsBaseAddress << ", size 0x" << size);
-        void *mem = mmap((void *)tlsBaseAddress,
+            << std::hex << base << ", size 0x" << size);
+        void *mem = mmap((void *)base,
             ROUND_UP(size),
             PROT_READ | PROT_WRITE,
             MAP_ANONYMOUS | MAP_PRIVATE,
             -1, 0);
         if(mem == (void *)-1) throw "Out of memory?";
-        if(mem != (void *)tlsBaseAddress) {
+        if(mem != (void *)base) {
             TemporaryLogLevel tll("transform", 1);
             LOG(1, "allocateTLS failed");
             std::ifstream ms("/proc/self/maps");
@@ -53,19 +46,7 @@ address_t DataLoader::allocateTLS(size_t size, size_t *offset) {
     return tp;
 }
 
-void DataLoader::loadRegion(ElfMap *elfMap, DataRegion *region) {
-#if 0
-    auto phdr = region->getPhdr();
-    address_t sourceAddr = elfMap->getBaseAddress() + phdr->p_vaddr;
-    char *source = reinterpret_cast<char *>(sourceAddr);
-    char *output = reinterpret_cast<char *>(region->getAddress());
-    LOG(1, "copying " << region->getName() << ": " << (void *)source
-        << " -> " << (void *)output << " + " << phdr->p_filesz);
-    std::memcpy(output, source, phdr->p_filesz);
-    LOG(1, "    clearing " << (void *)(output + phdr->p_filesz)
-        << " + " << (phdr->p_memsz - phdr->p_filesz));
-    std::memset(output + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
-#else
+void DataLoader::loadRegion(DataRegion *region) {
     const std::string &source = region->getDataBytes();
     char *output = reinterpret_cast<char *>(region->getAddress());
 
@@ -75,5 +56,13 @@ void DataLoader::loadRegion(ElfMap *elfMap, DataRegion *region) {
     std::memcpy(output, source.c_str(), source.length());
     size_t zeroBytes = region->getSize() - source.length();
     std::memset(output + source.length(), 0, zeroBytes);
-#endif
+}
+
+address_t DataLoader::loadRegionTo(address_t address, DataRegion *region) {
+    const std::string &source = region->getDataBytes();
+    char *output = reinterpret_cast<char *>(address);
+    std::memcpy(output, source.c_str(), source.length());
+    size_t zeroBytes = region->getSize() - source.length();
+    std::memset(output + source.length(), 0, zeroBytes);
+    return address + region->getSize();
 }

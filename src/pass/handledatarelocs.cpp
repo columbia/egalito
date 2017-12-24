@@ -74,7 +74,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return nullptr;
     }
     if(reloc->getType() == R_X86_64_COPY) {
-        LOG(0, "WARNING: skipping R_X86_64_COPY ("
+        LOG(10, "WARNING: skipping R_X86_64_COPY ("
             << std::hex << reloc->getAddress()
             << ") in " << module->getName());
         return nullptr;

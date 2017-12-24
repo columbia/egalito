@@ -175,7 +175,8 @@ void Conductor::setupIFuncLazySelector() {
 }
 
 void Conductor::fixDataSections() {
-    allocateTLSArea();
+    const static address_t base = 0x20000000;
+    allocateTLSArea(base);
     loadTLSData();
 
     fixPointersInData();
@@ -183,7 +184,7 @@ void Conductor::fixDataSections() {
     HandleCopyRelocs handleCopyRelocs(this);
     program->accept(&handleCopyRelocs);
 
-    // copy back the TLSData to original .tdata place for other threads
+    backupTLSData();
 }
 
 void Conductor::fixPointersInData() {
@@ -194,12 +195,16 @@ void Conductor::fixPointersInData() {
     program->accept(&fixDataRegions);
 }
 
-void Conductor::allocateTLSArea() {
-    const static address_t base = 0x20000000;
-    DataLoader dataLoader(base);
+#define EGALITO_TLS_RESERVE_SIZE    (0x10)
+// reserve 0x10 for special use:
+// [0]: JIT temporary
+// [1]: reserved
+
+void Conductor::allocateTLSArea(address_t base) {
+    DataLoader dataLoader;
 
     // calculate size
-    size_t size = 0;
+    size_t size = EGALITO_TLS_RESERVE_SIZE;
     for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) size += tls->getSize();
@@ -207,11 +212,12 @@ void Conductor::allocateTLSArea() {
 
     if(!size) return;
 
-    address_t offset = 0;
 
     // allocate headers
-    mainThreadPointer = dataLoader.allocateTLS(size, &offset);
+    address_t offset = 0;
+    mainThreadPointer = dataLoader.allocateTLS(base, size, &offset);
     LOG(1, "mainThreadPointer is at " << std::hex << mainThreadPointer);
+    this->TLSOffsetFromTCB = (base + offset) - mainThreadPointer;
 
     // actually assign address
     for(auto module : CIter::modules(program)) {
@@ -238,12 +244,31 @@ void Conductor::allocateTLSArea() {
 }
 
 void Conductor::loadTLSData() {
-    const static address_t base = 0x20000000;
-    DataLoader dataLoader(base);
+    DataLoader dataLoader;
     for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
-            dataLoader.loadRegion(module->getElfSpace()->getElfMap(), tls);
+            dataLoader.loadRegion(tls);
+        }
+    }
+}
+
+void Conductor::backupTLSData() {
+    for(auto module : CIter::modules(program)) {
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls) {
+            tls->saveDataBytes();
+        }
+    }
+}
+
+void Conductor::loadTLSDataFor(address_t tcb) {
+    DataLoader dataLoader;
+    address_t address = tcb + TLSOffsetFromTCB;
+    for(auto module : CIter::modules(program)) {
+        auto tls = module->getDataRegionList()->getTLS();
+        if(tls) {
+            address = dataLoader.loadRegionTo(address, tls);
         }
     }
 }

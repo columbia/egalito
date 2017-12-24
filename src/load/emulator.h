@@ -24,7 +24,7 @@ private:
 public:
     void setup(Conductor *conductor);
 
-    void setArgumentLinks(char **argv, char **envp);
+    void setStackLinks(char **argv, char **envp);
     void initRT(Conductor *conductor);
 
     Function *findFunction(const std::string &symbol);

@@ -73,7 +73,7 @@ void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
     this->argc = argc;
     this->argv = argv;
     this->envp = environ;
-    LoaderEmulator::getInstance().setArgumentLinks(argv, envp);
+    LoaderEmulator::getInstance().setStackLinks(argv, envp);
 
     SegMap::mapAllSegments(setup);
     LoaderEmulator::getInstance().initRT(setup->getConductor());
