@@ -116,6 +116,12 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     // note: dataBytes may store less than getSize(). Padded with zeros.
 }
 
+void DataRegion::saveDataBytes() {
+    const char *address = reinterpret_cast<const char *>(getAddress());
+    size_t size = dataBytes.size();
+    dataBytes.assign(address, size);
+}
+
 std::string DataRegion::getName() const {
     StreamAsString stream;
     stream << "region-0x" << std::hex << originalAddress;
