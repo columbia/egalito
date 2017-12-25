@@ -282,6 +282,7 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("prefixes_set_unused_mask", module);
         }
         else if(module->getName() == "module-libpthread.so.0") {
+            makeResolvedEntry("write", module);
             makeResolvedEntry("pthread_once", module);
             makeResolvedEntry("__pthread_once_slow", module);
             makeResolvedEntry("_pthread_cleanup_push", module);

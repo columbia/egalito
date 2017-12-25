@@ -18,6 +18,7 @@
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
 #include "pass/collapseplt.h"
+#include "pass/hijack.h"
 #include "pass/jitgssetup.h"
 #include "pass/usegstable.h"
 #include "pass/jitgsfixup.h"
@@ -156,6 +157,11 @@ void EgalitoLoader::otherPasses() {
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }
 #endif
+
+    if(1) {
+        HijackPass hijackPass(setup->getConductor(), "pthread_create");
+        program->getMain()->accept(&hijackPass);
+    }
 
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         gsTable = new GSTable();

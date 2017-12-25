@@ -119,11 +119,11 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 $(LOADER): $(LOADER_OBJECTS)
 	$(SHORT_LINK) -static -o $@ -pg \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
-		-Wl,-Ttext-segment=0x60000000 $(DISTORM_A)
+		-Wl,-Ttext-segment=0x60000000 $(DISTORM_A) -lpthread
 $(LIBRARY): $(TYPICAL_OBJECTS)
 	$(SHORT_AR) cr $(LIBRARY) $(TYPICAL_OBJECTS) $(DISTORM_A)
 $(SHARED_LIBRARY): $(TYPICAL_OBJECTS:.o=.so)
-	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so -Wl,--no-undefined $^ $(CLDFLAGS) -o $@ $(DISTORM_SO)
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libegalito.so -Wl,--no-undefined $^ $(CLDFLAGS) -o $@ $(DISTORM_SO) -lpthread
 $(ADDON_LIBRARY): $(ADDON_OBJECTS:.o=.so)
 	$(SHORT_LINK) -nostdlib -shared -fPIC -Wl,-soname,libaddon.so $^ -o $@
 $(LOADERPIE): $(LOADERPIE_OBJECTS) | $(SHARED_LIBRARY)
