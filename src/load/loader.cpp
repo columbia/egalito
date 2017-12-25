@@ -158,12 +158,10 @@ void EgalitoLoader::otherPasses() {
     }
 #endif
 
-    if(1) {
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
         HijackPass hijackPass(setup->getConductor(), "pthread_create");
         program->getMain()->accept(&hijackPass);
-    }
 
-    if(isFeatureEnabled("EGALITO_USE_GS")) {
         gsTable = new GSTable();
         //setup->getConductor()->getProgram()->getChildren()->add(gsTable);
 
