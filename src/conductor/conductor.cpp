@@ -27,7 +27,7 @@
 
 IFuncList *egalito_ifuncList __attribute__((weak));
 
-Conductor::Conductor() {
+Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
     program = new Program();
     program->setLibraryList(new LibraryList());
 }

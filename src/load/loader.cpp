@@ -119,9 +119,11 @@ void EgalitoLoader::run() {
     // update vtable pointers to new libegalito code
     DataStructMigrator().migrate(setup);
 
+    //new char[1000];  // fs broken?
+
     // jump to the target program (never returns)
-    //_start2();
-    start2();
+    //start2();
+    _start2();
 }
 
 void EgalitoLoader::otherPasses() {
