@@ -13,9 +13,9 @@ egalito_entry:
 _start2:
     .cfi_startproc
     .cfi_undefined %rip
-    push    %rbx                    /* keep alignment */
-    call    *egalito_callInit@gotpcrel(%rip)
-    pop     %rbx
+    #push    %rbx                    /* keep alignment */
+    #call    *egalito_callInit@gotpcrel(%rip)
+    #pop     %rbx
 
     mov     egalito_initial_stack@gotpcrel(%rip), %rax
     mov     (%rax), %rsp            /* restore %rsp */

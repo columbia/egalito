@@ -27,7 +27,7 @@
 
 IFuncList *egalito_ifuncList __attribute__((weak));
 
-Conductor::Conductor() {
+Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
     program = new Program();
     program->setLibraryList(new LibraryList());
 }
@@ -243,7 +243,7 @@ void Conductor::loadTLSData() {
     for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) {
-            dataLoader.loadRegion(module->getElfSpace()->getElfMap(), tls);
+            dataLoader.loadRegion(nullptr, tls);
         }
     }
 }

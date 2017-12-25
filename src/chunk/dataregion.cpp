@@ -349,12 +349,14 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
 void DataRegionList::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    writer.writeID(op.assign(tls));
     op.serializeChildren(this, writer);
 }
 
 bool DataRegionList::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    tls = op.lookupAs<TLSDataRegion>(reader.readID());
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
