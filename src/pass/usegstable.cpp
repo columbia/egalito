@@ -42,26 +42,6 @@ void UseGSTablePass::visit(Function *function) {
 }
 
 void UseGSTablePass::visit(Block *block) {
-#if 0
-    std::vector<Instruction *> pointerLinks;
-    for(auto instr : CIter::children(block)) {
-        auto semantic = instr->getSemantic();
-        if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
-            if(auto link = v->getLink()) {
-                if(dynamic_cast<ExternalNormalLink *>(link)
-                    || dynamic_cast<ExternalOffsetLink *>(link)
-                    || dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-
-                    pointerLinks.push_back(instr);
-                }
-            }
-        }
-    }
-    for(auto instr : pointerLinks) {
-        redirectLinks(instr);
-    }
-#endif
-
     ChunkDumper d;
     for(auto instr : CIter::children(block)) {
         IF_LOG(11) {
@@ -173,30 +153,6 @@ void UseGSTablePass::redirectEgalitoFunctionPointers() {
         auto target = &*link->getTarget();
         auto gsEntry = gsTable->makeEntryFor(target);
         ifunc->setLink(new GSTableLink(gsEntry));
-        delete link;
-    }
-}
-
-void UseGSTablePass::redirectLinks(Instruction *instr) {
-    auto i = static_cast<LinkedInstruction *>(instr->getSemantic());
-    auto link = i->getLink();
-    if(link) return;
-
-    Chunk *target = &*link->getTarget();
-    if(target == nullptr) {
-        LOG(1, "WARNING: unknown pointer target "
-            << instr->getName()
-            << ", not transforming for gs table");
-        return;
-    }
-
-    LOG0(1, "redirectLinks ");
-    ChunkDumper d;
-    instr->accept(&d);
-
-    if(dynamic_cast<Function *>(target)) {  // otherwise table jump base?
-        auto gsEntry = gsTable->makeEntryFor(target);
-        i->setLink(new GSTableLink(gsEntry));
         delete link;
     }
 }

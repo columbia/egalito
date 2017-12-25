@@ -46,7 +46,6 @@ private:
 
     void convert();
     void redirectEgalitoFunctionPointers();
-    void redirectLinks(Instruction *instr);
     void redirectFunctionPointerLinks(DataVariable *var);
     void rewriteDirectCall(Block *block, Instruction *instr);
     void rewriteTailRecursion(Block *block, Instruction *instr);
