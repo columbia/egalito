@@ -8,6 +8,7 @@
 /* src */
 
 #define USR_LIB_DEBUG_BY_NAME
+#define EMULATION_NEEDS__DL_ERROR_CATCH_TSD
 #define CACHE_DIR "_cache"
 #define SANDBOX_BASE_ADDRESS    0x40000000
 

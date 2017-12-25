@@ -1,4 +1,5 @@
 #include <cstring>  // for memcpy in generated code
+#include "config.h"
 #include "emulator.h"
 #include "chunk/link.h"
 #include "chunk/concrete.h"
@@ -37,6 +38,15 @@ namespace Emulation {
     }
 
     int function_not_implemented(void) { return 0; }
+
+#ifdef EMULATION_NEEDS__DL_ERROR_CATCH_TSD
+    // cf. elf/rtld.c (newer glibc may not need this)
+    void ** __attribute__((const)) _dl_error_catch_tsd(void) {
+        static void *data = nullptr;
+        return &data;
+    }
+#endif
+
     // cf. elf/dl-tls.c
     void _dl_get_tls_static_info(size_t *sizep, size_t *alignp) {
         *sizep = _rtld_global._dl_tls_static_size;
@@ -191,6 +201,10 @@ void LoaderEmulator::initRT(Conductor *conductor) {
     auto rtld_casted = reinterpret_cast<Emulation::my_rtld_global *>(
         rtld->getDest()->getTargetAddress());
     Emulation::init_rtld_global(rtld_casted);
+#ifdef EMULATION_NEEDS__DL_ERROR_CATCH_TSD
+    rtld_casted->_dl_error_catch_tsd
+        = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
+#endif
     rtld_casted->_dl_tls_static_size = 0x1000;
     rtld_casted->_dl_tls_static_align = 1;
 
