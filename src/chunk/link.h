@@ -117,6 +117,17 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
+class EgalitoLoaderLink : public Link {
+private:
+    std::string targetName;
+public:
+    EgalitoLoaderLink(const std::string &name) : targetName(name) {}
+
+    const std::string &getTargetName() const { return targetName; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const;
+};
+
 class StackLink : public Link {
 private:
     address_t targetAddress;

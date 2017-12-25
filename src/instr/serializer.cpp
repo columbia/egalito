@@ -32,6 +32,7 @@ enum EgalitoLinkType {
     TYPE_OffsetLink,
     TYPE_PLTLink,
     TYPE_JumpTableLink,
+    TYPE_EgalitoLoaderLink,
     TYPE_SymbolOnlyLink,
     TYPE_MarkerLink,
     TYPE_AbsoluteDataLink,
@@ -276,6 +277,10 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
         writer.write<uint8_t>(TYPE_JumpTableLink);
         writer.writeID(op.assign(&*link->getTarget()));
     }
+    else if(auto v = dynamic_cast<EgalitoLoaderLink *>(link)) {
+        writer.write<uint8_t>(TYPE_EgalitoLoaderLink);
+        writer.writeString(v->getTargetName());
+    }
     else if(dynamic_cast<SymbolOnlyLink *>(link)) {
         writer.write<uint8_t>(TYPE_SymbolOnlyLink);
         LOG(0, "SymbolOnlyLink serialization not supported");
@@ -343,6 +348,8 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
     case TYPE_JumpTableLink:
         return new JumpTableLink(
             dynamic_cast<JumpTable *>(deserializeLinkTarget(reader)));
+    case TYPE_EgalitoLoaderLink:
+        return new EgalitoLoaderLink(reader.readString());
     case TYPE_SymbolOnlyLink:
         return new UnresolvedLink(0);  // unsupported
     case TYPE_MarkerLink:

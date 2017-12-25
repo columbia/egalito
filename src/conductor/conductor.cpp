@@ -127,13 +127,13 @@ void Conductor::resolveTLSLinks() {
 }
 
 void Conductor::resolveWeak() {
+    if(auto egalito = program->getEgalito()) {
+        InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
+        egalito->accept(&bridge);
+    }
+
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();
-
-        if(module->getName() == "module-(egalito)") {
-            InjectBridgePass bridge(space->getRelocList());
-            module->accept(&bridge);
-        }
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(

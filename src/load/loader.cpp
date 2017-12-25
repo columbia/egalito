@@ -9,6 +9,7 @@
 #include "callinit.h"
 #include "preparetls.h"
 #include "datastruct.h"
+#include "makebridge.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
@@ -78,6 +79,9 @@ void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
 
     SegMap::mapAllSegments(setup);
     LoaderEmulator::getInstance().initRT(setup->getConductor());
+
+    // assign addresses of global variables passed-through to target
+    MakeLoaderBridge::make();
 }
 
 void EgalitoLoader::generateCode() {
@@ -122,8 +126,8 @@ void EgalitoLoader::run() {
     //new char[1000];  // fs broken?
 
     // jump to the target program (never returns)
-    //start2();
-    _start2();
+    start2();
+    //_start2();
 }
 
 void EgalitoLoader::otherPasses() {

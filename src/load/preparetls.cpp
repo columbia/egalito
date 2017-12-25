@@ -20,7 +20,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     _head->tcb = _thrdescr;
     _head->self = _thrdescr;
 
-    // this should be at %fs:0x28 on current systems
+    // this should be at %fs:0x28
     uint64_t canary;
     __asm__ __volatile__ (
         "mov %@:%p1, %0"
@@ -30,6 +30,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     LOG(1, "copying stack canary: 0x" << std::hex << canary);
     _head->stack_guard = canary;
 
+    // this should be at %fs:0x30
     uint64_t pointer_guard;
     __asm__ __volatile__ (
         "mov %@:%p1, %0"
@@ -46,7 +47,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
             : "i"(offsetof(my_tcbhead_t, multiple_threads))
     );
     LOG(1, "copying multiple_threads: 0x" << std::hex << multiple_threads);
-    _head->multiple_threads = pointer_guard;
+    _head->multiple_threads = multiple_threads;
 #endif
 
     LOG(1, "set %""fs to point at " << main_tp);

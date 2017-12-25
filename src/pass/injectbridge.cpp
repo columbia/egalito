@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstring>
 #include "injectbridge.h"
+#include "conductor/bridge.h"
 #include "elf/reloc.h"
 #include "chunk/dataregion.h"
 #include "chunk/link.h"
@@ -22,45 +23,27 @@ extern Chunk *egalito_gsCallback;
 extern IFuncList *egalito_ifuncList;
 
 void InjectBridgePass::visit(Module *module) {
-#define EGALITO_BRIDGE_ENTRY(name) \
-    {#name, reinterpret_cast<address_t>(&name)}
-    struct {
-        const char *name;
-        address_t address;
-    } list[] = {
-        EGALITO_BRIDGE_ENTRY(egalito_entry),
-        EGALITO_BRIDGE_ENTRY(egalito_initial_stack),
-        EGALITO_BRIDGE_ENTRY(egalito_init_array),
-        EGALITO_BRIDGE_ENTRY(egalito_conductor_setup),
-        EGALITO_BRIDGE_ENTRY(egalito_conductor),
-        EGALITO_BRIDGE_ENTRY(egalito_gsTable),
-        EGALITO_BRIDGE_ENTRY(egalito_gsCallback),
-        EGALITO_BRIDGE_ENTRY(egalito_ifuncList),
-        EGALITO_BRIDGE_ENTRY(egalito_hook_instruction_hook),
-    };
+    auto bridge = LoaderBridge::getInstance();
 
     for(auto reloc : *relocList) {
         auto sym = reloc->getSymbol();
         if(!sym) continue;
-        for(auto e : list) {
-            if(!std::strcmp(sym->getName(), e.name)) {
-                makeLinkToLoaderVariable(module, reloc, e.address);
-            }
+
+        if(bridge->containsName(sym->getName())) {
+            makeLinkToLoaderVariable(module, reloc);
         }
     }
 }
 
-void InjectBridgePass::makeLinkToLoaderVariable(Module *module, Reloc *reloc,
-    address_t address) {
-
-    LOG(10, "[InjectBridge] pointing " << reloc->getSymbol()->getName()
-        << " to " << std::hex << address);
+void InjectBridgePass::makeLinkToLoaderVariable(Module *module, Reloc *reloc) {
+    LOG(1, "[InjectBridge] assigning EgalitoLoaderLink for "
+        << reloc->getSymbol()->getName());
 
     auto sourceRegion = module->getDataRegionList()->findRegionContaining(
         reloc->getAddress());
     assert(sourceRegion);
 
-    auto link = new SymbolOnlyLink(reloc->getSymbol(), address);
+    auto link = new EgalitoLoaderLink(reloc->getSymbol()->getName());
 
     auto var = new DataVariable(sourceRegion, reloc->getAddress(), link);
     sourceRegion->addVariable(var);
