@@ -2,6 +2,7 @@
 #include "chunk/concrete.h"
 #include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
+#include "conductor/bridge.h"
 #include "elf/reloc.h"
 #include "elf/elfspace.h"
 #include "load/emulator.h"
@@ -32,6 +33,10 @@ ChunkRef JumpTableLink::getTarget() const {
 
 address_t JumpTableLink::getTargetAddress() const {
     return jumpTable->getAddress();
+}
+
+address_t EgalitoLoaderLink::getTargetAddress() const {
+    return LoaderBridge::getInstance()->getAddress(targetName);
 }
 
 address_t MarkerLink::getTargetAddress() const {
