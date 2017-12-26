@@ -170,10 +170,16 @@ void DebloatPass::useFromSpecialName() {
                 if(function->hasName("egalito_pthread_create")){
                     markTreeAsUsed(function);
                 }
+                if(function->hasName("egalito_jit_gs_setup_thread")){
+                    markTreeAsUsed(function);
+                }
                 if(function->hasName("egalito_hook_jit_fixup")
                     || function->hasName("egalito_hook_jit_fixup_return")
                     || function->hasName("egalito_hook_jit_reset_on_syscall")) {
 
+                    markTreeAsUsed(function);
+                }
+                if(function->hasName("egalito_hook_after_clone_syscall")){
                     markTreeAsUsed(function);
                 }
             }

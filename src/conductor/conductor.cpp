@@ -3,6 +3,7 @@
 #include "conductor.h"
 #include "passes.h"
 #include "chunk/ifunc.h"
+#include "chunk/tls.h"
 #include "elf/elfmap.h"
 #include "elf/elfdynamic.h"
 #include "generate/debugelf.h"
@@ -179,7 +180,11 @@ void Conductor::fixDataSections() {
     allocateTLSArea(base);
     loadTLSData();
 
-    fixPointersInData();
+    FixJumpTablesPass fixJumpTables;
+    program->accept(&fixJumpTables);
+
+    FixDataRegionsPass fixDataRegions;
+    program->accept(&fixDataRegions);
 
     HandleCopyRelocs handleCopyRelocs(this);
     program->accept(&handleCopyRelocs);
@@ -187,24 +192,16 @@ void Conductor::fixDataSections() {
     backupTLSData();
 }
 
-void Conductor::fixPointersInData() {
-    FixJumpTablesPass fixJumpTables;
-    program->accept(&fixJumpTables);
-
-    FixDataRegionsPass fixDataRegions;
-    program->accept(&fixDataRegions);
+EgalitoTLS *Conductor::getEgalitoTLS() const {
+    return reinterpret_cast<EgalitoTLS *>(
+        mainThreadPointer - sizeof(EgalitoTLS));
 }
-
-#define EGALITO_TLS_RESERVE_SIZE    (0x10)
-// reserve 0x10 for special use:
-// [0]: JIT temporary
-// [1]: reserved
 
 void Conductor::allocateTLSArea(address_t base) {
     DataLoader dataLoader;
 
     // calculate size
-    size_t size = EGALITO_TLS_RESERVE_SIZE;
+    size_t size = sizeof(EgalitoTLS);
     for(auto module : CIter::modules(program)) {
         auto tls = module->getDataRegionList()->getTLS();
         if(tls) size += tls->getSize();

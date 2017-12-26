@@ -27,7 +27,7 @@ RUNTIME_SOURCES     = $(wildcard runtime/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 UTIL_SOURCES        = $(wildcard util/*.cpp)
 CMINUS_SOURCES      = $(wildcard cminus/*.c)
-SNIPPET_SOURCES     = $(wildcard snippet/*.c)
+SNIPPET_SOURCES     = $(wildcard snippet/*.c snippet/*.cpp)
 ifeq (aarch64,$(P_ARCH))
 	SNIPPET_SOURCES += snippet/start2-aarch64.S snippet/hook-aarch64.S
 else ifeq (x86_64,$(P_ARCH))

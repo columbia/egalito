@@ -2,16 +2,15 @@
     .text
     .global egalito_hook_function_entry
 egalito_hook_function_entry:
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    cmpb    $0x0, (%rax)
+    movq    %fs:-0x10, %rax
+    cmpq    $0x0, %rax
     jne     1f
     push    %rbx
-    mov     %rax, %rbx
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
     mov     0x8(%rsp), %rdi
     mov     egalito_hook_function_entry_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
-    movb    $0x0, (%rbx)
+    movq    $0x0, %fs:-0x10
     pop     %rbx
 1:
     retq
@@ -21,16 +20,15 @@ egalito_hook_function_entry:
 
     .global egalito_hook_function_exit
 egalito_hook_function_exit:
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    cmpb    $0x0, (%rax)
+    movq    %fs:-0x10, %rax
+    cmpq    $0x0, %rax
     jne     1f
     push    %rbx
-    mov     %rax, %rbx
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
     mov     0x8(%rsp), %rdi
     mov     egalito_hook_function_exit_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
-    movb    $0x0, (%rbx)
+    movq    $0x0, %fs:-0x10
     pop     %rbx
 1:
     retq
@@ -39,16 +37,15 @@ egalito_hook_function_exit:
 
     .global egalito_hook_instruction
 egalito_hook_instruction:
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    cmpb    $0x0, (%rax)
+    mov     %fs:-0x10, %rax
+    cmpq    $0x0, %rax
     jne     1f
     push    %rbx
-    mov     %rax, %rbx
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
     mov     0x8(%rsp), %rdi
     mov     egalito_hook_instruction_hook@gotpcrel(%rip), %rax
     callq   *(%rax)
-    movb    $0x0, (%rbx)
+    movq    $0x0, %fs:-0x10
     pop     %rbx
 1:
     retq
@@ -86,18 +83,17 @@ egalito_hook_jit_fixup:
 
 #if 1
     /* this guards resetting inside egalito_printf */
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    cmpb    $0x0, (%rax)
+    mov     %fs:-0x10, %rax
+    cmpq    $0x0, %rax
     jne     in_code
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
 #endif
 
     push    %rbx
-    mov     %rax, %rbx
 
     mov     egalito_jit_gs_fixup@gotpcrel(%rip), %rax
     movq    %mm1, %rdi
-    movq    %rdi, %fs:-0x10
+    movq    %rdi, %fs:-0x8
 
     pushq   $0x0                /* !!! special entry */
     movl    $(1f-egalito_hook_jit_fixup), 0x4(%rsp)
@@ -105,12 +101,12 @@ egalito_hook_jit_fixup:
 1:
 
 #if 1
-    movb    $0x0, (%rbx)
+    movq    $0x0, %fs:-0x10
 #endif
 
-    movq    %fs:-0x10, %r11
+    movq    %fs:-0x8, %r11
     movq    %gs:(%r11), %r11
-    movq    %r11, %fs:-0x10
+    movq    %r11, %fs:-0x8
 
     pop     %rbx
     pop     %rsp
@@ -124,24 +120,11 @@ egalito_hook_jit_fixup:
     pop     %rdx
     pop     %rcx
     pop     %rax
-    jmpq    *%fs:-0x10
+    jmpq    *%fs:-0x8
 
 in_code:
     movq    %mm1, %rdi  /* offset */
     jmp     .
-#if 0
-    pop     %r12
-    pop     %r11
-    pop     %r10
-    pop     %r9
-    pop     %r8
-    pop     %rdi
-    pop     %rsi
-    pop     %rdx
-    pop     %rcx
-    pop     %rax
-    retq
-#endif
     .type egalito_hook_jit_fixup, STT_FUNC
     .size egalito_hook_jit_fixup, .-egalito_hook_jit_fixup
 
@@ -174,8 +157,7 @@ egalito_hook_jit_fixup_return:
 
 #if 1
     /* this guards resetting inside egalito_printf */
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
 #endif
 
     push    %rsp
@@ -191,7 +173,6 @@ egalito_hook_jit_fixup_return:
 5:
 
     push    %rbx
-    mov     %rax, %rbx
 
     mov     egalito_jit_gs_fixup@gotpcrel(%rip), %rax
     movl    %r11d, %edi
@@ -201,7 +182,7 @@ egalito_hook_jit_fixup_return:
     jmpq    *%gs:(%rax)
 4:
 #if 1
-    movb    $0x0, (%rbx)
+    movq    $0x0, %fs:-0x10
 #endif
 
     pop     %rbx
@@ -236,10 +217,10 @@ egalito_hook_jit_reset_on_syscall:
     push    %r10
 
 #if 1
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    cmpb    $0x0, (%rax)
+    mov     %fs:-0x10, %rax
+    cmpq    $0x0, %rax
     jne     2f
-    movb    $0x1, (%rax)
+    movq    $0x1, %fs:-0x10
 #endif
 
     push    %rsp
@@ -262,8 +243,7 @@ egalito_hook_jit_reset_on_syscall:
 1:
     pop     %rsp
 #if 1
-    mov     egalito_inside_hook_code@gotpcrel(%rip), %rax
-    movb    $0x0, (%rax)
+    movq    $0x0, %fs:-0x10
 
 2:
 #endif
@@ -278,16 +258,26 @@ egalito_hook_jit_reset_on_syscall:
     .type egalito_hook_jit_reset_on_syscall, STT_FUNC
     .size egalito_hook_jit_reset_on_syscall, .-egalito_hook_jit_reset_on_syscall
 
+   .global egalito_hook_after_clone_syscall
+egalito_hook_after_clone_syscall:
+    test    %rax, %rax
+    jnz     1f
+
+    //jmp     .
+    pushq   %rax
+    mov     egalito_jit_gs_setup_thread@gotpcrel(%rip), %rax
+    callq   *%rax
+    popq    %rax
+1:
+    retq
+    .type egalito_hook_after_clone_syscall, STT_FUNC
+    .size egalito_hook_after_clone_syscall, .-egalito_hook_after_clone_syscall
+
 //
 // begin .bss section
 //
     .bss
     .align 8
-    .global egalito_inside_hook_code
-egalito_inside_hook_code:
-    .skip 8
-    .type egalito_inside_hook_code, STT_OBJECT
-    .size egalito_inside_hook_code, .-egalito_inside_hook_code
 
     .global egalito_hook_function_entry_hook
     .weak egalito_hook_function_entry_hook

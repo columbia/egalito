@@ -90,44 +90,49 @@ void ConductorSetup::injectLibrary(const char *filename) {
     conductor->resolvePLTLinks();
 }
 
-void ConductorSetup::makeLoaderSandbox(bool flipping) {
-    auto backing = MemoryBacking(SANDBOX_BASE_ADDRESS, 10 * 0x1000 * 0x1000);
+Sandbox *ConductorSetup::makeLoaderSandbox() {
+    auto backing = MemoryBacking(sandboxBase, 10 * 0x1000 * 0x1000);
+    sandboxBase += 10 * 0x1000 * 0x1000;
+    auto sandbox = new SandboxImpl<MemoryBacking,
+        WatermarkAllocator<MemoryBacking>>(backing);
+    //this->sandbox = sandbox;
+    return sandbox;
+}
+
+ShufflingSandbox *ConductorSetup::makeShufflingSandbox() {
+    auto backing = MemoryBacking(sandboxBase, 1 * 0x1000 * 0x1000);
+    sandboxBase += 2 * 0x1000 * 0x1000;
     auto sandbox1 = new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing);
-    this->sandbox = sandbox1;
-    if(!flipping) return;
 
-#ifndef SANDBOX_BASE_ADDRESS2
-#define SANDBOX_BASE_ADDRESS2   ((SANDBOX_BASE_ADDRESS) + 10 * 0x1000 * 0x1000)
-#endif
-    auto backing2 = MemoryBacking(SANDBOX_BASE_ADDRESS2, 10 * 0x1000 * 0x1000);
+    auto backing2 = MemoryBacking(sandboxBase, 1 * 0x1000 * 0x1000);
+    sandboxBase += 2 * 0x1000 * 0x1000;
     auto sandbox2 = new SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>(backing2);
-    this->flip = new SandboxFlipImpl<SandboxImpl<MemoryBacking,
+    return new DualSandbox<SandboxImpl<MemoryBacking,
         WatermarkAllocator<MemoryBacking>>>(sandbox1, sandbox2);
 }
 
-void ConductorSetup::makeFileSandbox(const char *outputFile) {
+Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
     // auto backing = ExeBacking(conductor->getMainSpace(), outputFile);
     // this->sandbox = new SandboxImpl<ExeBacking,
     //     WatermarkAllocator<ExeBacking>>(backing);
     auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
-    this->sandbox = new SandboxImpl<ObjBacking,
-        WatermarkAllocator<ObjBacking>>(backing);
+    return new SandboxImpl<ObjBacking, WatermarkAllocator<ObjBacking>>(backing);
 }
 
-void ConductorSetup::moveCode(bool useDisps) {
+void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
     // 1. assign new addresses to all code
-    moveCodeAssignAddresses(useDisps);
+    moveCodeAssignAddresses(sandbox, useDisps);
 
     // 2. copy code to the new addresses
-    copyCodeToNewAddresses(useDisps);
+    copyCodeToNewAddresses(sandbox, useDisps);
 
     // 3. make code executable, or change permissions
-    moveCodeMakeExecutable();
+    moveCodeMakeExecutable(sandbox);
 }
 
-void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
+void ConductorSetup::moveCodeAssignAddresses(Sandbox *sandbox, bool useDisps) {
     Generator generator(useDisps);
 
     for(auto module : CIter::modules(conductor->getProgram())) {
@@ -135,7 +140,7 @@ void ConductorSetup::moveCodeAssignAddresses(bool useDisps) {
     }
 }
 
-void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
+void ConductorSetup::copyCodeToNewAddresses(Sandbox *sandbox, bool useDisps) {
     Generator generator(useDisps);
 
     for(auto module : CIter::modules(conductor->getProgram())) {
@@ -143,7 +148,7 @@ void ConductorSetup::copyCodeToNewAddresses(bool useDisps) {
     }
 }
 
-void ConductorSetup::moveCodeMakeExecutable() {
+void ConductorSetup::moveCodeMakeExecutable(Sandbox *sandbox) {
     sandbox->finalize();
 }
 

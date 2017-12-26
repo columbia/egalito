@@ -1,10 +1,7 @@
 #ifndef EGALITO_ELF_TLS_H
 #define EGALITO_ELF_TLS_H
-
-#include "elf/elfxx.h"
-#include "chunk/chunk.h"
-#include "chunk/concrete.h"
-#include "types.h"
+#include <cstddef>
+#include "transform/sandbox.h"
 
 /*
  * How glibc handles TLS for AARCH64:
@@ -21,40 +18,31 @@
  *  - it has to provide their address through __tls_get_addr().
  */
 
-#if 0
-class ElfMap;
-class RelocList;
 
-class TLSList {
+// We directly reserve areas as an substitute for TLS in libegalito
+// since using a thread local storage in libegalito requires a heavy
+// operation for libegalito (e.g. __tls_get_addr)
+
+class GSTable;
+
+// the list grows upward
+class EgalitoTLS {
 private:
-    class TLSRegion {
-    private:
-        ElfMap *sourceElf;
-        ElfXX_Phdr *phdr;
-        address_t address;
-    public:
-        TLSRegion(ElfXX_Phdr *phdr, ElfMap *elf) : sourceElf(elf), phdr(phdr) {}
-        void setAddress(address_t address) { this->address = address; }
-        address_t getAddress() const { return address; }
-        void loadTo(address_t baseAddress);
-        size_t getSize() const { return phdr->p_memsz; }
-    };
-
-    typedef std::vector<TLSRegion *> ListType;
-    ListType tlsList;
-    std::vector<Reloc *> relocList;
-
+    size_t reserve;
+    EgalitoTLS *child;  // used only to initialize the child's TLS
+    GSTable *gsTable;
+    ShufflingSandbox *sandbox;
+    size_t JIT_jitting;     // hard coded in assembly (-0x10)
+    size_t JIT_temporary;   // hard coded in assembly (-0x8)
 public:
-    void add(TLSRegion *tls) { tlsList.push_back(tls); }
-
-    ListType::iterator begin() { return tlsList.begin(); }
-    ListType::iterator end() { return tlsList.end(); }
-
-    void addReloc(Reloc *r) { relocList.push_back(r); }
-    void resolveRelocs(ElfMap *elf);
-
-    static void buildTLSList(ElfMap *elf, RelocList *relocList, Module *module);
-
+    EgalitoTLS(GSTable *gsTable, ShufflingSandbox *sandbox)
+        : child(nullptr), gsTable(gsTable), sandbox(sandbox), JIT_jitting(0) {}
+    static ShufflingSandbox *getSandbox();
+    static void setSandbox(ShufflingSandbox *sandbox);
+    static GSTable *getGSTable();
+    static void setGSTable(GSTable *gsTable);
+    static EgalitoTLS *getChild();
+    static void setChild(EgalitoTLS *child);
 };
-#endif
+
 #endif

@@ -6,6 +6,8 @@
 class ManageGS {
 public:
     static void init(GSTable *gsTable);
+    static void allocateBuffer(GSTable *gsTable);
+    static void setGS(GSTable *gsTable);
 
     static void setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
         address_t value);

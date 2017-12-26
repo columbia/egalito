@@ -4,6 +4,7 @@
 #include "emulator.h"
 #include "chunk/link.h"
 #include "chunk/concrete.h"
+#include "chunk/tls.h"
 #include "elf/elfspace.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
@@ -59,6 +60,13 @@ namespace Emulation {
         auto conductor = egalito_conductor_setup->getConductor();
         address_t tcb = reinterpret_cast<address_t>(mem);
         conductor->loadTLSDataFor(tcb);
+        // we initialize child's EgalitoTLS here using the data structures
+        // created by the parent. However, %gs is not set until the child
+        // is actually created. (The child has to execute the parent code
+        // for some time until %gs is initialized.)
+        auto child = EgalitoTLS::getChild();
+        std::memcpy(reinterpret_cast<void *>(tcb - sizeof(EgalitoTLS)),
+            child, sizeof(EgalitoTLS));
         return mem;
     }
 }

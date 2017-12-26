@@ -54,7 +54,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "PLTLink",
         "OffsetLink",
 
-        "SandboxFlipImpl",
+        "DualSandbox",
+        "WatermarkAllocator",
+
+        "EgalitoTLS",
 
         // for JIT'ting libegalito ctors
         "STLIterator",
@@ -67,6 +70,9 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "egalito_jit_gs_fixup",
         "egalito_jit_gs_reset",
         "_start2",
+        "egalito_hook_after_clone_syscall",
+        "egalito_jit_gs_setup_thread",
+
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.319",
@@ -181,6 +187,12 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("__memset_sse2_unaligned_erms", module);
             makeResolvedEntry("__memset_avx512_erms", module);
             makeResolvedEntry("__memset_avx512_no_vzeroupper", module);
+            makeResolvedEntry("arch_prctl", module);
+            // spwaned thread
+            makeResolvedEntry("get_free_list", module);
+            makeResolvedEntry("arena_get2.part.8", module);
+            makeResolvedEntry("new_heap", module);
+            makeResolvedEntry("munmap", module);
         }
         else if(module->getName() == "module-libstdc++.so.6") {
             makeResolvedEntry("__dynamic_cast", module);
@@ -287,6 +299,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("__pthread_once_slow", module);
             makeResolvedEntry("_pthread_cleanup_push", module);
             makeResolvedEntry("_pthread_cleanup_pop", module);
+            makeResolvedEntry("__pthread_enable_asynccancel", module);
+            makeResolvedEntry("__pthread_disable_asynccancel", module);
         }
     }
     makeResolvedEntryForPLT("memcpy@plt", program);

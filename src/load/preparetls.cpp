@@ -1,7 +1,7 @@
 #include "preparetls.h"
 #include "../dep/rtld/tcbhead.h"
 #include "conductor/conductor.h"
-#include "log/log.h"
+//#include "log/log.h"
 
 #ifdef ARCH_X86_64
 extern "C" void _set_fs(address_t fs);
@@ -9,6 +9,7 @@ extern "C" void _set_fs(address_t fs);
 extern "C" void _set_tpidr_el0(address_t addr);
 #endif
 
+// Do not call any virtual function
 void PrepareTLS::prepare(Conductor *conductor) {
 #ifdef ARCH_X86_64
     auto main_tp = conductor->getMainThreadPointer();
@@ -24,7 +25,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     __asm__ __volatile__ (
         "mov %%fs:0x28, %%rax" : "=a"(canary)
     );
-    LOG(1, "copying stack canary: 0x" << std::hex << canary);
+    //LOG(1, "copying stack canary: 0x" << std::hex << canary);
     _head->stack_guard = canary;
 
     uint64_t pointer_guard;
@@ -35,7 +36,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     );
     _head->pointer_guard = pointer_guard;
 
-    LOG(1, "set %""fs to point at " << main_tp);
+    //LOG(1, "set %""fs to point at " << main_tp);
     _set_fs(main_tp);
 #elif defined(ARCH_AARCH64)
     auto main_tp = conductor->getMainThreadPointer();

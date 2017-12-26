@@ -18,7 +18,7 @@ public:
     virtual void visit(Program *program);
 private:
     void addResetCalls();
-    void addResetCall(const char *name, Module *module, Chunk *reset);
+    void addAfterFirstSyscall(const char *name, Module *module, Chunk *reset);
 };
 
 #endif

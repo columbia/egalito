@@ -17,7 +17,6 @@ extern address_t egalito_init_array[];
 
 extern ConductorSetup *egalito_conductor_setup;
 extern Conductor *egalito_conductor;
-extern GSTable *egalito_gsTable;
 extern Chunk *egalito_gsCallback;
 extern IFuncList *egalito_ifuncList;
 
@@ -33,7 +32,6 @@ void InjectBridgePass::visit(Module *module) {
         EGALITO_BRIDGE_ENTRY(egalito_init_array),
         EGALITO_BRIDGE_ENTRY(egalito_conductor_setup),
         EGALITO_BRIDGE_ENTRY(egalito_conductor),
-        EGALITO_BRIDGE_ENTRY(egalito_gsTable),
         EGALITO_BRIDGE_ENTRY(egalito_gsCallback),
         EGALITO_BRIDGE_ENTRY(egalito_ifuncList),
         EGALITO_BRIDGE_ENTRY(egalito_hook_instruction_hook),
