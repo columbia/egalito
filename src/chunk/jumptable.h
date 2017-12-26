@@ -5,6 +5,7 @@
 #include "chunklist.h"
 #include "archive/chunktypes.h"
 
+class DataVariable;
 class JumpTableDescriptor;
 class Function;
 class Instruction;
@@ -13,12 +14,16 @@ class ElfMap;
 class JumpTableEntry : public ChunkSerializerImpl<TYPE_JumpTableEntry,
     AddressableChunkImpl> {
 private:
-    Link *link;
+    DataVariable *dataVariable;
 public:
-    JumpTableEntry(Link *link = nullptr) : link(link) {}
+    JumpTableEntry(DataVariable *dataVariable = nullptr) : dataVariable(dataVariable) {}
 
-    Link *getLink() const { return link; }
-    void setLink(Link *link) { this->link = link; }
+    DataVariable *getDataVariable() const { return dataVariable; }
+    void setDataVariable(DataVariable *dataVariable)
+        { this->dataVariable = dataVariable; }
+
+    Link *getLink() const;
+    void setLink(Link *link);
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

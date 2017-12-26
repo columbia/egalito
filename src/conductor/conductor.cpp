@@ -188,11 +188,14 @@ void Conductor::fixDataSections() {
 }
 
 void Conductor::fixPointersInData() {
-    FixJumpTablesPass fixJumpTables;
-    program->accept(&fixJumpTables);
-
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);
+
+    // NOTE: this overwrites DataVariables, which are stored as
+    // absolute values instead of relative, with relative values.
+    // Should do this more efficiently.
+    FixJumpTablesPass fixJumpTables;
+    program->accept(&fixJumpTables);
 }
 
 #define EGALITO_TLS_RESERVE_SIZE    (0x10)

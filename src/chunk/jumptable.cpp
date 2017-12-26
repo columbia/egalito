@@ -5,19 +5,24 @@
 #include "visitor.h"
 #include "analysis/jumptable.h"
 #include "instr/concrete.h"
-#include "instr/serializer.h"
 #include "elf/elfmap.h"
 #include "log/log.h"
+
+Link *JumpTableEntry::getLink() const {
+    assert(dataVariable != nullptr);
+    return dataVariable->getDest();
+}
+
+void JumpTableEntry::setLink(Link *link) {
+    assert(dataVariable != nullptr);
+    dataVariable->setDest(link);
+}
 
 void JumpTableEntry::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write(getAddress());
-
-    // we may not write anything if the Link is null
-    if(link) {
-        LinkSerializer(op).serialize(link, writer);
-    }
+    writer.writeID(op.assign(dataVariable));
 }
 
 bool JumpTableEntry::deserialize(ChunkSerializerOperations &op,
@@ -25,10 +30,8 @@ bool JumpTableEntry::deserialize(ChunkSerializerOperations &op,
 
     setPosition(PositionFactory::getInstance()
         ->makeAbsolutePosition(reader.read<address_t>()));
-
-    link = LinkSerializer(op).deserialize(reader);
-
-    return true;  // success even if no Link was read
+    dataVariable = op.lookupAs<DataVariable>(reader.readID());
+    return reader.stillGood();
 }
 
 void JumpTableEntry::accept(ChunkVisitor *visitor) {
