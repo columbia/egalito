@@ -289,6 +289,10 @@ DataRegion *DataRegionList::findRegionContaining(address_t target) {
 }
 
 DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
+    //auto found = getChildren()->getSpatial()->findContaining(target);
+    //if(found && found != tls) return found;
+
+    // FIX: this is very slow as a linear search for jump tables
     for(auto region : CIter::children(this)) {
         if(region == tls) continue;
 

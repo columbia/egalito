@@ -126,6 +126,15 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
     }
 }
 
+static DataVariable *createDataVariable(address_t address, Link *link,
+    Module *module) {
+
+    auto region = module->getDataRegionList()->findRegionContaining(address);
+    auto var = new DataVariable(region, address, link);
+    region->addVariable(var);
+    return var;
+}
+
 void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
@@ -167,7 +176,10 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             LOG(3, "        unresolved at 0x" << std::hex << target);
             link = new UnresolvedLink(target);
         }
-        auto entry = new JumpTableEntry(link);
+
+        auto dataVariable = createDataVariable(address, link, module);
+
+        auto entry = new JumpTableEntry(dataVariable);
         entry->setPosition(PositionFactory::getInstance()
             ->makeAbsolutePosition(address));
         jumpTable->getChildren()->add(entry);

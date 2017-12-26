@@ -132,4 +132,3 @@ void egalito_callInit(void) {
         f(argc, argv, envp);
     }
 }
-

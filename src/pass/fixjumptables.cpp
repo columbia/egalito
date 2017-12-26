@@ -23,12 +23,7 @@ void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {
 }
 
 void FixJumpTablesPass::visit(JumpTable *jumpTable) {
-#ifdef EXPERIMENTAL_ARCHIVE
-    return;  // !!! TEMPORARY
-#endif
-
 #ifdef ARCH_X86_64
-    auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
 
     LOG(1, "fixing jump table...");
@@ -38,17 +33,18 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
     }
 
     for(auto entry : CIter::children(jumpTable)) {
-        auto link = entry->getLink();
-        address_t slot = elfMap->getBaseAddress() + entry->getAddress();
+        address_t slot = entry->getDataVariable()->getAddress();
+        address_t target = entry->getLink()->getTargetAddress();
 
-        address_t target = link->getTargetAddress();
-        // for relative jump tables
-        target -= elfMap->getBaseAddress() + descriptor->getAddress();
+        // for relative jump tables (always the case right now)
+        auto region = dynamic_cast<DataRegion *>(
+            entry->getDataVariable()->getParent()->getParent());
+        target -= region->getAddress() + descriptor->getAddress();
 
         switch(descriptor->getScale()) {
         case 4:
             LOG(1, "set slot " << std::hex << slot
-                << " to point to " << std::hex << target);
+                << " to value " << std::hex << target);
             *reinterpret_cast<int32_t *>(slot) = target;
             break;
         default:
