@@ -1,4 +1,5 @@
 #include <cstring>  // for memcpy in generated code
+#include <cassert>
 #include "config.h"
 #include "emulator.h"
 #include "chunk/link.h"
@@ -205,8 +206,8 @@ void LoaderEmulator::initRT(Conductor *conductor) {
     rtld_casted->_dl_error_catch_tsd
         = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
 #endif
-    rtld_casted->_dl_tls_static_size = 0x1000;
-    rtld_casted->_dl_tls_static_align = 1;
+    //rtld_casted->_dl_tls_static_size = 0x1000;
+    assert(rtld_casted->_dl_tls_static_align == 64);
 
     auto rtld_ro = findEgalitoDataVariable("_ZN9Emulation15_rtld_global_roE");
     auto rtld_ro_casted = reinterpret_cast<Emulation::my_rtld_global_ro *>(
