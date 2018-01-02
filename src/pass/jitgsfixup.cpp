@@ -154,6 +154,18 @@ JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)
 
 }
 
+void JitGSFixup::addAfterFirstSyscall(const char *name, Module *module,
+    Chunk *target) {
+
+    addAfterSyscall(name, module, target, true);
+}
+
+void JitGSFixup::addAfterEverySyscall(const char *name, Module *module,
+    Chunk *target) {
+
+    addAfterSyscall(name, module, target, false);
+}
+
 void JitGSFixup::visit(Program *program) {
     auto lib = program->getEgalito();
     if(!lib) throw "JitGSFixup requires libegalito.so to be transformed";
@@ -163,8 +175,8 @@ void JitGSFixup::visit(Program *program) {
     assert(callback);
     ::egalito_gsCallback = callback;
 
-    // ManageGS methods cannot be used until 'runtime', because there is no
-    // buffer yet
+    // ManageGS methods cannot be used until 'runtime',
+    // because there is no buffer yet
     for(auto entry : CIter::children(gsTable)) {
         entry->setLazyResolver(callback);
     }
@@ -190,32 +202,34 @@ void JitGSFixup::addResetCalls() {
     }
 
     if(auto libc = conductor->getProgram()->getLibc()) {
-        addAfterFirstSyscall("write", libc, reset);
+        addAfterEverySyscall("write", libc, reset);
+        addAfterEverySyscall("_IO_file_write", libc, reset);
     }
 
     if(auto libpthread = conductor->getProgram()->getLibraryList()
         ->find("libpthread.so.0")) {
 
-        addAfterFirstSyscall("write", libpthread->getModule(), reset);
+        addAfterEverySyscall("write", libpthread->getModule(), reset);
     }
 }
 
-void JitGSFixup::addAfterFirstSyscall(const char *name, Module *module,
-    Chunk *reset) {
+void JitGSFixup::addAfterSyscall(const char *name, Module *module,
+    Chunk *target, bool firstOnly) {
 
-#ifdef ARCH_X86_64
     auto function = ChunkFind2(conductor).findFunctionInModule(name, module);
     assert(function);
 
-    Block *block = nullptr;
-    Instruction *instr = nullptr;
     bool next = false;
     for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
             if(next) {
-                block = b;
-                instr = i;
-                goto out;
+                addAfter(i, b, target);
+                if(firstOnly) {
+                    return;
+                }
+                else {
+                    next = false;
+                }
             }
             if(auto assembly = i->getSemantic()->getAssembly()) {
                 if(assembly->getMnemonic() == "syscall") {
@@ -224,10 +238,12 @@ void JitGSFixup::addAfterFirstSyscall(const char *name, Module *module,
             }
         }
     }
+}
 
-    if(!instr) return;
+void JitGSFixup::addAfter(Instruction *instruction, Block *block,
+    Chunk *target) {
 
-out:
+#ifdef ARCH_X86_64
     // this modification must follow index-based ABI
     DisasmHandle handle(true);
 
@@ -236,7 +252,7 @@ out:
     auto semantic = new LinkedInstruction(jmpq);
     std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0};
     semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin));
-    auto gsEntry = gsTable->makeEntryFor(reset);
+    auto gsEntry = gsTable->makeEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);
     jmpq->setSemantic(semantic);
@@ -262,8 +278,8 @@ out:
         std::vector<unsigned char>({0x0f, 0x6e, 0x0d, 0x04, 0, 0, 0}));
 
     ChunkMutator m(block);
-    m.insertBeforeJumpTo(instr, push1);
-    m.insertAfter(instr, movRA);
+    m.insertBeforeJumpTo(instruction, push1);
+    m.insertAfter(instruction, movRA);
     m.insertAfter(movRA, movOffset);
     m.insertAfter(movOffset, jmpq);
     // we may need to split the block

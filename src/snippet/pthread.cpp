@@ -36,7 +36,7 @@ int egalito_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     EgalitoTLS::setChild(nullptr);
 
     // XXX: we need to make sure that the parent does not reset the
-    // start_routine until the child has its set of resolver functions
+    // start_routine until the child starts executing in its sandbox
 
     return status;
 }
