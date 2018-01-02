@@ -38,28 +38,6 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     module->accept(&clearSpatial);
 }
 
-void Generator::pickFunctionAddressInSandbox(Function *function,
-    Sandbox *sandbox) {
-
-    auto slot = sandbox->allocate(function->getSize());
-    ChunkMutator(function).setPosition(slot.getAddress());
-#if 0
-    ClearSpatialPass clearSpatial;
-    module->accept(&clearSpatial);
-#endif
-}
-
-void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
-    Sandbox *sandbox) {
-
-    auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
-    ChunkMutator(trampoline).setPosition(slot.getAddress());
-#if 0
-    ClearSpatialPass clearSpatial;
-    module->accept(&clearSpatial);
-#endif
-}
-
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
     LOG(1, "Copying code into sandbox");
     for(auto f : CIter::functions(module)) {
@@ -108,6 +86,28 @@ void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
 void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
     char *output = reinterpret_cast<char *>(trampoline->getAddress());
     trampoline->writeTo(output);
+}
+
+void Generator::pickFunctionAddressInSandbox(Function *function,
+    Sandbox *sandbox) {
+
+    auto slot = sandbox->allocate(function->getSize());
+    ChunkMutator(function).setPosition(slot.getAddress());
+#if 0
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+#endif
+}
+
+void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
+    Sandbox *sandbox) {
+
+    auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
+    ChunkMutator(trampoline).setPosition(slot.getAddress());
+#if 0
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+#endif
 }
 
 void Generator::instantiate(Function *function, Sandbox *sandbox) {

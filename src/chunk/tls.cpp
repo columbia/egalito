@@ -56,3 +56,22 @@ void EgalitoTLS::setChild(EgalitoTLS *child) {
               "i"(offsetof(EgalitoTLS, child)-sizeof(EgalitoTLS))
     );
 }
+
+pthread_barrier_t *EgalitoTLS::getBarrier() {
+    pthread_barrier_t *barrier;
+    __asm__ __volatile__ (
+        "mov %@:%p1, %0"
+            : "=r"(barrier)
+            : "i"(offsetof(EgalitoTLS, barrier)-sizeof(EgalitoTLS))
+    );
+    return barrier;
+}
+
+void EgalitoTLS::setBarrier(pthread_barrier_t *barrier) {
+    __asm__ __volatile__ (
+        "mov %0, %@:%p1"
+            :
+            : "r"(barrier),
+              "i"(offsetof(EgalitoTLS, barrier)-sizeof(EgalitoTLS))
+    );
+}

@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <cstring>
 #include <cassert>
 #include "jitgsfixup.h"
@@ -147,6 +148,9 @@ void egalito_jit_gs_transition(ShufflingSandbox *sandbox, GSTable *gsTable) {
 extern "C"
 void egalito_jit_gs_setup_thread(void) {
     ManageGS::setGS(EgalitoTLS::getGSTable());
+    auto barrier = EgalitoTLS::getBarrier();
+    pthread_barrier_wait(barrier);
+    EgalitoTLS::setBarrier(nullptr);
 }
 
 JitGSFixup::JitGSFixup(Conductor *conductor, GSTable *gsTable)
