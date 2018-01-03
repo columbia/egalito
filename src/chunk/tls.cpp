@@ -57,8 +57,8 @@ void EgalitoTLS::setChild(EgalitoTLS *child) {
     );
 }
 
-pthread_barrier_t *EgalitoTLS::getBarrier() {
-    pthread_barrier_t *barrier;
+volatile size_t *EgalitoTLS::getBarrier() {
+    volatile size_t *barrier;
     __asm__ __volatile__ (
         "mov %@:%p1, %0"
             : "=r"(barrier)
@@ -67,11 +67,30 @@ pthread_barrier_t *EgalitoTLS::getBarrier() {
     return barrier;
 }
 
-void EgalitoTLS::setBarrier(pthread_barrier_t *barrier) {
+void EgalitoTLS::setBarrier(volatile size_t *barrier) {
     __asm__ __volatile__ (
         "mov %0, %@:%p1"
             :
             : "r"(barrier),
               "i"(offsetof(EgalitoTLS, barrier)-sizeof(EgalitoTLS))
+    );
+}
+
+void *EgalitoTLS::getJITAddressTable() {
+    void *JIT_addressTable;
+    __asm__ __volatile__ (
+        "mov %@:%p1, %0"
+            : "=r"(JIT_addressTable)
+            : "i"(offsetof(EgalitoTLS, JIT_addressTable)-sizeof(EgalitoTLS))
+    );
+    return JIT_addressTable;
+}
+
+void EgalitoTLS::setJITAddressTable(void *JIT_addressTable) {
+    __asm__ __volatile__ (
+        "mov %0, %@:%p1"
+            :
+            : "r"(JIT_addressTable),
+              "i"(offsetof(EgalitoTLS, JIT_addressTable)-sizeof(EgalitoTLS))
     );
 }

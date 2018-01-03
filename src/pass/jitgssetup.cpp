@@ -1,10 +1,28 @@
+#include <sys/mman.h>
 #include <cctype>
 #include <cstring>
 #include <cassert>
+#include "config.h"
 #include "jitgssetup.h"
+#include "chunk/tls.h"
 #include "conductor/conductor.h"
 #include "operation/find2.h"
 #include "log/log.h"
+
+extern "C"
+void egalito_jit_gs_setup() {
+    auto base = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    EgalitoTLS::setJITAddressTable(base);
+
+    auto gsTable = EgalitoTLS::getGSTable();
+    for(auto entry : CIter::children(gsTable)) {
+        auto target = entry->getRealTarget();
+        if(dynamic_cast<AbsolutePosition *>(target->getPosition())) {
+            target->setPositionIndex(Chunk::POSITION_JIT_GS);
+        }
+    }
+}
 
 void JitGSSetup::visit(Program *program) {
     makeHardwiredGSEntries(program->getEgalito());
@@ -68,6 +86,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
 
     const auto resolvers = {
         "egalito_jit_gs_fixup",
+        "egalito_jit_gs_init",
         "egalito_jit_gs_reset",
         "_start2",
         "egalito_hook_after_clone_syscall",
@@ -193,6 +212,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("arena_get2.part.8", module);
             makeResolvedEntry("new_heap", module);
             makeResolvedEntry("munmap", module);
+            // JIT GS address table
+            makeResolvedEntry("explicit_bzero", module);
         }
         else if(module->getName() == "module-libstdc++.so.6") {
             makeResolvedEntry("__dynamic_cast", module);

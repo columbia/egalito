@@ -31,6 +31,11 @@ class ArchiveStreamWriter;
 */
 class Chunk {
 public:
+    enum PositionIndex {
+        POSITION_OLD = 0,
+        POSITION_JIT_GS,
+    };
+public:
     virtual ~Chunk() {}
 
     virtual std::string getName() const = 0;
@@ -49,6 +54,8 @@ public:
     virtual void setSize(size_t newSize) = 0;
     virtual void addToSize(diff_t add) = 0;
 
+    virtual PositionIndex getPositionIndex() const = 0;
+    virtual void setPositionIndex(PositionIndex index) = 0;
     virtual address_t getAddress() const = 0;
     virtual Range getRange() const = 0;
 
@@ -68,9 +75,11 @@ public:
 class ChunkImpl : public Chunk {
 private:
     Chunk *parent, *prev, *next;
+    PositionIndex positionIndex;
 public:
     ChunkImpl(Chunk *parent = nullptr)
-        : parent(parent), prev(nullptr), next(nullptr) {}
+        : parent(parent), prev(nullptr), next(nullptr),
+        positionIndex(POSITION_OLD) {}
 
     virtual std::string getName() const { return "???"; }
 
@@ -88,6 +97,9 @@ public:
     virtual void setSize(size_t newSize);
     virtual void addToSize(diff_t add);
 
+    virtual PositionIndex getPositionIndex() const { return positionIndex; }
+    virtual void setPositionIndex(PositionIndex index)
+        { this->positionIndex = index; }
     virtual address_t getAddress() const;
     virtual Range getRange() const;
 

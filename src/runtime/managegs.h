@@ -12,6 +12,8 @@ public:
     static void setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
         address_t value);
 
+    static address_t getEntry(GSTableEntry::IndexType offset);
+
     static void resetEntries(GSTable *gsTable, Chunk *callback);
     static Chunk *resolve(GSTable *gsTable, GSTableEntry::IndexType index);
 };

@@ -46,10 +46,10 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
 
 #if 0
         if(f->getName() != "puts") {
-            copyFunctionToSandbox(f, sandbox);
+            copyFunctionToSandbox(f);
         }
 #else
-        copyFunctionToSandbox(f, sandbox);
+        copyFunctionToSandbox(f);
 #endif
     }
 
@@ -60,12 +60,12 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
-            copyPLTToSandbox(plt, sandbox);
+            copyPLTToSandbox(plt);
         }
     }
 }
 
-void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
+void Generator::copyFunctionToSandbox(Function *function) {
     char *output = reinterpret_cast<char *>(function->getAddress());
     for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
@@ -83,7 +83,7 @@ void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
     }
 }
 
-void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
+void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
     char *output = reinterpret_cast<char *>(trampoline->getAddress());
     trampoline->writeTo(output);
 }
@@ -112,12 +112,12 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
 
 void Generator::instantiate(Function *function, Sandbox *sandbox) {
     pickFunctionAddressInSandbox(function, sandbox);
-    copyFunctionToSandbox(function, sandbox);
+    copyFunctionToSandbox(function);
 }
 
 void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
     pickPLTAddressInSandbox(trampoline, sandbox);
-    copyPLTToSandbox(trampoline, sandbox);
+    copyPLTToSandbox(trampoline);
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

@@ -64,9 +64,10 @@ namespace Emulation {
         // created by the parent. However, %gs is not set until the child
         // is actually created. (The child has to execute the parent code
         // for some time until %gs is initialized.)
-        auto child = EgalitoTLS::getChild();
-        std::memcpy(reinterpret_cast<void *>(tcb - sizeof(EgalitoTLS)),
-            child, sizeof(EgalitoTLS));
+        if(auto child = EgalitoTLS::getChild()) {
+            std::memcpy(reinterpret_cast<void *>(tcb - sizeof(EgalitoTLS)),
+                child, sizeof(EgalitoTLS));
+        }
         return mem;
     }
 }

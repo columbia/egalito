@@ -30,72 +30,54 @@ size_t egalito_jit_gs_fixup(size_t offset) {
     egalito_printf("target=[%s])\n", target->getName().c_str());
 
     Function *targetFunction = dynamic_cast<Function *>(target);
-    PLTTrampoline *targetTrampoline = nullptr;
-    Chunk *targetChunk = targetFunction;
-    if(!targetFunction) {
-        if(dynamic_cast<Instruction *>(target)) {
-            targetFunction = dynamic_cast<Function *>(
-                target->getParent()->getParent());
-            //targetChunk = targetFunction;
-        }
-        else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
-            targetTrampoline = trampoline;
-            targetChunk = trampoline;
-        }
-        else {
-            egalito_printf("parent = %s\n",
-                   target->getParent()->getParent()->getName().c_str());
+    PLTTrampoline *targetTrampoline = dynamic_cast<PLTTrampoline *>(target);
 
-            egalito_printf("JIT error, target not known!\n");
-            while(1);
-        }
-    }
-
-    // instantiate does not set resolver to nullptr, so resolved() does not
-    // work
-
-    if(targetChunk) {
+    address_t address;
+    if(targetFunction || targetTrampoline) {
         auto sandbox = EgalitoTLS::getSandbox();
         sandbox->reopen();
         Generator generator(true);
         if(targetFunction) {
             generator.instantiate(targetFunction, sandbox);
-            egalito_printf("%lx\n", targetFunction->getAddress());
         }
-        else if(targetTrampoline) {
+        else {
             generator.instantiate(targetTrampoline, sandbox);
-            egalito_printf("%lx\n", targetTrampoline->getAddress());
         }
         sandbox->finalize();
+        address = target->getAddress();
+        PositionManager::setAddress(target, 0);
     }
     else {
-        egalito_printf("    not jitting\n");
+        if(dynamic_cast<Instruction *>(target)) {
+            auto grandparent = target->getParent()->getParent();
+            auto entry = gsTable->getEntryFor(grandparent);
+            address = target->getAddress() - grandparent->getAddress()
+                + ManageGS::getEntry(entry->getOffset());
+        }
+        else {
+            egalito_printf("JIT error, target not known!\n");
+            while(1);
+        }
     }
 
-    ManageGS::setEntry(gsTable, index, target->getAddress());
+    egalito_printf("%lx\n", address);
+    ManageGS::setEntry(gsTable, index, address);
     return offset;
 }
 
 extern "C"
-void egalito_jit_gs_reset(void) {
-    egalito_printf("resetting...\n");
-    auto gsTable = EgalitoTLS::getGSTable();
-    auto sandbox = EgalitoTLS::getSandbox();
-
+void egalito_jit_gs_init(ShufflingSandbox *sandbox, GSTable *gsTable) {
     sandbox->reopen();
-    sandbox->recreate();    // better if we only clear the unused after copy?
+    sandbox->recreate();
     Generator generator(true);
     for(auto gsEntry : CIter::children(gsTable)) {
         if(dynamic_cast<GSTableResolvedEntry *>(gsEntry)) {
             auto target = gsEntry->getTarget();
-            egalito_printf("%s ", target->getName().c_str());
             if(auto f = dynamic_cast<Function *>(target)) {
                 generator.instantiate(f, sandbox);
-                egalito_printf("%lx\n", f->getAddress());
             }
             else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
                 generator.instantiate(trampoline, sandbox);
-                egalito_printf("%lx\n", trampoline->getAddress());
             }
             else {
                 break;
@@ -108,6 +90,7 @@ void egalito_jit_gs_reset(void) {
     sandbox->finalize();
 
     ManageGS::resetEntries(gsTable, egalito_gsCallback);
+    explicit_bzero(EgalitoTLS::getJITAddressTable(), JIT_TABLE_SIZE);
     sandbox->flip();
     sandbox->reopen();
     sandbox->recreate();
@@ -115,41 +98,19 @@ void egalito_jit_gs_reset(void) {
 }
 
 extern "C"
-void egalito_jit_gs_transition(ShufflingSandbox *sandbox, GSTable *gsTable) {
-    sandbox->reopen();
-    //sandbox->recreate();    // better if we only clear the unused after copy?
-    Generator generator(true);
-    for(auto gsEntry : CIter::children(gsTable)) {
-        if(dynamic_cast<GSTableResolvedEntry *>(gsEntry)) {
-            auto target = gsEntry->getTarget();
-            if(auto f = dynamic_cast<Function *>(target)) {
-                generator.instantiate(f, sandbox);
-            }
-            else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
-                generator.instantiate(trampoline, sandbox);
-            }
-            else {
-                break;
-            }
-        }
-        else {
-            break;
-        }
-    }
-    sandbox->finalize();
+void egalito_jit_gs_reset(void) {
+    egalito_printf("resetting...\n");
+    auto sandbox = EgalitoTLS::getSandbox();
+    auto gsTable = EgalitoTLS::getGSTable();
 
-    ManageGS::resetEntries(gsTable, egalito_gsCallback);
-    sandbox->flip();
-    //sandbox->reopen();
-    //sandbox->recreate();
-    sandbox->finalize();
+    egalito_jit_gs_init(sandbox, gsTable);
 }
 
 extern "C"
 void egalito_jit_gs_setup_thread(void) {
     ManageGS::setGS(EgalitoTLS::getGSTable());
-    auto barrier = EgalitoTLS::getBarrier();
-    pthread_barrier_wait(barrier);
+    volatile size_t *barrier = EgalitoTLS::getBarrier();
+    *barrier = 1;
     EgalitoTLS::setBarrier(nullptr);
 }
 

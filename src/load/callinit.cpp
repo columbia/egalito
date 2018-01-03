@@ -18,8 +18,8 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
     egalito_init_array[3] = (address_t)envp;
     size_t init_index = 4;
 
-    // This is just a heuristics. For example of an exception, libpthread
-    // needs other libraries but has DF_1_INITFIRST flag set.
+    // This is just a heuristics.
+    // libpthread needs other libraries but has DF_1_INITFIRST flag set.
     std::vector<Module *> order;
     std::set<Library *> met;
     for(auto module : CIter::modules(program)) {
@@ -55,13 +55,13 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         }
     }
 
-    LOG(1, "constructors must be called in this order");
+    LOG(10, "constructors must be called in this order");
     for(auto module : order) {
-        LOG(1, "    " << module->getName());
+        LOG(10, "    " << module->getName());
     }
 
     for(auto module : order) {
-        LOG(1, "module " << module->getName());
+        LOG(10, "module " << module->getName());
 #if 0
         // libpthread constructors need actual emulation
         if(module->getName() == "module-libpthread.so.0") continue;
@@ -69,7 +69,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
 
         auto _init = ChunkFind2().findFunctionInModule("_init", module);
         if(_init) {
-            LOG(1, "adding _init to egalito_init_array");
+            LOG(10, "adding _init to egalito_init_array");
             if(gsTable) {
                 auto gsEntry = gsTable->makeEntryFor(_init);
                 egalito_init_array[init_index++] = gsEntry->getOffset();
@@ -79,8 +79,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
             }
         }
 
-        // we should look into the section in memory mapped region to get the
-        // relocated pointers
+        // we should look in memory mapped region to get relocated pointers
         for(auto region : CIter::regions(module)) {
             for(auto section : CIter::children(region)) {
                 if(section->getType() == DataSection::TYPE_INIT_ARRAY) {
@@ -91,7 +90,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
                         if(gsTable) {
                             auto index = gsTable->offsetToIndex(array[i]);
                             auto gsEntry = gsTable->getAtIndex(index);
-                            LOG(1, "adding "
+                            LOG(10, "adding "
                                 << gsEntry->getRealTarget()->getName()
                                 << " to egalito_init_array");
                             egalito_init_array[init_index++]
@@ -102,7 +101,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
                                 = CIter::spatial(module->getFunctionList())
                                 ->findContaining(array[i]);
                             assert(chunk);
-                            LOG(1, "adding " << chunk->getName()
+                            LOG(10, "adding " << chunk->getName()
                                 << " to egalito_init_array");
                             egalito_init_array[init_index++]
                                 = chunk->getAddress();
@@ -112,6 +111,15 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
             }
         }
     }
+
+    if(gsTable) {
+        auto convert = ChunkFind2().findFunctionInModule(
+            "egalito_jit_gs_setup", program->getEgalito());
+        assert(convert);
+        auto gsEntry = gsTable->makeEntryFor(convert);
+        egalito_init_array[init_index++] = gsEntry->getOffset();
+    }
+
     assert(init_index + 1 <= EGALITO_INIT_ARRAY_SZ);
     egalito_init_array[0] = init_index;
 }

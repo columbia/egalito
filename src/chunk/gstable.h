@@ -42,8 +42,6 @@ private:
 public:
     GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
 
-    void makeReservedEntry(Chunk *target, GSTableEntry::IndexType index);
-
     GSTableEntry *makeEntryFor(Chunk *target, bool preResolved = false);
     GSTableEntry *getEntryFor(Chunk *target);
     void setEscapeTarget(Chunk *target) { escapeTarget = target; }

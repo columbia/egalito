@@ -354,7 +354,8 @@ void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
 }
 
 void ChunkMutator::setPosition(address_t address) {
-    chunk->getPosition()->set(address);
+    //chunk->getPosition()->set(address);
+    PositionManager::setAddress(chunk, address);
 }
 
 void ChunkMutator::setPreviousSibling(Chunk *c, Chunk *prev) {
