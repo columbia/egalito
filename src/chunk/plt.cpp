@@ -111,6 +111,8 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     writer.write(getAddress());
     writer.writeID(op.assign(externalSymbol));
     writer.write(gotPLTEntry);
+
+    op.serializeChildren(this, writer);
 }
 
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
@@ -120,6 +122,7 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     externalSymbol = op.lookupAs<ExternalSymbol>(reader.readID());
     gotPLTEntry = reader.read<address_t>();
 
+    op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
 

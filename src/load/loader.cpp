@@ -18,6 +18,7 @@
 #include "pass/loginstr.h"
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
+#include "pass/resolveplt.h"
 #include "pass/collapseplt.h"
 #include "pass/hijack.h"
 #include "pass/jitgssetup.h"
