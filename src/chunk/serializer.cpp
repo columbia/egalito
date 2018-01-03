@@ -8,13 +8,20 @@
 #include "archive/reader.h"
 #include "archive/writer.h"
 #include "util/timing.h"
+#include "util/streamasstring.h"
 #include "log/log.h"
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
     auto id = ArchiveIDOperations<Chunk>::assign(object);
     if(id != FlatChunk::NoneID) {
         if(debugNames.size() <= id) debugNames.resize(id + 1);
-        debugNames[id] = object->getName();
+        StreamAsString name;
+        size_t count = 0;
+        if(object->getChildren()) count = object->getChildren()->genericGetSize();
+        name << object->getName()
+            << " of type " << object->getFlatType()
+            << " with " << count << " children";
+        debugNames[id] = name;
     }
     return id;
 }
@@ -24,6 +31,15 @@ std::string ChunkSerializerOperations::getDebugName(FlatChunk::IDType id) {
 }
 
 FlatChunk::IDType ChunkSerializerOperations::serialize(Chunk *chunk) {
+#if 0
+    FlatChunk::IDType temp;
+    if(fetch(chunk, temp)) {
+        LOG(0, "WARNING: chunk [" << chunk->getName() << "] already assigned ID " << temp << "!");
+        serialize(chunk, temp);
+        return temp;
+    }
+#endif
+
     FlatChunk *flat = getArchive()->getFlatList().newFlatChunk(
         chunk->getFlatType());
     BufferedStreamWriter writer(flat);
@@ -185,11 +201,12 @@ Chunk *ChunkSerializer::instantiate(FlatChunk *flat) {
 
 void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
     EgalitoArchive *archive = new EgalitoArchive();
-    ChunkSerializerOperations op(archive);
+    bool localModuleOnly = dynamic_cast<Module *>(chunk) != nullptr;
+    ChunkSerializerOperations op(archive, localModuleOnly);
 
     op.serialize(chunk);
 
-    LOG(1, "done with root serialize call");
+    LOG(1, "done with root serialize call on [" << chunk->getName() << "], local=" << (localModuleOnly ? '1' : '0'));
 
     // for sanity, make sure we serialized every Chunk that is referred to
     bool errors = false;
@@ -221,7 +238,7 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {
     EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
-    ChunkSerializerOperations op(archive);
+    ChunkSerializerOperations op(archive, false);
 
     // First instantiate objects, with the correct type, so that memory
     // addresses are fixed (and pointers can be set during deserialization).

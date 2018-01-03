@@ -21,8 +21,8 @@ public:
     Conductor();
     ~Conductor();
 
-    void parseExecutable(ElfMap *elf);
-    void parseEgalito(ElfMap *elf);
+    Module *parseExecutable(ElfMap *elf);
+    Module *parseEgalito(ElfMap *elf);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     void parseEgalitoArchive(const char *archive);

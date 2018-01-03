@@ -36,14 +36,14 @@ Conductor::~Conductor() {
     delete program;
 }
 
-void Conductor::parseExecutable(ElfMap *elf) {
+Module *Conductor::parseExecutable(ElfMap *elf) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
-    parse(elf, library);
+    return parse(elf, library);
 }
 
-void Conductor::parseEgalito(ElfMap *elf) {
+Module *Conductor::parseEgalito(ElfMap *elf) {
     auto library = new Library("(egalito)", Library::ROLE_EGALITO);
-    parse(elf, library);
+    return parse(elf, library);
 }
 
 void Conductor::parseLibraries() {

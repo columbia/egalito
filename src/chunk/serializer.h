@@ -14,10 +14,11 @@ class Chunk;
 class ChunkSerializerOperations : public ArchiveIDOperations<Chunk> {
 private:
     EgalitoArchive *archive;
+    bool localModuleOnly;
     std::vector<std::string> debugNames;
 public:
-    ChunkSerializerOperations(EgalitoArchive *archive)
-        : ArchiveIDOperations(archive) {}
+    ChunkSerializerOperations(EgalitoArchive *archive, bool localModuleOnly)
+        : ArchiveIDOperations(archive), localModuleOnly(localModuleOnly) {}
 
     virtual FlatChunk::IDType assign(Chunk *object);
     std::string getDebugName(FlatChunk::IDType id);
@@ -34,6 +35,8 @@ public:
         ArchiveStreamWriter &writer, int level);
     void deserializeChildrenIDsOnly(Chunk *chunk,
         ArchiveStreamReader &reader, int level, bool addToChildList = true);
+
+    bool isLocalModuleOnly() const { return localModuleOnly; }
 };
 
 /** Highest-level archive serialization/deserialization.

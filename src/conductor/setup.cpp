@@ -23,13 +23,15 @@ void ConductorSetup::parseElfFiles(const char *executable,
     ::egalito_conductor = conductor;
 
     this->elf = new ElfMap(executable);
-    conductor->parseExecutable(elf);
+    auto mainModule = conductor->parseExecutable(elf);
+    mainModule->getLibrary()->setResolvedPath(executable);
 
     findEntryPointFunction();
 
     if(injectEgalito) {
         this->egalito = new ElfMap("./libegalito.so");
-        conductor->parseEgalito(egalito);
+        auto egalitoModule = conductor->parseEgalito(egalito);
+        egalitoModule->getLibrary()->setResolvedPath("./libegalito.so");
         LoaderEmulator::getInstance().setup(conductor);
     }
 

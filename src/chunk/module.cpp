@@ -28,11 +28,11 @@ void Module::serialize(ChunkSerializerOperations &op,
     writer.writeString(getName());
     writer.writeID(op.assign(library));
 
-    auto pltListID = op.serialize(getPLTList());
-    writer.write(pltListID);
-
     auto functionListID = op.serialize(getFunctionList());
     writer.write(functionListID);
+
+    auto pltListID = op.serialize(getPLTList());
+    writer.write(pltListID);
 
     auto jumpTableListID = op.serialize(getJumpTableList());
     writer.write(jumpTableListID);
@@ -45,6 +45,11 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto externalSymbolListID = op.serialize(getExternalSymbolList());
     writer.write(externalSymbolListID);
+
+    if(op.isLocalModuleOnly() && library) {
+        LOG(0, "serializing library [" << library->getName() << "]");
+        op.serialize(library, op.assign(library));
+    }
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,
