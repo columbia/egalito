@@ -49,7 +49,7 @@ public:
     virtual bool isWithinModule() const
         { return matches(Link::SCOPE_WITHIN_MODULE); }
 private:
-    constexpr bool matches(Link::LinkScope s) const
+    bool matches(Link::LinkScope s) const
         { return (Scope & s) == s; }
 };
 
@@ -67,7 +67,7 @@ public:
 
     void setScope(Link::LinkScope scope) { this->scope = scope; }
 private:
-    constexpr bool matches(Link::LinkScope s) const
+    bool matches(Link::LinkScope s) const
         { return (scope & s) == s; }
 };
 
