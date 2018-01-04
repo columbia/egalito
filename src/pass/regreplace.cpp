@@ -231,7 +231,7 @@ std::vector<Instruction *> AARCH64RegReplacePass::getCallingInstructions(
             if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
                 ins->getSemantic())) {
 
-                if(cfi->getLink()->isExternalLink()) {
+                if(cfi->getLink()->isExternalJump()) {
                     instructions.push_back(ins);
                 }
             }

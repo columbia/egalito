@@ -62,7 +62,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             // skip here and make LinkedInstruction afterward
             if(op->mem.base != X86_REG_RIP) {
                 semantic = new IndirectCallInstruction(
-                    op->mem.base, op->mem.index,
+                    static_cast<Register>(op->mem.base),
+                    static_cast<Register>(op->mem.index),
                     op->mem.scale, op->mem.disp);
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
@@ -72,7 +73,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             // skip here and make LinkedInstruction afterward
             if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
                 semantic = new IndirectJumpInstruction(
-                    op->mem.base, ins->mnemonic, op->mem.index,
+                    static_cast<Register>(op->mem.base), ins->mnemonic,
+                    static_cast<Register>(op->mem.index),
                     op->mem.scale, op->mem.disp);
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
