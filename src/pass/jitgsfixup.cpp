@@ -16,6 +16,7 @@
 #include "runtime/managegs.h"
 #include "transform/generator.h"
 #include "transform/sandbox.h"
+#include "util/explicit_bzero.h"
 #include "log/log.h"
 
 Chunk *egalito_gsCallback;

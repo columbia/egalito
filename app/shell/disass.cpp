@@ -150,14 +150,14 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             std::cout << "no ELF files loaded\n";
             return;
         }
-        setup->makeLoaderSandbox(false);
-        setup->moveCodeAssignAddresses(true);
+        auto sandbox = setup->makeLoaderSandbox();
+        setup->moveCodeAssignAddresses(sandbox, true);
     }, "allocates a sandbox and assigns functions new addresses");
 
     topLevel->add("generate", [&] (Arguments args) {
         args.shouldHave(1);
-        setup->makeFileSandbox(args.front().c_str());
-        setup->moveCode(false);  // calls sandbox->finalize()
+        auto sandbox = setup->makeFileSandbox(args.front().c_str());
+        setup->moveCode(sandbox, false);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
 
     topLevel->add("bin", [&] (Arguments args) {

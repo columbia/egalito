@@ -216,7 +216,12 @@ void LoaderEmulator::initRT(Conductor *conductor) {
         = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
 #endif
     //rtld_casted->_dl_tls_static_size = 0x1000;
+#ifdef ARCH_X86_64
     assert(rtld_casted->_dl_tls_static_align == 64);
+#elif defined(ARCH_AARCH64)
+    assert(rtld_casted->_dl_tls_static_align == 16);
+#endif
+
 
     auto rtld_ro = findEgalitoDataVariable("_ZN9Emulation15_rtld_global_roE");
     auto rtld_ro_casted = reinterpret_cast<Emulation::my_rtld_global_ro *>(

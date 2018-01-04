@@ -63,8 +63,10 @@ void ManageGS::allocateBuffer(GSTable *gsTable) {
 }
 
 void ManageGS::setGS(GSTable *gsTable) {
+#ifdef ARCH_X86_64
     auto buffer = gsTable->getTableAddress();
     arch_prctl(ARCH_SET_GS, reinterpret_cast<unsigned long>(buffer));
+#endif
 }
 
 void ManageGS::setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
@@ -76,12 +78,14 @@ void ManageGS::setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
 }
 
 address_t ManageGS::getEntry(GSTableEntry::IndexType offset) {
-    address_t address;
+    address_t address = 0;
+#ifdef ARCH_X86_64
     __asm__ __volatile__ (
         "mov %%gs:(%1), %0"
             : "=r"(address)
             : "r"(offset)
     );
+#endif
     return address;
 }
 
