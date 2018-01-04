@@ -171,7 +171,7 @@ int MakeSemantic::determineDisplacementSize(Assembly *assembly, int opIndex) {
     if(distorm_decompose(&ci, &instr, 1, &count) != DECRES_SUCCESS
         || count != 1) {
 
-        LOG(1, "WARNING: distorm failed");
+        LOG(10, "WARNING: distorm failed");
         return 0;
     }
 
