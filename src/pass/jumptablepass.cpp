@@ -8,6 +8,7 @@
 #include "instr/concrete.h"  // for IndirectJumpInstruction
 #include "operation/find.h"
 #include "operation/find2.h"
+#include "operation/mutator.h"
 #include "elf/elfspace.h"
 
 #undef DEBUG_GROUP
@@ -126,18 +127,15 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
     }
 }
 
-static DataVariable *createDataVariable(address_t address, Link *link,
-    Module *module) {
-
-    auto region = module->getDataRegionList()->findRegionContaining(address);
-    auto var = new DataVariable(region, address, link);
-    region->addVariable(var);
-    return var;
-}
-
 void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
+
+    auto firstAddress = jumpTable->getAddress() + 0;
+    auto region = module->getDataRegionList()->findRegionContaining(firstAddress);
+    auto section = CIter::spatial(region)->findContaining(firstAddress);
+    ChunkMutator sectionMutator(section);
+
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
         auto p = elfMap->getCopyBaseAddress() + address;
@@ -177,9 +175,11 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             link = new UnresolvedLink(target);
         }
 
-        auto dataVariable = createDataVariable(address, link, module);
+        auto var = new DataVariable(section, address, link);
+        region->addVariable(var);
+        sectionMutator.append(var);
 
-        auto entry = new JumpTableEntry(dataVariable);
+        auto entry = new JumpTableEntry(var);
         entry->setPosition(PositionFactory::getInstance()
             ->makeAbsolutePosition(address));
         jumpTable->getChildren()->add(entry);
@@ -265,4 +265,3 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
     return false;
 #endif
 }
-

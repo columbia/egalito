@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iomanip>
 #include "dataregion.h"
 #include "link.h"
@@ -30,6 +31,15 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
     this->setPosition(new AbsoluteOffsetPosition(this, offset));
     region->setParent(nullptr);
     ChunkMutator(section).append(this);
+}
+
+DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
+    : dest(dest) {
+
+    assert(section->contains(address));
+
+    auto offset = address - section->getAddress();
+    this->setPosition(new AbsoluteOffsetPosition(this, offset));
 }
 
 void DataVariable::serialize(ChunkSerializerOperations &op,

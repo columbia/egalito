@@ -24,6 +24,9 @@ public:
     DataVariable() : dest(nullptr) {}
     DataVariable(DataRegion *region, address_t address, Link *dest);
 
+    // with this, must manually append this DataVariable to the Section!
+    DataVariable(DataSection *section, address_t address, Link *dest);
+
     std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
 
