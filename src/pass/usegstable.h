@@ -7,8 +7,6 @@
 class GSTable;
 class IFuncList;
 
-#define REWRITE_RA  1
-
 class UseGSTablePass : public ChunkPass {
 private:
     Conductor *conductor;
