@@ -59,7 +59,8 @@ void FallThroughFunctionPass::visit(Function *function) {
                 semantic->setAssembly(DisassembleInstruction(handle)
                     .makeAssemblyPtr(bin.getVector()));
 #endif
-                semantic->setLink(new ExternalNormalLink(target));
+                semantic->setLink(
+                    new NormalLink(target, Link::SCOPE_EXTERNAL_JUMP));
                 branch->setSemantic(semantic);
 
                 ChunkMutator(connecting).append(branch);

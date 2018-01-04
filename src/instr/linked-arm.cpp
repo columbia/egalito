@@ -311,7 +311,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         auto found = CIter::spatial(module->getFunctionList())->find(target);
         if(found) {
             //LOG(1, " ==> " << found->getName());
-            auto link = new ExternalNormalLink(found);
+            auto link = new NormalLink(found, Link::SCOPE_EXTERNAL_JUMP);
             auto linked = new LinkedInstruction(instruction, *assembly);
             linked->setLink(link);
             return linked;

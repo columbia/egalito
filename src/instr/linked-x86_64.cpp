@@ -91,9 +91,9 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                 ->find(target);
             if(found) {
                 if(found == instruction->getParent()->getParent()) {
-                    dispLink = new NormalLink(found);
+                    dispLink = new NormalLink(found, Link::SCOPE_INTERNAL_JUMP);
                 } else {
-                    dispLink = new ExternalNormalLink(found);
+                    dispLink = new NormalLink(found, Link::SCOPE_EXTERNAL_JUMP);
                 }
             }
             else {
@@ -102,11 +102,13 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                     auto c = ChunkFind().findInnermostAt(
                         module->getFunctionList(), target);
                     if(dynamic_cast<Instruction *>(c)) {
-                        dispLink = new NormalLink(c);
+                        dispLink = new NormalLink(c, Link::SCOPE_INTERNAL_JUMP);
                     }
                     else if(auto plt = CIter::spatial(module->getPLTList())
                         ->find(target)) {
-                        dispLink = new ExternalNormalLink(plt);
+
+                        // should this be a PLTLink?
+                        dispLink = new NormalLink(plt, Link::SCOPE_WITHIN_MODULE);
                     }
                     else {
                         //dispLink = new UnresolvedLink(target);
@@ -125,7 +127,8 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                 auto found = CIter::spatial(module->getFunctionList())
                     ->find(target);
                 if(found) {
-                    immLink = new AbsoluteNormalLink(found);
+                    immLink = new AbsoluteNormalLink(found,
+                        Link::SCOPE_WITHIN_MODULE);
                     immIndex = i;
                 }
             }

@@ -50,7 +50,7 @@ void InstrumentCallsPass::addAdvice(
     auto callIns = new Instruction();
     auto callSem
         = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
-    callSem->setLink(new NormalLink(advice));
+    callSem->setLink(new NormalLink(advice, Link::SCOPE_EXTERNAL_JUMP));
     callIns->setSemantic(callSem);
 
     // add $0x8,%rsp
@@ -90,7 +90,8 @@ void InstrumentCallsPass::addAdvice(
     auto ins_stp = Disassemble::instruction(bin_stp.getVector());
     auto ins_mov = Disassemble::instruction(bin_mov.getVector());
     auto ins_bl = Disassemble::instruction(bin_bl.getVector());
-    ins_bl->getSemantic()->setLink(new NormalLink(advice));
+    ins_bl->getSemantic()->setLink(
+        new NormalLink(advice, Link::SCOPE_EXTERNAL_JUMP));
     auto ins_ldp = Disassemble::instruction(bin_ldp.getVector());
 
     auto block = point->getParent();

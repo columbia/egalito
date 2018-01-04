@@ -82,12 +82,8 @@ void InternalCalls::visit(Instruction *instruction) {
 #ifdef ARCH_X86_64
         auto offset = targetAddress - found->getAddress();
         if(offset == 0) {
-            if(isExternal) {
-                semantic->setLink(new ExternalNormalLink(found));
-            }
-            else {
-                semantic->setLink(new NormalLink(found));
-            }
+            semantic->setLink(new NormalLink(found, isExternal
+                ? Link::SCOPE_EXTERNAL_JUMP : Link::SCOPE_INTERNAL_JUMP));
         }
         else {
             auto i = dynamic_cast<Instruction *>(found);
@@ -96,12 +92,8 @@ void InternalCalls::visit(Instruction *instruction) {
                 i->getSemantic()->accept(&writer);
                 if(static_cast<unsigned char>(writer.get()[0]) == 0xf0) {
                     // jumping by skipping the "LOCK" prefix
-                    if(isExternal) {
-                        semantic->setLink(new ExternalOffsetLink(found, 1));
-                    }
-                    else {
-                        semantic->setLink(new OffsetLink(found, 1));
-                    }
+                    semantic->setLink(new OffsetLink(found, 1, isExternal
+                        ? Link::SCOPE_EXTERNAL_JUMP : Link::SCOPE_INTERNAL_JUMP));
                 }
                 else {
                     LOG(1, "WARNING: unknown prefix when jumping into "
@@ -116,12 +108,8 @@ void InternalCalls::visit(Instruction *instruction) {
             }
         }
 #else
-        if(isExternal) {
-            semantic->setLink(new ExternalNormalLink(found));
-        }
-        else {
-            semantic->setLink(new NormalLink(found));
-        }
+        semantic->setLink(new NormalLink(found, isExternal
+            ? Link::SCOPE_EXTERNAL_JUMP : Link::SCOPE_INTERNAL_JUMP));
 #endif
         delete link;
     }

@@ -183,7 +183,7 @@ static void createDataVariable(void *p, Function *target, Module *egalito) {
     address_t addr = reinterpret_cast<address_t>(p);
     auto region = egalito->getDataRegionList()->findRegionContaining(addr);
 
-    auto link = new ExternalNormalLink(target);
+    auto link = new NormalLink(target, Link::SCOPE_EXTERNAL_DATA);
     auto var = new DataVariable(region, addr, link);
     region->addVariable(var);
 

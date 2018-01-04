@@ -12,7 +12,8 @@ void CollapsePLTPass::visit(Instruction *instr) {
         if(trampoline->isIFunc()) return;  // we don't handle this yet
 
         if(auto target = trampoline->getTarget()) {
-            instr->getSemantic()->setLink(new ExternalNormalLink(target));
+            instr->getSemantic()->setLink(
+                new NormalLink(target, Link::SCOPE_EXTERNAL_JUMP));
             delete pltLink;
         }
         else {

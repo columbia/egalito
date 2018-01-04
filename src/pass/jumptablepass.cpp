@@ -170,7 +170,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         Link *link = nullptr;
         if(inner) {
             LOG(3, "        resolved to " << std::hex << inner->getName());
-            link = new NormalLink(inner);
+            link = new NormalLink(inner, Link::SCOPE_WITHIN_MODULE);
         }
         else {
             LOG(3, "        unresolved at 0x" << std::hex << target);

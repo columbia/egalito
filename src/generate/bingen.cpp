@@ -262,7 +262,8 @@ void BinGen::dePLT(void) {
                         LOG(1, "instr = " << std::hex << instr->getAddress());
                         throw "dePLT: error";
                     }
-                    auto newLink = new NormalLink(target);
+                    auto newLink = new NormalLink(target,
+                        Link::SCOPE_EXTERNAL_CODE);
                     cfi->setLink(newLink);
                     delete link;
                 }

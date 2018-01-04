@@ -39,7 +39,13 @@ void DataVariable::serialize(ChunkSerializerOperations &op,
     writer.write<address_t>(
         static_cast<AbsoluteOffsetPosition *>(getPosition())->getOffset());
     writer.writeString(name);
-    LinkSerializer(op).serialize(dest, writer);
+
+    if(op.isLocalModuleOnly()) {
+        
+    }
+    else {
+        LinkSerializer(op).serialize(dest, writer);
+    }
 }
 
 bool DataVariable::deserialize(ChunkSerializerOperations &op,
@@ -275,10 +281,12 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                 auto base = dsec->getAddress();
                 LOG(10, "" << target << " has offset " << (target - base));
                 if(isRelative) {
-                    return new DataOffsetLink(dsec, target - base);
+                    return new DataOffsetLink(dsec, target - base,
+                        Link::SCOPE_WITHIN_MODULE);
                 }
                 else {
-                    return new AbsoluteDataLink(dsec, target - base);
+                    return new AbsoluteDataLink(dsec, target - base,
+                        Link::SCOPE_WITHIN_MODULE);
                 }
             }
         }

@@ -28,11 +28,11 @@ void Module::serialize(ChunkSerializerOperations &op,
     writer.writeString(getName());
     writer.writeID(op.assign(library));
 
-    auto functionListID = op.serialize(getFunctionList());
-    writer.write(functionListID);
-
     auto pltListID = op.serialize(getPLTList());
     writer.write(pltListID);
+
+    auto functionListID = op.serialize(getFunctionList());
+    writer.write(functionListID);
 
     auto jumpTableListID = op.serialize(getJumpTableList());
     writer.write(jumpTableListID);
