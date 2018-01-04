@@ -1,4 +1,5 @@
 #include "chunk.h"
+#include "chunk/position.h"
 #include "log/log.h"
 
 void ChunkImpl::setPosition(Position *newPosition) {
@@ -15,7 +16,8 @@ void ChunkImpl::addToSize(diff_t add) {
 }
 
 address_t ChunkImpl::getAddress() const {
-    return getPosition()->get();
+    //return getPosition()->get();
+    return PositionManager::getAddress(this);
 }
 
 Range ChunkImpl::getRange() const {

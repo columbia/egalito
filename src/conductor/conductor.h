@@ -10,6 +10,7 @@ class ElfMap;
 class Module;
 class ChunkVisitor;
 class IFuncList;
+struct EgalitoTLS;
 
 class Conductor {
 private:
@@ -33,7 +34,7 @@ public:
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections();
-    void fixPointersInData();
+    EgalitoTLS *getEgalitoTLS() const;
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");
     void acceptInAllModules(ChunkVisitor *visitor, bool inEgalito = true);

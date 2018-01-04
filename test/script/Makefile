@@ -26,5 +26,6 @@ test:
 	./environ.sh
 	./islower.sh
 	$(call arch_dep,./jumptable-libc.sh)
-	$(call aarch64_only,./codeform-debloat.sh)
+	./codeform-debloat.sh
+	./hello-process.sh
 	./hello-thread.sh

@@ -8,13 +8,15 @@
 
 address_t OffsetPosition::get() const {
     if(chunk == nullptr || chunk->getParent() == nullptr) return 0;
-    return chunk->getParent()->getPosition()->get() + offset;
+    //return chunk->getParent()->getPosition()->get() + offset;
+    return chunk->getParent()->getAddress() + offset;
 }
 
 void OffsetPosition::set(address_t value) {
     assert(chunk != nullptr);
     assert(chunk->getParent() != nullptr);
-    setOffset(value - chunk->getParent()->getPosition()->get());
+    //setOffset(value - chunk->getParent()->getPosition()->get());
+    setOffset(value - chunk->getParent()->getAddress());
 }
 
 void OffsetPosition::recalculate() {
@@ -26,8 +28,9 @@ void OffsetPosition::recalculate() {
     auto prev = chunk->getPreviousSibling();
     if(prev) {
         auto parent = chunk->getParent();
-        offset = (prev->getPosition()->get() - parent->getPosition()->get())
-            + prev->getSize();
+        //offset = (prev->getPosition()->get() - parent->getPosition()->get())
+            //+ prev->getSize();
+        offset = (prev->getAddress() - parent->getAddress()) + prev->getSize();
     }
     else {
         offset = 0;
@@ -189,4 +192,34 @@ bool PositionFactory::needsSpecialCaseFirst() const {
     return mode == MODE_SUBSEQUENT
         || mode == MODE_CACHED_SUBSEQUENT
         || mode == MODE_GENERATION_SUBSEQUENT;
+}
+
+//-----------------------------------------------------------------------------
+
+#include "chunk/tls.h"
+
+address_t PositionManager::getAddress(const Chunk *chunk) {
+    if(chunk->getPositionIndex() == Chunk::POSITION_OLD) {
+        return chunk->getPosition()->get();
+    }
+    else {
+        auto gsTable = EgalitoTLS::getGSTable();
+        auto entry = gsTable->getEntryFor(const_cast<Chunk *>(chunk));
+        auto addrTable = reinterpret_cast<address_t *>(
+            EgalitoTLS::getJITAddressTable());
+        return addrTable[entry->getIndex()];
+    }
+}
+
+void PositionManager::setAddress(Chunk *chunk, address_t address) {
+    if(chunk->getPositionIndex() == Chunk::POSITION_OLD) {
+        chunk->getPosition()->set(address);
+    }
+    else {
+        auto gsTable = EgalitoTLS::getGSTable();
+        auto entry = gsTable->getEntryFor(chunk);
+        auto addrTable = reinterpret_cast<address_t *>(
+            EgalitoTLS::getJITAddressTable());
+        addrTable[entry->getIndex()] = address;
+    }
 }

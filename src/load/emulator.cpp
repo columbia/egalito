@@ -1,8 +1,10 @@
 #include <cstring>  // for memcpy in generated code
+#include <cassert>
 #include "config.h"
 #include "emulator.h"
 #include "chunk/link.h"
 #include "chunk/concrete.h"
+#include "chunk/tls.h"
 #include "elf/elfspace.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
@@ -58,6 +60,14 @@ namespace Emulation {
         auto conductor = egalito_conductor_setup->getConductor();
         address_t tcb = reinterpret_cast<address_t>(mem);
         conductor->loadTLSDataFor(tcb);
+        // we initialize child's EgalitoTLS here using the data structures
+        // created by the parent. However, %gs is not set until the child
+        // is actually created. (The child has to execute the parent code
+        // for some time until %gs is initialized.)
+        if(auto child = EgalitoTLS::getChild()) {
+            std::memcpy(reinterpret_cast<void *>(tcb - sizeof(EgalitoTLS)),
+                child, sizeof(EgalitoTLS));
+        }
         return mem;
     }
 }
@@ -205,8 +215,13 @@ void LoaderEmulator::initRT(Conductor *conductor) {
     rtld_casted->_dl_error_catch_tsd
         = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
 #endif
-    rtld_casted->_dl_tls_static_size = 0x1000;
-    rtld_casted->_dl_tls_static_align = 1;
+    //rtld_casted->_dl_tls_static_size = 0x1000;
+#ifdef ARCH_X86_64
+    assert(rtld_casted->_dl_tls_static_align == 64);
+#elif defined(ARCH_AARCH64)
+    assert(rtld_casted->_dl_tls_static_align == 16);
+#endif
+
 
     auto rtld_ro = findEgalitoDataVariable("_ZN9Emulation15_rtld_global_roE");
     auto rtld_ro_casted = reinterpret_cast<Emulation::my_rtld_global_ro *>(

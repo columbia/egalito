@@ -18,7 +18,6 @@ extern address_t egalito_init_array[];
 
 extern ConductorSetup *egalito_conductor_setup;
 extern Conductor *egalito_conductor;
-extern GSTable *egalito_gsTable;
 extern Chunk *egalito_gsCallback;
 extern IFuncList *egalito_ifuncList;
 

@@ -9,6 +9,7 @@
 
 #define USR_LIB_DEBUG_BY_NAME
 #define SANDBOX_BASE_ADDRESS    0x40000000
+#define JIT_TABLE_SIZE          64 * 0x1000 // must fit in 32-bit
 
 /* app */
 

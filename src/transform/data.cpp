@@ -10,10 +10,12 @@
 #include "log/temp.h"
 
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
+#define ROUND_UP_BY(x, y)   (((x) + (y) - 1) & ~((y) - 1))
 
 address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
 #ifdef ARCH_X86_64
     // header is at the end
+    size = ROUND_UP_BY(size, 64);
     address_t tp = base + size;
     //size += sizeof(struct my_tcbhead_t);  // add space for header
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)

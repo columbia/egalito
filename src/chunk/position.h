@@ -244,4 +244,12 @@ private:
         { pos->setOffset(offset); return pos; }
 };
 
+//-----------------------------------------------------------------------------
+
+class PositionManager {
+public:
+    static address_t getAddress(const Chunk *chunk);
+    static void setAddress(Chunk *chunk, address_t address);
+};
+
 #endif

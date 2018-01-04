@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <cassert>
 
+#include "config.h"
 #include "managegs.h"
 #include "chunk/concrete.h"
 
@@ -17,17 +18,14 @@
 #define DEBUG_GROUP load
 #include "log/log.h"
 
-// must fit in the 32bits; see usegstable.cpp
-#define FUNCTION_TABLE_SIZE 64 * 0x1000
-
 extern "C" int arch_prctl(int code, unsigned long addr);
 
 void ManageGS::init(GSTable *gsTable) {
 #ifdef ARCH_X86_64
     auto count = gsTable->getChildren()->getIterable()->getCount();
-    assert(count < FUNCTION_TABLE_SIZE/sizeof(address_t));
+    assert(count < JIT_TABLE_SIZE/sizeof(address_t));
 
-    void *buffer = mmap(NULL, FUNCTION_TABLE_SIZE, PROT_READ|PROT_WRITE,
+    void *buffer = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     LOG(1, "Initializing GS table at " << std::hex << buffer);
 
@@ -50,6 +48,7 @@ void ManageGS::init(GSTable *gsTable) {
         if(!b) {
             LOG(1, "");
         }
+
         array[entry->getIndex()] = entry->getTarget()->getAddress();
     }
 
@@ -57,20 +56,47 @@ void ManageGS::init(GSTable *gsTable) {
 #endif
 }
 
+void ManageGS::allocateBuffer(GSTable *gsTable) {
+    void *buffer = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    gsTable->setTableAddress(buffer);
+}
+
+void ManageGS::setGS(GSTable *gsTable) {
+#ifdef ARCH_X86_64
+    auto buffer = gsTable->getTableAddress();
+    arch_prctl(ARCH_SET_GS, reinterpret_cast<unsigned long>(buffer));
+#endif
+}
+
 void ManageGS::setEntry(GSTable *gsTable, GSTableEntry::IndexType index,
     address_t value) {
 
-    assert(index < FUNCTION_TABLE_SIZE/sizeof(address_t));
+    assert(index < JIT_TABLE_SIZE/sizeof(address_t));
     address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
     array[index] = value;
+}
+
+address_t ManageGS::getEntry(GSTableEntry::IndexType offset) {
+    address_t address = 0;
+#ifdef ARCH_X86_64
+    __asm__ __volatile__ (
+        "mov %%gs:(%1), %0"
+            : "=r"(address)
+            : "r"(offset)
+    );
+#endif
+    return address;
 }
 
 void ManageGS::resetEntries(GSTable *gsTable, Chunk *callback) {
     address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
     for(auto entry : CIter::children(gsTable)) {
+        //if(dynamic_cast<GSTableResolvedEntry *>(entry)) continue;
+
         LOG(12, "set resolver for " << entry->getTarget()->getName());
         entry->setLazyResolver(callback);
-        // don't use callback's address; some have to be pre-resolved
+        //array[entry->getIndex()] = callback->getAddress();
         array[entry->getIndex()] = entry->getTarget()->getAddress();
     }
 }

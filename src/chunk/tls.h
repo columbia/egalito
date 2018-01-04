@@ -1,10 +1,7 @@
 #ifndef EGALITO_ELF_TLS_H
 #define EGALITO_ELF_TLS_H
-
-#include "elf/elfxx.h"
-#include "chunk/chunk.h"
-#include "chunk/concrete.h"
-#include "types.h"
+#include <cstddef>
+#include "transform/sandbox.h"
 
 /*
  * How glibc handles TLS for AARCH64:
@@ -18,43 +15,44 @@
  * When a pthread is created, similar structures are allocated on stack.
  *  - it has to copy original .tdata & .tbss (at load time or when
  *    referenced (i.e. __tls_get_addr() is called)).
- *  - it has to provide their address through __tls_get_addr().
+ *  - it has to provide its address through __tls_get_addr().
  */
 
-#if 0
-class ElfMap;
-class RelocList;
 
-class TLSList {
+// We directly reserve areas as a substitute for TLS in libegalito
+// since using a thread local storage in libegalito requires a heavy
+// operation for libegalito (e.g. __tls_get_addr)
+
+class GSTable;
+
+// the list grows upward
+class EgalitoTLS {
 private:
-    class TLSRegion {
-    private:
-        ElfMap *sourceElf;
-        ElfXX_Phdr *phdr;
-        address_t address;
-    public:
-        TLSRegion(ElfXX_Phdr *phdr, ElfMap *elf) : sourceElf(elf), phdr(phdr) {}
-        void setAddress(address_t address) { this->address = address; }
-        address_t getAddress() const { return address; }
-        void loadTo(address_t baseAddress);
-        size_t getSize() const { return phdr->p_memsz; }
-    };
-
-    typedef std::vector<TLSRegion *> ListType;
-    ListType tlsList;
-    std::vector<Reloc *> relocList;
-
+    size_t reserve;
+    volatile size_t *barrier;
+    EgalitoTLS *child;  // used only to initialize the child's TLS
+    GSTable *gsTable;
+    ShufflingSandbox *sandbox;
+    void *JIT_addressTable;
+    size_t JIT_jitting;     // hard coded in assembly (-0x10)
+    size_t JIT_temporary;   // hard coded in assembly (-0x8)
 public:
-    void add(TLSRegion *tls) { tlsList.push_back(tls); }
+    EgalitoTLS(volatile size_t *barrier, GSTable *gsTable,
+        ShufflingSandbox *sandbox, void *JIT_addressTable)
+        : reserve(0),
+        barrier(barrier), child(nullptr), gsTable(gsTable), sandbox(sandbox),
+        JIT_addressTable(JIT_addressTable), JIT_jitting(0) {}
 
-    ListType::iterator begin() { return tlsList.begin(); }
-    ListType::iterator end() { return tlsList.end(); }
-
-    void addReloc(Reloc *r) { relocList.push_back(r); }
-    void resolveRelocs(ElfMap *elf);
-
-    static void buildTLSList(ElfMap *elf, RelocList *relocList, Module *module);
-
+    static ShufflingSandbox *getSandbox();
+    static void setSandbox(ShufflingSandbox *sandbox);
+    static GSTable *getGSTable();
+    static void setGSTable(GSTable *gsTable);
+    static EgalitoTLS *getChild();
+    static void setChild(EgalitoTLS *child);
+    static volatile size_t *getBarrier();
+    static void setBarrier(volatile size_t *barrier);
+    static void *getJITAddressTable();
+    static void setJITAddressTable(void *JIT_addressTable);
 };
-#endif
+
 #endif

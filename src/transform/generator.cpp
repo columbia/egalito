@@ -38,6 +38,56 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     module->accept(&clearSpatial);
 }
 
+void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
+    LOG(1, "Copying code into sandbox");
+    for(auto f : CIter::functions(module)) {
+        LOG(2, "    writing out [" << f->getName() << "] at 0x"
+            << std::hex << f->getAddress());
+
+#if 0
+        if(f->getName() != "puts") {
+            copyFunctionToSandbox(f);
+        }
+#else
+        copyFunctionToSandbox(f);
+#endif
+    }
+
+    copyPLTEntriesToSandbox(module, sandbox);
+}
+
+void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
+    if(module->getPLTList()) {
+        LOG(1, "Copying PLT entries into sandbox");
+        for(auto plt : CIter::plts(module)) {
+            copyPLTToSandbox(plt);
+        }
+    }
+}
+
+void Generator::copyFunctionToSandbox(Function *function) {
+    char *output = reinterpret_cast<char *>(function->getAddress());
+    for(auto b : CIter::children(function)) {
+        for(auto i : CIter::children(b)) {
+            LOG(10, " at " << std::hex << i->getAddress());
+            if(useDisps) {
+                InstrWriterCString writer(output);
+                i->getSemantic()->accept(&writer);
+            }
+            else {
+                InstrWriterForObjectFile writer(output);
+                i->getSemantic()->accept(&writer);
+            }
+            output += i->getSemantic()->getSize();
+        }
+    }
+}
+
+void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
+    char *output = reinterpret_cast<char *>(trampoline->getAddress());
+    trampoline->writeTo(output);
+}
+
 void Generator::pickFunctionAddressInSandbox(Function *function,
     Sandbox *sandbox) {
 
@@ -60,64 +110,14 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
 #endif
 }
 
-void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
-    LOG(1, "Copying code into sandbox");
-    for(auto f : CIter::functions(module)) {
-        LOG(2, "    writing out [" << f->getName() << "] at 0x"
-            << std::hex << f->getAddress());
-
-#if 0
-        if(f->getName() != "puts") {
-            copyFunctionToSandbox(f, sandbox);
-        }
-#else
-        copyFunctionToSandbox(f, sandbox);
-#endif
-    }
-
-    copyPLTEntriesToSandbox(module, sandbox);
-}
-
-void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
-    if(module->getPLTList()) {
-        LOG(1, "Copying PLT entries into sandbox");
-        for(auto plt : CIter::plts(module)) {
-            copyPLTToSandbox(plt, sandbox);
-        }
-    }
-}
-
-void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
-    char *output = reinterpret_cast<char *>(function->getAddress());
-    for(auto b : CIter::children(function)) {
-        for(auto i : CIter::children(b)) {
-            LOG(10, " at " << std::hex << i->getAddress());
-            if(useDisps) {
-                InstrWriterCString writer(output);
-                i->getSemantic()->accept(&writer);
-            }
-            else {
-                InstrWriterForObjectFile writer(output);
-                i->getSemantic()->accept(&writer);
-            }
-            output += i->getSemantic()->getSize();
-        }
-    }
-}
-
-void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
-    char *output = reinterpret_cast<char *>(trampoline->getAddress());
-    trampoline->writeTo(output);
-}
-
 void Generator::instantiate(Function *function, Sandbox *sandbox) {
     pickFunctionAddressInSandbox(function, sandbox);
-    copyFunctionToSandbox(function, sandbox);
+    copyFunctionToSandbox(function);
 }
 
 void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
     pickPLTAddressInSandbox(trampoline, sandbox);
-    copyPLTToSandbox(trampoline, sandbox);
+    copyPLTToSandbox(trampoline);
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

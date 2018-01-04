@@ -63,5 +63,22 @@ _get_fs:
     pop     %rcx
     retq
 
+// never leave this code enabled
+/*
+.global _get_gs
+_get_gs:
+    push    %rcx
+    push    %r11
+    mov     $0x1004, %rdi # ARCH_GET_GS
+    sub     $0x8, %rsp
+    mov     %rsp, %rsi    # &ptr
+    mov     $158, %rax    # arch_prctl
+    syscall               # other args in %rdi, %rsi
+    pop     %rax
+    pop     %r11
+    pop     %rcx
+    retq
+*/
+
 .section    .note.GNU-stack, "", @progbits
 

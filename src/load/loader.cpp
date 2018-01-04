@@ -10,6 +10,7 @@
 #include "preparetls.h"
 #include "datastruct.h"
 #include "makebridge.h"
+#include "chunk/tls.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
@@ -40,7 +41,7 @@ extern ConductorSetup *egalito_conductor_setup;
 
 static GSTable *gsTable;
 
-EgalitoLoader::EgalitoLoader() {
+EgalitoLoader::EgalitoLoader() : sandbox(nullptr) {
     this->setup = new ConductorSetup();
     ::egalito_conductor_setup = setup;
 }
@@ -86,11 +87,16 @@ void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
 }
 
 void EgalitoLoader::generateCode() {
-    setup->makeLoaderSandbox(isFeatureEnabled("EGALITO_USE_GS"));
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        this->sandbox = setup->makeShufflingSandbox();
+    }
+    else {
+        this->sandbox = setup->makeLoaderSandbox();
+    }
     setup->getConductor()->setupIFuncLazySelector();
 
     otherPasses();
-    setup->moveCode();
+    setup->moveCode(sandbox);
     otherPassesAfterMove();
 
     setup->getConductor()->fixDataSections();
@@ -117,14 +123,20 @@ void EgalitoLoader::run() {
     std::cout.flush();
     std::fflush(stdout);
 
+    ShufflingSandbox *shufflingSandbox
+        = dynamic_cast<ShufflingSandbox *>(sandbox);
+
+    // --- last point virtual functions work ---
+    // update vtable pointers to new libegalito code ('new' needs loader TLS)
+    DataStructMigrator().migrate(setup);
+
     // --- last point accesses to loader TLS work
     PrepareTLS::prepare(setup->getConductor());
 
-    // --- last point virtual functions work ---
-    // update vtable pointers to new libegalito code
-    DataStructMigrator().migrate(setup);
-
-    //new char[1000];  // fs broken?
+    if(shufflingSandbox) {
+        EgalitoTLS::setSandbox(shufflingSandbox);
+        EgalitoTLS::setGSTable(gsTable);
+    }
 
     // jump to the target program (never returns)
     start2();
@@ -168,7 +180,9 @@ void EgalitoLoader::otherPasses() {
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         HijackPass hijackPass(setup->getConductor(), "pthread_create");
         program->getMain()->accept(&hijackPass);
+    }
 
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
         gsTable = new GSTable();
         //setup->getConductor()->getProgram()->getChildren()->add(gsTable);
 
@@ -198,11 +212,11 @@ void EgalitoLoader::otherPasses() {
 void EgalitoLoader::otherPassesAfterMove() {
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         ManageGS::init(gsTable);
-        auto flip = setup->getSandboxFlip();
-        flip->flip();
-        flip->get()->reopen();
-        flip->recreate();
-        flip->get()->finalize();
+        auto sb = dynamic_cast<ShufflingSandbox *>(sandbox);
+        sb->flip();
+        sb->reopen();
+        sb->recreate();
+        sb->finalize();
     }
 }
 

@@ -1,10 +1,28 @@
+#include <sys/mman.h>
 #include <cctype>
 #include <cstring>
 #include <cassert>
+#include "config.h"
 #include "jitgssetup.h"
+#include "chunk/tls.h"
 #include "conductor/conductor.h"
 #include "operation/find2.h"
 #include "log/log.h"
+
+extern "C"
+void egalito_jit_gs_setup() {
+    auto base = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    EgalitoTLS::setJITAddressTable(base);
+
+    auto gsTable = EgalitoTLS::getGSTable();
+    for(auto entry : CIter::children(gsTable)) {
+        auto target = entry->getRealTarget();
+        if(dynamic_cast<AbsolutePosition *>(target->getPosition())) {
+            target->setPositionIndex(Chunk::POSITION_JIT_GS);
+        }
+    }
+}
 
 void JitGSSetup::visit(Program *program) {
     makeHardwiredGSEntries(program->getEgalito());
@@ -54,7 +72,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "PLTLink",
         "OffsetLink",
 
-        "SandboxFlipImpl",
+        "DualSandbox",
+        "WatermarkAllocator",
+
+        "EgalitoTLS",
 
         // for JIT'ting libegalito ctors
         "STLIterator",
@@ -65,8 +86,12 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
 
     const auto resolvers = {
         "egalito_jit_gs_fixup",
+        "egalito_jit_gs_init",
         "egalito_jit_gs_reset",
         "_start2",
+        "egalito_hook_after_clone_syscall",
+        "egalito_jit_gs_setup_thread",
+
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.319",
@@ -181,6 +206,14 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("__memset_sse2_unaligned_erms", module);
             makeResolvedEntry("__memset_avx512_erms", module);
             makeResolvedEntry("__memset_avx512_no_vzeroupper", module);
+            makeResolvedEntry("arch_prctl", module);
+            // spwaned thread
+            makeResolvedEntry("get_free_list", module);
+            makeResolvedEntry("arena_get2.part.8", module);
+            makeResolvedEntry("new_heap", module);
+            makeResolvedEntry("munmap", module);
+            // JIT GS address table
+            makeResolvedEntry("explicit_bzero", module);
         }
         else if(module->getName() == "module-libstdc++.so.6") {
             makeResolvedEntry("__dynamic_cast", module);
@@ -287,6 +320,8 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("__pthread_once_slow", module);
             makeResolvedEntry("_pthread_cleanup_push", module);
             makeResolvedEntry("_pthread_cleanup_pop", module);
+            makeResolvedEntry("__pthread_enable_asynccancel", module);
+            makeResolvedEntry("__pthread_disable_asynccancel", module);
         }
     }
     makeResolvedEntryForPLT("memcpy@plt", program);

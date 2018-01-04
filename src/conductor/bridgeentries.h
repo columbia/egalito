@@ -8,7 +8,6 @@
 #include "types.h"
 class ConductorSetup;
 class Conductor;
-class GSTable;
 class Chunk;
 class IFuncList;
 #endif
@@ -19,6 +18,6 @@ EGALITO_BRIDGE_ENTRY(address_t, egalito_init_array)
 
 EGALITO_BRIDGE_ENTRY(ConductorSetup *, egalito_conductor_setup)
 EGALITO_BRIDGE_ENTRY(Conductor *, egalito_conductor)
-EGALITO_BRIDGE_ENTRY(GSTable *, egalito_gsTable)
 EGALITO_BRIDGE_ENTRY(Chunk *, egalito_gsCallback)
 EGALITO_BRIDGE_ENTRY(IFuncList *, egalito_ifuncList)
+EGALITO_BRIDGE_ENTRY(address_t, egalito_hook_instruction_hook)

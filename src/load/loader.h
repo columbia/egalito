@@ -6,6 +6,7 @@
 class EgalitoLoader {
 private:
     ConductorSetup *setup;
+    Sandbox *sandbox;
     int argc;
     char **argv;
     char **envp;

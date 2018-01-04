@@ -145,28 +145,26 @@ bool SandboxImpl<Backing, Allocator>::recreate(id<MemoryBacking>) {
     return backing.recreate();
 }
 
-class SandboxFlip {
-public:
-    virtual ~SandboxFlip() {}
-
-    virtual void flip() = 0;
-    virtual Sandbox *get() const = 0;
-    virtual void recreate() const = 0;
-};
-
 template <typename SandboxImplType>
-class SandboxFlipImpl : public SandboxFlip {
+class DualSandbox : public Sandbox {
 private:
     SandboxImplType *sandbox[2];
     size_t i;
 
 public:
-    SandboxFlipImpl(SandboxImplType *one, SandboxImplType *other)
-        : SandboxFlip(), sandbox{one, other}, i(0) {}
+    DualSandbox(SandboxImplType *one, SandboxImplType *other)
+        : sandbox{one, other}, i(0) {}
+    void flip() { i^= 1; }
+    //Sandbox *get() const { return sandbox[i]; }
 
-    virtual void flip() { i^= 1; }
-    virtual Sandbox *get() const { return sandbox[i]; }
-    virtual void recreate() const { sandbox[i]->recreate(); }
+    virtual Slot allocate(size_t request)
+        { return sandbox[i]->allocate(request); }
+    virtual void finalize() { sandbox[i]->finalize(); }
+    virtual bool reopen() { return sandbox[i]->reopen(); }
+    bool recreate() const { return sandbox[i]->recreate(); }
 };
+
+using ShufflingSandbox = DualSandbox<
+    SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>>;
 
 #endif
