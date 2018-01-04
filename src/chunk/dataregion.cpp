@@ -36,6 +36,7 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
     : dest(dest) {
 
+    assert(section != nullptr);
     assert(section->contains(address));
 
     auto offset = address - section->getAddress();

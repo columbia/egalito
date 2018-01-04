@@ -67,17 +67,26 @@ public:
     virtual void recalculate();
 
     address_t getOffset() const { return offset; }
-    void setOffset(address_t offset);
+    void setOffset(address_t offset) { this->offset = offset; }
 protected:
     virtual Chunk *getDependency() const;
 };
 
-class AbsoluteOffsetPosition : public OffsetPosition {
+class AbsoluteOffsetPosition : public Position {
     friend class PositionDump;
+private:
+    ChunkRef chunk;
+    address_t offset;
 public:
     AbsoluteOffsetPosition(ChunkRef chunk, address_t offset)
-        : OffsetPosition(chunk, offset) {}
-    virtual void recalculate() {}
+        : chunk(chunk), offset(offset) {}
+
+    virtual address_t get() const;
+    virtual void set(address_t value);
+
+    address_t getOffset() const { return offset; }
+protected:
+    void setOffset(address_t offset) { this->offset = offset; }
 };
 
 /** Represents a Chunk that immediately follows another.
