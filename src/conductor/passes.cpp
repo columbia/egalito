@@ -76,8 +76,6 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(JumpTableOverestimate(), module);
 #endif
 
-    LOG(1, "RUNNING SplitBasicBlock pass");
-
     // run again with jump table information
     RUN_PASS(SplitBasicBlock(), module);
 
