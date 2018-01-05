@@ -28,6 +28,9 @@ void JumpTablePass::visit(Module *module) {
 }
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
+    //TemporaryLogLevel tll("djumptable", 10);
+    //TemporaryLogLevel tll2("analysis", 10);
+
 #if defined(ARCH_X86_64) || defined(ARCH_ARM)
 #if 0
     JumpTableSearch search;

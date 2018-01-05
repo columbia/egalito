@@ -497,6 +497,7 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     if(found) {
         return true;
     }
+    LOG(10, "        not found");
     return false;
 #endif
 }
@@ -605,7 +606,7 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
     > MakeBaseAddressForm;
 
     address_t addr = 0;
-    bool found;
+    bool found = false;
     auto parser = [&](UDState *s, TreeCapture& cap) {
         auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
         address_t page;
@@ -613,6 +614,7 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
         if(found) {
             auto offsetTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
             addr = page + offsetTree->getValue();
+            found = true;
             return true;
         }
         return false;
