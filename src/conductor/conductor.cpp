@@ -180,19 +180,6 @@ void Conductor::fixDataSections() {
     allocateTLSArea(base);
     loadTLSData();
 
-    FixJumpTablesPass fixJumpTables;
-    program->accept(&fixJumpTables);
-
-    FixDataRegionsPass fixDataRegions;
-    program->accept(&fixDataRegions);
-
-    HandleCopyRelocs handleCopyRelocs(this);
-    program->accept(&handleCopyRelocs);
-
-    backupTLSData();
-}
-
-void Conductor::fixPointersInData() {
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);
 
@@ -201,6 +188,11 @@ void Conductor::fixPointersInData() {
     // Should do this more efficiently.
     FixJumpTablesPass fixJumpTables;
     program->accept(&fixJumpTables);
+
+    HandleCopyRelocs handleCopyRelocs(this);
+    program->accept(&handleCopyRelocs);
+
+    backupTLSData();
 }
 
 EgalitoTLS *Conductor::getEgalitoTLS() const {

@@ -81,7 +81,7 @@ void UseGSTablePass::visit(Block *block) {
                 pointerLoads.emplace_back(block, instr);
             }
             else if(auto link = v->getLink()) {
-                if(link->isExternalJump()) {
+                if(dynamic_cast<NormalLink *>(link) && link->isExternalJump()) {
                     pointerLinks.emplace_back(block, instr);
                 }
             }

@@ -56,6 +56,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "ChunkMutator",
         "Instruction",
         "AbsolutePosition",
+        "AbsoluteOffsetPosition",
         "Position",
         "InstructionStorage",
         "IsolatedInstruction",
@@ -94,7 +95,6 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
 
         "_ZNK9ChunkImpl10getAddressEv",
         "_ZNK22ChunkPositionDecoratorI9ChunkImplE11getPositionEv",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.319",
         "_ZN13ChunkListImplI8FunctionE13createSpatialEv",
         "_ZN9Emulation24function_not_implementedEv",
         "_ZNSt8_Rb_treeImSt4pairIKmP8FunctionESt10_Select1stIS4_ESt4lessImESaIS4_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS4_ERS1_",
@@ -130,10 +130,11 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "ifunc_resolver",
         "ifunc_select",
         "_ZNK9IFuncList6getForEm",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.72",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.23",
-        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.51",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.25",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.29",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.72",
+        "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag.isra.323",
     };
     for(auto name : resolvers) {
         makeResolvedEntry(name, egalito);

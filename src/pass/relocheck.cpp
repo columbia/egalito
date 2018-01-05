@@ -70,14 +70,17 @@ void ReloCheckPass::checkDataVariable(Module *module) {
             if(var->getDest()->getTarget()) {
                 continue;
             }
+            else if(dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
+                LOG(9, " var " << var->getAddress() << " has a loader link");
+            }
             else if(dynamic_cast<MarkerLink *>(var->getDest())) {
-                LOG(1, "var " << var->getAddress() << " has a marker link");
+                LOG(9, " var " << var->getAddress() << " has a marker link");
             }
             else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
-                LOG(1, "var " << var->getAddress() << " symbol only link");
+                LOG(9, " var " << var->getAddress() << " symbol only link");
             }
             else {
-                LOG0(1, " var with unresolved link at " << var->getAddress());
+                LOG(1, " var with unresolved link at " << var->getAddress());
             }
         }
     }

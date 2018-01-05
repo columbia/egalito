@@ -34,7 +34,6 @@ public:
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections();
-    void fixPointersInData();
     EgalitoTLS *getEgalitoTLS() const;
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");
