@@ -15,11 +15,60 @@
 */
 class Link {
 public:
+    enum LinkScope {
+        SCOPE_UNKNOWN           = 0,
+        SCOPE_WITHIN_FUNCTION   = 1 << 0,  // e.g. short jump
+        SCOPE_WITHIN_SECTION    = 1 << 1,  // code-to-code links
+        SCOPE_WITHIN_MODULE     = 1 << 2,  // inside the same ELF
+
+        SCOPE_INTERNAL_JUMP     = SCOPE_WITHIN_FUNCTION
+            | SCOPE_WITHIN_SECTION | SCOPE_WITHIN_MODULE,
+        SCOPE_EXTERNAL_JUMP     = SCOPE_WITHIN_SECTION | SCOPE_WITHIN_MODULE,
+        SCOPE_INTERNAL_DATA     = SCOPE_WITHIN_MODULE,
+        SCOPE_EXTERNAL_DATA     = 0,
+        SCOPE_EXTERNAL_CODE     = 0,
+    };
+public:
     virtual ~Link() {}
 
     /** Returns target as a Chunk, if possible. May return NULL. */
     virtual ChunkRef getTarget() const = 0;
     virtual address_t getTargetAddress() const = 0;
+
+    virtual LinkScope getScope() const = 0;
+    virtual bool isExternalJump() const = 0;
+    virtual bool isWithinModule() const = 0;
+};
+
+template <Link::LinkScope Scope, typename BaseType>
+class LinkScopeDecorator : public BaseType {
+public:
+    virtual Link::LinkScope getScope() const { return Scope; }
+    virtual bool isExternalJump() const
+        { return !matches(Link::SCOPE_WITHIN_FUNCTION); }
+    virtual bool isWithinModule() const
+        { return matches(Link::SCOPE_WITHIN_MODULE); }
+private:
+    bool matches(Link::LinkScope s) const
+        { return (Scope & s) == s; }
+};
+
+class LinkImpl : public Link {
+private:
+    Link::LinkScope scope;
+public:
+    LinkImpl(Link::LinkScope scope) : scope(scope) {}
+
+    virtual Link::LinkScope getScope() const { return scope; }
+    virtual bool isExternalJump() const
+        { return !matches(Link::SCOPE_WITHIN_FUNCTION); }
+    virtual bool isWithinModule() const
+        { return matches(Link::SCOPE_WITHIN_MODULE); }
+
+    void setScope(Link::LinkScope scope) { this->scope = scope; }
+private:
+    bool matches(Link::LinkScope s) const
+        { return (scope & s) == s; }
 };
 
 
@@ -29,11 +78,12 @@ public:
 
     The source and destination address may both be updated for this Link.
 */
-class NormalLink : public Link {
+class NormalLink : public LinkImpl {
 private:
     ChunkRef target;
 public:
-    NormalLink(ChunkRef target) : target(target) {}
+    NormalLink(ChunkRef target, Link::LinkScope scope)
+        : LinkImpl(scope), target(target) {}
 
     virtual ChunkRef getTarget() const { return target; }
     virtual address_t getTargetAddress() const;
@@ -41,7 +91,7 @@ public:
 
 /** An absolute reference to another Chunk.
 
-    Here the source address is irrelevant.
+    Here the source address is irrelevant to getTargetAddress().
 */
 class AbsoluteNormalLink : public NormalLink {
 public:
@@ -52,34 +102,24 @@ public:
     its start. This is used to target into an instruction that has a LOCK
     prefix on x86_64, for example.
 */
-class OffsetLink : public Link {
+class OffsetLink : public LinkImpl {
 private:
     ChunkRef target;
     size_t offset;
 public:
-    OffsetLink(ChunkRef target, size_t offset)
-        : target(target), offset(offset) {}
+    OffsetLink(ChunkRef target, size_t offset, Link::LinkScope scope)
+        : LinkImpl(scope), target(target), offset(offset) {}
 
     virtual ChunkRef getTarget() const { return target; }
     virtual address_t getTargetAddress() const;
 };
 
-/** Indicates that a Link targets outside the current function. */
-template <typename BaseType>
-class ExternalLinkDecorator : public BaseType {
-public:
-    using BaseType::BaseType;
-};
-
-typedef ExternalLinkDecorator<NormalLink> ExternalNormalLink;
-typedef ExternalLinkDecorator<AbsoluteNormalLink> ExternalAbsoluteNormalLink;
-typedef ExternalLinkDecorator<OffsetLink> ExternalOffsetLink;
-
 
 // --- special Chunk links ---
 
 class PLTTrampoline;
-class PLTLink : public Link {
+class PLTLink : public LinkScopeDecorator<
+    Link::SCOPE_WITHIN_MODULE, Link> {
 private:
     address_t originalAddress;
     PLTTrampoline *pltTrampoline;
@@ -93,7 +133,8 @@ public:
 };
 
 class JumpTable;
-class JumpTableLink : public Link {
+class JumpTableLink : public LinkScopeDecorator<
+    Link::SCOPE_WITHIN_MODULE, Link> {
 private:
     JumpTable *jumpTable;
 public:
@@ -104,7 +145,8 @@ public:
 };
 
 class Symbol;
-class SymbolOnlyLink : public Link {
+class SymbolOnlyLink : public LinkScopeDecorator<
+    Link::SCOPE_WITHIN_MODULE, Link> {
 private:
     Symbol *symbol;
     address_t target;
@@ -117,7 +159,20 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
-class StackLink : public Link {
+class EgalitoLoaderLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_CODE, Link> {
+private:
+    std::string targetName;
+public:
+    EgalitoLoaderLink(const std::string &name) : targetName(name) {}
+
+    const std::string &getTargetName() const { return targetName; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const;
+};
+
+class StackLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, Link> {
 private:
     address_t targetAddress;
 public:
@@ -128,7 +183,8 @@ public:
 };
 
 class Marker;
-class MarkerLink : public Link {
+class MarkerLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, Link> {
 private:
     Marker *marker;
     size_t addend;
@@ -144,7 +200,8 @@ public:
 };
 
 class GSTableEntry;
-class GSTableLink : public Link {
+class GSTableLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, Link> {
 private:
     GSTableEntry *entry;
 public:
@@ -155,7 +212,8 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
-class DistanceLink : public Link {
+class DistanceLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, Link> {
 private:
     ChunkRef base;
     ChunkRef target;
@@ -168,14 +226,15 @@ public:
 // --- data links ---
 
 class DataSection;
-class DataOffsetLink : public Link {
+class DataOffsetLink : public LinkImpl {
 private:
     DataSection *section;
     address_t target;
     size_t addend;
 public:
-    DataOffsetLink(DataSection *section, address_t target)
-        : section(section), target(target), addend(0) {}
+    DataOffsetLink(DataSection *section, address_t target,
+        Link::LinkScope scope = Link::SCOPE_INTERNAL_DATA)
+        : LinkImpl(scope), section(section), target(target), addend(0) {}
 
     void setAddend(size_t addend) { this->addend = addend; }
     virtual ChunkRef getTarget() const;
@@ -188,7 +247,8 @@ public:
 };
 
 class TLSDataRegion;
-class TLSDataOffsetLink : public Link {
+class TLSDataOffsetLink : public LinkScopeDecorator<Link::SCOPE_WITHIN_MODULE,
+    Link> {
 private:
     TLSDataRegion *tls;
     Symbol *symbol;
@@ -209,7 +269,8 @@ public:
 
 /** We know that this is a Link, but we're not sure what it points at yet.
 */
-class UnresolvedLink : public Link {
+class UnresolvedLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, Link> {
 private:
     address_t target;
 public:
@@ -236,6 +297,11 @@ public:
 
     virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }
     virtual address_t getTargetAddress() const { throw "ImmAndDispLink not handled"; }
+
+    virtual Link::LinkScope getScope() const
+        { throw "ImmAndDispLink not handled"; }
+    virtual bool isExternalJump() const { throw "ImmAndDispLink not handled"; }
+    virtual bool isWithinModule() const { throw "ImmAndDispLink not handled"; }
 };
 
 

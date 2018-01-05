@@ -21,6 +21,7 @@
 #include "pass/stackextend.h"
 #include "pass/usegstable.h"
 #include "pass/collapseplt.h"
+#include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
@@ -358,6 +359,39 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         serializer.serialize(setup->getConductor()->getProgram(),
             args.front().c_str());
     }, "generates an Egalito archive with the Chunk tree");
+
+    topLevel->add("archive2", [&] (Arguments args) {
+        args.shouldHave(0);
+
+        auto program = setup->getConductor()->getProgram();
+
+        ArchiveFileSystem fileSystem;
+        auto path = fileSystem.getArchivePathFor(program);
+        fileSystem.makeArchivePath(path);
+
+        ChunkSerializer serializer;
+        serializer.serialize(program, path.c_str());
+    }, "generates an Egalito archive using default filenames");
+
+    topLevel->add("archive3", [&] (Arguments args) {
+        args.shouldHave(0);
+
+        ArchiveFileSystem fileSystem;
+        auto program = setup->getConductor()->getProgram();
+        for(auto module : CIter::modules(program)) {
+            auto path = fileSystem.getArchivePathFor(module);
+            fileSystem.makeArchivePath(path);
+
+            if(fileSystem.archivePathExists(path)) {
+                std::cout << "skipping serialization to ["
+                    << path << "]\n";
+            }
+            else {
+                ChunkSerializer serializer;
+                serializer.serialize(module, path.c_str());
+            }
+        }
+    }, "generates an Egalito archive using default filenames");
 
     topLevel->add("usegstable", [&] (Arguments args) {
         if(!setup->getConductor()) {

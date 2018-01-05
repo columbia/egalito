@@ -81,7 +81,8 @@ VTable *DisassembleVTables::makeVTable(ElfMap *elfMap,
                         //->find(relocSym->getName());
                     if(target) {
                         LOG(10, "        found");
-                        link = new AbsoluteNormalLink(target);
+                        link = new AbsoluteNormalLink(target,
+                            Link::SCOPE_INTERNAL_DATA);
                     }
                 }
             }

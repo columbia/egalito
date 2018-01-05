@@ -22,8 +22,8 @@ public:
     Conductor();
     ~Conductor();
 
-    void parseExecutable(ElfMap *elf);
-    void parseEgalito(ElfMap *elf);
+    Module *parseExecutable(ElfMap *elf);
+    Module *parseEgalito(ElfMap *elf);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     void parseEgalitoArchive(const char *archive);
@@ -34,6 +34,7 @@ public:
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections();
+    void fixPointersInData();
     EgalitoTLS *getEgalitoTLS() const;
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");

@@ -191,7 +191,7 @@ void FrameType::fixEpilogue(Instruction *oldInstr, Instruction *newInstr) {
     for(auto cfi : jumpToEpilogueInstrs) {
         auto link = cfi->getLink();
         if(link->getTarget() == oldInstr) {
-            cfi->setLink(new NormalLink(newInstr));
+            cfi->setLink(new NormalLink(newInstr, Link::SCOPE_INTERNAL_JUMP));
             delete link;
         }
     }

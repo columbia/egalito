@@ -23,39 +23,23 @@ std::string Block::getName() const {
 void Block::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-#if 0
-    writer.write(getAddress());
-#endif
+    // not called for Functions, just for PLTTrampolines
+    //writer.write(getAddress());
+    writer.write(op.assign(getPreviousSibling() ? getPreviousSibling() : getParent()));
+
+    op.serializeChildren(this, writer);
 }
 
 bool Block::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-#if 0
-    auto address = reader.read<address_t>();
-    setPosition(new AbsolutePosition(address));
+    // not called for Functions, just for PLTTrampolines
+    //auto address = reader.read<address_t>();
+    //setPosition(new AbsolutePosition(address));
+    auto afterThis = op.lookup(reader.readID());
+    setPosition(new SubsequentPosition(afterThis));
 
     op.deserializeChildren(this, reader);
-#if 1
-    PositionFactory *positionFactory = PositionFactory::getInstance();
-    ChunkMutator mutator(this);
-    Chunk *prevChunk = this;
-    auto iterable = getChildren()->getIterable();
-    for(size_t i = 0; i < iterable->getCount(); i ++) {
-        Chunk *instr = iterable->get(i);
-        mutator.setPreviousSibling(instr, prevChunk);
-        if(i + 1 < iterable->getCount()) {
-            mutator.setNextSibling(instr, iterable->get(i + 1));
-        }
-        instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, this->getSize()));
-        prevChunk = instr;
-        //LOG(1, "set position of " << instr->getName() << " size " << instr->getSize());
-    }
-
-    mutator.updatePositions();
-#endif
-#endif
     return reader.stillGood();
 }
 

@@ -30,9 +30,7 @@ void PromoteJumpsPass::visit(Instruction *instruction) {
         if(!fitsIn<signed char>(disp)) {
             promote(instruction);
         }
-        else if(dynamic_cast<ExternalNormalLink *>(v->getLink())
-            || dynamic_cast<ExternalOffsetLink *>(v->getLink())) {
-
+        else if(v->getLink()->isExternalJump()) {
             promote(instruction);
         }
     }

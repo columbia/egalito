@@ -8,6 +8,7 @@
 #include "instr/concrete.h"  // for IndirectJumpInstruction
 #include "operation/find.h"
 #include "operation/find2.h"
+#include "operation/mutator.h"
 #include "elf/elfspace.h"
 
 #undef DEBUG_GROUP
@@ -129,6 +130,12 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
 void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
+
+    auto firstAddress = jumpTable->getAddress() + 0;
+    auto region = module->getDataRegionList()->findRegionContaining(firstAddress);
+    auto section = CIter::spatial(region)->findContaining(firstAddress);
+    ChunkMutator sectionMutator(section);
+
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
         auto p = elfMap->getCopyBaseAddress() + address;
@@ -161,13 +168,18 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         Link *link = nullptr;
         if(inner) {
             LOG(3, "        resolved to " << std::hex << inner->getName());
-            link = new NormalLink(inner);
+            link = new NormalLink(inner, Link::SCOPE_WITHIN_MODULE);
         }
         else {
             LOG(3, "        unresolved at 0x" << std::hex << target);
             link = new UnresolvedLink(target);
         }
-        auto entry = new JumpTableEntry(link);
+
+        auto var = new DataVariable(section, address, link);
+        region->addVariable(var);
+        sectionMutator.append(var);
+
+        auto entry = new JumpTableEntry(var);
         entry->setPosition(PositionFactory::getInstance()
             ->makeAbsolutePosition(address));
         jumpTable->getChildren()->add(entry);
@@ -253,4 +265,3 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
     return false;
 #endif
 }
-

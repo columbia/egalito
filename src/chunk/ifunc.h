@@ -11,7 +11,8 @@ class IFunc : public ChunkImpl {
 private:
     Link *link;
 public:
-    IFunc(Chunk *target) : link(new ExternalNormalLink(target)) {}
+    IFunc(Chunk *target) : link(
+        new NormalLink(target, Link::SCOPE_EXTERNAL_CODE)) {}
     address_t getAddress() const { return link->getTargetAddress(); }
     Link *getLink() const { return link; }
     void setLink(Link *link) { this->link = link; }

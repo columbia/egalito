@@ -9,6 +9,7 @@
 #include "callinit.h"
 #include "preparetls.h"
 #include "datastruct.h"
+#include "makebridge.h"
 #include "chunk/tls.h"
 #include "elf/auxv.h"
 #include "elf/elfmap.h"
@@ -18,6 +19,7 @@
 #include "pass/loginstr.h"
 #include "pass/noppass.h"
 #include "pass/promotejumps.h"
+#include "pass/resolveplt.h"
 #include "pass/collapseplt.h"
 #include "pass/hijack.h"
 #include "pass/jitgssetup.h"
@@ -79,6 +81,9 @@ void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
 
     SegMap::mapAllSegments(setup);
     LoaderEmulator::getInstance().initRT(setup->getConductor());
+
+    // assign addresses of global variables passed-through to target
+    MakeLoaderBridge::make();
 }
 
 void EgalitoLoader::generateCode() {
@@ -134,8 +139,8 @@ void EgalitoLoader::run() {
     }
 
     // jump to the target program (never returns)
-    //_start2();
     start2();
+    //_start2();
 }
 
 void EgalitoLoader::otherPasses() {

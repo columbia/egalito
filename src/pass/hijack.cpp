@@ -30,7 +30,8 @@ void HijackPass::visit(Instruction *instruction) {
 
     if(auto f = dynamic_cast<Function *>(link->getTarget())) {
         if(f == original) {
-            semantic->setLink(new ExternalNormalLink(wrapper));
+            semantic->setLink(
+                new NormalLink(wrapper, Link::SCOPE_EXTERNAL_JUMP));
             delete link;
         }
     }

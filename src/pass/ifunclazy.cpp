@@ -43,7 +43,7 @@ void IFuncLazyPass::visit(PLTTrampoline *trampoline) {
     auto instr = block->getChildren()->getIterable()->get(0);
     LOG(10, "    new target " << std::hex << instr->getAddress());
 
-    jumpslot->setDest(new NormalLink(instr));
+    jumpslot->setDest(new NormalLink(instr, Link::SCOPE_EXTERNAL_CODE));
     delete link;
 }
 

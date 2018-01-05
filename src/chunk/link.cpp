@@ -2,6 +2,7 @@
 #include "chunk/concrete.h"
 #include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
+#include "conductor/bridge.h"
 #include "elf/reloc.h"
 #include "elf/elfspace.h"
 #include "load/emulator.h"
@@ -32,6 +33,10 @@ ChunkRef JumpTableLink::getTarget() const {
 
 address_t JumpTableLink::getTargetAddress() const {
     return jumpTable->getAddress();
+}
+
+address_t EgalitoLoaderLink::getTargetAddress() const {
+    return LoaderBridge::getInstance()->getAddress(targetName);
 }
 
 address_t MarkerLink::getTargetAddress() const {
@@ -73,21 +78,13 @@ address_t TLSDataOffsetLink::getTargetAddress() const {
 Link *LinkFactory::makeNormalLink(ChunkRef target, bool isRelative,
     bool isExternal) {
 
-    if(!isExternal) {
-        if(isRelative) {
-            return new NormalLink(target);
-        }
-        else {
-            return new AbsoluteNormalLink(target);
-        }
+    if(isRelative) {
+        return new NormalLink(target, isExternal
+            ? Link::SCOPE_EXTERNAL_JUMP : Link::SCOPE_INTERNAL_JUMP);
     }
     else {
-        if(isRelative) {
-            return new ExternalNormalLink(target);
-        }
-        else {
-            return new ExternalAbsoluteNormalLink(target);
-        }
+        return new AbsoluteNormalLink(target, isExternal
+            ? Link::SCOPE_EXTERNAL_JUMP : Link::SCOPE_INTERNAL_JUMP);
     }
 }
 
@@ -137,14 +134,14 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
     if(func) {
         if(func->getAddress() == addr) {
             LOG(10, "resolved to a function");
-            return new NormalLink(func);
+            return new NormalLink(func, Link::SCOPE_WITHIN_MODULE);
         }
         else {
             Chunk *inner = ChunkFind().findInnermostInsideInstruction(
                 func, addr);
             auto instruction = dynamic_cast<Instruction *>(inner);
             LOG(10, "resolved to an instuction");
-            return new NormalLink(instruction);
+            return new NormalLink(instruction, Link::SCOPE_WITHIN_MODULE);
         }
     }
 
@@ -188,7 +185,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
     if(auto func = LoaderEmulator::getInstance().findFunction(name)) {
         LOG(10, "    link to emulated function!");
-        return new ExternalNormalLink(func);
+        return new NormalLink(func, Link::SCOPE_EXTERNAL_CODE);
     }
     if(auto link = LoaderEmulator::getInstance().makeDataLink(name,
         afterMapping)) {
@@ -271,14 +268,14 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
     if(f) {
         LOG(10, "    ...found as function! at "
             << std::hex << f->getAddress());
-        return new NormalLink(f);
+        return new NormalLink(f, Link::SCOPE_EXTERNAL_CODE);
     }
 
     auto alias = space->getAliasMap()->find(name);
     if(alias) {
         LOG(10, "    ...found as alias! " << alias->getName()
             << " at " << std::hex << alias->getAddress());
-        return new NormalLink(alias);
+        return new NormalLink(alias, Link::SCOPE_EXTERNAL_CODE);
     }
 
     if(symbol->isMarker()) {
@@ -312,19 +309,19 @@ Link *PerfectLinkResolver::resolveInferred(address_t address,
 
     if(auto found = ChunkFind().findInnermostAt(f, address)) {
         LOG(10, " ==> inside the same function");
-        return new NormalLink(found);
+        return new NormalLink(found, Link::SCOPE_INTERNAL_JUMP);
     }
     else if(auto found
         = CIter::spatial(module->getFunctionList())->find(address)) {
 
         LOG(10, " ==> " << found->getName());
-        return new ExternalNormalLink(found);
+        return new NormalLink(found, Link::SCOPE_WITHIN_MODULE);
     }
     else if(auto chunk = ChunkFind().findInnermostInsideInstruction(
         module->getFunctionList(), address)) {
 
         LOG(10, "--> instruction(literal?) " << chunk->getName());
-        return new NormalLink(chunk);
+        return new NormalLink(chunk, Link::SCOPE_WITHIN_MODULE);
     }
     else if(auto dlink = LinkFactory::makeDataLink(module, address, true)) {
         LOG(10, " --> data link");

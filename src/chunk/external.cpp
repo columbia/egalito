@@ -11,8 +11,14 @@ void ExternalSymbol::serialize(ChunkSerializerOperations &op,
     writer.writeString(name);
     writer.write<uint32_t>(type);
     writer.write<uint32_t>(bind);
-    writer.writeID(op.assign(resolved));
-    writer.writeID(op.assign(resolvedModule));
+    if(op.isLocalModuleOnly()) {
+        writer.writeID(op.assign(nullptr));
+        writer.writeID(op.assign(nullptr));
+    }
+    else {
+        writer.writeID(op.assign(resolved));
+        writer.writeID(op.assign(resolvedModule));
+    }
 }
 
 bool ExternalSymbol::deserialize(ChunkSerializerOperations &op,
@@ -21,8 +27,14 @@ bool ExternalSymbol::deserialize(ChunkSerializerOperations &op,
     name = reader.readString();
     type = static_cast<Symbol::SymbolType>(reader.read<uint32_t>());
     bind = static_cast<Symbol::BindingType>(reader.read<uint32_t>());
-    resolved = op.lookup(reader.readID());
-    resolvedModule = op.lookupAs<Module>(reader.readID());
+    if(op.isLocalModuleOnly()) {
+        reader.readID();  // skip
+        reader.readID();  // skip
+    }
+    else {
+        resolved = op.lookup(reader.readID());
+        resolvedModule = op.lookupAs<Module>(reader.readID());
+    }
     return reader.stillGood();
 }
 

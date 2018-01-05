@@ -28,7 +28,7 @@
 
 IFuncList *egalito_ifuncList __attribute__((weak));
 
-Conductor::Conductor() {
+Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
     program = new Program();
     program->setLibraryList(new LibraryList());
 }
@@ -37,14 +37,14 @@ Conductor::~Conductor() {
     delete program;
 }
 
-void Conductor::parseExecutable(ElfMap *elf) {
+Module *Conductor::parseExecutable(ElfMap *elf) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
-    parse(elf, library);
+    return parse(elf, library);
 }
 
-void Conductor::parseEgalito(ElfMap *elf) {
+Module *Conductor::parseEgalito(ElfMap *elf) {
     auto library = new Library("(egalito)", Library::ROLE_EGALITO);
-    parse(elf, library);
+    return parse(elf, library);
 }
 
 void Conductor::parseLibraries() {
@@ -128,13 +128,13 @@ void Conductor::resolveTLSLinks() {
 }
 
 void Conductor::resolveWeak() {
+    if(auto egalito = program->getEgalito()) {
+        InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
+        egalito->accept(&bridge);
+    }
+
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();
-
-        if(module->getName() == "module-(egalito)") {
-            InjectBridgePass bridge(space->getRelocList());
-            module->accept(&bridge);
-        }
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(
@@ -190,6 +190,17 @@ void Conductor::fixDataSections() {
     program->accept(&handleCopyRelocs);
 
     backupTLSData();
+}
+
+void Conductor::fixPointersInData() {
+    FixDataRegionsPass fixDataRegions;
+    program->accept(&fixDataRegions);
+
+    // NOTE: this overwrites DataVariables, which are stored as
+    // absolute values instead of relative, with relative values.
+    // Should do this more efficiently.
+    FixJumpTablesPass fixJumpTables;
+    program->accept(&fixJumpTables);
 }
 
 EgalitoTLS *Conductor::getEgalitoTLS() const {

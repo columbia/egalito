@@ -24,14 +24,12 @@ enum EgalitoInstrType {
 
 enum EgalitoLinkType {
     TYPE_UNKNOWN_LINK = 0,
-    TYPE_ExternalAbsoluteNormalLink,
-    TYPE_ExternalNormalLink,
     TYPE_AbsoluteNormalLink,
     TYPE_NormalLink,
-    TYPE_ExternalOffsetLink,
     TYPE_OffsetLink,
     TYPE_PLTLink,
     TYPE_JumpTableLink,
+    TYPE_EgalitoLoaderLink,
     TYPE_SymbolOnlyLink,
     TYPE_MarkerLink,
     TYPE_AbsoluteDataLink,
@@ -240,30 +238,19 @@ InstructionSemantic *InstrSerializer::defaultDeserialize(Instruction *instructio
 }
 
 void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
-    if(dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalAbsoluteNormalLink);
-        writer.writeID(op.assign(&*link->getTarget()));
-    }
-    else if(dynamic_cast<ExternalNormalLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalNormalLink);
-        writer.writeID(op.assign(&*link->getTarget()));
-    }
-    else if(dynamic_cast<AbsoluteNormalLink *>(link)) {
+    if(dynamic_cast<AbsoluteNormalLink *>(link)) {
         writer.write<uint8_t>(TYPE_AbsoluteNormalLink);
+        writer.write<uint8_t>(link->getScope());
         writer.writeID(op.assign(&*link->getTarget()));
     }
     else if(dynamic_cast<NormalLink *>(link)) {
         writer.write<uint8_t>(TYPE_NormalLink);
+        writer.write<uint8_t>(link->getScope());
         writer.writeID(op.assign(&*link->getTarget()));
-    }
-    else if(dynamic_cast<ExternalOffsetLink *>(link)) {
-        writer.write<uint8_t>(TYPE_ExternalOffsetLink);
-        auto target = link->getTarget();
-        writer.writeID(op.assign(&*target));
-        writer.write(link->getTargetAddress() - target->getAddress());
     }
     else if(dynamic_cast<OffsetLink *>(link)) {
         writer.write<uint8_t>(TYPE_OffsetLink);
+        writer.write<uint8_t>(link->getScope());
         auto target = link->getTarget();
         writer.writeID(op.assign(&*target));
         writer.write(link->getTargetAddress() - target->getAddress());
@@ -275,6 +262,10 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
     else if(dynamic_cast<JumpTableLink *>(link)) {
         writer.write<uint8_t>(TYPE_JumpTableLink);
         writer.writeID(op.assign(&*link->getTarget()));
+    }
+    else if(auto v = dynamic_cast<EgalitoLoaderLink *>(link)) {
+        writer.write<uint8_t>(TYPE_EgalitoLoaderLink);
+        writer.writeString(v->getTargetName());
     }
     else if(dynamic_cast<SymbolOnlyLink *>(link)) {
         writer.write<uint8_t>(TYPE_SymbolOnlyLink);
@@ -292,6 +283,7 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
     }
     else if(dynamic_cast<DataOffsetLink *>(link)) {
         writer.write<uint8_t>(TYPE_DataOffsetLink);
+        writer.write<uint8_t>(link->getScope());
         auto section = link->getTarget();
         writer.writeID(op.assign(&*section));
         writer.write(link->getTargetAddress() - section->getAddress());
@@ -306,6 +298,7 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
     }
     else if(auto v = dynamic_cast<ImmAndDispLink *>(link)) {
         writer.write<uint8_t>(TYPE_ImmAndDispLink);
+        writer.write<uint8_t>(v->getImmLink()->getScope());
         writer.writeID(op.assign(&*v->getImmLink()->getTarget()));
         serialize(v->getDispLink(), writer);
     }
@@ -319,23 +312,19 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
     if(!reader.stillGood()) return nullptr;
 
     switch(type) {
-    case TYPE_ExternalAbsoluteNormalLink:
-        return new ExternalAbsoluteNormalLink(deserializeLinkTarget(reader));
-    case TYPE_ExternalNormalLink:
-        return new ExternalNormalLink(deserializeLinkTarget(reader));
-    case TYPE_AbsoluteNormalLink:
-        return new AbsoluteNormalLink(deserializeLinkTarget(reader));
-    case TYPE_NormalLink:
-        return new NormalLink(deserializeLinkTarget(reader));
-    case TYPE_ExternalOffsetLink: {
-        auto target = deserializeLinkTarget(reader);
-        auto offset = reader.read<address_t>();
-        return new ExternalOffsetLink(target, offset);
+    case TYPE_AbsoluteNormalLink: {
+        auto scope = static_cast<Link::LinkScope>(reader.read<uint8_t>());
+        return new AbsoluteNormalLink(deserializeLinkTarget(reader), scope);
+    }
+    case TYPE_NormalLink: {
+        auto scope = static_cast<Link::LinkScope>(reader.read<uint8_t>());
+        return new NormalLink(deserializeLinkTarget(reader), scope);
     }
     case TYPE_OffsetLink: {
+        auto scope = static_cast<Link::LinkScope>(reader.read<uint8_t>());
         auto target = deserializeLinkTarget(reader);
         auto offset = reader.read<address_t>();
-        return new OffsetLink(target, offset);
+        return new OffsetLink(target, offset, scope);
     }
     case TYPE_PLTLink:
         return new PLTLink(0x0,
@@ -343,6 +332,8 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
     case TYPE_JumpTableLink:
         return new JumpTableLink(
             dynamic_cast<JumpTable *>(deserializeLinkTarget(reader)));
+    case TYPE_EgalitoLoaderLink:
+        return new EgalitoLoaderLink(reader.readString());
     case TYPE_SymbolOnlyLink:
         return new UnresolvedLink(0);  // unsupported
     case TYPE_MarkerLink:
@@ -353,16 +344,18 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
         return new AbsoluteDataLink(section, offset);
     }
     case TYPE_DataOffsetLink: {
+        auto scope = static_cast<Link::LinkScope>(reader.read<uint8_t>());
         auto section = dynamic_cast<DataSection *>(deserializeLinkTarget(reader));
         auto offset = reader.read<address_t>();
-        return new DataOffsetLink(section, offset);
+        return new DataOffsetLink(section, offset, scope);
     }
     case TYPE_TLSDataOffsetLink:
         return new UnresolvedLink(0);  // unsupported
     case TYPE_UnresolvedLink:
         return new UnresolvedLink(reader.read<address_t>());
     case TYPE_ImmAndDispLink: {
-        auto immLink = new NormalLink(op.lookup(reader.readID()));
+        auto immScope = static_cast<Link::LinkScope>(reader.read<uint8_t>());
+        auto immLink = new NormalLink(op.lookup(reader.readID()), immScope);
         auto dispLink = deserialize(reader);
         return new ImmAndDispLink(immLink, dispLink);
     }

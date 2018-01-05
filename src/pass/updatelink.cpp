@@ -47,10 +47,12 @@ Link *UpdateLink::makeUpdateLink(Link *link, Function *source) {
         if(targetFunction->getAddress() == instr->getAddress()) {
             LOG0(10, "updating link to " << targetFunction->getName());
             if(source && targetFunction == source) {
-                link2 = new NormalLink(targetFunction);
+                link2 = new NormalLink(targetFunction,
+                    Link::SCOPE_INTERNAL_JUMP);
             }
             else {
-                link2 = new ExternalNormalLink(targetFunction);
+                link2 = new NormalLink(targetFunction,
+                    Link::SCOPE_EXTERNAL_JUMP);
             }
         }
     }

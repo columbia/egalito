@@ -13,8 +13,7 @@ public:
     InjectBridgePass(RelocList *relocList) : relocList(relocList) {}
     void visit(Module *module);
 private:
-    void makeLinkToLoaderVariable(Module *module, Reloc *reloc,
-        address_t address);
+    void makeLinkToLoaderVariable(Module *module, Reloc *reloc);
 };
 
 #endif

@@ -45,6 +45,11 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto externalSymbolListID = op.serialize(getExternalSymbolList());
     writer.write(externalSymbolListID);
+
+    if(op.isLocalModuleOnly() && library) {
+        LOG(0, "serializing library [" << library->getName() << "]");
+        op.serialize(library, op.assign(library));
+    }
 }
 
 bool Module::deserialize(ChunkSerializerOperations &op,

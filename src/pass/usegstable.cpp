@@ -53,10 +53,7 @@ void UseGSTablePass::visit(Block *block) {
                 directCalls.emplace_back(block, instr);
             }
             else if(auto link = v->getLink()) {
-                if(dynamic_cast<ExternalNormalLink *>(link)
-                    || dynamic_cast<ExternalOffsetLink *>(link)
-                    || dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-
+                if(link->isExternalJump()) {
                     tailRecursions.emplace_back(block, instr);
                 }
             }
@@ -84,10 +81,7 @@ void UseGSTablePass::visit(Block *block) {
                 pointerLoads.emplace_back(block, instr);
             }
             else if(auto link = v->getLink()) {
-                if(dynamic_cast<ExternalNormalLink *>(link)
-                    || dynamic_cast<ExternalOffsetLink *>(link)
-                    || dynamic_cast<ExternalAbsoluteNormalLink *>(link)) {
-
+                if(link->isExternalJump()) {
                     pointerLinks.emplace_back(block, instr);
                 }
             }
@@ -288,7 +282,7 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
         auto next = block->getNextSibling();
         auto nextI = *next->getChildren()->genericIterable().begin();
         assert(nextI);
-        cfi->setLink(new NormalLink(nextI));
+        cfi->setLink(new NormalLink(nextI, Link::SCOPE_EXTERNAL_JUMP));
         jcc->setSemantic(cfi);
     }
 

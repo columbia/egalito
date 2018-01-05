@@ -4,6 +4,7 @@
 #include "chunk/serializer.h"
 #include "chunk/visitor.h"
 #include "instr.h"
+#include "serializer.h"
 #include "semantic.h"
 #include "writer.h"
 #include "disasm/disassemble.h"
@@ -29,41 +30,27 @@ size_t Instruction::getSize() const {
 void Instruction::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-#if 0
-    writer.write(static_cast<uint64_t>(getAddress()));
+    // not called for Functions, just for PLTTrampolines
+#if 1
+    writer.write(getAddress());
+    writer.write(op.assign(getPreviousSibling() ? getPreviousSibling() : getParent()));
 
-    InstrWriterGetData instrWriter;
-    getSemantic()->accept(&instrWriter);
-    writer.writeAnyLength(instrWriter.get());
+    InstrSerializer(op).serialize(getSemantic(), writer);
 #endif
 }
 
 bool Instruction::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-#if 0
-    uint64_t address;
-    reader.read(address);
-    //setPosition(new AbsolutePosition(address));
-    //setPosition(new AbsolutePosition(-1));
-
-    std::string data;
-    reader.readAnyLength(data);
+    // not called for Functions, just for PLTTrampolines
 #if 1
-    static DisasmHandle handle(true);
-    try {
-        setSemantic(DisassembleInstruction(handle)
-            .instructionSemantic(this, data, address));
-    }
-    catch(const char *what) {
-        LOG(1, "DISASSEMBLY ERROR: " << what);
-        RawByteStorage storage(data);
-        setSemantic(new RawInstruction(std::move(storage)));
-    }
-#else
-    RawByteStorage storage(data);
-    setSemantic(new RawInstruction(std::move(storage)));
-#endif
+    auto address = reader.read<address_t>();
+    //setPosition(new AbsolutePosition(address));
+    auto afterThis = op.lookup(reader.readID());
+    setPosition(new SubsequentPosition(afterThis));
+
+    auto semantic = InstrSerializer(op).deserialize(this, address, reader);
+    setSemantic(semantic);
 #endif
 
     return reader.stillGood();

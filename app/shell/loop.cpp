@@ -6,6 +6,7 @@
 
 #include "loop.h"
 #include "disass.h"
+#include "chain.h"
 #include "readline.h"
 #include "conductor/setup.h"
 #include "log/registry.h"
@@ -67,6 +68,9 @@ void mainLoop() {
         args.shouldHave(1);
         setup.injectLibrary(args.front().c_str());
     }, "parse and inject the given library");
+    topLevel.add("run", [&] (Arguments args) {
+        executeLoader(&setup, args);
+    }, "saves data to an archive and exec's the loader");
 
     topLevel.add("mute", [&] (Arguments args) {
         args.shouldHave(0);

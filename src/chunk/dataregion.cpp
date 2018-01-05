@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iomanip>
 #include "dataregion.h"
 #include "link.h"
@@ -32,6 +33,16 @@ DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
     ChunkMutator(section).append(this);
 }
 
+DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
+    : dest(dest) {
+
+    assert(section != nullptr);
+    assert(section->contains(address));
+
+    auto offset = address - section->getAddress();
+    this->setPosition(new AbsoluteOffsetPosition(this, offset));
+}
+
 void DataVariable::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
@@ -39,7 +50,13 @@ void DataVariable::serialize(ChunkSerializerOperations &op,
     writer.write<address_t>(
         static_cast<AbsoluteOffsetPosition *>(getPosition())->getOffset());
     writer.writeString(name);
-    LinkSerializer(op).serialize(dest, writer);
+
+    if(op.isLocalModuleOnly()) {
+        
+    }
+    else {
+        LinkSerializer(op).serialize(dest, writer);
+    }
 }
 
 bool DataVariable::deserialize(ChunkSerializerOperations &op,
@@ -275,10 +292,12 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                 auto base = dsec->getAddress();
                 LOG(10, "" << target << " has offset " << (target - base));
                 if(isRelative) {
-                    return new DataOffsetLink(dsec, target - base);
+                    return new DataOffsetLink(dsec, target - base,
+                        Link::SCOPE_WITHIN_MODULE);
                 }
                 else {
-                    return new AbsoluteDataLink(dsec, target - base);
+                    return new AbsoluteDataLink(dsec, target - base,
+                        Link::SCOPE_WITHIN_MODULE);
                 }
             }
         }
@@ -295,6 +314,10 @@ DataRegion *DataRegionList::findRegionContaining(address_t target) {
 }
 
 DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
+    //auto found = getChildren()->getSpatial()->findContaining(target);
+    //if(found && found != tls) return found;
+
+    // FIX: this is very slow as a linear search for jump tables
     for(auto region : CIter::children(this)) {
         if(region == tls) continue;
 
@@ -355,12 +378,14 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
 void DataRegionList::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    writer.writeID(op.assign(tls));
     op.serializeChildren(this, writer);
 }
 
 bool DataRegionList::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    tls = op.lookupAs<TLSDataRegion>(reader.readID());
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }

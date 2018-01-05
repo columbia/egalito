@@ -19,12 +19,8 @@ void OffsetPosition::set(address_t value) {
     setOffset(value - chunk->getParent()->getAddress());
 }
 
-void OffsetPosition::setOffset(address_t offset) {
-    this->offset = offset;
-}
-
 void OffsetPosition::recalculate() {
-    if(!chunk->getParent() || !chunk->getParent()->getChildren()) {
+    if(!chunk->getParent()) {
         offset = 0;
         return;
     }
@@ -43,6 +39,17 @@ void OffsetPosition::recalculate() {
 
 Chunk *OffsetPosition::getDependency() const {
     return chunk->getParent();
+}
+
+address_t AbsoluteOffsetPosition::get() const {
+    if(chunk == nullptr || chunk->getParent() == nullptr) return 0;
+    return chunk->getParent()->getPosition()->get() + offset;
+}
+
+void AbsoluteOffsetPosition::set(address_t value) {
+    assert(chunk != nullptr);
+    assert(chunk->getParent() != nullptr);
+    setOffset(value - chunk->getParent()->getPosition()->get());
 }
 
 address_t SubsequentPosition::get() const {

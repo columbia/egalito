@@ -24,9 +24,8 @@ void StackXOR::visit(Instruction *instruction) {
         addInstructions(parent, instruction);
     }
     else if(auto v = dynamic_cast<ControlFlowInstruction *>(s)) {
-        if(v->getMnemonic() != "callq"
-            && dynamic_cast<ExternalNormalLink *>(s->getLink())) {
-
+        // not a call, but still external; must be tail recursion
+        if(v->getMnemonic() != "callq" && s->getLink()->isExternalJump()) {
             addInstructions(parent, instruction);
         }
     }
