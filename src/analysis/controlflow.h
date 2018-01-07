@@ -71,8 +71,7 @@ public:
     ControlFlowGraph(Function *function);
     virtual ~ControlFlowGraph();
 
-    virtual ControlFlowNode *get(id_t id)
-        { return &graph[id]; }
+    virtual ControlFlowNode *get(id_t id) { return &graph[id]; }
     virtual size_t getCount() const { return graph.size(); }
 
     id_t getIDFor(Block *block) { return blockMapping[block]; }

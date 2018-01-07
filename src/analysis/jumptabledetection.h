@@ -66,10 +66,10 @@ public:
 private:
     bool containsIndirectJump(Function *function) const;
     bool parseJumptable(UDState *state, TreeCapture& cap, JumptableInfo *info);
-    bool parseJumptableWithIndexTable(UDState *state, TreeCapture& cap,
+    void parseOldCJumptable(UDState *state, int reg, JumptableInfo *info);
+    bool parseJumptableWithIndexTable(UDState *state, int reg,
         JumptableInfo *info);
-    void makeDescriptor(UDRegMemWorkingSet *working, Instruction *instruction,
-        const JumptableInfo& info);
+    void makeDescriptor(Instruction *instruction, const JumptableInfo *info);
 
     bool parseTableAccess(UDState *state, int reg, JumptableInfo *info);
     std::tuple<bool, address_t> parseBaseAddress(UDState *state, int reg);
@@ -87,13 +87,9 @@ private:
     bool getBoundFromBitTest(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromIndexTable(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromArgument(UDState *state, int reg, JumptableInfo *info);
-#if 0
-    bool getBoundFromAny(UDState *state, int reg, JumptableInfo *info);
-    void searchForComparison(UDState *state, int reg, JumptableInfo *info,
-        std::set<UDState *>& seen, std::set<UDState *>& comparisons);
-    void searchForBranch(UDState *state, JumptableInfo *info,
-        std::set<UDState *>& comparisons);
-#endif
+    bool getBoundFromControlFlow(UDState *state, int reg, JumptableInfo *info);
+
+    bool valueReaches(UDState *state, int reg, UDState *state2, int reg2);
 };
 
 #endif

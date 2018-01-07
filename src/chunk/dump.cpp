@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include "dump.h"
+#include "analysis/jumptable.h"
 #include "disasm/dump.h"
 #include "disasm/disassemble.h"
 #include "instr/writer.h"
@@ -80,13 +81,17 @@ void ChunkDumper::visit(JumpTable *jumpTable) {
         << std::hex << jumpTable->getAddress() << " with "
         << std::dec << jumpTable->getEntryCount()
         << " entries");
+    auto d = jumpTable->getDescriptor();
+    LOG(3, "  target base address = "
+        << std::hex << d->getTargetBaseLink()->getTargetAddress());
+    LOG(3, "  scale = " << std::hex << d->getScale());
     recurse(jumpTable);
 }
 
 void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
-    LOG0(1, "    " << std::hex << jumpTableEntry->getAddress());
+    LOG0(10, "    " << std::hex << jumpTableEntry->getAddress());
     if(auto link = jumpTableEntry->getLink()) {
-        LOG(1, " (should be) pointing to " << link->getTargetAddress());
+        LOG(10, " (should be) pointing to " << link->getTargetAddress());
     }
 }
 

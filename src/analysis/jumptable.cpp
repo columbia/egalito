@@ -18,6 +18,7 @@ long JumpTableDescriptor::getEntries() const {
     return bound + 1;
 }
 
+#if 0
 void JumpTableSearch::search(Module *module) {
     for(auto f : CIter::functions(module)) {
         search(f);
@@ -392,3 +393,4 @@ std::vector<address_t> JumpTableSearch::getTableAddresses(SearchState *state,
 
     return baseAddresses;
 }
+#endif

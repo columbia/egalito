@@ -20,7 +20,7 @@ private:
     Function *function;
     Instruction *instruction;  // indirect jump to this jump table
     address_t address;
-    address_t targetBaseAddress;
+    Link *targetBaseLink;
     TreeNode *indexExpr;
     Register indexRegister;
     int scale;
@@ -28,13 +28,13 @@ private:
 public:
     JumpTableDescriptor(Function *function, Instruction *instruction)
         : function(function), instruction(instruction),
-        address(0), targetBaseAddress(0), indexExpr(nullptr),
+        address(0), targetBaseLink(nullptr), indexExpr(nullptr),
         indexRegister(INVALID_REGISTER), scale(1), bound(LONG_MAX) {}
 
     Function *getFunction() const { return function; }
     Instruction *getInstruction() const { return instruction; }
     address_t getAddress() const { return address; }
-    address_t getTargetBaseAddress() const { return targetBaseAddress; }
+    Link *getTargetBaseLink() const { return targetBaseLink; }
     TreeNode *getIndexExpr() const { return indexExpr; }
     Register getIndexRegister() const { return indexRegister; }
     int getScale() const { return scale; }
@@ -43,7 +43,7 @@ public:
     long getEntries() const;
 
     void setAddress(address_t a) { address = a; }
-    void setTargetBaseAddress(address_t a) { targetBaseAddress = a; }
+    void setTargetBaseLink(Link *link) { this->targetBaseLink = link; }
     void setIndexExpr(TreeNode *node) { indexExpr = node; }
     void setIndexRegister(Register r) { indexRegister = r; }
     void setScale(int scale) { this->scale = scale; }
@@ -51,6 +51,7 @@ public:
     void setEntries(long entries) { this->bound = entries - 1; }
 };
 
+#if 0
 class JumpTableSearch {
 private:
     bool savePartialInfoTables;
@@ -74,5 +75,6 @@ private:
     bool matchJumpTableBounds(SlicingSearch *search, JumpTableDescriptor *d);
     std::vector<address_t> getTableAddresses(SearchState *state, TreeNode *tree);
 };
+#endif
 
 #endif

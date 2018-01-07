@@ -16,16 +16,19 @@ endef
 test:
 	$(call x86_only,./detectnull.sh)
 	./hello.sh
+	./argv.sh
+	./islower.sh
+	./jumptable-rtl.sh
+	$(call arch_dep,./jumptable-libc.sh)
+	./environ.sh
 	./codeform.sh
 	./dwarf-diff.sh
 	./codeform-dwarf-syms.sh
-	./jumptable-rtl.sh
 	./codeform-s.sh
 	./verify-redzone.sh
-	./argv.sh
-	./environ.sh
-	./islower.sh
-	$(call arch_dep,./jumptable-libc.sh)
 	./codeform-debloat.sh
 	./hello-process.sh
 	./hello-thread.sh
+
+jt:
+	$(call arch_dep,./jumptable-libc.sh)

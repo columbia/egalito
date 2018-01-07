@@ -6,15 +6,18 @@
 #include "chunk/concrete.h"
 #include "elf/elfspace.h"
 #include "instr/concrete.h"
+#include "operation/find.h"
 
 #include "log/log.h"
 #include "log/temp.h"
 
 void JumptableDetection::detect(Module *module) {
+    //TemporaryLogLevel tll("analysis", 11);
     for(auto f : CIter::functions(module)) {
         //TemporaryLogLevel tll("analysis", 11, f->hasName("__strncat_sse2_unaligned"));
         //TemporaryLogLevel tll("analysis", 11, f->hasName("vfwprintf"));
-        //TemporaryLogLevel tll("analysis", 11, f->hasName("vfprintf"));
+        //TemporaryLogLevel tll2("analysis", 11, f->hasName("vfprintf"));
+        //TemporaryLogLevel tll("analysis", 11, f->hasName("_IO_vfscanf"));
         //TemporaryLogLevel tll("analysis", 10);
         detect(f);
     }
@@ -55,17 +58,6 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
         >
     > MakeJumpTargetForm2;
 
-    // printf: ascii --> jump_table[] --(index)--> stepi_jumps[] --> target
-    typedef TreePatternBinary<TreeNodeAddition,
-        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
-        TreePatternUnary<TreeNodeDereference,
-            TreePatternCapture<TreePatternBinary<TreeNodeAddition,
-                TreePatternPhysicalRegisterIs<X86Register::BP>,
-                TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-            >>
-        >
-    > MakeJumpTargetForm3;
-
     for(auto block : CIter::children(working->getFunction())) {
         auto instr = block->getChildren()->getIterable()->getLast();
         auto s = instr->getSemantic();
@@ -82,35 +74,23 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
                 return parseJumptable(s, cap, &info);
             };
             auto parser2 = parser;
-            auto parser3 = [&, reg](UDState *s, TreeCapture& cap) {
-                auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(
-                    cap.get(0));
-                if(regTree->getRegister() == reg) {
-                    parseJumptableWithIndexTable(s, cap, &info);
-                    // don't return true because there can be more than one
-                    if(info.valid) {
-                        makeDescriptor(working, instr, info);
-                        info.valid = false;
-                    }
-                }
-                return false;
-            };
+
             LOG(10, "trying MakeJumpTargetForm1");
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser);
             if(info.valid) {
-                makeDescriptor(working, instr, info);
+                makeDescriptor(instr, &info);
                 continue;
             }
 
             LOG(10, "trying MakeJumpTargetForm2");
             FlowUtil::searchUpDef<MakeJumpTargetForm2>(state, reg, parser2);
             if(info.valid) {
-                makeDescriptor(working, instr, info);
+                makeDescriptor(instr, &info);
                 continue;
             }
 
-            LOG(10, "trying MakeJumpTargetForm3");
-            FlowUtil::searchUpDef<MakeJumpTargetForm3>(state, reg, parser3);
+            LOG(10, "trying C Form");
+            parseOldCJumptable(state, reg, &info);
         }
     }
 #elif defined(ARCH_AARCH64)
@@ -147,14 +127,14 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
             int reg = AARCH64GPRegister::convertToPhysical(op0);
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser);
             if(info.valid) {
-                makeDescriptor(working, instr, info);
+                makeDescriptor(instr, &info);
                 continue;
             }
 
             LOG(10, "trying MakeJumpTargetForm2");
             FlowUtil::searchUpDef<MakeJumpTargetForm2>(state, reg, parser);
             if(info.valid) {
-                makeDescriptor(working, instr, info);
+                makeDescriptor(instr, &info);
                 continue;
             }
         }
@@ -211,8 +191,68 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
 }
 
 #ifdef ARCH_X86_64
+void JumptableDetection::parseOldCJumptable(UDState *state, int reg,
+    JumptableInfo *info) {
+
+    LOG(10, "parseOldCJumptable " << std::hex
+        << state->getInstruction()->getAddress());
+    IF_LOG(10) state->dumpState();
+
+
+    // printf: ascii --> jump_table[] --(index)--> stepi_jumps[] --> target
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternPhysicalRegisterIs<X86Register::BP>,
+        TreePatternTerminal<TreeNodeConstant>
+    > MemForm1;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternUnary<TreeNodeDereference,
+            TreePatternCapture<MemForm1>
+        >
+    > MakeJumpTargetForm3;
+
+    auto parser3 = [&, reg](UDState *s, TreeCapture& cap) {
+        auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(
+            cap.get(0));
+        if(regTree->getRegister() == reg) {
+            parseJumptableWithIndexTable(s, reg, info);
+            if(!info->valid) return false;
+
+            // targetBase == tableBase is only guaranteed for compiler
+            // generated x86 jump tables
+            address_t targetBase = 0;
+            MemLocation mem(cap.get(1));
+            for(auto ref : s->getMemRef(reg)) {
+                for(auto& def : ref->getMemDefList()) {
+                    if(mem != MemLocation(def.second)) continue;
+
+                    LOG(10, "base pushed at "
+                        << std::hex << ref->getInstruction()->getAddress());
+                    bool found = false;
+                    std::tie(found, targetBase)
+                        = parseBaseAddress(ref, def.first);
+                    if(found) {
+                        LOG(10, "    targetBase found! "
+                            << std::hex << targetBase);
+                        info->targetBase = targetBase;
+                        makeDescriptor(state->getInstruction(), info);
+
+                        // there can be more than one
+                        info->valid = false;
+                        return false;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    FlowUtil::searchUpDef<MakeJumpTargetForm3>(state, reg, parser3);
+}
+
 bool JumptableDetection::parseJumptableWithIndexTable(UDState *state,
-    TreeCapture& cap, JumptableInfo *info) {
+    int reg, JumptableInfo *info) {
 
     typedef TreePatternCapture<TreePatternUnary<TreeNodeDereference,
         TreePatternBinary<TreeNodeAddition,
@@ -228,53 +268,9 @@ bool JumptableDetection::parseJumptableWithIndexTable(UDState *state,
     LOG(10, "parseJumptableWithIndexTable " << std::hex
         << state->getInstruction()->getAddress());
     IF_LOG(10) state->dumpState();
-    auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
-    auto reg = regTree1->getRegister();
-    MemLocation mem(cap.get(1));
+
 
     bool found = false;
-    address_t targetBase = 0;
-
-    // find targetBase
-    for(auto s : state->getMemRef(reg)) {
-        for(auto& def : s->getMemDefList()) {
-            if(mem == MemLocation(def.second)) {
-                LOG(10, "base pushed here " << std::hex
-                    << s->getInstruction()->getAddress());
-                std::tie(found, targetBase) = parseBaseAddress(s, def.first);
-                if(found) {
-                    LOG(10, "    targetBase found! " << std::hex << targetBase);
-                    goto find_tables;
-                }
-            }
-        }
-    }
-
-find_tables:
-    address_t indexTableBase = 0, jumpTableBase = 0;
-    size_t indexTableScale = 0, jumpTableScale = 0;
-    size_t indexTableEntries = 0;
-    auto indexTableParser = [&, info](UDState *is, TreeCapture& cap) {
-        auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
-        auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
-        auto scaleTree = dynamic_cast<TreeNodeConstant *>(cap.get(3));
-
-        address_t address;
-        std::tie(found, address)
-            = parseBaseAddress(is, regTree1->getRegister());
-        if(found) {
-            LOG(10, "INDEX TABLE ACCESS FOUND!");
-            indexTableBase = address;
-            indexTableScale = scaleTree->getValue();
-
-            parseBound(is, regTree2->getRegister(), info);
-            indexTableEntries = info->entries;
-            if(info->entries == 0) {
-                found = false;
-            }
-        }
-        return found;
-    };
     auto jumpTableParser = [&, info](UDState *js, TreeCapture& cap) {
         auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
         auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
@@ -285,31 +281,20 @@ find_tables:
             = parseBaseAddress(js, regTree1->getRegister());
         if(found) {
             LOG(10, "JUMP TABLE ACCESS FOUND!");
-            jumpTableBase = address;
-            jumpTableScale = scaleTree->getValue();
+            info->tableBase = address;
+            info->scale = scaleTree->getValue();
 
             auto reg = regTree2->getRegister();
             LOG(10, "trying to find index table from "
                 << std::hex << js->getInstruction()->getAddress()
                 << " for " << std::dec << reg);
-            FlowUtil::searchUpDef<TableAccessForm1>(
-                js, reg, indexTableParser);
 
-            auto it = indexTables.find(indexTableBase);
-            if(!found) {
-                if(it != indexTables.end() && indexTableBase != 0) {
-                    LOG(10, "index table for this base is already known");
-                    indexTableScale = it->second.scale;
-                    indexTableEntries = it->second.entries;
-                    found = true;
-                }
-            }
-            else {
-                if(it == indexTables.end()) {
-                    indexTables.emplace(std::piecewise_construct,
-                        std::forward_as_tuple(indexTableBase),
-                        std::forward_as_tuple(indexTableScale,
-                            indexTableEntries));
+            for(auto s : js->getRegRef(reg)) {
+                if(getBoundFromIndexTable(s, reg, info)) {
+                    LOG(1, "getBoundFromIndexTable matches in "
+                        << s->getInstruction()->getParent()->getParent()
+                            ->getName());
+                    break;
                 }
             }
         }
@@ -317,48 +302,29 @@ find_tables:
     };
 
 
-    if(found) {
-        found = false;
-        FlowUtil::searchUpDef<TableAccessForm1>(state, reg, jumpTableParser);
-        if(!found) return false;
-        LOG(10, "index table found! at 0x"
-            << std::hex << indexTableBase << " with "
-            << std::dec << indexTableEntries << " entries of size "
-            << std::dec << indexTableScale << " each");
-        auto copyBase
-            = module->getElfSpace()->getElfMap()->getCopyBaseAddress();
-        LOG(11, "this module is mapped at " << std::hex << copyBase);
-        size_t max = 0;
-        assert(indexTableScale == 1);
-        for(size_t i = 0; i < indexTableEntries; i++) {
-            max = std::max(max, static_cast<size_t>(
-                *(char *)(copyBase + indexTableBase + i)));
-        }
-        LOG(10, "max = " << std::dec << max);
-        info->targetBase = targetBase;
-        info->tableBase = jumpTableBase;
-        info->entries = max + 1;
-        info->scale = jumpTableScale;
-        info->valid = true;
-        return true;
-    }
+    found = false;
+    FlowUtil::searchUpDef<TableAccessForm1>(state, reg, jumpTableParser);
+    if(!found) return false;
 
-    return false;
+    info->valid = true;
+    return true;
 }
 #endif
 
-void JumptableDetection::makeDescriptor(UDRegMemWorkingSet *working,
-    Instruction *instruction, const JumptableInfo &info) {
+void JumptableDetection::makeDescriptor(Instruction *instruction,
+    const JumptableInfo *info) {
 
+    auto working = info->working;
     auto it = tableMap.find(instruction);
     if(it != tableMap.end()) {
         bool exists = false;
         for(auto d : it->second) {
             if(d->getInstruction() == instruction
-                && d->getAddress() == info.tableBase
-                && d->getTargetBaseAddress() == info.targetBase
-                && d->getScale() == static_cast<int>(info.scale)
-                && d->getEntries() == info.entries) {
+                && d->getAddress() == info->tableBase
+                && d->getTargetBaseLink()->getTargetAddress()
+                    == info->targetBase
+                && d->getScale() == static_cast<int>(info->scale)
+                && d->getEntries() == info->entries) {
                 exists = true;
                 break;
             }
@@ -366,23 +332,33 @@ void JumptableDetection::makeDescriptor(UDRegMemWorkingSet *working,
         if(exists) return;
     }
 
-    auto jt = new JumpTableDescriptor(working->getFunction(), instruction);
-    jt->setAddress(info.tableBase);
-    jt->setTargetBaseAddress(info.targetBase);
-    jt->setScale(info.scale);
-    //jt->setIndexExpr(info.indexExpr);
-    jt->setEntries(info.entries);
-    tableList.push_back(jt);
+    auto jtd = new JumpTableDescriptor(working->getFunction(), instruction);
+    jtd->setAddress(info->tableBase);
+    Link *link = nullptr;
+    if(info->tableBase == info->targetBase) {
+        link = LinkFactory::makeDataLink(module, info->targetBase, true);
+    }
+    else {
+        auto function
+            = dynamic_cast<Function *>(instruction->getParent()->getParent());
+        auto target = ChunkFind().findInnermostAt(function, info->targetBase);
+        link = LinkFactory::makeNormalLink(target, true, false);
+    }
+    assert(link);
+    jtd->setTargetBaseLink(link);
+    jtd->setScale(info->scale);
+    jtd->setEntries(info->entries);
+    tableList.push_back(jtd);
 
     LOG(10, "jump table jump at "
-        << std::hex << info.jumpState->getInstruction()->getAddress());
-    LOG(10, "descriptor:" << jt);
-    LOG(10, "baseAddress = " << std::hex << info.tableBase);
-    LOG(10, "targetBaseAddress = " << std::hex << info.targetBase);
-    LOG(10, "scale = " << std::dec << info.scale);
-    LOG(10, "entries = " << std::dec << info.entries);
+        << std::hex << info->jumpState->getInstruction()->getAddress());
+    LOG(10, "descriptor:" << jtd);
+    LOG(10, "baseAddress = " << std::hex << info->tableBase);
+    LOG(10, "targetBaseAddress = " << std::hex << info->targetBase);
+    LOG(10, "scale = " << std::dec << info->scale);
+    LOG(10, "entries = " << std::dec << info->entries);
 
-    tableMap[instruction].push_back(jt);
+    tableMap[instruction].push_back(jtd);
 }
 
 bool JumptableDetection::parseTableAccess(UDState *state, int reg,
@@ -628,12 +604,49 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     JumptableInfo *info) {
 
 #ifdef ARCH_X86_64
+    typedef TreePatternBinary<TreeNodeComparison,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > ComparisonForm;
+
     bool found = false;
+    auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
+        if(r == X86Register::FLAGS) { // cmp + jump
+            IF_LOG(10) s->dumpState();
+            auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
+            if(getBoundFromCompare(s, boundTree->getValue(), info)) {
+                LOG(10, "FLAGS 0x"
+                    << std::hex << s->getInstruction()->getAddress());
+                found = true;
+            }
+        }
+        return found;
+    };
 
     LOG(10, "parseBound 0x"
         << std::hex << state->getInstruction()->getAddress()
         << " reg " << std::dec << reg);
     IF_LOG(10) state->dumpState();
+    for(auto s : state->getRegRef(reg)) {
+        if(s == state) continue;
+        FlowUtil::searchDownDef<ComparisonForm>(s, reg, parser);
+        if(found) break;
+
+#if 0
+        IF_LOG(10)
+            for(auto &s2 : s->getRegUse(reg)) {
+                for(auto &def : s2->getRegDefList()) {
+                    TreeCapture capture;
+                    if(ComparisonForm::matches(def.second, capture)) {
+                        LOG(1, "  s2:" << std::hex
+                            << s2->getInstruction()->getAddress());
+                        s2->dumpState();
+                        LOG(1, "  def.first = " << def.first);
+                    }
+                }
+            }
+#endif
+    }
 
     for(auto s : state->getRegRef(reg)) {
         if(s != state &&
@@ -649,10 +662,21 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                 found = true;
                 break;
             }
+            if(getBoundFromIndexTable(s, reg, info)) {
+                found = true;
+                break;
+            }
         }
     }
     if(!found) {
-        if(getBoundFromArgument(state, reg, info)) {
+        bool defined = false;
+        for(auto s : state->getRegRef(reg)) {
+            if(s->getRegDef(reg)) {
+                defined = true;
+                break;
+            }
+        }
+        if(!defined && getBoundFromArgument(state, reg, info)) {
             found = true;
         }
     }
@@ -679,13 +703,11 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
             }
         }
     }
-#if 0
     if(!found) {
-        if(getBoundFromAny(state, reg, info)) {
+        if(getBoundFromControlFlow(state, reg, info)) {
             found = true;
         }
     }
-#endif
     if(found) {
         LOG(10, "entries = " << std::dec << info->entries);
     }
@@ -1224,11 +1246,82 @@ bool JumptableDetection::getBoundFromBitTest(UDState *state, int reg,
     return false;
 }
 
-// this only exists for manually crafted jumptable in printf
-#ifdef ARCH_AARCH64
+// this only exists for manually crafted jumptables in C printf
 bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
     JumptableInfo *info) {
 
+#ifdef ARCH_X86_64
+    typedef TreePatternCapture<TreePatternUnary<TreeNodeDereference,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+            TreePatternBinary<TreeNodeMultiplication,
+                TreePatternCapture<
+                    TreePatternTerminal<TreeNodePhysicalRegister>>,
+                TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+            >
+        >
+    >> IndexTableAccessForm;
+
+    TreeCapture capture;
+    if(IndexTableAccessForm::matches(state->getRegDef(reg), capture)) {
+        auto regTree1
+            = dynamic_cast<TreeNodePhysicalRegister *>(capture.get(1));
+        auto regTree2
+            = dynamic_cast<TreeNodePhysicalRegister *>(capture.get(2));
+        auto scaleTree = dynamic_cast<TreeNodeConstant *>(capture.get(3));
+
+        LOG(10, "Dereference from index table at " << std::hex
+            << state->getInstruction()->getAddress());
+
+        bool found;
+        address_t indexTableBase = 0;
+        size_t indexTableScale = 0;
+        size_t indexTableEntries = 0;
+
+        std::tie(found, indexTableBase)
+            = parseBaseAddress(state, regTree1->getRegister());
+        if(found) {
+            auto it = indexTables.find(indexTableBase);
+            if(it != indexTables.end()) {
+                LOG(10, "index table for this base is already known");
+                indexTableScale = it->second.scale;
+                indexTableEntries = it->second.entries;
+            }
+            else {
+                indexTableScale = scaleTree->getValue();
+                assert(indexTableScale == 1);
+
+                parseBound(state, regTree2->getRegister(), info);
+                indexTableEntries = info->entries;
+
+                LOG(10, "index table found! at 0x"
+                    << std::hex << indexTableBase << " with "
+                    << std::dec << indexTableEntries << " entries of size "
+                    << std::dec << indexTableScale << " each");
+                if(info->entries > 0) {
+                    indexTables.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(indexTableBase),
+                        std::forward_as_tuple(indexTableScale,
+                            indexTableEntries));
+                }
+            }
+            if(indexTableEntries > 0) {
+                auto copyBase
+                    = module->getElfSpace()->getElfMap()->getCopyBaseAddress();
+                size_t max = 0;
+                assert(indexTableScale == 1);
+                for(size_t i = 0; i < indexTableEntries; i++) {
+                    max = std::max(max, static_cast<size_t>(
+                        *(char *)(copyBase + indexTableBase + i)));
+                }
+                LOG(10, "max = " << std::dec << max);
+                info->entries = max + 1;
+                return true;
+            }
+        }
+    }
+    return false;
+#elif defined(ARCH_AARCH64)
     typedef TreePatternUnary<TreeNodeDereference,
         TreePatternBinary<TreeNodeAddition,
             TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
@@ -1243,7 +1336,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
 
     TreeCapture capture;
     if(IndexTableAccessForm::matches(state->getRegDef(reg), capture)) {
-        LOG(10, "Dereference from index table 0x" << std::hex
+        LOG(10, "Dereference from index table at " << std::hex
             << state->getInstruction()->getAddress());
         bool found = false;
 
@@ -1262,8 +1355,8 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
         return found;
     }
     return false;
-}
 #endif
+}
 
 bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
     JumptableInfo *info) {
@@ -1407,138 +1500,114 @@ bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
 #endif
 }
 
-#if 0
 #ifdef ARCH_X86_64
-bool JumptableDetection::getBoundFromAny(UDState *state, int reg,
+// handles the case where the index is copied to another register and test
+// is performed on that register
+bool JumptableDetection::getBoundFromControlFlow(UDState *state, int reg,
     JumptableInfo *info) {
 
-    LOG(10, "getBoundFromAny 0x"
+    typedef TreePatternBinary<TreeNodeComparison,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > ComparisonForm;
+
+    LOG(10, "getBoundFromControlFlow 0x"
         << std::hex << state->getInstruction()->getAddress()
         << " reg " << std::dec << reg);
 
-    std::set<UDState *> seen;
-    std::set<UDState *> comparisons;
-
-    seen.insert(state);
-    for(auto &s1 : state->getRegRef(reg)) {
-        searchForComparison(s1, reg, info, seen, comparisons);
-    }
-
-    LOG(10, "comparisons:");
-    for(auto c : comparisons) {
-        LOG(10, "c = " << std::hex << c->getInstruction()->getAddress());
+    auto block = dynamic_cast<Block *>(state->getInstruction()->getParent());
+    auto cfg = info->cfg;
+    auto node = cfg->get(cfg->getIDFor(block));
+    for(auto link : node->backwardLinks()) {
+        auto precedingBlock = cfg->get(link->getTargetID())->getBlock();
+        auto jmp = precedingBlock->getChildren()->getIterable()->getLast();
+        auto jstate = info->working->getState(jmp);
+        LOG(10, " reaches from " << std::hex << jmp->getAddress());
+        for(auto test : jstate->getRegRef(X86Register::FLAGS)) {
+            LOG(10, " condition is tested at "
+                << std::hex << test->getInstruction()->getAddress());
+            auto flagTree = test->getRegDef(X86Register::FLAGS);
+            TreeCapture capture;
+            if(ComparisonForm::matches(flagTree, capture)) {
+                auto regTree
+                    = dynamic_cast<TreeNodePhysicalRegister *>(capture.get(0));
+                auto boundTree
+                    = dynamic_cast<TreeNodeConstant *>(capture.get(1));
+                if(getBoundFromCompare(test, boundTree->getValue(), info)) {
+                    LOG(10, "   bound could be " << info->entries);
+                    // find the common ancestor and see if that value is
+                    // never overloaded (modification is fine; no dereference)
+                    auto testReg = regTree->getRegister();
+                    bool reaches = valueReaches(test, testReg, state, reg);
+                    if(!reaches) {
+                        LOG(10, "   NO this is false!");
+                        info->entries = 0;
+                    }
+                    if(reaches) return true;
+                }
+            }
+        }
     }
 
     return false;
 }
 
-// search for any comparison
-void JumptableDetection::searchForComparison(UDState *state, int reg,
-    JumptableInfo *info, std::set<UDState *>& seen,
-    std::set<UDState *>& comparisons) {
+// doesn't trace into stack
+bool cutsRegFlow(TreeNode *tree) {
+    if(dynamic_cast<TreeNodeDereference *>(tree)) {
+        return true;
+    }
+    return false;
+}
 
-    LOG(10, "searchForComparison 0x"
-        << std::hex << state->getInstruction()->getAddress()
-        << " reg " << std::dec << reg);
-    IF_LOG(10) state->dumpState();
+bool valueReachesLoop(UDState *state, int reg,
+    UDState *state2, int reg2, std::set<UDState *>& seen) {
 
+    LOG(10, "valueReachesLoop: " << std::hex
+        << state->getInstruction()->getAddress()
+        << " ->? "
+        << state2->getInstruction()->getAddress());
+
+    if(seen.find(state) != seen.end()) return false;
     seen.insert(state);
-    auto refs = state->getRegRef(reg);
-    if(!refs.empty()) {
-        for(auto &s1 : refs) {
-            LOG(10, "s1 = " << std::hex << s1->getInstruction()->getAddress());
-            auto it = seen.find(s1);
-            if(it != seen.end()) {
-                LOG(10, "  seen before");
+
+    for(auto use : state->getRegUse(reg)) {
+        if(use == state2) {
+            LOG(10, "  reaches");
+            return true;
+        }
+    }
+
+    for(auto use : state->getRegUse(reg)) {
+        for(auto& def : use->getRegDefList()) {
+            if(cutsRegFlow(def.second)) {
                 continue;
             }
-
-            for(const auto s2 : s1->getRegUse(reg)) {
-                if(s2 == state) continue;
-                LOG(10, "s2 = " << std::hex
-                    << s2->getInstruction()->getAddress());
-                if(s2->getRegDef(X86Register::FLAGS)) {
-                    LOG(10, "found comparison at " << std::hex
-                        << s2->getInstruction()->getAddress());
-                    IF_LOG(10) s2->dumpState();
-                    searchForBranch(s2, info, comparisons);
-                }
-
-            }
-            searchForComparison(s1, reg, info, seen, comparisons);
-        }
-    }
-    else {
-        for(const auto &pair : state->getRegRefList()) {
-            for(const auto s3 : pair.second) {
-                auto r = pair.first;
-                for(const auto s4 : s3->getRegUse(r)) {
-                    if(s4 == s3) continue;
-                    LOG(10, "s4 = " << std::hex
-                        << s4->getInstruction()->getAddress());
-                    if(s4->getRegDef(X86Register::FLAGS)) {
-                        LOG(10, "found comparison at " << std::hex
-                            << s4->getInstruction()->getAddress());
-                        IF_LOG(10) s4->dumpState();
-                        searchForBranch(s4, info, comparisons);
-                    }
-
-                }
-                searchForComparison(s3, r, info, seen, comparisons);
+            if(valueReachesLoop(use, def.first, state2, reg2, seen)) {
+                return true;
             }
         }
     }
-}
 
-// this may need pruning for overwrites
-static bool reachesTo(ControlFlowGraph *cfg, UDState *state, int dest) {
-    auto semantic = state->getInstruction()->getSemantic();
-    auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic);
-    if(!cfi) return false;
-    auto mnemonic = cfi->getMnemonic();
-    if(mnemonic == "jle") {
-        LOG(10, "should be lower or same (<=)");
-        if(isReachableIfTaken(cfg, state, dest)
-            && !isReachableIfNotTaken(cfg, state, dest)) {
+    for(auto ref : state->getRegRef(reg)) {
+        if(valueReachesLoop(ref, reg, state2, reg2, seen)) {
             return true;
         }
-    }
-    else if(mnemonic == "jb") {
-        LOG(10, "should be lower (<)");
-        if(isReachableIfTaken(cfg, state, dest)
-            && !isReachableIfNotTaken(cfg, state, dest)) {
-            return true;
-        }
-    }
-    else if(mnemonic == "ja") {
-        LOG(10, "should (NOT) be higher (!>)");
-        if(!isReachableIfTaken(cfg, state, dest)
-            && isReachableIfNotTaken(cfg, state, dest)) {
-            return true;
-        }
-    }
-    else if(mnemonic == "jae") {
-        LOG(10, "should (NOT) be higher or same (!>=)");
-        if(!isReachableIfTaken(cfg, state, dest)
-            && isReachableIfNotTaken(cfg, state, dest)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void JumptableDetection::searchForBranch(UDState *state, JumptableInfo *info,
-    std::set<UDState *>& comparisons) {
-
-    for(const auto &s : state->getRegUse(X86Register::FLAGS)) {
-        LOG(10, "jump at " << std::hex << s->getInstruction()->getAddress());
-        if(reachesTo(info->cfg, s, info->jumpState->getNode()->getID())) {
-            LOG(10, "   reachable!");
-            comparisons.insert(state);
+        if(cutsRegFlow(ref->getRegDef(reg))) {
+            LOG(10, "stop looking in the upstream " << std::hex
+                << ref->getInstruction()->getAddress());
+            ref->dumpState();
             break;
         }
     }
+
+    return false;
 }
 
-#endif
+bool JumptableDetection::valueReaches(UDState *state, int reg,
+    UDState *state2, int reg2) {
+
+    std::set<UDState *> seen;
+    return valueReachesLoop(state, reg, state2, reg2, seen);
+}
 #endif

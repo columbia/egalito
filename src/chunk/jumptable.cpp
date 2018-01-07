@@ -5,6 +5,7 @@
 #include "visitor.h"
 #include "analysis/jumptable.h"
 #include "instr/concrete.h"
+#include "instr/serializer.h"
 #include "elf/elfmap.h"
 #include "log/log.h"
 
@@ -74,7 +75,8 @@ void JumpTable::serialize(ChunkSerializerOperations &op,
     writer.writeID(op.assign(descriptor->getFunction()));
     writer.writeID(op.assign(descriptor->getInstruction()));
     writer.write(descriptor->getAddress());
-    writer.write(descriptor->getTargetBaseAddress());
+    //writer.write(descriptor->getTargetBaseAddress());
+    LinkSerializer(op).serialize(descriptor->getTargetBaseLink(), writer);
     // do not serialize indexExpr
     writer.write<uint32_t>(descriptor->getIndexRegister());
     writer.write<uint8_t>(descriptor->getScale());
@@ -93,7 +95,8 @@ bool JumpTable::deserialize(ChunkSerializerOperations &op,
     auto function       = op.lookupAs<Function>(reader.readID());
     auto instruction    = op.lookupAs<Instruction>(reader.readID());
     auto address        = reader.read<address_t>();
-    auto targetBaseAddress = reader.read<address_t>();
+    //auto targetBaseAddress = reader.read<address_t>();
+    auto targetBaseLink = LinkSerializer(op).deserialize(reader);
     // do not deserialize indexExpr
     auto reg            = reader.read<uint32_t>();
     auto scale          = reader.read<uint8_t>();
@@ -101,7 +104,8 @@ bool JumpTable::deserialize(ChunkSerializerOperations &op,
 
     descriptor = new JumpTableDescriptor(function, instruction);
     descriptor->setAddress(address);
-    descriptor->setTargetBaseAddress(targetBaseAddress);
+    //descriptor->setTargetBaseAddress(targetBaseAddress);
+    descriptor->setTargetBaseLink(targetBaseLink);
     descriptor->setIndexRegister(static_cast<Register>(reg));
     descriptor->setScale(scale);
     descriptor->setBound(bound);

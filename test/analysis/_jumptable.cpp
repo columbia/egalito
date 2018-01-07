@@ -20,8 +20,8 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
     auto module = conductor.getProgram()->getMain();
     auto f = CIter::named(module->getFunctionList())->find("main");
 
-    JumpTableSearch jt;
-    jt.search(f);
+    JumptableDetection jt(module);
+    jt.detect(f);
 
     int jumpTableCount = (int)jt.getTableList().size();
     CAPTURE(jumpTableCount);
@@ -29,18 +29,8 @@ TEST_CASE("find simple jump table in main", "[analysis][fast]") {
 }
 
 static void testFunction(Module *module, Function *f, int expected) {
-#if defined(ARCH_X86_64)
-#if 0
-    JumpTableSearch jt;
-    jt.search(f);
-#else
     JumptableDetection jt(module);
     jt.detect(f);
-#endif
-#elif defined(ARCH_AARCH64)
-    JumptableDetection jt(module);
-    jt.detect(f);
-#endif
 
     auto tableList = jt.getTableList();
     std::ostringstream stream;
@@ -90,13 +80,8 @@ TEST_CASE("find some jump tables in libc", "[analysis][full]") {
 }
 
 static bool missingBounds(Module *module, Function *f) {
-#if defined(ARCH_X86_64)
-    JumpTableSearch jt(module);
-    jt.search(f);
-#elif defined(ARCH_AARCH64)
     JumptableDetection jt(module);
     jt.detect(f);
-#endif
     bool missing = false;
 
     auto tableList = jt.getTableList();

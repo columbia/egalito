@@ -84,7 +84,8 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
             << std::hex << descriptor->getAddress() << " in ["
             << descriptor->getFunction()->getName() << "] with "
             << std::dec << descriptor->getEntries() << " entries, each of size "
-            << std::dec << descriptor->getScale());
+            << std::dec << descriptor->getScale() << " for indirect jump at "
+            << std::hex << descriptor->getInstruction()->getAddress());
 
         JumpTable *jumpTable = nullptr;
         int count = -1;
@@ -163,7 +164,8 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             value *= 4;
         }
 #endif
-        address_t target = descriptor->getTargetBaseAddress() + value;
+        auto targetBase = descriptor->getTargetBaseLink()->getTargetAddress();
+        address_t target = targetBase + value;
         LOG(2, "    jump table entry " << i << " @ 0x" << std::hex << target);
 
         Chunk *inner = ChunkFind().findInnermostInsideInstruction(

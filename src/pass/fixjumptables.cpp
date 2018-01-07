@@ -37,9 +37,7 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
         address_t target = entry->getLink()->getTargetAddress();
 
         // for relative jump tables (always the case right now)
-        auto region = dynamic_cast<DataRegion *>(
-            entry->getDataVariable()->getParent()->getParent());
-        target -= region->getAddress() + descriptor->getAddress();
+        target -= descriptor->getTargetBaseLink()->getTargetAddress();
 
         switch(descriptor->getScale()) {
         case 4:
