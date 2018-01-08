@@ -1596,7 +1596,7 @@ bool valueReachesLoop(UDState *state, int reg,
         if(cutsRegFlow(ref->getRegDef(reg))) {
             LOG(10, "stop looking in the upstream " << std::hex
                 << ref->getInstruction()->getAddress());
-            ref->dumpState();
+            IF_LOG(10) ref->dumpState();
             break;
         }
     }

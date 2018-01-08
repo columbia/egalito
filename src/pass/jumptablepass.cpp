@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <fstream>
+#include <cassert>
 #include "jumptablepass.h"
 #include "analysis/jumptable.h"
 #include "analysis/jumptabledetection.h"
 #include "config.h"
 #include "chunk/jumptable.h"
+#include "chunk/link.h"
 #include "instr/concrete.h"  // for IndirectJumpInstruction
 #include "operation/find.h"
 #include "operation/find2.h"
@@ -207,7 +209,7 @@ void JumpTablePass::saveToFile() const {
         auto d = jt->getDescriptor();
         f << d->getInstruction()->getAddress() << '\n';
         f << d->getAddress() << '\n';
-        f << d->getTargetBaseAddress() << '\n';
+        f << d->getTargetBaseLink()->getTargetAddress() << '\n';
         f << d->getScale() << '\n';
         f << d->getEntries() << '\n';
     }
@@ -256,7 +258,19 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
 
         auto d = new JumpTableDescriptor(fn, instr);
         d->setAddress(addr);
-        d->setTargetBaseAddress(targetBase);
+        Link *link = nullptr;
+        if(addr == targetBase) {
+            link = LinkFactory::makeDataLink(module, targetBase, true);
+        }
+        else {
+            auto function
+                = dynamic_cast<Function *>(instr->getParent()->getParent());
+            auto target = ChunkFind().findInnermostAt(function, targetBase);
+            link = LinkFactory::makeNormalLink(target, true, false);
+        }
+        assert(link);
+        d->setTargetBaseLink(link);
+
         d->setScale(scale);
         d->setEntries(entries);
         auto jumpTable = new JumpTable(module->getElfSpace()->getElfMap(), d);

@@ -166,7 +166,7 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
         return;
     }
     if(!isFeatureEnabled("EGALITO_USE_DISASM")) {
-        if(filename == "libcapstone.so.4") {
+        if(filename == "libcapstone.so.4" || filename == "libcapstone.so.3") {
             LOG(2, "    skipping processing of disassembly libraries");
             return;
         }
