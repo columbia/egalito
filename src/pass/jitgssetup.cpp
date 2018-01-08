@@ -296,7 +296,6 @@ void JitGSSetup::makeSupportGSEntries(Program *program) {
             makeResolvedEntry("_ZNSt8ios_base17_M_call_callbacksENS_5eventE", module);
             makeResolvedEntry("_ZNSt8ios_base20_M_dispose_callbacksEv", module);
             makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm", module);
-            makeResolvedEntry("_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE5c_strEv", module);
             makeResolvedEntry("_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7compareEPKc", module);
             makeResolvedEntry("_ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PPv", module);
             makeResolvedEntry("_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm", module);

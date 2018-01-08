@@ -143,6 +143,14 @@ void DebloatPass::useFromCodeLinks() {
 
                             markTreeAsUsed(f);
                         }
+                        else if(auto i = dynamic_cast<Instruction *>(
+                            &*link->getTarget())) {
+
+                            auto f = dynamic_cast<Function *>(
+                                i->getParent()->getParent());
+                            assert(f);
+                            markTreeAsUsed(f);
+                        }
                         else if(auto pl = dynamic_cast<PLTLink *>(link)) {
                             if(auto f = dynamic_cast<Function *>(
                                 pl->getPLTTrampoline()->getTarget())) {
