@@ -29,6 +29,8 @@ test:
 	./codeform-debloat.sh
 	./hello-process.sh
 	./hello-thread.sh
+	./nginx.sh
+	./nginx-thread.sh
 
 jt:
 	$(call arch_dep,./jumptable-libc.sh)
