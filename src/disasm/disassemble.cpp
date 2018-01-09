@@ -1020,6 +1020,11 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
         delete block;
     }
 
+    if(function->getSize() < readSize) {
+        LOG(1, "disassembly error? " << function->getName()
+            << " " << function->getSize() << " < " << readSize);
+    }
+
 #ifdef ARCH_X86_64
     if(false) {
         size_t j = 0;
