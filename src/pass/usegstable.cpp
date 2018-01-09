@@ -792,9 +792,14 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
     auto movEA = new Instruction();
     auto semantic2 = new LinkedInstruction(movEA);
     semantic2->setAssembly(assembly2);
-    Chunk *target = &*i->getLink()->getTarget();
-    auto gsEntry = gsTable->makeEntryFor(target);
-    semantic2->setLink(new GSTableLink(gsEntry));
+    if(dynamic_cast<NormalLink *>(i->getLink())) {
+        Chunk *target = &*i->getLink()->getTarget();
+        auto gsEntry = gsTable->makeEntryFor(target);
+        semantic2->setLink(new GSTableLink(gsEntry));
+    }
+    else {
+        semantic2->setLink(i->getLink());
+    }
     semantic2->setIndex(0);
     movEA->setSemantic(semantic2);
 

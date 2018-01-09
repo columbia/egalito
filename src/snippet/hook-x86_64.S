@@ -130,20 +130,25 @@ in_code:
 
     .global egalito_hook_jit_fixup_return
 egalito_hook_jit_fixup_return:
+    /* we can not clobber even %r11 here, because calling a static tail
+     * function would violate the ABI safely */
+    mov     %r11, %fs:-0x18
     pop     %r11
 1:
     movq    %gs:(%r11d), %r11
     cmpq    %gs:0x0, %r11
     je      2f
     add     -0x4(%rsp), %r11d
-    jmpq    *%r11
+    xchg    %fs:-0x18, %r11
+    jmpq    *%fs:-0x18
 2:
     mov     -0x8(%rsp), %r11
     test    %r11d, %r11d
     jne     3f
     movq    %gs:(%r11d), %r11
     add     -0x4(%rsp), %r11d
-    jmpq    *%r11
+    xchg    %fs:-0x18, %r11
+    jmpq    *%fs:-0x18
 3:
     push    %rax
     push    %rcx

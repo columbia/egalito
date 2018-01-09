@@ -118,6 +118,7 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         "_ZN14OffsetPosition11recalculateEv",
         "_ZNK18ChildListDecoratorI21ComputedSizeDecoratorI22ChunkPositionDecoratorI9ChunkImplEE11InstructionE11getChildrenEv",
         "_ZN13ChunkListImplI11InstructionE15genericIterableEv",
+        "_ZNK9ChunkImpl9getParentEv",
         "_ZNK9ChunkImpl11getChildrenEv",
 
         // for debugging

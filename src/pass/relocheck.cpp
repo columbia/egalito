@@ -174,10 +174,17 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         }
 
         if(var) {
-            if(var->getDest()->getTarget()) {
-                LOG(10, ss.str() << " resolved as a data variable pointing to "
-                    << var->getDest()->getTarget()->getName()
+            if(auto target = var->getDest()->getTarget()) {
+                LOG0(10, ss.str() << " resolved as a data variable pointing to "
+                    << target->getName()
                     << " at " << var->getDest()->getTargetAddress());
+                Chunk *p = nullptr;
+                if(!!(p = target->getParent())) {
+                    if(!!(p = p->getParent())) {
+                        LOG(10, " in " << p->getName());
+                    }
+                }
+                if(!p) LOG(10, "");
             }
             else if(dynamic_cast<MarkerLink *>(var->getDest())) {
                 LOG(10, ss.str()

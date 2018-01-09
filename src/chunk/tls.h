@@ -28,19 +28,18 @@ class GSTable;
 // the list grows upward
 class EgalitoTLS {
 private:
-    size_t reserve;
     volatile size_t *barrier;
     EgalitoTLS *child;  // used only to initialize the child's TLS
     GSTable *gsTable;
     ShufflingSandbox *sandbox;
     void *JIT_addressTable;
+    size_t JIT_temporary2;  // hard coded in assembly (-0x18)
     size_t JIT_jitting;     // hard coded in assembly (-0x10)
     size_t JIT_temporary;   // hard coded in assembly (-0x8)
 public:
     EgalitoTLS(volatile size_t *barrier, GSTable *gsTable,
         ShufflingSandbox *sandbox, void *JIT_addressTable)
-        : reserve(0),
-        barrier(barrier), child(nullptr), gsTable(gsTable), sandbox(sandbox),
+        : barrier(barrier), child(nullptr), gsTable(gsTable), sandbox(sandbox),
         JIT_addressTable(JIT_addressTable), JIT_jitting(0) {}
 
     static ShufflingSandbox *getSandbox();
