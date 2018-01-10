@@ -30,7 +30,7 @@ void UseGSTablePass::visit(Module *module) {
 }
 
 void UseGSTablePass::visit(Function *function) {
-    //TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll("pass", 10, function->hasName("ngx_http_log_error"));
 
     // already use gs
     if(function->hasName("egalito_hook_jit_fixup")) return;
@@ -512,7 +512,7 @@ void UseGSTablePass::rewriteIndirectTailRecursion(Block *block,
     else {
         // movq %reg, %r11
         unsigned char rex = 0x49;
-        if(reg >= 8) rex |= 0b0010;
+        if(reg >= 8) rex |= 0b0100;
         bin2.push_back(rex);
         bin2.push_back(0x89);
         unsigned char operand = 0xc3;
