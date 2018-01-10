@@ -12,8 +12,10 @@ mkdir -p tmp
 ln -sf ../../src/libegalito.so
 
 pidfile=../binary/target/nginx/nginx/logs/nginx.pid
+rm -f $pidfile
 
-../../src/loader ../binary/target/nginx/nginx/sbin/nginx -c ../conf-aio/nginx.conf >tmp/nginx-thread.out 2>& 1 &
+EGALITO_DEBLOAT=1 EGALITO_USE_GS=1 \
+../../src/loader ../binary/target/nginx/nginx/sbin/nginx -c ../conf/nginx.conf >tmp/nginx-jitonce.out 2>& 1 &
 
 count=50
 while [ ! -f $pidfile ]; do
@@ -26,18 +28,23 @@ while [ ! -f $pidfile ]; do
 done
 #cat $pidfile
 
-wrk -c10 -d30s -t4 http://localhost:8000/$filename > tmp/nginx-thread-wrk.out
+wrk -c10 -d30s -t4 http://localhost:8000/$filename > tmp/nginx-jitonce-wrk.out
 
 kill -QUIT $( cat $pidfile )
+kill -KILL $( cat $pidfile )
+killall loader
+rm -f $pidfile
 
-count=50
-while [ -f $pidfile ]; do
-  sleep 1;
-  if [[ "$count" -eq 0 ]]; then
-    echo "test failed";
-    exit 1;
-  fi
-done
+#kill -QUIT $( cat $pidfile )
+
+#count=50
+#while [ -f $pidfile ]; do
+  #sleep 1;
+  #if [[ "$count" -eq 0 ]]; then
+    #echo "test failed";
+    #exit 1;
+  #fi
+#done
 
 rm libegalito.so
 echo "test passed"

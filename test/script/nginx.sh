@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ $# == 0 ]; then
+  filename=index.html
+else
+  filename=$1
+fi
+
 command -v wrk > /dev/null 2>&1 || { echo >&2 "needs wrk -- skipping"; exit 0; }
 
 mkdir -p tmp
@@ -20,7 +26,7 @@ while [ ! -f $pidfile ]; do
 done
 #cat $pidfile
 
-wrk -c10 -d10s -t4 http://localhost:8000 > tmp/nginx-wrk.out
+wrk -c10 -d30s -t4 http://localhost:8000/$filename > tmp/nginx-wrk.out
 
 kill -QUIT $( cat $pidfile )
 
