@@ -619,6 +619,7 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
         = getPhysicalRegister(assembly->getAsmOperands()->getOperands()[0].reg);
     std::tie(reg1, width1)
         = getPhysicalRegister(assembly->getAsmOperands()->getOperands()[1].reg);
+    if(reg0 < 0 || reg1 < 0) return;  // unsupported (likely kernelspace) reg
     useReg(state, reg0);
     TreeNode *tree = nullptr;
     auto id = assembly->getId();
