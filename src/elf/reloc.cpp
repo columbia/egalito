@@ -13,26 +13,26 @@ std::string Reloc::getSymbolName() const {
     return symbol ? symbol->getName() : "???";
 }
 
+void RelocSection::add(Reloc *reloc) {
+    relocList.push_back(reloc);
+}
+
 bool RelocList::add(Reloc *reloc) {
     relocList.push_back(reloc);
     address_t address = reloc->getAddress();
-#if 0
-    auto it = relocMap.find(address);
-    if(it == relocMap.end()) {
-        relocMap[address] = reloc;
-        return true;
-    }
-    else {
-        return false;
-    }
-#else
+
+    // return true on success (no existing duplicate element)
     return relocMap.insert(std::make_pair(address, reloc)).second;
-#endif
 }
 
 Reloc *RelocList::find(address_t address) {
     auto it = relocMap.find(address);
     return (it != relocMap.end() ? (*it).second : nullptr);
+}
+
+RelocSection *RelocList::getSection(const std::string &name) {
+    auto it = sectionList.find(name);
+    return (it != sectionList.end() ? (*it).second : nullptr);
 }
 
 RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
@@ -100,25 +100,27 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
                 r->r_addend                             // addend
             );
 
-
             CLOG0(2, "    reloc at address 0x%08lx, type %d, target [%s]\n",
                 reloc->getAddress(), reloc->getType(),
                 reloc->getSymbolName().c_str());
 
-            /*if(reloc.type == R_X86_64_COPY) {
-                Elf64_Sym *dynsym = (Elf64_Sym *)
-                    (elfspace->elf->map + elfspace->elf->dynsym->sh_offset);
-                const char *name = elfspace->elf->dynstr
-                    + dynsym[reloc.symbol].st_name;
-                reloc.copy_reloc_name = name;
-                printf("Found a copy reloc at %lx for [%s]\n", reloc.address, name);
-                list.add(reloc);
-            }
-            else*/ if(!list->add(reloc)) {
+            if(!list->add(reloc)) {
                 CLOG0(1, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
+            }
+            else {
+                list->makeOrGetSection(name)->add(reloc);
             }
         }
     }
 
     return list;
+}
+
+RelocSection *RelocList::makeOrGetSection(const std::string &name) {
+    auto section = getSection(name);
+    if(section) return section;
+
+    section = new RelocSection(name);
+    sectionList[name] = section;
+    return section;
 }

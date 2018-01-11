@@ -73,6 +73,13 @@ void LinkedInstruction::regenerateAssembly() {
         getStorage(), instruction->getAddress()));
 }
 
+static PLTTrampoline *findPLTTrampoline(Module *module, address_t target) {
+    auto pltList = module->getPLTList();
+    if(!pltList) return nullptr;
+
+    return CIter::spatial(pltList)->find(target);
+}
+
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, AssemblyPtr assembly) {
 
@@ -104,9 +111,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                     if(dynamic_cast<Instruction *>(c)) {
                         dispLink = new NormalLink(c, Link::SCOPE_INTERNAL_JUMP);
                     }
-                    else if(auto plt = CIter::spatial(module->getPLTList())
-                        ->find(target)) {
-
+                    else if(auto plt = findPLTTrampoline(module, target)) {
                         // should this be a PLTLink?
                         dispLink = new NormalLink(plt, Link::SCOPE_WITHIN_MODULE);
                     }
