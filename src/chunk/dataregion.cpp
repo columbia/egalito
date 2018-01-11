@@ -95,6 +95,14 @@ bool DataSection::contains(address_t address) {
     return getRange().contains(address);
 }
 
+DataVariable *DataSection::findVariable(const std::string &name) {
+    return CIter::named(this)->find(name);
+}
+
+DataVariable *DataSection::findVariable(address_t address) {
+    return CIter::spatial(this)->find(address);
+}
+
 void DataSection::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
@@ -161,21 +169,36 @@ void DataRegion::addVariable(DataVariable *variable) {
 }
 
 DataVariable *DataRegion::findVariable(const std::string &name) {
-    // !!! linear search for now
+#if 0
     for(auto var : variableList) {
         if(var->getName() == name) {
             return var;
         }
     }
+#else
+    for(auto section : CIter::children(this)) {
+        if(auto var = section->findVariable(name)) {
+            return var;
+        }
+    }
+#endif
     return nullptr;
 }
 
 DataVariable *DataRegion::findVariable(address_t address) const {
+#if 0
     for(auto var : variableList) {
         if(var->getAddress() == address) {
             return var;
         }
     }
+#else
+    for(auto section : CIter::children(this)) {
+        if(auto var = section->findVariable(address)) {
+            return var;
+        }
+    }
+#endif
     return nullptr;
 }
 
