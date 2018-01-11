@@ -52,7 +52,8 @@ void DataVariable::serialize(ChunkSerializerOperations &op,
     writer.writeString(name);
 
     if(op.isLocalModuleOnly()) {
-        
+        // not yet implemented, should serialize if in this module, otherwise
+        // create an external symbol
     }
     else {
         LinkSerializer(op).serialize(dest, writer);
@@ -271,34 +272,33 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
 
-    for(auto region : CIter::children(this)) {
-        if(region->contains(target)) {
-            auto dsec = CIter::spatial(region)->findContaining(target);
-            if(dsec) {
-                if(dsec->getType() == DataSection::TYPE_CODE) {
-                    if(ChunkFind().findInnermostAt(
-                        module->getFunctionList(), target)) {
+    auto region = CIter::spatial(this)->findContaining(target);
+    if(region) {
+        auto dsec = CIter::spatial(region)->findContaining(target);
+        if(dsec) {
+            if(dsec->getType() == DataSection::TYPE_CODE) {
+                if(ChunkFind().findInnermostAt(
+                    module->getFunctionList(), target)) {
 
-                        LOG(1, "is this a hand-crafted jump table? " << target);
-                        return nullptr;
-                    }
-                    else {
-                        // this will very likely to result in a too-far
-                        // link for AARCH64.
-                        LOG(9, "is this a LITERAL? " << target);
-                        return nullptr;
-                    }
-                }
-                auto base = dsec->getAddress();
-                LOG(10, "" << target << " has offset " << (target - base));
-                if(isRelative) {
-                    return new DataOffsetLink(dsec, target - base,
-                        Link::SCOPE_WITHIN_MODULE);
+                    LOG(1, "is this a hand-crafted jump table? " << target);
+                    return nullptr;
                 }
                 else {
-                    return new AbsoluteDataLink(dsec, target - base,
-                        Link::SCOPE_WITHIN_MODULE);
+                    // this will very likely to result in a too-far
+                    // link for AARCH64.
+                    LOG(9, "is this a LITERAL? " << target);
+                    return nullptr;
                 }
+            }
+            auto base = dsec->getAddress();
+            LOG(10, "" << target << " has offset " << (target - base));
+            if(isRelative) {
+                return new DataOffsetLink(dsec, target - base,
+                    Link::SCOPE_WITHIN_MODULE);
+            }
+            else {
+                return new AbsoluteDataLink(dsec, target - base,
+                    Link::SCOPE_WITHIN_MODULE);
             }
         }
     }

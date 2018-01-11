@@ -2,6 +2,7 @@
 #include <cassert>
 #include "handledatarelocs.h"
 #include "chunk/link.h"
+#include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/reloc.h"
 #include "log/log.h"
@@ -25,6 +26,12 @@ void HandleDataRelocsPass::visit(Module *module) {
                 continue;
             }
 
+            // in the Linux kernel, these sections do not store real addresses
+            if(sourceSection->getName() == "__kcrctab") continue;
+            if(sourceSection->getName() == ".rela__kcrctab") continue;
+            if(sourceSection->getName() == "__kcrctab_gpl") continue;
+            if(sourceSection->getName() == ".rela__kcrctab_gpl") continue;
+
             if(sourceRegion->findVariable(reloc->getAddress())) continue;
 
             LOG(11, "sourceRegion is " << sourceRegion->getName());
@@ -37,10 +44,11 @@ void HandleDataRelocsPass::visit(Module *module) {
                 }
                 else LOG(10, " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
-                auto var = new DataVariable(sourceRegion, addr, link);
+                auto var = new DataVariable(sourceSection, addr, link);
                 if(reloc->getSymbol()) {
                     var->setName(reloc->getSymbol()->getName());
                 }
+                ChunkMutator(sourceSection).append(var);
                 sourceRegion->addVariable(var);
             }
         }

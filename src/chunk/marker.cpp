@@ -53,15 +53,21 @@ Link *MarkerList::createMarkerLink(address_t target, size_t addend,
         LOG(10, "    with symbol " << symbol->getName());
         auto sec = module->getElfSpace()->getElfMap()->findSection(
             symbol->getSectionIndex());
-        for(auto region : CIter::regions(module)) {
-            for(auto dsec : CIter::children(region)) {
-                auto original
-                    = region->getOriginalAddress() + dsec->getOriginalOffset();
-                if(original == sec->getVirtualAddress()) {
-                    auto link = createStartOrEndMarkerLink(
-                        target, symbol, addend, dsec, module);
-                    if(link) return link;
-                    // some markers have alignment restrictions
+        if(sec == nullptr) {
+            LOG(1, "can't find section for symbol [" << symbol->getName()
+                << "] at address 0x" << std::hex << symbol->getAddress());
+        }
+        else {
+            for(auto region : CIter::regions(module)) {
+                for(auto dsec : CIter::children(region)) {
+                    auto original
+                        = region->getOriginalAddress() + dsec->getOriginalOffset();
+                    if(original == sec->getVirtualAddress()) {
+                        auto link = createStartOrEndMarkerLink(
+                            target, symbol, addend, dsec, module);
+                        if(link) return link;
+                        // some markers have alignment restrictions
+                    }
                 }
             }
         }
