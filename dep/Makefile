@@ -8,19 +8,23 @@ include ../env.mk
 capstone-VERSION=$(if $(filter aarch64,$(P_ARCH)),3.0.4,next)
 
 .PHONY: all rtld capstone distorm3 clean realclean
-all: rtld capstone distorm3
+all: rtld ifunc capstone distorm3
 	-@touch built
 clean:
 	-$(call short-make,rtld,clean)
+	-$(call short-make,ifunc,clean)
 	-@rm -f built
 realclean:
 	-$(call short-make,rtld,clean)
+	-$(call short-make,ifunc,clean)
 	-$(call short-make,distorm3/make/linux,clean)
 	-$(call short-make,capstone,clean)
 	-@rm -f built
 
 rtld:
 	$(call short-make,rtld)
+ifunc:
+	$(call short-make,ifunc)
 distorm3:
 	$(call short-make,distorm3/make/linux) CC='gcc -Wno-missing-braces'
 
