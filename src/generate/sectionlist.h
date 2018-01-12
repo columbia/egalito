@@ -21,7 +21,7 @@ private:
     std::vector<Section *> sections;
     size_t sectionCount;
 public:
-    SectionList() : sectionCount(1) {}
+    SectionList() : sectionCount(1) {}  // 1 = skip the NULL shdr
     ~SectionList();
 public:
     void addSection(Section *section);

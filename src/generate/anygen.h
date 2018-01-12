@@ -33,6 +33,8 @@ private:
         const std::string &textSection);
     void makeSymbolInText(Function *func, const std::string &textSection);
     void makeRelocInText(Function *func, const std::string &textSection);
+
+    void makePaddingSection(size_t desiredAlignment);
 private:
     void updateOffsets();
     void serialize(const std::string &filename);

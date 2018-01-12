@@ -170,28 +170,41 @@ void AnyGen::makePhdrTable() {
 }
 
 void AnyGen::makeDataSections() {
+    // Before all LOAD segments, we need to put padding.
+    makePaddingSection(0);
+
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
-        for(auto section : CIter::children(region)) {
+        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x1000);
 
+        for(auto section : CIter::children(region)) {
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
                 LOG(0, "DATA section " << section->getName());
+                makePaddingSection(section->getAddress() & 0xfff);
+
                 // by default, make everything writable
                 auto dataSection = new Section(section->getName(),
                     SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
                 auto content = new DeferredString(region->getDataBytes()
                     .substr(section->getOriginalOffset(), section->getSize()));
                 dataSection->setContent(content);
+                dataSection->getHeader()->setAddress(section->getAddress());
                 sectionList.addSection(dataSection);
+                loadSegment->addContains(dataSection);
                 break;
             }
             case DataSection::TYPE_BSS: {
                 LOG(0, "BSS section " << section->getName());
+                makePaddingSection(section->getAddress() & 0xfff);
+
                 auto bssSection = new Section(section->getName(),
                     SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
                 bssSection->setContent(new DeferredString(""));
+                bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList.addSection(bssSection);
+                loadSegment->addContains(bssSection);
                 break;
             }
             case DataSection::TYPE_UNKNOWN:
@@ -199,15 +212,19 @@ void AnyGen::makeDataSections() {
                 break;
             }
         }
+
+        if(loadSegment->getContainsList().empty()) {
+            delete loadSegment;
+        }
+        else {
+            phdrTable->add(loadSegment);
+        }
     }
 }
 
 void AnyGen::makeText() {
     // Before all LOAD segments, we need to put padding.
-    auto paddingSection = new Section("=padding");
-    auto paddingContent = new PagePaddingContent(sectionList.back());
-    paddingSection->setContent(paddingContent);
-    sectionList.addSection(paddingSection);
+    makePaddingSection(0);
 
     // Split separate pages into their own LOAD sections.
     // First, find the set of all pages that are used.
@@ -362,6 +379,16 @@ void AnyGen::makeRelocInText(Function *func, const std::string &textSection) {
             }
         }
     }
+}
+
+void AnyGen::makePaddingSection(size_t desiredAlignment) {
+    // We could assign unique names to the padding sections, but since we
+    // never look them up by name in SectionList, it doesn't actually matter.
+    auto paddingSection = new Section("=padding");
+    auto paddingContent = new PagePaddingContent(
+        sectionList.back(), desiredAlignment);
+    paddingSection->setContent(paddingContent);
+    sectionList.addSection(paddingSection);
 }
 
 void AnyGen::updateOffsets() {

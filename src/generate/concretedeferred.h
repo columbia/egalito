@@ -102,9 +102,10 @@ public:
 class PagePaddingContent : public DeferredValue {
 private:
     Section *previousSection;
+    address_t desiredOffset;
 public:
-    PagePaddingContent(Section *previousSection)
-        : previousSection(previousSection) {}
+    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0)
+        : previousSection(previousSection), desiredOffset(desiredOffset) {}
 
     virtual size_t getSize() const;
     virtual void writeTo(std::ostream &stream);

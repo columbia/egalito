@@ -208,7 +208,8 @@ size_t PagePaddingContent::getSize() const {
     }
 
     // how much data is needed to round from lastByte to a page boundary?
-    return ((lastByte + 0xfff) & ~0xfff) - lastByte;
+    size_t roundToPageBoundary = ((lastByte + 0xfff) & ~0xfff) - lastByte;
+    return (roundToPageBoundary + desiredOffset) & 0xfff;
 }
 
 void PagePaddingContent::writeTo(std::ostream &stream) {
