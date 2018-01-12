@@ -292,13 +292,18 @@ void DataRegionList::accept(ChunkVisitor *visitor) {
 Link *DataRegionList::createDataLink(address_t target, Module *module,
     bool isRelative) {
 
+    TemporaryLogLevel ttt("chunk", 20);
+
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
 
-    auto region = CIter::spatial(this)->findContaining(target);
+    //auto region = CIter::spatial(this)->findContaining(target);
+    auto region = findRegionContaining(target);
     if(region) {
+        LOG(11, "    region is " << region->getName());
         auto dsec = CIter::spatial(region)->findContaining(target);
         if(dsec) {
+            LOG(11, "    section is " << dsec->getName());
             if(dsec->getType() == DataSection::TYPE_CODE) {
                 if(ChunkFind().findInnermostAt(
                     module->getFunctionList(), target)) {
@@ -346,6 +351,15 @@ DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
 
         if(region->contains(target)) {
             return region;
+        }
+    }
+    return nullptr;
+}
+
+DataSection *DataRegionList::findDataSection(const std::string &name) {
+    for(auto region : CIter::children(this)) {
+        if(auto section = CIter::named(region)->find(name)) {
+            return section;
         }
     }
     return nullptr;

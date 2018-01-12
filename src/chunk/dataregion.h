@@ -171,6 +171,7 @@ public:
         bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
+    DataSection *findDataSection(const std::string &name);
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
