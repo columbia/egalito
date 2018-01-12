@@ -411,7 +411,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             return;
         }
         args.shouldHave(0);
-        CollapsePLTPass collapsePLT;
+        CollapsePLTPass collapsePLT(setup->getConductor());
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }, "changes all instructions that target the PLT to use a direct reference");
 
