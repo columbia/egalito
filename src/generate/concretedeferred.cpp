@@ -271,3 +271,7 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
     return deferred;
 }
+
+Section *RelocSectionContent2::getTargetSection() {
+    return other->get();
+}

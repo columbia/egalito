@@ -89,4 +89,15 @@ private:
     DeferredType *addConcrete(Instruction *source, SymbolOnlyLink *link);
 };
 
+class RelocSectionContent2 : public DeferredMap<address_t, ElfXX_Rela> {
+public:
+    typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
+private:
+    SectionRef *other;
+public:
+    RelocSectionContent2(SectionRef *other) : other(other) {}
+
+    Section *getTargetSection();
+};
+
 #endif

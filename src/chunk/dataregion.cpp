@@ -67,6 +67,10 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
+    else if(shdr->sh_type == SHT_PROGBITS) {
+        if(name == ".data" || name == ".rodata") type = TYPE_DATA;
+        else type = TYPE_UNKNOWN;
+    }
     else type = TYPE_UNKNOWN;
 }
 

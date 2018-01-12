@@ -85,6 +85,7 @@ Module *Conductor::parse(ElfMap *elf, Library *library) {
 
     auto module = space->getModule();  // created in previous line
     program->add(module);
+    module->setParent(program);
     return module;
 }
 
