@@ -14,16 +14,20 @@ class LinkedInstruction : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;
     int opIndex;
+    size_t displacementSize;
+    size_t displacementOffset;
 public:
-    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1) {}
+    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1),
+        displacementSize(0), displacementOffset(0) {}
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
-    int getDispOffset() const;
+    size_t getDispSize() const { return displacementSize; }
+    size_t getDispOffset() const { return displacementOffset; }
 
     void regenerateAssembly();
 
-    void setIndex(int index) { opIndex = index; }
+    void setIndex(int index) { opIndex = index; makeDisplacementInfo(); }
     int getIndex() const { return opIndex; }
 
     // should be only necessary in insertBeforeJumpTo
@@ -36,8 +40,8 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
     Instruction *getInstruction() const { return instruction; }
-    int getDispSize();
     unsigned calculateDisplacement();
+    void makeDisplacementInfo();
 };
 
 class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
@@ -62,7 +66,7 @@ public:
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
-    int getDispOffset() const { return opcode.size(); }
+    size_t getDispOffset() const { return opcode.size(); }
 
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)

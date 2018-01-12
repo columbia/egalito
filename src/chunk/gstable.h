@@ -11,40 +11,36 @@ public:
     typedef uint32_t IndexType;
 private:
     Chunk *target;
-    Chunk *resolver;
     IndexType index;
 public:
     GSTableEntry(Chunk *target, uint32_t index)
-        : target(target), resolver(nullptr), index(index) {}
+        : target(target), index(index) {}
 
-    virtual void setLazyResolver(Chunk *resolver) { this->resolver = resolver; }
-    Chunk *getTarget() const { return resolver ? resolver : target; }
+    Chunk *getTarget() const { return target; }
     IndexType getIndex() const { return index; }
     IndexType getOffset() const;
-
-    // debugging
-    Chunk *getRealTarget() const { return target; }
 
     virtual void accept(ChunkVisitor *visitor);
 };
 
-class GSTableResolvedEntry : public GSTableEntry {
-    using GSTableEntry::GSTableEntry;
-public:
-    virtual void setLazyResolver(Chunk *resolver) {}
-};
-
 class GSTable : public CollectionChunkImpl<GSTableEntry> {
 private:
-    Chunk *escapeTarget;
+    //Chunk *escapeTarget;
     std::map<Chunk *, GSTableEntry *> entryMap;
     void *tableAddress;
+    size_t reserved;
 public:
-    GSTable() : escapeTarget(nullptr), tableAddress(nullptr) {}
+    GSTable()
+        : /* escapeTarget(nullptr), */ tableAddress(nullptr), reserved(0) {}
 
-    GSTableEntry *makeEntryFor(Chunk *target, bool preResolved = false);
+    // no going back
+    void finishReservation();
+    GSTableEntry::IndexType getJITStartIndex() const { return reserved; }
+
+    GSTableEntry *makeReservedEntryFor(Chunk *target);
+    GSTableEntry *makeJITEntryFor(Chunk *target);
     GSTableEntry *getEntryFor(Chunk *target);
-    void setEscapeTarget(Chunk *target) { escapeTarget = target; }
+    //void setEscapeTarget(Chunk *target) { escapeTarget = target; }
 
     GSTableEntry::IndexType offsetToIndex(GSTableEntry::IndexType offset);
     GSTableEntry *getAtIndex(GSTableEntry::IndexType index);
@@ -54,7 +50,9 @@ public:
 
     virtual void accept(ChunkVisitor *visitor);
 private:
-    GSTableEntry::IndexType nextIndex() const;
+    GSTableEntry *makeEntryFor(Chunk *target);
+    GSTableEntry::IndexType nextIndex() const { return entryMap.size(); }
+    bool reserving() const { return reserved == 0; }
 };
 
 #endif

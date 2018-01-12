@@ -143,7 +143,7 @@ void UseGSTablePass::redirectEgalitoFunctionPointers() {
     for(auto ifunc : CIter::children(ifuncList)) {
         auto link = ifunc->getLink();
         auto target = &*link->getTarget();
-        auto gsEntry = gsTable->makeEntryFor(target);
+        auto gsEntry = gsTable->makeJITEntryFor(target);
         ifunc->setLink(new GSTableLink(gsEntry));
         delete link;
     }
@@ -172,7 +172,7 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
     auto semantic = new LinkedInstruction(instr);
     std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0};
     semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin));
-    auto gsEntry = gsTable->makeEntryFor(target);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);
     instr->setSemantic(semantic);
@@ -181,7 +181,7 @@ void UseGSTablePass::rewriteDirectCall(Block *block, Instruction *instr) {
 
     // push RA1 = gs offset
     std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
-    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    auto gsEntrySelf = gsTable->makeJITEntryFor(block->getParent());
     uint32_t tmp1 = gsEntrySelf->getOffset();
     std::memcpy(&pushB1[1], &tmp1, 4);
     auto push1 = DisassembleInstruction(handle).instruction(pushB1);
@@ -235,7 +235,7 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
     semantic->setAssembly(assembly);
 
     // assert(dynamic_cast<Function *>(target));
-    auto gsEntry = gsTable->makeEntryFor(target);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);  // !!!
     instr->setSemantic(semantic);
@@ -331,7 +331,7 @@ void UseGSTablePass::rewriteIndirectCall(Block *block, Instruction *instr) {
 
     // push RA1 = gs offset
     std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
-    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    auto gsEntrySelf = gsTable->makeJITEntryFor(block->getParent());
     uint32_t tmp1 = gsEntrySelf->getOffset();
     std::memcpy(&pushB1[1], &tmp1, 4);
     auto push1 = DisassembleInstruction(handle).instruction(pushB1);
@@ -623,12 +623,8 @@ void UseGSTablePass::visit(JumpTableEntry *jumpTableEntry) {
         return;
     }
     assert(dynamic_cast<Instruction *>(target));
+    auto gsEntry = gsTable->makeJITEntryFor(target);
 
-    bool preResolve = false;
-    if(auto pe = gsTable->getEntryFor(target->getParent()->getParent())) {
-        if(dynamic_cast<GSTableResolvedEntry *>(pe)) preResolve = true;
-    }
-    auto gsEntry = gsTable->makeEntryFor(target, preResolve);
     jumpTableEntry->setLink(new GSTableLink(gsEntry));
     delete link;
 }
@@ -655,7 +651,7 @@ void UseGSTablePass::visit(VTableEntry *vtableEntry) {
             << vtableEntry->getAddress());
         return;
     }
-    auto gsEntry = gsTable->makeEntryFor(target);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
     vtableEntry->setLink(new GSTableLink(gsEntry));
     delete link;
 }
@@ -678,14 +674,7 @@ void UseGSTablePass::redirectFunctionPointerLinks(DataVariable *var) {
         LOG0(10, " " << target->getName());
     }
 
-    bool preResolve = false;
-    if(auto instr = dynamic_cast<Instruction *>(target)) {
-        if(auto pe = gsTable->getEntryFor(instr->getParent()->getParent())) {
-            if(dynamic_cast<GSTableResolvedEntry *>(pe)) preResolve = true;
-        }
-    }
-
-    auto gsEntry = gsTable->makeEntryFor(target, preResolve);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
     var->setDest(new GSTableLink(gsEntry));
 
     LOG(10, " ==> " << gsEntry->getOffset());
@@ -724,7 +713,7 @@ void UseGSTablePass::rewriteRIPrelativeCall(Block *block, Instruction *instr) {
 
     // push RA1 = gs offset
     std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
-    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    auto gsEntrySelf = gsTable->makeJITEntryFor(block->getParent());
     uint32_t tmp1 = gsEntrySelf->getOffset();
     std::memcpy(&pushB1[1], &tmp1, 4);
     auto push1 = DisassembleInstruction(handle).instruction(pushB1);
@@ -794,7 +783,7 @@ void UseGSTablePass::rewriteRIPrelativeJump(Block *block, Instruction *instr) {
     semantic2->setAssembly(assembly2);
     if(dynamic_cast<NormalLink *>(i->getLink())) {
         Chunk *target = &*i->getLink()->getTarget();
-        auto gsEntry = gsTable->makeEntryFor(target);
+        auto gsEntry = gsTable->makeJITEntryFor(target);
         semantic2->setLink(new GSTableLink(gsEntry));
     }
     else {
@@ -828,7 +817,7 @@ void UseGSTablePass::rewritePointerLoad(Block *block, Instruction *instr) {
     auto reg = X86Register::convertToPhysical(cs_reg);
 
     Chunk *target = &*link->getTarget();
-    auto gsEntry = gsTable->makeEntryFor(target);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
 
     // mov $ID, %reg
     std::vector<unsigned char> bin(7);
@@ -884,9 +873,9 @@ void UseGSTablePass::overwriteBootArguments() {
     assert(f);
     assert(m);
     assert(s);
-    auto gsEntryInit = gsTable->makeEntryFor(i);
-    auto gsEntryFini = gsTable->makeEntryFor(f);
-    auto gsEntryMain = gsTable->makeEntryFor(m);
+    auto gsEntryInit = gsTable->makeJITEntryFor(i);
+    auto gsEntryFini = gsTable->makeJITEntryFor(f);
+    auto gsEntryMain = gsTable->makeJITEntryFor(m);
 
     DisasmHandle handle(true);
 

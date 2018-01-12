@@ -71,7 +71,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         if(_init) {
             LOG(10, "adding _init to egalito_init_array");
             if(gsTable) {
-                auto gsEntry = gsTable->makeEntryFor(_init);
+                auto gsEntry = gsTable->makeJITEntryFor(_init);
                 egalito_init_array[init_index++] = gsEntry->getOffset();
             }
             else {
@@ -91,7 +91,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
                             auto index = gsTable->offsetToIndex(array[i]);
                             auto gsEntry = gsTable->getAtIndex(index);
                             LOG(10, "adding "
-                                << gsEntry->getRealTarget()->getName()
+                                << gsEntry->getTarget()->getName()
                                 << " to egalito_init_array");
                             egalito_init_array[init_index++]
                                 = gsEntry->getOffset();
@@ -116,7 +116,7 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         auto convert = ChunkFind2().findFunctionInModule(
             "egalito_jit_gs_setup", program->getEgalito());
         assert(convert);
-        auto gsEntry = gsTable->makeEntryFor(convert);
+        auto gsEntry = gsTable->makeJITEntryFor(convert);
         egalito_init_array[init_index++] = gsEntry->getOffset();
     }
 

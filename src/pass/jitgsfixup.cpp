@@ -17,6 +17,8 @@
 #include "transform/generator.h"
 #include "transform/sandbox.h"
 #include "util/explicit_bzero.h"
+#include "util/feature.h"
+#include "util/timing.h"
 #include "log/log.h"
 
 Chunk *egalito_gsCallback;
@@ -25,10 +27,10 @@ extern "C"
 size_t egalito_jit_gs_fixup(size_t offset) {
     auto gsTable = EgalitoTLS::getGSTable();
     size_t index = gsTable->offsetToIndex(offset);
-    egalito_printf("(JIT-fixup index=%d ", (int)index);
+    //egalito_printf("(JIT-fixup index=%d ", (int)index);
 
     auto target = ManageGS::resolve(gsTable, index);
-    egalito_printf("target=[%s])\n", target->getName().c_str());
+    //egalito_printf("target=[%s])\n", target->getName().c_str());
 
     Function *targetFunction = dynamic_cast<Function *>(target);
     PLTTrampoline *targetTrampoline = dynamic_cast<PLTTrampoline *>(target);
@@ -50,18 +52,19 @@ size_t egalito_jit_gs_fixup(size_t offset) {
     }
     else {
         if(dynamic_cast<Instruction *>(target)) {
-            auto grandparent = target->getParent()->getParent();
-            auto entry = gsTable->getEntryFor(grandparent);
-            address = target->getAddress() - grandparent->getAddress()
+            auto function = target->getParent()->getParent();
+            auto entry = gsTable->getEntryFor(function);
+            // during JIT-shuffling, function's address is 0
+            address = target->getAddress() - function->getAddress()
                 + ManageGS::getEntry(entry->getOffset());
         }
         else {
-            egalito_printf("JIT error, target not known!\n");
+            //egalito_printf("JIT error, target not known!\n");
             while(1);
         }
     }
 
-    egalito_printf("%lx\n", address);
+    //egalito_printf("%lx\n", address);
     ManageGS::setEntry(gsTable, index, address);
     return offset;
 }
@@ -72,24 +75,17 @@ void egalito_jit_gs_init(ShufflingSandbox *sandbox, GSTable *gsTable) {
     sandbox->recreate();
     Generator generator(true);
     for(auto gsEntry : CIter::children(gsTable)) {
-        if(dynamic_cast<GSTableResolvedEntry *>(gsEntry)) {
-            auto target = gsEntry->getTarget();
-            if(auto f = dynamic_cast<Function *>(target)) {
-                generator.instantiate(f, sandbox);
-            }
-            else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
-                generator.instantiate(trampoline, sandbox);
-            }
-            else {
-                break;
-            }
+        if(gsEntry->getIndex() == gsTable->getJITStartIndex()) break;
+
+        auto target = gsEntry->getTarget();
+        if(auto f = dynamic_cast<Function *>(target)) {
+            generator.instantiate(f, sandbox);
         }
-        else {
-            break;
+        else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
+            generator.instantiate(trampoline, sandbox);
         }
     }
     sandbox->finalize();
-
     ManageGS::resetEntries(gsTable, egalito_gsCallback);
     explicit_bzero(EgalitoTLS::getJITAddressTable(), JIT_TABLE_SIZE);
     sandbox->flip();
@@ -100,7 +96,15 @@ void egalito_jit_gs_init(ShufflingSandbox *sandbox, GSTable *gsTable) {
 
 extern "C"
 void egalito_jit_gs_reset(void) {
-    egalito_printf("resetting...\n");
+#if 0
+    EgalitoTiming t2("egalito_jit_gs_reset");
+    static EgalitoTiming *t = nullptr;
+    if(t) {
+        delete t;
+    }
+    t = new EgalitoTiming("from previous reset");
+#endif
+    //egalito_printf("resetting...\n");
     auto sandbox = EgalitoTLS::getSandbox();
     auto gsTable = EgalitoTLS::getGSTable();
 
@@ -141,13 +145,9 @@ void JitGSFixup::visit(Program *program) {
     assert(callback);
     ::egalito_gsCallback = callback;
 
-    // ManageGS methods cannot be used until 'runtime',
-    // because there is no buffer yet
-    for(auto entry : CIter::children(gsTable)) {
-        entry->setLazyResolver(callback);
+    if(isFeatureEnabled("EGALITO_USE_SHUFFLING")) {
+        addResetCalls();
     }
-
-    addResetCalls();
 
     auto hook = ChunkFind2(conductor).findFunctionInModule(
         "egalito_hook_after_clone_syscall", lib);
@@ -218,14 +218,14 @@ void JitGSFixup::addAfter(Instruction *instruction, Block *block,
     auto semantic = new LinkedInstruction(jmpq);
     std::vector<unsigned char> bin{0x65, 0xff, 0x24, 0x25, 0, 0, 0, 0};
     semantic->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin));
-    auto gsEntry = gsTable->makeEntryFor(target);
+    auto gsEntry = gsTable->makeJITEntryFor(target);
     semantic->setLink(new GSTableLink(gsEntry));
     semantic->setIndex(0);
     jmpq->setSemantic(semantic);
 
     // push RA1 = gs offset
     std::vector<unsigned char > pushB1{0x68, 0, 0, 0, 0};
-    auto gsEntrySelf = gsTable->makeEntryFor(block->getParent());
+    auto gsEntrySelf = gsTable->makeJITEntryFor(block->getParent());
     uint32_t tmp1 = gsEntrySelf->getOffset();
     std::memcpy(&pushB1[1], &tmp1, 4);
     auto push1 = DisassembleInstruction(handle).instruction(pushB1);

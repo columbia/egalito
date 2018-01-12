@@ -7,14 +7,18 @@
 #include "archive/chunktypes.h"
 
 class Symbol;
+class Function;
+class ChunkCache;
+
 class Function : public ChunkSerializerImpl<TYPE_Function,
     CompositeChunkImpl<Block>> {
 private:
     Symbol *symbol;
     std::string name;
     bool nonreturn;
+    ChunkCache *cache;
 public:
-    Function() : symbol(nullptr), nonreturn(false) {}
+    Function() : symbol(nullptr), nonreturn(false), cache(nullptr) {}
 
     /** Create a fuzzy function named according to the original address. */
     Function(address_t originalAddress);
@@ -38,6 +42,9 @@ public:
 
     bool returns() const { return !nonreturn; }
     void setNonreturn() { nonreturn = true; }
+
+    void makeCache();
+    ChunkCache *getCache() const { return cache; }
 };
 
 class FunctionList : public ChunkSerializerImpl<TYPE_FunctionList,

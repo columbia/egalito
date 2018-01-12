@@ -45,7 +45,7 @@ public:
 
     void finalize();
     bool reopen();
-    bool recreate();
+    void recreate(address_t end);
 };
 
 class ExeBacking : public MemoryBacking {
@@ -91,13 +91,13 @@ public:
         base(backing->getBase()), watermark(backing->getBase()) {}
 
     Slot allocate(size_t request);
+    address_t getCurrent() const { return watermark; }
     void reset() { watermark = base; }
 };
 
 template <typename Backing>
 Slot WatermarkAllocator<Backing>::allocate(size_t request) {
-    size_t max = this->backing->getBase()
-        + this->backing->getSize();
+    size_t max = this->backing->getBase() + this->backing->getSize();
 
     if(watermark + request > max) {
         throw std::bad_alloc();
@@ -134,15 +134,15 @@ public:
     virtual void finalize() { backing.finalize(); }
     virtual bool reopen() { return backing.reopen(); }
 
-    bool recreate() { return recreate(id<Backing>()); }
+    void recreate() { recreate(id<Backing>()); }
 private:
-    bool recreate(id<MemoryBacking>);
+    void recreate(id<MemoryBacking>);
 };
 
 template <typename Backing, typename Allocator>
-bool SandboxImpl<Backing, Allocator>::recreate(id<MemoryBacking>) {
+void SandboxImpl<Backing, Allocator>::recreate(id<MemoryBacking>) {
+    backing.recreate(alloc.getCurrent());
     alloc.reset();
-    return backing.recreate();
 }
 
 template <typename SandboxImplType>
@@ -161,7 +161,7 @@ public:
         { return sandbox[i]->allocate(request); }
     virtual void finalize() { sandbox[i]->finalize(); }
     virtual bool reopen() { return sandbox[i]->reopen(); }
-    bool recreate() const { return sandbox[i]->recreate(); }
+    void recreate() const { sandbox[i]->recreate(); }
 };
 
 using ShufflingSandbox = DualSandbox<

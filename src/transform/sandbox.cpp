@@ -38,9 +38,8 @@ bool MemoryBacking::reopen() {
     return true;
 }
 
-bool MemoryBacking::recreate() {
-    std::memset((void *)base, 0, getSize());
-    return 0;
+void MemoryBacking::recreate(address_t end) {
+    std::memset((void *)base, 0, end - base);
 }
 
 ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)

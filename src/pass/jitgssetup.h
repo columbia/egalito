@@ -20,7 +20,12 @@ private:
     void makeSupportGSEntries(Program *program);
     void makeResolvedEntry(const char *name, Module *module);
     void makeResolvedEntryForClass(const char *name, Module *module);
-    void makeResolvedEntryForPLT(std::string name, Program *program);
+    void makeResolvedEntryForFunction(Function *function);
+    //void makeResolvedEntryForPLT(std::string name, Program *program);
+    void makeResolvedEntryForPLT(PLTTrampoline *plt);
+
+    void makeRequiredEntries();
+    void makeRequiredEntriesFor(Chunk *chunk);
 };
 
 #endif

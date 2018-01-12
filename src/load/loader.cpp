@@ -27,6 +27,7 @@
 #include "pass/jitgsfixup.h"
 #include "pass/cancelpush.h"
 #include "pass/debloat.h"
+#include "pass/makecache.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -109,9 +110,10 @@ void EgalitoLoader::run() {
 
     auto entry = setup->getConductor()->getProgram()->getEntryPoint();
     if(isFeatureEnabled("EGALITO_USE_GS")) {
-        auto gsEntry = gsTable->makeEntryFor(entry);
+        auto gsEntry = gsTable->makeJITEntryFor(entry);
         ::egalito_entry = gsEntry->getOffset();
-        CLOG(0, "entry point at gs@[%ld]", egalito_entry);
+        CLOG(0, "entry point at gs@[%ld] = 0x%lx",
+             egalito_entry, entry->getAddress());
     }
     else {
         ::egalito_entry = entry->getAddress();
@@ -217,6 +219,11 @@ void EgalitoLoader::otherPassesAfterMove() {
         sb->reopen();
         sb->recreate();
         sb->finalize();
+
+        MakeCachePass makeCachePass;
+        for(auto entry : CIter::children(gsTable)) {
+            entry->getTarget()->accept(&makeCachePass);
+        }
     }
 }
 

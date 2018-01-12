@@ -8,11 +8,13 @@
 #endif
 #include <sys/prctl.h>
 #include <sys/mman.h>
+#include <cstring>
 #include <cassert>
 
 #include "config.h"
 #include "managegs.h"
 #include "chunk/concrete.h"
+#include "chunk/tls.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP load
@@ -20,36 +22,48 @@
 
 extern "C" int arch_prctl(int code, unsigned long addr);
 
+extern Chunk *egalito_gsCallback;
+
 void ManageGS::init(GSTable *gsTable) {
 #ifdef ARCH_X86_64
+    assert(egalito_gsCallback);
+
     auto count = gsTable->getChildren()->getIterable()->getCount();
     assert(count < JIT_TABLE_SIZE/sizeof(address_t));
 
     void *buffer = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     LOG(1, "Initializing GS table at " << std::hex << buffer);
+    LOG(1, "callback address is "
+        << std::hex << egalito_gsCallback->getAddress());
 
     gsTable->setTableAddress(buffer);
 
-    address_t *array = static_cast<address_t *>(buffer);
-    for(auto entry : CIter::children(gsTable)) {
-        LOG0(1, "    gs@[" << std::dec << entry->getIndex() << "] -> "
-            << entry->getTarget()->getName()
-            << " -> "
-            << std::hex << entry->getRealTarget()->getAddress()
-            << " = " << entry->getRealTarget()->getName());
-        bool b = false;
-        if(auto p = entry->getRealTarget()->getParent()) {
-            if(auto pp = p->getParent()) {
-                LOG(1, " in " << pp->getName());
-                b = true;
+    auto jitStart = gsTable->getJITStartIndex();
+    auto jitEnd = gsTable->getChildren()->getIterable()->getCount();
+    address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
+    LOG(1, "will set the address egalito_gsCallback"
+        << " from " << std::hex << &array[jitStart]
+        << " to " << &array[jitEnd]);
+    ManageGS::resetEntries(gsTable, egalito_gsCallback);
+    //if(1) { // to debug RELEASE_BUILD
+    IF_LOG(1) {
+        for(auto entry : CIter::children(gsTable)) {
+            if(entry->getIndex() == gsTable->getJITStartIndex()) {
+                std::cout << "---- JIT entries ----" << '\n';
             }
-        }
-        if(!b) {
-            LOG(1, "");
-        }
+            std::cout << "    gs@[" << std::dec << entry->getIndex() << "] -> "
+                << entry->getTarget()->getName() << " at "
+                << std::hex << entry->getTarget()->getAddress();
 
-        array[entry->getIndex()] = entry->getTarget()->getAddress();
+            if(auto p = entry->getTarget()->getParent()) {
+                if(auto pp = p->getParent()) {
+                    std::cout << " in " << pp->getName();
+                }
+            }
+            std::cout << '\n';
+        }
+        std::cout.flush();
     }
 
     arch_prctl(ARCH_SET_GS, reinterpret_cast<unsigned long>(buffer));
@@ -89,21 +103,42 @@ address_t ManageGS::getEntry(GSTableEntry::IndexType offset) {
     return address;
 }
 
+extern bool egalito_init_done;
 void ManageGS::resetEntries(GSTable *gsTable, Chunk *callback) {
     address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
-    for(auto entry : CIter::children(gsTable)) {
-        //if(dynamic_cast<GSTableResolvedEntry *>(entry)) continue;
+    auto jitStart = gsTable->getJITStartIndex();
+    auto jitEnd = gsTable->getChildren()->getIterable()->getCount();
 
-        LOG(12, "set resolver for " << entry->getTarget()->getName());
-        entry->setLazyResolver(callback);
-        //array[entry->getIndex()] = callback->getAddress();
-        array[entry->getIndex()] = entry->getTarget()->getAddress();
+    if(egalito_init_done) {
+        auto table = EgalitoTLS::getJITAddressTable();
+        std::memcpy(&array[0], table, jitStart*sizeof(address_t));
+        for(auto entry : CIter::children(gsTable)) {
+            auto i = entry->getIndex();
+            if(i == jitStart) break;
+
+            if(array[i] == 0) { // target does not have an absolute position
+                array[i] = entry->getTarget()->getAddress();
+            }
+        }
+    }
+    else {
+        for(auto entry : CIter::children(gsTable)) {
+            auto i = entry->getIndex();
+            if(i == jitStart) break;
+
+            array[i] = entry->getTarget()->getAddress();
+        }
+    }
+
+    // should be < 10us without vector instructions
+    auto addr = callback->getAddress();
+    for(size_t i = jitStart; i < jitEnd; i++) {
+        array[i] = addr;
     }
 }
 
 Chunk *ManageGS::resolve(GSTable *gsTable, GSTableEntry::IndexType index) {
     auto entry = gsTable->getAtIndex(index);
-    entry->setLazyResolver(nullptr);
     ManageGS::setEntry(gsTable, index, entry->getTarget()->getAddress());
     return entry->getTarget();
 }

@@ -13,6 +13,7 @@ class ElfMap;
 class Chunk;
 class Symbol;
 class ExternalSymbol;
+class ChunkCache;
 
 class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
     CompositeChunkImpl<Block>> {
@@ -20,9 +21,10 @@ private:
     ElfMap *sourceElf;
     ExternalSymbol *externalSymbol;
     address_t gotPLTEntry;
+    ChunkCache *cache;
 public:
     PLTTrampoline() : sourceElf(nullptr), externalSymbol(nullptr),
-        gotPLTEntry(0) {}
+        gotPLTEntry(0), cache(nullptr) {}
     PLTTrampoline(ElfMap *sourceElf, address_t address,
         ExternalSymbol *externalSymbol, address_t gotPLTEntry);
 
@@ -47,6 +49,9 @@ public:
         ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor);
+
+    void makeCache();
+    ChunkCache *getCache() const { return cache; }
 };
 
 class Module;

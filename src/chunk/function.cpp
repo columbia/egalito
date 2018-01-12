@@ -1,8 +1,10 @@
 #include <sstream>
 #include <iomanip>
+#include <cstring>
 #include "function.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "chunk/cache.h"
 #include "elf/symbol.h"
 #include "disasm/disassemble.h"
 #include "instr/writer.h"
@@ -14,15 +16,23 @@
 #include "instr/concrete.h"
 #include "dump.h"
 
+#include "log/temp.h"
+
+void Function::makeCache() {
+    this->cache = new ChunkCache(this);
+}
+
 Function::Function(address_t originalAddress)
-    : symbol(nullptr), nonreturn(false) {
+    : symbol(nullptr), nonreturn(false), cache(nullptr) {
 
     std::ostringstream stream;
     stream << "fuzzyfunc-0x" << std::hex << originalAddress;
     name = stream.str();
 }
 
-Function::Function(Symbol *symbol) : symbol(symbol), nonreturn(false) {
+Function::Function(Symbol *symbol)
+    : symbol(symbol), nonreturn(false), cache(nullptr) {
+
     name = symbol->getName();
 }
 

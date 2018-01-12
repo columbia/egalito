@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <cstdio>  // for std::fflush
 #include "generator.h"
+#include "chunk/cache.h"
 #include "operation/mutator.h"
 #include "pass/clearspatial.h"
 #include "instr/semantic.h"
@@ -67,6 +68,11 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
 
 void Generator::copyFunctionToSandbox(Function *function) {
     char *output = reinterpret_cast<char *>(function->getAddress());
+    if(auto cache = function->getCache()) {
+        //LOG(0, "generating with Cache: " << function->getName());
+        cache->copyAndFix(output);
+        return;
+    }
     for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
             LOG(10, " at " << std::hex << i->getAddress());
@@ -85,6 +91,11 @@ void Generator::copyFunctionToSandbox(Function *function) {
 
 void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
     char *output = reinterpret_cast<char *>(trampoline->getAddress());
+    if(auto cache = trampoline->getCache()) {
+        //LOG(0, "generating with Cache: " << function->getName());
+        cache->copyAndFix(output);
+        return;
+    }
     trampoline->writeTo(output);
 }
 
@@ -92,7 +103,8 @@ void Generator::pickFunctionAddressInSandbox(Function *function,
     Sandbox *sandbox) {
 
     auto slot = sandbox->allocate(function->getSize());
-    ChunkMutator(function).setPosition(slot.getAddress());
+    //ChunkMutator(function).setPosition(slot.getAddress());
+    PositionManager::setAddress(function, slot.getAddress());
 #if 0
     ClearSpatialPass clearSpatial;
     module->accept(&clearSpatial);
@@ -103,7 +115,8 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
     Sandbox *sandbox) {
 
     auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
-    ChunkMutator(trampoline).setPosition(slot.getAddress());
+    //ChunkMutator(trampoline).setPosition(slot.getAddress());
+    PositionManager::setAddress(trampoline, slot.getAddress());
 #if 0
     ClearSpatialPass clearSpatial;
     module->accept(&clearSpatial);

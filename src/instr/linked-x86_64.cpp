@@ -9,8 +9,13 @@
 #include "log/log.h"
 
 #ifdef ARCH_X86_64
-int LinkedInstruction::getDispSize() {
-    return MakeSemantic::determineDisplacementSize(&*getAssembly(), opIndex);
+void LinkedInstruction::makeDisplacementInfo() {
+    assert(opIndex != -1);
+    auto assembly = getAssembly();
+    displacementSize
+        = MakeSemantic::determineDisplacementSize(&*assembly, opIndex);
+    displacementOffset
+        = MakeSemantic::getDispOffset(&*assembly, opIndex);
 }
 
 unsigned LinkedInstruction::calculateDisplacement() {
@@ -29,7 +34,7 @@ void LinkedInstruction::writeTo(char *target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
-    int dispOffset = MakeSemantic::getDispOffset(&*assembly, opIndex);
+    int dispOffset = getDispOffset();
     int i = 0;
     std::memcpy(target + i, assembly->getBytes() + i, dispOffset);
     i += dispOffset;
@@ -43,18 +48,13 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
-    int dispOffset = MakeSemantic::getDispOffset(&*assembly, opIndex);
+    int dispOffset = getDispOffset();
     target.append(reinterpret_cast<const char *>(assembly->getBytes()),
         dispOffset);
     target.append(reinterpret_cast<const char *>(&newDisp), dispSize);
     target.append(reinterpret_cast<const char *>(assembly->getBytes())
         + dispOffset + dispSize,
         assembly->getSize() - dispSize - dispOffset);
-}
-
-int LinkedInstruction::getDispOffset() const {
-    auto assembly = const_cast<LinkedInstruction *>(this)->getAssembly();
-    return MakeSemantic::getDispOffset(&*assembly, opIndex);
 }
 
 void LinkedInstruction::regenerateAssembly() {

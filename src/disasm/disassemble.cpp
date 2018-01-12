@@ -299,12 +299,14 @@ cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 
     cs_insn *ins;
     if(cs_disasm(handle.raw(), bytes, size, address, 0, &ins) != 1) {
-        std::ostringstream stream;
-        stream << "address: " << std::hex << address << ", bytes:";
-        for(size_t i = 0; i < size; i ++) {
-            stream << std::hex << " " << (int)bytes[i];
+        IF_LOG(1) {
+            std::ostringstream stream;
+            stream << "address: " << std::hex << address << ", bytes:";
+            for(size_t i = 0; i < size; i ++) {
+                stream << std::hex << " " << (int)bytes[i];
+            }
+            LOG(1, stream.str());
         }
-        LOG(1, stream.str());
 
         throw "Invalid instruction opcode string provided\n";
     }

@@ -79,6 +79,10 @@ GEN_TIMESTAMP = $(BUILDDIR).gen_timestamp
 all: $(GEN_TIMESTAMP) $(OUTPUTS) .symlinks
 	@true
 
+release: GENERIC_FLAGS += -DRELEASE_BUILD -DNDEBUG -Wno-unused-but-set-variable -Wno-unused-variable -Wno-empty-body
+release: all
+	@true
+
 $(BUILDDIR)load/emulator.o $(BUILDDIR)transform/data.o: | $(GEN_TIMESTAMP)
 $(ALL_OBJECTS): | $(BUILDTREE)
 $(BUILDTREE): ../config/config.h

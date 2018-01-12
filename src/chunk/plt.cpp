@@ -7,6 +7,7 @@
 #include "external.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "chunk/cache.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "instr/writer.h"
@@ -33,7 +34,7 @@ Reloc *PLTRegistry::find(address_t address) {
 PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
     ExternalSymbol *externalSymbol, address_t gotPLTEntry)
     : sourceElf(sourceElf), externalSymbol(externalSymbol),
-    gotPLTEntry(gotPLTEntry) {
+    gotPLTEntry(gotPLTEntry), cache(nullptr) {
 
     setPosition(new AbsolutePosition(address));
 }
@@ -128,6 +129,10 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
 
 void PLTTrampoline::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
+}
+
+void PLTTrampoline::makeCache() {
+    this->cache = new ChunkCache(this);
 }
 
 size_t PLTList::getPLTTrampolineSize() {
