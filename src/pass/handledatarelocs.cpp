@@ -47,7 +47,7 @@ void HandleDataRelocsPass::visit(Module *module) {
             << sourceSection->getName() << "]");
 
         // we have found a section with relocs, create one variable per reloc
-        ChunkMutator sectionMutator(sourceSection);
+        //ChunkMutator sectionMutator(sourceSection);
         for(auto reloc : *relocSection) {
 #if 0
             IF_LOG(1) if(sourceRegion->findVariable(reloc->getAddress())) {
@@ -70,7 +70,7 @@ void HandleDataRelocsPass::visit(Module *module) {
                 if(reloc->getSymbol()) {
                     var->setName(reloc->getSymbol()->getName());
                 }
-                sectionMutator.append(var);
+                sourceSection->getChildren()->add(var);
                 sourceRegion->addVariable(var);
             }
         }

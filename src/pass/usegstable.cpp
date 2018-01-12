@@ -597,10 +597,12 @@ void UseGSTablePass::rewriteJumpTableJump(Block *block, Instruction *instr) {
 
 void UseGSTablePass::visit(DataRegion *dataRegion) {
     //TemporaryLogLevel tll("pass", 10);
-    for(auto var : dataRegion->variableIterable()) {
-        if(auto dest = var->getDest()) {
-            if(dynamic_cast<NormalLink *>(dest)) {
-                redirectFunctionPointerLinks(var);
+    for(auto sec : CIter::children(dataRegion)) {
+        for(auto var : CIter::children(sec)) {
+            if(auto dest = var->getDest()) {
+                if(dynamic_cast<NormalLink *>(dest)) {
+                    redirectFunctionPointerLinks(var);
+                }
             }
         }
     }

@@ -15,6 +15,9 @@ class Module;
 
 class DataRegion;
 
+/** Represents a variable within a global data section that points at another
+    Chunk.
+*/
 class DataVariable : public ChunkSerializerImpl<TYPE_DataVariable,
     AddressableChunkImpl> {
 private:
@@ -22,9 +25,8 @@ private:
     Link *dest;
 public:
     DataVariable() : dest(nullptr) {}
-    DataVariable(DataRegion *region, address_t address, Link *dest);
 
-    // with this, must manually append this DataVariable to the Section!
+    // After constructing, manually append this DataVariable to its Section.
     DataVariable(DataSection *section, address_t address, Link *dest);
 
     std::string getName() const { return name; }
@@ -112,12 +114,11 @@ public:
     address_t getOriginalAddress() const { return originalAddress; }
 
     DataSection *findDataSectionContaining(address_t address);
+    DataSection *findDataSection(const std::string &name);
 
-    void addVariable(DataVariable *variable);
     DataVariable *findVariable(const std::string &name);
-    ConcreteIterable<VariableListType> variableIterable()
-        { return ConcreteIterable<VariableListType>(variableList); }
-    DataVariable *findVariable(address_t address) const;
+    DataVariable *findVariable(address_t address);
+    void addVariable(DataVariable *) { /* deprecated */ }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
@@ -171,7 +172,12 @@ public:
         bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
+
+    DataSection *findDataSectionContaining(address_t address);
     DataSection *findDataSection(const std::string &name);
+
+    DataVariable *findVariable(const std::string &name);
+    DataVariable *findVariable(address_t address);
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
