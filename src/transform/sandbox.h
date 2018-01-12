@@ -70,6 +70,18 @@ public:
     bool reopen() { return false; }
 };
 
+class Module;
+class AnyGenerateBacking : public MemoryBacking {
+private:
+    Module *module;
+    std::string filename;
+public:
+    AnyGenerateBacking(Module *module, std::string filename);
+
+    void finalize();
+    bool reopen() { return false; }
+};
+
 template <typename Backing>
 class SandboxAllocator {
 protected:

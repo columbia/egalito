@@ -3,6 +3,8 @@
 #include <sys/mman.h>
 #include "sandbox.h"
 #include "generate/objgen.h"
+#include "generate/anygen.h"
+#include "chunk/module.h"
 #include "config.h"
 
 bool Slot::append(uint8_t *data, size_t size) {
@@ -68,5 +70,18 @@ void ObjBacking::finalize() {
     MemoryBacking::finalize();
     ObjGen *gen = new ObjGen(elfSpace, this, filename);
     gen->generate();
+    delete gen;
+}
+
+AnyGenerateBacking::AnyGenerateBacking(Module *module, std::string filename)
+    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
+    module(module), filename(filename) {
+
+}
+
+void AnyGenerateBacking::finalize() {
+    MemoryBacking::finalize();
+    AnyGen *gen = new AnyGen(module, this);
+    gen->generate(filename);
     delete gen;
 }
