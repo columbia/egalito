@@ -169,6 +169,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
         s->setSize(0x24);
     }
 
+    // for gcc's fentry option (-mfentry)
+    if(auto s = list->find("__fentry__")) {
+        s->setType(Symbol::TYPE_FUNC);
+    }
+
     SymbolAliasFinder aliasFinder(list);
     aliasFinder.constructByAddress();
 
