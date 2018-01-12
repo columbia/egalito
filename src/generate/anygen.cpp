@@ -26,6 +26,7 @@ AnyGen::AnyGen(Module *module, MemoryBacking *backing)
 
 void AnyGen::generate(const std::string &filename) {
     makeHeader();
+    makePhdrTable();  // can add phdrs after this
     makeSymtabSection();
     makeDataSections();
     makeText();
@@ -73,7 +74,13 @@ void AnyGen::makeHeader() {
         header->e_shnum = shdrTable->getCount();
     });
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
-        header->e_shstrndx = sectionList.indexOf(".shstrtab");
+        auto phdrTableSection = sectionList["=phdr_table"];
+        auto phdrTable = phdrTableSection->castAs<PhdrTableContent *>();
+        header->e_phoff = phdrTableSection->getOffset();
+        header->e_phnum = phdrTable->getCount();
+    });
+    deferred->addFunction([this] (ElfXX_Ehdr *header) {
+        header->e_shstrndx = shdrIndexOf(".shstrtab");
     });
 
     if(auto program = dynamic_cast<Program *>(module->getParent())) {
@@ -128,16 +135,38 @@ void AnyGen::makeShdrTable() {
             }
             else if(auto v = dynamic_cast<RelocSectionContent2 *>(section->getContent())) {
                 deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
-                    shdr->sh_info = sectionList.indexOf(v->getTargetSection());
+                    shdr->sh_info = shdrIndexOf(v->getTargetSection());
                     shdr->sh_addralign = 8;
                     shdr->sh_entsize = sizeof(ElfXX_Rela);
-                    shdr->sh_link = sectionList.indexOf(".symtab");
+                    shdr->sh_link = shdrIndexOf(".symtab");
                 });
             }
         }
     }
 
     sectionList.addSection(shdrTableSection);
+}
+
+void AnyGen::makePhdrTable() {
+    LOG(1, "generating phdr table");
+    auto phdrTable = new PhdrTableContent(&sectionList);
+    auto phdrTableSection = new Section("=phdr_table", phdrTable);
+    sectionList.addSection(phdrTableSection);
+
+    auto phdr = new SegmentInfo(PT_PHDR, PF_R | PF_X, 0x8);
+    phdr->addContains(sectionList["=elfheader"]);
+    phdrTable->add(phdr);
+
+#if 0
+    auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
+    const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
+    auto interpContent = new DeferredString(interpreter, strlen(interpreter) + 1);
+    interpSection->setContent(interpContent);
+    sectionList.addSection(interpSection);
+    auto interp = new SegmentInfo(PT_INTERP, PF_R, 0x1);
+    interp->addContains(interpSection);
+    phdrTable->add(interp);
+#endif
 }
 
 void AnyGen::makeDataSections() {
@@ -174,6 +203,12 @@ void AnyGen::makeDataSections() {
 }
 
 void AnyGen::makeText() {
+    // Before all LOAD segments, we need to put padding.
+    auto paddingSection = new Section("=padding");
+    auto paddingContent = new PagePaddingContent(sectionList.back());
+    paddingSection->setContent(paddingContent);
+    sectionList.addSection(paddingSection);
+
     // Split separate pages into their own LOAD sections.
     // First, find the set of all pages that are used.
     std::set<address_t> pagesUsed;
@@ -203,6 +238,7 @@ void AnyGen::makeText() {
     }
 
     // Finally, map all code regions as individual ELF segments.
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
     for(auto range : codeRegions) {
         auto address = range.getStart();
         auto size = range.getSize();
@@ -223,6 +259,10 @@ void AnyGen::makeText() {
 
         makeRelocSectionFor(name);
         makeSymbolsAndRelocs(address, size, name);
+
+        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x1000);
+        loadSegment->addContains(textSection);
+        phdrTable->add(loadSegment);
     }
 }
 
@@ -282,7 +322,7 @@ void AnyGen::makeSymbolInText(Function *func, const std::string &textSection) {
     // add name to string table
     auto value = symtab->addSymbol(func, func->getSymbol());
     value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
-        symbol->st_shndx = sectionList.indexOf(textSection);
+        symbol->st_shndx = shdrIndexOf(textSection);
     });
 
     for(auto alias : func->getSymbol()->getAliases()) {
@@ -292,7 +332,7 @@ void AnyGen::makeSymbolInText(Function *func, const std::string &textSection) {
         // add name to string table
         auto value = symtab->addSymbol(func, alias);
         value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
-            symbol->st_shndx = sectionList.indexOf(textSection);
+            symbol->st_shndx = shdrIndexOf(textSection);
         });
     }
 
@@ -325,7 +365,7 @@ void AnyGen::makeRelocInText(Function *func, const std::string &textSection) {
 }
 
 void AnyGen::updateOffsets() {
-    // every section is written to the file, even those without Headers
+    // every Section is written to the file, even those without SectionHeaders
     size_t offset = 0;
     for(auto section : sectionList) {
         LOG(1, "section [" << section->getName() << "] is at offset " << std::dec << offset);
@@ -343,6 +383,26 @@ void AnyGen::serialize(const std::string &filename) {
         fs << *section;
     }
     fs.close();
+}
+
+size_t AnyGen::shdrIndexOf(Section *section) {
+#if 0
+    auto shdrTableSection = sectionList["=shdr_table"];
+    auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
+    return shdrTable->indexOf(shdrTable->find(section));
+#else
+    return sectionList.indexOf(section);
+#endif
+}
+
+size_t AnyGen::shdrIndexOf(const std::string &name) {
+#if 0
+    auto shdrTableSection = sectionList["=shdr_table"];
+    auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
+    return shdrTable->indexOf(shdrTable->find(sectionList[name]));
+#else
+    return sectionList.indexOf(name);
+#endif
 }
 
 bool AnyGen::blacklistedSymbol(const std::string &name) {

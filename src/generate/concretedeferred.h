@@ -67,6 +67,49 @@ public:
     DeferredType *add(Section *section);
 };
 
+class SegmentInfo {
+private:
+    ElfXX_Word type;
+    ElfXX_Word flags;
+    address_t alignment;
+    size_t additionalMemSize;
+    std::vector<Section *> containsList;
+public:
+    SegmentInfo(ElfXX_Word type, ElfXX_Word flags, address_t alignment)
+        : type(type), flags(flags), alignment(alignment), additionalMemSize(0) {}
+
+    void setAdditionalMemSize(size_t a) { additionalMemSize = a; }
+    void addContains(Section *section) { containsList.push_back(section); }
+
+    ElfXX_Word getType() const { return type; }
+    ElfXX_Word getFlags() const { return flags; }
+    address_t getAlignment() const { return alignment; }
+    size_t getAdditionalMemSize() const { return additionalMemSize; }
+    std::vector<Section *> &getContainsList() { return containsList; }
+};
+
+class PhdrTableContent : public DeferredMap<SegmentInfo *, ElfXX_Phdr> {
+public:
+    typedef DeferredValueImpl<ElfXX_Phdr> DeferredType;
+private:
+    SectionList *sectionList;
+public:
+    PhdrTableContent(SectionList *sectionList) : sectionList(sectionList) {}
+
+    DeferredType *add(SegmentInfo *segment);
+};
+
+class PagePaddingContent : public DeferredValue {
+private:
+    Section *previousSection;
+public:
+    PagePaddingContent(Section *previousSection)
+        : previousSection(previousSection) {}
+
+    virtual size_t getSize() const;
+    virtual void writeTo(std::ostream &stream);
+};
+
 class RelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
 public:
     typedef DeferredValueImpl<ElfXX_Rela> DeferredType;

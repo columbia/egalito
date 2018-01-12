@@ -161,6 +161,60 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section *section) {
     return deferred;
 }
 
+PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
+    auto phdr = new ElfXX_Phdr();
+    std::memset(phdr, 0, sizeof(*phdr));
+
+    auto deferred = new DeferredType(phdr);
+
+    deferred->addFunction([this, segment] (ElfXX_Phdr *phdr) {
+        LOG(1, "generating phdr for segment of type " << segment->getType());
+        LOG(2, "contains:");
+
+        size_t fileSize = 0;
+        for(auto section : segment->getContainsList()) {
+            LOG(2, "    " << section->getName());
+            fileSize += section->getContent()->getSize();
+        }
+
+        size_t offset = 0;
+        address_t address = 0;
+        if(!segment->getContainsList().empty()) {
+            auto firstSection = segment->getContainsList()[0];
+            offset = firstSection->getOffset();
+            if(firstSection->getHeader()) {
+                address = firstSection->getHeader()->getAddress();
+            }
+        }
+
+        phdr->p_type    = segment->getType();
+        phdr->p_flags   = segment->getFlags();
+        phdr->p_offset  = offset;
+        phdr->p_vaddr   = address;
+        phdr->p_paddr   = address;
+        phdr->p_filesz  = fileSize;
+        phdr->p_memsz   = fileSize + segment->getAdditionalMemSize();
+        phdr->p_align   = segment->getAlignment();
+    });
+
+    DeferredMap<SegmentInfo *, ElfXX_Phdr>::add(segment, deferred);
+    return deferred;
+}
+
+size_t PagePaddingContent::getSize() const {
+    size_t lastByte = previousSection->getOffset();
+    if(previousSection->hasContent()) {
+        lastByte += previousSection->getContent()->getSize();
+    }
+
+    // how much data is needed to round from lastByte to a page boundary?
+    return ((lastByte + 0xfff) & ~0xfff) - lastByte;
+}
+
+void PagePaddingContent::writeTo(std::ostream &stream) {
+    stream << std::string(getSize(), '\0');
+}
+
 Section *RelocSectionContent::getTargetSection() {
     return outer->get();
 }

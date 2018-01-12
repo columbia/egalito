@@ -23,6 +23,7 @@ private:
     void makeHeader();
     void makeSymtabSection();
     void makeShdrTable();
+    void makePhdrTable();
 
     void makeDataSections();
 
@@ -36,6 +37,8 @@ private:
     void updateOffsets();
     void serialize(const std::string &filename);
 private:
+    size_t shdrIndexOf(Section *section);
+    size_t shdrIndexOf(const std::string &name);
     static bool blacklistedSymbol(const std::string &name);
 };
 
