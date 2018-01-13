@@ -160,5 +160,10 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             return link;
         }
     }
+    else if(symbol->getType() == Symbol::TYPE_SECTION) {
+        return PerfectLinkResolver().resolveInternally(reloc, module, weak);
+    }
+    LOG(0, "ERROR: didn't create variable for reloc at 0x" << std::hex
+        << reloc->getAddress());
     return nullptr;
 }

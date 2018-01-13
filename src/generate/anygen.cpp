@@ -395,7 +395,7 @@ void AnyGen::makeRelocInText(Function *func, const std::string &textSection) {
     for(auto block : CIter::children(func)) {
         for(auto instr : CIter::children(block)) {
             if(auto link = instr->getSemantic()->getLink()) {
-                LOG(1, "adding relocation at " << instr->getName());
+                //LOG(1, "adding relocation at " << instr->getName());
 
                 if(link->getTarget()) {
                     Chunk *functionTarget = link->getTarget();

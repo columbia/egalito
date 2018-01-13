@@ -170,9 +170,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
         }
         if(!var) {
             auto dlist = module->getDataRegionList();
-            if(auto region = dlist->findRegionContaining(addr)) {
-                var = region->findVariable(addr);
-            }
+            var = dlist->findVariable(addr);
         }
 
         if(var) {

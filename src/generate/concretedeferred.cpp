@@ -174,8 +174,8 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
     auto deferred = new DeferredType(phdr);
 
     deferred->addFunction([this, segment] (ElfXX_Phdr *phdr) {
-        LOG(1, "generating phdr for segment of type " << segment->getType());
-        LOG(2, "contains:");
+        LOG(1, "generating phdr for segment of type " << segment->getType()
+            << ", containing:");
 
         size_t fileSize = 0;
         for(auto section : segment->getContainsList()) {
@@ -353,6 +353,9 @@ RelocSectionContent2::DeferredType *RelocSectionContent2
     deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
         size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
             name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }
         rela->r_info = ELF64_R_INFO(sectionSymbolIndex, R_X86_64_64);
     });
 
