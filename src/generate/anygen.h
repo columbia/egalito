@@ -22,6 +22,7 @@ public:
 private:
     void makeHeader();
     void makeSymtabSection();
+    void makeSectionSymbols();
     void makeShdrTable();
     void makePhdrTable();
 

@@ -134,6 +134,12 @@ size_t SymbolTableContent::indexOfSectionSymbol(const std::string &section,
     return this->indexOf(sectionSymbols[index]);
 }
 
+SymbolInTable::type_t SymbolTableContent::getTypeFor(Function *func) {
+    // !!! Function should know whether it is local or not...
+    return (func->getSymbol()->getBind() == Symbol::BIND_LOCAL)
+        ? SymbolInTable::TYPE_LOCAL : SymbolInTable::TYPE_GLOBAL;
+}
+
 ShdrTableContent::DeferredType *ShdrTableContent::add(Section *section) {
     auto shdr = new ElfXX_Shdr();
     std::memset(shdr, 0, sizeof(*shdr));
@@ -329,4 +335,27 @@ RelocSectionContent::DeferredType *RelocSectionContent
 
 Section *RelocSectionContent2::getTargetSection() {
     return other->get();
+}
+
+RelocSectionContent2::DeferredType *RelocSectionContent2
+    ::addDataRef(address_t source, address_t target, DataSection *targetSection) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = target - targetSection->getAddress();
+
+    auto name = targetSection->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        rela->r_info = ELF64_R_INFO(sectionSymbolIndex, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
 }

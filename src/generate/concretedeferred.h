@@ -58,6 +58,8 @@ public:
     size_t indexOfSectionSymbol(const std::string &section,
         SectionList *sectionList);
     int getFirstGlobalIndex() const { return firstGlobalIndex; }
+public:
+    static SymbolInTable::type_t getTypeFor(Function *func);
 };
 
 class ShdrTableContent : public DeferredMap<Section *, ElfXX_Shdr> {
@@ -133,15 +135,21 @@ private:
     DeferredType *addConcrete(Instruction *source, SymbolOnlyLink *link);
 };
 
+class DataSection;
 class RelocSectionContent2 : public DeferredMap<address_t, ElfXX_Rela> {
 public:
     typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
 private:
+    SectionList *sectionList;
     SectionRef *other;
 public:
-    RelocSectionContent2(SectionRef *other) : other(other) {}
+    RelocSectionContent2(SectionList *sectionList, SectionRef *other)
+        : sectionList(sectionList), other(other) {}
 
     Section *getTargetSection();
+
+    DeferredType *addDataRef(address_t source, address_t target,
+        DataSection *targetSection);
 };
 
 #endif

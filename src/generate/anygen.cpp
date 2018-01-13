@@ -31,6 +31,7 @@ void AnyGen::generate(const std::string &filename) {
     makeDataSections();
     makeText();
     makeShdrTable();  // don't create new shdrs after this
+    makeSectionSymbols();
     updateOffsets();  // don't insert any new bytes after this
     serialize(filename);
 }
@@ -84,7 +85,7 @@ void AnyGen::makeHeader() {
     });
 
     if(auto program = dynamic_cast<Program *>(module->getParent())) {
-        if(module == program->getMain()) {
+        if(module == program->getMain() && program->getEntryPoint()) {
             header->e_entry = program->getEntryPointAddress();
         }
     }
@@ -105,6 +106,26 @@ void AnyGen::makeSymtabSection() {
     symtabSection->getHeader()->setSectionLink(
         new SectionRef(&sectionList, ".strtab"));
     sectionList.addSection(symtabSection);
+}
+
+void AnyGen::makeSectionSymbols() {
+    // update section indices in symbol table
+    auto shdrTable = sectionList["=shdr_table"]->castAs<ShdrTableContent *>();
+    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+
+    // add section symbols
+    for(auto shdr : *shdrTable) {
+        auto section = shdrTable->getKey(shdr);
+        if(!section->getHeader()) continue;
+        if(section->getHeader()->getShdrType() == SHT_NULL) continue;
+
+        auto symbol = new Symbol(0, 0, "",
+            Symbol::typeFromElfToInternal(STT_SECTION),
+            Symbol::bindFromElfToInternal(STB_LOCAL),
+            0, sectionList.indexOf(section));
+        symtab->addSectionSymbol(symbol);
+    }
+    symtab->recalculateIndices();
 }
 
 void AnyGen::makeShdrTable() {
@@ -284,7 +305,7 @@ void AnyGen::makeText() {
 }
 
 void AnyGen::makeRelocSectionFor(const std::string &otherName) {
-    auto reloc = new RelocSectionContent2(
+    auto reloc = new RelocSectionContent2(&sectionList,
         new SectionRef(&sectionList, otherName));
     auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
@@ -374,8 +395,35 @@ void AnyGen::makeRelocInText(Function *func, const std::string &textSection) {
     for(auto block : CIter::children(func)) {
         for(auto instr : CIter::children(block)) {
             if(auto link = instr->getSemantic()->getLink()) {
-                LOG(1, "SKIP adding relocation at " << instr->getName());
-                //reloc->add(instr, link);
+                LOG(1, "adding relocation at " << instr->getName());
+
+                if(link->getTarget()) {
+                    Chunk *functionTarget = link->getTarget();
+                    while(functionTarget && !dynamic_cast<Function *>(functionTarget)) {
+                        functionTarget = functionTarget->getParent();
+                    }
+
+                    if(functionTarget) {
+                        auto func = static_cast<Function *>(functionTarget);
+                        auto symtab = sectionList[".symtab"]
+                            ->castAs<SymbolTableContent *>();
+                        auto sym = symtab->find(SymbolInTable(
+                            SymbolTableContent::getTypeFor(func),
+                            func->getSymbol()));
+                        if(sym) {
+                            //reloc->addFunctionRef();
+                            //continue;
+                        }
+                    }
+                }
+
+                auto target = link->getTargetAddress();
+                DataSection *targetSection = module->getDataRegionList()
+                    ->findDataSectionContaining(target);
+
+                if(targetSection) {
+                    reloc->addDataRef(instr->getAddress(), target, targetSection);
+                }
             }
         }
     }
