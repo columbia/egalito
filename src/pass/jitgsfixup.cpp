@@ -27,6 +27,7 @@ extern "C"
 size_t egalito_jit_gs_fixup(size_t offset) {
     auto gsTable = EgalitoTLS::getGSTable();
     size_t index = gsTable->offsetToIndex(offset);
+    //egalito_printf("index=%d\n", (int)index);
     //egalito_printf("(JIT-fixup index=%d ", (int)index);
 
     auto target = ManageGS::resolve(gsTable, index);
@@ -168,15 +169,21 @@ void JitGSFixup::addResetCalls() {
     }
 
     if(auto libc = conductor->getProgram()->getLibc()) {
+        // for nginx, reply uses writev, logging uses 'write'
+        addAfterEverySyscall("writev", libc, reset);
+#if 0
         addAfterEverySyscall("write", libc, reset);
         addAfterEverySyscall("_IO_file_write", libc, reset);
+#endif
     }
 
+#if 0
     if(auto libpthread = conductor->getProgram()->getLibraryList()
         ->find("libpthread.so.0")) {
 
         addAfterEverySyscall("write", libpthread->getModule(), reset);
     }
+#endif
 }
 
 void JitGSFixup::addAfterSyscall(const char *name, Module *module,

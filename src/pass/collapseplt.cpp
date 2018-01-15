@@ -20,7 +20,7 @@ CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
 
     for(auto pair : ifuncMap) {
         assert(pair.second);
-        LOG(1, "" << pair.first << " -> " << pair.second->getName());
+        LOG(10, "IFunc " << pair.first << " -> " << pair.second->getName());
     }
 }
 
@@ -41,7 +41,7 @@ void CollapsePLTPass::visit(Instruction *instr) {
                 delete pltLink;
             }
             else {
-                LOG(1, "IFunc " << name << " will be resolve at runtime");
+                LOG(10, "IFunc " << name << " will be resolve at runtime");
             }
             return;  // we don't handle this yet
         }

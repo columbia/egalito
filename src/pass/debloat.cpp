@@ -171,7 +171,10 @@ void DebloatPass::useFromSpecialName() {
             if(function->hasName("_start2")){
                 markTreeAsUsed(function);
             }
-            if(function->hasName("ifunc_resolver")){
+            else if(function->hasName("ifunc_resolver")){
+                markTreeAsUsed(function);
+            }
+            else if(function->hasName("egalito_runtime_init")){
                 markTreeAsUsed(function);
             }
             if(isFeatureEnabled("EGALITO_USE_GS")) {
@@ -188,9 +191,6 @@ void DebloatPass::useFromSpecialName() {
                     markTreeAsUsed(function);
                 }
                 else if(function->hasName("egalito_hook_after_clone_syscall")){
-                    markTreeAsUsed(function);
-                }
-                else if(function->hasName("egalito_jit_gs_setup")) {
                     markTreeAsUsed(function);
                 }
             }

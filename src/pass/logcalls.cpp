@@ -12,6 +12,7 @@
 
 static int indent = 0;
 extern Conductor *egalito_conductor;
+extern bool egalito_init_done;
 
 extern "C"
 void egalito_log_function_name(unsigned long address, int dir) {
@@ -24,7 +25,7 @@ void egalito_log_function_name(unsigned long address, int dir) {
     // below will create a memory object in loader which will be destoryed
     // at the end of this function.
     auto func = ChunkFind2(egalito_conductor).findFunctionContaining(address);
-    if(func) {
+    if(egalito_init_done && func) {
         // the offset is given in the transformed binary...
         egalito_printf("%s %lx [%s+%lu]\n", arrow, address,
             func->getName().c_str(), address - func->getAddress());

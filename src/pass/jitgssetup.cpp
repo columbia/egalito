@@ -14,8 +14,6 @@
 #include "log/temp.h"
 #include "cminus/print.h"
 
-bool egalito_init_done;
-
 extern "C"
 void egalito_jit_gs_setup() {
     auto base = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
@@ -29,7 +27,6 @@ void egalito_jit_gs_setup() {
             target->setPositionIndex(Chunk::POSITION_JIT_GS);
         }
     }
-    egalito_init_done = true;
 }
 
 void JitGSSetup::visit(Program *program) {
@@ -162,10 +159,10 @@ void JitGSSetup::makeResolverGSEntries(Module *egalito) {
         //"write_hex",
         //"write_string",
 
-        //"_ZNK8Function7getNameB5cxx11Ev",
-        //"_ZNK13PLTTrampoline7getNameB5cxx11Ev",
 #ifndef RELEASE_BUILD
         // for debugging
+        //"_ZNK8Function7getNameB5cxx11Ev",
+        //"_ZNK13PLTTrampoline7getNameB5cxx11Ev",
         //"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.23",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.29",
         "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPcEEvT_S7_St20forward_iterator_tag.isra.66",

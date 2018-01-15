@@ -129,10 +129,10 @@ void EgalitoLoader::run() {
         = dynamic_cast<ShufflingSandbox *>(sandbox);
 
     // --- last point virtual functions work ---
-    // update vtable pointers to new libegalito code ('new' needs loader TLS)
+    // update vtable pointers to new libegalito code (LOG needs vtable)
     DataStructMigrator().migrate(setup);
 
-    // --- last point accesses to loader TLS work
+    // --- last point accesses to loader TLS work ('new' needs loader TLS)
     PrepareTLS::prepare(setup->getConductor());
 
     if(shufflingSandbox) {

@@ -5,6 +5,7 @@
 #include "chunk/concrete.h"
 #include "chunk/gstable.h"
 #include "operation/find2.h"
+#include "util/feature.h"
 #include "log/log.h"
 
 #define EGALITO_INIT_ARRAY_SZ   256
@@ -112,12 +113,15 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         }
     }
 
+    auto chunk = ChunkFind2().findFunctionInModule(
+        "egalito_runtime_init", program->getEgalito());
+    assert(chunk);
     if(gsTable) {
-        auto convert = ChunkFind2().findFunctionInModule(
-            "egalito_jit_gs_setup", program->getEgalito());
-        assert(convert);
-        auto gsEntry = gsTable->makeJITEntryFor(convert);
+        auto gsEntry = gsTable->makeJITEntryFor(chunk);
         egalito_init_array[init_index++] = gsEntry->getOffset();
+    }
+    else {
+        egalito_init_array[init_index++] = chunk->getAddress();
     }
 
     assert(init_index + 1 <= EGALITO_INIT_ARRAY_SZ);
@@ -129,6 +133,18 @@ auto CallInit::getStart2(Conductor *conductor) -> Start2Type {
     auto addr = ChunkFind2(conductor).findFunctionInModule("_start2", egalito)
         ->getAddress();
     return reinterpret_cast<Start2Type>(addr);
+}
+
+bool egalito_init_done;
+extern "C" void egalito_jit_gs_setup();
+
+extern "C"
+void egalito_runtime_init(void) {
+
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        egalito_jit_gs_setup();
+    }
+    egalito_init_done = true;
 }
 
 extern "C"

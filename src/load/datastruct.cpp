@@ -13,6 +13,7 @@
 #include "log/temp.h"
 
 void DataStructMigrator::migrate(ConductorSetup *setup) {
+    //TemporaryLogLevel tll("load", 9);
     auto egalito = setup->getConductor()->getProgram()->getEgalito();
     if(!egalito) return;  // libegalito not injected
 
@@ -106,19 +107,21 @@ void DataStructMigrator::migrateTable(VTable *loaderVTable,
 
 void DataStructMigrator::commit() {
     LOG(1, "Committing all updates to redirect loader vtables to libegalito");
-    // NOTE: no virtual functions can be called after this point!
 
-#if 1
-    int i = 0;
-    for(auto fixup : fixupList) {
-        auto address = fixup.first;
-        auto value = fixup.second;
-        LOG(10, "    [" << std::hex << address << "] -> " << value);
-        if(++i == 5) break;
+    IF_LOG(10) {
+        int i = 0;
+        for(auto fixup : fixupList) {
+            auto address = fixup.first;
+            auto value = fixup.second;
+            LOG(1, "    [" << std::hex << address << "] -> " << value);
+            if(++i == 5) break;
+        }
+        LOG(1, "    ...");
     }
-    LOG(10, "    ...");
-#endif
+    // leave this here
+    std::cout.flush();
 
+    // NOTE: no virtual functions can be called after this point!
     address_t minAddress = 0, maxAddress = 0;
     for(auto fixup : fixupList) {
         auto address = fixup.first;
