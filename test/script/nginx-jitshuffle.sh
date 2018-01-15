@@ -1,10 +1,7 @@
 #!/bin/bash
 
-if [ $# == 0 ]; then
-  filename=index.html
-else
-  filename=$1
-fi
+filename=${1:-index.html}
+source ../binary/target/nginx/wrkparam.sh
 
 command -v wrk > /dev/null 2>&1 || { echo >&2 "needs wrk -- skipping"; exit 0; }
 
@@ -14,7 +11,7 @@ ln -sf ../../src/libegalito.so
 pidfile=../binary/target/nginx/nginx/logs/nginx.pid
 rm -f $pidfile
 
-EGALITO_DEBLOAT=1 EGALITO_USE_GS=1 EGALITO_USE_SHUFFLING=1 \
+LANG=C EGALITO_DEBLOAT=1 EGALITO_USE_GS=1 EGALITO_USE_SHUFFLING=1 \
 ../../src/loader ../binary/target/nginx/nginx/sbin/nginx -c ../conf/nginx.conf >tmp/nginx-jitshuffle.out 2>& 1 &
 
 count=50
@@ -28,7 +25,7 @@ while [ ! -f $pidfile ]; do
 done
 #cat $pidfile
 
-wrk -c10 -d30s -t4 http://localhost:8000/$filename > tmp/nginx-jitshuffle-wrk.out
+wrk $wrkparam http://localhost:8000/$filename > tmp/nginx-jitshuffle-wrk.out
 
 kill -QUIT $( cat $pidfile )
 kill -KILL $( cat $pidfile )
