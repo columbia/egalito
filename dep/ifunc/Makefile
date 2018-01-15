@@ -13,4 +13,4 @@ determine: determine.c
 	@$(RUN_GDB) -x determine.gdb $@
 
 clean realclean:
-	-@rm determine ifunc.h
+	-@rm -f determine ifunc.h

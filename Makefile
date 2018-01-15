@@ -26,7 +26,7 @@ test: src
 app: src | test
 	$(call short-make,app)
 dep: dep/built  # note: dep is not phony
-dep/built:
+dep/built: dep/Makefile
 	$(call short-make,dep)
 
 config:
