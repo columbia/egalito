@@ -1342,13 +1342,11 @@ void UseDef::fillBt(UDState *state, AssemblyPtr assembly) {
     }
 }
 void UseDef::fillCall(UDState *state, AssemblyPtr assembly) {
-    useReg(state, 0);
-    defReg(state, 0, nullptr);
-    for(int i = 2; i < 6; i++) {
+    for(int i = 0; i < 3; i++) {
         useReg(state, i);
         defReg(state, i, nullptr);
     }
-    for(int i = 8; i < 12; i++) {
+    for(int i = 6; i < 12; i++) {
         useReg(state, i);
         defReg(state, i, nullptr);
     }
