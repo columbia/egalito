@@ -14,6 +14,7 @@ void ChunkCache::make(Chunk *chunk) {
     //TemporaryLogLevel tll2("disasm", 10);
 
     LOG(10, "fixups for ChunkCache::make " << chunk->getName());
+#ifdef ARCH_X86_64
     this->address = chunk->getAddress();
     InstrWriterCppString writer(data);
     for(auto b : chunk->getChildren()->genericIterable()) {
@@ -36,6 +37,7 @@ void ChunkCache::make(Chunk *chunk) {
             }
         }
     }
+#endif
 }
 
 void ChunkCache::copyAndFix(char *output) {
