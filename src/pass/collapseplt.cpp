@@ -2,17 +2,38 @@
 #include "collapseplt.h"
 #include "chunk/link.h"
 #include "chunk/plt.h"
+#include "conductor/conductor.h"
 #include "instr/semantic.h"
 #include "operation/find2.h"
 #include "log/log.h"
+
+Function *findFunction(Conductor *conductor, const char *name) {
+    //ChunkFind2() doesn't work here for now
+    //return ChunkFind2(conductor).findFunction(#target);
+
+    for(auto f : CIter::functions(conductor->getProgram()->getLibc())) {
+        if(f->hasName(name)) {
+            if(auto sym = f->getSymbol()) {
+                if(sym->getType() == Symbol::TYPE_FUNC) return f;
+            }
+        }
+    }
+    return nullptr;
+}
 
 CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
     : conductor(conductor) {
 
     Function *function = nullptr;
+#if 0
 #define KNOWN_IFUNC_ENTRY(name, target) \
     function = ChunkFind2(conductor).findFunction(#target); \
     ifuncMap.emplace(#name, function);
+#else
+#define KNOWN_IFUNC_ENTRY(name, target) \
+    function = findFunction(conductor, #target); \
+    if(function) ifuncMap.emplace(#name, function);
+#endif
 
 #include "../dep/ifunc/ifunc.h"
 
