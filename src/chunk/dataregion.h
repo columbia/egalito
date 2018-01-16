@@ -64,6 +64,9 @@ public:
     virtual std::string getName() const;
     bool contains(address_t address);
 
+    DataVariable *findVariable(const std::string &name);
+    DataVariable *findVariable(address_t address);
+
     size_t getAlignment() const { return alignment; }
     address_t getOriginalOffset() const { return originalOffset; }
     Type getType() const { return type; }

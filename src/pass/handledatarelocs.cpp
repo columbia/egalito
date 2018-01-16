@@ -2,6 +2,7 @@
 #include <cassert>
 #include "handledatarelocs.h"
 #include "chunk/link.h"
+#include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/reloc.h"
 #include "log/log.h"
@@ -11,23 +12,56 @@ void HandleDataRelocsPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(executable)");
     auto list = module->getDataRegionList();
 
-    // make variables for all relocations located inside the regions
-    for(auto reloc : *relocList) {
-        // source region (will be different from the link's dest region)
-        auto sourceRegion = list->findRegionContaining(reloc->getAddress());
-        if(sourceRegion) {
-            auto sourceSection
-                = sourceRegion->findDataSectionContaining(reloc->getAddress());
-            if(!sourceSection) continue;
-            if(sourceSection->isCode()) {
-                // it's useless to make a link from code to literal here
-                // because we won't be able to reach it after remap
+    assert(module->getElfSpace() != nullptr);
+    auto elfMap = module->getElfSpace()->getElfMap();
+
+    // make DataVariables for every relocation in every ElfSection
+    for(ElfSection *section : elfMap->getSectionList()) {
+        auto relocSection = module->getElfSpace()->getRelocList()->getSection(
+            section->getName());
+        if(!relocSection) continue;  // no relocs in this ElfSection
+
+        auto va = section->getVirtualAddress();
+        if(!va && relocSection->begin() != relocSection->end()) {
+            // if section address is 0 (as in a kernel), use address of first reloc
+            va = (*relocSection->begin())->getAddress();
+        }
+        LOG(1, "search for relocs in section [" << section->getName()
+            << "] at address = 0x" << std::hex << va);
+        auto sourceRegion = list->findRegionContaining(va);
+        if(!sourceRegion) continue;
+        auto sourceSection = sourceRegion->findDataSectionContaining(va);
+        if(!sourceSection) continue;
+
+        if(sourceSection->isCode()) {
+            // it's useless to make a link from code to literal here
+            // because we won't be able to reach it after remap
+            continue;
+        }
+
+        // in the Linux kernel, these sections do not store real addresses
+        if(sourceSection->getName() == "__kcrctab") continue;
+        if(sourceSection->getName() == ".rela__kcrctab") continue;
+        if(sourceSection->getName() == "__kcrctab_gpl") continue;
+        if(sourceSection->getName() == ".rela__kcrctab_gpl") continue;
+
+        if(sourceSection->getName() == ".data..percpu") continue;
+        if(sourceSection->getName() == ".rela.data..percpu") continue;
+
+        LOG(9, "resolving data relocations in section ["
+            << sourceSection->getName() << "]");
+
+        // we have found a section with relocs, create one variable per reloc
+        ChunkMutator sectionMutator(sourceSection);
+        for(auto reloc : *relocSection) {
+#if 0
+            IF_LOG(1) if(sourceRegion->findVariable(reloc->getAddress())) {
+                LOG(1, "ERROR: duplicate DataVariable created at 0x"
+                    << std::hex << reloc->getAddress());
                 continue;
             }
+#endif
 
-            if(sourceRegion->findVariable(reloc->getAddress())) continue;
-
-            LOG(11, "sourceRegion is " << sourceRegion->getName());
             if(auto link = resolveVariableLink(reloc, module)) {
                 auto addr = reloc->getAddress();
                 LOG0(10, "resolving a variable at " << std::hex << addr);
@@ -37,10 +71,11 @@ void HandleDataRelocsPass::visit(Module *module) {
                 }
                 else LOG(10, " => " << reloc->getAddend());
                 if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
-                auto var = new DataVariable(sourceRegion, addr, link);
+                auto var = new DataVariable(sourceSection, addr, link);
                 if(reloc->getSymbol()) {
                     var->setName(reloc->getSymbol()->getName());
                 }
+                sectionMutator.append(var);
                 sourceRegion->addVariable(var);
             }
         }

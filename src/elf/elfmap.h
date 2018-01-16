@@ -111,6 +111,8 @@ public:
     int getFileDescriptor() const { return fd; }
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
+    const std::vector<ElfSection *> &getSectionList() const
+        { return sectionList; }
 };
 
 template <typename T>

@@ -52,7 +52,8 @@ void DataVariable::serialize(ChunkSerializerOperations &op,
     writer.writeString(name);
 
     if(op.isLocalModuleOnly()) {
-        
+        // not yet implemented, should serialize if in this module, otherwise
+        // create an external symbol
     }
     else {
         LinkSerializer(op).serialize(dest, writer);
@@ -92,6 +93,14 @@ std::string DataSection::getName() const {
 
 bool DataSection::contains(address_t address) {
     return getRange().contains(address);
+}
+
+DataVariable *DataSection::findVariable(const std::string &name) {
+    return CIter::named(this)->find(name);
+}
+
+DataVariable *DataSection::findVariable(address_t address) {
+    return CIter::spatial(this)->find(address);
 }
 
 void DataSection::serialize(ChunkSerializerOperations &op,
@@ -160,21 +169,36 @@ void DataRegion::addVariable(DataVariable *variable) {
 }
 
 DataVariable *DataRegion::findVariable(const std::string &name) {
-    // !!! linear search for now
+#if 0
     for(auto var : variableList) {
         if(var->getName() == name) {
             return var;
         }
     }
+#else
+    for(auto section : CIter::children(this)) {
+        if(auto var = section->findVariable(name)) {
+            return var;
+        }
+    }
+#endif
     return nullptr;
 }
 
 DataVariable *DataRegion::findVariable(address_t address) const {
+#if 0
     for(auto var : variableList) {
         if(var->getAddress() == address) {
             return var;
         }
     }
+#else
+    for(auto section : CIter::children(this)) {
+        if(auto var = section->findVariable(address)) {
+            return var;
+        }
+    }
+#endif
     return nullptr;
 }
 
@@ -271,34 +295,33 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
 
-    for(auto region : CIter::children(this)) {
-        if(region->contains(target)) {
-            auto dsec = CIter::spatial(region)->findContaining(target);
-            if(dsec) {
-                if(dsec->getType() == DataSection::TYPE_CODE) {
-                    if(ChunkFind().findInnermostAt(
-                        module->getFunctionList(), target)) {
+    auto region = CIter::spatial(this)->findContaining(target);
+    if(region) {
+        auto dsec = CIter::spatial(region)->findContaining(target);
+        if(dsec) {
+            if(dsec->getType() == DataSection::TYPE_CODE) {
+                if(ChunkFind().findInnermostAt(
+                    module->getFunctionList(), target)) {
 
-                        LOG(1, "is this a hand-crafted jump table? " << target);
-                        return nullptr;
-                    }
-                    else {
-                        // this will very likely to result in a too-far
-                        // link for AARCH64.
-                        LOG(9, "is this a LITERAL? " << target);
-                        return nullptr;
-                    }
-                }
-                auto base = dsec->getAddress();
-                LOG(10, "" << target << " has offset " << (target - base));
-                if(isRelative) {
-                    return new DataOffsetLink(dsec, target - base,
-                        Link::SCOPE_WITHIN_MODULE);
+                    LOG(1, "is this a hand-crafted jump table? " << target);
+                    return nullptr;
                 }
                 else {
-                    return new AbsoluteDataLink(dsec, target - base,
-                        Link::SCOPE_WITHIN_MODULE);
+                    // this will very likely to result in a too-far
+                    // link for AARCH64.
+                    LOG(9, "is this a LITERAL? " << target);
+                    return nullptr;
                 }
+            }
+            auto base = dsec->getAddress();
+            LOG(10, "" << target << " has offset " << (target - base));
+            if(isRelative) {
+                return new DataOffsetLink(dsec, target - base,
+                    Link::SCOPE_WITHIN_MODULE);
+            }
+            else {
+                return new AbsoluteDataLink(dsec, target - base,
+                    Link::SCOPE_WITHIN_MODULE);
             }
         }
     }

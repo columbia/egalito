@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <string>
 #include <elf.h>
 
 #include "types.h"
@@ -43,12 +44,28 @@ public:
     std::string getSymbolName() const;
 };
 
+class RelocSection {
+private:
+    typedef std::vector<Reloc *> ListType;
+    ListType relocList;
+    std::string name;
+public:
+    RelocSection(const std::string &name) : name(name) {}
+
+    void add(Reloc *reloc);
+
+    ListType::iterator begin() { return relocList.begin(); }
+    ListType::iterator end() { return relocList.end(); }
+};
+
 class RelocList {
 private:
     typedef std::vector<Reloc *> ListType;
     ListType relocList;
     typedef std::map<address_t, Reloc *> MapType;
     MapType relocMap;
+    typedef std::map<std::string, RelocSection *> SectionListType;
+    SectionListType sectionList;
 public:
     bool add(Reloc *reloc);
 
@@ -57,8 +74,12 @@ public:
 
     Reloc *find(address_t address);
 
+    RelocSection *getSection(const std::string &name);
+
     static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList,
         SymbolList *dynamicSymbolList = nullptr);
+private:
+    RelocSection *makeOrGetSection(const std::string &name);
 };
 
 #endif
