@@ -100,10 +100,8 @@ $(BUILDTREE): ../config/config.h
 		ln -sf $(BUILDDIR)libegalito.a; \
 		ln -sf $(BUILDDIR)libegalito.so; \
 		ln -sf $(BUILDDIR)libaddon.so; \
-		rm -f example; \
-		ln -s ../test/example example; \
-		rm -f ex; \
-		ln -s ../test/example/$(BUILDDIR) ex; \
+		ln -sfn ../test/example example; \
+		ln -sfn ../test/example/$(BUILDDIR) ex; \
 	fi
 
 $(GEN_TIMESTAMP): $(BUILDTREE)
