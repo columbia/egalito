@@ -8,6 +8,7 @@
 #include "elf/elfspace.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
+#include "operation/mutator.h"
 #include "operation/find2.h"
 #include "log/log.h"
 
@@ -72,14 +73,19 @@ namespace Emulation {
     }
 }
 
-static void createDataVariable2(address_t address, void *target,
+static void createDataVariable2(Symbol *source, void *target,
     Module *egalito) {
+
+    address_t address = source->getAddress();
 
     auto targetAddress = reinterpret_cast<address_t>(target);
     address += egalito->getElfSpace()->getElfMap()->getBaseAddress();
     auto region = egalito->getDataRegionList()->findRegionContaining(address);
+    auto section = region->findDataSectionContaining(address);
+
     auto link = new StackLink(targetAddress);
-    auto var = new DataVariable(region, address, link);
+    auto var = new DataVariable(section, address, link);
+    section->getChildren()->add(var);
     region->addVariable(var);
 }
 
@@ -88,14 +94,14 @@ void LoaderEmulator::setStackLinks(char **argv, char **envp) {
     auto symbolList = egalito->getElfSpace()->getSymbolList();
 
     auto dl_argv = symbolList->find("_ZN9Emulation8_dl_argvE");
-    createDataVariable2(dl_argv->getAddress(), argv, egalito);
+    createDataVariable2(dl_argv, argv, egalito);
 
     auto environ = symbolList->find("_ZN9Emulation9__environE");
-    createDataVariable2(environ->getAddress(), envp, egalito);
+    createDataVariable2(environ, envp, egalito);
 
     // __libc_stack_end doesn't have to be precise
     auto libc_stack_end = symbolList->find("_ZN9Emulation16__libc_stack_endE");
-    createDataVariable2(libc_stack_end->getAddress(), argv, egalito);
+    createDataVariable2(libc_stack_end, argv, egalito);
 }
 
 LoaderEmulator LoaderEmulator::instance;
@@ -181,20 +187,17 @@ Link *LoaderEmulator::makeDataLink(const std::string &symbol,
 }
 
 DataVariable *LoaderEmulator::findEgalitoDataVariable(const char *name) {
-    for(auto region : CIter::children(egalito->getDataRegionList())) {
-        if(auto var = region->findVariable(name)) {
-            return var;
-        }
-    }
-    return nullptr;
+    return egalito->getDataRegionList()->findVariable(name);
 }
 
 static void createDataVariable(void *p, Function *target, Module *egalito) {
     address_t addr = reinterpret_cast<address_t>(p);
     auto region = egalito->getDataRegionList()->findRegionContaining(addr);
+    auto section = region->findDataSectionContaining(addr);
 
     auto link = new NormalLink(target, Link::SCOPE_EXTERNAL_DATA);
-    auto var = new DataVariable(region, addr, link);
+    auto var = new DataVariable(section, addr, link);
+    section->getChildren()->add(var);
     region->addVariable(var);
 
     LOG(1, "MADE data variable at " << std::hex << addr << " pointing to "

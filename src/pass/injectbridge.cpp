@@ -5,6 +5,7 @@
 #include "elf/reloc.h"
 #include "chunk/dataregion.h"
 #include "chunk/link.h"
+#include "operation/mutator.h"
 #include "snippet/hook.h"
 #include "log/log.h"
 
@@ -38,12 +39,17 @@ void InjectBridgePass::makeLinkToLoaderVariable(Module *module, Reloc *reloc) {
     LOG(1, "[InjectBridge] assigning EgalitoLoaderLink for "
         << reloc->getSymbol()->getName());
 
-    auto sourceRegion = module->getDataRegionList()->findRegionContaining(
-        reloc->getAddress());
+    auto address = reloc->getAddress();
+
+    auto sourceRegion = module->getDataRegionList()
+        ->findRegionContaining(address);
     assert(sourceRegion);
+    auto sourceSection = sourceRegion->findDataSectionContaining(address);
 
     auto link = new EgalitoLoaderLink(reloc->getSymbol()->getName());
 
-    auto var = new DataVariable(sourceRegion, reloc->getAddress(), link);
+    auto var = new DataVariable(sourceSection, reloc->getAddress(), link);
+    //ChunkMutator(sourceSection).append(var);
+    sourceSection->getChildren()->add(var);
     sourceRegion->addVariable(var);
 }

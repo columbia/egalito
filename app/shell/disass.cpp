@@ -492,13 +492,16 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         auto module = CIter::findChild(setup->getConductor()->getProgram(),
             args.front().c_str());
         for(auto region : CIter::children(module->getDataRegionList())) {
-            for(auto var : region->variableIterable()) {
-                std::cout << "var at 0x" << std::hex << var->getAddress()
-                    << " name " << var->getName();
-                if(var->getDest() && var->getDest()->getTarget()) {
-                    std::cout << " link to " << var->getDest()->getTarget()->getName();
+            for(auto section : CIter::children(region)) {
+                std::cout << "inside " << section->getName() << ":\n";
+                for(auto var : CIter::children(section)) {
+                    std::cout << "var at 0x" << std::hex << var->getAddress()
+                        << " name " << var->getName();
+                    if(var->getDest() && var->getDest()->getTarget()) {
+                        std::cout << " link to " << var->getDest()->getTarget()->getName();
+                    }
+                    std::cout << std::endl;
                 }
-                std::cout << std::endl;
             }
         }
     }, "shows a list of all data variables");

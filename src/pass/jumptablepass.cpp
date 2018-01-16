@@ -140,7 +140,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto firstAddress = jumpTable->getAddress() + 0;
     auto region = module->getDataRegionList()->findRegionContaining(firstAddress);
     auto section = CIter::spatial(region)->findContaining(firstAddress);
-    ChunkMutator sectionMutator(section);
+    //ChunkMutator sectionMutator(section);
 
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
@@ -183,8 +183,8 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         }
 
         auto var = new DataVariable(section, address, link);
+        section->getChildren()->add(var);
         region->addVariable(var);
-        sectionMutator.append(var);
 
         auto entry = new JumpTableEntry(var);
         entry->setPosition(PositionFactory::getInstance()

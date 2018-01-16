@@ -66,21 +66,23 @@ void ReloCheckPass::visit(Instruction *instruction) {
 
 void ReloCheckPass::checkDataVariable(Module *module) {
     for(auto region : CIter::regions(module)) {
-        for(auto var : region->variableIterable()) {
-            if(var->getDest()->getTarget()) {
-                continue;
-            }
-            else if(dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
-                LOG(9, " var " << var->getAddress() << " has a loader link");
-            }
-            else if(dynamic_cast<MarkerLink *>(var->getDest())) {
-                LOG(9, " var " << var->getAddress() << " has a marker link");
-            }
-            else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
-                LOG(9, " var " << var->getAddress() << " symbol only link");
-            }
-            else {
-                LOG(1, " var with unresolved link at " << var->getAddress());
+        for(auto sec : CIter::children(region)) {
+            for(auto var : CIter::children(sec)) {
+                if(var->getDest()->getTarget()) {
+                    continue;
+                }
+                else if(dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
+                    LOG(9, " var " << var->getAddress() << " has a loader link");
+                }
+                else if(dynamic_cast<MarkerLink *>(var->getDest())) {
+                    LOG(9, " var " << var->getAddress() << " has a marker link");
+                }
+                else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
+                    LOG(9, " var " << var->getAddress() << " symbol only link");
+                }
+                else {
+                    LOG(1, " var with unresolved link at " << var->getAddress());
+                }
             }
         }
     }

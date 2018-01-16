@@ -21,17 +21,12 @@ void HandleDataRelocsPass::visit(Module *module) {
             section->getName());
         if(!relocSection) continue;  // no relocs in this ElfSection
 
-        auto va = section->getVirtualAddress();
-        if(!va && relocSection->begin() != relocSection->end()) {
-            // if section address is 0 (as in a kernel), use address of first reloc
-            va = (*relocSection->begin())->getAddress();
-        }
-        LOG(1, "search for relocs in section [" << section->getName()
-            << "] at address = 0x" << std::hex << va);
-        auto sourceRegion = list->findRegionContaining(va);
-        if(!sourceRegion) continue;
-        auto sourceSection = sourceRegion->findDataSectionContaining(va);
+        // find the target section that this relocation section refers to
+        auto sourceElfSection = elfMap->findSection(section->getHeader()->sh_info);
+        auto sourceSection = list->findDataSection(sourceElfSection->getName());
         if(!sourceSection) continue;
+        auto sourceRegion = static_cast<DataRegion *>(sourceSection->getParent());
+        if(!sourceRegion) continue;
 
         if(sourceSection->isCode()) {
             // it's useless to make a link from code to literal here
@@ -52,7 +47,7 @@ void HandleDataRelocsPass::visit(Module *module) {
             << sourceSection->getName() << "]");
 
         // we have found a section with relocs, create one variable per reloc
-        ChunkMutator sectionMutator(sourceSection);
+        //ChunkMutator sectionMutator(sourceSection);
         for(auto reloc : *relocSection) {
 #if 0
             IF_LOG(1) if(sourceRegion->findVariable(reloc->getAddress())) {
@@ -75,7 +70,7 @@ void HandleDataRelocsPass::visit(Module *module) {
                 if(reloc->getSymbol()) {
                     var->setName(reloc->getSymbol()->getName());
                 }
-                sectionMutator.append(var);
+                sourceSection->getChildren()->add(var);
                 sourceRegion->addVariable(var);
             }
         }
@@ -91,7 +86,10 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     if(reloc->getType() == R_X86_64_NONE) {
         return nullptr;
     }
-    if(reloc->getType() == R_X86_64_RELATIVE) {
+    else if(reloc->getType() == R_X86_64_RELATIVE) {
+        return PerfectLinkResolver().resolveInternally(reloc, module, weak);
+    }
+    else if(reloc->getType() == R_X86_64_IRELATIVE) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
     }
     else if(reloc->getType() == R_X86_64_TPOFF64) {
@@ -108,7 +106,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             << ") in " << module->getName());
         return nullptr;
     }
-    if(reloc->getType() == R_X86_64_COPY) {
+    else if(reloc->getType() == R_X86_64_COPY) {
         LOG(10, "WARNING: skipping R_X86_64_COPY ("
             << std::hex << reloc->getAddress()
             << ") in " << module->getName());

@@ -16,23 +16,6 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-DataVariable::DataVariable(DataRegion *region, address_t address, Link *dest)
-    : dest(dest) {
-
-    auto section = CIter::spatial(region)->findContaining(address);
-    if(!section) {
-        LOG(10, "in " << region->getName() << ", address " << address);
-        ChunkDumper dumper;
-        region->accept(&dumper);
-        throw "no section contains this variable!";
-    }
-
-    auto offset = address - section->getAddress();
-    this->setPosition(new AbsoluteOffsetPosition(this, offset));
-    region->setParent(nullptr);
-    ChunkMutator(section).append(this);
-}
-
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
     : dest(dest) {
 
@@ -96,11 +79,25 @@ bool DataSection::contains(address_t address) {
 }
 
 DataVariable *DataSection::findVariable(const std::string &name) {
+#if 1
     return CIter::named(this)->find(name);
+#else
+    for(auto var : CIter::children(this)) {
+        if(var->getName() == name) return var;
+    }
+    return nullptr;
+#endif
 }
 
 DataVariable *DataSection::findVariable(address_t address) {
+#if 1
     return CIter::spatial(this)->find(address);
+#else
+    for(auto var : CIter::children(this)) {
+        if(var->getAddress() == address) return var;
+    }
+    return nullptr;
+#endif
 }
 
 void DataSection::serialize(ChunkSerializerOperations &op,
@@ -164,41 +161,21 @@ void DataRegion::updateAddressFor(address_t baseAddress) {
     getPosition()->set(baseAddress + originalAddress);
 }
 
-void DataRegion::addVariable(DataVariable *variable) {
-    variableList.push_back(variable);
-}
-
 DataVariable *DataRegion::findVariable(const std::string &name) {
-#if 0
-    for(auto var : variableList) {
-        if(var->getName() == name) {
-            return var;
-        }
-    }
-#else
     for(auto section : CIter::children(this)) {
         if(auto var = section->findVariable(name)) {
             return var;
         }
     }
-#endif
     return nullptr;
 }
 
-DataVariable *DataRegion::findVariable(address_t address) const {
-#if 0
-    for(auto var : variableList) {
-        if(var->getAddress() == address) {
-            return var;
-        }
-    }
-#else
+DataVariable *DataRegion::findVariable(address_t address) {
     for(auto section : CIter::children(this)) {
         if(auto var = section->findVariable(address)) {
             return var;
         }
     }
-#endif
     return nullptr;
 }
 
@@ -211,6 +188,10 @@ DataSection *DataRegion::findDataSectionContaining(address_t address) {
     return nullptr;
 }
 
+DataSection *DataRegion::findDataSection(const std::string &name) {
+    return CIter::named(this)->find(name);
+}
+
 void DataRegion::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
@@ -220,11 +201,6 @@ void DataRegion::serialize(ChunkSerializerOperations &op,
     writer.write(permissions);
     writer.write(alignment);
     writer.writeBytes<uint64_t>(dataBytes);
-
-    writer.write<uint64_t>(variableList.size());
-    for(auto var : variableList) {
-        writer.writeID(op.serialize(var));
-    }
 
     op.serializeChildren(this, writer);
 }
@@ -240,11 +216,6 @@ bool DataRegion::deserialize(ChunkSerializerOperations &op,
     reader.readInto(this->permissions);
     reader.readInto(this->alignment);
     dataBytes = std::move(reader.readBytes<uint64_t>());
-
-    uint64_t varCount = reader.read<uint64_t>();
-    for(uint64_t i = 0; i < varCount; i ++) {
-        variableList.push_back(op.lookupAs<DataVariable>(reader.readID()));
-    }
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
@@ -295,10 +266,13 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
     LOG(10, "MAKE LINK to " << std::hex << target
         << ", relative? " << isRelative);
 
-    auto region = CIter::spatial(this)->findContaining(target);
+    //auto region = CIter::spatial(this)->findContaining(target);
+    auto region = findRegionContaining(target);
     if(region) {
+        LOG(11, "    region is " << region->getName());
         auto dsec = CIter::spatial(region)->findContaining(target);
         if(dsec) {
+            LOG(11, "    section is " << dsec->getName());
             if(dsec->getType() == DataSection::TYPE_CODE) {
                 if(ChunkFind().findInnermostAt(
                     module->getFunctionList(), target)) {
@@ -348,6 +322,38 @@ DataRegion *DataRegionList::findNonTLSRegionContaining(address_t target) {
             return region;
         }
     }
+    return nullptr;
+}
+
+DataSection *DataRegionList::findDataSectionContaining(address_t address) {
+    auto region = findRegionContaining(address);
+    if(region) return region->findDataSectionContaining(address);
+
+    return nullptr;
+}
+
+DataSection *DataRegionList::findDataSection(const std::string &name) {
+    for(auto region : CIter::children(this)) {
+        if(auto section = CIter::named(region)->find(name)) {
+            return section;
+        }
+    }
+    return nullptr;
+}
+
+DataVariable *DataRegionList::findVariable(const std::string &name) {
+    for(auto region : CIter::children(this)) {
+        if(auto var = region->findVariable(name)) {
+            return var;
+        }
+    }
+    return nullptr;
+}
+
+DataVariable *DataRegionList::findVariable(address_t address) {
+    auto region = findRegionContaining(address);
+    if(region) return region->findVariable(address);
+
     return nullptr;
 }
 

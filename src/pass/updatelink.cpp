@@ -28,12 +28,14 @@ void UpdateLink::visit(Instruction *instruction) {
 }
 
 void UpdateLink::visit(DataRegion *dataRegion) {
-    for(auto var : dataRegion->variableIterable()) {
-        auto oldLink = var->getDest();
-        if(auto link = makeUpdateLink(oldLink, nullptr)) {
-            LOG(10, " from D " << std::hex << var->getAddress());
-            var->setDest(link);
-            delete oldLink;
+    for(auto sec : CIter::children(dataRegion)) {
+        for(auto var : CIter::children(sec)) {
+            auto oldLink = var->getDest();
+            if(auto link = makeUpdateLink(oldLink, nullptr)) {
+                LOG(10, " from D " << std::hex << var->getAddress());
+                var->setDest(link);
+                delete oldLink;
+            }
         }
     }
 }
