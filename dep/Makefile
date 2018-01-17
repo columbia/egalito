@@ -1,7 +1,5 @@
 # Makefile for dependencies
 
-SHELL=/bin/bash
-
 include ../env.mk
 
 # 'next' as of 11/13/17 returns wrong imm for backward TBZ/TBNZ
@@ -33,7 +31,7 @@ CAPSTONE_INSTALL := $(abspath capstone/install)
 capstone:
 	-@cd capstone \
 		&& rm -fr install \
-		&& git checkout $(capstone-VERSION) >& /dev/null \
+		&& git checkout $(capstone-VERSION) > /dev/null 2>&1 \
 		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
 		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install \
-		&& git checkout next >& /dev/null
+		&& git checkout next > /dev/null 2>&1
