@@ -15,6 +15,7 @@ public:
         MODE_NONE = 0,
         MODE_REG,
         MODE_IMM,
+        MODE_MEM,
         MODE_REG_REG,
         MODE_MEM_REG,
         MODE_IMM_REG,

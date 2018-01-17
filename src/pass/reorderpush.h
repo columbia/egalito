@@ -10,6 +10,8 @@ class ReorderPush : public ChunkPass {
 public:
     virtual void visit(Module *module);
     virtual void visit(Function *function);
+private:
+    Instruction *pickNextInstruction(const std::vector<Instruction *> &list);
 };
 
 #endif
