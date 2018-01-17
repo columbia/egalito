@@ -22,6 +22,7 @@
 #include "pass/usegstable.h"
 #include "pass/collapseplt.h"
 #include "pass/promotejumps.h"
+#include "pass/reorderpush.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -516,4 +517,19 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "promotes tail recursive jumps to 32-bits wide");
+
+    topLevel->add("reorderpush", [&] (Arguments args) {
+        args.shouldHave(1);
+
+        Function *func = ChunkFind2(setup->getConductor())
+            .findFunction(args.front().c_str());
+
+        if(func) {
+            ReorderPush reorder;
+            func->accept(&reorder);
+        }
+        else {
+            std::cout << "can't find function \"" << args.front() << "\"\n";
+        }
+    }, "disassembles a single function (like the GDB command)");
 }
