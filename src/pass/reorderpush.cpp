@@ -11,6 +11,7 @@
 #include "chunk/block.h"
 #include "instr/instr.h"
 #include "chunk/dump.h"
+#include "operation/mutator.h"
 #include "log/log.h"
 
 void ReorderPush::visit(Module *module) {
@@ -76,7 +77,7 @@ void ReorderPush::visit(Function *function) {
             prev = instr;
         }
     }
-#else
+#elif 0
     {
         auto firstBlock = function->getChildren()->getIterable()->get(0);
 
@@ -90,6 +91,28 @@ void ReorderPush::visit(Function *function) {
             [this] (const std::vector<Instruction *> &list) {
                 return this->pickNextInstruction(list);
             });
+    }
+#else
+    for(auto block : CIter::children(function)) {
+        ReachingDef reachingDef(block);
+        reachingDef.analyze();
+
+        reachingDef.dump();
+        reachingDef.computeDependencyClosure();
+
+        std::vector<Instruction *> newOrder;
+        reachingDef.visitInstructionGroups(
+            [this, &newOrder] (const std::vector<Instruction *> &list) {
+                auto ins = this->pickNextInstruction(list);
+                newOrder.push_back(ins);
+                return ins;
+            });
+
+        ChunkMutator mutator(block);
+        mutator.removeLast(block->getChildren()->genericGetSize());
+        for(auto ins : newOrder) {
+            mutator.append(ins);
+        }
     }
 #endif
 }
