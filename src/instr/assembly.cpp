@@ -116,6 +116,16 @@ AssemblyOperands::OperandsMode AssemblyOperands::getMode() const {
 
         mode = MODE_REG;
     }
+    if(op_count == 1
+        && operands[0].type == X86_OP_IMM) {
+
+        mode = MODE_IMM;
+    }
+    if(op_count == 1
+        && operands[0].type == X86_OP_MEM) {
+
+        mode = MODE_MEM;
+    }
     if(op_count == 2
         && operands[0].type == X86_OP_REG
         && operands[1].type == X86_OP_REG) {

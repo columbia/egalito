@@ -39,7 +39,7 @@ public:
 // May: evaluation must be delayed until all use-defs are determined
 class RefList {
 private:
-    typedef std::map<int, std::vector<UDState*>> ListType;
+    typedef std::map<int, std::vector<UDState *>> ListType;
     ListType list;
 public:
     void set(int reg, UDState *origin);
@@ -124,6 +124,7 @@ public:
     virtual void addRegUse(int reg, UDState *state) = 0;
     virtual void delRegUse(int reg, UDState *state) = 0;
     virtual const std::vector<UDState *>& getRegUse(int reg) const = 0;
+    virtual const UseList &getRegUseList() const = 0;
 
     virtual void addMemDef(int reg, TreeNode *tree) = 0;
     virtual TreeNode *getMemDef(int reg) const = 0;
@@ -131,8 +132,10 @@ public:
     virtual void addMemRef(int reg, UDState *origin) = 0;
     virtual void delMemRef(int reg) = 0;
     virtual const std::vector<UDState *>& getMemRef(int reg) const = 0;
+    virtual const RefList& getMemRefList() const = 0;
     virtual void addMemUse(int reg, UDState *state) = 0;
     virtual const std::vector<UDState *>& getMemUse(int reg) const = 0;
+    virtual const UseList& getMemUseList() const = 0;
 
     virtual void dumpState() const {}
 };
@@ -175,6 +178,8 @@ public:
         { regUseList.del(reg, state); }
     virtual const std::vector<UDState *>& getRegUse(int reg) const
         { return regUseList.get(reg); }
+    virtual const UseList &getRegUseList() const
+        { return regUseList; }
 
     virtual void addMemDef(int reg, TreeNode *tree) {}
     virtual TreeNode *getMemDef(int reg) const
@@ -185,9 +190,13 @@ public:
     virtual void delMemRef(int reg) {}
     virtual const std::vector<UDState *>& getMemRef(int reg) const
         { static std::vector<UDState *> emptyList; return emptyList; }
+    virtual const RefList& getMemRefList() const
+        { static RefList emptyList; return emptyList; }
     virtual void addMemUse(int reg, UDState *state) {}
     virtual const std::vector<UDState *>& getMemUse(int reg) const
         { static std::vector<UDState *> emptyList; return emptyList; }
+    virtual const UseList& getMemUseList() const
+        { static UseList emptyList; return emptyList; }
 
     virtual void dumpState() const { dumpRegState(); }
 
@@ -217,10 +226,14 @@ public:
         { memRefList.del(reg); }
     virtual const std::vector<UDState *>& getMemRef(int reg) const
         { return memRefList.get(reg); }
+    virtual const RefList& getMemRefList() const
+        { return memRefList; }
     virtual void addMemUse(int reg, UDState *state)
         { memUseList.add(reg, state); }
     virtual const std::vector<UDState *>& getMemUse(int reg) const
         { return memUseList.get(reg); }
+    virtual const UseList& getMemUseList() const
+        { return memUseList; }
 
     virtual void dumpState() const
         { dumpRegState(); dumpMemState(); }
@@ -234,6 +247,7 @@ private:
     ControlFlowGraph *cfg;
     bool allEnabled;
     std::map<int, bool> enabled;
+    bool trackPartialUDChains;
 
 public:
     UDConfiguration(ControlFlowGraph *cfg, const std::vector<int> &idList = {});
@@ -246,18 +260,21 @@ class UDWorkingSet {
 private:
     std::vector<RefList> nodeExposedRegSetList;
     std::vector<MemOriginList> nodeExposedMemSetList;
+    bool trackPartialUDChains;
 
     RefList *regSet;
     MemOriginList *memSet;
 
 public:
-    UDWorkingSet(ControlFlowGraph *cfg)
+    UDWorkingSet(ControlFlowGraph *cfg, bool trackPartial = false)
         : nodeExposedRegSetList(cfg->getCount()),
           nodeExposedMemSetList(cfg->getCount()),
+          trackPartialUDChains(trackPartial),
           regSet(nullptr), memSet(nullptr) {}
     virtual ~UDWorkingSet() {}
 
     void transitionTo(ControlFlowNode *node);
+    bool shouldTrackPartialUDChains() const { return trackPartialUDChains; }
 
     void setAsRegSet(int reg, UDState *origin)
         { regSet->set(reg, origin); }
@@ -292,7 +309,8 @@ private:
     typedef std::vector<RegMemState> StateListType;
     StateListType stateList;
 public:
-    UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg);
+    UDRegMemWorkingSet(Function *function, ControlFlowGraph *cfg,
+        bool trackPartial = false);
     virtual ~UDRegMemWorkingSet() {}
 
     virtual UDState *getState(Instruction *instruction);
