@@ -1,5 +1,6 @@
 #include <cassert>
 #include <algorithm>
+#include <queue>
 #include "reachingdef.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"
@@ -69,12 +70,54 @@ void ReachingDef::visitInstructionGroups(VisitCallback callback) {
     }
 }
 
+void ReachingDef::computeDependencyClosure() {
+    std::map<Instruction *, std::set<Instruction *>> newKillMap;
+
+    for(auto source : CIter::children(block)) {
+        for(auto dest : CIter::children(block)) {
+            if(inKillClosure(source, dest)) {
+                newKillMap[source].insert(dest);
+            }
+        }
+    }
+
+    killMap = std::move(newKillMap);
+    dependencyClosure = true;
+}
+
+bool ReachingDef::inKillClosure(Instruction *source, Instruction *dest) {
+    std::queue<Instruction *> queue;
+    queue.push(source);
+
+    std::set<Instruction *> visited;
+    visited.insert(source);
+
+    do {
+        Instruction *i = queue.front();
+        queue.pop();
+        visited.insert(i);
+
+        auto &set = killMap[i];
+        if(set.find(dest) != set.end()) return true;
+
+        for(auto newInstr : set) {
+            if(visited.find(newInstr) == visited.end()) {
+                queue.push(newInstr);
+            }
+        }
+    } while(!queue.empty());
+
+    return false;
+}
+
 bool ReachingDef::areDependenciesCovered(Instruction *instr,
     const std::set<Instruction *> &covered) {
 
     for(const auto &dependency : killMap[instr]) {
         if(covered.find(dependency) == covered.end()) return false;
-        if(!areDependenciesCovered(dependency, covered)) return false;
+        if(!dependencyClosure && !areDependenciesCovered(dependency, covered)) {
+            return false;
+        }
     }
 
     return true;
@@ -87,8 +130,9 @@ void ReachingDef::setBarrier(Instruction *instr) {
         }
     }
 
+    // <= to include MEMORY_REG
     for(int r = 0; r <= X86Register::REGISTER_NUMBER; r ++) {
-        currentAccessMap[r] = { instr };
+        currentWriteMap[r] = { instr };
     }
 }
 
@@ -102,7 +146,7 @@ void ReachingDef::dump() {
 
         const auto &set = (*it).second;
         for(auto kill : set) {
-            LOG0(1, "    kills " << kill->getName() << ", ");
+            LOG0(1, "    kills    " << kill->getName() << ", ");
             ChunkDumper dump;
             kill->accept(&dump);
         }
@@ -116,22 +160,43 @@ const std::map<int, ReachingDef::HandlerType> ReachingDef::handlers = {
     {X86_INS_CMP,       &ReachingDef::fillCmp},
     {X86_INS_LEA,       &ReachingDef::fillLea},
     {X86_INS_MOV,       &ReachingDef::fillMov},
+    {X86_INS_MOVD,      &ReachingDef::fillMov},
+    {X86_INS_MOVQ,      &ReachingDef::fillMov},
     {X86_INS_MOVABS,    &ReachingDef::fillMovabs},
     {X86_INS_MOVSXD,    &ReachingDef::fillMovsxd},
     {X86_INS_MOVZX,     &ReachingDef::fillMovzx},
     {X86_INS_PUSH,      &ReachingDef::fillPush},
     {X86_INS_POP,       &ReachingDef::fillPop},
     {X86_INS_SUB,       &ReachingDef::fillAddOrSub},
+    {X86_INS_XOR,       &ReachingDef::fillAddOrSub},
 #endif
 };
 
 void ReachingDef::setRegRead(int reg, Instruction *instr) {
-    currentAccessMap[reg].insert(instr);
+    auto it = currentWriteMap.find(reg);
+    if(it != currentWriteMap.end() && (*it).second != instr) {
+        killMap[instr].insert((*it).second);
+    }
+    currentReadMap[reg].insert(instr);
 }
 
 void ReachingDef::setRegWrite(int reg, Instruction *instr) {
-    killMap[instr] = currentAccessMap[reg];
-    currentAccessMap[reg] = { instr };
+    auto it = currentWriteMap.find(reg);
+    if(it != currentWriteMap.end()) {
+        killMap[instr].insert((*it).second);
+    }
+
+    // avoid self-loops
+    auto it2 = currentReadMap[reg].find(instr);
+    if(it2 != currentReadMap[reg].end()) {
+        currentReadMap[reg].erase(it2);
+    }
+
+    killMap[instr].insert(
+        currentReadMap[reg].begin(), currentReadMap[reg].end());
+
+    currentWriteMap[reg] = instr;
+    currentReadMap[reg].clear();
 }
 
 int ReachingDef::getReg(AssemblyPtr assembly, int index) {
@@ -152,6 +217,14 @@ void ReachingDef::handleMem(AssemblyPtr assembly, int index, Instruction *instr)
     }
 }
 
+void ReachingDef::setMemRead(Instruction *instr) {
+    setRegRead(MEMORY_REG, instr);
+}
+
+void ReachingDef::setMemWrite(Instruction *instr) {
+    setRegWrite(MEMORY_REG, instr);
+}
+
 #ifdef ARCH_X86_64
 void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -165,8 +238,10 @@ void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
         setRegWrite(getReg(assembly, 1), instr);
+        setMemWrite(instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -176,6 +251,7 @@ void ReachingDef::fillAnd(Instruction *instr, AssemblyPtr assembly) {
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -186,6 +262,7 @@ void ReachingDef::fillBsf(Instruction *instr, AssemblyPtr assembly) {
         setRegRead(getReg(assembly, 1), instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -198,8 +275,10 @@ void ReachingDef::fillBt(Instruction *instr, AssemblyPtr assembly) {
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
         setRegRead(getReg(assembly, 1), instr);
+        setMemWrite(instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
     setRegWrite(X86Register::FLAGS, instr);
@@ -215,8 +294,10 @@ void ReachingDef::fillCmp(Instruction *instr, AssemblyPtr assembly) {
     }
     else if(mode == AssemblyOperands::MODE_IMM_MEM) {
         handleMem(assembly, 1, instr);
+        setMemRead(instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
     setRegWrite(X86Register::FLAGS, instr);
@@ -228,14 +309,19 @@ void ReachingDef::fillLea(Instruction *instr, AssemblyPtr assembly) {
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
 void ReachingDef::fillMov(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
-    if(mode == AssemblyOperands::MODE_REG_MEM) {
+    if(mode == AssemblyOperands::MODE_IMM_REG) {
+        setRegWrite(getReg(assembly, 1), instr);
+    }
+    else if(mode == AssemblyOperands::MODE_REG_MEM) {
         setRegRead(getReg(assembly, 0), instr);
         handleMem(assembly, 1, instr);
+        setMemWrite(instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
@@ -246,6 +332,7 @@ void ReachingDef::fillMov(Instruction *instr, AssemblyPtr assembly) {
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -256,6 +343,7 @@ void ReachingDef::fillMovabs(Instruction *instr, AssemblyPtr assembly) {
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -274,8 +362,10 @@ void ReachingDef::fillPush(Instruction *instr, AssemblyPtr assembly) {
         handleMem(assembly, 0, instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
+    setMemWrite(instr);
     setRegWrite(X86Register::SP, instr);
 }
 void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
@@ -287,8 +377,10 @@ void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
         handleMem(assembly, 0, instr);
     }
     else {
+        setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
+    setMemRead(instr);
     setRegWrite(X86Register::SP, instr);
 }
 #endif
