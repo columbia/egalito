@@ -16,6 +16,36 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+DataVariable *DataVariable::create(Module *module, address_t address,
+    Link *dest, Symbol *symbol) {
+
+    auto region = module->getDataRegionList()->findRegionContaining(address);
+    auto section = region->findDataSectionContaining(address);
+
+    return DataVariable::create(section, address, dest, symbol);
+}
+
+DataVariable *DataVariable::create(DataSection *section, address_t address,
+    Link *dest, Symbol *symbol) {
+
+    assert(section != nullptr);
+    if(auto var = section->findVariable(address)) {
+        LOG(10, "variable already exists for " << address);
+        return var;
+    }
+    auto var = new DataVariable(section, address, dest);
+    if(symbol) {
+        var->setName(symbol->getName());
+    }
+    //ChunkMutator(section).append(var);
+    var->setParent(section);
+    section->getChildren()->add(var);
+
+    assert(section->findVariable(address));
+
+    return var;
+}
+
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
     : dest(dest) {
 
@@ -125,6 +155,10 @@ bool DataSection::deserialize(ChunkSerializerOperations &op,
 
     op.deserializeChildren(this, reader);
     return reader.stillGood();
+}
+
+void DataSection::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
 }
 
 DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {

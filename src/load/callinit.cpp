@@ -9,7 +9,7 @@
 #include "log/log.h"
 
 #define EGALITO_INIT_ARRAY_SZ   256
-address_t egalito_init_array[EGALITO_INIT_ARRAY_SZ];
+address_t egalito_init_array[EGALITO_INIT_ARRAY_SZ] __attribute__((weak));
 
 void CallInit::makeInitArray(Program *program, int argc, char **argv,
     char **envp, GSTable *gsTable) {
@@ -135,7 +135,7 @@ auto CallInit::getStart2(Conductor *conductor) -> Start2Type {
     return reinterpret_cast<Start2Type>(addr);
 }
 
-bool egalito_init_done;
+bool egalito_init_done __attribute__((weak));
 extern "C" void egalito_jit_gs_setup();
 
 extern "C"

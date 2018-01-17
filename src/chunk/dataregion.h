@@ -41,6 +41,11 @@ public:
         ArchiveStreamReader &reader);
 
     virtual void accept(ChunkVisitor *visitor) {}
+
+    static DataVariable *create(DataSection *section, address_t address,
+        Link *dest, Symbol *symbol);
+    static DataVariable *create(Module *module, address_t address,
+        Link *dest, Symbol *symbol);
 };
 
 class DataSection : public ChunkSerializerImpl<TYPE_DataSection,
@@ -80,14 +85,12 @@ public:
     virtual bool deserialize(ChunkSerializerOperations &op,
         ArchiveStreamReader &reader);
 
-    virtual void accept(ChunkVisitor *visitor) {}
+    virtual void accept(ChunkVisitor *visitor);
 };
 
 class DataRegion : public ChunkSerializerImpl<TYPE_DataRegion,
     ChildListDecorator<AddressableChunkImpl, DataSection>> {
 private:
-    typedef std::vector<DataVariable *> VariableListType;
-    VariableListType variableList;
     address_t originalAddress;
     size_t size;
     uint32_t permissions;
@@ -118,7 +121,6 @@ public:
 
     DataVariable *findVariable(const std::string &name);
     DataVariable *findVariable(address_t address);
-    void addVariable(DataVariable *) { /* deprecated */ }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

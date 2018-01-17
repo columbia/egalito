@@ -42,6 +42,7 @@ bool Symbol::isFunction() const {
         && size > 0 && shndx > 0 && !aliasFor;
 }
 
+// this may needs to be more strict to handle kernel with assembly files
 bool Symbol::isMarker() const {
     return symbolType == TYPE_NOTYPE && bindingType == BIND_GLOBAL
         && shndx > 0;
@@ -314,8 +315,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfMap,
         }
 
         Symbol *symbol = new Symbol(address, size, name, type, bind, j, shndx);
-        CLOG0(5, "%s symbol #%d, index %d, [%s] %lx\n", sectionName,
-            (int)list->symbolList.size(), j, name, address);
+        CLOG0(5, "%s symbol #%d, index %d, [%s] %lx, type %d\n", sectionName,
+            (int)list->symbolList.size(), j, name, address, type);
         list->add(symbol, (size_t)j);
     }
 

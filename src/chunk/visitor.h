@@ -22,6 +22,7 @@ public:
     virtual void visit(JumpTable *jumpTable) = 0;
     virtual void visit(JumpTableEntry *jumpTableEntry) = 0;
     virtual void visit(DataRegion *dataRegion) = 0;
+    virtual void visit(DataSection *dataSection) = 0;
     virtual void visit(MarkerList *markerList) = 0;
     virtual void visit(VTable *vtable) = 0;
     virtual void visit(VTableEntry *vtableEntry) = 0;
@@ -46,6 +47,7 @@ public:
     virtual void visit(JumpTable *jumpTable) {}
     virtual void visit(JumpTableEntry *jumpTableEntry) {}
     virtual void visit(DataRegion *dataRegion) {}
+    virtual void visit(DataSection *dataSection) {}
     virtual void visit(MarkerList *markerList) {}
     virtual void visit(VTable *vtable) {}
     virtual void visit(VTableEntry *vtableEntry) {}

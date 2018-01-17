@@ -20,6 +20,10 @@ protected:
 public:
     virtual void visit(Module *module);
 private:
+    void resolveSpecificRelocSection(RelocSection *relocSection,
+        Module *module);
+    void resolveGeneralRelocSection(RelocSection *relocSection,
+        Module *module);
     Link *resolveVariableLink(Reloc *reloc, Module *module);
 };
 

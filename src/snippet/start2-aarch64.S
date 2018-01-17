@@ -6,8 +6,10 @@
 .align 8
 egalito_initial_stack:
     .skip   8
+    .type egalito_initial_stack, STT_OBJECT
 egalito_entry:
     .skip   8
+    .type egalito_entry, STT_OBJECT
 
 .section .text
 # This has to be called in the target context

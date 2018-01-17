@@ -5,6 +5,7 @@
 #include "log/log.h"
 #include "log/temp.h"
 #include "chunk/dump.h"
+#include "pass/clearspatial.h"
 
 void IFuncLazyPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(egalito)");
@@ -21,18 +22,9 @@ void IFuncLazyPass::visit(PLTTrampoline *trampoline) {
     auto got = trampoline->getGotPLTEntry();
     ifuncList->addIFuncFor(got, trampoline->getTarget());
 
-    DataVariable *jumpslot = nullptr;
-    for(auto region : CIter::children(module->getDataRegionList())) {
-        jumpslot = region->findVariable(got);
-        if(jumpslot) {
-            LOG(10, "jumpslot found " << std::hex << jumpslot->getAddress());
-            break;
-        }
-    }
-    if(!jumpslot) {
-        TemporaryLogLevel tll("chunk", 10);
-        module->getDataRegionList()->accept(&d);
-    }
+    auto region = module->getDataRegionList()->findRegionContaining(got);
+    auto section = region->findDataSectionContaining(got);
+    DataVariable *jumpslot = section->findVariable(got);
     assert(jumpslot);
 
     auto link = jumpslot->getDest();

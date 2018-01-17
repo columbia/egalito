@@ -21,7 +21,7 @@
 #include "util/timing.h"
 #include "log/log.h"
 
-Chunk *egalito_gsCallback;
+Chunk *egalito_gsCallback __attribute__((weak));
 
 extern "C"
 size_t egalito_jit_gs_fixup(size_t offset) {

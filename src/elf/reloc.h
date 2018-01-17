@@ -49,10 +49,13 @@ private:
     typedef std::vector<Reloc *> ListType;
     ListType relocList;
     std::string name;
+    int infoLink;
 public:
-    RelocSection(const std::string &name) : name(name) {}
+    RelocSection(const std::string &name, int infoLink = 0)
+        : name(name), infoLink(infoLink) {}
 
     void add(Reloc *reloc);
+    bool hasInfoLink() const { return infoLink != 0; }
 
     ListType::iterator begin() { return relocList.begin(); }
     ListType::iterator end() { return relocList.end(); }
@@ -79,7 +82,7 @@ public:
     static RelocList *buildRelocList(ElfMap *elfmap, SymbolList *symbolList,
         SymbolList *dynamicSymbolList = nullptr);
 private:
-    RelocSection *makeOrGetSection(const std::string &name);
+    RelocSection *makeOrGetSection(const std::string &name, ElfXX_Shdr *s);
 };
 
 #endif

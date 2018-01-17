@@ -5,8 +5,12 @@
 .section .bss
 egalito_initial_stack:
     .skip   8
+    .type egalito_initial_stack, STT_OBJECT
+    .weak egalito_initial_stack
 egalito_entry:
     .skip   8
+    .type egalito_entry, STT_OBJECT
+    .weak egalito_entry
 
 .section .text
 /* This has to be called in the target context */

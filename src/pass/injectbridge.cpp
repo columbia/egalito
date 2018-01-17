@@ -39,17 +39,7 @@ void InjectBridgePass::makeLinkToLoaderVariable(Module *module, Reloc *reloc) {
     LOG(1, "[InjectBridge] assigning EgalitoLoaderLink for "
         << reloc->getSymbol()->getName());
 
-    auto address = reloc->getAddress();
-
-    auto sourceRegion = module->getDataRegionList()
-        ->findRegionContaining(address);
-    assert(sourceRegion);
-    auto sourceSection = sourceRegion->findDataSectionContaining(address);
-
     auto link = new EgalitoLoaderLink(reloc->getSymbol()->getName());
 
-    auto var = new DataVariable(sourceSection, reloc->getAddress(), link);
-    //ChunkMutator(sourceSection).append(var);
-    sourceSection->getChildren()->add(var);
-    sourceRegion->addVariable(var);
+    DataVariable::create(module, reloc->getAddress(), link, reloc->getSymbol());
 }

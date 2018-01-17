@@ -45,7 +45,8 @@ public:
     virtual void visit(PLTTrampoline *trampoline) {}
     virtual void visit(JumpTable *jumpTable) { recurse(jumpTable); }
     virtual void visit(JumpTableEntry *jumpTableEntry) {}
-    virtual void visit(DataRegion *dataRegion) {}
+    virtual void visit(DataRegion *dataRegion) { recurse(dataRegion); }
+    virtual void visit(DataSection *dataSection) {}
     virtual void visit(MarkerList *markerList) {}
     virtual void visit(VTable *vtable) {}
     virtual void visit(VTableEntry *vtableEntry) {}

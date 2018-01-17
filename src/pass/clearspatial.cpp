@@ -16,4 +16,9 @@ void ClearSpatialPass::visit(Block *block) {
 
 void ClearSpatialPass::visit(DataRegion *region) {
     region->getChildren()->clearSpatial();
+    recurse(region);
+}
+
+void ClearSpatialPass::visit(DataSection *section) {
+    section->getChildren()->clearSpatial();
 }

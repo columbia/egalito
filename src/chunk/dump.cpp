@@ -97,9 +97,6 @@ void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
 
 void ChunkDumper::visit(DataRegion *dataRegion) {
     LOG(1, "---[" << dataRegion->getName() << "]---");
-    LOG(1, "position is " << std::hex << dataRegion->getPosition());
-    LOG(1, "address is " << std::hex << dataRegion->getAddress());
-    LOG(1, "size is " << std::hex << dataRegion->getSize());
     LOG(1, std::hex <<
         dataRegion->getAddress() << " + " << dataRegion->getSize());
     for(auto sec : CIter::children(dataRegion)) {
@@ -107,16 +104,18 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
             << (sec->getAddress() + sec->getSize())
             << ") " << sec->getName());
     }
-    for(auto sec : CIter::children(dataRegion)) {
-        LOG(10, "inside " << sec->getName() << ":");
-        for(auto var : CIter::children(sec)) {
-            auto target = var->getDest()->getTarget();
-            LOG0(10, "var: " << var->getAddress());
-            if(target) {
-                LOG(10, " --> " << target->getName());
-            }
-            else LOG(10, "");
+    recurse(dataRegion);
+}
+
+void ChunkDumper::visit(DataSection *dataSection) {
+    LOG(10, "inside " << dataSection->getName() << ":");
+    for(auto var : CIter::children(dataSection)) {
+        auto target = var->getDest()->getTarget();
+        LOG0(10, "var: " << var->getAddress());
+        if(target) {
+            LOG(10, " --> " << target->getName());
         }
+        else LOG(10, "");
     }
 }
 

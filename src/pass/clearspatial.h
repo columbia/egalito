@@ -10,6 +10,7 @@ public:
     virtual void visit(Function *function);
     virtual void visit(Block *block);
     virtual void visit(DataRegion *region);
+    virtual void visit(DataSection *section);
 };
 
 #endif

@@ -77,16 +77,12 @@ static void createDataVariable2(Symbol *source, void *target,
     Module *egalito) {
 
     address_t address = source->getAddress();
-
-    auto targetAddress = reinterpret_cast<address_t>(target);
     address += egalito->getElfSpace()->getElfMap()->getBaseAddress();
-    auto region = egalito->getDataRegionList()->findRegionContaining(address);
-    auto section = region->findDataSectionContaining(address);
 
+    address_t targetAddress = reinterpret_cast<address_t>(target);
     auto link = new StackLink(targetAddress);
-    auto var = new DataVariable(section, address, link);
-    section->getChildren()->add(var);
-    region->addVariable(var);
+
+    DataVariable::create(egalito, address, link, nullptr);
 }
 
 void LoaderEmulator::setStackLinks(char **argv, char **envp) {
@@ -192,13 +188,9 @@ DataVariable *LoaderEmulator::findEgalitoDataVariable(const char *name) {
 
 static void createDataVariable(void *p, Function *target, Module *egalito) {
     address_t addr = reinterpret_cast<address_t>(p);
-    auto region = egalito->getDataRegionList()->findRegionContaining(addr);
-    auto section = region->findDataSectionContaining(addr);
 
     auto link = new NormalLink(target, Link::SCOPE_EXTERNAL_DATA);
-    auto var = new DataVariable(section, addr, link);
-    section->getChildren()->add(var);
-    region->addVariable(var);
+    DataVariable::create(egalito, addr, link, nullptr);
 
     LOG(1, "MADE data variable at " << std::hex << addr << " pointing to "
         << link->getTarget()->getName());

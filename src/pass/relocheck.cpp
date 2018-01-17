@@ -71,17 +71,21 @@ void ReloCheckPass::checkDataVariable(Module *module) {
                 if(var->getDest()->getTarget()) {
                     continue;
                 }
-                else if(dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
-                    LOG(9, " var " << var->getAddress() << " has a loader link");
+                if(auto l = dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
+                    LOG(9, " var " << std::hex << var->getAddress()
+                        << " has a loader link to " << l->getTargetName());
                 }
                 else if(dynamic_cast<MarkerLink *>(var->getDest())) {
-                    LOG(9, " var " << var->getAddress() << " has a marker link");
+                    LOG(9, " var " << std::hex << var->getAddress()
+                        << " has a marker link");
                 }
                 else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
-                    LOG(9, " var " << var->getAddress() << " symbol only link");
+                    LOG(9, " var " << std::hex << var->getAddress()
+                        << " symbol only link");
                 }
                 else {
-                    LOG(1, " var with unresolved link at " << var->getAddress());
+                    LOG(1, " var with unresolved link at "
+                        << std::hex << var->getAddress());
                 }
             }
         }
@@ -166,12 +170,18 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             Range(tls->getOriginalAddress(), tls->getSize()).contains(addr)) {
 
             auto tlsAddr = addr + tls->getAddress() - tls->getOriginalAddress();
-            var = tls->findVariable(tlsAddr);
+            for(auto sec : CIter::children(tls)) {
+                var = sec->findVariable(tlsAddr);
+                if(var) break;
+            }
         }
         if(!var) {
             auto dlist = module->getDataRegionList();
             if(auto region = dlist->findRegionContaining(addr)) {
-                var = region->findVariable(addr);
+                for(auto sec : CIter::children(region)) {
+                    var = sec->findVariable(addr);
+                    if(var) break;
+                }
             }
         }
 

@@ -105,10 +105,11 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
                 reloc->getSymbolName().c_str());
 
             if(!list->add(reloc)) {
-                CLOG0(1, "ignoring duplicate relocation for %lx\n", reloc->getAddress());
+                CLOG0(1, "ignoring duplicate relocation for %lx\n",
+                      reloc->getAddress());
             }
             else {
-                list->makeOrGetSection(name)->add(reloc);
+                list->makeOrGetSection(name, s)->add(reloc);
             }
         }
     }
@@ -116,11 +117,18 @@ RelocList *RelocList::buildRelocList(ElfMap *elf, SymbolList *symbolList,
     return list;
 }
 
-RelocSection *RelocList::makeOrGetSection(const std::string &name) {
+RelocSection *RelocList::makeOrGetSection(const std::string &name,
+    ElfXX_Shdr *s) {
+
     auto section = getSection(name);
     if(section) return section;
 
-    section = new RelocSection(name);
+    if(s->sh_type & SHF_INFO_LINK) {
+        section = new RelocSection(name, s->sh_info);
+    }
+    else {
+        section = new RelocSection(name);
+    }
     sectionList[name] = section;
     return section;
 }

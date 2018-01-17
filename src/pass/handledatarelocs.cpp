@@ -10,7 +10,6 @@
 
 void HandleDataRelocsPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(executable)");
-    auto list = module->getDataRegionList();
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -21,18 +20,12 @@ void HandleDataRelocsPass::visit(Module *module) {
             section->getName());
         if(!relocSection) continue;  // no relocs in this ElfSection
 
+#if 0
         // find the target section that this relocation section refers to
-        auto sourceElfSection = elfMap->findSection(section->getHeader()->sh_info);
+        auto sourceElfSection
+            = elfMap->findSection(section->getHeader()->sh_info);
         auto sourceSection = list->findDataSection(sourceElfSection->getName());
         if(!sourceSection) continue;
-        auto sourceRegion = static_cast<DataRegion *>(sourceSection->getParent());
-        if(!sourceRegion) continue;
-
-        if(sourceSection->isCode()) {
-            // it's useless to make a link from code to literal here
-            // because we won't be able to reach it after remap
-            continue;
-        }
 
         // in the Linux kernel, these sections do not store real addresses
         if(sourceSection->getName() == "__kcrctab") continue;
@@ -45,40 +38,54 @@ void HandleDataRelocsPass::visit(Module *module) {
 
         LOG(9, "resolving data relocations in section ["
             << sourceSection->getName() << "]");
-
-        // we have found a section with relocs, create one variable per reloc
-        //ChunkMutator sectionMutator(sourceSection);
-        for(auto reloc : *relocSection) {
-#if 0
-            IF_LOG(1) if(sourceRegion->findVariable(reloc->getAddress())) {
-                LOG(1, "ERROR: duplicate DataVariable created at 0x"
-                    << std::hex << reloc->getAddress());
-                continue;
-            }
 #endif
 
-            if(auto link = resolveVariableLink(reloc, module)) {
-                auto addr = reloc->getAddress();
-                LOG0(10, "resolving a variable at " << std::hex << addr);
-                if(auto sym = reloc->getSymbol()) {
-                    LOG(10, " => " << sym->getName()
-                        << " + " << reloc->getAddend());
-                }
-                else LOG(10, " => " << reloc->getAddend());
-                if(sourceRegion == list->getTLS()) LOG(11, "from TLS!");
-                auto var = new DataVariable(sourceSection, addr, link);
-                if(reloc->getSymbol()) {
-                    var->setName(reloc->getSymbol()->getName());
-                }
-                sourceSection->getChildren()->add(var);
-                sourceRegion->addVariable(var);
-            }
+        if(relocSection->hasInfoLink()) {
+            resolveSpecificRelocSection(relocSection, module);
+        }
+        else {
+            resolveGeneralRelocSection(relocSection, module);
         }
     }
 }
 
+// This pass is run multiple times, so we must check the existence first
+// otherwise we leak the link
+void HandleDataRelocsPass::resolveSpecificRelocSection(
+    RelocSection *relocSection, Module *module) {
+
+    auto addr = (*relocSection->begin())->getAddress();
+    auto region = module->getDataRegionList()->findRegionContaining(addr);
+    auto section = region->findDataSectionContaining(addr);
+
+    for(auto reloc : *relocSection) {
+        auto link = resolveVariableLink(reloc, module);
+        if(!link) continue;
+
+        if(section->findVariable(reloc->getAddress())) continue;
+        DataVariable::create(section, reloc->getAddress(), link,
+            reloc->getSymbol());
+    }
+}
+
+void HandleDataRelocsPass::resolveGeneralRelocSection(
+    RelocSection *relocSection, Module *module) {
+
+    auto list = module->getDataRegionList();
+    for(auto reloc : *relocSection) {
+        auto addr = reloc->getAddress();
+        auto region = list->findRegionContaining(addr);
+        auto section = region->findDataSectionContaining(addr);
+        if(section->findVariable(addr)) continue;
+
+        auto link = resolveVariableLink(reloc, module);
+        if(!link) continue;
+
+        DataVariable::create(module, addr, link, reloc->getSymbol());
+    }
+}
+
 Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
-    //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-libc.so.6");
 
     Symbol *symbol = reloc->getSymbol();
 

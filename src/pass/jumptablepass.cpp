@@ -33,18 +33,8 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
     //TemporaryLogLevel tll("djumptable", 10);
     //TemporaryLogLevel tll2("analysis", 10);
 
-#if defined(ARCH_X86_64) || defined(ARCH_ARM)
-#if 0
-    JumpTableSearch search;
-    search.search(module);
-#else
     JumptableDetection search(module);
     search.detect(module);
-#endif
-#elif defined(ARCH_AARCH64)
-    JumptableDetection search(module);
-    search.detect(module);
-#endif
 
     auto count1 = search.getTableList().size();
     while(1) {
@@ -138,9 +128,9 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto descriptor = jumpTable->getDescriptor();
 
     auto firstAddress = jumpTable->getAddress() + 0;
-    auto region = module->getDataRegionList()->findRegionContaining(firstAddress);
+    auto region
+        = module->getDataRegionList()->findRegionContaining(firstAddress);
     auto section = CIter::spatial(region)->findContaining(firstAddress);
-    //ChunkMutator sectionMutator(section);
 
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
@@ -182,9 +172,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             link = new UnresolvedLink(target);
         }
 
-        auto var = new DataVariable(section, address, link);
-        section->getChildren()->add(var);
-        region->addVariable(var);
+        auto var = DataVariable::create(section, address, link, nullptr);
 
         auto entry = new JumpTableEntry(var);
         entry->setPosition(PositionFactory::getInstance()

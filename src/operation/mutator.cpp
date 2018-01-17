@@ -66,8 +66,10 @@ void ChunkMutator::append(Chunk *child) {
     }
 
     // set children and parent pointers
-    chunk->getChildren()->genericAdd(child);
+    // parent pointer must be set first for it to return correct address
+    // which is needed for spatial map, which is updated in genericAdd()
     child->setParent(chunk);
+    chunk->getChildren()->genericAdd(child);
 
     if(!child->getPosition()) makePositionFor(child);
     updateSizesAndAuthorities(child);
