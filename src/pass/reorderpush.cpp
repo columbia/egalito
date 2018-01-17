@@ -84,6 +84,7 @@ void ReorderPush::visit(Function *function) {
         reachingDef.analyze();
 
         reachingDef.dump();
+        reachingDef.computeDependencyClosure();
 
         reachingDef.visitInstructionGroups(
             [this] (const std::vector<Instruction *> &list) {
