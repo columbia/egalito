@@ -188,7 +188,7 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
         killMap[instr].insert((*it).second);
     }
 
-    // avoid self-loops
+    // avoid self-loops e.g. xor %eax, %eax
     auto it2 = currentReadMap[reg].find(instr);
     if(it2 != currentReadMap[reg].end()) {
         currentReadMap[reg].erase(it2);
@@ -369,20 +369,6 @@ void ReachingDef::fillPush(Instruction *instr, AssemblyPtr assembly) {
     }
     setMemWrite(instr);
     setRegWrite(X86Register::SP, instr);
-
-#if 0
-    if(allowPushReorder) {
-        auto &set = killMap[instr];
-        for(auto it = set.begin(); it != set.end(); ) {
-            auto kill = *it;
-            if(kill->getSemantic()->getAssembly()->getId() == X86_INS_PUSH) {
-                set.erase(it++);
-                continue;
-            }
-            it ++;
-        }
-    }
-#endif
 }
 void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -398,44 +384,6 @@ void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     }
     setMemRead(instr);
     setRegWrite(X86Register::SP, instr);
-
-#if 0
-    if(allowPushReorder) {
-        auto &set = killMap[instr];
-        for(auto it = set.begin(); it != set.end(); ) {
-            auto kill = *it;
-            if(kill->getSemantic()->getAssembly()->getId() == X86_INS_POP) {
-                set.erase(it++);
-                continue;
-            }
-            it ++;
-        }
-    }
-#endif
-}
-#endif
-
-#if 0
-void ReachingDef::allowPushReordering() {
-    if(!allowPushReorder) return;
-
-    for(auto instr : CIter::children(block)) {
-        auto instrAsm = instr->getSemantic()->getAssembly();
-        if(instrAsm && (instrAsm->getId() == X86_INS_PUSH
-            || instrAsm->getId() == X86_INS_POP)) {
-
-            auto &set = killMap[instr];
-            for(auto it = set.begin(); it != set.end(); ) {
-                auto kill = *it;
-                auto killAsm = kill->getSemantic()->getAssembly();
-                if(killAsm && killAsm->getId() == instrAsm->getId()) {
-                    set.erase(it++);
-                    continue;
-                }
-                it ++;
-            }
-        }
-    }
 }
 #endif
 
