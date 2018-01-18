@@ -3,8 +3,7 @@
 	url = git@github.com:columbia/egalito-tests
 [submodule "dep/capstone"]
 	path = dep/capstone
-	url = git@github.com:columbia/egalito-capstone.git
-	branch = egalito
+	url = git@github.com:columbia/egalito-capstone
 [submodule "dep/distorm3"]
 	path = dep/distorm3
 	url = https://github.com/gdabah/distorm
