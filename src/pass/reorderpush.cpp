@@ -1,10 +1,9 @@
+#include <cassert>
 #include <cstdlib>
 #include <vector>
 #include <map>
 #include "reorderpush.h"
 #include "analysis/frametype.h"
-#include "analysis/controlflow.h"
-#include "analysis/usedef.h"
 #include "analysis/reachingdef.h"
 #include "chunk/module.h"
 #include "chunk/function.h"
@@ -22,91 +21,53 @@ void ReorderPush::visit(Function *function) {
     FrameType frameType(function);
     frameType.dump();
 
-    /*auto prologueEnd = frameType.getSetSPInstr();
+    auto prologueEnd = frameType.getSetSPInstr();
     auto epilogueStartList = frameType.getResetSPInstrs();
-    if(!prologueEnd || epilogueStartList.empty()) return;*/
+    bool reorderPushes = (prologueEnd && !epilogueStartList.empty());
 
-#if 0
-    ControlFlowGraph cfg(function);
-    UDConfiguration config(&cfg);
-    UDRegMemWorkingSet working(function, &cfg, true);
-    UseDef usedef(&config, &working);
-
-    RegState initialState(nullptr, nullptr);
-
-    /*for(int r = 0; r < X86Register::REGISTER_NUMBER; r ++) {
-        initialState.addRegDef(r, new TreeNodeRegister(r));
-        working.addToRegSet(r, &initialState);
-    }*/
-
-    {
-        auto firstBlock = function->getChildren()->getIterable()->get(0);
-        int firstBlockID = cfg.getIDFor(firstBlock);
-        std::vector<std::vector<int>> order = {{ firstBlockID }};
-
-        usedef.analyze(order);
-
-        std::vector<Instruction *> instrList;
-        std::map<Instruction *, std::vector<Instruction *>> dependsMap;
-
-        auto newBlock = new Block();
-        bool pastEnd = false;
-        Instruction *prev = nullptr;
-        for(auto instr : CIter::children(firstBlock)) {
-            LOG0(1, "prologue instr: ");
-            ChunkDumper dump;
-            instr->accept(&dump);
-
-            if(instr == prologueEnd) pastEnd = true;
-
-            if(!pastEnd) {
-                auto state = working.getState(instr);
-#if 0
-                for(auto pair : *state->getRegRefList()) {
-                    auto reg = pair.first;
-                    auto 
-                }
-#endif
-                state->getRegUseList().dump();
-            }
-            else {
-                instrList.push_back(instr);
-                if(prev) dependsMap[instr] = { prev };
-            }
-
-            prev = instr;
-        }
-    }
-#elif 0
-    {
-        auto firstBlock = function->getChildren()->getIterable()->get(0);
-
-        ReachingDef reachingDef(firstBlock);
-        reachingDef.analyze();
-
-        reachingDef.dump();
-        reachingDef.computeDependencyClosure();
-
-        reachingDef.visitInstructionGroups(
-            [this] (const std::vector<Instruction *> &list) {
-                return this->pickNextInstruction(list);
-            });
-    }
-#else
+    std::vector<int> realPushOrder;
     for(auto block : CIter::children(function)) {
+        bool allowPushReorder = false;
+        bool enforcePopOrder = false;
+        if(reorderPushes) {
+            allowPushReorder = (prologueEnd->getParent() == block);
+            for(auto epilogue : epilogueStartList) {
+                if(epilogue->getParent() == block) {
+                    enforcePopOrder = true;
+                    break;
+                }
+            }
+        }
+        if(allowPushReorder && enforcePopOrder) {
+            allowPushReorder = false;
+            enforcePopOrder = false;
+        }
+
+        LOG(1, "ReorderPush for block " << block->getName() << ", push="
+            << (allowPushReorder ? 'y' : 'n') << ", pop="
+            << (enforcePopOrder ? 'y' : 'n'));
+
         ReachingDef reachingDef(block);
         reachingDef.analyze();
 
         reachingDef.dump();
-        reachingDef.computeDependencyClosure();
+        reachingDef.computeDependencyClosure(
+            allowPushReorder || enforcePopOrder);
+
+        if(enforcePopOrder) pushOrder = realPushOrder;
 
         std::vector<Instruction *> newOrder;
         reachingDef.visitInstructionGroups(
-            [this, &newOrder] (const std::vector<Instruction *> &list) {
-                auto ins = this->pickNextInstruction(list);
+            [this, &newOrder, allowPushReorder, enforcePopOrder]
+                (const std::vector<Instruction *> &list) {
+
+                auto ins = this->pickNextInstruction(list,
+                    allowPushReorder, enforcePopOrder);
                 newOrder.push_back(ins);
                 return ins;
             });
+
+        if(allowPushReorder) realPushOrder = pushOrder;
 
         ChunkMutator mutator(block);
         mutator.removeLast(block->getChildren()->genericGetSize());
@@ -114,11 +75,33 @@ void ReorderPush::visit(Function *function) {
             mutator.append(ins);
         }
     }
-#endif
+    pushOrder.clear();
 }
 
-Instruction *ReorderPush::pickNextInstruction(
-    const std::vector<Instruction *> &list) {
+Instruction *ReorderPush::pickNextInstruction(std::vector<Instruction *> list,
+    bool recordPushes, bool enforcePops) {
+
+    Instruction *ordainedPop = nullptr;
+    if(enforcePops) {
+        for(size_t index = 0; index < list.size(); ) {
+            auto i = list[index];
+            auto popAsm = i->getSemantic()->getAssembly();
+            if(popAsm && popAsm->getId() == X86_INS_POP
+                && popAsm->getAsmOperands()->getMode() == AssemblyOperands::MODE_REG) {
+
+                auto reg = popAsm->getAsmOperands()->getOperands()[0].reg;
+                if(reg == pushOrder.back()) {
+                    ordainedPop = i;
+                }
+                else {
+                    list.erase(list.begin() + index);
+                    continue;
+                }
+            }
+            index ++;
+        }
+        assert(!list.empty());
+    }
 
     LOG0(1, "choose between");
     for(auto i : list) {
@@ -130,5 +113,17 @@ Instruction *ReorderPush::pickNextInstruction(
     LOG0(1, "choose order: ");
     ChunkDumper dump;
     ins->accept(&dump);
+
+    auto pushAsm = ins->getSemantic()->getAssembly();
+    if(recordPushes && pushAsm && pushAsm->getId() == X86_INS_PUSH
+        && pushAsm->getAsmOperands()->getMode() == AssemblyOperands::MODE_REG) {
+
+        pushOrder.push_back(pushAsm->getAsmOperands()->getOperands()[0].reg);
+    }
+
+    if(ins == ordainedPop) {
+        pushOrder.pop_back();
+    }
+
     return ins;
 }
