@@ -17,7 +17,7 @@ class ReachingDef {
 public:
     typedef void (ReachingDef::*HandlerType)(Instruction *instr,
         AssemblyPtr assembly);
-    typedef std::function<Instruction *(const std::vector<Instruction *> &)>
+    typedef std::function<Instruction *(std::vector<Instruction *>)>
         VisitCallback;
 private:
     Block *block;
@@ -37,7 +37,7 @@ private:
 public:
     ReachingDef(Block *block) : block(block), dependencyClosure(false) {}
     void analyze();
-    void computeDependencyClosure();
+    void computeDependencyClosure(bool allowPushReordering);
 
     void visitInstructionGroups(VisitCallback callback);
 
@@ -69,6 +69,8 @@ private:
     void fillPush(Instruction *instr, AssemblyPtr assembly);
     void fillPop(Instruction *instr, AssemblyPtr assembly);
 #endif
+
+    bool bothPushesOrPops(Instruction *one, Instruction *two);
 };
 
 #endif
