@@ -64,17 +64,19 @@ void ReachingDef::visitInstructionGroups(VisitCallback callback) {
             break;
         }
 
-        auto chosen = callback(group);
+        auto chosen = callback(std::move(group));
         available.erase(available.find(chosen));
         visited.insert(chosen);
     }
 }
 
-void ReachingDef::computeDependencyClosure() {
+void ReachingDef::computeDependencyClosure(bool allowPushReordering) {
     std::map<Instruction *, std::set<Instruction *>> newKillMap;
 
     for(auto source : CIter::children(block)) {
         for(auto dest : CIter::children(block)) {
+            if(allowPushReordering && bothPushesOrPops(source, dest)) continue;
+
             if(inKillClosure(source, dest)) {
                 newKillMap[source].insert(dest);
             }
@@ -367,6 +369,20 @@ void ReachingDef::fillPush(Instruction *instr, AssemblyPtr assembly) {
     }
     setMemWrite(instr);
     setRegWrite(X86Register::SP, instr);
+
+#if 0
+    if(allowPushReorder) {
+        auto &set = killMap[instr];
+        for(auto it = set.begin(); it != set.end(); ) {
+            auto kill = *it;
+            if(kill->getSemantic()->getAssembly()->getId() == X86_INS_PUSH) {
+                set.erase(it++);
+                continue;
+            }
+            it ++;
+        }
+    }
+#endif
 }
 void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -382,5 +398,55 @@ void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     }
     setMemRead(instr);
     setRegWrite(X86Register::SP, instr);
+
+#if 0
+    if(allowPushReorder) {
+        auto &set = killMap[instr];
+        for(auto it = set.begin(); it != set.end(); ) {
+            auto kill = *it;
+            if(kill->getSemantic()->getAssembly()->getId() == X86_INS_POP) {
+                set.erase(it++);
+                continue;
+            }
+            it ++;
+        }
+    }
+#endif
 }
 #endif
+
+#if 0
+void ReachingDef::allowPushReordering() {
+    if(!allowPushReorder) return;
+
+    for(auto instr : CIter::children(block)) {
+        auto instrAsm = instr->getSemantic()->getAssembly();
+        if(instrAsm && (instrAsm->getId() == X86_INS_PUSH
+            || instrAsm->getId() == X86_INS_POP)) {
+
+            auto &set = killMap[instr];
+            for(auto it = set.begin(); it != set.end(); ) {
+                auto kill = *it;
+                auto killAsm = kill->getSemantic()->getAssembly();
+                if(killAsm && killAsm->getId() == instrAsm->getId()) {
+                    set.erase(it++);
+                    continue;
+                }
+                it ++;
+            }
+        }
+    }
+}
+#endif
+
+bool ReachingDef::bothPushesOrPops(Instruction *one, Instruction *two) {
+    auto asm1 = one->getSemantic()->getAssembly();
+    auto asm2 = two->getSemantic()->getAssembly();
+    if(asm1 && asm2) {
+        if(asm1->getId() == X86_INS_PUSH || asm1->getId() == X86_INS_POP) {
+            if(asm1->getId() == asm2->getId()) return true;
+        }
+    }
+
+    return false;
+}
