@@ -44,6 +44,7 @@ void JitGSSetup::makeHardwiredGSEntries(Module *egalito) {
         "egalito_hook_jit_fixup",           // hardcoded as gs@[0]
         "egalito_hook_jit_fixup_return",    // hardcoded as gs@[1]
         "egalito_hook_jit_reset_on_syscall",// hardcoded as gs@[2]
+        "egalito_signal_handler",           // hardcoded as gs@[3]
     };
     for(auto name : reserved) {
         makeResolvedEntry(name, egalito);

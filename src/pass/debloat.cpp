@@ -178,7 +178,10 @@ void DebloatPass::useFromSpecialName() {
                 markTreeAsUsed(function);
             }
             if(isFeatureEnabled("EGALITO_USE_GS")) {
-                if(function->hasName("egalito_pthread_create")){
+                if(function->hasName("egalito_pthread_create")
+                    || function->hasName("egalito_sigaction")
+                    || function->hasName("egalito_signal_handler")){
+
                     markTreeAsUsed(function);
                 }
                 else if(function->hasName("egalito_jit_gs_setup_thread")){

@@ -23,6 +23,7 @@
 extern "C" int arch_prctl(int code, unsigned long addr);
 
 extern Chunk *egalito_gsCallback;
+extern bool egalito_init_done;
 
 void ManageGS::init(GSTable *gsTable) {
 #ifdef ARCH_X86_64
@@ -39,12 +40,11 @@ void ManageGS::init(GSTable *gsTable) {
 
     gsTable->setTableAddress(buffer);
 
-    auto jitStart = gsTable->getJITStartIndex();
-    auto jitEnd = gsTable->getChildren()->getIterable()->getCount();
-    address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
-    LOG(1, "will set the address egalito_gsCallback"
-        << " from " << std::hex << &array[jitStart]
-        << " to " << &array[jitEnd]);
+    void *signalBuffer = mmap(NULL, 1024, PROT_READ|PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    LOG(1, "Signal table at " << std::hex << signalBuffer);
+    gsTable->setSignalTableAddress(signalBuffer);
+
     ManageGS::resetEntries(gsTable, egalito_gsCallback);
     //if(1) { // to debug RELEASE_BUILD
     IF_LOG(1) {
@@ -103,7 +103,6 @@ address_t ManageGS::getEntry(GSTableEntry::IndexType offset) {
     return address;
 }
 
-extern bool egalito_init_done;
 void ManageGS::resetEntries(GSTable *gsTable, Chunk *callback) {
     address_t *array = static_cast<address_t *>(gsTable->getTableAddress());
     auto jitStart = gsTable->getJITStartIndex();

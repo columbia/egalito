@@ -30,6 +30,11 @@ void HijackPass::visit(Instruction *instruction) {
 
     if(auto f = dynamic_cast<Function *>(link->getTarget())) {
         if(f == original) {
+            LOG(10, "retargeting " << original->getName() << " to " << wrapper->getName());
+            IF_LOG(10) {
+                ChunkDumper d;
+                instruction->accept(&d);
+            }
             semantic->setLink(
                 new NormalLink(wrapper, Link::SCOPE_EXTERNAL_JUMP));
             delete link;

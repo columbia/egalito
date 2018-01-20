@@ -28,10 +28,11 @@ private:
     //Chunk *escapeTarget;
     std::map<Chunk *, GSTableEntry *> entryMap;
     void *tableAddress;
+    void *signalTableAddress;
     size_t reserved;
 public:
     GSTable()
-        : /* escapeTarget(nullptr), */ tableAddress(nullptr), reserved(0) {}
+        : /* escapeTarget(nullptr), */ tableAddress(nullptr), signalTableAddress(nullptr), reserved(0) {}
 
     // no going back
     void finishReservation();
@@ -47,6 +48,9 @@ public:
 
     void setTableAddress(void *address) { tableAddress = address; }
     void *getTableAddress() const { return tableAddress; }
+
+    void setSignalTableAddress(void *address) { signalTableAddress = address; }
+    void *getSignalTableAddress() const { return signalTableAddress; }
 
     virtual void accept(ChunkVisitor *visitor);
 private:
