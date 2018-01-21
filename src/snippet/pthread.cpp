@@ -24,9 +24,13 @@ int egalito_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     auto JIT_addressTable = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
+    auto JIT_resetThreshold = EgalitoTLS::getJITResetThreshold();
+
     // will be consumed before the child is spawned
     volatile size_t barrier = 0;
-    EgalitoTLS child(&barrier, gsTable, sandbox, JIT_addressTable);
+    EgalitoTLS child(&barrier, gsTable, sandbox, JIT_addressTable,
+        JIT_resetThreshold);
+
     EgalitoTLS::setChild(&child);
 
     // we need a hook right after the clone syscall, but don't need

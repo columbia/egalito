@@ -14,11 +14,16 @@
 #include "log/temp.h"
 #include "cminus/print.h"
 
+#ifndef JIT_RESET_THRESHOLD
+#define JIT_RESET_THRESHOLD 1
+#endif
+
 extern "C"
 void egalito_jit_gs_setup() {
     auto base = mmap(NULL, JIT_TABLE_SIZE, PROT_READ|PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     EgalitoTLS::setJITAddressTable(base);
+    EgalitoTLS::setJITResetThreshold(JIT_RESET_THRESHOLD);
 
     auto gsTable = EgalitoTLS::getGSTable();
     for(auto entry : CIter::children(gsTable)) {

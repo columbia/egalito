@@ -105,6 +105,14 @@ void egalito_jit_gs_reset(void) {
     }
     t = new EgalitoTiming("from previous reset");
 #endif
+    auto counter = EgalitoTLS::getJITResetCounter();
+    auto threshold = EgalitoTLS::getJITResetThreshold();
+    counter++;
+    if(counter < threshold) {
+        EgalitoTLS::setJITResetCounter(counter);
+        return;
+    }
+    EgalitoTLS::setJITResetCounter(0);
     //egalito_printf("resetting...\n");
     auto sandbox = EgalitoTLS::getSandbox();
     auto gsTable = EgalitoTLS::getGSTable();
