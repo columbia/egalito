@@ -94,14 +94,23 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
             address_t target
                 = (instruction->getAddress() + instruction->getSize())
                 + op->mem.disp;
-            auto found = CIter::spatial(module->getFunctionList())
-                ->find(target);
+            Chunk *found = CIter::spatial(module->getFunctionList())
+                ->findContaining(target);
+            if(!found) {
+                found = CIter::spatial(module->getPLTList())
+                    ->find(target);
+            }
             if(found) {
-                if(found == instruction->getParent()->getParent()) {
-                    dispLink = new NormalLink(found, Link::SCOPE_INTERNAL_JUMP);
-                } else {
-                    dispLink = new NormalLink(found, Link::SCOPE_EXTERNAL_JUMP);
+                auto scope = (found == instruction->getParent()->getParent()) ?
+                    Link::SCOPE_INTERNAL_JUMP : Link::SCOPE_EXTERNAL_JUMP;
+                if(found->getAddress() != target) {
+                    auto function = dynamic_cast<Function *>(found);
+                    if(function) {
+                        found = ChunkFind().findInnermostInsideInstruction(
+                            function, target);
+                    }
                 }
+                dispLink = new NormalLink(found, scope);
             }
             else {
                 dispLink = LinkFactory::makeDataLink(module, target, true);

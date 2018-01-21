@@ -1,3 +1,4 @@
+#include <cassert>
 #include "link.h"
 #include "chunk/concrete.h"
 #include "chunk/aliasmap.h"
@@ -127,6 +128,23 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
         }
 
         addr += symbol->getAddress();
+        auto type = reloc->getType();
+        // R_X86_64_PC16 and R_X86_64_PC8 are not conformant to AMD64 ABI
+        if(type == R_X86_64_PC32
+            || type == R_X86_64_GOTPC32
+        ) {
+            addr += 4;
+        }
+        else if(type == R_X86_64_PC64
+            || type == R_X86_64_GOTPCREL64
+            || type == R_X86_64_GOTPC64
+            || type == R_X86_64_PLTOFF64
+        ) {
+            addr += 8;
+        }
+        assert(type != R_X86_64_GOTPCREL
+            && type != R_X86_64_GOTPCRELX
+            && type != R_X86_64_REX_GOTPCRELX);
     }
     LOG(10, "(resolveInternally) SEARCH for " << std::hex << addr);
 
@@ -210,8 +228,8 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
     }
 
     // weak definition
-    if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(), elfSpace,
-        weak, afterMapping)) {
+    if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+        elfSpace, weak, afterMapping)) {
 
         LOG(10, "    link to weak definition in "
             << elfSpace->getModule()->getName());
