@@ -10,6 +10,7 @@
 #include "instr/instr.h"
 #include "instr/concrete.h"
 #include "log/log.h"
+#include "config.h"
 
 bool SymbolInTable::operator < (const SymbolInTable &other) const {
     if(type < other.type) return true;
@@ -134,6 +135,12 @@ size_t SymbolTableContent::indexOfSectionSymbol(const std::string &section,
     return this->indexOf(sectionSymbols[index]);
 }
 
+SymbolInTable::type_t SymbolTableContent::getTypeFor(Function *func) {
+    // !!! Function should know whether it is local or not...
+    return (func->getSymbol()->getBind() == Symbol::BIND_LOCAL)
+        ? SymbolInTable::TYPE_LOCAL : SymbolInTable::TYPE_GLOBAL;
+}
+
 ShdrTableContent::DeferredType *ShdrTableContent::add(Section *section) {
     auto shdr = new ElfXX_Shdr();
     std::memset(shdr, 0, sizeof(*shdr));
@@ -159,6 +166,66 @@ ShdrTableContent::DeferredType *ShdrTableContent::add(Section *section) {
 
     DeferredMap<Section *, ElfXX_Shdr>::add(section, deferred);
     return deferred;
+}
+
+PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
+    auto phdr = new ElfXX_Phdr();
+    std::memset(phdr, 0, sizeof(*phdr));
+
+    auto deferred = new DeferredType(phdr);
+
+    deferred->addFunction([this, segment] (ElfXX_Phdr *phdr) {
+        LOG(1, "generating phdr for segment of type " << segment->getType()
+            << ", containing:");
+
+        size_t fileSize = 0;
+        for(auto section : segment->getContainsList()) {
+            LOG(2, "    " << section->getName());
+            fileSize += section->getContent()->getSize();
+        }
+
+        size_t offset = 0;
+        address_t address = 0;
+        if(!segment->getContainsList().empty()) {
+            auto firstSection = segment->getContainsList()[0];
+            offset = firstSection->getOffset();
+            if(firstSection->getHeader()) {
+                address = firstSection->getHeader()->getAddress();
+            }
+        }
+
+        phdr->p_type    = segment->getType();
+        phdr->p_flags   = segment->getFlags();
+        phdr->p_offset  = offset;
+        phdr->p_vaddr   = address;
+        phdr->p_paddr   = address;
+        phdr->p_filesz  = fileSize;
+        phdr->p_memsz   = fileSize + segment->getAdditionalMemSize();
+        phdr->p_align   = segment->getAlignment();
+
+        if((phdr->p_vaddr & LINUX_KERNEL_BASE) == LINUX_KERNEL_BASE) {
+            phdr->p_paddr -= LINUX_KERNEL_BASE;
+        }
+    });
+
+    DeferredMap<SegmentInfo *, ElfXX_Phdr>::add(segment, deferred);
+    return deferred;
+}
+
+size_t PagePaddingContent::getSize() const {
+    size_t lastByte = previousSection->getOffset();
+    if(previousSection->hasContent()) {
+        lastByte += previousSection->getContent()->getSize();
+    }
+
+    // how much data is needed to round from lastByte to a page boundary?
+    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+        - lastByte;
+    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+}
+
+void PagePaddingContent::writeTo(std::ostream &stream) {
+    stream << std::string(getSize(), '\0');
 }
 
 Section *RelocSectionContent::getTargetSection() {
@@ -269,5 +336,35 @@ RelocSectionContent::DeferredType *RelocSectionContent
         rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
     });
 
+    return deferred;
+}
+
+Section *RelocSectionContent2::getTargetSection() {
+    return other->get();
+}
+
+RelocSectionContent2::DeferredType *RelocSectionContent2
+    ::addDataRef(address_t source, address_t target, DataSection *targetSection) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = target - targetSection->getAddress();
+
+    auto name = targetSection->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }
+        rela->r_info = ELF64_R_INFO(sectionSymbolIndex, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
     return deferred;
 }

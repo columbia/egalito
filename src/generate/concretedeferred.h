@@ -58,6 +58,8 @@ public:
     size_t indexOfSectionSymbol(const std::string &section,
         SectionList *sectionList);
     int getFirstGlobalIndex() const { return firstGlobalIndex; }
+public:
+    static SymbolInTable::type_t getTypeFor(Function *func);
 };
 
 class ShdrTableContent : public DeferredMap<Section *, ElfXX_Shdr> {
@@ -65,6 +67,52 @@ public:
     typedef DeferredValueImpl<ElfXX_Shdr> DeferredType;
 public:
     DeferredType *add(Section *section);
+};
+
+class SegmentInfo {
+private:
+    ElfXX_Word type;
+    ElfXX_Word flags;
+    address_t alignment;
+    size_t additionalMemSize;
+    std::vector<Section *> containsList;
+public:
+    SegmentInfo(ElfXX_Word type, ElfXX_Word flags, address_t alignment)
+        : type(type), flags(flags), alignment(alignment), additionalMemSize(0) {}
+
+    void setAdditionalMemSize(size_t a) { additionalMemSize = a; }
+    void addContains(Section *section) { containsList.push_back(section); }
+
+    ElfXX_Word getType() const { return type; }
+    ElfXX_Word getFlags() const { return flags; }
+    address_t getAlignment() const { return alignment; }
+    size_t getAdditionalMemSize() const { return additionalMemSize; }
+    std::vector<Section *> &getContainsList() { return containsList; }
+};
+
+class PhdrTableContent : public DeferredMap<SegmentInfo *, ElfXX_Phdr> {
+public:
+    typedef DeferredValueImpl<ElfXX_Phdr> DeferredType;
+private:
+    SectionList *sectionList;
+public:
+    PhdrTableContent(SectionList *sectionList) : sectionList(sectionList) {}
+
+    DeferredType *add(SegmentInfo *segment);
+};
+
+class PagePaddingContent : public DeferredValue {
+private:
+    static const address_t PAGE_SIZE = 0x200000;
+private:
+    Section *previousSection;
+    address_t desiredOffset;
+public:
+    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0)
+        : previousSection(previousSection), desiredOffset(desiredOffset) {}
+
+    virtual size_t getSize() const;
+    virtual void writeTo(std::ostream &stream);
 };
 
 class RelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
@@ -87,6 +135,23 @@ private:
     DeferredType *addConcrete(Instruction *source, DataOffsetLink *link);
     DeferredType *addConcrete(Instruction *source, PLTLink *link);
     DeferredType *addConcrete(Instruction *source, SymbolOnlyLink *link);
+};
+
+class DataSection;
+class RelocSectionContent2 : public DeferredMap<address_t, ElfXX_Rela> {
+public:
+    typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
+private:
+    SectionList *sectionList;
+    SectionRef *other;
+public:
+    RelocSectionContent2(SectionList *sectionList, SectionRef *other)
+        : sectionList(sectionList), other(other) {}
+
+    Section *getTargetSection();
+
+    DeferredType *addDataRef(address_t source, address_t target,
+        DataSection *targetSection);
 };
 
 #endif

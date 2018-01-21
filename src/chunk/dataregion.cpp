@@ -97,6 +97,16 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
+    else if(shdr->sh_type == SHT_PROGBITS) {
+        if(name == ".data" || name == ".rodata"
+            /*|| name == ".data..percpu"*/ || name == ".init.data"
+            || name == ".data_nosave" || name == ".altinstr_aux"
+            || name == ".vvar") {
+
+            type = TYPE_DATA;
+        }
+        else type = TYPE_UNKNOWN;
+    }
     else type = TYPE_UNKNOWN;
 }
 
@@ -317,7 +327,7 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                 else {
                     // this will very likely to result in a too-far
                     // link for AARCH64.
-                    LOG(9, "is this a LITERAL? " << target);
+                    LOG(10, "is this a LITERAL? " << target);
                     return nullptr;
                 }
             }

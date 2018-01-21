@@ -13,13 +13,13 @@ SectionHeader::SectionHeader(Section *outer, ElfXX_Word type,
 }
 
 Section::Section(const std::string &name, ElfXX_Word type,
-    ElfXX_Xword flags) : name(name), content(nullptr) {
+    ElfXX_Xword flags) : name(name), offset(0), content(nullptr) {
 
     header = new SectionHeader(this, type, flags);
 }
 
 Section::Section(const std::string &name, DeferredValue *content)
-    : name(name), header(nullptr), content(content) {
+    : name(name), offset(0), header(nullptr), content(content) {
 }
 
 std::ostream &operator << (std::ostream &stream, Section &rhs) {

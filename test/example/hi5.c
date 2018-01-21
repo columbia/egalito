@@ -5,7 +5,7 @@ void my_write(int, const char *, size_t);
 void my_exit(int);
 
 void _start() {
-    const char *message = "Hello, World!\n";
+    const char *message = "XXHello, World!\n"+2;
     int length = 0;
     while(message[length]) length ++;
 

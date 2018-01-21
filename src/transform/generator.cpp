@@ -4,6 +4,7 @@
 #include "generator.h"
 #include "chunk/cache.h"
 #include "operation/mutator.h"
+#include "operation/find2.h"
 #include "pass/clearspatial.h"
 #include "instr/semantic.h"
 #include "instr/writer.h"
@@ -13,8 +14,25 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+#include "config.h"
+
 void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
+#ifdef LINUX_KERNEL_MODE
+    Function *startup_64 = ChunkFind2()
+        .findFunctionInModule("startup_64", module);
+    if(startup_64) {
+        auto slot = sandbox->allocate(startup_64->getSize());
+        LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
+            << " for [" << startup_64->getName()
+            << "] size " << std::dec << startup_64->getSize());
+        ChunkMutator(startup_64).setPosition(slot.getAddress());
+    }
+#endif
+
     for(auto f : CIter::functions(module)) {
+#ifdef LINUX_KERNEL_MODE
+        if(f == startup_64) continue;
+#endif
         //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
         auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()

@@ -119,8 +119,10 @@ Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
     // auto backing = ExeBacking(conductor->getMainSpace(), outputFile);
     // this->sandbox = new SandboxImpl<ExeBacking,
     //     WatermarkAllocator<ExeBacking>>(backing);
-    auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
-    return new SandboxImpl<ObjBacking, WatermarkAllocator<ObjBacking>>(backing);
+    //auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
+    //return new SandboxImpl<ObjBacking, WatermarkAllocator<ObjBacking>>(backing);
+    auto backing = AnyGenerateBacking(conductor->getProgram()->getMain(), outputFile);
+    return new SandboxImpl<AnyGenerateBacking, WatermarkAllocator<AnyGenerateBacking>>(backing);
 }
 
 void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {

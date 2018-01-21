@@ -158,7 +158,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
     topLevel->add("generate", [&] (Arguments args) {
         args.shouldHave(1);
         auto sandbox = setup->makeFileSandbox(args.front().c_str());
-        setup->moveCode(sandbox, false);  // calls sandbox->finalize()
+        ////setup->moveCode(sandbox, false);  // calls sandbox->finalize()
+        setup->moveCode(sandbox, true);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
 
     topLevel->add("bin", [&] (Arguments args) {

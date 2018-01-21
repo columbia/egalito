@@ -9,12 +9,19 @@
 
 class Section;
 
+/** Stores a list of all Sections that have been created. Sections may be
+    iterated through or looked up by name. There is also a special index
+    assigned to some sections, only those which will be visible in the final
+    shdr list.
+*/
 class SectionList {
 private:
     std::map<std::string, Section *> sectionMap;
     std::map<Section *, size_t> sectionIndexMap;
     std::vector<Section *> sections;
+    size_t sectionCount;
 public:
+    SectionList() : sectionCount(1) {}  // 1 = skip the NULL shdr
     ~SectionList();
 public:
     void addSection(Section *section);
@@ -22,8 +29,11 @@ public:
     std::vector<Section *>::iterator end() { return sections.end(); }
     void insert(std::vector<Section *>::iterator it, Section *section);
     Section *operator [] (std::string name);
+    Section *back();
     int indexOf(Section *section);
     int indexOf(const std::string &sectionName);
+private:
+    static bool isAssignedAnIndex(Section *section);
 };
 
 /** Section -> int deferred data. */

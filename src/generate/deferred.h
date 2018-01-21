@@ -128,7 +128,7 @@ template <typename BaseType, typename KeyType>
 bool DeferredListMapDecorator<BaseType, KeyType>
     ::insertSorted(KeyType key, ValueType value) {
 
-    std::cout << "inserting " << key.getName() << "\n";
+    //std::cout << "inserting " << key.getName() << "\n";
 
     if(contains(key)) return false;
 
@@ -137,11 +137,11 @@ bool DeferredListMapDecorator<BaseType, KeyType>
 
     auto it = std::upper_bound(this->begin(), this->end(), value,
         [this] (const ValueType &a, const ValueType &b) {
-            std::cout << "    " << getKey(a).getName()
-                << " vs " << getKey(b).getName() << "\n";
+            /*std::cout << "    " << getKey(a).getName()
+                << " vs " << getKey(b).getName() << "\n";*/
             return getKey(a) < getKey(b);
         });
-    std::cout << "insert at index " << it - this->begin() << "\n";
+    //std::cout << "insert at index " << it - this->begin() << "\n";
     BaseType::insertAt(it, value);
     return true;
 }
