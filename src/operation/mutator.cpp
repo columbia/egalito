@@ -348,6 +348,8 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
+
         c->addToSize(added);
     }
 
@@ -379,6 +381,8 @@ void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
 void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
+
         c->addToSize(child->getSize());
     }
 

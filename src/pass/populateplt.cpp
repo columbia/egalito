@@ -12,7 +12,9 @@
 
 void PopulatePLTPass::visit(Module *module) {
     this->module = module;
-    recurse(module->getPLTList());
+    if(module->getPLTList()) {
+        recurse(module->getPLTList());
+    }
 }
 
 void PopulatePLTPass::visit(PLTTrampoline *trampoline) {

@@ -14,7 +14,6 @@ endef
 
 .PHONY: test
 test:
-	$(call x86_only,./detectnull.sh)
 	./hello.sh
 	./argv.sh
 	./islower.sh

@@ -327,7 +327,7 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                 else {
                     // this will very likely to result in a too-far
                     // link for AARCH64.
-                    LOG(10, "is this a LITERAL? " << target);
+                    LOG(9, "is this a LITERAL? " << target);
                     return nullptr;
                 }
             }

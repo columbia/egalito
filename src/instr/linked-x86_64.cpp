@@ -96,7 +96,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                 + op->mem.disp;
             Chunk *found = CIter::spatial(module->getFunctionList())
                 ->findContaining(target);
-            if(!found) {
+            if(!found && module->getPLTList()) {
                 found = CIter::spatial(module->getPLTList())
                     ->find(target);
             }

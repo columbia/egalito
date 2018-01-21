@@ -10,7 +10,9 @@
 void IFuncLazyPass::visit(Module *module) {
     //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(egalito)");
     this->module = module;
-    recurse(module->getPLTList());
+    if(module->getPLTList()) {
+        recurse(module->getPLTList());
+    }
 }
 
 void IFuncLazyPass::visit(PLTTrampoline *trampoline) {
