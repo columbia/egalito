@@ -103,6 +103,8 @@ public:
 
 class PagePaddingContent : public DeferredValue {
 private:
+    static const address_t PAGE_SIZE = 0x200000;
+private:
     Section *previousSection;
     address_t desiredOffset;
 public:

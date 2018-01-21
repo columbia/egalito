@@ -174,6 +174,12 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
         s->setType(Symbol::TYPE_FUNC);
     }
 
+    // special cases for the Linux kernel
+    if(auto s = list->find("startup_64")) {
+        s->setType(Symbol::TYPE_FUNC);
+        s->setSize(0x30);
+    }
+
     SymbolAliasFinder aliasFinder(list);
     aliasFinder.constructByAddress();
 

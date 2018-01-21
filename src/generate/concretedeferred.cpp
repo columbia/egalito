@@ -10,6 +10,7 @@
 #include "instr/instr.h"
 #include "instr/concrete.h"
 #include "log/log.h"
+#include "config.h"
 
 bool SymbolInTable::operator < (const SymbolInTable &other) const {
     if(type < other.type) return true;
@@ -201,6 +202,10 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
         phdr->p_filesz  = fileSize;
         phdr->p_memsz   = fileSize + segment->getAdditionalMemSize();
         phdr->p_align   = segment->getAlignment();
+
+        if((phdr->p_vaddr & LINUX_KERNEL_BASE) == LINUX_KERNEL_BASE) {
+            phdr->p_paddr -= LINUX_KERNEL_BASE;
+        }
     });
 
     DeferredMap<SegmentInfo *, ElfXX_Phdr>::add(segment, deferred);
@@ -214,8 +219,9 @@ size_t PagePaddingContent::getSize() const {
     }
 
     // how much data is needed to round from lastByte to a page boundary?
-    size_t roundToPageBoundary = ((lastByte + 0xfff) & ~0xfff) - lastByte;
-    return (roundToPageBoundary + desiredOffset) & 0xfff;
+    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+        - lastByte;
+    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
 }
 
 void PagePaddingContent::writeTo(std::ostream &stream) {

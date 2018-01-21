@@ -8,6 +8,7 @@
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
+#include "config.h"
 
 AnyGen::AnyGen(Module *module, MemoryBacking *backing)
     : module(module), backing(backing) {
@@ -28,8 +29,8 @@ void AnyGen::generate(const std::string &filename) {
     makeHeader();
     makePhdrTable();  // can add phdrs after this
     makeSymtabSection();
-    makeDataSections();
     makeText();
+    makeDataSections();
     makeShdrTable();  // don't create new shdrs after this
     makeSectionSymbols();
     updateOffsets();  // don't insert any new bytes after this
@@ -197,13 +198,13 @@ void AnyGen::makeDataSections() {
     auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
-        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x1000);
+        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
 
         for(auto section : CIter::children(region)) {
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
                 LOG(0, "DATA section " << section->getName());
-                makePaddingSection(section->getAddress() & 0xfff);
+                makePaddingSection(section->getAddress() & (0x200000-1));
 
                 // by default, make everything writable
                 auto dataSection = new Section(section->getName(),
@@ -218,7 +219,7 @@ void AnyGen::makeDataSections() {
             }
             case DataSection::TYPE_BSS: {
                 LOG(0, "BSS section " << section->getName());
-                makePaddingSection(section->getAddress() & 0xfff);
+                makePaddingSection(section->getAddress() & (0x200000-1));
 
                 auto bssSection = new Section(section->getName(),
                     SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
@@ -291,7 +292,8 @@ void AnyGen::makeText() {
             SHF_ALLOC | SHF_EXECINSTR);
         auto textValue = new DeferredString(
             reinterpret_cast<const char *>(address), size);
-        textSection->getHeader()->setAddress(address);
+        //textSection->getHeader()->setAddress(address);
+        textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
         textSection->setContent(textValue);
         sectionList.addSection(textSection);
 
@@ -305,12 +307,14 @@ void AnyGen::makeText() {
 }
 
 void AnyGen::makeRelocSectionFor(const std::string &otherName) {
+#if 0
     auto reloc = new RelocSectionContent2(&sectionList,
         new SectionRef(&sectionList, otherName));
     auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
 
     sectionList.addSection(relocSection);
+#endif
 }
 
 void AnyGen::makeSymbolsAndRelocs(address_t begin, size_t size,
@@ -328,15 +332,18 @@ void AnyGen::makeSymbolsAndRelocs(address_t begin, size_t size,
             continue;  // not in this text section
         }
 
-        // fix addresses for objgen (set base to 0)
-        ////func->getPosition()->set(func->getAddress() - backing->getBase());
+        // fix addresses for kernel generation
+        func->getPosition()->set(func->getAddress() - backing->getBase()
+            + LINUX_KERNEL_CODE_BASE);
 
         LOG(1, "making symbol for " << func->getName());
         makeSymbolInText(func, textSection);
+#if 0
         makeRelocInText(func, textSection);
+#endif
 
         // undo address fix
-        ////func->getPosition()->set(backing->getBase() + func->getAddress());
+        func->getPosition()->set(backing->getBase() + func->getAddress());
     }
 
 #if 0

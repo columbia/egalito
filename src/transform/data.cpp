@@ -41,7 +41,7 @@ address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
             LOG(1, ms.rdbuf());
 
             std::cout.flush();
-            throw "Overlapping with other regions?";
+            throw "TLS: Overlapping with other regions?";
         }
     }
 

@@ -28,7 +28,7 @@ MemoryBacking::MemoryBacking(address_t address, size_t size)
     if(base == (address_t)-1) {
         throw std::bad_alloc();
     }
-    if(base != address) throw "Overlapping with other regions?";
+    if(base != address) throw "Sandbox: Overlapping with other regions?";
 }
 
 void MemoryBacking::finalize() {
