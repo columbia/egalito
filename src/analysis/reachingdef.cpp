@@ -6,6 +6,9 @@
 #include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "instr/register.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dreorder
 #include "log/log.h"
 
 void ReachingDef::analyze() {

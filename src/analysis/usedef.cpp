@@ -526,18 +526,15 @@ void UseDef::useReg(UDState *state, int reg) {
         throw "error useReg";
     }
 #endif
-    LOG(0, "useReg " << std::dec << reg << ":");
 
     if(working->getRegSet(reg).empty()
         && working->shouldTrackPartialUDChains()) {
 
-        LOG(0, "DEF REG " << std::dec << reg);
         defReg(state, reg, new TreeNodeRegister(reg));
     }
     else {
         for(auto o : working->getRegSet(reg)) {
             state->addRegRef(reg, o);
-            LOG(0, "    " << std::dec << reg << " for " << o->getInstruction()->getName());
             o->addRegUse(reg, state);
         }
     }
@@ -631,7 +628,6 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
         = getPhysicalRegister(assembly->getAsmOperands()->getOperands()[1].reg);
     if(reg0 < 0 || reg1 < 0) return;  // unsupported (likely kernelspace) reg
     useReg(state, reg0);
-    LOG(1, "fillRegToReg from " << std::dec << reg0 << " to " << reg1 << " in " << state->getInstruction()->getName());
     TreeNode *tree = nullptr;
     auto id = assembly->getId();
     if(id == X86_INS_ADD) {

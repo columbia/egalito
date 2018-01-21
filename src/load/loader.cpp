@@ -28,6 +28,7 @@
 #include "pass/cancelpush.h"
 #include "pass/debloat.h"
 #include "pass/makecache.h"
+#include "pass/reorderpush.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -215,6 +216,11 @@ void EgalitoLoader::otherPasses() {
     if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
         CancelPushPass cancelPush(program);
         program->accept(&cancelPush);
+    }
+
+    if(isFeatureEnabled("EGALITO_USE_REORDERPUSH")) {
+        ReorderPush reorderPush;
+        program->accept(&reorderPush);
     }
 }
 

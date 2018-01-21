@@ -11,13 +11,20 @@
 #include "instr/instr.h"
 #include "chunk/dump.h"
 #include "operation/mutator.h"
+
+#undef DEBUG_GROUP
+#define DEBUG_GROUP dreorder
 #include "log/log.h"
 
 void ReorderPush::visit(Module *module) {
+    if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
+
     recurse(module);
 }
 
 void ReorderPush::visit(Function *function) {
+    LOG(1, "ReorderPush for [" << function->getName());
+
     FrameType frameType(function);
     frameType.dump();
 
