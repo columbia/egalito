@@ -30,7 +30,7 @@ public:
 
     address_t getBase() const;
     size_t getSize() const { return size; }
-    size_t getMemorySize() const { return memSize;}
+    size_t getMemorySize() const { return memSize; }
 };
 
 class MemoryBacking : public SandboxBacking {
@@ -39,9 +39,24 @@ private:
 public:
     /** May throw std::bad_alloc. */
     MemoryBacking(address_t address, size_t size);
-    MemoryBacking(const MemoryBacking &other)
-        : SandboxBacking(other.getSize()), base(other.base) {}
+    /*MemoryBacking(const MemoryBacking &other)
+        : SandboxBacking(other.getSize()), base(other.base) {}*/
     address_t getBase() const { return base; }
+
+    void finalize();
+    bool reopen();
+    bool recreate();
+};
+
+class MemoryBufferBacking : public SandboxBacking {
+private:
+    address_t base;
+    std::string buffer;
+public:
+    MemoryBufferBacking(address_t address, size_t size);
+
+    address_t getBase() const { return base; }
+    std::string &getBuffer() { return buffer; }
 
     void finalize();
     bool reopen();
@@ -71,7 +86,7 @@ public:
 };
 
 class Module;
-class AnyGenerateBacking : public MemoryBacking {
+class AnyGenerateBacking : public MemoryBufferBacking {
 private:
     Module *module;
     std::string filename;
@@ -128,6 +143,8 @@ public:
     virtual Slot allocate(size_t request) = 0;
     virtual void finalize() = 0;
     virtual bool reopen() = 0;
+
+    virtual SandboxBacking *getBacking() = 0;
 };
 
 template <typename T> struct id { typedef T type; };
@@ -145,6 +162,8 @@ public:
         { return alloc.allocate(request); }
     virtual void finalize() { backing.finalize(); }
     virtual bool reopen() { return backing.reopen(); }
+
+    virtual SandboxBacking *getBacking() { return &backing; }
 
     bool recreate() { return recreate(id<Backing>()); }
 private:
@@ -173,6 +192,9 @@ public:
         { return sandbox[i]->allocate(request); }
     virtual void finalize() { sandbox[i]->finalize(); }
     virtual bool reopen() { return sandbox[i]->reopen(); }
+
+    virtual SandboxBacking *getBacking() { return sandbox[i]->getBacking(); }
+
     bool recreate() const { return sandbox[i]->recreate(); }
 };
 

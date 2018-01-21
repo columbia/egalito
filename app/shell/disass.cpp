@@ -21,6 +21,7 @@
 #include "pass/stackextend.h"
 #include "pass/usegstable.h"
 #include "pass/collapseplt.h"
+#include "pass/promotejumps.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -506,4 +507,13 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a list of all data variables");
+
+    topLevel->add("promotejumps", [&] (Arguments args) {
+        PromoteJumpsPass promoteJumps;
+        for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
+            for(auto func : CIter::functions(module)) {
+                func->accept(&promoteJumps);
+            }
+        }
+    }, "promotes tail recursive jumps to 32-bits wide");
 }

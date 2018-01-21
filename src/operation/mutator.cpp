@@ -184,7 +184,7 @@ void ChunkMutator::remove(Chunk *child) {
     chunk->getChildren()->genericRemove(child);
 
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c; c = c->getParent()) {
+    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
         // only if size is tracked
         if(c->getSize() != 0) {
             c->addToSize(-child->getSize());
@@ -209,7 +209,7 @@ void ChunkMutator::removeLast(int n) {
     }
 
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c; c = c->getParent()) {
+    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
         // only if size is tracked
         if(c->getSize() != 0) {
             c->addToSize(-removedSize);
@@ -345,7 +345,7 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c; c = c->getParent()) {
+    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
         c->addToSize(added);
     }
 
@@ -376,7 +376,7 @@ void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
 
 void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c; c = c->getParent()) {
+    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
         c->addToSize(child->getSize());
     }
 

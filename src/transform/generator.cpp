@@ -57,18 +57,23 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
 }
 
 void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
+#ifdef LINUX_KERNEL_MODE
+    Function *startup_64 = ChunkFind2()
+        .findFunctionInModule("startup_64", module);
+    if(startup_64) {
+        copyFunctionToSandbox(startup_64, sandbox);
+    }
+#endif
+
     LOG(1, "Copying code into sandbox");
     for(auto f : CIter::functions(module)) {
+#ifdef LINUX_KERNEL_MODE
+        if(f == startup_64) continue;
+#endif
         LOG(2, "    writing out [" << f->getName() << "] at 0x"
             << std::hex << f->getAddress());
 
-#if 0
-        if(f->getName() != "puts") {
-            copyFunctionToSandbox(f);
-        }
-#else
-        copyFunctionToSandbox(f);
-#endif
+        copyFunctionToSandbox(f, sandbox);
     }
 
     copyPLTEntriesToSandbox(module, sandbox);
@@ -83,7 +88,8 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     }
 }
 
-void Generator::copyFunctionToSandbox(Function *function) {
+void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
+#if 0
     char *output = reinterpret_cast<char *>(function->getAddress());
     for(auto b : CIter::children(function)) {
         for(auto i : CIter::children(b)) {
@@ -99,6 +105,15 @@ void Generator::copyFunctionToSandbox(Function *function) {
             output += i->getSemantic()->getSize();
         }
     }
+#else
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    InstrWriterCppString writer(backing->getBuffer());
+    for(auto b : CIter::children(function)) {
+        for(auto i : CIter::children(b)) {
+            i->getSemantic()->accept(&writer);
+        }
+    }
+#endif
 }
 
 void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
@@ -130,7 +145,7 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
 
 void Generator::instantiate(Function *function, Sandbox *sandbox) {
     pickFunctionAddressInSandbox(function, sandbox);
-    copyFunctionToSandbox(function);
+    copyFunctionToSandbox(function, sandbox);
 }
 
 void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
