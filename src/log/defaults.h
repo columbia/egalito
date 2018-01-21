@@ -34,6 +34,7 @@
 #define D_dloadtime     -1
 #define D_dassign       -1
 #define D_dtiming       -1
+#define D_dreorder      -1
 #else   /* debug build */
 #define D_analysis      9
 #define D_archive       9
@@ -62,4 +63,5 @@
 #define D_dloadtime     0
 #define D_dassign       0
 #define D_dtiming       9
+#define D_dreorder      0
 #endif
