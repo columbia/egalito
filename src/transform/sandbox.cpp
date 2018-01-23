@@ -44,6 +44,25 @@ void MemoryBacking::recreate(address_t end) {
     std::memset((void *)base, 0, end - base);
 }
 
+MemoryBufferBacking::MemoryBufferBacking(address_t address, size_t size)
+    : SandboxBacking(size), base(address) {
+
+}
+
+void MemoryBufferBacking::finalize() {
+    // nothing to do
+}
+
+bool MemoryBufferBacking::reopen() {
+    // nothing to do
+    return true;
+}
+
+bool MemoryBufferBacking::recreate() {
+    buffer.clear();
+    return false;
+}
+
 ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)
     : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
     elfSpace(elfSpace), filename(filename) {
@@ -73,13 +92,13 @@ void ObjBacking::finalize() {
 }
 
 AnyGenerateBacking::AnyGenerateBacking(Module *module, std::string filename)
-    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
+    : MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
     module(module), filename(filename) {
 
 }
 
 void AnyGenerateBacking::finalize() {
-    MemoryBacking::finalize();
+    MemoryBufferBacking::finalize();
     AnyGen *gen = new AnyGen(module, this);
     gen->generate(filename);
     delete gen;

@@ -210,6 +210,9 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
         s->setType(Symbol::TYPE_FUNC);
         s->setSize(0x30);
     }
+    if(auto s = list->find("secondary_startup_64")) {
+        s->setType(Symbol::TYPE_FUNC);
+    }
 #endif
 
     SymbolAliasFinder aliasFinder(list);

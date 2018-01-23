@@ -187,6 +187,7 @@ void ChunkMutator::remove(Chunk *child) {
 
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
         // only if size is tracked
         if(c->getSize() != 0) {
             c->addToSize(-child->getSize());
@@ -212,6 +213,7 @@ void ChunkMutator::removeLast(int n) {
 
     // update sizes of parents and grandparents
     for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
         // only if size is tracked
         if(c->getSize() != 0) {
             c->addToSize(-removedSize);

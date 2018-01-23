@@ -10,7 +10,7 @@
 #include "log/log.h"
 #include "config.h"
 
-AnyGen::AnyGen(Module *module, MemoryBacking *backing)
+AnyGen::AnyGen(Module *module, MemoryBufferBacking *backing)
     : module(module), backing(backing) {
 
     auto header = new Section("=elfheader");
@@ -290,8 +290,14 @@ void AnyGen::makeText() {
         }
         auto textSection = new Section(name.c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
+#if 0
         auto textValue = new DeferredString(
             reinterpret_cast<const char *>(address), size);
+#else
+        auto textValue = new DeferredString(
+            reinterpret_cast<const char *>(backing->getBuffer().c_str()),
+            size);
+#endif
         //textSection->getHeader()->setAddress(address);
         textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
         textSection->setContent(textValue);
@@ -333,8 +339,8 @@ void AnyGen::makeSymbolsAndRelocs(address_t begin, size_t size,
         }
 
         // fix addresses for kernel generation
-        func->getPosition()->set(func->getAddress() - backing->getBase()
-            + LINUX_KERNEL_CODE_BASE);
+        /*func->getPosition()->set(func->getAddress() - backing->getBase()
+            + LINUX_KERNEL_CODE_BASE);*/
 
         LOG(1, "making symbol for " << func->getName());
         makeSymbolInText(func, textSection);
@@ -343,7 +349,7 @@ void AnyGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 #endif
 
         // undo address fix
-        func->getPosition()->set(backing->getBase() + func->getAddress());
+        //func->getPosition()->set(backing->getBase() + func->getAddress());
     }
 
 #if 0

@@ -8,15 +8,15 @@
 
 class Module;
 class Function;
-class MemoryBacking;
+class MemoryBufferBacking;
 
 class AnyGen {
 private:
     Module *module;
-    MemoryBacking *backing;
+    MemoryBufferBacking *backing;
     SectionList sectionList;
 public:
-    AnyGen(Module *module, MemoryBacking *backing);
+    AnyGen(Module *module, MemoryBufferBacking *backing);
 
     void generate(const std::string &filename);
 private:
