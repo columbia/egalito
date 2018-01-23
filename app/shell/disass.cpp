@@ -21,6 +21,7 @@
 #include "pass/stackextend.h"
 #include "pass/usegstable.h"
 #include "pass/collapseplt.h"
+#include "pass/retpoline.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -506,4 +507,17 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a list of all data variables");
+
+    topLevel->add("retpoline", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(!module) {
+            std::cout << "No such module.\n";
+            return;
+        }
+
+        RetpolinePass retpoline;
+        module->accept(&retpoline);
+    }, "transforms indirect jumps to use retpolines (Spectre defense)");
 }
