@@ -70,7 +70,6 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
 #ifdef ARCH_X86_64
     auto linked
         = LinkedInstruction::makeLinked(module, instruction, assembly, r);
-    assert(linked);
     if(linked) {
         instruction->setSemantic(linked);
         delete semantic;
