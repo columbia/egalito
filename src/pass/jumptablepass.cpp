@@ -30,8 +30,8 @@ void JumpTablePass::visit(Module *module) {
 }
 
 void JumpTablePass::visit(JumpTableList *jumpTableList) {
-    //TemporaryLogLevel tll("djumptable", 10);
-    //TemporaryLogLevel tll2("analysis", 10);
+    //TemporaryLogLevel tll("djumptable", 10, module->getName() == "module-(executable)");
+    //TemporaryLogLevel tll2("analysis", 10, module->getName() == "module-(executable)");
 
     JumptableDetection search(module);
     search.detect(module);

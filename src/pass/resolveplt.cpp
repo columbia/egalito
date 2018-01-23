@@ -60,6 +60,7 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     else {
         LOG(1, "unresolved pltTrampoline target "
             << symbol->getName() << " unused?");
+#if 0
         if(symbol->getName() == "__netf2") {
             for(auto m : CIter::modules(conductor->getProgram())) {
                 LOG(1, "checking in " << m->getName());
@@ -77,5 +78,6 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
             std::cout.flush();
             exit(1);
         }
+#endif
     }
 }

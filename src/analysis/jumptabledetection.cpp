@@ -609,6 +609,19 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > ComparisonForm;
 
+    typedef TreePatternBinary<TreeNodeComparison,
+        TreePatternUnary<TreeNodeDereference,
+            TreePatternBinary<TreeNodeAddition,
+                TreePatternTerminal<TreeNodePhysicalRegister>,
+                TreePatternBinary<TreeNodeMultiplication,
+                    TreePatternTerminal<TreeNodePhysicalRegister>,
+                    TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+                >
+            >
+        >,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > ComparisonForm2;
+
     bool found = false;
     auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
         if(r == X86Register::FLAGS) { // cmp + jump
@@ -631,40 +644,36 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
         if(s == state) continue;
         FlowUtil::searchDownDef<ComparisonForm>(s, reg, parser);
         if(found) break;
+        FlowUtil::searchDownDef<ComparisonForm2>(s, reg, parser);
+        if(found) break;
 
 #if 0
         IF_LOG(10)
             for(auto &s2 : s->getRegUse(reg)) {
-                for(auto &def : s2->getRegDefList()) {
-                    TreeCapture capture;
-                    if(ComparisonForm::matches(def.second, capture)) {
-                        LOG(1, "  s2:" << std::hex
-                            << s2->getInstruction()->getAddress());
-                        s2->dumpState();
-                        LOG(1, "  def.first = " << def.first);
-                    }
-                }
+                s2->dumpState();
             }
 #endif
     }
 
-    for(auto s : state->getRegRef(reg)) {
-        if(s != state &&
-            s->getInstruction()->getParent() ==
-                state->getInstruction()->getParent()) {
+    if(!found) {
+        for(auto s : state->getRegRef(reg)) {
+            if(s != state &&
+                s->getInstruction()->getParent() ==
+                    state->getInstruction()->getParent()) {
 
-            if(getBoundFromSub(s, reg, info)) {
-                found = true;
-                break;
-            }
+                if(getBoundFromSub(s, reg, info)) {
+                    found = true;
+                    break;
+                }
 
-            if(getBoundFromMove(s, reg, info)) {
-                found = true;
-                break;
-            }
-            if(getBoundFromIndexTable(s, reg, info)) {
-                found = true;
-                break;
+                if(getBoundFromMove(s, reg, info)) {
+                    found = true;
+                    break;
+                }
+                if(getBoundFromIndexTable(s, reg, info)) {
+                    found = true;
+                    break;
+                }
             }
         }
     }
@@ -1289,8 +1298,6 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
             }
             else {
                 indexTableScale = scaleTree->getValue();
-                assert(indexTableScale == 1);
-
                 parseBound(state, regTree2->getRegister(), info);
                 indexTableEntries = info->entries;
 
@@ -1298,6 +1305,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                     << std::hex << indexTableBase << " with "
                     << std::dec << indexTableEntries << " entries of size "
                     << std::dec << indexTableScale << " each");
+
                 if(info->entries > 0) {
                     indexTables.emplace(std::piecewise_construct,
                         std::forward_as_tuple(indexTableBase),
@@ -1309,10 +1317,20 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 auto copyBase
                     = module->getElfSpace()->getElfMap()->getCopyBaseAddress();
                 size_t max = 0;
-                assert(indexTableScale == 1);
-                for(size_t i = 0; i < indexTableEntries; i++) {
-                    max = std::max(max, static_cast<size_t>(
-                        *(char *)(copyBase + indexTableBase + i)));
+                if(indexTableScale == 1) {
+                    for(size_t i = 0; i < indexTableEntries; i++) {
+                        max = std::max(max, static_cast<size_t>(
+                            *(char *)(copyBase + indexTableBase + i)));
+                    }
+                }
+                else if(indexTableScale == 4) {
+                    for(size_t i = 0; i < indexTableEntries; i+=4) {
+                        max = std::max(max, static_cast<size_t>(
+                            *(uint32_t *)(copyBase + indexTableBase + i)));
+                    }
+                }
+                else {
+                    assert(indexTableScale == 1 || indexTableBase == 4);
                 }
                 LOG(10, "max = " << std::dec << max);
                 info->entries = max + 1;
