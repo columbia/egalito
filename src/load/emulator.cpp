@@ -42,13 +42,20 @@ namespace Emulation {
 
     int function_not_implemented(void) { return 0; }
 
-#ifdef EMULATION_NEEDS__DL_ERROR_CATCH_TSD
     // cf. elf/rtld.c (newer glibc may not need this)
     void ** __attribute__((const)) _dl_error_catch_tsd(void) {
         static void *data = nullptr;
         return &data;
     }
-#endif
+    template <typename T> struct typecheck { typedef int type; };
+    template <typename T,
+        typename typecheck<decltype(T::_dl_error_catch_tsd)>::type = 0>
+    void set_dl_error_catch_tsd(T *rtld) {
+        rtld->_dl_error_catch_tsd
+            = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
+    }
+    void set_dl_error_catch_tsd(...) {}
+
 
     // cf. elf/dl-tls.c
     void _dl_get_tls_static_info(size_t *sizep, size_t *alignp) {
@@ -206,10 +213,7 @@ void LoaderEmulator::initRT(Conductor *conductor) {
     auto rtld_casted = reinterpret_cast<Emulation::my_rtld_global *>(
         rtld->getDest()->getTargetAddress());
     Emulation::init_rtld_global(rtld_casted);
-#ifdef EMULATION_NEEDS__DL_ERROR_CATCH_TSD
-    rtld_casted->_dl_error_catch_tsd
-        = reinterpret_cast<void *>(&Emulation::_dl_error_catch_tsd);
-#endif
+    Emulation::set_dl_error_catch_tsd(rtld_casted);
     //rtld_casted->_dl_tls_static_size = 0x1000;
 #ifdef ARCH_X86_64
     assert(rtld_casted->_dl_tls_static_align == 64);
