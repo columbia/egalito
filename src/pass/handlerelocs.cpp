@@ -1,3 +1,4 @@
+#include <cassert>
 #include "handlerelocs.h"
 #include "elf/elfspace.h"
 #include "chunk/chunk.h"
@@ -19,7 +20,8 @@ void HandleRelocsPass::visit(Module *module) {
         auto instruction = dynamic_cast<Instruction *>(inner);
         if(!instruction) continue;
 
-#ifdef ARCH_X86_64
+        // looks like very old code
+#if 0//def ARCH_X86_64
         if(!r->getSymbol()) continue;
 
         Function *target = CIter::findChild(functionList,
@@ -45,14 +47,20 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
     if(dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic())) {
         // we don't need to do anything here because the InternalCalls pass
         // and ExternalCalls pass deal with it
+        LOG(10, "r = " << std::hex << r->getAddress()
+            << " is already ControlFlowInstruction");
         return;
     }
     if(dynamic_cast<IndirectCallInstruction *>(instruction->getSemantic())) {
         // if this is RIP-relative, we should try to convert this to
         // ControlFlowInstruction
+        LOG(10, "r = " << std::hex << r->getAddress()
+            << " is already IndirectCallInstruction");
         return;
     }
     if(dynamic_cast<IndirectJumpInstruction *>(instruction->getSemantic())) {
+        LOG(10, "r = " << std::hex << r->getAddress()
+            << " is already IndirectJumpInstruction");
         return;
     }
 
@@ -61,7 +69,8 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
 
 #ifdef ARCH_X86_64
     auto linked
-        = LinkedInstruction::makeLinked(module, instruction, assembly);
+        = LinkedInstruction::makeLinked(module, instruction, assembly, r);
+    assert(linked);
     if(linked) {
         instruction->setSemantic(linked);
         delete semantic;

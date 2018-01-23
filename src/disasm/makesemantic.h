@@ -15,6 +15,7 @@ public:
     static bool isRIPRelative(Assembly *assembly, int opIndex);
     static int determineDisplacementSize(Assembly *assembly, int opIndex);
     static int getDispOffset(Assembly *assembly, int opIndex);
+    static int getOpIndex(Assembly *assembly, size_t offset);
 };
 
 #endif

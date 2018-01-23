@@ -20,27 +20,20 @@ void HandleDataRelocsPass::visit(Module *module) {
             section->getName());
         if(!relocSection) continue;  // no relocs in this ElfSection
 
-#if 0
-        // find the target section that this relocation section refers to
-        auto sourceElfSection
-            = elfMap->findSection(section->getHeader()->sh_info);
-        auto sourceSection = list->findDataSection(sourceElfSection->getName());
-        if(!sourceSection) continue;
+        if(auto info = relocSection->getInfoLink()) {
+            auto sourceSection = elfMap->findSection(info);
+            if(sourceSection->getName() == "__kcrctab") continue;
+            if(sourceSection->getName() == ".rela__kcrctab") continue;
+            if(sourceSection->getName() == "__kcrctab_gpl") continue;
+            if(sourceSection->getName() == ".rela__kcrctab_gpl") continue;
 
-        // in the Linux kernel, these sections do not store real addresses
-        if(sourceSection->getName() == "__kcrctab") continue;
-        if(sourceSection->getName() == ".rela__kcrctab") continue;
-        if(sourceSection->getName() == "__kcrctab_gpl") continue;
-        if(sourceSection->getName() == ".rela__kcrctab_gpl") continue;
+            if(sourceSection->getName() == ".data..percpu") continue;
+            if(sourceSection->getName() == ".rela.data..percpu") continue;
 
-        if(sourceSection->getName() == ".data..percpu") continue;
-        if(sourceSection->getName() == ".rela.data..percpu") continue;
+            // skip relocations for instructions
+            auto shdr = sourceSection->getHeader();
+            if(shdr->sh_flags & SHF_EXECINSTR) continue;
 
-        LOG(9, "resolving data relocations in section ["
-            << sourceSection->getName() << "]");
-#endif
-
-        if(relocSection->hasInfoLink()) {
             resolveSpecificRelocSection(relocSection, module);
         }
         else {
@@ -119,17 +112,6 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             << ") in " << module->getName());
         return nullptr;
     }
-#if 0
-    if(reloc->getType() == R_X86_64_PC32
-        || reloc->getType() == R_X86_64_PC16
-        || reloc->getType() == R_X86_64_PC8
-        || reloc->getType() == R_X86_64_PC64) {
-
-        // creating a variable for these requires instruction address
-        LOG(9, "WARNING: skipping PC-relative relocations");
-        return nullptr;
-    }
-#endif
 #else
     // We can't resolve the address yet, because a link may point to a TLS
     // in another module e.g. errno referred from libm (tls can be nullptr)
@@ -167,12 +149,5 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             return link;
         }
     }
-#if 0
-    else if(symbol->getType() == Symbol::TYPE_SECTION) {
-        return PerfectLinkResolver().resolveInternally(reloc, module, weak);
-    }
-    LOG(0, "ERROR: didn't create variable for reloc at 0x" << std::hex
-        << reloc->getAddress());
-#endif
     return nullptr;
 }

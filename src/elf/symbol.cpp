@@ -38,8 +38,15 @@ bool Symbol::isFunction() const {
         << ", index=" << index
         << ", aliasFor=" << (aliasFor ? aliasFor->getName() : "n/a"));
 #endif
-    return (symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC)
-        && size > 0 && shndx > 0 && !aliasFor;
+    if(symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC) {
+        return size > 0 && shndx > 0 && !aliasFor;
+    }
+#if 0
+    if(symbolType == TYPE_NOTYPE) {
+        return shndx != SHN_ABS && !aliasFor;
+    }
+#endif
+    return false;
 }
 
 // this may needs to be more strict to handle kernel with assembly files
@@ -128,6 +135,23 @@ Symbol *SymbolList::findSizeZero(SymbolList *list, const char *sym) {
     return (s && s->getSize() == 0 ? s : nullptr);
 }
 
+static void fixFunctionTypes(SymbolList *list, ElfMap *elfMap) {
+#ifdef ARCH_X86_64
+    // this may not be correct for ARM; untested
+    for(auto sym : *list) {
+        if(sym->getType() == Symbol::TYPE_NOTYPE) {
+            auto section = elfMap->findSection(sym->getSectionIndex());
+            if(!section) continue;
+
+            auto h = section->getHeader();
+            if(h->sh_flags & SHF_EXECINSTR) {
+                sym->setType(Symbol::TYPE_FUNC);
+            }
+        }
+    }
+#endif
+}
+
 SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
     auto section = elfMap->findSection(".symtab");
     if(!section || section->getHeader()->sh_type != SHT_SYMTAB) {
@@ -135,6 +159,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
     }
 
     auto list = buildAnySymbolList(elfMap, ".symtab", SHT_SYMTAB);
+    fixFunctionTypes(list, elfMap);
 
     if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
@@ -157,6 +182,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
         if(fini) LOG(6, "setting the size of _init to " << fini->getHeader()->sh_size);
     }
 
+#if 0
     // for musl only
     if(auto s = list->find("__memcpy_fwd")) {
         s->setType(Symbol::TYPE_FUNC);
@@ -164,22 +190,27 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
     /*if(auto s = list->find("__cp_begin")) {
         s->setType(Symbol::TYPE_FUNC);
     }*/
+#endif
 
     // Fuchsia Zircon script defines a literal
     if(auto s = list->find("buildsig")) {
         s->setSize(0x24);
     }
 
+#if 0
     // for gcc's fentry option (-mfentry)
     if(auto s = list->find("__fentry__")) {
         s->setType(Symbol::TYPE_FUNC);
     }
+#endif
 
+#if 0
     // special cases for the Linux kernel
     if(auto s = list->find("startup_64")) {
         s->setType(Symbol::TYPE_FUNC);
         s->setSize(0x30);
     }
+#endif
 
     SymbolAliasFinder aliasFinder(list);
     aliasFinder.constructByAddress();

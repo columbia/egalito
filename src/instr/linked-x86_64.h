@@ -9,6 +9,7 @@
 #ifdef ARCH_X86_64
 class Instruction;
 class Module;
+class Reloc;
 
 class LinkedInstruction : public LinkDecorator<SemanticImpl> {
 private:
@@ -36,6 +37,8 @@ public:
 
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, AssemblyPtr assembly);
+    static LinkedInstruction *makeLinked(Module *module,
+        Instruction *instruction, AssemblyPtr assembly, Reloc *reloc);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:

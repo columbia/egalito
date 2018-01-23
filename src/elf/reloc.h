@@ -55,7 +55,7 @@ public:
         : name(name), infoLink(infoLink) {}
 
     void add(Reloc *reloc);
-    bool hasInfoLink() const { return infoLink != 0; }
+    int getInfoLink() const { return infoLink; }
 
     ListType::iterator begin() { return relocList.begin(); }
     ListType::iterator end() { return relocList.end(); }

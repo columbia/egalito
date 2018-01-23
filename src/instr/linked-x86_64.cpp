@@ -3,10 +3,12 @@
 #include "linked-x86_64.h"
 #include "chunk/link.h"
 #include "elf/elfspace.h"
+#include "elf/reloc.h"
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"  // for determineDisplacementSize
 #include "operation/find.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 #ifdef ARCH_X86_64
 void LinkedInstruction::makeDisplacementInfo() {
@@ -78,6 +80,20 @@ static PLTTrampoline *findPLTTrampoline(Module *module, address_t target) {
     if(!pltList) return nullptr;
 
     return CIter::spatial(pltList)->find(target);
+}
+
+LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
+    Instruction *instruction, AssemblyPtr assembly, Reloc *reloc) {
+
+    auto link = PerfectLinkResolver().resolveInternally(reloc, module, true);
+    if(!link) return nullptr;
+
+    auto linked = new LinkedInstruction(instruction);
+    linked->setAssembly(assembly);
+    size_t offset = reloc->getAddress() - instruction->getAddress();
+    linked->setIndex(MakeSemantic::getOpIndex(&*assembly, offset));
+    linked->setLink(link);
+    return linked;
 }
 
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,

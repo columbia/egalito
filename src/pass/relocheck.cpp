@@ -75,9 +75,9 @@ void ReloCheckPass::checkDataVariable(Module *module) {
                     LOG(9, " var " << std::hex << var->getAddress()
                         << " has a loader link to " << l->getTargetName());
                 }
-                else if(dynamic_cast<MarkerLink *>(var->getDest())) {
+                else if(auto m = dynamic_cast<MarkerLink *>(var->getDest())) {
                     LOG(9, " var " << std::hex << var->getAddress()
-                        << " has a marker link");
+                        << " has a marker link to " << m->getTargetAddress());
                 }
                 else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
                     LOG(9, " var " << std::hex << var->getAddress()
@@ -123,7 +123,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
 #endif
 
     ss << "relocation at " << std::hex << r->getAddress() << " with addend "
-        << r->getAddend();
+        << (long int)r->getAddend();
     auto flist = module->getFunctionList();
     Chunk *inner
         = ChunkFind().findInnermostInsideInstruction(flist, r->getAddress());
@@ -158,8 +158,17 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             }
         }
 #endif
+        else if(dynamic_cast<IndirectCallInstruction *>(i->getSemantic())) {
+            LOG(1, ss.str() << " should NOT be an IndirectCallInstruction?");
+        }
+        else if(dynamic_cast<IndirectJumpInstruction *>(i->getSemantic())) {
+            LOG(1, ss.str() << " should NOT be an IndirectJumpInstruction?");
+        }
         else {
-            LOG(1, i->getName() << " is still DisassembledInstruction");
+            LOG(1, i->getName() << " with relocation at "
+                << std::hex << r->getAddress()
+                << " is still IsolatedInstruction "
+                << dynamic_cast<IsolatedInstruction *>(i->getSemantic()));
         }
     }
     else {

@@ -123,7 +123,7 @@ RelocSection *RelocList::makeOrGetSection(const std::string &name,
     auto section = getSection(name);
     if(section) return section;
 
-    if(s->sh_type & SHF_INFO_LINK) {
+    if(s->sh_flags & SHF_INFO_LINK) {
         section = new RelocSection(name, s->sh_info);
     }
     else {

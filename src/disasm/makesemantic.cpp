@@ -58,9 +58,8 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
         if(ins->id == X86_INS_CALL) {
-            // IndirectCallInstruction cannot be relocated if base is RIP;
-            // skip here and make LinkedInstruction afterward
-            if(op->mem.base != X86_REG_RIP) {
+            // for RIP-relative call, make a LinkedInstruction afterward
+            if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
                 semantic = new IndirectCallInstruction(
                     static_cast<Register>(op->mem.base),
                     static_cast<Register>(op->mem.index),
@@ -69,8 +68,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             }
         }
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            // IndirectJumpInstruction cannot be relocated if base is RIP;
-            // skip here and make LinkedInstruction afterward
+            // for RIP-relative jump, make a LinkedInstruction afterward
             if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
                 semantic = new IndirectJumpInstruction(
                     static_cast<Register>(op->mem.base), ins->mnemonic,
@@ -266,9 +264,22 @@ int MakeSemantic::getDispOffset(Assembly *assembly, int opIndex) {
         }
         return offset;
     }
-    LOG(0, "error in getDispOffset");
+    LOG(10, "possible error in getDispOffset");
     return 0;
 #else
     throw "getDispOffset is only meaningful on x86";
 #endif
+}
+
+int MakeSemantic::getOpIndex(Assembly *assembly, size_t offset) {
+#ifdef ARCH_X86_64
+    for(size_t i = 0; i < assembly->getAsmOperands()->getOpCount(); i++) {
+        int opOffset = MakeSemantic::getDispOffset(&*assembly, i);
+        if(offset == (size_t)opOffset) {
+            return i;
+        }
+    }
+#endif
+    LOG(0, "error in getOpIndex");
+    return -1;
 }
