@@ -22,6 +22,9 @@ void RetpolinePass::visit(Function *function) {
                     X86_INS_JMP, instr, "\xe9", "jmpq", 4);
                 newSem->setLink(new NormalLink(trampoline, Link::SCOPE_EXTERNAL_JUMP));
                 instr->setSemantic(newSem);
+
+                ChunkMutator(block, true).modifiedChildSize(instr,
+                    newSem->getSize() - semantic->getSize());
                 delete semantic;
             }
             else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
@@ -30,6 +33,9 @@ void RetpolinePass::visit(Function *function) {
                     X86_INS_CALL, instr, "\xe8", "callq", 4);
                 newSem->setLink(new NormalLink(trampoline, Link::SCOPE_EXTERNAL_JUMP));
                 instr->setSemantic(newSem);
+
+                ChunkMutator(block, true).modifiedChildSize(instr,
+                    newSem->getSize() - semantic->getSize());
                 delete semantic;
             }
         }

@@ -26,6 +26,7 @@
 #include "pass/usegstable.h"
 #include "pass/jitgsfixup.h"
 #include "pass/cancelpush.h"
+#include "pass/retpoline.h"
 #include "pass/debloat.h"
 #include "pass/makecache.h"
 #include "pass/reorderpush.h"
@@ -211,6 +212,11 @@ void EgalitoLoader::otherPasses() {
     PromoteJumpsPass promoteJumps;
     setup->getConductor()->acceptInAllModules(&promoteJumps, true);
 #endif
+
+    if(isFeatureEnabled("EGALITO_USE_RETPOLINES")) {
+        RetpolinePass retpoline;
+        program->accept(&retpoline);
+    }
 
     // enable CollapsePLTPass for better result
     if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
