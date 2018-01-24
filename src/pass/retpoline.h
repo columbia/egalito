@@ -2,6 +2,7 @@
 #define EGALITO_PASS_RETPOLINE_H
 
 #include <map>
+#include <vector>
 #include <string>
 #include "chunkpass.h"
 
@@ -16,7 +17,8 @@ protected:
     virtual void visit(Function *function);
 private:
     Function *makeOutlinedTrampoline(Module *module, Instruction *instr);
-    Instruction *makeMovInstruction(Instruction *instr);
+    std::vector<Instruction *> makeMovInstructionForJump(Instruction *instr);
+    std::vector<Instruction *> makeMovInstructionForCall(Instruction *instr);
 };
 
 #endif
