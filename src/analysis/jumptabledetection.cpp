@@ -506,6 +506,11 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
         return std::make_tuple(true, addr);
     }
 
+    std::tie(found, addr) = parseSavedAddress(state, reg);
+    if(found) {
+        return std::make_tuple(true, addr);
+    }
+
     return std::make_tuple(false, 0);
 #elif defined(ARCH_AARCH64)
     typedef TreePatternCapture<
@@ -536,9 +541,6 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
 auto JumptableDetection::parseSavedAddress(UDState *state, int reg)
     -> std::tuple<bool, address_t> {
 
-#ifdef ARCH_X86_64
-    return std::make_tuple(false, 0);
-#elif defined(ARCH_AARCH64)
     typedef TreePatternUnary<TreeNodeDereference,
         TreePatternCapture<TreePatternBinary<TreeNodeAddition,
             TreePatternTerminal<TreeNodePhysicalRegister>,
@@ -567,7 +569,6 @@ auto JumptableDetection::parseSavedAddress(UDState *state, int reg)
     };
     FlowUtil::searchUpDef<LoadForm>(state, reg, parser);
     return std::make_tuple(found, addr);
-#endif
 }
 
 auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
