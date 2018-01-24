@@ -85,7 +85,7 @@ egalito_hook_jit_fixup:
     /* this guards resetting inside egalito_printf */
     mov     %fs:-0x10, %rax
     cmpq    $0x0, %rax
-    jne     in_code
+    jne     2f
     movq    $0x1, %fs:-0x10
 #endif
 
@@ -122,7 +122,7 @@ egalito_hook_jit_fixup:
     pop     %rax
     jmpq    *%fs:-0x8
 
-in_code:
+2:
     movq    %mm1, %rdi  /* offset */
     jmp     .
     .type egalito_hook_jit_fixup, STT_FUNC
