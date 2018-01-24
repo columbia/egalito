@@ -96,7 +96,8 @@ Sandbox *ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(sandboxBase, 10 * 0x1000 * 0x1000);
     sandboxBase += 10 * 0x1000 * 0x1000;
     auto sandbox = new SandboxImpl<MemoryBacking,
-        WatermarkAllocator<MemoryBacking>>(backing);
+        //WatermarkAllocator<MemoryBacking>>(backing);
+        AlignedWatermarkAllocator<MemoryBacking>>(backing);
     //this->sandbox = sandbox;
     return sandbox;
 }

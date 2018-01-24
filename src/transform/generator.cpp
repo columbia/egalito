@@ -138,10 +138,6 @@ void Generator::pickFunctionAddressInSandbox(Function *function,
     auto slot = sandbox->allocate(function->getSize());
     //ChunkMutator(function).setPosition(slot.getAddress());
     PositionManager::setAddress(function, slot.getAddress());
-#if 0
-    ClearSpatialPass clearSpatial;
-    module->accept(&clearSpatial);
-#endif
 }
 
 void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
@@ -150,10 +146,6 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
     auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
     //ChunkMutator(trampoline).setPosition(slot.getAddress());
     PositionManager::setAddress(trampoline, slot.getAddress());
-#if 0
-    ClearSpatialPass clearSpatial;
-    module->accept(&clearSpatial);
-#endif
 }
 
 void Generator::instantiate(Function *function, Sandbox *sandbox) {

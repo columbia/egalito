@@ -135,6 +135,37 @@ Slot WatermarkAllocator<Backing>::allocate(size_t request) {
     return Slot(region, request);
 }
 
+template <typename Backing>
+class AlignedWatermarkAllocator : public SandboxAllocator<Backing> {
+private:
+    address_t base;
+    address_t watermark;
+    size_t alignment;
+public:
+    AlignedWatermarkAllocator(Backing *backing)
+        : SandboxAllocator<Backing>(backing),
+        base(backing->getBase()), watermark(backing->getBase()),
+        alignment(16) {}
+
+    Slot allocate(size_t request);
+    address_t getCurrent() const { return watermark; }
+    void reset() { watermark = base; }
+};
+
+template <typename Backing>
+Slot AlignedWatermarkAllocator<Backing>::allocate(size_t request) {
+    size_t max = this->backing->getBase() + this->backing->getSize();
+
+    if(watermark + request + alignment > max) {
+        throw std::bad_alloc();
+    }
+
+    watermark = (watermark + alignment - 1) & ~(alignment - 1);
+    address_t region = watermark;
+    watermark += request;
+    return Slot(region, request);
+}
+
 class Sandbox {
 public:
     virtual ~Sandbox() {}
