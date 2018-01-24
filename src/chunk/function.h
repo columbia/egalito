@@ -48,7 +48,7 @@ public:
 };
 
 class FunctionList : public ChunkSerializerImpl<TYPE_FunctionList,
-    CompositeChunkImpl<Function>> {
+    CollectionChunkImpl<Function>> {
 public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

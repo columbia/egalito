@@ -45,6 +45,9 @@ void FallThroughFunctionPass::visit(Function *function) {
             assert(target);
             if(target) {
                 auto connecting = new Block();
+                PositionFactory *positionFactory = PositionFactory::getInstance();
+                connecting->setPosition(
+                    positionFactory->makePosition(block, connecting, function->getSize()));
                 LOG(10, "target = " << target->getName());
                 // add a branch instruction to the 'target' instruction
                 DisasmHandle handle(true);
