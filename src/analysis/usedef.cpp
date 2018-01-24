@@ -902,6 +902,9 @@ void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
     else {  // movl
         auto memTree = makeMemTree(state,
             assembly->getAsmOperands()->getOperands()[1].mem);
+        if(!memTree) {
+            memTree = TreeFactory::instance().make<TreeNodeConstant>(0);
+        }
         defMem(state, memTree, reg0);
     }
 
