@@ -26,11 +26,15 @@ void ReorderPush::visit(Function *function) {
     LOG(1, "ReorderPush for [" << function->getName());
 
     FrameType frameType(function);
-    frameType.dump();
+    //frameType.dump();
 
     auto prologueEnd = frameType.getSetSPInstr();
     auto epilogueStartList = frameType.getResetSPInstrs();
     bool reorderPushes = (prologueEnd && !epilogueStartList.empty());
+
+#if 0  // enable this for super-conservative mode
+    reorderPushes = false;
+#endif
 
     std::vector<int> realPushOrder;
     for(auto block : CIter::children(function)) {

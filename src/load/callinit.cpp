@@ -149,7 +149,6 @@ void egalito_runtime_init(void) {
 
 extern "C"
 void egalito_callInit(void) {
-    return;
     size_t init_index = (size_t)egalito_init_array[0];
     int argc = (int)egalito_init_array[1];
     char **argv = (char **)egalito_init_array[2];
