@@ -1315,8 +1315,15 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 }
             }
             if(indexTableEntries > 0) {
-                auto copyBase
-                    = module->getElfSpace()->getElfMap()->getCopyBaseAddress();
+                auto elfMap = module->getElfSpace()->getElfMap();
+                auto copyBase = elfMap->getCopyBaseAddress();
+                address_t mapEnd = reinterpret_cast<address_t>(
+                    elfMap->getCharmap() + elfMap->getLength());
+                if(mapEnd < copyBase + indexTableBase) {
+                    // the index table is dynamically filled!
+                    // hopefully JumpTableBounds will find it
+                    return false;
+                }
                 size_t max = 0;
                 if(indexTableScale == 1) {
                     for(size_t i = 0; i < indexTableEntries; i++) {
