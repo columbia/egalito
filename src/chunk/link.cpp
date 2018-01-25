@@ -136,8 +136,12 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
             && type != R_X86_64_GOTPC64
             && type != R_X86_64_PLTOFF64
             && type != R_X86_64_GOTPCREL
+#ifdef R_X86_64_GOTPCRELX
             && type != R_X86_64_GOTPCRELX
+#endif
+#ifdef R_X86_64_REX_GOTPCRELX
             && type != R_X86_64_REX_GOTPCRELX
+#endif
             && type != R_X86_64_PC16
             && type != R_X86_64_PC8);
 
