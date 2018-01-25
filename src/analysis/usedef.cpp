@@ -553,7 +553,6 @@ void UseDef::cancelUseDefReg(UDState *state, int reg) {
 }
 
 void UseDef::defMem(UDState *state, TreeNode *place, int reg) {
-    if(!place) return;
 #ifdef ARCH_X86_64
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg
