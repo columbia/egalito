@@ -260,7 +260,6 @@ bool UDConfiguration::isEnabled(int id) const {
     return false;
 }
 
-
 void UDWorkingSet::transitionTo(ControlFlowNode *node) {
     regSet = &nodeExposedRegSetList[node->getID()];
     memSet = &nodeExposedMemSetList[node->getID()];
@@ -307,8 +306,8 @@ void UDWorkingSet::dumpSet() const {
 }
 
 UDRegMemWorkingSet::UDRegMemWorkingSet(
-    Function *function, ControlFlowGraph *cfg)
-    : UDWorkingSet(cfg), function(function), cfg(cfg) {
+    Function *function, ControlFlowGraph *cfg, bool trackPartial)
+    : UDWorkingSet(cfg, trackPartial), function(function), cfg(cfg) {
 
     for(auto block : CIter::children(function)) {
         auto node = cfg->get(cfg->getIDFor(block));
@@ -527,9 +526,17 @@ void UseDef::useReg(UDState *state, int reg) {
         throw "error useReg";
     }
 #endif
-    for(auto o : working->getRegSet(reg)) {
-        state->addRegRef(reg, o);
-        o->addRegUse(reg, state);
+
+    if(working->getRegSet(reg).empty()
+        && working->shouldTrackPartialUDChains()) {
+
+        defReg(state, reg, new TreeNodeRegister(reg));
+    }
+    else {
+        for(auto o : working->getRegSet(reg)) {
+            state->addRegRef(reg, o);
+            o->addRegUse(reg, state);
+        }
     }
 }
 
@@ -546,6 +553,7 @@ void UseDef::cancelUseDefReg(UDState *state, int reg) {
 }
 
 void UseDef::defMem(UDState *state, TreeNode *place, int reg) {
+    if(!place) return;
 #ifdef ARCH_X86_64
     if(!X86Register::isInteger(reg) && reg != X86Register::FLAGS) {
         LOG(0, "reg = " << std::dec << reg

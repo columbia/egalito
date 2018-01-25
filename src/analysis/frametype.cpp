@@ -15,8 +15,12 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
+FrameType::FrameType(Function *function)
+    : setBPInstr(nullptr), setSPInstr(nullptr) {
+
     this->hasFrame = detectFrame(function);
+
+    // first find setBPInstr
     if(hasFrame) {
         auto firstB = function->getChildren()->getIterable()->get(0);
         for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
@@ -28,7 +32,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
                     && asmOps->getOperands()[0].type == X86_OP_REG
                     && asmOps->getOperands()[0].reg == X86_REG_RSP
                     && asmOps->getOperands()[1].type == X86_OP_REG
-                    && asmOps->getOperands()[1].reg ==  X86_REG_RBP) {
+                    && asmOps->getOperands()[1].reg == X86_REG_RBP) {
 
                     setBPInstr = ins;
                     break;
@@ -53,6 +57,35 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
         }
     }
 
+    // now find setSPInstr
+    auto firstB = function->getChildren()->getIterable()->get(0);
+    for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
+        if(auto assembly = ins->getSemantic()->getAssembly()) {
+            auto operands = assembly->getAsmOperands()->getOperands();
+#ifdef ARCH_X86_64
+            if(assembly->getId() == X86_INS_SUB
+                && assembly->getAsmOperands()->getOpCount() == 2
+                && operands[0].type == X86_OP_IMM
+                && operands[1].type == X86_OP_REG
+                && operands[1].reg == X86_REG_RSP) {
+
+                setSPInstr = ins;
+                break;
+            }
+#elif defined(ARCH_AARCH64)
+            if(assembly->getId() == ARM64_INS_MOV
+                && operands[0].reg == ARM64_REG_SP
+                && operands[1].type == ARM64_OP_REG
+                && operands[1].reg == ARM64_REG_X29) {
+
+                setSPInstr = ins;
+                break;
+            }
+#endif
+        }
+    }
+
+    // find epilogueInstrs, instructions that leave this function
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());
     for(auto b : function->getChildren()->getIterable()->iterable()) {
         for(auto ins : b->getChildren()->getIterable()->iterable()) {
@@ -93,6 +126,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
         }
     }
 
+    // find resetSPInstrs, instructions that begin a function epilogue
     for(auto const &retInstr : epilogueInstrs) {
         auto parent = dynamic_cast<Block *>(retInstr->getParent());
         for(auto ins : parent->getChildren()->getIterable()->iterable()) {
@@ -120,6 +154,7 @@ FrameType::FrameType(Function *function) : setBPInstr(nullptr) {
         }
     }
 
+    // fill out jumpToEpilogueInstrs
     for(auto block : function->getChildren()->getIterable()->iterable()) {
         for(auto ins : block->getChildren()->getIterable()->iterable()) {
             if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
@@ -198,6 +233,7 @@ void FrameType::fixEpilogue(Instruction *oldInstr, Instruction *newInstr) {
 }
 
 void FrameType::dump() {
+    LOG(1, "SP set at " << (setSPInstr ? setSPInstr->getName() : ""));
     LOG(1, "BP set at " << (setBPInstr ? setBPInstr->getName() : ""));
     for(auto i : resetSPInstrs) {
         LOG(1, "SP reset at " << std::hex << i->getAddress());
@@ -206,4 +242,3 @@ void FrameType::dump() {
         LOG(1, "function epilogue starts at " << std::hex << i->getAddress());
     }
 }
-

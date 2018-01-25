@@ -1586,7 +1586,7 @@ bool cutsRegFlow(TreeNode *tree) {
     return false;
 }
 
-bool valueReachesLoop(UDState *state, int reg,
+static bool valueReachesLoop(UDState *state, int reg,
     UDState *state2, int reg2, std::set<UDState *>& seen) {
 
     LOG(10, "valueReachesLoop: " << std::hex
