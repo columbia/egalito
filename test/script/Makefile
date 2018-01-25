@@ -30,6 +30,7 @@ test:
 	./hello-thread.sh
 	./nginx.sh
 	./nginx-thread.sh
+	./cout.sh
 
 jt:
 	$(call arch_dep,./jumptable-libc.sh)
