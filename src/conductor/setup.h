@@ -25,11 +25,10 @@ private:
     ElfMap *elf;
     ElfMap *egalito;
     Conductor *conductor;
-    //Sandbox *sandbox;
     address_t sandboxBase;
 public:
     ConductorSetup() : elf(nullptr), egalito(nullptr), conductor(nullptr),
-        /* sandbox(nullptr), */ sandboxBase(SANDBOX_BASE_ADDRESS) {}
+        sandboxBase(SANDBOX_BASE_ADDRESS) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
     void parseEgalitoArchive(const char *archive);
@@ -46,7 +45,6 @@ public:
     ElfMap *getElfMap() const { return elf; }
     ElfMap *getEgalitoElfMap() const { return egalito; }
     Conductor *getConductor() const { return conductor; }
-    //Sandbox *getSandbox() const { return sandbox; }
 public:
     void dumpElfSpace(ElfSpace *space);
     void dumpFunction(const char *function, ElfSpace *space = nullptr);

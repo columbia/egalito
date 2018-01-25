@@ -30,7 +30,7 @@ public:
 
     void resolvePLTLinks();
     void resolveTLSLinks();
-    void resolveWeak();
+    void resolveData();
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections();

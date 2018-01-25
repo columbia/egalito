@@ -9,19 +9,6 @@
 #include "snippet/hook.h"
 #include "log/log.h"
 
-class ConductorSetup;
-class SandboxFlip;
-class IFuncList;
-
-extern address_t egalito_entry;
-extern const char *egalito_initial_stack;
-extern address_t egalito_init_array[];
-
-extern ConductorSetup *egalito_conductor_setup;
-extern Conductor *egalito_conductor;
-extern Chunk *egalito_gsCallback;
-extern IFuncList *egalito_ifuncList;
-
 void InjectBridgePass::visit(Module *module) {
     auto bridge = LoaderBridge::getInstance();
 

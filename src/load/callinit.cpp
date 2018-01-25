@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstring>
 #include "callinit.h"
 #include "conductor/conductor.h"
 #include "elf/elfspace.h"
@@ -7,9 +8,37 @@
 #include "operation/find2.h"
 #include "util/feature.h"
 #include "log/log.h"
+#include "log/temp.h"
 
-#define EGALITO_INIT_ARRAY_SZ   256
+#define EGALITO_INIT_ARRAY_SZ   512
+
 address_t egalito_init_array[EGALITO_INIT_ARRAY_SZ] __attribute__((weak));
+
+bool egalito_init_done __attribute__((weak));
+extern "C" void egalito_jit_gs_setup();
+
+extern "C"
+void egalito_runtime_init(void) {
+
+    if(isFeatureEnabled("EGALITO_USE_GS")) {
+        egalito_jit_gs_setup();
+    }
+    egalito_init_done = true;
+}
+
+extern "C"
+void egalito_callInit(void) {
+    size_t init_index = (size_t)egalito_init_array[0];
+    int argc = (int)egalito_init_array[1];
+    char **argv = (char **)egalito_init_array[2];
+    char **envp = (char **)egalito_init_array[3];
+
+    typedef void (*init_t)(int, char **, char **);
+    for(size_t i = 4; i < init_index; i++) {
+        init_t f = (init_t)egalito_init_array[i];
+        f(argc, argv, envp);
+    }
+}
 
 void CallInit::makeInitArray(Program *program, int argc, char **argv,
     char **envp, GSTable *gsTable) {
@@ -56,21 +85,20 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         }
     }
 
-    LOG(10, "constructors must be called in this order");
-    for(auto module : order) {
-        LOG(10, "    " << module->getName());
+    //TemporaryLogLevel tll("load", 10);
+    IF_LOG(10) {
+        LOG(1, "constructors must be called in this order");
+        for(auto module : order) {
+            LOG(1, "    " << module->getName());
+        }
     }
 
     for(auto module : order) {
         LOG(10, "module " << module->getName());
-#if 0
-        // libpthread constructors need actual emulation
-        if(module->getName() == "module-libpthread.so.0") continue;
-#endif
 
         auto _init = ChunkFind2().findFunctionInModule("_init", module);
         if(_init) {
-            LOG(10, "adding _init to egalito_init_array");
+            LOG(10, "egalito_init_array[" << init_index << "] _init");
             if(gsTable) {
                 auto gsEntry = gsTable->makeJITEntryFor(_init);
                 egalito_init_array[init_index++] = gsEntry->getOffset();
@@ -91,9 +119,8 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
                         if(gsTable) {
                             auto index = gsTable->offsetToIndex(array[i]);
                             auto gsEntry = gsTable->getAtIndex(index);
-                            LOG(10, "adding "
-                                << gsEntry->getTarget()->getName()
-                                << " to egalito_init_array");
+                            LOG(10, "egalito_init_array[" << init_index
+                                << "] " << gsEntry->getTarget()->getName());
                             egalito_init_array[init_index++]
                                 = gsEntry->getOffset();
                         }
@@ -102,8 +129,8 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
                                 = CIter::spatial(module->getFunctionList())
                                 ->findContaining(array[i]);
                             assert(chunk);
-                            LOG(10, "adding " << chunk->getName()
-                                << " to egalito_init_array");
+                            LOG(10, "egalito_init_array[" << init_index
+                                << "] " << chunk->getName());
                             egalito_init_array[init_index++]
                                 = chunk->getAddress();
                         }
@@ -135,28 +162,3 @@ auto CallInit::getStart2(Conductor *conductor) -> Start2Type {
     return reinterpret_cast<Start2Type>(addr);
 }
 
-bool egalito_init_done __attribute__((weak));
-extern "C" void egalito_jit_gs_setup();
-
-extern "C"
-void egalito_runtime_init(void) {
-
-    if(isFeatureEnabled("EGALITO_USE_GS")) {
-        egalito_jit_gs_setup();
-    }
-    egalito_init_done = true;
-}
-
-extern "C"
-void egalito_callInit(void) {
-    size_t init_index = (size_t)egalito_init_array[0];
-    int argc = (int)egalito_init_array[1];
-    char **argv = (char **)egalito_init_array[2];
-    char **envp = (char **)egalito_init_array[3];
-
-    typedef void (*init_t)(int, char **, char **);
-    for(size_t i = 4; i < init_index; i++) {
-        init_t f = (init_t)egalito_init_array[i];
-        f(argc, argv, envp);
-    }
-}

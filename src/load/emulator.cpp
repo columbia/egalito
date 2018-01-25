@@ -24,6 +24,12 @@ namespace Emulation {
     int __libc_enable_secure = 1;
     void *__libc_stack_end;
     void *not_yet_implemented = 0;
+    // XXX: Implement glibc compatible DTV instead of obtaining the actual
+    // type for __cxxabiv1::__cxa_eh_globals
+    struct my__cxa_eh_globals {
+        void *caughtExceptions;
+        uint32_t uncauseExceptions;
+    } cxa_eh_globals_offset;
 
     // Right now we look these up by DataVariables. To have a DataVariable
     // created, there must be at least one relocation to each variable. This
@@ -78,6 +84,14 @@ namespace Emulation {
         }
         return mem;
     }
+    // cf. libstdc++-v3/eh_globals.cc
+    void *__cxa_get_globals() {
+        // there is no way to know the address of specific TLS variable for
+        // multi-threaded case for now, because we don't implement DTV yet
+        // (the layout of TLS for any dynamically created thread is outside
+        // the egalito's control)
+        return &cxa_eh_globals_offset;
+    }
 }
 
 static void createDataVariable2(Symbol *source, void *target,
@@ -131,7 +145,8 @@ void LoaderEmulator::setup(Conductor *conductor) {
     } functions[] = {
         "_dl_get_tls_static_info",
             "_ZN9Emulation23_dl_get_tls_static_infoEPmS0_",
-        "_dl_allocate_tls",     "_ZN9Emulation16_dl_allocate_tlsEPv"
+        "_dl_allocate_tls",     "_ZN9Emulation16_dl_allocate_tlsEPv",
+        "__cxa_get_globals",    "_ZN9Emulation17__cxa_get_globalsEv",
     };
     for(auto& f : functions) {
         auto emulated = ChunkFind2(conductor).findFunctionInModule(

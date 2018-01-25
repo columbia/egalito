@@ -128,7 +128,7 @@ void Conductor::resolveTLSLinks() {
     program->accept(&resolveTLS);
 }
 
-void Conductor::resolveWeak() {
+void Conductor::resolveData() {
     if(auto egalito = program->getEgalito()) {
         InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
         egalito->accept(&bridge);
@@ -136,6 +136,9 @@ void Conductor::resolveWeak() {
 
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();
+
+        LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
+        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList()), module);
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(

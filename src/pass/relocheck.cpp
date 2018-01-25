@@ -120,6 +120,11 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
 
 #ifdef ARCH_X86_64
     if(r->getType() == R_X86_64_NONE) return;
+    if(r->getType() == R_X86_64_COPY) {
+        LOG(10, "copy relocation at " << std::hex << r->getAddress()
+            << " must be handled at run-time");
+        return;
+    }
 #endif
 
     ss << "relocation at " << std::hex << r->getAddress() << " with addend "

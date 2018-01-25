@@ -42,8 +42,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(withSharedLibs) {
         conductor->resolvePLTLinks();
     }
+    conductor->resolveData();
     conductor->resolveTLSLinks();
-    conductor->resolveWeak();
     conductor->resolveVTables();
 
     conductor->check();
@@ -95,9 +95,13 @@ void ConductorSetup::injectLibrary(const char *filename) {
 Sandbox *ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(sandboxBase, 10 * 0x1000 * 0x1000);
     sandboxBase += 10 * 0x1000 * 0x1000;
+#ifdef LINUX_KERNEL_MODE
     auto sandbox = new SandboxImpl<MemoryBacking,
-        //WatermarkAllocator<MemoryBacking>>(backing);
+        WatermarkAllocator<MemoryBacking>>(backing);
+#else
+    auto sandbox = new SandboxImpl<MemoryBacking,
         AlignedWatermarkAllocator<MemoryBacking>>(backing);
+#endif
     //this->sandbox = sandbox;
     return sandbox;
 }

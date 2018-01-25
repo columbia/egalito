@@ -18,7 +18,6 @@
 #include "pass/internalcalls.h"
 #include "pass/externalcalls.h"
 #include "pass/handlerelocs.h"
-#include "pass/handledatarelocs.h"
 #include "pass/inferlinks.h"
 #include "pass/jumptablepass.h"
 #include "pass/jumptablebounds.h"
@@ -54,8 +53,6 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
 
     PLTList::parsePLTList(elf, relocList, module);
 
-    // this needs data regions
-    RUN_PASS(HandleDataRelocsInternalStrong(relocList), module);
     RUN_PASS(HandleRelocsStrong(elf, relocList), module);
     RUN_PASS(InternalCalls(), module);
 
