@@ -58,6 +58,12 @@ FrameType::FrameType(Function *function)
     }
 
     // now find setSPInstr
+#ifdef ARCH_X86_64
+    // enabling this for AARCH64 will confuse dataflow analysis for pointer
+    // detection (i.e. loader hello would fail). This is probably due to
+    // assembly data structure not being cleared after it has becom stale.
+    // clearAssembly() below will make loader to successfully load hello,
+    // but the proper fix should be done somewhere else.
     auto firstB = function->getChildren()->getIterable()->get(0);
     for(auto ins : firstB->getChildren()->getIterable()->iterable()) {
         if(auto assembly = ins->getSemantic()->getAssembly()) {
@@ -83,7 +89,11 @@ FrameType::FrameType(Function *function)
             }
 #endif
         }
+#ifdef ARCH_AARCH64
+        static_cast<SemanticImpl *>(ins->getSemantic())->clearAssembly();
+#endif
     }
+#endif
 
     // find epilogueInstrs, instructions that leave this function
     auto module = dynamic_cast<Module *>(function->getParent()->getParent());

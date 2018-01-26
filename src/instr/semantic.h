@@ -44,6 +44,7 @@ public:
         { return storage.getAssembly(0x0); }
     virtual void setAssembly(AssemblyPtr assembly)
         { storage.setAssembly(assembly); }
+    void clearAssembly() { storage.clearAssembly(); }
 protected:
     InstructionStorage *getStorage() { return &storage; }
 };

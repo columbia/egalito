@@ -17,12 +17,15 @@
 #include "log/log.h"
 
 void ReorderPush::visit(Module *module) {
+#ifdef ARCH_X86_64
     if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
 
     recurse(module);
+#endif
 }
 
 void ReorderPush::visit(Function *function) {
+#ifdef ARCH_X86_64
     LOG(1, "ReorderPush for [" << function->getName());
 
     FrameType frameType(function);
@@ -87,11 +90,13 @@ void ReorderPush::visit(Function *function) {
         }
     }
     pushOrder.clear();
+#endif
 }
 
 Instruction *ReorderPush::pickNextInstruction(std::vector<Instruction *> list,
     bool recordPushes, bool enforcePops) {
 
+#ifdef ARCH_X86_64
     Instruction *ordainedPop = nullptr;
     if(enforcePops) {
         for(size_t index = 0; index < list.size(); ) {
@@ -137,4 +142,7 @@ Instruction *ReorderPush::pickNextInstruction(std::vector<Instruction *> list,
     }
 
     return ins;
+#else
+    return nullptr;
+#endif
 }

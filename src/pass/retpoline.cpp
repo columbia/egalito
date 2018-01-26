@@ -8,11 +8,14 @@
 #include "log/log.h"
 
 void RetpolinePass::visit(Module *module) {
+#ifdef ARCH_X86_64
     this->module = module;
     recurse(module->getFunctionList());
+#endif
 }
 
 void RetpolinePass::visit(Function *function) {
+#ifdef ARCH_X86_64
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
@@ -40,9 +43,11 @@ void RetpolinePass::visit(Function *function) {
             }
         }
     }
+#endif
 }
 
 Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *instr) {
+#ifdef ARCH_X86_64
     StreamAsString nameStream;
     nameStream << "retpoline_";
 
@@ -155,10 +160,12 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
     module->getFunctionList()->getChildren()->clearSpatial();
     retpolineList[name] = function;
     return function;
+#endif
 }
 
 template <typename SemanticType>
 static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
+#ifdef ARCH_X86_64
     auto cs_reg = semantic->getRegister();
     assert(cs_reg != X86_REG_RIP);
     auto reg = X86Register::convertToPhysical(cs_reg);
@@ -234,20 +241,25 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
         static DisasmHandle handle(true);
         return {DisassembleInstruction(handle).instruction(bin)};
     }
+#endif
 }
 
 std::vector<Instruction *> RetpolinePass::makeMovInstructionForJump(
     Instruction *instr) {
 
+#ifdef ARCH_X86_64
     auto semantic = static_cast<IndirectJumpInstruction *>(instr->getSemantic());
 
     return makeMovInstruction(semantic);
+#endif
 }
 
 std::vector<Instruction *> RetpolinePass::makeMovInstructionForCall(
     Instruction *instr) {
 
+#ifdef ARCH_X86_64
     auto semantic = static_cast<IndirectCallInstruction *>(instr->getSemantic());
 
     return makeMovInstruction(semantic);
+#endif
 }

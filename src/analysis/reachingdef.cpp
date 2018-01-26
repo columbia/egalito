@@ -11,6 +11,7 @@
 #define DEBUG_GROUP dreorder
 #include "log/log.h"
 
+#ifdef ARCH_X86_64
 void ReachingDef::analyze() {
 #ifdef ARCH_X86_64
     #define INVALID_ID  X86_INS_INVALID
@@ -401,3 +402,4 @@ bool ReachingDef::bothPushesOrPops(Instruction *one, Instruction *two) {
 
     return false;
 }
+#endif

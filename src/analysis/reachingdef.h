@@ -7,6 +7,7 @@
 #include "instr/assembly.h"
 #include "instr/register.h"
 
+#ifdef ARCH_X86_64
 class Block;
 class Instruction;
 
@@ -72,5 +73,7 @@ private:
 
     bool bothPushesOrPops(Instruction *one, Instruction *two);
 };
+
+#endif
 
 #endif
