@@ -78,7 +78,7 @@ public:
 class SymbolVersion {
 private:
     const char *name;
-    bool hidden;
+    bool hidden;    // means the default version to use
 public:
     SymbolVersion(const char *name, bool hidden)
         : name(name), hidden(hidden) {}

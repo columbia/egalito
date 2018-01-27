@@ -17,14 +17,23 @@ void HandleCopyRelocs::visit(Module *module) {
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;
 
+    LOG(1, "for relocList of " << module->getName());
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
             //TemporaryLogLevel tll("chunk", 10);
+
+            // other cases not handled
+            assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
                 false, true);
+            if(!link) {
+                link = PerfectLinkResolver().resolveExternally(
+                    r->getSymbol(), conductor, module->getElfSpace(),
+                    true, true);
+            }
             if(!link) {
                 LOG(1, "no link found for R_X86_64_COPY");
                 continue;
@@ -52,7 +61,7 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
     auto section = dynamic_cast<DataSection *>(&*link->getTarget());
     std::vector<DataVariable *> existing;
     for(auto var : CIter::children(section)) {
-        LOG(10, "var = " << std::hex << var->getAddress());
+        LOG(11, "var = " << std::hex << var->getAddress());
         if(range.contains(var->getAddress())) {
             if(dynamic_cast<NormalLink *>(var->getDest())) {
                 existing.push_back(var);

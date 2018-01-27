@@ -239,14 +239,6 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
     LOG(10, "(resolveExternally) SEARCH for " << name << ", weak? " << weak);
 
-    std::string versionedName;
-    if(version) {
-        versionedName.append(name);
-        versionedName.push_back('@');
-        if(!version->isHidden()) versionedName.push_back('@');
-        versionedName.append(version->getName());
-    }
-
     if(auto func = LoaderEmulator::getInstance().findFunction(name)) {
         LOG(10, "    link to emulated function!");
         return new NormalLink(func, Link::SCOPE_EXTERNAL_CODE);
@@ -265,7 +257,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
         }
         auto space = module->getElfSpace();
         if(space && space != elfSpace) {
-            if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+            if(auto link = resolveNameAsLinkHelper(name, version,
                 space, weak, afterMapping)) {
 
                 return link;
@@ -274,7 +266,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
     }
 
     // weak definition
-    if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+    if(auto link = resolveNameAsLinkHelper(name, version,
         elfSpace, weak, afterMapping)) {
 
         LOG(10, "    link to weak definition in "
@@ -285,7 +277,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
     // weak reference
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto space = module->getElfSpace();
-        if(auto link = resolveNameAsLinkHelper(name, versionedName.c_str(),
+        if(auto link = resolveNameAsLinkHelper(name, version,
             space, weak, afterMapping)) {
 
             LOG(10, "    link (weak) to definition in "
@@ -300,13 +292,33 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
-    const char *versionedName, ElfSpace *space, bool weak, bool afterMapping) {
+    const SymbolVersion *version,
+    ElfSpace *space, bool weak, bool afterMapping) {
 
     if(auto link = resolveNameAsLinkHelper2(name, space, weak, afterMapping)) {
         return link;
     }
-    if(!versionedName) return nullptr;
-    return resolveNameAsLinkHelper2(versionedName, space, weak, afterMapping);
+    // if there is a default versioned symbol, we need to make a link to
+    // it, but this may not occur for gcc compiled binaries & libraries
+    if(!version) return nullptr;
+
+    std::string versionedName1(name);
+    versionedName1.append("@");
+    versionedName1.append(version->getName());
+    if(auto link = resolveNameAsLinkHelper2(
+        versionedName1.c_str(), space, weak, afterMapping)) {
+
+        return link;
+    }
+    std::string versionedName2(name);
+    versionedName2.append("@@");
+    versionedName1.append(version->getName());
+    if(auto link = resolveNameAsLinkHelper2(
+        versionedName2.c_str(), space, weak, afterMapping)) {
+
+        return link;
+    }
+    return nullptr;
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,

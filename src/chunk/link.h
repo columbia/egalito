@@ -349,7 +349,7 @@ public:
 private:
     Link *resolveExternally2(const char *name, const SymbolVersion *version,
         Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping);
-    Link *resolveNameAsLinkHelper(const char *name, const char *versionedName,
+    Link *resolveNameAsLinkHelper(const char *name, const SymbolVersion *version,
         ElfSpace *space, bool weak, bool afterMapping);
     Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
         bool weak, bool afterMapping);

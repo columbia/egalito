@@ -285,13 +285,15 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfMap) {
         }
     }
 
+    //TemporaryLogLevel tll("dsymbol", 10);
     SymbolVersionList versionList(elfMap);
     for(auto sym : *list) {
         auto index = sym->getIndex();
         auto verName = versionList.getVersionName(index);
         bool verHidden = versionList.isHidden(index);
 
-        LOG(10, "symbol " << sym->getName() << " has version " << verName);
+        LOG(10, "symbol " << sym->getName() << " has version " << verName
+            << " hidden? " << verHidden);
         sym->setVersion(new SymbolVersion(verName, verHidden));
     }
 
