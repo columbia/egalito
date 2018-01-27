@@ -30,7 +30,7 @@ test:
 	./hello-thread.sh
 	./nginx.sh
 	./nginx-thread.sh
-	./coreutils.sh
+	$(call x86_only,./coreutils.sh)
 	./cout.sh
 
 jt:
