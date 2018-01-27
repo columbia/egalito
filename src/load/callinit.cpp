@@ -63,6 +63,9 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
         size = met.size();
         for(auto module : CIter::modules(program)) {
             auto library = module->getLibrary();
+            // executable will call the constructor by itself
+            if(library->getRole() == Library::ROLE_MAIN) continue;
+
             if(met.find(library) != met.end()) continue;
             bool allmet = true;
             for(auto dep : library->getDependencies()) {
@@ -80,8 +83,10 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
 
     for(auto module : CIter::modules(program)) {
         if(met.find(module->getLibrary()) == met.end()) {
-            LOG(1, "library dependency not found for " << module->getName());
-            order.push_back(module);
+            auto library = module->getLibrary();
+            if(library->getRole() == Library::ROLE_MAIN) continue;
+
+            assert("library dependency not met?" && 0);
         }
     }
 
