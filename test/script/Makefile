@@ -30,6 +30,7 @@ test:
 	./hello-thread.sh
 	./nginx.sh
 	./nginx-thread.sh
+	./coreutils.sh
 	./cout.sh
 
 jt:

@@ -173,6 +173,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         }
 
         auto var = DataVariable::create(section, address, link, nullptr);
+        var->setSize(descriptor->getScale());
 
         auto entry = new JumpTableEntry(var);
         entry->setPosition(PositionFactory::getInstance()

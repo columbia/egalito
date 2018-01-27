@@ -47,7 +47,7 @@ DataVariable *DataVariable::create(DataSection *section, address_t address,
 }
 
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
-    : dest(dest) {
+    : dest(dest), size(sizeof(address_t)) {
 
     assert(section != nullptr);
     assert(section->contains(address));
@@ -71,6 +71,7 @@ void DataVariable::serialize(ChunkSerializerOperations &op,
     else {
         LinkSerializer(op).serialize(dest, writer);
     }
+    writer.write<size_t>(size);
 }
 
 bool DataVariable::deserialize(ChunkSerializerOperations &op,
@@ -80,6 +81,7 @@ bool DataVariable::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsoluteOffsetPosition(this, reader.read<address_t>()));
     name = reader.readString();
     dest = LinkSerializer(op).deserialize(reader);
+    setSize(reader.read<size_t>());
     return reader.stillGood();
 }
 

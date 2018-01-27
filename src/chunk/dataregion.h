@@ -23,8 +23,9 @@ class DataVariable : public ChunkSerializerImpl<TYPE_DataVariable,
 private:
     std::string name;
     Link *dest;
+    size_t size;    // != sizeof(address_t) for relative jump table entries
 public:
-    DataVariable() : dest(nullptr) {}
+    DataVariable() : dest(nullptr), size(sizeof(address_t)) {}
 
     // After constructing, manually append this DataVariable to its Section.
     DataVariable(DataSection *section, address_t address, Link *dest);
@@ -34,6 +35,9 @@ public:
 
     Link *getDest() const { return dest; }
     void setDest(Link *dest) { this->dest = dest; }
+
+    size_t getSize() const { return size; }
+    void setSize(size_t size) { this->size = size; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
