@@ -17,8 +17,6 @@ void JumptableDetection::detect(Module *module) {
         //TemporaryLogLevel tll("analysis", 11, f->hasName("__strncat_sse2_unaligned"));
         //TemporaryLogLevel tll("analysis", 11, f->hasName("vfwprintf"));
         //TemporaryLogLevel tll2("analysis", 11, f->hasName("vfprintf"));
-        //TemporaryLogLevel tll("analysis", 11, f->hasName("_IO_vfscanf"));
-        //TemporaryLogLevel tll("analysis", 10);
         detect(f);
     }
 }
@@ -601,6 +599,22 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
 #endif
 }
 
+void JumptableDetection::collectJumpsTo(UDState *state, JumptableInfo *info,
+    std::vector<UDState *> &result) {
+
+    for(auto link : state->getNode()->backwardLinks()) {
+        auto prec = info->cfg->get(link->getTargetID());
+        auto last = info->working->getState(
+            prec->getBlock()->getChildren()->getIterable()->getLast());
+        if(dynamic_cast<ControlFlowInstruction *>(last->getInstruction()->getSemantic())) {
+            result.push_back(last);
+        }
+        else {
+            collectJumpsTo(last, info, result);
+        }
+    }
+}
+
 bool JumptableDetection::parseBound(UDState *state, int reg,
     JumptableInfo *info) {
 
@@ -624,17 +638,40 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     > ComparisonForm2;
 
     bool found = false;
+    std::map<UDState *, int> list;
     auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
         if(r == X86Register::FLAGS) { // cmp + jump
-            IF_LOG(10) s->dumpState();
+            IF_LOG(10) {
+                LOG(1, "s = " << std::hex << s->getInstruction()->getAddress());
+                s->dumpState();
+            }
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
             if(getBoundFromCompare(s, boundTree->getValue(), info)) {
-                LOG(10, "FLAGS 0x"
-                    << std::hex << s->getInstruction()->getAddress());
-                found = true;
+                // this check here is too strict and rejects a known jump
+                // table bound in gcc (add_location_or_const_attribute),
+                // but that can be found later by other passes
+                std::vector<UDState *> precList;
+                collectJumpsTo(info->jumpState, info, precList);
+                for(auto jump : precList) {
+                    if(valueReaches(
+                        s, X86Register::FLAGS, jump, X86Register::FLAGS)) {
+
+                        LOG(10, " FLAGS reaches " << std::hex
+                            << " from " << s->getInstruction()->getAddress()
+                            << " to " << state->getInstruction()->getAddress());
+                        LOG(10, "FLAGS 0x"
+                            << std::hex << s->getInstruction()->getAddress());
+                        list[s] = info->entries;
+                        found = true;
+                        return true;
+                    }
+                }
+                LOG(10, "    condition flags" << std::hex
+                    << " set at " << s->getInstruction()->getAddress()
+                    << " doesn't reach " << state->getInstruction()->getAddress());
             }
         }
-        return found;
+        return false;
     };
 
     LOG(10, "parseBound 0x"
@@ -643,10 +680,71 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     IF_LOG(10) state->dumpState();
     for(auto s : state->getRegRef(reg)) {
         if(s == state) continue;
+        IF_LOG(10) {
+            LOG(1, "s : state->getRegRef");
+            s->dumpState();
+        }
         FlowUtil::searchDownDef<ComparisonForm>(s, reg, parser);
-        if(found) break;
+#if 0
+        //old code were able to find this; something is broken
+        if(tmp) {
+            if(!found) {
+                info->cfg->dumpDot();
+                auto i = state->getInstruction();
+                LOG(1, "at " << std::hex << i->getAddress()
+                    << " in " << i->getParent()->getParent()->getName());
+                std::cout.flush();
+            }
+            assert(found);
+        }
+#endif
+
+        if(!list.empty()) {
+            auto prune = [&](int id, int src, int dest) {
+                return id == state->getNode()->getID();
+            };
+            while (list.size() > 1) {
+                auto sz = list.size();
+                auto it = list.begin();
+                for(const auto &pair : list) {
+                    if(it->first == pair.first) continue;
+
+                    LOG(1, "checking " << std::hex
+                        << pair.first->getInstruction()->getAddress());
+                    if(isReachable(info->cfg,
+                        it->first->getNode()->getID(),
+                        pair.first->getNode()->getID(),
+                        prune)) {
+
+                        LOG(1, "deleting from list " << std::hex
+                            << it->first->getInstruction()->getAddress());
+                        list.erase(it);
+                        break;
+                    }
+                }
+                if(sz == list.size()) {
+                    info->cfg->dumpDot();
+                    LOG(1, "multiple bound?");
+                    for(auto pair : list) {
+                        LOG(1, " " << std::hex
+                            << pair.first->getInstruction()->getAddress());
+                        pair.first->dumpState();
+                    }
+                    std::cout.flush();
+                    assert(sz > list.size());
+                }
+            }
+            info->entries = list.begin()->second;
+            LOG(10, "entries = " << info->entries);
+            break;
+        }
+        //if(found) break;
         FlowUtil::searchDownDef<ComparisonForm2>(s, reg, parser);
-        if(found) break;
+        if(found) {
+            // if this fails, do the same as above
+            assert(list.size() == 1);
+            break;
+        }
 
 #if 0
         IF_LOG(10)
@@ -1298,16 +1396,19 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 indexTableEntries = it->second.entries;
             }
             else {
+                JumptableInfo indexInfo = *info;
+                indexInfo.jumpState = state;   // !!! this isn't jump
+
                 indexTableScale = scaleTree->getValue();
-                parseBound(state, regTree2->getRegister(), info);
-                indexTableEntries = info->entries;
+                parseBound(state, regTree2->getRegister(), &indexInfo);
+                indexTableEntries = indexInfo.entries;
 
                 LOG(10, "index table found! at 0x"
                     << std::hex << indexTableBase << " with "
                     << std::dec << indexTableEntries << " entries of size "
                     << std::dec << indexTableScale << " each");
 
-                if(info->entries > 0) {
+                if(indexTableEntries > 0) {
                     indexTables.emplace(std::piecewise_construct,
                         std::forward_as_tuple(indexTableBase),
                         std::forward_as_tuple(indexTableScale,
@@ -1398,7 +1499,7 @@ bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
         << " reg " << std::dec << reg);
     IF_LOG(10) state->dumpState();
 
-    auto prunePred = [&, info, reg](int n) {
+    auto prunePred = [&, info, reg](int n, int src, int dest) {
         auto block = info->cfg->get(n)->getBlock();
         for(auto instr : CIter::children(block)) {
             auto s = info->working->getState(instr);
@@ -1591,8 +1692,14 @@ static bool valueReachesLoop(UDState *state, int reg,
 
     LOG(10, "valueReachesLoop: " << std::hex
         << state->getInstruction()->getAddress()
+        << " reg " << std::dec << reg
         << " ->? "
-        << state2->getInstruction()->getAddress());
+        << std::hex << state2->getInstruction()->getAddress()
+        << " reg " << std::dec << reg2);
+    LOG(10, "from state");
+    IF_LOG(10) state->dumpState();
+    LOG(10, "to state");
+    IF_LOG(10) state2->dumpState();
 
     if(seen.find(state) != seen.end()) return false;
     seen.insert(state);
@@ -1615,6 +1722,8 @@ static bool valueReachesLoop(UDState *state, int reg,
         }
     }
 
+    // this should only be effective when common upstream defines a value
+    // and it isn't changed (not checked now)
     for(auto ref : state->getRegRef(reg)) {
         if(valueReachesLoop(ref, reg, state2, reg2, seen)) {
             return true;

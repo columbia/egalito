@@ -295,7 +295,7 @@ bool isReachable(GraphBase *graph, int src, int dest, PruneType prune) {
         if(n == dest) {
             return true;
         }
-        pruning = prune(n);
+        pruning = prune(n, src, dest);
         if(pruning) {
             pruneRoot = n;
         }

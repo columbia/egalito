@@ -354,8 +354,10 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_MOVABS,    &UseDef::fillMovabs},
     {X86_INS_MOVSXD,    &UseDef::fillMovsxd},
     {X86_INS_MOVZX,     &UseDef::fillMovzx},
+    {X86_INS_TEST,      &UseDef::fillTest},
     {X86_INS_PUSH,      &UseDef::fillPush},
     {X86_INS_SUB,       &UseDef::fillAddOrSub},
+    {X86_INS_XOR,       &UseDef::fillXor},
 #elif defined(ARCH_AARCH64)
     {ARM64_INS_ADD,     &UseDef::fillAddOrSub},
     {ARM64_INS_ADR,     &UseDef::fillAdr},
@@ -774,6 +776,9 @@ void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
             = TreeFactory::instance().make<TreeNodeSubtraction>(tree1, tree0);
         useReg(state, reg1);
         defReg(state, reg1, destTree);
+    }
+    else if(assembly->getId() == X86_INS_MOV) {
+        defReg(state, reg1, tree0);
     }
     else if(assembly->getId() == X86_INS_MOVABS) {
         defReg(state, reg1, tree0);
@@ -1407,6 +1412,7 @@ void UseDef::fillCmp(UDState *state, AssemblyPtr assembly) {
         defReg(state, X86Register::FLAGS, tree);
     }
     else {
+        defReg(state, X86Register::FLAGS, nullptr);
         LOG(10, "skipping mode " << mode);
     }
 }
@@ -1493,6 +1499,9 @@ void UseDef::fillMov(UDState *state, AssemblyPtr assembly) {
     else if(mode == AssemblyOperands::MODE_REG_REG) {
         fillRegToReg(state, assembly);
     }
+    else if(mode == AssemblyOperands::MODE_IMM_REG) {
+        fillImmToReg(state, assembly);
+    }
     else {
         LOG(10, "skipping mode " << mode);
     }
@@ -1513,6 +1522,10 @@ void UseDef::fillMovsxd(UDState *state, AssemblyPtr assembly) {
 void UseDef::fillMovzx(UDState *state, AssemblyPtr assembly) {
     fillMov(state, assembly);
 }
+void UseDef::fillTest(UDState *state, AssemblyPtr assembly) {
+    defReg(state, X86Register::FLAGS, nullptr);
+    LOG(10, "NYI (fully): " << assembly->getMnemonic());
+}
 void UseDef::fillPush(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG) {
@@ -1523,6 +1536,19 @@ void UseDef::fillPush(UDState *state, AssemblyPtr assembly) {
     else {
         LOG(10, "skipping mode " << mode);
     }
+}
+void UseDef::fillXor(UDState *state, AssemblyPtr assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_REG_REG) {
+        auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+        auto op1 = assembly->getAsmOperands()->getOperands()[1].reg;
+        if(op0 == op1) {
+            int reg0;
+            std::tie(reg0, std::ignore) = getPhysicalRegister(op0);
+            defReg(state, reg0, nullptr);
+        }
+    }
+    LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
 #endif
 

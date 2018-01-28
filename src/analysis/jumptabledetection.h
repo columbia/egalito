@@ -26,12 +26,6 @@ private:
         size_t scale;
         long entries;
 
-        TreeNode *indexExpr;
-
-        // keep the initial value of 'entries' to 0, not -1.
-        // Setting this to 0 means we are confident that there should be at
-        // least one jump for which we can determine the bound. In other
-        // words, we do not use JumpTableBounds pass.
         JumptableInfo(ControlFlowGraph *cfg, UDRegMemWorkingSet *working,
             UDState *state)
             : cfg(cfg), working(working), jumpState(state), valid(false),
@@ -89,6 +83,8 @@ private:
     bool getBoundFromArgument(UDState *state, int reg, JumptableInfo *info);
     bool getBoundFromControlFlow(UDState *state, int reg, JumptableInfo *info);
 
+    void collectJumpsTo(UDState *state, JumptableInfo *info,
+        std::vector<UDState *>& result);
     bool valueReaches(UDState *state, int reg, UDState *state2, int reg2);
 };
 

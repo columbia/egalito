@@ -395,7 +395,9 @@ private:
     void fillMovabs(UDState *state, AssemblyPtr assembly);
     void fillMovsxd(UDState *state, AssemblyPtr assembly);
     void fillMovzx(UDState *state, AssemblyPtr assembly);
+    void fillTest(UDState *state, AssemblyPtr assembly);
     void fillPush(UDState *state, AssemblyPtr assembly);
+    void fillXor(UDState *state, AssemblyPtr assembly);
 #endif
 
 #ifdef ARCH_AARCH64
