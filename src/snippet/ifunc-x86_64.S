@@ -2,7 +2,6 @@
     .text
     .global ifunc_resolver
 ifunc_resolver:
-    /* this isn't a context switch; so save registers manually */
     /* there may be some more registers (e.g. XMM) */
     push    %rax
     push    %rcx
@@ -13,7 +12,29 @@ ifunc_resolver:
     push    %r9
     push    %r10
     mov     0x40(%rsp), %rdi
+#if 0
+    subq    $128, %rsp
+    movdqu  %xmm0, (%rsp)
+    movdqu  %xmm1, 16(%rsp)
+    movdqu  %xmm2, 32(%rsp)
+    movdqu  %xmm3, 48(%rsp)
+    movdqu  %xmm4, 64(%rsp)
+    movdqu  %xmm5, 80(%rsp)
+    movdqu  %xmm6, 96(%rsp)
+    movdqu  %xmm7, 112(%rsp)
+#endif
     call    *ifunc_select@gotpcrel(%rip)
+#if 0
+    movdqu  (%rsp), %xmm0
+    movdqu  16(%rsp), %xmm1
+    movdqu  32(%rsp), %xmm2
+    movdqu  48(%rsp), %xmm3
+    movdqu  64(%rsp), %xmm4
+    movdqu  80(%rsp), %xmm5
+    movdqu  96(%rsp), %xmm6
+    movdqu  112(%rsp), %xmm7
+    addq    $128, %rsp
+#endif
     pop     %r10
     pop     %r9
     pop     %r8

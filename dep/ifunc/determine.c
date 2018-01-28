@@ -66,6 +66,10 @@ int main(int argc, char **argv)
             nop();
         }
     }
+    if(strcat(buf2, buf)) {
+        nop();
+    }
+
     if(rawmemchr(buf, 0)) {
         nop();
     }

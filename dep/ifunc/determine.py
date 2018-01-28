@@ -9,7 +9,7 @@ class DetermineIFuncTarget (gdb.Command):
                 gdb.COMPLETE_NONE)
 
     def invoke (self, arg, from_tty):
-        ifuncs = ["memset", "memcpy", "mempcpy", "memmove", "memcmp", "memchr", "strcmp", "strncmp", "strlen", "strnlen", "strcpy", "stpcpy", "strchr", "strrchr", "strchrnul", "strspn", "strcspn", "strcasecmp_l", "rawmemchr", "wmemset", "wcslen", "wcsnlen"]
+        ifuncs = ["memset", "memcpy", "mempcpy", "memmove", "memcmp", "memchr", "strcmp", "strncmp", "strlen", "strnlen", "strcpy", "stpcpy", "strchr", "strrchr", "strchrnul", "strspn", "strcspn", "strcat", "strcasecmp_l", "rawmemchr", "wmemset", "wcslen", "wcsnlen"]
         with open('ifunc.h', 'w') as f:
             for ifunc in ifuncs:
                 target = self.determine("'%s@plt'" % ifunc)
