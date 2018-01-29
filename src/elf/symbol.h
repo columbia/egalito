@@ -20,6 +20,7 @@ public:
         TYPE_OBJECT,
         TYPE_SECTION,
         TYPE_FILE,
+        TYPE_TLS,
         TYPE_NOTYPE,
         TYPE_UNKNOWN
     };

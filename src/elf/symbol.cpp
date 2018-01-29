@@ -446,6 +446,7 @@ unsigned char Symbol::typeFromInternalToElf(SymbolType type) {
     case Symbol::TYPE_OBJECT:   return STT_OBJECT;
     case Symbol::TYPE_SECTION:  return STT_SECTION;
     case Symbol::TYPE_FILE:     return STT_FILE;
+    case Symbol::TYPE_TLS:      return STT_TLS;
     default:                    return STT_NOTYPE;
     }
 }
@@ -457,6 +458,7 @@ Symbol::SymbolType Symbol::typeFromElfToInternal(unsigned char type) {
     case STT_OBJECT:   return Symbol::TYPE_OBJECT;
     case STT_SECTION:  return Symbol::TYPE_SECTION;
     case STT_FILE:     return Symbol::TYPE_FILE;
+    case STT_TLS:      return Symbol::TYPE_TLS;
     case STT_NOTYPE:   return Symbol::TYPE_NOTYPE;
     default:           return Symbol::TYPE_UNKNOWN;
     }
