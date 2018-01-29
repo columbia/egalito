@@ -6,11 +6,14 @@
 
 class ShadowStack : public ChunkPass {
 private:
+    unsigned int offset;
     unsigned int size;
-    Instruction *prologue;
-    Instruction *epilogue;
+    int sentinel;
+    Instruction *saveSSPInsn;
+    Instruction *restoreSSPInsn;
+    Instruction *clearSSPInsn;
 public:
-    ShadowStack();
+    ShadowStack(const char * stackStartAddress);
     virtual void visit(Function *function);
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
