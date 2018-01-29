@@ -28,11 +28,11 @@ void HandleCopyRelocs::visit(Module *module) {
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
-                false, true);
+                false, false, true);
             if(!link) {
                 link = PerfectLinkResolver().resolveExternally(
                     r->getSymbol(), conductor, module->getElfSpace(),
-                    true, true);
+                    true, false, true);
             }
             if(!link) {
                 LOG(1, "no link found for R_X86_64_COPY");

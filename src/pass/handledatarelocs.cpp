@@ -9,7 +9,7 @@
 #include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
-    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(executable)");
+    //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-(executable)");
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -137,7 +137,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     if(std::strcmp(symbol->getName(), "") != 0) {
         if(weak || symbol->getBind() != Symbol::BIND_WEAK) {
             auto link = PerfectLinkResolver().resolveExternally(
-                symbol, conductor, module->getElfSpace(), weak);
+                symbol, conductor, module->getElfSpace(), weak, false);
             if(link && reloc->getAddend() > 0) {
                 if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
                     dlink->setAddend(reloc->getAddend());

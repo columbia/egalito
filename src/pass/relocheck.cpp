@@ -35,22 +35,22 @@ void ReloCheckPass::visit(Module *module) {
 }
 
 void ReloCheckPass::visit(Instruction *instruction) {
-    UnresolvedLink *link = nullptr;
+    UnresolvedLink *unresolved = nullptr;
     if(auto v = dynamic_cast<LinkedInstruction *>(
         instruction->getSemantic())) {
 
-        link = dynamic_cast<UnresolvedLink *>(v->getLink());
+        unresolved = dynamic_cast<UnresolvedLink *>(v->getLink());
     }
     if(auto v = dynamic_cast<ControlFlowInstruction *>(
         instruction->getSemantic())) {
 
-        link = dynamic_cast<UnresolvedLink *>(v->getLink());
+        unresolved = dynamic_cast<UnresolvedLink *>(v->getLink());
     }
 
-    if(link) {
+    if(unresolved) {
         LOG(1, " unresolved link at " << std::hex
             << instruction->getAddress()
-            << " to " << link->getTargetAddress());
+            << " to " << unresolved->getTargetAddress());
         auto f = dynamic_cast<Function *>(
             instruction->getParent()->getParent());
         LOG(10, " in " << f->getName() << " at " << f->getAddress());
@@ -71,6 +71,12 @@ void ReloCheckPass::checkDataVariable(Module *module) {
                 if(var->getDest()->getTarget()) {
                     continue;
                 }
+                if(dynamic_cast<UnresolvedLink *>(var->getDest())) {
+                    LOG(1, " var with unresolved link at "
+                        << std::hex << var->getAddress());
+                    continue;
+                }
+
                 if(auto l = dynamic_cast<EgalitoLoaderLink *>(var->getDest())) {
                     LOG(9, " var " << std::hex << var->getAddress()
                         << " has a loader link to " << l->getTargetName());
@@ -82,10 +88,6 @@ void ReloCheckPass::checkDataVariable(Module *module) {
                 else if(dynamic_cast<SymbolOnlyLink *>(var->getDest())) {
                     LOG(9, " var " << std::hex << var->getAddress()
                         << " symbol only link");
-                }
-                else {
-                    LOG(1, " var with unresolved link at "
-                        << std::hex << var->getAddress());
                 }
             }
         }

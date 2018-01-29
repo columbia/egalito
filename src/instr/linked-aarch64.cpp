@@ -381,7 +381,7 @@ void LinkedInstruction::resolveLinks(Module *module,
         linked->setAssembly(assembly);
 
         auto link = PerfectLinkResolver().resolveInferred(
-            address, instruction, module);
+            address, instruction, module, true);
 
         if(!link) { throw "[LinkedInstruction] failed to create link!"; }
         linked->setLink(link);

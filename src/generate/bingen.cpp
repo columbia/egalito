@@ -422,6 +422,7 @@ void BinGen::resolveLinkerSymbol(Chunk *chunk, address_t address) {
 
 void BinGen::fixMarkers() {
     LOG(1, "fixing marker address");
+#if 0
     for(auto m : CIter::children(mainModule->getMarkerList())) {
         LOG(1, "marker " << m);
         if(auto symbol = m->getSymbol()) {
@@ -498,6 +499,7 @@ void BinGen::fixMarkers() {
             }
         }
     }
+#endif
 }
 
 address_t BinGen::getSectionEndAddress(const char *sectionName) const {

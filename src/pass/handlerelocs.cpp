@@ -19,6 +19,7 @@ void HandleRelocsPass::visit(Module *module) {
             functionList, r->getAddress());
         auto instruction = dynamic_cast<Instruction *>(inner);
         if(!instruction) continue;
+        if(instruction->getSemantic()->getLink()) continue;
 
         // looks like very old code
 #if 0//def ARCH_X86_64

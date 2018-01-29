@@ -165,10 +165,13 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->moveCode(sandbox, true);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
 
+#if 0
+    // this is currently broken due to Marker rafactoring
     topLevel->add("bin", [&] (Arguments args) {
         args.shouldHave(1);
         BinGen(setup, args.front().c_str()).generate();
     }, "writes out the current image to a binary file");
+#endif
 
     topLevel->add("dumptls", [&] (Arguments args) {
         args.shouldHave(0);

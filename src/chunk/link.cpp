@@ -4,10 +4,12 @@
 #include "chunk/aliasmap.h"
 #include "conductor/conductor.h"
 #include "conductor/bridge.h"
+#include "disasm/disassemble.h"
 #include "elf/reloc.h"
 #include "elf/elfspace.h"
 #include "load/emulator.h"
 #include "operation/find.h"
+#include "operation/mutator.h"
 
 #include "log/log.h"
 #include "log/temp.h"
@@ -42,7 +44,7 @@ address_t EgalitoLoaderLink::getTargetAddress() const {
 }
 
 address_t MarkerLink::getTargetAddress() const {
-    return marker->getAddress() + addend;
+    return marker->getAddress();
 }
 
 ChunkRef GSTableLink::getTarget() const {
@@ -97,18 +99,128 @@ Link *LinkFactory::makeDataLink(Module *module, address_t target,
         target, module, isRelative);
 }
 
-Link *LinkFactory::makeMarkerLink(Module *module, address_t target,
-    Symbol *symbol) {
+Link *LinkFactory::makeMarkerLink(Module *module, Symbol *symbol, size_t addend,
+    bool isRelative) {
 
     return module->getMarkerList()->createMarkerLink(
-        target, 0, symbol, module);
+        symbol, addend, module, isRelative);
+}
+
+Link *LinkFactory::makeInferredMarkerLink(Module *module, address_t address,
+    bool isRelative) {
+
+    return module->getMarkerList()->createInferredMarkerLink(
+        address, module, isRelative);
+}
+
+#ifndef LINUX_KERNEL_MODE
+static void appendNop(Function *function, size_t size) {
+#ifdef ARCH_X86_64
+    auto block = new Block();
+    auto prev = function->getChildren()->getIterable()->getLast();
+    block->setPosition(PositionFactory::getInstance()
+        ->makePosition(prev, block, function->getSize()));
+
+    DisasmHandle handle(true);
+    Instruction *i = nullptr;
+    switch(size) {
+    case 1:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x90}));
+        break;
+    case 2:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x66, 0x90}));
+        break;
+    case 3:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x0f, 0x1f, 0x00}));
+        break;
+    case 4:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x0f, 0x1f, 0x40, 0x00}));
+        break;
+    case 5:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x0f, 0x1f, 0x44, 0x00, 0x00}));
+        break;
+    case 6:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>({0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00}));
+        break;
+    case 7:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>(
+                {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00}));
+        break;
+    case 8:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>(
+                {0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}));
+        break;
+    case 9:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>(
+                {0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}));
+        break;
+    default:
+        LOG(1, "NYI: appendNop for " << size);
+        break;
+    }
+    assert(i);
+    ChunkMutator(block).append(i);
+    ChunkMutator(function).append(block);
+#endif
+}
+#endif
+
+static Function *getFunctionWithExpansion(address_t address, Module *module) {
+    auto func = CIter::spatial(module->getFunctionList())
+        ->findContaining(address);
+    if(func) return func;
+
+    if(auto region = module->getDataRegionList()
+        ->findRegionContaining(address)) {
+
+        if(region->executable()) {
+            auto section = region->findDataSectionContaining(address);
+            if(section && !section->isCode()) return nullptr;
+        }
+    }
+
+#ifdef ARCH_AARCH64
+    return nullptr;
+#endif
+
+    // for Linux, the problem of having the body of weak definition without
+    // a symbol must be solved first
+#ifndef LINUX_KERNEL_MODE
+    // hack for functions aligned to 16B or less
+    for(size_t i = 1; i < 16; i++) {
+        func = CIter::spatial(module->getFunctionList())
+            ->findContaining(address - i);
+        if(func) {
+            appendNop(func,
+                address - (func->getAddress() + func->getSize() - 1));
+            return func;
+        }
+    }
+#endif
+
+    return func;
 }
 
 Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
-    bool weak) {
+    bool weak, bool relative) {
 
-    address_t addr = reloc->getAddend();
-    if(auto symbol = reloc->getSymbol()) {
+    auto i = ChunkFind().findInnermostInsideInstruction(
+        module->getFunctionList(), reloc->getAddress());
+    auto instr = dynamic_cast<Instruction *>(i);    // nullptr if from data
+
+    address_t addend = reloc->getAddend();
+    Symbol *symbol = reloc->getSymbol();
+    address_t addr = addend;
+    if(symbol) {
         LOG(10, "(resolveInternally) SEARCH for " << symbol->getName());
 
         if(symbol->getSectionIndex() == 0) {
@@ -121,12 +233,14 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                 << " should be resolved later");
             return nullptr;
         }
+#if 0
         if(symbol->isMarker()) {
             LOG(10, "making marker link " << reloc->getAddress()
                 << " to " << addr);
             return module->getMarkerList()->createMarkerLink(
-                symbol->getAddress(), reloc->getAddend(), symbol, module);
+                symbol, reloc->getAddend(), module, relative);
         }
+#endif
 
 #ifdef ARCH_X86_64
         auto type = reloc->getType();
@@ -148,9 +262,6 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
         if(type == R_X86_64_PC32
             || type == R_X86_64_GOTPC32
         ) {
-            auto i = ChunkFind().findInnermostInsideInstruction(
-                module->getFunctionList(), reloc->getAddress());
-            auto instr = dynamic_cast<Instruction *>(i);
             if(!instr) {
                 return nullptr; // maybe from .eh_frame?
             }
@@ -175,7 +286,7 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                     s = list->find(versionedName.c_str());
                     if(s) {
                         auto dlink = LinkFactory::makeDataLink(
-                            main, s->getAddress(), true);
+                            main, s->getAddress(), relative);
                         LOG(1, "resolved to a data in module-(executable)");
                         return dlink;
                     }
@@ -194,48 +305,58 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
     }
     LOG(10, "(resolveInternally) SEARCH for " << std::hex << addr);
 
-    auto func = CIter::spatial(module->getFunctionList())->findContaining(addr);
+    auto func = getFunctionWithExpansion(addr, module);
     if(func) {
+        bool external = !(instr && instr->getParent()->getParent() == func);
         if(func->getAddress() == addr) {
             LOG(10, "resolved to a function");
-            return new NormalLink(func, Link::SCOPE_WITHIN_MODULE);
+            return LinkFactory::makeNormalLink(func, relative, external);
         }
         else {
             Chunk *inner = ChunkFind().findInnermostInsideInstruction(
                 func, addr);
             auto instruction = dynamic_cast<Instruction *>(inner);
             LOG(10, "resolved to an instuction");
-            return new NormalLink(instruction, Link::SCOPE_WITHIN_MODULE);
+            return LinkFactory::makeNormalLink(instruction, relative, external);
         }
     }
 
-    if(auto dlink = LinkFactory::makeDataLink(module, addr, true)) {
+    if(auto dlink = LinkFactory::makeDataLink(module, addr, relative)) {
         LOG(10, "resolved to a data");
         return dlink;
     }
 
-    LOG(10, "resolved to a marker");
-    return LinkFactory::makeMarkerLink(module, addr, nullptr);
+    if(auto mlink = LinkFactory::makeMarkerLink(module, symbol, addend,
+        relative)) {
+
+        LOG(10, "resolved to a marker, relative? " << relative);
+        return mlink;
+    }
+
+    LOG(10, "UNRESOLVED");
+    return nullptr;
 }
 
 Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
-    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping) {
+    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+    bool afterMapping) {
 
     return resolveExternally2(symbol->getName(), symbol->getVersion(),
-        conductor, elfSpace, weak, afterMapping);
+        conductor, elfSpace, weak, relative, afterMapping);
 }
 
 Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
-    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping) {
+    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+    bool afterMapping) {
 
     return resolveExternally2(externalSymbol->getName().c_str(),
         externalSymbol->getVersion(), conductor, elfSpace, weak,
-        afterMapping);
+        relative, afterMapping);
 }
 
 Link *PerfectLinkResolver::resolveExternally2(const char *name,
     const SymbolVersion *version, Conductor *conductor, ElfSpace *elfSpace,
-    bool weak, bool afterMapping) {
+    bool weak, bool relative, bool afterMapping) {
 
     LOG(10, "(resolveExternally) SEARCH for " << name << ", weak? " << weak);
 
@@ -258,7 +379,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
         auto space = module->getElfSpace();
         if(space && space != elfSpace) {
             if(auto link = resolveNameAsLinkHelper(name, version,
-                space, weak, afterMapping)) {
+                space, weak, relative, afterMapping)) {
 
                 return link;
             }
@@ -267,7 +388,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
     // weak definition
     if(auto link = resolveNameAsLinkHelper(name, version,
-        elfSpace, weak, afterMapping)) {
+        elfSpace, weak, relative, afterMapping)) {
 
         LOG(10, "    link to weak definition in "
             << elfSpace->getModule()->getName());
@@ -278,7 +399,7 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto space = module->getElfSpace();
         if(auto link = resolveNameAsLinkHelper(name, version,
-            space, weak, afterMapping)) {
+            space, weak, relative, afterMapping)) {
 
             LOG(10, "    link (weak) to definition in "
                 << space->getModule()->getName());
@@ -293,9 +414,11 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     const SymbolVersion *version,
-    ElfSpace *space, bool weak, bool afterMapping) {
+    ElfSpace *space, bool weak, bool relative, bool afterMapping) {
 
-    if(auto link = resolveNameAsLinkHelper2(name, space, weak, afterMapping)) {
+    if(auto link = resolveNameAsLinkHelper2(
+        name, space, weak, relative, afterMapping)) {
+
         return link;
     }
     // if there is a default versioned symbol, we need to make a link to
@@ -306,7 +429,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName1.append("@");
     versionedName1.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName1.c_str(), space, weak, afterMapping)) {
+        versionedName1.c_str(), space, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -314,7 +437,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName2.append("@@");
     versionedName1.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName2.c_str(), space, weak, afterMapping)) {
+        versionedName2.c_str(), space, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -322,7 +445,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
-    ElfSpace *space, bool weak, bool afterMapping) {
+    ElfSpace *space, bool weak, bool relative, bool afterMapping) {
 
     Symbol *symbol = nullptr;
     auto list = space->getDynamicSymbolList();
@@ -354,11 +477,16 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
         return new NormalLink(alias, Link::SCOPE_EXTERNAL_CODE);
     }
 
+    // resolving by name means that we are resolving to outside the module
+    // and so no assumption can be made about the layout of other modules;
+    // in other words, there should be no markers
+#if 0
     if(symbol->isMarker()) {
         return LinkFactory::makeMarkerLink(space->getModule(),
             space->getElfMap()->getBaseAddress() + symbol->getAddress(),
-            symbol);
+            symbol, relative);
     }
+#endif
     if(symbol->getAddress() > 0
         && symbol->getType() != Symbol::TYPE_FUNC
         && symbol->getType() != Symbol::TYPE_IFUNC) {
@@ -378,7 +506,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveInferred(address_t address,
-    Instruction *instruction, Module *module) {
+    Instruction *instruction, Module *module, bool relative) {
 
     auto f = dynamic_cast<Function *>(
         instruction->getParent()->getParent());
@@ -405,5 +533,11 @@ Link *PerfectLinkResolver::resolveInferred(address_t address,
     }
 
     LOG(10, " --> marker link");
-    return LinkFactory::makeMarkerLink(module, address, nullptr);;
+    if(auto link = LinkFactory::makeInferredMarkerLink(module, address,
+        relative)) {
+
+        return link;
+    }
+
+    return nullptr;
 }

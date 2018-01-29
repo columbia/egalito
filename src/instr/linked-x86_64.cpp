@@ -9,6 +9,7 @@
 #include "operation/find.h"
 #include "log/log.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 #ifdef ARCH_X86_64
 void LinkedInstruction::makeDisplacementInfo() {
@@ -20,10 +21,11 @@ void LinkedInstruction::makeDisplacementInfo() {
         = MakeSemantic::getDispOffset(&*assembly, opIndex);
 }
 
-unsigned LinkedInstruction::calculateDisplacement() {
-    unsigned int disp = getLink()->getTargetAddress();
+unsigned long LinkedInstruction::calculateDisplacement() {
+    unsigned long int disp = getLink()->getTargetAddress();
     if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
         && !dynamic_cast<AbsoluteDataLink *>(getLink())
+        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
         && !dynamic_cast<GSTableLink *>(getLink())
         && !dynamic_cast<DistanceLink *>(getLink())) {
 
@@ -35,7 +37,7 @@ unsigned LinkedInstruction::calculateDisplacement() {
 void LinkedInstruction::writeTo(char *target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
-    unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
+    unsigned long int newDisp = useDisp ? calculateDisplacement() : 0;
     int dispOffset = getDispOffset();
     int i = 0;
     std::memcpy(target + i, assembly->getBytes() + i, dispOffset);
@@ -49,7 +51,7 @@ void LinkedInstruction::writeTo(char *target, bool useDisp) {
 void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
-    unsigned int newDisp = useDisp ? calculateDisplacement() : 0;
+    unsigned long int newDisp = useDisp ? calculateDisplacement() : 0;
     int dispOffset = getDispOffset();
     target.append(reinterpret_cast<const char *>(assembly->getBytes()),
         dispOffset);
@@ -85,13 +87,17 @@ static PLTTrampoline *findPLTTrampoline(Module *module, address_t target) {
 LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, AssemblyPtr assembly, Reloc *reloc) {
 
-    auto link = PerfectLinkResolver().resolveInternally(reloc, module, true);
+    size_t offset = reloc->getAddress() - instruction->getAddress();
+    auto index = MakeSemantic::getOpIndex(&*assembly, offset);
+
+    bool relative = MakeSemantic::isRIPRelative(&*assembly, index);
+    auto link
+        = PerfectLinkResolver().resolveInternally(reloc, module, true, relative);
     if(!link) return nullptr;
 
     auto linked = new LinkedInstruction(instruction);
     linked->setAssembly(assembly);
-    size_t offset = reloc->getAddress() - instruction->getAddress();
-    linked->setIndex(MakeSemantic::getOpIndex(&*assembly, offset));
+    linked->setIndex(index);
     linked->setLink(link);
     return linked;
 }
@@ -107,6 +113,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
         const cs_x86_op *op = &asmOps->getOperands()[i];
         if(MakeSemantic::isRIPRelative(&*assembly, i)) {
+            assert(!dispLink);
             address_t target
                 = (instruction->getAddress() + instruction->getSize())
                 + op->mem.disp;
@@ -129,22 +136,32 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
                 dispLink = new NormalLink(found, scope);
             }
             else {
-                dispLink = LinkFactory::makeDataLink(module, target, true);
+                auto c = ChunkFind().findInnermostAt(
+                    module->getFunctionList(), target);
+                if(dynamic_cast<Instruction *>(c)) {
+                    dispLink = new NormalLink(c, Link::SCOPE_INTERNAL_JUMP);
+                }
+                else if(auto plt = findPLTTrampoline(module, target)) {
+                    // should this be a PLTLink?
+                    dispLink = new NormalLink(plt, Link::SCOPE_WITHIN_MODULE);
+                }
                 if(!dispLink) {
-                    auto c = ChunkFind().findInnermostAt(
-                        module->getFunctionList(), target);
-                    if(dynamic_cast<Instruction *>(c)) {
-                        dispLink = new NormalLink(c, Link::SCOPE_INTERNAL_JUMP);
+                    dispLink = LinkFactory::makeDataLink(module, target, true);
+                }
+                if(!dispLink) {
+                    dispLink = LinkFactory::makeInferredMarkerLink(module,
+                        target, true);
+                    if(!dispLink) {
+                        ChunkDumper d;
+                        LOG(1, "making inferred marker link failed "
+                            << module->getName()
+                            << " " << std::hex << instruction->getAddress());
+                        LOG(1, "target is "<< std::hex << target);
+                        module->getDataRegionList()->accept(&d);
                     }
-                    else if(auto plt = findPLTTrampoline(module, target)) {
-                        // should this be a PLTLink?
-                        dispLink = new NormalLink(plt, Link::SCOPE_WITHIN_MODULE);
-                    }
-                    else {
-                        //dispLink = new UnresolvedLink(target);
-                        dispLink = LinkFactory::makeMarkerLink(
-                            module, target, nullptr);
-                    }
+                }
+                if(!dispLink) {
+                    dispLink = new UnresolvedLink(target);
                 }
             }
 

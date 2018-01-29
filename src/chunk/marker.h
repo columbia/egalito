@@ -10,17 +10,15 @@ class RelocList;
 
 class Marker : public ChunkImpl {
 private:
-    address_t address;
-    Symbol *symbol;
+    Chunk *base;
+    size_t addend;
 
 public:
-    Marker(address_t address, Symbol *symbol=nullptr);
-    Symbol *getSymbol() const { return symbol; }
-    void setSymbol(Symbol *symbol) { this->symbol = symbol; }
+    Marker(Chunk *base, size_t addend);
     virtual void accept(ChunkVisitor *visitor) {}
 
-    virtual address_t getAddress() const { return address; }
-    virtual void setAddress(address_t address) { this->address = address; }
+    virtual address_t getAddress() const;
+    virtual void setAddress(address_t address);
 };
 
 class SectionStartMarker : public Marker {
@@ -29,7 +27,7 @@ private:
     long int bias;
 
 public:
-    SectionStartMarker(DataSection *dataSection, Symbol *symbol=nullptr);
+    SectionStartMarker(DataSection *dataSection);
     DataSection *getDataSection() const { return dataSection; }
     virtual void accept(ChunkVisitor *visitor) {}
 
@@ -43,7 +41,7 @@ private:
     long int bias;
 
 public:
-    SectionEndMarker(DataSection *dataSection, Symbol *symbol=nullptr);
+    SectionEndMarker(DataSection *dataSection);
     DataSection *getDataSection() const { return dataSection; }
     virtual void accept(ChunkVisitor *visitor) {}
 
@@ -55,17 +53,21 @@ class MarkerList : public CollectionChunkImpl<Marker> {
 public:
     virtual void accept(ChunkVisitor *visitor);
 
-    Link *createMarkerLink(address_t target, size_t addend, Symbol *symbol,
-        Module *module);
-    Marker *findOrAddGeneralMarker(address_t target, Symbol *symbol);
-    Marker *findOrAddStartMarker(Symbol *symbol, DataSection *dataSection);
-    Marker *findOrAddEndMarker(Symbol *symbol, DataSection *dataSection);
+    Link *createMarkerLink(Symbol *symbol, size_t addend, Module *module,
+        bool isRelative);
+    Link *createInferredMarkerLink(address_t address, Module *module,
+        bool isRelative);
+    Marker *addGeneralMarker(Chunk *chunk, size_t addend);
+    Marker *addStartMarker(DataSection *dataSection);
+    Marker *addEndMarker(DataSection *dataSection);
 
 private:
-    Link *createGeneralMarkerLink(address_t target, Symbol *symbol,
-        size_t addend, Module *module);
-    Link *createStartOrEndMarkerLink(address_t target, Symbol *symbol,
-        size_t addend, DataSection *dataSection, Module *module);
+    Link *createGeneralMarkerLink(Chunk *chunk,
+        size_t addend, Module *module, bool isRelative);
+    Link *createStartMarkerLink(
+        DataSection *dataSection, Module *module, bool isRelative);
+    Link *createEndMarkerLink(
+        DataSection *dataSection, Module *module, bool isRelative);
 };
 
 #endif

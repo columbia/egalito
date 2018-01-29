@@ -23,10 +23,10 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
 
     auto symbol = pltTrampoline->getExternalSymbol();
     auto link = PerfectLinkResolver().resolveExternally(symbol, conductor,
-        module->getElfSpace(), false);
+        module->getElfSpace(), false, true);
     if(!link) {
         link = PerfectLinkResolver().resolveExternally(symbol, conductor,
-            module->getElfSpace(), true);
+            module->getElfSpace(), true, true);
     }
     Chunk *target = nullptr;
     if(link) {

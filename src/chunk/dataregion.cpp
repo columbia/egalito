@@ -309,10 +309,6 @@ void DataRegionList::accept(ChunkVisitor *visitor) {
 Link *DataRegionList::createDataLink(address_t target, Module *module,
     bool isRelative) {
 
-    LOG(10, "MAKE LINK to " << std::hex << target
-        << ", relative? " << isRelative);
-
-    //auto region = CIter::spatial(this)->findContaining(target);
     auto region = findRegionContaining(target);
     if(region) {
         LOG(11, "    region is " << region->getName());
@@ -320,6 +316,10 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
         if(dsec) {
             LOG(11, "    section is " << dsec->getName());
             if(dsec->getType() == DataSection::TYPE_CODE) {
+                // This should only exists for section relative relocation.
+                // A tricky case is where it is relative to a symbol which
+                // at the start address of the section
+#if 1
                 if(ChunkFind().findInnermostAt(
                     module->getFunctionList(), target)) {
 
@@ -334,6 +334,7 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
 #endif
                     return nullptr;
                 }
+#endif
             }
             auto base = dsec->getAddress();
             LOG(10, "" << target << " has offset " << (target - base));

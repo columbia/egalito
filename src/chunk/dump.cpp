@@ -121,13 +121,7 @@ void ChunkDumper::visit(DataSection *dataSection) {
 
 void ChunkDumper::visit(MarkerList *markerList) {
     LOG(1, "--[markers]--");
-    for(auto marker : CIter::children(markerList)) {
-        LOG0(1, "" << marker->getAddress() << " : ");
-        if(auto sym = marker->getSymbol()) {
-            LOG(1, sym->getName());
-        }
-        else LOG(1, "");
-    }
+    LOG(1, "    NYI");
 }
 
 void ChunkDumper::visit(VTable *vtable) {

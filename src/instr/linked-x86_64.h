@@ -43,7 +43,7 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
     Instruction *getInstruction() const { return instruction; }
-    unsigned calculateDisplacement();
+    unsigned long calculateDisplacement();
     void makeDisplacementInfo();
 };
 

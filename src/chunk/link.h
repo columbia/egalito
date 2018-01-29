@@ -187,16 +187,18 @@ class MarkerLink : public LinkScopeDecorator<
     Link::SCOPE_UNKNOWN, Link> {
 private:
     Marker *marker;
-    size_t addend;
 
 public:
-    MarkerLink(Marker *marker, size_t addend)
-        : marker(marker), addend(addend) {}
+    MarkerLink(Marker *marker) : marker(marker) {}
 
     Marker *getMarker() const { return marker; }
-    size_t getAddend() const { return addend; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
+};
+
+class AbsoluteMarkerLink : public MarkerLink {
+public:
+    using MarkerLink::MarkerLink;
 };
 
 class GSTableEntry;
@@ -314,8 +316,10 @@ public:
         bool isExternal = false);
     static Link *makeDataLink(Module *module, address_t target,
         bool isRelative = true);
-    static Link *makeMarkerLink(Module *module, address_t target,
-        Symbol *symbol);
+    static Link *makeMarkerLink(Module *module, Symbol *symbol, size_t addend,
+        bool isRelative);
+    static Link *makeInferredMarkerLink(Module *module, address_t address,
+        bool isRelative);
 };
 
 // --- link resolver ---
@@ -333,26 +337,28 @@ class PerfectLinkResolver {
 public:
     /* Resolve within the same module using address info in a relocation.
      * Only returns nullptr if undefined within the module. */
-    Link *resolveInternally(Reloc *reloc, Module *module, bool weak);
+    Link *resolveInternally(Reloc *reloc, Module *module, bool weak,
+        bool relative=true);
 
     /* Resolve outside the module using symbol info. */
     Link *resolveExternally(Symbol *symbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool afterMapping=false);
+        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
     Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool afterMapping=false);
+        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
     Link *resolveInferred(address_t address, Instruction *instruction,
-        Module *module);
+        Module *module, bool relative);
 
 private:
     Link *resolveExternally2(const char *name, const SymbolVersion *version,
-        Conductor *conductor, ElfSpace *elfSpace, bool weak, bool afterMapping);
+        Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+        bool afterMapping);
     Link *resolveNameAsLinkHelper(const char *name, const SymbolVersion *version,
-        ElfSpace *space, bool weak, bool afterMapping);
+        ElfSpace *space, bool weak, bool relative, bool afterMapping);
     Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
-        bool weak, bool afterMapping);
+        bool weak, bool relative, bool afterMapping);
 };
 
 #endif
