@@ -30,6 +30,7 @@
 #include "pass/debloat.h"
 #include "pass/makecache.h"
 #include "pass/reorderpush.h"
+#include "pass/basicblockcount.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -172,6 +173,11 @@ void EgalitoLoader::otherPasses() {
 #if 0  // add nop pass
     NopPass nopPass;
     setup->getConductor()->getProgram()->getMain()->accept(&nopPass);
+#endif
+
+#if 1  // add nop pass
+    BasicBlockCountPass bbCountPass;
+    setup->getConductor()->getProgram()->getMain()->accept(&bbCountPass);
 #endif
 
 #if 1
