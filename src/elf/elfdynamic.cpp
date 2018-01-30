@@ -161,7 +161,9 @@ void ElfDynamic::resolveLibraries() {
 void ElfDynamic::processLibrary(const std::string &fullPath,
     const std::string &filename, Library *depend) {
 
-    if(filename == "ld-linux-x86-64.so.2") {
+    if(filename == "ld-linux-x86-64.so.2"
+        || filename == "ld-linux-aarch64.so.1") {
+
         LOG(2, "    skipping processing of ld.so for now");
         return;
     }

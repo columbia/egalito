@@ -100,7 +100,7 @@ Link *MarkerList::createInferredMarkerLink(address_t address,
     auto region = module->getDataRegionList()->findRegionContaining(address);
     assert(!region || !region->findDataSectionContaining(address));
 
-    // usually pointing to the end of .bss (other cases link kernel require -q)
+    // usually pointing to the end of .bss (other cases like kernel require -q)
     if(!region) {
         region = module->getDataRegionList()->findRegionContaining(address - 1);
     }
