@@ -17,7 +17,7 @@ void JumptableDetection::detect(Module *module) {
         //TemporaryLogLevel tll("analysis", 11, f->hasName("__strncat_sse2_unaligned"));
         //TemporaryLogLevel tll("analysis", 11, f->hasName("vfwprintf"));
         //TemporaryLogLevel tll2("analysis", 11, f->hasName("vfprintf"));
-        //TemporaryLogLevel tll2("analysis", 11, f->hasName("output_constant_pool"));
+        //TemporaryLogLevel tll2("analysis", 11, f->hasName("print_operand"));
         detect(f);
     }
 }
@@ -625,19 +625,6 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > ComparisonForm;
 
-    typedef TreePatternBinary<TreeNodeComparison,
-        TreePatternUnary<TreeNodeDereference,
-            TreePatternBinary<TreeNodeAddition,
-                TreePatternTerminal<TreeNodePhysicalRegister>,
-                TreePatternBinary<TreeNodeMultiplication,
-                    TreePatternTerminal<TreeNodePhysicalRegister>,
-                    TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-                >
-            >
-        >,
-        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
-    > ComparisonForm2;
-
     bool found = false;
     std::map<UDState *, int> list;
     auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
@@ -685,20 +672,7 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
             LOG(1, "s : state->getRegRef");
             s->dumpState();
         }
-        FlowUtil::searchDownDef<ComparisonForm>(s, reg, parser);
-#if 0
-        //old code were able to find this; something is broken
-        if(tmp) {
-            if(!found) {
-                info->cfg->dumpDot();
-                auto i = state->getInstruction();
-                LOG(1, "at " << std::hex << i->getAddress()
-                    << " in " << i->getParent()->getParent()->getName());
-                std::cout.flush();
-            }
-            assert(found);
-        }
-#endif
+        FlowUtil::searchDownUse<ComparisonForm>(s, reg, parser);
 
         if(!list.empty()) {
             auto prune = [&](int id, int src, int dest) {
@@ -737,13 +711,6 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
             }
             info->entries = list.begin()->second;
             LOG(10, "entries = " << info->entries);
-            break;
-        }
-        //if(found) break;
-        FlowUtil::searchDownDef<ComparisonForm2>(s, reg, parser);
-        if(found) {
-            // if this fails, do the same as above
-            assert(list.size() == 1);
             break;
         }
 
@@ -863,7 +830,7 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     // search up where reg is defined and look downward
     for(auto s : state->getRegRef(reg)) {
         // first check if there is any use (other than this)
-        FlowUtil::searchDownDef<ComparisonForm>(s, reg, parser);
+        FlowUtil::searchDownUse<ComparisonForm>(s, reg, parser);
         if(found) break;
 
         // if not
@@ -1355,7 +1322,7 @@ bool JumptableDetection::getBoundFromBitTest(UDState *state, int reg,
     return false;
 }
 
-// this only exists for manually crafted jumptables in C printf
+// for manually crafted jumptables in C
 bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
     JumptableInfo *info) {
 
@@ -1371,8 +1338,23 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
         >
     >> IndexTableAccessForm;
 
+    typedef TreePatternBinary<TreeNodeComparison,
+        TreePatternUnary<TreeNodeDereference,
+            TreePatternCapture<TreePatternBinary<TreeNodeAddition,
+                TreePatternTerminal<TreeNodePhysicalRegister>,
+                TreePatternBinary<TreeNodeMultiplication,
+                    TreePatternTerminal<TreeNodePhysicalRegister>,
+                    TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+                >
+            >>
+        >,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > ComparisonForm2;
+
     TreeCapture capture;
     if(IndexTableAccessForm::matches(state->getRegDef(reg), capture)) {
+        auto derefTree
+            = dynamic_cast<TreeNodeDereference *>(capture.get(0));
         auto regTree1
             = dynamic_cast<TreeNodePhysicalRegister *>(capture.get(1));
         auto regTree2
@@ -1381,8 +1363,43 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
 
         LOG(10, "Dereference from index table at " << std::hex
             << state->getInstruction()->getAddress());
+        IF_LOG(10) state->dumpState();
 
-        bool found;
+        bool found = false;
+
+        // if there is a direct comparison of the MemLocation in the
+        // immediate preceding nodes, then the bound obtained is actually
+        // the bounds of the jump table
+        MemLocation m(derefTree->getChild());
+        auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
+            if(r == X86Register::FLAGS) { // cmp + jump
+                if(m != MemLocation(cap.get(0))) {
+                    LOG(10, " mem locations don't match");
+                    return false;
+                }
+
+                IF_LOG(10) {
+                    LOG(1, "matched ComparisonForm2 = " << std::hex
+                        << s->getInstruction()->getAddress());
+                    s->dumpState();
+                }
+                auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(2));
+                if(getBoundFromCompare(s, boundTree->getValue(), info)) {
+                    LOG(10, "found DIRECT comparison");
+                    found = true;
+                    return true;
+                }
+            }
+            return false;
+        };
+        for(auto s : state->getRegRef(reg)) {
+            FlowUtil::searchDownUse<ComparisonForm2>(
+                s, regTree2->getRegister(), parser);
+            if(found) {
+                return true;
+            }
+        }
+
         address_t indexTableBase = 0;
         size_t indexTableScale = 0;
         size_t indexTableEntries = 0;
@@ -1401,6 +1418,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 indexInfo.jumpState = state;   // !!! this isn't jump
 
                 indexTableScale = scaleTree->getValue();
+
                 parseBound(state, regTree2->getRegister(), &indexInfo);
                 indexTableEntries = indexInfo.entries;
 

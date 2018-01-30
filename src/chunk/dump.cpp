@@ -91,7 +91,7 @@ void ChunkDumper::visit(JumpTable *jumpTable) {
 void ChunkDumper::visit(JumpTableEntry *jumpTableEntry) {
     LOG0(10, "    " << std::hex << jumpTableEntry->getAddress());
     if(auto link = jumpTableEntry->getLink()) {
-        LOG(10, " (should be) pointing to " << link->getTargetAddress());
+        LOG(10, " => + " << link->getTargetAddress());
     }
 }
 

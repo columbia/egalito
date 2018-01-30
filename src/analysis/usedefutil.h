@@ -61,7 +61,7 @@ public:
         typename ActionType,
         typename... Args
     >
-    static void searchDownDef(StateType *state, int reg, ActionType& fn,
+    static void searchDownUse(StateType *state, int reg, ActionType& fn,
         Args... args) {
 
         for(auto& s : state->getRegUse(reg)) {
