@@ -160,6 +160,8 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
     module->getFunctionList()->getChildren()->clearSpatial();
     retpolineList[name] = function;
     return function;
+#else
+    return nullptr;
 #endif
 }
 
@@ -241,6 +243,8 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
         static DisasmHandle handle(true);
         return {DisassembleInstruction(handle).instruction(bin)};
     }
+#else
+    return {};
 #endif
 }
 
@@ -251,6 +255,8 @@ std::vector<Instruction *> RetpolinePass::makeMovInstructionForJump(
     auto semantic = static_cast<IndirectJumpInstruction *>(instr->getSemantic());
 
     return makeMovInstruction(semantic);
+#else
+    return {};
 #endif
 }
 
@@ -261,5 +267,7 @@ std::vector<Instruction *> RetpolinePass::makeMovInstructionForCall(
     auto semantic = static_cast<IndirectCallInstruction *>(instr->getSemantic());
 
     return makeMovInstruction(semantic);
+#else
+    return {};
 #endif
 }

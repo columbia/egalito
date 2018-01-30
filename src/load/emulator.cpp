@@ -23,6 +23,9 @@ namespace Emulation {
     int _dl_starting_up = 0;//1;
     int __libc_enable_secure = 1;
     void *__libc_stack_end;
+#ifdef ARCH_AARCH64
+    uint64_t __pointer_chk_guard = 0;
+#endif
     void *not_yet_implemented = 0;
     // XXX: Implement glibc compatible DTV instead of obtaining the actual
     // type for __cxxabiv1::__cxa_eh_globals
@@ -165,7 +168,10 @@ void LoaderEmulator::setup(Conductor *conductor) {
         "environ",          "_ZN9Emulation9__environE",
         "__libc_stack_end", "_ZN9Emulation16__libc_stack_endE",
         "_dl_starting_up",  "_ZN9Emulation15_dl_starting_upE",
-        "__libc_enable_secure", "_ZN9Emulation20__libc_enable_secureE"
+        "__libc_enable_secure", "_ZN9Emulation20__libc_enable_secureE",
+#ifdef ARCH_AARCH64
+        "__pointer_chk_guard", "_ZN9Emulation19__pointer_chk_guardE"
+#endif
     };
     auto symbolList = egalito->getElfSpace()->getSymbolList();
     for(auto& d : data) {

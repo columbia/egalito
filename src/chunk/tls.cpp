@@ -73,7 +73,7 @@ void EgalitoTLS::setJITAddressTable(void *JIT_addressTable) {
 }
 
 size_t EgalitoTLS::getJITResetThreshold() {
-    size_t JIT_resetThreshold;
+    size_t JIT_resetThreshold = 0;
     GET_FROM_TLS(JIT_resetThreshold);
     return JIT_resetThreshold;
 }
@@ -83,7 +83,7 @@ void EgalitoTLS::setJITResetThreshold(size_t JIT_resetThreshold) {
 }
 
 size_t EgalitoTLS::getJITResetCounter() {
-    size_t JIT_resetCounter;
+    size_t JIT_resetCounter = 0;
     GET_FROM_TLS(JIT_resetCounter);
     return JIT_resetCounter;
 }
