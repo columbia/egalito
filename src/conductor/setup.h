@@ -31,7 +31,7 @@ public:
         sandboxBase(SANDBOX_BASE_ADDRESS) {}
     void parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
-    void parseEgalitoArchive(const char *archive);
+    bool parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);
     Sandbox *makeLoaderSandbox();
     ShufflingSandbox *makeShufflingSandbox();

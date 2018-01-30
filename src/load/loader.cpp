@@ -58,7 +58,10 @@ bool EgalitoLoader::parse(const char *filename) {
         }
         else {
             LOG(1, "parsing archive [" << filename << "]");
-            setup->parseEgalitoArchive(filename);
+            if(!setup->parseEgalitoArchive(filename)) {
+                LOG(0, "Could not parse input file [" << filename << "]!");
+                return false;
+            }
         }
     }
     catch(const char *message) {

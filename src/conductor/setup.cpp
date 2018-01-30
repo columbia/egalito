@@ -71,13 +71,13 @@ void ConductorSetup::parseElfFiles(const char *executable,
     }
 }
 
-void ConductorSetup::parseEgalitoArchive(const char *archive) {
+bool ConductorSetup::parseEgalitoArchive(const char *archive) {
     this->conductor = new Conductor();
 
     this->elf = nullptr;
     this->egalito = nullptr;
 
-    conductor->parseEgalitoArchive(archive);
+    return conductor->parseEgalitoArchive(archive);
 }
 
 void ConductorSetup::injectLibrary(const char *filename) {

@@ -238,6 +238,7 @@ void ChunkSerializer::serialize(Chunk *chunk, std::string filename) {
 
 Chunk *ChunkSerializer::deserialize(std::string filename) {
     EgalitoArchive *archive = EgalitoArchiveReader().read(filename);
+    if(!archive) return nullptr;
     ChunkSerializerOperations op(archive, false);
 
     // First instantiate objects, with the correct type, so that memory

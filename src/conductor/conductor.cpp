@@ -89,13 +89,13 @@ Module *Conductor::parse(ElfMap *elf, Library *library) {
     return module;
 }
 
-void Conductor::parseEgalitoArchive(const char *archive) {
+bool Conductor::parseEgalitoArchive(const char *archive) {
     ChunkSerializer serializer;
     Chunk *newData = serializer.deserialize(archive);
 
     if(!newData) {
         LOG(1, "Error parsing archive [" << archive << "]");
-        return;  // No data present
+        return false;  // No data present
     }
     else if(auto p = dynamic_cast<Program *>(newData)) {
         LOG(1, "Using full Chunk tree from archive [" << archive << "]");
@@ -111,6 +111,7 @@ void Conductor::parseEgalitoArchive(const char *archive) {
     }
 
     ConductorPasses(this).newArchivePasses(program);
+    return true;
 }
 
 void Conductor::resolvePLTLinks() {

@@ -26,7 +26,7 @@ public:
     Module *parseEgalito(ElfMap *elf);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
-    void parseEgalitoArchive(const char *archive);
+    bool parseEgalitoArchive(const char *archive);
 
     void resolvePLTLinks();
     void resolveTLSLinks();
