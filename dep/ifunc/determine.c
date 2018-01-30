@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <locale.h>
+#include <math.h>
 
 void nop() {}
 void breakpoint() {}
@@ -16,6 +17,7 @@ int main(int argc, char **argv)
     uint8_t buf[100];
     uint8_t buf2[100];
     wchar_t wbuf[100];
+    double d;
 
     memset(buf, 0, 10);
     memcpy(buf, buf2, 10);
@@ -79,6 +81,10 @@ int main(int argc, char **argv)
         nop();
     }
     if(wcsnlen(wbuf, 1) == 0) {
+        nop();
+    }
+    d = 0.5;
+    if(cos(d) > 0.1) {
         nop();
     }
 

@@ -32,9 +32,9 @@ Reloc *PLTRegistry::find(address_t address) {
 }
 
 PLTTrampoline::PLTTrampoline(ElfMap *sourceElf, address_t address,
-    ExternalSymbol *externalSymbol, address_t gotPLTEntry)
+    ExternalSymbol *externalSymbol, address_t gotPLTEntry, bool pltGot)
     : sourceElf(sourceElf), externalSymbol(externalSymbol),
-    gotPLTEntry(gotPLTEntry), cache(nullptr) {
+    gotPLTEntry(gotPLTEntry), cache(nullptr), pltGot(pltGot) {
 
     setPosition(new AbsolutePosition(address));
 }
@@ -328,7 +328,8 @@ void PLTList::parsePLTGOT(RelocList *relocList, ElfMap *elf,
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(r->getSymbol());
                 pltList->getChildren()->add(
-                    new PLTTrampoline(elf, pltAddress, externalSymbol, value));
+                    new PLTTrampoline(elf, pltAddress, externalSymbol, value,
+                        true));
             }
         }
     }

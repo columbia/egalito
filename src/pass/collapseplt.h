@@ -13,7 +13,9 @@ private:
     std::map<std::string, Function*> ifuncMap;
 public:
     CollapsePLTPass(Conductor *conductor);
+    virtual void visit(Module *module);
     virtual void visit(Instruction *instr);
+    virtual void visit(DataSection *section);
 };
 
 #endif

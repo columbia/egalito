@@ -8,7 +8,7 @@
 #include "pass/clearspatial.h"
 
 void IFuncLazyPass::visit(Module *module) {
-    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(egalito)");
+    //TemporaryLogLevel tll("pass", 10, module->getName() == "module-(executable)");
     this->module = module;
     if(module->getPLTList()) {
         recurse(module->getPLTList());
@@ -17,6 +17,7 @@ void IFuncLazyPass::visit(Module *module) {
 
 void IFuncLazyPass::visit(PLTTrampoline *trampoline) {
     if(!trampoline->isIFunc()) return;
+    if(trampoline->isPltGot()) return;
 
     ChunkDumper d;
     IF_LOG(10) trampoline->accept(&d);

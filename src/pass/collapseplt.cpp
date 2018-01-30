@@ -6,6 +6,7 @@
 #include "instr/semantic.h"
 #include "operation/find2.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 Function *findFunction(Conductor *conductor, const char *name) {
     //ChunkFind2() doesn't work here for now
@@ -15,6 +16,17 @@ Function *findFunction(Conductor *conductor, const char *name) {
         if(f->hasName(name)) {
             if(auto sym = f->getSymbol()) {
                 if(sym->getType() == Symbol::TYPE_FUNC) return f;
+            }
+        }
+    }
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        if(module->getName() == "module-libm.so.6") {
+            for(auto f : CIter::functions(module)) {
+                if(f->hasName(name)) {
+                    if(auto sym = f->getSymbol()) {
+                        if(sym->getType() == Symbol::TYPE_FUNC) return f;
+                    }
+                }
             }
         }
     }
@@ -43,6 +55,11 @@ CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
         assert(pair.second);
         LOG(10, "IFunc " << pair.first << " -> " << pair.second->getName());
     }
+}
+
+void CollapsePLTPass::visit(Module *module) {
+    recurse(module);
+    recurse(module->getDataRegionList());
 }
 
 void CollapsePLTPass::visit(Instruction *instr) {
@@ -76,6 +93,26 @@ void CollapsePLTPass::visit(Instruction *instr) {
             assert(trampoline->getExternalSymbol());
             LOG(9, "Unresolved PLT entry from " << instr->getName()
                 << " to [" << trampoline->getExternalSymbol()->getName() << "]");
+        }
+    }
+}
+
+// see note in ifunclazy.h
+void CollapsePLTPass::visit(DataSection *section) {
+    for(auto var : CIter::children(section)) {
+        auto dest = var->getDest();
+        if(!dest) continue;
+
+        if(auto f = dynamic_cast<Function *>(dest->getTarget())) {
+            auto it = ifuncMap.find(f->getName());
+            if(it != ifuncMap.end()) {
+                LOG(10, "redirecting IFUNC " << f->getName()
+                    << " to " << it->second->getName());
+                auto link
+                    = new NormalLink(it->second, Link::SCOPE_EXTERNAL_JUMP);
+                var->setDest(link);
+                delete dest;
+            }
         }
     }
 }

@@ -52,10 +52,11 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
     auto section = region->findDataSectionContaining(addr);
 
     for(auto reloc : *relocSection) {
+        if(section->findVariable(reloc->getAddress())) continue;
+
         auto link = resolveVariableLink(reloc, module);
         if(!link) continue;
 
-        if(section->findVariable(reloc->getAddress())) continue;
         DataVariable::create(section, reloc->getAddress(), link,
             reloc->getSymbol());
     }
@@ -71,6 +72,7 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto section = region->findDataSectionContaining(addr);
         if(section->findVariable(addr)) continue;
 
+        LOG(10, "trying to resolve reloc at " << std::hex << reloc->getAddress());
         auto link = resolveVariableLink(reloc, module);
         if(!link) continue;
 

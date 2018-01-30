@@ -9,7 +9,7 @@ all: ifunc.h
 ifunc.h: determine
 
 determine: determine.c
-	@$(CC) -O0 -fno-builtin -o $@ $^
+	@$(CC) -O0 -fno-builtin -o $@ $^ -lm
 	@$(RUN_GDB) -x determine.gdb $@
 
 clean realclean:

@@ -22,11 +22,13 @@ private:
     ExternalSymbol *externalSymbol;
     address_t gotPLTEntry;
     ChunkCache *cache;
+    bool pltGot;
 public:
     PLTTrampoline() : sourceElf(nullptr), externalSymbol(nullptr),
-        gotPLTEntry(0), cache(nullptr) {}
+        gotPLTEntry(0), cache(nullptr), pltGot(false) {}
     PLTTrampoline(ElfMap *sourceElf, address_t address,
-        ExternalSymbol *externalSymbol, address_t gotPLTEntry);
+        ExternalSymbol *externalSymbol, address_t gotPLTEntry,
+        bool pltGot=false);
 
     std::string getName() const;
 
@@ -39,6 +41,7 @@ public:
     ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
 
     bool isIFunc() const;
+    bool isPltGot() const { return pltGot; }
     void writeTo(char *target);
     address_t getGotPLTEntry() const
         { return sourceElf->getBaseAddress() + gotPLTEntry; }

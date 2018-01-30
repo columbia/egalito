@@ -383,7 +383,11 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto link = PerfectLinkResolver().resolveInferred(
             address, instruction, module, true);
 
-        if(!link) { throw "[LinkedInstruction] failed to create link!"; }
+        if(!link) {
+            LOG(0, "pointer at 0x" << std::hex << instruction->getAddress()
+                << " pointing to 0x" << address);
+            assert("[LinkedInstruction] failed to create link!" && 0);
+        }
         linked->setLink(link);
         auto v = instruction->getSemantic();
         instruction->setSemantic(linked);
