@@ -17,6 +17,7 @@ void JumptableDetection::detect(Module *module) {
         //TemporaryLogLevel tll("analysis", 11, f->hasName("__strncat_sse2_unaligned"));
         //TemporaryLogLevel tll("analysis", 11, f->hasName("vfwprintf"));
         //TemporaryLogLevel tll2("analysis", 11, f->hasName("vfprintf"));
+        //TemporaryLogLevel tll2("analysis", 11, f->hasName("output_constant_pool"));
         detect(f);
     }
 }
@@ -1433,9 +1434,9 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                     }
                 }
                 else if(indexTableScale == 4) {
-                    for(size_t i = 0; i < indexTableEntries; i+=4) {
+                    for(size_t i = 0; i < indexTableEntries; i++) {
                         max = std::max(max, static_cast<size_t>(
-                            *(uint32_t *)(copyBase + indexTableBase + i)));
+                            *(uint32_t *)(copyBase + indexTableBase + i*4)));
                     }
                 }
                 else {
