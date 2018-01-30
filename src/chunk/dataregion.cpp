@@ -351,6 +351,24 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
     return nullptr;
 }
 
+// This is a bit of a hack to create a link if only the original address is
+// known (e.g., extracted from a Symbol).
+Link *DataRegionList::createDataLinkFromOriginalAddress(address_t target,
+    Module *module, bool isRelative) {
+
+    for(auto dataRegion : CIter::children(this)) {
+        auto originalAddress = dataRegion->getOriginalAddress();
+        auto originalRange = Range(originalAddress, dataRegion->getSize());
+        if(originalRange.contains(target)) {
+            address_t newTarget = target
+                - originalAddress + dataRegion->getAddress();
+            return createDataLink(newTarget, module, isRelative);
+        }
+    }
+
+    return nullptr;
+}
+
 DataRegion *DataRegionList::findRegionContaining(address_t target) {
     // check for TLS region first, since it will overlap another LOAD segment
     if(tls && tls->containsData(target)) return tls;

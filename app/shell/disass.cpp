@@ -24,6 +24,7 @@
 #include "pass/promotejumps.h"
 #include "pass/reorderpush.h"
 #include "pass/retpoline.h"
+#include "pass/basicblockcount.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -545,5 +546,18 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
         RetpolinePass retpoline;
         module->accept(&retpoline);
+    }, "transforms indirect jumps to use retpolines (Spectre defense)");
+
+    topLevel->add("bbcount", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(!module) {
+            std::cout << "No such module.\n";
+            return;
+        }
+
+        BasicBlockCountPass bbcount;
+        module->accept(&bbcount);
     }, "transforms indirect jumps to use retpolines (Spectre defense)");
 }

@@ -178,13 +178,6 @@ void EgalitoLoader::otherPasses() {
     setup->getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
-#if 1  // add nop pass
-    if(isFeatureEnabled("EGALITO_USE_BBCOUNT")) {
-        BasicBlockCountPass bbCountPass;
-        setup->getConductor()->getProgram()->getMain()->accept(&bbCountPass);
-    }
-#endif
-
 #if 1
     if(1 || isFeatureEnabled("EGALITO_USE_GS")) {
         CollapsePLTPass collapsePLT(setup->getConductor());
@@ -219,25 +212,32 @@ void EgalitoLoader::otherPasses() {
         program->accept(&jitGSFixup);
     }
 
-#ifdef ARCH_X86_64
-    PromoteJumpsPass promoteJumps;
-    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
-#endif
-
-    if(isFeatureEnabled("EGALITO_USE_RETPOLINES")) {
-        RetpolinePass retpoline;
-        program->accept(&retpoline);
+    if(isFeatureEnabled("EGALITO_USE_BBCOUNT")) {
+        // note: this must run before PromoteJumpsPass
+        BasicBlockCountPass bbCountPass;
+        setup->getConductor()->getProgram()->getMain()->accept(&bbCountPass);
     }
 
-    // enable CollapsePLTPass for better result
-    if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
-        CancelPushPass cancelPush(program);
-        program->accept(&cancelPush);
+    if(isFeatureEnabled("EGALITO_USE_RETPOLINES")) {
+        // note: this must run before PromoteJumpsPass
+        RetpolinePass retpoline;
+        program->accept(&retpoline);
     }
 
     if(isFeatureEnabled("EGALITO_USE_REORDERPUSH")) {
         ReorderPush reorderPush;
         program->accept(&reorderPush);
+    }
+
+#ifdef ARCH_X86_64
+    PromoteJumpsPass promoteJumps;
+    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
+#endif
+
+    // enable CollapsePLTPass for better result
+    if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
+        CancelPushPass cancelPush(program);
+        program->accept(&cancelPush);
     }
 }
 

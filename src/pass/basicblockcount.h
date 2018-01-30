@@ -11,9 +11,12 @@ private:
     const char *bbCountSymbolName;
     Symbol *counterSymbol;
     Module *module;
+    Module *libModule;
+    bool hasFrame;
 public:
     BasicBlockCountPass() : bbCountSymbolName("my_basic_block_counter") {}
     virtual void visit(Module *block);
+    virtual void visit(Function *function);
     virtual void visit(Block *block);
 };
 

@@ -1,14 +1,25 @@
 #include <stdio.h>
+#include <stdlib.h>
 
-unsigned long other_var;
-unsigned long *my_basic_block_counter = &other_var;
+#if 0
+unsigned long my_basic_block_counter;
+
+void print_block_count() {
+    printf("basic block count: %ld\n", my_basic_block_counter);
+}
+
+__attribute__ (( __constructor__ ))
+void register_callback() {
+    atexit(print_block_count);
+}
+#endif
 
 //unsigned int my_basic_block_counter[3]  = { 0x330A, 0x330B, 0x330C}; // .data
 int VAR4[3]  = { 0x440A, 0x440B, 0x440C}; // .data
 
 int main() {
     const char * m = "Hello, world!";
-    printf("%s", m);
+    printf("%s\n", m);
     int a, b, c;
     a = 1; 
     b = 2; 
@@ -27,6 +38,8 @@ int main() {
           VAR4[1]++;
        }
     }
-    printf("\n\nActual Basic Blocks XXX\nCalculated: %d", my_basic_block_counter[1]);
+#if 0
+    printf("\n\nActual Basic Blocks XXX\nCalculated: %ld\n", my_basic_block_counter);
+#endif
     return 0;
 }

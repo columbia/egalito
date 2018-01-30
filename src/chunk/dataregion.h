@@ -176,6 +176,8 @@ public:
 
     Link *createDataLink(address_t target, Module *module,
         bool isRelative = true);
+    Link *createDataLinkFromOriginalAddress(address_t target,
+        Module *module, bool isRelative = true);
     DataRegion *findRegionContaining(address_t target);
     DataRegion *findNonTLSRegionContaining(address_t target);
 
