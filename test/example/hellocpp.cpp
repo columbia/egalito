@@ -1,9 +1,13 @@
 #include <stdio.h>
-unsigned int my_basic_block_counter[3]  = { 0x330A, 0x330B, 0x330C}; // .data
+
+unsigned long other_var;
+unsigned long *my_basic_block_counter = &other_var;
+
+//unsigned int my_basic_block_counter[3]  = { 0x330A, 0x330B, 0x330C}; // .data
 int VAR4[3]  = { 0x440A, 0x440B, 0x440C}; // .data
 
 int main() {
-    char * m = "Hello, world!";
+    const char * m = "Hello, world!";
     printf("%s", m);
     int a, b, c;
     a = 1; 

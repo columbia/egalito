@@ -3,11 +3,13 @@
 
 #include "chunkpass.h"
 
+class Symbol;
+
 /* Counts the number of basic blocks in the target module */
 class BasicBlockCountPass : public ChunkPass {
 private:
-    const std::string bbCountSymbolName;
-    DataVariable *counterDataVariable;
+    const char *bbCountSymbolName;
+    Symbol *counterSymbol;
     Module *module;
 public:
     BasicBlockCountPass() : bbCountSymbolName("my_basic_block_counter") {}

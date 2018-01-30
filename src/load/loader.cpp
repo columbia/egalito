@@ -176,8 +176,10 @@ void EgalitoLoader::otherPasses() {
 #endif
 
 #if 1  // add nop pass
-    BasicBlockCountPass bbCountPass;
-    setup->getConductor()->getProgram()->getMain()->accept(&bbCountPass);
+    if(isFeatureEnabled("EGALITO_USE_BBCOUNT")) {
+        BasicBlockCountPass bbCountPass;
+        setup->getConductor()->getProgram()->getMain()->accept(&bbCountPass);
+    }
 #endif
 
 #if 1
