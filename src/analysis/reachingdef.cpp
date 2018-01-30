@@ -45,6 +45,62 @@ void ReachingDef::analyze() {
     }
 }
 
+bool ReachingDef::needsFlags() {
+    for(auto instr : CIter::children(block)) {
+        AssemblyPtr assembly = instr->getSemantic()->getAssembly();
+        int id = INVALID_ID;
+        if(assembly) {
+            id = assembly->getId();
+        }
+        else {
+#ifdef ARCH_X86_64
+            auto v = dynamic_cast<ControlFlowInstruction *>(
+                instr->getSemantic());
+            if(v) id = v->getId();
+#else
+            LOG(1, __func__ << ": how do we gent id?");
+#endif
+        }
+
+        if(id == X86_INS_CALL) return false;
+        if(id == X86_INS_LEAVE) return false;
+
+        if(id == X86_INS_JMP) {
+            auto otherSem = dynamic_cast<ControlFlowInstruction *>(instr->getSemantic());
+            if(!otherSem) return true;
+            if(!otherSem->getLink() || !otherSem->getLink()->getTarget()) return true;
+            auto other = otherSem->getLink()->getTarget()->getParent();
+            if(auto v = dynamic_cast<Block *>(other)) {
+                ReachingDef otherDef(v);
+                return otherDef.needsFlags();
+            }
+            return true;
+        }
+
+        auto it = handlers.find(id);
+        if(it != handlers.end()) {
+            auto f = it->second;
+            (this->*f)(instr, assembly);
+        }
+        else {
+            //setBarrier(instr);
+            LOG(0, "this instruction caused a flags access:");
+            ChunkDumper dumper;
+            instr->accept(&dumper);
+            return true;
+        }
+
+        if(killMap[instr].size() > 0) return false;
+        if(currentReadMap[X86Register::FLAGS].size() > 0) {
+            LOG(0, "also, this instruction caused a flags access:");
+            ChunkDumper dumper;
+            instr->accept(&dumper);
+            return true;
+        }
+    }
+    return false;
+}
+
 void ReachingDef::visitInstructionGroups(VisitCallback callback) {
     std::set<Instruction *> available;
     for(auto instr : CIter::children(block)) {
@@ -136,8 +192,7 @@ void ReachingDef::setBarrier(Instruction *instr) {
         }
     }
 
-    // <= to include MEMORY_REG
-    for(int r = 0; r <= X86Register::REGISTER_NUMBER; r ++) {
+    for(int r = 0; r < MAX_REGS; r ++) {
         currentWriteMap[r] = { instr };
     }
 }
@@ -175,6 +230,9 @@ const std::map<int, ReachingDef::HandlerType> ReachingDef::handlers = {
     {X86_INS_POP,       &ReachingDef::fillPop},
     {X86_INS_SUB,       &ReachingDef::fillAddOrSub},
     {X86_INS_XOR,       &ReachingDef::fillAddOrSub},
+    {X86_INS_TEST,      &ReachingDef::fillTest},
+    {X86_INS_NOP,       &ReachingDef::fillNop},
+    {X86_INS_CDQE,      &ReachingDef::fillCltq},
 #endif
 };
 
@@ -306,7 +364,7 @@ void ReachingDef::fillCmp(Instruction *instr, AssemblyPtr assembly) {
         setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
-    setRegWrite(X86Register::FLAGS, instr);
+    setRegRead(X86Register::FLAGS, instr);
 }
 void ReachingDef::fillLea(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -388,6 +446,37 @@ void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     }
     setMemRead(instr);
     setRegWrite(X86Register::SP, instr);
+}
+void ReachingDef::fillTest(Instruction *instr, AssemblyPtr assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_IMM_REG) {
+        setRegWrite(getReg(assembly, 1), instr);
+    }
+    else if(mode == AssemblyOperands::MODE_REG_MEM) {
+        setRegRead(getReg(assembly, 0), instr);
+        handleMem(assembly, 1, instr);
+        setMemWrite(instr);
+    }
+    else if(mode == AssemblyOperands::MODE_MEM_REG) {
+        handleMem(assembly, 0, instr);
+        setRegWrite(getReg(assembly, 1), instr);
+    }
+    else if(mode == AssemblyOperands::MODE_REG_REG) {
+        setRegRead(getReg(assembly, 0), instr);
+        setRegWrite(getReg(assembly, 1), instr);
+    }
+    else {
+        setBarrier(instr);
+        LOG(10, "skipping mode " << mode);
+    }
+    setRegWrite(X86Register::FLAGS, instr);
+}
+void ReachingDef::fillNop(Instruction *instr, AssemblyPtr assembly) {
+    // nothing to do
+}
+void ReachingDef::fillCltq(Instruction *instr, AssemblyPtr assembly) {
+    setRegRead(X86Register::R0, instr);
+    setRegWrite(X86Register::R0, instr);
 }
 #endif
 

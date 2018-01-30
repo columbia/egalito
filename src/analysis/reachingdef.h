@@ -34,10 +34,12 @@ private:
     std::map<int, std::set<Instruction *>> currentReadMap;
 
     const static std::map<int, HandlerType> handlers;
-    const static int MEMORY_REG = X86Register::REGISTER_NUMBER;
+    const static int MEMORY_REG = X86Register::REGISTER_NUMBER + 1;
+    const static int MAX_REGS = MEMORY_REG + 1;
 public:
     ReachingDef(Block *block) : block(block), dependencyClosure(false) {}
     void analyze();
+    bool needsFlags();
     void computeDependencyClosure(bool allowPushReordering);
 
     void visitInstructionGroups(VisitCallback callback);
@@ -69,6 +71,9 @@ private:
     void fillMovzx(Instruction *instr, AssemblyPtr assembly);
     void fillPush(Instruction *instr, AssemblyPtr assembly);
     void fillPop(Instruction *instr, AssemblyPtr assembly);
+    void fillTest(Instruction *instr, AssemblyPtr assembly);
+    void fillNop(Instruction *instr, AssemblyPtr assembly);
+    void fillCltq(Instruction *instr, AssemblyPtr assembly);
 #endif
 
     bool bothPushesOrPops(Instruction *one, Instruction *two);

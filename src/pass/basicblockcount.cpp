@@ -9,6 +9,7 @@
 #include "instr/linked-x86_64.h"
 #include "operation/mutator.h"
 #include "analysis/frametype.h"
+#include "analysis/reachingdef.h"
 #include "log/log.h"
 
 void BasicBlockCountPass::visit(Module *module) {
@@ -58,6 +59,10 @@ void BasicBlockCountPass::visit(Block *block) {
         LOG(1, "counter symbol not found, skipping basic block counts");
         return;
     }
+
+
+    ReachingDef reaching(block);
+    bool needsFlags = reaching.needsFlags();
 
     // pushfd
     auto saveFlagsIns = Disassemble::instruction({0x9c});
@@ -110,13 +115,19 @@ void BasicBlockCountPass::visit(Block *block) {
     ChunkMutator(block).insertBeforeJumpTo(firstChild, saveFlagsIns);
     ChunkMutator(block).insertBeforeJumpTo(firstChild, subIns);
 #else
-    if(hasFrame) {
+    if(hasFrame && needsFlags) {
         ChunkMutator(block).insertAfter(firstChild, saveFlagsIns);
         ChunkMutator(block).insertAfter(saveFlagsIns, instr);
         ChunkMutator(block).insertAfter(instr, restoreFlagsIns);
 
         //ChunkMutator(block).insertAfter(firstChild, saveFlagsIns);
         //ChunkMutator(block).insertAfter(saveFlagsIns, restoreFlagsIns);
+
+        //ChunkMutator(block).insertAfter(firstChild, instr);
+        LOG(1, "still need to save flags in " << block->getName() << "!");
+    }
+    else if(hasFrame) {
+        ChunkMutator(block).insertAfter(firstChild, instr);
     }
     else {
         ChunkMutator(block).insertAfter(firstChild, subIns);
