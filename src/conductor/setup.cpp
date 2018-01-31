@@ -38,7 +38,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
 #else
         const char *name = "/libegalito.so";
         char path[PATH_MAX];
-        auto sz = readlink("/proc/self/cwd", path, PATH_MAX);
+        auto sz = readlink("/proc/self/exe", path, PATH_MAX) - sizeof("loader")
+            + 1; //readlink result does not include '\0
         std::strcpy(&path[sz], name);
 #endif
         LOG(1, "egalito is at " << path);
