@@ -42,7 +42,7 @@ void FallThroughFunctionPass::visit(Function *function) {
                 targetAddress = (targetAddress + 15) & ~0xf;
                 target = CIter::spatial(list)->find(targetAddress);
             }
-            assert(target);
+            //assert(target);
             if(target) {
                 auto connecting = new Block();
                 PositionFactory *positionFactory = PositionFactory::getInstance();

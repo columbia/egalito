@@ -29,9 +29,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
     findEntryPointFunction();
 
     if(injectEgalito) {
-        this->egalito = new ElfMap("./libegalito.so");
+        const char *path = "/home/dwk/project/egalito/egalito-spec-setup/src/libegalito.so";
+        this->egalito = new ElfMap(path);
         auto egalitoModule = conductor->parseEgalito(egalito);
-        egalitoModule->getLibrary()->setResolvedPath("./libegalito.so");
+        egalitoModule->getLibrary()->setResolvedPath(path);
         LoaderEmulator::getInstance().setup(conductor);
     }
 
@@ -46,7 +47,9 @@ void ConductorSetup::parseElfFiles(const char *executable,
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 
+#ifndef RELEASE_BUILD
     conductor->check();
+#endif
 
     // At this point, all the effort for resolving the links should have
     // been performed (except for special cases)
