@@ -22,11 +22,13 @@ void DumpLinkPass::visit(Module *module) {
         region->accept(&clearSpatial);
     }
 
+    LOG(11, "    from relocation");
     if(auto relocList = module->getElfSpace()->getRelocList()) {
         for(auto r : *relocList) {
             dump(r, module);
         }
     }
+    LOG(11, "    from instruction");
     recurse(module);
 }
 
@@ -34,9 +36,9 @@ void DumpLinkPass::visit(Instruction *instruction) {
     if(auto link = instruction->getSemantic()->getLink()) {
         if(dynamic_cast<PLTLink *>(link)) return;
 
-        auto semantic = instruction->getSemantic();
         size_t offset = 0;
 #ifdef ARCH_X86_64
+        auto semantic = instruction->getSemantic();
         if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
             offset = v->getDispOffset();
         }
