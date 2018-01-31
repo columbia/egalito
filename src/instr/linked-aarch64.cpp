@@ -383,15 +383,16 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto link = PerfectLinkResolver().resolveInferred(
             address, instruction, module, true);
 
-        if(!link) {
-            LOG(0, "pointer at 0x" << std::hex << instruction->getAddress()
-                << " pointing to 0x" << address);
-            assert("[LinkedInstruction] failed to create link!" && 0);
+        if(link) {
+            linked->setLink(link);
+            auto v = instruction->getSemantic();
+            instruction->setSemantic(linked);
+            delete v;
+            continue;
         }
-        linked->setLink(link);
-        auto v = instruction->getSemantic();
-        instruction->setSemantic(linked);
-        delete v;
+        //pointer detection fails on some old gcc generated code now
+        //E.g. on egalitoci, libm.so.6 uses ADR to load page address
+        //assert("[LinkedInstruction] failed to create link!" && 0);
     }
 }
 
