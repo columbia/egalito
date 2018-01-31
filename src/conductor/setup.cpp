@@ -1,4 +1,7 @@
 #include <cassert>
+#include <unistd.h>
+#include <climits>
+#include <cstring>
 #include "config.h"
 #include "setup.h"
 #include "conductor.h"
@@ -29,7 +32,16 @@ void ConductorSetup::parseElfFiles(const char *executable,
     findEntryPointFunction();
 
     if(injectEgalito) {
-        const char *path = "/home/dwk/project/egalito/egalito-spec-setup/src/libegalito.so";
+#ifdef EGALITO_PATH
+        //const char *path = "/home/dwk/project/egalito/egalito-spec-setup/src/libegalito.so";
+        const char *path = EGALITO_PATH;
+#else
+        const char *name = "/libegalito.so";
+        char path[PATH_MAX];
+        auto sz = readlink("/proc/self/cwd", path, PATH_MAX);
+        std::strcpy(&path[sz], name);
+#endif
+        LOG(1, "egalito is at " << path);
         this->egalito = new ElfMap(path);
         auto egalitoModule = conductor->parseEgalito(egalito);
         egalitoModule->getLibrary()->setResolvedPath(path);

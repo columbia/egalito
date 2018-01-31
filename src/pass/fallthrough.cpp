@@ -42,12 +42,15 @@ void FallThroughFunctionPass::visit(Function *function) {
                 targetAddress = (targetAddress + 15) & ~0xf;
                 target = CIter::spatial(list)->find(targetAddress);
             }
-            //assert(target);
+            assert(target);
             if(target) {
                 auto connecting = new Block();
-                PositionFactory *positionFactory = PositionFactory::getInstance();
+                PositionFactory *positionFactory
+                    = PositionFactory::getInstance();
+
                 connecting->setPosition(
-                    positionFactory->makePosition(block, connecting, function->getSize()));
+                    positionFactory->makePosition(block, connecting,
+                        function->getSize()));
                 LOG(10, "target = " << target->getName());
                 // add a branch instruction to the 'target' instruction
                 DisasmHandle handle(true);
