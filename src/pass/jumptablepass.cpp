@@ -18,6 +18,8 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+//#define CACHE_DIR "/tmp/egalito-cache"
+
 void JumpTablePass::visit(Module *module) {
     this->module = module;
     auto jumpTableList = new JumpTableList();

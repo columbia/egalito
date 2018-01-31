@@ -103,7 +103,9 @@ void EgalitoLoader::generateCode() {
     otherPassesAfterMove();
 
     setup->getConductor()->fixDataSections();
+#ifndef RELEASE_BUILD
     setup->getConductor()->writeDebugElf("symbols.elf");
+#endif
 }
 
 void EgalitoLoader::run() {

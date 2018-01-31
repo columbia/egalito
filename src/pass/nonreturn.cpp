@@ -96,38 +96,46 @@ void NonReturnFunction::visit(Function *function) {
     if(neverReturns(function)) {
         LOG(10, "=== " << function->getName() << " never returns");
         function->setNonreturn();
-        nonReturnList.push_back(function);
+        nonReturnList.insert(function);
     }
 }
 
 bool NonReturnFunction::neverReturns(Function *function) {
+    ControlFlowGraph *cfg = nullptr;
+    Dominance *dom = nullptr;
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             if(auto cfi = dynamic_cast<ControlFlowInstruction *>(
                 instr->getSemantic())) {
 
                 if(!cfi->returns()) {
-                    ControlFlowGraph cfg(function);
+                    if(!cfg) cfg = new ControlFlowGraph(function);
+                    //ControlFlowGraph cfg(function);
                     LOG(11, "--Function " << function->getName());
                     IF_LOG(11) {
                         ChunkDumper dump;
                         function->accept(&dump);
-                        cfg.dump();
-                        cfg.dumpDot();
+                        cfg->dump();
+                        cfg->dumpDot();
                         std::cout.flush();
                     }
-                    Dominance dom(&cfg);
-                    auto pdom = dom.getPostDominators(0);
-                    auto nid = cfg.getIDFor(block);
+                    //Dominance dom(cfg);
+                    if(!dom) dom = new Dominance(cfg);
+                    auto pdom = dom->getPostDominators(0);
+                    auto nid = cfg->getIDFor(block);
                     if(std::find(pdom.begin(), pdom.end(), nid) == pdom.end()) {
                         continue;
                     }
 
+                    delete cfg;
+                    delete dom;
                     return true;
                 }
             }
         }
     }
+    delete cfg;
+    delete dom;
     return false;
 }
 
