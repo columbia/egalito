@@ -11,8 +11,11 @@
 #include "chunk/dump.h"
 #include "operation/find2.h"
 #include "pass/clearspatial.h"
+#include "pass/dumplink.h"
+#include "util/feature.h"
 #include "log/registry.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
@@ -36,13 +39,14 @@ void ConductorSetup::parseElfFiles(const char *executable,
         //const char *path = "/home/dwk/project/egalito/egalito-spec-setup/src/libegalito.so";
         const char *path = EGALITO_PATH;
 #else
-        const char *name = "/libegalito.so";
+        const char *name = "libegalito.so";
         char path[PATH_MAX];
-        auto sz = readlink("/proc/self/exe", path, PATH_MAX) - sizeof("loader")
-            + 1; //readlink result does not include '\0
+        auto sz = readlink("/proc/self/exe", path, PATH_MAX);
+        assert(sz > 0);
+        sz -= sizeof("loader") - 1; //readlink result does not include '\0
+        assert(sizeof(name) < PATH_MAX - (size_t)sz);
         std::strcpy(&path[sz], name);
 #endif
-        LOG(1, "egalito is at " << path);
         this->egalito = new ElfMap(path);
         auto egalitoModule = conductor->parseEgalito(egalito);
         egalitoModule->getLibrary()->setResolvedPath(path);
