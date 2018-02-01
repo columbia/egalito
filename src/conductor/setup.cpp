@@ -19,6 +19,34 @@ address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 ConductorSetup *egalito_conductor_setup __attribute__((weak));
 Conductor *egalito_conductor __attribute__((weak));
 
+void ConductorSetup::parseEgalito(bool fromArchive) {
+#ifdef EGALITO_PATH
+    const char *path = EGALITO_PATH;
+#else
+    const char *name = "/libegalito.so";
+    char path[PATH_MAX];
+    auto sz = readlink("/proc/self/exe", path, PATH_MAX);
+    path[sz] = 0;
+    std::strcpy(std::strrchr(path, '/'), name);
+#endif
+    LOG(1, "egalito is at " << path);
+
+    this->egalito = new ElfMap(path);
+    Module *egalitoModule = nullptr;
+    if(fromArchive) {
+        auto library = conductor->getProgram()->getLibraryList()
+            ->byRole(Library::ROLE_EGALITO);
+        egalitoModule = library->getModule();
+        conductor->parseEgalitoElfSpaceOnly(egalito, egalitoModule);
+    }
+    else {
+        egalitoModule = conductor->parseEgalito(egalito);
+    }
+
+    egalitoModule->getLibrary()->setResolvedPath(path);
+    LoaderEmulator::getInstance().setup(conductor);
+}
+
 void ConductorSetup::parseElfFiles(const char *executable,
     bool withSharedLibs, bool injectEgalito) {
 
@@ -32,20 +60,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     findEntryPointFunction();
 
     if(injectEgalito) {
-#ifdef EGALITO_PATH
-        const char *path = EGALITO_PATH;
-#else
-        const char *name = "/libegalito.so";
-        char path[PATH_MAX];
-        auto sz = readlink("/proc/self/exe", path, PATH_MAX);
-        path[sz] = 0;
-        std::strcpy(std::strrchr(path, '/'), name);
-#endif
-        LOG(1, "egalito is at " << path);
-        this->egalito = new ElfMap(path);
-        auto egalitoModule = conductor->parseEgalito(egalito);
-        egalitoModule->getLibrary()->setResolvedPath(path);
-        LoaderEmulator::getInstance().setup(conductor);
+        this->parseEgalito();
     }
 
     if(withSharedLibs) {
@@ -66,24 +81,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     // At this point, all the effort for resolving the links should have
     // been performed (except for special cases)
 
-    int i = 0;
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        auto elfMap = module->getElfSpace()->getElfMap();
-        // this address has to be low enough to express negative offset in
-        // jump table slots (to represent an index)
-        if(setBaseAddress(elfMap, 0x10000000 + i*0x1000000)) {
-            i ++;
-        }
-    }
-
-    ClearSpatialPass clearSpatial;
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        auto baseAddress = module->getElfSpace()->getElfMap()->getBaseAddress();
-        for(auto region : CIter::regions(module)) {
-            region->updateAddressFor(baseAddress);
-            module->accept(&clearSpatial);
-        }
-    }
+    setBaseAddresses();
 }
 
 void ConductorSetup::parseEgalitoArchive(const char *archive) {
@@ -93,12 +91,39 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     this->egalito = nullptr;
 
     conductor->parseEgalitoArchive(archive);
+    this->parseEgalito(true);  // add ElfSpace to libegalito.so module
+
+    conductor->resolveTLSLinks();
+
+    setBaseAddresses();
+}
+
+void ConductorSetup::setBaseAddresses() {
+    int i = 0;
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto elfMap = module->getElfSpace()
+            ? module->getElfSpace()->getElfMap() : nullptr;
+        // this address has to be low enough to express negative offset in
+        // jump table slots (to represent an index)
+        if(setBaseAddress(module, elfMap, 0x10000000 + i*0x1000000)) {
+            i ++;
+        }
+    }
+
+    ClearSpatialPass clearSpatial;
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto baseAddress = module->getBaseAddress();
+        for(auto region : CIter::regions(module)) {
+            region->updateAddressFor(baseAddress);
+            module->accept(&clearSpatial);
+        }
+    }
 }
 
 void ConductorSetup::injectLibrary(const char *filename) {
     if(auto elfmap = new ElfMap(filename)) {
         auto module = conductor->parseAddOnLibrary(elfmap);
-        setBaseAddress(elfmap, 0xb0000000);
+        setBaseAddress(module, elfmap, 0xb0000000);
 
         for(auto region : CIter::regions(module)) {
             region->updateAddressFor(elfmap->getBaseAddress());
@@ -217,8 +242,15 @@ address_t ConductorSetup::getEntryPoint() {
     return getConductor()->getProgram()->getEntryPointAddress();
 }
 
-bool ConductorSetup::setBaseAddress(ElfMap *map, address_t base) {
-    if(!map) return false;
+bool ConductorSetup::setBaseAddress(Module *module, ElfMap *map, address_t base) {
+    module->setBaseAddress(base);
+    if(!map) {
+        // If the map is not present, we loaded from an archive and should
+        // assign a base address. However, we should not assign a base address
+        // if the module is not position-independent. Module should store
+        // whether it is position-independent in the future.
+        return /*false*/ true;
+    }
 
     if(map->isSharedLibrary()) {
         LOG(1, "set base address to " << std::hex << base);

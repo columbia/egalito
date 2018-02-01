@@ -3,7 +3,6 @@
 #include "fixjumptables.h"
 #include "chunk/chunkiter.h"
 #include "chunk/dump.h"
-#include "elf/elfspace.h"
 #include "analysis/jumptable.h"
 
 #undef DEBUG_GROUP

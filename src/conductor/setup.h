@@ -50,8 +50,10 @@ public:
     void dumpFunction(const char *function, ElfSpace *space = nullptr);
     address_t getEntryPoint();
 private:
+    void parseEgalito(bool fromArchive = false);
     void findEntryPointFunction();
-    bool setBaseAddress(ElfMap *map, address_t base);
+    void setBaseAddresses();
+    bool setBaseAddress(Module *module, ElfMap *map, address_t base);
 };
 
 #endif

@@ -19,6 +19,7 @@ class Module : public ChunkSerializerImpl<TYPE_Module,
     CompositeChunkImpl<Chunk>> {
 private:
     std::string name;
+    address_t baseAddress;
     Library *library;
     ElfSpace *elfSpace;
 private:
@@ -30,12 +31,15 @@ private:
     VTableList *vtableList;
     ExternalSymbolList *externalSymbolList;
 public:
-    Module() : library(nullptr), elfSpace(nullptr), functionList(nullptr),
-        pltList(nullptr), jumpTableList(nullptr), dataRegionList(nullptr),
-        markerList(nullptr), vtableList(nullptr), externalSymbolList(nullptr) {}
+    Module() : baseAddress(0), library(nullptr), elfSpace(nullptr),
+        functionList(nullptr), pltList(nullptr), jumpTableList(nullptr),
+        dataRegionList(nullptr), markerList(nullptr), vtableList(nullptr),
+        externalSymbolList(nullptr) {}
 
     std::string getName() const { return name; }
     void setName(const std::string &name) { this->name = name; }
+    address_t getBaseAddress() const { return baseAddress; }
+    void setBaseAddress(address_t address) { baseAddress = address; }
 
     void setElfSpace(ElfSpace *elfSpace);
     ElfSpace *getElfSpace() const { return elfSpace; }

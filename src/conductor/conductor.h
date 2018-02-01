@@ -24,6 +24,7 @@ public:
 
     Module *parseExecutable(ElfMap *elf);
     Module *parseEgalito(ElfMap *elf);
+    void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     void parseEgalitoArchive(const char *archive);

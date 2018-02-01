@@ -47,6 +47,24 @@ Module *Conductor::parseEgalito(ElfMap *elf) {
     return parse(elf, library);
 }
 
+void Conductor::parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module) {
+    auto library = module->getLibrary();
+
+    ElfSpace *space = new ElfSpace(elf, library->getName(),
+        library->getResolvedPath());
+
+    LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
+        << space->getName() << "] ===");
+    space->findSymbolsAndRelocs();
+    //ElfDynamic(getLibraryList()).parse(elf, library);
+
+    //LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
+    //    << space->getName() << "] ---");
+    //ConductorPasses(this).newElfPasses(space);
+
+    module->setElfSpace(space);
+}
+
 void Conductor::parseLibraries() {
     auto iterable = getLibraryList()->getChildren()->getIterable();
 
