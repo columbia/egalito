@@ -33,14 +33,13 @@ void ConductorSetup::parseElfFiles(const char *executable,
 
     if(injectEgalito) {
 #ifdef EGALITO_PATH
-        //const char *path = "/home/dwk/project/egalito/egalito-spec-setup/src/libegalito.so";
         const char *path = EGALITO_PATH;
 #else
         const char *name = "/libegalito.so";
         char path[PATH_MAX];
-        auto sz = readlink("/proc/self/exe", path, PATH_MAX) - sizeof("loader")
-            + 1; //readlink result does not include '\0
-        std::strcpy(&path[sz], name);
+        auto sz = readlink("/proc/self/exe", path, PATH_MAX);
+        path[sz] = 0;
+        std::strcpy(std::strrchr(path, '/'), name);
 #endif
         LOG(1, "egalito is at " << path);
         this->egalito = new ElfMap(path);
