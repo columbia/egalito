@@ -34,6 +34,7 @@
 #include "transform/sandbox.h"
 #include "util/feature.h"
 #include "log/registry.h"
+#include "log/temp.h"
 #include "log/log.h"
 
 extern address_t egalito_entry;
@@ -178,6 +179,8 @@ void EgalitoLoader::otherPasses() {
 
 #if 1
     if(1 || isFeatureEnabled("EGALITO_USE_GS")) {
+        TemporaryLogLevel tll("pass", 20);
+
         CollapsePLTPass collapsePLT(setup->getConductor());
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }

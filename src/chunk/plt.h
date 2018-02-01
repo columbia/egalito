@@ -18,21 +18,19 @@ class ChunkCache;
 class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
     CompositeChunkImpl<Block>> {
 private:
-    ElfMap *sourceElf;
     ExternalSymbol *externalSymbol;
     address_t gotPLTEntry;
     ChunkCache *cache;
     bool pltGot;
 public:
-    PLTTrampoline() : sourceElf(nullptr), externalSymbol(nullptr),
-        gotPLTEntry(0), cache(nullptr), pltGot(false) {}
-    PLTTrampoline(ElfMap *sourceElf, address_t address,
+    PLTTrampoline() : externalSymbol(nullptr), gotPLTEntry(0),
+        cache(nullptr), pltGot(false) {}
+    PLTTrampoline(Chunk *pltList, address_t address,
         ExternalSymbol *externalSymbol, address_t gotPLTEntry,
-        bool pltGot=false);
+        bool pltGot = false);
 
     std::string getName() const;
 
-    ElfMap *getSourceElf() const { return sourceElf; }
     Chunk *getTarget() const;
     //Symbol *getTargetSymbol() const { return targetSymbol; }
 
@@ -43,8 +41,7 @@ public:
     bool isIFunc() const;
     bool isPltGot() const { return pltGot; }
     void writeTo(char *target);
-    address_t getGotPLTEntry() const
-        { return sourceElf->getBaseAddress() + gotPLTEntry; }
+    address_t getGotPLTEntry() const;
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

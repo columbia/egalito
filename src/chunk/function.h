@@ -16,9 +16,11 @@ private:
     Symbol *symbol;
     std::string name;
     bool nonreturn;
+    bool ifunc;
     ChunkCache *cache;
 public:
-    Function() : symbol(nullptr), nonreturn(false), cache(nullptr) {}
+    Function() : symbol(nullptr), nonreturn(false), ifunc(false),
+        cache(nullptr) {}
 
     /** Create a fuzzy function named according to the original address. */
     Function(address_t originalAddress);
@@ -42,6 +44,8 @@ public:
 
     bool returns() const { return !nonreturn; }
     void setNonreturn() { nonreturn = true; }
+    bool isIFunc() const { return ifunc; }
+    void setIsIFunc(bool yes) { ifunc = yes; }
 
     void makeCache();
     ChunkCache *getCache() const { return cache; }

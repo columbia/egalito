@@ -65,6 +65,7 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         auto pltList = op.lookupAs<PLTList>(id);
         getChildren()->add(pltList);
         setPLTList(pltList);
+        pltList->setParent(this);
     }
 
     {

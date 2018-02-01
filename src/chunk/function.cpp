@@ -23,7 +23,7 @@ void Function::makeCache() {
 }
 
 Function::Function(address_t originalAddress)
-    : symbol(nullptr), nonreturn(false), cache(nullptr) {
+    : symbol(nullptr), nonreturn(false), ifunc(false), cache(nullptr) {
 
     std::ostringstream stream;
     stream << "fuzzyfunc-0x" << std::hex << originalAddress;
@@ -34,9 +34,11 @@ Function::Function(Symbol *symbol)
     : symbol(symbol), nonreturn(false), cache(nullptr) {
 
     name = symbol->getName();
+    ifunc = (symbol->getType() == Symbol::TYPE_IFUNC);
 }
 
 bool Function::hasName(std::string name) const {
+    if(this->name == name) return true;
     if(!symbol) return false;
     if(symbol->getName() == name) return true;
     for(auto s : symbol->getAliases()) {
@@ -55,6 +57,8 @@ void Function::serialize(ChunkSerializerOperations &op,
 
     writer.write(getAddress());
     writer.writeString(getName());
+    writer.write<bool>(nonreturn);
+    writer.write<bool>(ifunc);
 
 #if 0  // don't use compression
     writer.writeValue(false);
@@ -89,6 +93,8 @@ bool Function::deserialize(ChunkSerializerOperations &op,
     uint64_t address = reader.read<address_t>();
     setPosition(new AbsolutePosition(address));
     setName(reader.readString());
+    nonreturn = reader.read<bool>();
+    ifunc = reader.read<bool>();
 
     bool compressedMode = reader.read<bool>();
     if(!compressedMode) {

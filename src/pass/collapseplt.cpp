@@ -8,24 +8,25 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-Function *findFunction(Conductor *conductor, const char *name) {
+// only supports libc and libm for now
+static Function *findFunction(Conductor *conductor, const char *name) {
     //ChunkFind2() doesn't work here for now
     //return ChunkFind2(conductor).findFunction(#target);
 
     for(auto f : CIter::functions(conductor->getProgram()->getLibc())) {
         if(f->hasName(name)) {
-            if(auto sym = f->getSymbol()) {
-                if(sym->getType() == Symbol::TYPE_FUNC) return f;
-            }
+            LOG(12, "found ifunc target [" << f->getName()
+                << "] for " << name);
+            if(!f->isIFunc()) return f;
         }
     }
     for(auto module : CIter::modules(conductor->getProgram())) {
         if(module->getName() == "module-libm.so.6") {
             for(auto f : CIter::functions(module)) {
                 if(f->hasName(name)) {
-                    if(auto sym = f->getSymbol()) {
-                        if(sym->getType() == Symbol::TYPE_FUNC) return f;
-                    }
+                    LOG(12, "found ifunc target [" << f->getName()
+                        << "] for " << name);
+                    if(!f->isIFunc()) return f;
                 }
             }
         }
@@ -58,6 +59,8 @@ CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
 }
 
 void CollapsePLTPass::visit(Module *module) {
+    TemporaryLogLevel tll("pass", 20);
+
     recurse(module);
     recurse(module->getDataRegionList());
 }
@@ -79,7 +82,7 @@ void CollapsePLTPass::visit(Instruction *instr) {
                 delete pltLink;
             }
             else {
-                LOG(10, "IFunc " << name << " will be resolve at runtime");
+                LOG(10, "IFunc " << name << " will be resolved at runtime");
             }
             return;  // we don't handle this yet
         }
