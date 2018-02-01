@@ -36,6 +36,13 @@ void DumpLinkPass::visit(Instruction *instruction) {
     if(auto link = instruction->getSemantic()->getLink()) {
         if(dynamic_cast<PLTLink *>(link)) return;
 
+        // for a link to an instruction inside the same function,
+        // there will be no relocation even with -q
+        if(instruction->getParent()->getParent()
+            == link->getTarget()->getParent()->getParent()) {
+            return;
+        }
+
         size_t offset = 0;
 #ifdef ARCH_X86_64
         auto semantic = instruction->getSemantic();
