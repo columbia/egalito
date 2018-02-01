@@ -1,5 +1,6 @@
 #include <sstream>
 #include "dumplink.h"
+#include "analysis/jumptable.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "elf/elfspace.h"
@@ -14,6 +15,7 @@
 void DumpLinkPass::visit(Module *module) {
     LOG(11, "Dumping Links for " << module->getName());
 
+    this->module = module;
     this->mapbase = module->getElfSpace()->getElfMap()->getBaseAddress();
 
     ClearSpatialPass clearSpatial;
@@ -30,6 +32,8 @@ void DumpLinkPass::visit(Module *module) {
     }
     LOG(11, "    from instruction");
     recurse(module);
+    LOG(11, "    from variables");
+    recurse(module->getDataRegionList());
 }
 
 void DumpLinkPass::visit(Instruction *instruction) {
@@ -57,18 +61,33 @@ void DumpLinkPass::visit(Instruction *instruction) {
     }
 }
 
+void DumpLinkPass::visit(DataSection *section) {
+    std::set<address_t> seen;
+
+    for(auto jt : CIter::children(module->getJumpTableList())) {
+        auto tableAddress = jt->getDescriptor()->getAddress();
+        for(auto entry : CIter::children(jt)) {
+            auto var = entry->getDataVariable();
+            auto link = entry->getLink();
+            outputPair(var->getAddress() - mapbase,
+                link->getTargetAddress() - tableAddress);
+            seen.insert(var->getAddress());
+        }
+    }
+    for(auto var : CIter::children(section)) {
+        auto it = seen.find(var->getAddress());
+        if(it != seen.end()) continue;
+        output(var->getAddress() - mapbase, var->getDest());
+    }
+}
+
 void DumpLinkPass::dump(Reloc *reloc, Module *module) {
 
     Chunk *inner = ChunkFind().findInnermostInsideInstruction(
         module->getFunctionList(), reloc->getAddress());
     if(auto i = dynamic_cast<Instruction *>(inner)) {
         if(auto link = i->getSemantic()->getLink()) {
-            fprintf(stderr, "    0x%-20lx 0x%-20lx",
-                 reloc->getAddress(), link->getTargetAddress());
-            if(auto target = link->getTarget()) {
-                fprintf(stderr, " %s\n", target->getName().c_str());
-            }
-            else { fprintf(stderr, "\n"); }
+            output(reloc->getAddress(), link);
         }
     }
     else {
@@ -88,5 +107,9 @@ void DumpLinkPass::output(address_t source, Link *link) {
         fprintf(stderr, "    0x%-20lx 0x%-20lx", source, targetAddress);
         fprintf(stderr, " %s\n", target->getName().c_str());
     }
+}
+
+void DumpLinkPass::outputPair(address_t addr1, address_t addr2) {
+    fprintf(stderr, "    0x%-20lx 0x%-20lx\n", addr1, addr2);
 }
 
