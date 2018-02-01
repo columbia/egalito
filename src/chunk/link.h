@@ -265,6 +265,7 @@ public:
     TLSDataRegion *getTLSRegion() const { return tls; }
     void setTLSRegion(TLSDataRegion *tls) { this->tls = tls; }
     void setTarget(address_t target) { this->target = target; }
+    address_t getRawTarget() const { return target; }
 };
 
 // --- other links ---

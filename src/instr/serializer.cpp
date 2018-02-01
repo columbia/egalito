@@ -288,9 +288,14 @@ void LinkSerializer::serialize(Link *link, ArchiveStreamWriter &writer) {
         writer.writeID(op.assign(&*section));
         writer.write(link->getTargetAddress() - section->getAddress());
     }
-    else if(dynamic_cast<TLSDataOffsetLink *>(link)) {
+    else if(auto v = dynamic_cast<TLSDataOffsetLink *>(link)) {
         writer.write<uint8_t>(TYPE_TLSDataOffsetLink);
-        LOG(0, "TLSDataOffsetLink serialization not supported");
+        writer.writeID(op.assign(v->getTLSRegion()));
+        writer.write(v->getRawTarget());
+        writer.write<bool>(v->getSymbol() != nullptr);
+        if(v->getSymbol()) {
+            writer.writeString(v->getSymbol()->getName());  // should be WEAK
+        }
     }
     else if(dynamic_cast<UnresolvedLink *>(link)) {
         writer.write<uint8_t>(TYPE_UnresolvedLink);
@@ -349,8 +354,18 @@ Link *LinkSerializer::deserialize(ArchiveStreamReader &reader) {
         auto offset = reader.read<address_t>();
         return new DataOffsetLink(section, offset, scope);
     }
-    case TYPE_TLSDataOffsetLink:
-        return new UnresolvedLink(0);  // unsupported
+    case TYPE_TLSDataOffsetLink: {
+        auto tls = dynamic_cast<TLSDataRegion *>(deserializeLinkTarget(reader));
+        auto rawTarget = reader.read<address_t>();
+        auto hasSymbol = reader.read<bool>();
+        Symbol *symbol = nullptr;
+        if(hasSymbol) {
+            auto symbolName = reader.readString();
+            symbol = new Symbol(0x0, 0, symbolName.c_str(),
+                Symbol::TYPE_UNKNOWN, Symbol::BIND_WEAK, 0, 0);
+        }
+        return new TLSDataOffsetLink(tls, symbol, rawTarget);
+    }
     case TYPE_UnresolvedLink:
         return new UnresolvedLink(reader.read<address_t>());
     case TYPE_ImmAndDispLink: {
