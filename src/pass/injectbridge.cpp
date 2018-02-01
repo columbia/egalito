@@ -28,5 +28,6 @@ void InjectBridgePass::makeLinkToLoaderVariable(Module *module, Reloc *reloc) {
 
     auto link = new EgalitoLoaderLink(reloc->getSymbol()->getName());
 
-    DataVariable::create(module, reloc->getAddress(), link, reloc->getSymbol());
+    auto address = reloc->getAddress() + module->getBaseAddress();
+    DataVariable::create(module, address, link, reloc->getSymbol());
 }

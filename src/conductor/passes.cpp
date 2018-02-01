@@ -103,3 +103,7 @@ void ConductorPasses::newArchivePasses(Program *program) {
         }
     }
 }
+
+void ConductorPasses::reloadedArchivePasses(Module *module) {
+    module->getElfSpace()->setAliasMap(new FunctionAliasMap(module));
+}

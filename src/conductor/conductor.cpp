@@ -58,11 +58,14 @@ void Conductor::parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module) {
     space->findSymbolsAndRelocs();
     //ElfDynamic(getLibraryList()).parse(elf, library);
 
+    module->setElfSpace(space);
+    space->setModule(module);
+
     //LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
     //    << space->getName() << "] ---");
     //ConductorPasses(this).newElfPasses(space);
-
-    module->setElfSpace(space);
+    // needs module->getElfSpace()
+    ConductorPasses(this).reloadedArchivePasses(module);
 }
 
 void Conductor::parseLibraries() {

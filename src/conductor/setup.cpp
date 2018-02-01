@@ -91,11 +91,23 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     this->egalito = nullptr;
 
     conductor->parseEgalitoArchive(archive);
-    this->parseEgalito(true);  // add ElfSpace to libegalito.so module
+    //this->parseEgalito(true);  // add ElfSpace to libegalito.so module
 
-    conductor->resolveTLSLinks();
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        auto library = module->getLibrary();
+        auto elfMap = new ElfMap(library->getResolvedPathCStr());
+        conductor->parseEgalitoElfSpaceOnly(elfMap, module);
+    }
 
+    // !!! has to be earlier than resolveData()
     setBaseAddresses();
+
+    if(false) {
+        conductor->resolvePLTLinks();
+    }
+    conductor->resolveData();
+    conductor->resolveTLSLinks();
+    conductor->resolveVTables();
 }
 
 void ConductorSetup::setBaseAddresses() {

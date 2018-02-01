@@ -20,7 +20,9 @@ DataVariable *DataVariable::create(Module *module, address_t address,
     Link *dest, Symbol *symbol) {
 
     auto region = module->getDataRegionList()->findRegionContaining(address);
+    assert(region != nullptr);
     auto section = region->findDataSectionContaining(address);
+    assert(section != nullptr);
 
     return DataVariable::create(section, address, dest, symbol);
 }

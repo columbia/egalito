@@ -10,6 +10,7 @@ public:
     ConductorPasses(Conductor *conductor) : conductor(conductor) {}
     void newElfPasses(ElfSpace *space);
     void newArchivePasses(Program *program);
+    void reloadedArchivePasses(Module *module);
 };
 
 #endif

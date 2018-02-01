@@ -47,18 +47,18 @@ void HandleDataRelocsPass::visit(Module *module) {
 void HandleDataRelocsPass::resolveSpecificRelocSection(
     RelocSection *relocSection, Module *module) {
 
-    auto addr = (*relocSection->begin())->getAddress();
+    auto addr = (*relocSection->begin())->getAddress() + module->getBaseAddress();
     auto region = module->getDataRegionList()->findRegionContaining(addr);
     auto section = region->findDataSectionContaining(addr);
 
     for(auto reloc : *relocSection) {
-        if(section->findVariable(reloc->getAddress())) continue;
+        auto a = reloc->getAddress() + module->getBaseAddress();
+        if(section->findVariable(a)) continue;
 
         auto link = resolveVariableLink(reloc, module);
         if(!link) continue;
 
-        DataVariable::create(section, reloc->getAddress(), link,
-            reloc->getSymbol());
+        DataVariable::create(section, a, link, reloc->getSymbol());
     }
 }
 
@@ -67,12 +67,12 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
 
     auto list = module->getDataRegionList();
     for(auto reloc : *relocSection) {
-        auto addr = reloc->getAddress();
+        auto addr = reloc->getAddress() + module->getBaseAddress();
         auto region = list->findRegionContaining(addr);
         auto section = region->findDataSectionContaining(addr);
         if(section->findVariable(addr)) continue;
 
-        LOG(10, "trying to resolve reloc at " << std::hex << reloc->getAddress());
+        LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
         if(!link) continue;
 
