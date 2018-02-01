@@ -209,7 +209,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         break;
     }
 
-    LOG(1, "Unknown instruction type " << std::dec << static_cast<int>(type)
+    LOG(11, "Unknown instruction type " << std::dec << static_cast<int>(type)
         << " in InstrSerializer::deserialize!");
     return nullptr;
 }

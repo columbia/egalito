@@ -183,6 +183,8 @@ void Conductor::resolveData(bool justBridge) {
 
 void Conductor::resolveVTables() {
     for(auto module : CIter::modules(program)) {
+        if(!module->getElfSpace()) continue;
+
         // this needs data regions
         module->setVTableList(DisassembleVTables().makeVTableList(
             module->getElfSpace()->getElfMap(),

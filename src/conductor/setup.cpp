@@ -95,8 +95,12 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto library = module->getLibrary();
-        auto elfMap = new ElfMap(library->getResolvedPathCStr());
-        conductor->parseEgalitoElfSpaceOnly(elfMap, module);
+        if(library->getRole() == Library::ROLE_EGALITO
+            || library->getRole() == Library::ROLE_LIBCPP) {
+
+            auto elfMap = new ElfMap(library->getResolvedPathCStr());
+            conductor->parseEgalitoElfSpaceOnly(elfMap, module);
+        }
     }
 
     // !!! has to be earlier than resolveData()
