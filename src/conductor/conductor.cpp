@@ -149,11 +149,12 @@ void Conductor::resolveTLSLinks() {
     program->accept(&resolveTLS);
 }
 
-void Conductor::resolveData() {
+void Conductor::resolveData(bool justBridge) {
     if(auto egalito = program->getEgalito()) {
         InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
         egalito->accept(&bridge);
     }
+    if(justBridge) return;
 
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();

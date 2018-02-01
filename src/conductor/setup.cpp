@@ -105,7 +105,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     if(false) {
         conductor->resolvePLTLinks();
     }
-    conductor->resolveData();
+    conductor->resolveData(true);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 }

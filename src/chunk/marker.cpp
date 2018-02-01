@@ -54,7 +54,8 @@ void MarkerList::accept(ChunkVisitor *visitor) {
 Link *MarkerList::createMarkerLink(Symbol *symbol, size_t addend,
     Module *module, bool isRelative) {
 
-    assert(symbol);
+    //assert(symbol);
+    if(!symbol) return nullptr;
     assert(symbol->getSectionIndex() != 0);
     if(symbol->getType() == Symbol::TYPE_TLS) return nullptr;
 

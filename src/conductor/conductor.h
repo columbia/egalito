@@ -31,7 +31,7 @@ public:
 
     void resolvePLTLinks();
     void resolveTLSLinks();
-    void resolveData();
+    void resolveData(bool justBridge = false);
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections();

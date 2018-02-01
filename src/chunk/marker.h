@@ -14,6 +14,7 @@ private:
     size_t addend;
 
 public:
+    Marker() : base(nullptr), addend(0) {}
     Marker(Chunk *base, size_t addend);
     virtual void accept(ChunkVisitor *visitor) {}
 

@@ -121,7 +121,9 @@ void ChunkDumper::visit(DataSection *dataSection) {
 
 void ChunkDumper::visit(MarkerList *markerList) {
     LOG(1, "--[markers]--");
-    LOG(1, "    NYI");
+    for(auto marker : CIter::children(markerList)) {
+        LOG(1, "Marker at address 0x" << std::hex << marker->getAddress());
+    }
 }
 
 void ChunkDumper::visit(VTable *vtable) {
