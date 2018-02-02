@@ -303,9 +303,7 @@ class UDRegMemWorkingSet : public UDWorkingSet {
 private:
     Function *function;
     ControlFlowGraph *cfg;
-#ifdef ARCH_X86_64
     std::map<Instruction *, size_t> stateListIndex;
-#endif
     typedef std::vector<RegMemState> StateListType;
     StateListType stateList;
 public:

@@ -12,10 +12,6 @@ void InferLinksPass::visit(Module *module) {
 #endif
 }
 
-void InferLinksPass::visit(Function *function) {
-    recurse(function);
-}
-
 void InferLinksPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(dynamic_cast<IndirectCallInstruction *>(semantic)) {

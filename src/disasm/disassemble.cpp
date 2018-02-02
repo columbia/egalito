@@ -944,11 +944,15 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
         prevChunk = function->getChildren()->getIterable()->getLast();
     }
 
-    for(size_t sz = 0; sz < readSize; sz += 4) {
+    assert(((virtualAddress + readSize) & 0x7) == 0);
+    size_t literalSize;
+    for(size_t sz = 0; sz < readSize; sz += literalSize) {
+        literalSize = (virtualAddress + sz) & 0x7 ? 4 : 8;
         auto instr = new Instruction();
         std::string raw;
-        raw.assign(reinterpret_cast<char *>(readAddress + sz), 4);
-        auto li = new LiteralInstruction();
+        raw.assign(reinterpret_cast<char *>(readAddress + sz), literalSize);
+        SemanticImpl *li = nullptr;
+        li = new LiteralInstruction();
         li->setData(raw);
         instr->setSemantic(li);
         instr->setPosition(
@@ -956,6 +960,7 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
         prevChunk = instr;
         ChunkMutator(block, false).append(instr);
     }
+
     if(block->getSize() > 0) {
         ChunkMutator(function, false).append(block);
     }

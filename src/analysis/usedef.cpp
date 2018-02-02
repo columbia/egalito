@@ -313,20 +313,13 @@ UDRegMemWorkingSet::UDRegMemWorkingSet(
         auto node = cfg->get(cfg->getIDFor(block));
         for(auto instr : CIter::children(block)) {
             stateList.emplace_back(node, instr);
-#ifdef ARCH_X86_64
             stateListIndex[instr] = stateList.size() - 1;
-#endif
         }
     }
 }
 
 UDState *UDRegMemWorkingSet::getState(Instruction *instruction) {
-#ifdef ARCH_X86_64
     return &stateList[stateListIndex[instruction]];
-#elif defined(ARCH_AARCH64)
-    address_t offset = instruction->getAddress() - function->getAddress();
-    return &stateList[offset / 4];
-#endif
 }
 
 
