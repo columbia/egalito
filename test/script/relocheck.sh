@@ -18,5 +18,6 @@ cat tmp/$name-relocs-unsorted.txt | awk '{ print $1, $2 }' | \
 
 ./relocs.pl $program-q | awk '{ print $1, $2 }' | sort -n | uniq > tmp/$name-q-relocs.txt
 
-diff -y tmp/$name-q-relocs.txt tmp/$name-relocs.txt
+#diff -y tmp/$name-q-relocs.txt tmp/$name-relocs.txt
 #diff tmp/$name-q-relocs.txt tmp/$name-relocs.txt
+./relocs-diff.pl $program tmp/$name-q-relocs.txt tmp/$name-relocs.txt | tee tmp/$name-relocs.diff

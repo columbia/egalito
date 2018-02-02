@@ -381,12 +381,13 @@ void LinkedInstruction::makeAllLinked(Module *module) {
 
                 auto link = PerfectLinkResolver().resolveInferred(
                     target, i, module, false);
-                assert(link);
-                auto lli = new LinkedLiteralInstruction();
-                lli->setLink(link);
-                lli->setData(v->getData());
-                i->setSemantic(lli);
-                delete v;
+                if(link) {
+                    auto lli = new LinkedLiteralInstruction();
+                    lli->setLink(link);
+                    lli->setData(v->getData());
+                    i->setSemantic(lli);
+                    delete v;
+                }
             }
         }
     }
