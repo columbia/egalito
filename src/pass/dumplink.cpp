@@ -64,13 +64,18 @@ void DumpLinkPass::visit(Instruction *instruction) {
 void DumpLinkPass::visit(DataSection *section) {
     std::set<address_t> seen;
 
+    // AARCH64 elf files do not contain relocations for jump tables
     for(auto jt : CIter::children(module->getJumpTableList())) {
-        auto tableAddress = jt->getDescriptor()->getAddress();
+#ifdef ARCH_X86_64
+        address_t valuebase = jt->getDescriptor()->getAddress();
+#endif
         for(auto entry : CIter::children(jt)) {
             auto var = entry->getDataVariable();
+#ifdef ARCH_X86_64
             auto link = entry->getLink();
             outputPair(var->getAddress() - mapbase,
-                link->getTargetAddress() - tableAddress);
+                link->getTargetAddress() - valuebase);
+#endif
             seen.insert(var->getAddress());
         }
     }

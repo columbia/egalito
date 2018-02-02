@@ -121,16 +121,21 @@ sub inside_rodata($) {
 }
 
 sub add_got_entry($$) {
-	#print("parsed got entries $_[0]\n") if $verbose;
-	$gotentries{$_[0]} = $_[1];
-	if($_[0] =~ /([a-z0-9_]+)@\S+/) {
-		#print("non versioned got entries $1\n") if $verbose;
-		$gotentries{$1} = $_[1];
+	printf("adding to got entries %s (0x%x)\n", $_[0], $_[1]) if $verbose;
+	unless(defined($gotentries{$_[0]})) {
+		$gotentries{$_[0]} = $_[1];
+		if($_[0] =~ /([a-z0-9_]+)@\S+/) {
+			print("non versioned got entries $1\n") if $verbose;
+			$gotentries{$1} = $_[1];
+		}
+	}
+	else {
+		print("duplex entries in got, using the first one") if $verbose;
 	}
 }
 
 sub lookup_in_got($) {
-	#print("lookup_in_got arg $_[0]\n");
+	print("lookup_in_got arg $_[0]\n") if $verbose;
 	if(defined($gotentries{$_[0]})) {
 		return $gotentries{$_[0]};
 	}
@@ -141,7 +146,7 @@ sub lookup_in_got($) {
 		}
 	}
 	print("failed to lookup $_[0] in got\n") if $verbose;
-	print "gotentries: ".join(' ',keys(%gotentries))."\n";
+	print "gotentries: ".join(' ',keys(%gotentries))."\n" if $verbose;
 	return 0;
 }
 
@@ -188,9 +193,9 @@ while(my $line = <PIPE>) {
 		}
 		elsif($type eq 'R_AARCH64_RELATIVE') {
 			if(inside_got($source)) {
-				$gotentries{$syms{$symvalue}} = $source;
+				add_got_entry($syms{$symvalue}, $source);
 			}
-			$handled = 0;
+			$target = $symvalue;
 		}
 		elsif($type eq 'R_AARCH64_GLOB_DAT' and $symbolexpr =~ /^(\S+) \+ 0/) {
 			$target = $symvalue;
@@ -214,6 +219,15 @@ while(my $line = <PIPE>) {
 			}
 			elsif($type eq 'R_AARCH64_LD64_GOT_LO1') {	# truncated even with -W
 				$target = lookup_in_got($1) + $addend;
+			}
+			elsif($type eq 'R_AARCH64_ABS64') {
+				if($symvalue != 0) {
+					my $addend = hex("0x$3");
+					$target = $symvalue + $addend;
+				}
+				else {
+					$handled = 0;
+				}
 			}
 			elsif(defined($addrs{$1})) {
 				my $addend = hex("0x$3");
@@ -239,16 +253,22 @@ while(my $line = <PIPE>) {
 				elsif($type eq 'R_AARCH64_CALL26') {
 					$target = $symvalue + $addend;
 				}
+				elsif($type eq 'R_AARCH64_JUMP26') {
+					$target = $symvalue + $addend;
+				}
 				elsif($type eq 'R_AARCH64_ADR_PREL_PG_') {	# truncated even with -W
 					$target = $symvalue + $addend;	# to match egalito
 				}
 				elsif($type eq 'R_AARCH64_ADD_ABS_LO12') {
 					$target = $symvalue + $addend;
 				}
-				elsif($type eq 'R_AARCH64_ABS64') {
+				elsif($type eq 'R_AARCH64_LDST64_ABS_L') {	# truncated even with -W
 					$target = $symvalue + $addend;
 				}
-				elsif($type eq 'R_AARCH64_LDST64_ABS_L') {	# truncated even with -W
+				elsif($type eq 'R_AARCH64_LDST32_ABS_L') {	# truncated even with -W
+					$target = $symvalue + $addend;
+				}
+				elsif($type eq 'R_AARCH64_LDST16_ABS_L') {	# truncated even with -W
 					$target = $symvalue + $addend;
 				}
 				elsif($type eq 'R_AARCH64_LDST8_ABS_LO') {	# truncated even with -W
