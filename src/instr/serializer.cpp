@@ -181,7 +181,8 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         return semantic;
     }
     case TYPE_StackFrameInstruction:
-        throw "StackFrameInstruction?";
+        //throw "StackFrameInstruction?";
+        return nullptr;
     case TYPE_LiteralInstruction:
         throw "LiteralInstruction?";
     case TYPE_LinkedLiteralInstruction: {

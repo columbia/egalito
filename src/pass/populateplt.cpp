@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstring>
 #include "populateplt.h"
 #include "conductor/conductor.h"
 #include "disasm/disassemble.h"
@@ -23,6 +24,12 @@ void PopulatePLTPass::visit(PLTTrampoline *trampoline) {
     }
     else {
         populateTrampoline(trampoline);
+    }
+
+    if(std::strcmp(trampoline->getExternalSymbol()->getName().c_str(), "time") == 0) {
+        LOG(1, "HERE IS TIME!");
+        ChunkDumper dump;
+        trampoline->accept(&dump);
     }
 }
 
@@ -85,17 +92,21 @@ void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
     auto block1 = new Block();
     auto block2 = new Block();
 
-    ChunkMutator m(trampoline);
-    m.append(block1);
-    m.append(block2);
+    ChunkMutator(trampoline).append(block1);
 
-    ChunkMutator m1(block1);
-    m1.append(lea);
-    m1.append(jmpq);
+    {
+        ChunkMutator m1(block1);
+        m1.append(lea);
+        m1.append(jmpq);
+    }
 
-    ChunkMutator m2(block2);
-    m2.append(pushq);
-    m2.append(jmpq2);
+    ChunkMutator(trampoline).append(block2);
+
+    {
+        ChunkMutator m2(block2);
+        m2.append(pushq);
+        m2.append(jmpq2);
+    }
 #endif
 }
 
@@ -121,11 +132,8 @@ void PopulatePLTPass::populateTrampoline(PLTTrampoline *trampoline) {
 
     auto block1 = new Block();
 
-    ChunkMutator m(trampoline);
-    m.append(block1);
-
-    ChunkMutator m1(block1);
-    m1.append(jmpq);
+    ChunkMutator(trampoline).append(block1);
+    ChunkMutator(block1).append(jmpq);
 #endif
 }
 

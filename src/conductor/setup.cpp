@@ -95,7 +95,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto library = module->getLibrary();
-        if(library->getRole() == Library::ROLE_EGALITO
+        if(true || library->getRole() == Library::ROLE_EGALITO
             || library->getRole() == Library::ROLE_LIBCPP) {
 
             auto elfMap = new ElfMap(library->getResolvedPathCStr());

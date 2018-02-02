@@ -7,7 +7,9 @@
 #include "external.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "dump.h"
 #include "chunk/cache.h"
+#include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "instr/writer.h"
@@ -64,8 +66,13 @@ void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
     if(externalSymbol) {
-        LOG(10, "making PLT entry for [" << externalSymbol->getName()
+        LOG(1, "making PLT entry for [" << externalSymbol->getName()
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
+        if(std::strcmp(externalSymbol->getName().c_str(), "time") == 0) {
+            LOG(1, "HERE IS TIME!");
+            ChunkDumper dump;
+            this->accept(&dump);
+        }
     }
 
     for(auto block : CIter::children(this)) {
@@ -116,7 +123,7 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     writer.writeID(op.assign(externalSymbol));
     writer.write(gotPLTEntry);
 
-    //op.serializeChildren(this, writer);
+    op.serializeChildren(this, writer);
 }
 
 bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
@@ -126,7 +133,27 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     externalSymbol = op.lookupAs<ExternalSymbol>(reader.readID());
     gotPLTEntry = reader.read<address_t>();
 
-    //op.deserializeChildren(this, reader);
+    op.deserializeChildren(this, reader);
+    {
+        PositionFactory *positionFactory = PositionFactory::getInstance();
+        Chunk *prevChunk = this;
+
+        for(uint64_t i = 0; i < getChildren()->genericGetSize(); i ++) {
+            auto block = this->getChildren()->getIterable()->get(i);
+
+            if(i > 0) {
+                block->setPreviousSibling(prevChunk);
+                prevChunk->setNextSibling(block);
+            }
+
+            block->setPosition(positionFactory->makePosition(
+                prevChunk, block, this->getSize()));
+            prevChunk = block;
+
+            this->addToSize(block->getSize());
+        }
+    }
+    ChunkMutator{this, true};  // recalculate addresses
     return reader.stillGood();
 }
 

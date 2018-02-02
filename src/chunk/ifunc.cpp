@@ -1,11 +1,13 @@
 #include "ifunc.h"
-//#include "cminus/print.h"
+#include "cminus/print.h"
 
 extern IFuncList *egalito_ifuncList;
 
 extern "C"
 void ifunc_select(address_t address) {
+    //egalito_printf("IFUNC: resolve %lx...\n", (uintptr_t)address);
     auto ifunc = egalito_ifuncList->getFor(address);
+    //egalito_printf("IFUNC: resolver is %lx...\n", (uintptr_t)ifunc);
     auto funcaddr = reinterpret_cast<address_t>(ifunc());
 #if 0
     egalito_printf("IFUNC: resolver %lx for %lx selected %lx\n",

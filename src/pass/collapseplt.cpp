@@ -59,7 +59,7 @@ CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
 }
 
 void CollapsePLTPass::visit(Module *module) {
-    TemporaryLogLevel tll("pass", 20);
+    //TemporaryLogLevel tll("pass", 20);
 
     recurse(module);
     recurse(module->getDataRegionList());
