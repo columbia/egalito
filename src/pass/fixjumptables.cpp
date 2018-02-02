@@ -23,7 +23,6 @@ void FixJumpTablesPass::visit(JumpTableList *jumpTableList) {
 }
 
 void FixJumpTablesPass::visit(JumpTable *jumpTable) {
-#ifdef ARCH_X86_64
     auto descriptor = jumpTable->getDescriptor();
 
     LOG(1, "fixing jump table...");
@@ -39,11 +38,17 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
         // for relative jump tables (always the case right now)
         target -= descriptor->getTargetBaseLink()->getTargetAddress();
 
+        LOG(1, "set slot " << std::hex << slot
+            << " to value " << std::hex << target);
         switch(descriptor->getScale()) {
         case 4:
-            LOG(1, "set slot " << std::hex << slot
-                << " to value " << std::hex << target);
             *reinterpret_cast<int32_t *>(slot) = target;
+            break;
+        case 2:
+            *reinterpret_cast<int16_t *>(slot) = target;
+            break;
+        case 1:
+            *reinterpret_cast<int8_t *>(slot) = target;
             break;
         default:
             LOG(1, "Error: unknown jump table scale "
@@ -51,7 +56,4 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
             break;
         }
     }
-#elif defined(ARCH_AARCH64)
-    // we only need to fix table entries when we modify the function
-#endif
 }

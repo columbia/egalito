@@ -42,9 +42,12 @@ void DumpLinkPass::visit(Instruction *instruction) {
 
         // for a link to an instruction inside the same function,
         // there will be no relocation even with -q
-        if(instruction->getParent()->getParent()
-            == link->getTarget()->getParent()->getParent()) {
-            return;
+        // note that MakerLink has no target
+        if(auto target = link->getTarget()) {
+            if(instruction->getParent()->getParent()
+                == target->getParent()->getParent()) {
+                return;
+            }
         }
 
         size_t offset = 0;

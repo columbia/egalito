@@ -15,6 +15,7 @@
 #include "elf/elfmap.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
+#include "instr/storage.h"
 #include "pass/logcalls.h"
 #include "pass/loginstr.h"
 #include "pass/noppass.h"
@@ -128,6 +129,9 @@ void EgalitoLoader::run() {
 
     std::cout.flush();
     std::fflush(stdout);
+
+    // on egalito2, this is needed
+    AssemblyFactory::getInstance()->clearCache();
 
     ShufflingSandbox *shufflingSandbox
         = dynamic_cast<ShufflingSandbox *>(sandbox);
