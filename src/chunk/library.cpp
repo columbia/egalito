@@ -12,6 +12,11 @@ void Library::serialize(ChunkSerializerOperations &op,
     writer.write<uint8_t>(role);
     writer.writeID(op.assign(module));
     writer.writeString(resolvedPath);
+
+    writer.write<uint64_t>(dependencies.size());
+    for(auto lib : dependencies) {
+        writer.writeID(op.assign(lib));
+    }
 }
 
 bool Library::deserialize(ChunkSerializerOperations &op,
@@ -21,6 +26,11 @@ bool Library::deserialize(ChunkSerializerOperations &op,
     role = static_cast<Role>(reader.read<uint8_t>());
     module = op.lookupAs<Module>(reader.readID());
     resolvedPath = reader.readString();
+
+    uint64_t count = reader.read<uint64_t>();
+    for(uint64_t i = 0; i < count; i ++) {
+        dependencies.insert(op.lookupAs<Library>(reader.readID()));
+    }
 
     return reader.stillGood();
 }

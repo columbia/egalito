@@ -54,8 +54,8 @@ void Block::serialize(ChunkSerializerOperations &op,
     writer.write<size_t>(getAddress() - getParent()->getAddress());
     writer.write<size_t>(getSize());
 
-    LOG(1, "serialize Block at offset " << (getAddress() - getParent()->getAddress())
-        << " of size " << getSize());
+    /*LOG(1, "serialize Block at offset " << (getAddress() - getParent()->getAddress())
+        << " of size " << getSize());*/
 
     op.serializeChildren(this, writer);
 #endif
@@ -137,7 +137,7 @@ bool Block::deserialize(ChunkSerializerOperations &op,
         offset));
     size_t size = reader.read<size_t>();
 
-    LOG(1, "deserialized Block at offset " << offset << " of size " << size);
+    //LOG(1, "deserialized Block at offset " << offset << " of size " << size);
 
     op.deserializeChildren(this, reader);
     {
