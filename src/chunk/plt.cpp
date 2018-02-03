@@ -68,11 +68,6 @@ void PLTTrampoline::writeTo(char *target) {
     if(externalSymbol) {
         LOG(1, "making PLT entry for [" << externalSymbol->getName()
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
-        if(std::strcmp(externalSymbol->getName().c_str(), "time") == 0) {
-            LOG(1, "HERE IS TIME!");
-            ChunkDumper dump;
-            this->accept(&dump);
-        }
     }
 
     for(auto block : CIter::children(this)) {

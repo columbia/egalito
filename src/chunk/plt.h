@@ -32,9 +32,6 @@ public:
     std::string getName() const;
 
     Chunk *getTarget() const;
-    //Symbol *getTargetSymbol() const { return targetSymbol; }
-
-    //void setTarget(Chunk *target) { this->target = target; }
 
     ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
 

@@ -25,12 +25,6 @@ void PopulatePLTPass::visit(PLTTrampoline *trampoline) {
     else {
         populateTrampoline(trampoline);
     }
-
-    if(std::strcmp(trampoline->getExternalSymbol()->getName().c_str(), "time") == 0) {
-        LOG(1, "HERE IS TIME!");
-        ChunkDumper dump;
-        trampoline->accept(&dump);
-    }
 }
 
 void PopulatePLTPass::populateLazyTrampoline(PLTTrampoline *trampoline) {
