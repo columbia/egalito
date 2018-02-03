@@ -20,4 +20,11 @@ cat tmp/$name-relocs-unsorted.txt | awk '{ print $1, $2 }' | \
 
 #diff -y tmp/$name-q-relocs.txt tmp/$name-relocs.txt
 #diff tmp/$name-q-relocs.txt tmp/$name-relocs.txt
-./relocs-diff.pl $program tmp/$name-q-relocs.txt tmp/$name-relocs.txt | tee tmp/$name-relocs.diff
+./relocs-diff.pl $program tmp/$name-q-relocs.txt tmp/$name-relocs.txt > tmp/$name-relocs.diff
+grep -q " relocation " tmp/$name-relocs.diff
+if [ "$?" != 0 ]; then
+  echo test passed
+else
+  echo test failed!
+  exit 1
+fi

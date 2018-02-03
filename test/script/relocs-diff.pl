@@ -68,7 +68,7 @@ while(my $line = <LIST2>) {
 close LIST2;
 
 # diff left side then right side
-for my $key (sort keys %links1) {
+for my $key (sort keys $links1) {
 	unless(defined(%links2{$key})) {
 		printf("only %s<<< 0x%08x -> 0x%08lx\n", $list1, $key, $links1{$key});
 		if(defined($relocations{$key})) {
@@ -81,7 +81,7 @@ for my $key (sort keys %links1) {
 	}
 }
 
-for my $key (sort keys %links2) {
+for my $key (sort keys $links2) {
 	unless(defined(%links1{$key})) {
 		printf "only %s>>> 0x%08x -> 0x%08lx\n", $list2, $key, $links2{$key};
 		if(defined($relocations{$key})) {
