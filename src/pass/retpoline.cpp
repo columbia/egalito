@@ -1,5 +1,6 @@
 #include <cassert>
 #include "retpoline.h"
+#include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "instr/register.h"
 #include "disasm/disassemble.h"
@@ -16,10 +17,16 @@ void RetpolinePass::visit(Module *module) {
 
 void RetpolinePass::visit(Function *function) {
 #ifdef ARCH_X86_64
+    if(function->getName().find("_ssse3") != std::string::npos) return;
+
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
             auto semantic = instr->getSemantic();
-            if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+            if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+                if(v->isForJumpTable()) continue;
+
+                log_instruction(instr, "before:");
+
                 auto trampoline = makeOutlinedTrampoline(module, instr);
                 auto newSem = new ControlFlowInstruction(
                     X86_INS_JMP, instr, "\xe9", "jmpq", 4);
@@ -29,8 +36,12 @@ void RetpolinePass::visit(Function *function) {
                 ChunkMutator(block, true).modifiedChildSize(instr,
                     newSem->getSize() - semantic->getSize());
                 delete semantic;
+
+                log_instruction(instr, "after: ");
             }
             else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+                log_instruction(instr, "before:");
+
                 auto trampoline = makeOutlinedTrampoline(module, instr);
                 auto newSem = new ControlFlowInstruction(
                     X86_INS_CALL, instr, "\xe8", "callq", 4);
@@ -40,10 +51,19 @@ void RetpolinePass::visit(Function *function) {
                 ChunkMutator(block, true).modifiedChildSize(instr,
                     newSem->getSize() - semantic->getSize());
                 delete semantic;
+
+                log_instruction(instr, "after: ");
             }
         }
     }
+    ChunkMutator(function, true);
 #endif
+}
+
+void RetpolinePass::log_instruction(Instruction *instr, const char *message) {
+    LOG0(1, "RetpolinePass: " << message << " ");
+    ChunkDumper dump;
+    instr->accept(&dump);
 }
 
 Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *instr) {
@@ -61,7 +81,8 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
             auto index = X86Register::convertToPhysical(v->getIndexRegister()); \
             auto scale = v->getScale(); \
             auto disp = v->getDisplacement(); \
-            nameStream << "r" << reg << "_r" << index; \
+            nameStream << "mr" << reg; \
+            if(index != X86Register::INVALID) nameStream << "_r" << index; \
             if(scale != 1) nameStream << "@" << scale; \
             if(disp != 0) nameStream << "$" << disp; \
         }
@@ -153,6 +174,11 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
             ChunkMutator m(block3);
             for(auto ins : movInsList) m.append(ins);
             m.append(retIns);
+
+            for(auto i : movInsList) {
+                ChunkDumper dump;
+                i->accept(&dump);
+            }
         }
     }
 
@@ -213,7 +239,7 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
             if(indexReg > 8) sib |= (indexReg - 8) << 3;
             else             sib |= indexReg << 3;
             bin[3] = sib;
-            if(reg >= 8) bin.insert(bin.begin(), 0x41);
+            if(reg >= 8) bin.insert(bin.begin(), 0x42);
         }
         for(int i = 0; i < 4; i++) {
             bin.push_back(displacement & 0xff);
