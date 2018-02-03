@@ -2,6 +2,10 @@
 #define EGALITO_CONFIG_H
 #include "../config/config.h"
 
+#ifndef EGALITO_PATH
+    #define EGALITO_PATH    "./libegalito.so"
+#endif
+
 // just to make the code compile
 #ifndef LINUX_KERNEL_BASE
     #define LINUX_KERNEL_BASE   0

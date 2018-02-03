@@ -111,8 +111,10 @@ Link *MarkerList::createInferredMarkerLink(address_t address,
             if(address < dsec->getAddress()) break;
             base = dsec;
         }
-        size_t addend = address - base->getAddress();
-        return createGeneralMarkerLink(base, addend, module, isRelative);
+        if(base) {
+            size_t addend = address - base->getAddress();
+            return createGeneralMarkerLink(base, addend, module, isRelative);
+        }
     }
     return nullptr;
 }

@@ -17,12 +17,10 @@ void HandleCopyRelocs::visit(Module *module) {
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;
 
-    LOG(1, "for relocList of " << module->getName());
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
             //TemporaryLogLevel tll("chunk", 10);
 
-            // other cases not handled
             assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());

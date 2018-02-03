@@ -1,4 +1,5 @@
 #include <cstring>  // for memcpy
+#include <cassert>
 #include <fstream>
 #include "linked-aarch64.h"
 #include "config.h"
@@ -331,7 +332,8 @@ LinkedLiteralInstruction *LinkedLiteralInstruction::makeLinked(Module *module,
     auto link
         = PerfectLinkResolver().resolveInternally(reloc, module, resolveWeak);
     if(link) {
-        auto linked = new LinkedLiteralInstruction(instruction, raw);
+        auto linked = new LinkedLiteralInstruction();
+        linked->setData(raw);
         linked->setLink(link);
         return linked;
     }
@@ -364,6 +366,30 @@ void LinkedInstruction::makeAllLinked(Module *module) {
 
         resolveLinks(module, pd.getList());
         saveToFile(module, pd.getList());
+    }
+
+    for(auto f : CIter::functions(module)) {
+        for(auto b : CIter::children(f)) {
+            for(auto i : CIter::children(b)) {
+                if(i->getSize() != sizeof(address_t)) continue;
+                auto v = dynamic_cast<LiteralInstruction *>(i->getSemantic());
+                if(!v) continue;
+
+                uint64_t target;
+                std::memcpy(&target, v->getData().c_str(), sizeof(uint64_t));
+                if(target == 0) continue;   // could be just a padding
+
+                auto link = PerfectLinkResolver().resolveInferred(
+                    target, i, module, false);
+                if(link) {
+                    auto lli = new LinkedLiteralInstruction();
+                    lli->setLink(link);
+                    lli->setData(v->getData());
+                    i->setSemantic(lli);
+                    delete v;
+                }
+            }
+        }
     }
 }
 

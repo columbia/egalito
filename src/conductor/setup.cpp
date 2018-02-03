@@ -1,7 +1,7 @@
 #include <cassert>
-#include <unistd.h>
-#include <climits>
 #include <cstring>
+#include <climits>  // for PATH_MAX
+#include <unistd.h>  // for readlink
 #include "config.h"
 #include "setup.h"
 #include "conductor.h"
@@ -11,8 +11,11 @@
 #include "chunk/dump.h"
 #include "operation/find2.h"
 #include "pass/clearspatial.h"
+#include "pass/dumplink.h"
+#include "util/feature.h"
 #include "log/registry.h"
 #include "log/log.h"
+#include "log/temp.h"
 
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 

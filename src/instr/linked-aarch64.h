@@ -107,10 +107,6 @@ public:
 
 class LinkedLiteralInstruction : public LinkDecorator<LiteralInstruction> {
 public:
-    LinkedLiteralInstruction(Instruction *instruction,
-        const std::string rawData)
-        : LinkDecorator<LiteralInstruction>() { setData(rawData); }
-
     static LinkedLiteralInstruction *makeLinked(Module *module,
         Instruction *instruction, std::string raw, Reloc *reloc,
         bool resolveWeak);

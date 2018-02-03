@@ -159,6 +159,13 @@ FrameType::FrameType(Function *function)
 
                     resetSPInstrs.push_back(ins);
                 }
+                else if(assembly->getId() == ARM64_INS_SUB
+                    && operands[0].reg == ARM64_REG_SP
+                    && operands[1].type == ARM64_OP_REG
+                    && operands[1].reg == ARM64_REG_X29) {
+
+                    resetSPInstrs.push_back(ins);
+                }
 #endif
             }
         }
