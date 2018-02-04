@@ -30,7 +30,7 @@ void FallThroughFunctionPass::visit(Function *function) {
                 falling = true;
             }
 #elif defined(ARCH_AARCH64)
-            auto assembly = s->getAssembly();
+            auto assembly = semantic->getAssembly();
             assert(assembly);
             for(size_t r = 0; r < assembly->getImplicitRegsReadCount(); ++r) {
                 if(assembly->getImplicitRegsRead()[r] == CONDITION_REGISTER) {

@@ -303,7 +303,7 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(r->getSymbol());
                 pltList->getChildren()->add(
-                    new PLTTrampoline(this, pltAddress, externalSymbol, value));
+                    new PLTTrampoline(pltList, pltAddress, externalSymbol, value));
             }
         }
     }
