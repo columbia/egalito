@@ -217,6 +217,11 @@ void EgalitoLoader::otherPasses() {
         program->accept(&jitGSFixup);
     }
 
+    if(isFeatureEnabled("EGALITO_USE_REORDERPUSH")) {
+        ReorderPush reorderPush;
+        program->accept(&reorderPush);
+    }
+
 #ifdef ARCH_X86_64
     PromoteJumpsPass promoteJumps;
     setup->getConductor()->acceptInAllModules(&promoteJumps, true);
@@ -231,11 +236,6 @@ void EgalitoLoader::otherPasses() {
     if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {
         CancelPushPass cancelPush(program);
         program->accept(&cancelPush);
-    }
-
-    if(isFeatureEnabled("EGALITO_USE_REORDERPUSH")) {
-        ReorderPush reorderPush;
-        program->accept(&reorderPush);
     }
 }
 
