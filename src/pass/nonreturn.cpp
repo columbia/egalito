@@ -24,6 +24,7 @@ const std::vector<std::string> NonReturnFunction::knownList = {
     "_ZSt20__throw_out_of_rangePKc",
     "_ZSt19__throw_logic_errorPKc",
     "_ZSt17__throw_bad_allocv",
+    "_ZSt24__throw_invalid_argumentPKc"
 };
 
 void NonReturnFunction::visit(FunctionList *functionList) {
