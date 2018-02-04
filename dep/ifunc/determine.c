@@ -35,6 +35,12 @@ int main(int argc, char **argv)
     if(strncmp(buf, buf2, 1)) {
         nop();
     }
+    if(strcasecmp(buf, buf2)) {
+        nop();
+    }
+    if(strncasecmp(buf, buf2, 1)) {
+        nop();
+    }
     if(strlen(argv[0]) > 0) {
         nop();
     }
