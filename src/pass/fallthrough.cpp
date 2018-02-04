@@ -98,7 +98,7 @@ void FallThroughFunctionPass::visit(Function *function) {
             connecting->setPosition(
                 positionFactory->makePosition(block, connecting,
                     function->getSize()));
-            LOG(1, "target = " << target->getName());
+            LOG(10, "target = " << target->getName());
             // add a branch instruction to the 'target' instruction
             DisasmHandle handle(true);
             auto branch = new Instruction();
