@@ -34,7 +34,7 @@ private:
     std::map<int, std::set<Instruction *>> currentReadMap;
 
     const static std::map<int, HandlerType> handlers;
-    const static int MEMORY_REG = X86Register::REGISTER_NUMBER;
+    const static int MEMORY_REG = X86Register::REGISTER_NUMBER + 1;
 public:
     ReachingDef(Block *block) : block(block), dependencyClosure(false) {}
     void analyze();

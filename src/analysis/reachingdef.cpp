@@ -65,6 +65,7 @@ void ReachingDef::visitInstructionGroups(VisitCallback callback) {
                 LOG(1, "WARNING: aborting ReachingDef::visitInstructionGroups"
                     " with some instructions still remaining!");
             }
+            assert(available.empty());
             break;
         }
 
@@ -131,13 +132,14 @@ bool ReachingDef::areDependenciesCovered(Instruction *instr,
 
 void ReachingDef::setBarrier(Instruction *instr) {
     for(Chunk *c = instr->getPreviousSibling(); c; c = c->getPreviousSibling()) {
+        assert(instr != c);
         if(auto v = dynamic_cast<Instruction *>(c)) {
             killMap[instr].insert(v);
         }
     }
 
     // <= to include MEMORY_REG
-    for(int r = 0; r <= X86Register::REGISTER_NUMBER; r ++) {
+    for(int r = 0; r <= X86Register::REGISTER_NUMBER + 1; r ++) {
         currentWriteMap[r] = { instr };
     }
 }
@@ -200,6 +202,9 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
 
     killMap[instr].insert(
         currentReadMap[reg].begin(), currentReadMap[reg].end());
+    for(auto i : killMap[instr]) {
+        assert(i != instr);
+    }
 
     currentWriteMap[reg] = instr;
     currentReadMap[reg].clear();
@@ -236,15 +241,18 @@ void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         setRegWrite(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_REG_REG) {
         setRegRead(getReg(assembly, 0), instr);
         setRegWrite(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
         setRegWrite(getReg(assembly, 1), instr);
         setMemWrite(instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else {
         setBarrier(instr);
@@ -255,6 +263,7 @@ void ReachingDef::fillAnd(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         setRegWrite(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else {
         setBarrier(instr);
@@ -266,6 +275,7 @@ void ReachingDef::fillBsf(Instruction *instr, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG_REG) {
         setRegWrite(getReg(assembly, 0), instr);
         setRegRead(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else {
         setBarrier(instr);
@@ -294,19 +304,21 @@ void ReachingDef::fillCmp(Instruction *instr, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG_REG) {
         setRegRead(getReg(assembly, 0), instr);
         setRegRead(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_IMM_REG) {
         setRegRead(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_IMM_MEM) {
         handleMem(assembly, 1, instr);
         setMemRead(instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else {
         setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
-    setRegWrite(X86Register::FLAGS, instr);
 }
 void ReachingDef::fillLea(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
