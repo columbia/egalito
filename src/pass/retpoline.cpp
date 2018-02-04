@@ -8,6 +8,8 @@
 #include "util/streamasstring.h"
 #include "log/log.h"
 
+#define SLOW_AND_SAFE_RETPOLINES
+
 void RetpolinePass::visit(Module *module) {
 #ifdef ARCH_X86_64
     this->module = module;
@@ -203,8 +205,73 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
 
     // movq OPERAND, (%rsp)
     // or movq COMPLEX, %mm1 + movq %mm1, (%rsp)
+    // or push %rax + movq COMPLEX, %rax + movq %rax, 0x8(%rsp) + pop %rax
     std::vector<unsigned char> bin;
     if(semantic->hasMemoryOperand()) {
+#ifdef SLOW_AND_SAFE_RETPOLINES
+        if(indexReg == X86Register::INVALID) {
+            // movq disp(%reg), %rax
+            bin.resize(3);
+            bin[0] = (reg >= 8 ? 0x49 : 0x48);
+            bin[1] = 0x8b;
+            if(reg >= 8) {
+                bin[2] = 0x88 + reg - 8;
+                if(reg == 12) {
+                    bin.push_back(0x24);
+                }
+                else if(reg == 13) {
+                    bin[2] |= 0x40;
+                    bin.push_back(0x00);
+                }
+            }
+            else {
+                bin[2] = reg;
+                if(reg == 4) {
+                    bin.push_back(0x24);
+                }
+                else if(reg == 5) {
+                    bin[2] |= 0x40;
+                    bin.push_back(0x00);
+                }
+            }
+            if(reg >= 8) bin.insert(bin.begin(), 0x41);
+        }
+        else {
+            // movq disp(%reg, %index, scale), %rax
+            bin.resize(4);
+            bin[0] = (reg >= 8 ? 0x4a : 0x48);
+            bin[1] = 0x8b;
+            bin[2] = 0x04;
+            // scale | index(3) | base(3)
+            size_t bits = 0;
+            while(scale /= 2) bits++;
+            unsigned char sib = bits << 6;
+            if(reg >= 8) sib |= (reg - 8);
+            else         sib |= reg;
+            if(indexReg > 8) sib |= (indexReg - 8) << 3;
+            else             sib |= indexReg << 3;
+            bin[3] = sib;
+        }
+        for(int i = 0; i < 4; i++) {
+            bin.push_back(displacement & 0xff);
+            displacement >>= 8;
+        }
+
+        static DisasmHandle handle(true);
+        auto ins1 = DisassembleInstruction(handle).instruction(bin);
+
+        // movq %rax, 0x8(%rsp)
+        auto ins2 = DisassembleInstruction(handle).instruction(
+            (std::vector<unsigned char>){0x48, 0x89, 0x44, 0x24, 0x08});
+
+        // push %rax + pop %rax
+        auto pushIns = DisassembleInstruction(handle).instruction(
+            (std::vector<unsigned char>){0x50});
+        auto popIns = DisassembleInstruction(handle).instruction(
+            (std::vector<unsigned char>){0x58});
+
+        return {pushIns, ins1, ins2, popIns};
+#else
         if(indexReg == X86Register::INVALID) {
             // movq disp(%reg), %mm1
             bin.resize(3);
@@ -254,6 +321,7 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
             (std::vector<unsigned char>){0x0f, 0x7f, 0x0c, 0x24});
 
         return {ins1, ins2};
+#endif
     }
     else {
         // movq %reg, (%rsp)
