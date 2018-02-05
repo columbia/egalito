@@ -250,8 +250,9 @@ void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
-        setRegWrite(getReg(assembly, 1), instr);
         setMemWrite(instr);
+        setMemRead(instr);
+        setRegWrite(getReg(assembly, 1), instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else {
@@ -287,17 +288,18 @@ void ReachingDef::fillBt(Instruction *instr, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG_REG) {
         setRegRead(getReg(assembly, 0), instr);
         setRegRead(getReg(assembly, 1), instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
+        setMemRead(instr);
         setRegRead(getReg(assembly, 1), instr);
-        setMemWrite(instr);
+        setRegWrite(X86Register::FLAGS, instr);
     }
     else {
         setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
-    setRegWrite(X86Register::FLAGS, instr);
 }
 void ReachingDef::fillCmp(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
@@ -324,6 +326,7 @@ void ReachingDef::fillLea(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
+        setMemRead(instr);
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
@@ -343,6 +346,7 @@ void ReachingDef::fillMov(Instruction *instr, AssemblyPtr assembly) {
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
+        setMemRead(instr);
         setRegWrite(getReg(assembly, 1), instr);
     }
     else if(mode == AssemblyOperands::MODE_REG_REG) {
@@ -375,31 +379,35 @@ void ReachingDef::fillPush(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG) {
         setRegRead(getReg(assembly, 0), instr);
+        setMemWrite(instr);
+        setRegWrite(X86Register::SP, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM) {
         handleMem(assembly, 0, instr);
+        setMemWrite(instr);
+        setRegWrite(X86Register::SP, instr);
     }
     else {
         setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
-    setMemWrite(instr);
-    setRegWrite(X86Register::SP, instr);
 }
 void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG) {
         setRegWrite(getReg(assembly, 0), instr);
+        setMemRead(instr);
+        setRegWrite(X86Register::SP, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM) {
         handleMem(assembly, 0, instr);
+        setMemRead(instr);
+        setRegWrite(X86Register::SP, instr);
     }
     else {
         setBarrier(instr);
         LOG(10, "skipping mode " << mode);
     }
-    setMemRead(instr);
-    setRegWrite(X86Register::SP, instr);
 }
 #endif
 
