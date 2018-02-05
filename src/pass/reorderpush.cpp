@@ -62,6 +62,12 @@ void ReorderPush::visit(Function *function) {
             << (allowPushReorder ? 'y' : 'n') << ", pop="
             << (enforcePopOrder ? 'y' : 'n'));
 
+        // at least, 256 is known to be too big (in dealII)
+        if(100 < block->getChildren()->getIterable()->getCount()) {
+            LOG(1, "skipping a too big basic block in " << function->getName());
+            continue;
+        }
+
         ReachingDef reachingDef(block);
         reachingDef.analyze();
 

@@ -2,6 +2,8 @@
 mkdir -p tmp
 
 # this takes a long time, so make a copy
+rm -f libegalito.so
+rm -f loader
 cp -p ../../src/libegalito.so .
 cp -p ../../src/loader .
 rm -f tmp/coreutils.out
