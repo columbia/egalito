@@ -20,6 +20,9 @@ void FallThroughFunctionPass::visit(Function *function) {
         if(dynamic_cast<ReturnInstruction *>(semantic)) {
             falling = false;
         }
+        else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+            falling = false;
+        }
         else if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
             falling = false;
         }
@@ -32,16 +35,19 @@ void FallThroughFunctionPass::visit(Function *function) {
 #elif defined(ARCH_AARCH64)
             auto assembly = semantic->getAssembly();
             assert(assembly);
+            bool f = false;
             for(size_t r = 0; r < assembly->getImplicitRegsReadCount(); ++r) {
                 if(assembly->getImplicitRegsRead()[r] == CONDITION_REGISTER) {
-                    falling = true;
+                    f = true;
                     break;
                 }
             }
+            falling = f;
 #endif
         }
         else if(dynamic_cast<IsolatedInstruction *>(semantic)) {
             if(auto assembly = semantic->getAssembly()) {
+#ifdef ARCH_X86_64
                 if(assembly->getId() == X86_INS_UD2) {
                     falling = false;
                 }
@@ -64,6 +70,11 @@ void FallThroughFunctionPass::visit(Function *function) {
                 else if(assembly->getId() == X86_INS_NOP) {
                     nop++;
                 }
+#elif defined(ARCH_AARCH64)
+                if(assembly->getId() == ARM64_INS_NOP) {
+                    nop++;
+                }
+#endif
                 else {
                     falling = true;
                 }
@@ -72,15 +83,21 @@ void FallThroughFunctionPass::visit(Function *function) {
                 falling = true;
             }
         }
+        else if(dynamic_cast<LiteralInstruction *>(semantic)) {
+            falling = false;
+        }
         else {
-            assert("FallThroughFunctionPass" && 0);
+            assert("FallThroughFunctionPass semantic type?" && 0);
             falling = false;
         }
     }
     if(falling) {
-        if(nop != block->getChildren()->getIterable()->getCount()) {
-            LOG(10, "fallThrough Function " << function->getName());
+        if(nop == block->getChildren()->getIterable()->getCount()) {
+            LOG(9, "WARNING: FallThrough: the last block was all NOPs");
+            return ;
         }
+
+        LOG(10, "fallThrough Function " << function->getName());
         auto instr = block->getChildren()->getIterable()->getLast();
         auto targetAddress = instr->getAddress() + instr->getSize();
         auto list = dynamic_cast<FunctionList *>(function->getParent());
