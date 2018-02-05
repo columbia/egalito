@@ -375,8 +375,9 @@ private:
     void fillAnd(UDState *state, AssemblyPtr assembly);
     void fillBsf(UDState *state, AssemblyPtr assembly);
     void fillBt(UDState *state, AssemblyPtr assembly);
-    void fillCmp(UDState *state, AssemblyPtr assembly);
     void fillCall(UDState *state, AssemblyPtr assembly);
+    void fillCmp(UDState *state, AssemblyPtr assembly);
+    void fillInc(UDState *state, AssemblyPtr assembly);
     void fillJa(UDState *state, AssemblyPtr assembly);
     void fillJae(UDState *state, AssemblyPtr assembly);
     void fillJb(UDState *state, AssemblyPtr assembly);

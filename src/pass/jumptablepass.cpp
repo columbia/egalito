@@ -43,7 +43,7 @@ void JumpTablePass::visit(JumpTableList *jumpTableList) {
         makeJumpTable(jumpTableList, search.getTableList());
         search.detect(module);
         auto count2 = search.getTableList().size();
-        LOG(10, "count1 = " << count1 << " -> " << count2);
+        LOG(1, "count1 = " << count1 << " -> " << count2);
         if(count1 == count2) break;
         count1 = count2;
     }
@@ -121,11 +121,14 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
         jumpTable->addJumpInstruction(descriptor->getInstruction());
 
         // create JumpTableEntry's
-        makeChildren(jumpTable, count);
+        auto n = makeChildren(jumpTable, count);
+        if(n < (size_t)count) {
+            jumpTable->getDescriptor()->setEntries(n);
+        }
     }
 }
 
-void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
+size_t JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
 
@@ -171,7 +174,8 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
         }
         else {
             LOG(3, "        unresolved at 0x" << std::hex << target);
-            link = new UnresolvedLink(target);
+            //link = new UnresolvedLink(target);
+            return i;
         }
 
         auto var = DataVariable::create(section, address, link, nullptr);
@@ -182,6 +186,7 @@ void JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
             ->makeAbsolutePosition(address));
         jumpTable->getChildren()->add(entry);
     }
+    return count;
 }
 
 void JumpTablePass::saveToFile() const {
@@ -266,7 +271,8 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
         d->setEntries(entries);
         auto jumpTable = new JumpTable(module->getElfSpace()->getElfMap(), d);
         jumpTableList->getChildren()->add(jumpTable);
-        makeChildren(jumpTable, entries);
+        auto n = makeChildren(jumpTable, entries);
+        assert(n == (size_t)entries);
         loaded = true;
     }
 

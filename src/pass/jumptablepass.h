@@ -17,7 +17,7 @@ public:
     /** Constructs JumpTableEntries for the given jumptable.
         Note: relies on this->module being set.
     */
-    void makeChildren(JumpTable *jumpTable, int count);
+    size_t makeChildren(JumpTable *jumpTable, int count);
 
 private:
     void makeJumpTable(JumpTableList *jumpTableList,

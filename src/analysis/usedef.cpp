@@ -331,6 +331,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_BT,        &UseDef::fillBt},
     {X86_INS_CALL,      &UseDef::fillCall},
     {X86_INS_CMP,       &UseDef::fillCmp},
+    {X86_INS_INC,       &UseDef::fillInc},
     {X86_INS_JA,        &UseDef::fillJa},
     {X86_INS_JAE,       &UseDef::fillJae},
     {X86_INS_JB,        &UseDef::fillJb},
@@ -1406,6 +1407,26 @@ void UseDef::fillCmp(UDState *state, AssemblyPtr assembly) {
     }
     else {
         defReg(state, X86Register::FLAGS, nullptr);
+        LOG(10, "skipping mode " << mode);
+    }
+}
+void UseDef::fillInc(UDState *state, AssemblyPtr assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_REG) {
+        int reg0;
+        size_t width0;
+        std::tie(reg0, width0) = getPhysicalRegister(
+            assembly->getAsmOperands()->getOperands()[0].reg);
+        if(reg0 < 0) return;
+        useReg(state, reg0);
+        auto reg0Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg0, width0);
+        auto oneTree = TreeFactory::instance().make<TreeNodeConstant>(1);
+        auto tree = TreeFactory::instance().make<TreeNodeAddition>(
+            reg0Tree, oneTree);
+        defReg(state, reg0, tree);
+    }
+    else {
         LOG(10, "skipping mode " << mode);
     }
 }

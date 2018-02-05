@@ -68,6 +68,7 @@ private:
     bool parseTableAccess(UDState *state, int reg, JumptableInfo *info);
     std::tuple<bool, address_t> parseBaseAddress(UDState *state, int reg);
     std::tuple<bool, address_t> parseSavedAddress(UDState *state, int reg);
+    std::tuple<bool, address_t> parseMovedAddress(UDState *state, int reg);
     std::tuple<bool, address_t> parseComputedAddress(UDState *state, int reg);
 
     bool parseBound(UDState *state, int reg, JumptableInfo *info);
