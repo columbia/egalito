@@ -30,12 +30,21 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
         jumpTable->accept(&dumper);
     }
 
+    auto scale = descriptor->getScale();
     for(auto entry : CIter::children(jumpTable)) {
         address_t slot = entry->getDataVariable()->getAddress();
         address_t target = entry->getLink()->getTargetAddress();
 
         // for relative jump tables (always the case right now)
         target -= descriptor->getTargetBaseLink()->getTargetAddress();
+#ifdef ARCH_AARCH64
+        // We only see the scale of 4 for hand-crafted jump tables in
+        // printf_positional of glibc. If this assumption does not hold,
+        // we should add another field to the descriptor.
+        if(scale != 4) {
+            target /= 4;
+        }
+#endif
 
         LOG(1, "set slot " << std::hex << slot
             << " to value " << std::hex << target);
