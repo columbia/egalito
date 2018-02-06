@@ -137,7 +137,7 @@ std::vector<ControlFlow::id_t> Dominance::getPostDominators(
     };
 
     auto pdom = getDominators(exitNodes[0]->getID());
-    pdom.erase(std::remove(pdom.begin(), pdom.end(), 0), pdom.end());
+    //pdom.erase(std::remove(pdom.begin(), pdom.end(), 0), pdom.end());
 
     for(size_t i = 1; i <exitNodes.size(); i++) {
         auto pdom2 = getDominators(exitNodes[i]->getID());
