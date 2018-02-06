@@ -222,15 +222,15 @@ void EgalitoLoader::otherPasses() {
         program->accept(&reorderPush);
     }
 
-#ifdef ARCH_X86_64
-    PromoteJumpsPass promoteJumps;
-    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
-#endif
-
     if(isFeatureEnabled("EGALITO_USE_RETPOLINES")) {
         RetpolinePass retpoline;
         program->accept(&retpoline);
     }
+
+#ifdef ARCH_X86_64
+    PromoteJumpsPass promoteJumps;
+    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
+#endif
 
     // enable CollapsePLTPass for better result
     if(isFeatureEnabled("EGALITO_USE_CANCELPUSH")) {

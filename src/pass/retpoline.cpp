@@ -8,8 +8,6 @@
 #include "util/streamasstring.h"
 #include "log/log.h"
 
-#define SLOW_AND_SAFE_RETPOLINES
-
 void RetpolinePass::visit(Module *module) {
 #ifdef ARCH_X86_64
     this->module = module;
@@ -63,9 +61,11 @@ void RetpolinePass::visit(Function *function) {
 }
 
 void RetpolinePass::log_instruction(Instruction *instr, const char *message) {
-    LOG0(1, "RetpolinePass: " << message << " ");
-    ChunkDumper dump;
-    instr->accept(&dump);
+    IF_LOG(10) {
+        LOG0(1, "RetpolinePass: " << message << " ");
+        ChunkDumper dump;
+        instr->accept(&dump);
+    }
 }
 
 Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *instr) {
@@ -106,16 +106,18 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
 
     // retpoline_r11_trampoline:
     //   call set_up_target;
-    // capture_spec:        
+    // capture_spec:
     //   pause;
     //   jmp capture_spec;
     // set_up_target:
-    //   mov %r11, (%rsp); 
-    //   ret; 
+    //   mov %r11, (%rsp);
+    //   ret;
 
     auto function = new Function();
     function->setName(name);
     function->setPosition(new AbsolutePosition(0x100));
+
+    // XXX making a link to a block should be avoided
     {
         auto block1 = new Block();
         auto block2 = new Block();
@@ -131,7 +133,7 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
         {
             auto callIns = new Instruction();
             auto callSem = new ControlFlowInstruction(
-                X86_INS_CALL, callIns, "\xe8", "callq", 4); 
+                X86_INS_CALL, callIns, "\xe8", "callq", 4);
             callSem->setLink(new NormalLink(block3, Link::SCOPE_WITHIN_FUNCTION));
             callIns->setSemantic(callSem);
             ChunkMutator(block1).append(callIns);
@@ -142,7 +144,7 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
 
             auto jmpIns = new Instruction();
             auto jmpSem = new ControlFlowInstruction(
-                X86_INS_JMP, jmpIns, "\xeb", "jmp", 1); 
+                X86_INS_JMP, jmpIns, "\xeb", "jmp", 1);
             jmpSem->setLink(new NormalLink(block2, Link::SCOPE_WITHIN_FUNCTION));
             jmpIns->setSemantic(jmpSem);
 
@@ -177,10 +179,12 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
             for(auto ins : movInsList) m.append(ins);
             m.append(retIns);
 
+#if 0
             for(auto i : movInsList) {
                 ChunkDumper dump;
                 i->accept(&dump);
             }
+#endif
         }
     }
 
@@ -203,45 +207,44 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
     auto scale = semantic->getScale();
     int64_t displacement = semantic->getDisplacement();
 
-    // movq OPERAND, (%rsp)
-    // or movq COMPLEX, %mm1 + movq %mm1, (%rsp)
-    // or push %rax + movq COMPLEX, %rax + movq %rax, 0x8(%rsp) + pop %rax
-    std::vector<unsigned char> bin;
+    // movq EA, %r11
+    std::vector<unsigned char> bin2;
     if(semantic->hasMemoryOperand()) {
-#ifdef SLOW_AND_SAFE_RETPOLINES
         if(indexReg == X86Register::INVALID) {
-            // movq disp(%reg), %rax
-            bin.resize(3);
-            bin[0] = (reg >= 8 ? 0x49 : 0x48);
-            bin[1] = 0x8b;
+            // movq disp(%reg), %r11
+            bin2.resize(3);
+            unsigned char rex = 0x4c;
+            if(reg >= 8) rex |= 0b0001;
+            bin2[0] = rex;
+            bin2[1] = 0x8b;
             if(reg >= 8) {
-                bin[2] = 0x88 + reg - 8;
+                bin2[2] = 0x98 + reg - 8;
+                //bin2[2] = 0x80 | (reg - 8) << 3 | (reg - 8);
                 if(reg == 12) {
-                    bin.push_back(0x24);
-                }
-                else if(reg == 13) {
-                    bin[2] |= 0x40;
-                    bin.push_back(0x00);
+                    bin2.push_back(0x24);
                 }
             }
             else {
-                bin[2] = reg;
+                bin2[2] = 0x98 + reg;
+                //bin2[2] = 0x80 | reg << 3 | reg;
                 if(reg == 4) {
-                    bin.push_back(0x24);
-                }
-                else if(reg == 5) {
-                    bin[2] |= 0x40;
-                    bin.push_back(0x00);
+                    bin2.push_back(0x24);
                 }
             }
-            if(reg >= 8) bin.insert(bin.begin(), 0x41);
         }
         else {
-            // movq disp(%reg, %index, scale), %rax
-            bin.resize(4);
-            bin[0] = (reg >= 8 ? 0x4a : 0x48);
-            bin[1] = 0x8b;
-            bin[2] = 0x04;
+            // movq disp(%reg, %index, scale), %r11
+            bin2.resize(4);
+            unsigned char rex = 0x4c;
+            if(reg >= 8) rex |= 0b0001;
+            if(indexReg >= 8) rex |= 0b0010;
+            bin2[0] = rex;
+            bin2[1] = 0x8b;
+            //unsigned char operand = 0x84;
+            //if(reg >= 8) operand |= (reg - 8) << 3;
+            //else         operand |= reg << 3;
+            unsigned char operand = 0x9c;
+            bin2[2] = operand;
             // scale | index(3) | base(3)
             size_t bits = 0;
             while(scale /= 2) bits++;
@@ -250,93 +253,31 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
             else         sib |= reg;
             if(indexReg > 8) sib |= (indexReg - 8) << 3;
             else             sib |= indexReg << 3;
-            bin[3] = sib;
+            bin2[3] = sib;
         }
         for(int i = 0; i < 4; i++) {
-            bin.push_back(displacement & 0xff);
+            bin2.push_back(displacement & 0xff);
             displacement >>= 8;
         }
-
-        static DisasmHandle handle(true);
-        auto ins1 = DisassembleInstruction(handle).instruction(bin);
-
-        // movq %rax, 0x8(%rsp)
-        auto ins2 = DisassembleInstruction(handle).instruction(
-            (std::vector<unsigned char>){0x48, 0x89, 0x44, 0x24, 0x08});
-
-        // push %rax + pop %rax
-        auto pushIns = DisassembleInstruction(handle).instruction(
-            (std::vector<unsigned char>){0x50});
-        auto popIns = DisassembleInstruction(handle).instruction(
-            (std::vector<unsigned char>){0x58});
-
-        return {pushIns, ins1, ins2, popIns};
-#else
-        if(indexReg == X86Register::INVALID) {
-            // movq disp(%reg), %mm1
-            bin.resize(3);
-            bin[0] = 0x0f;
-            bin[1] = 0x6f;
-            if(reg >= 8) {
-                bin[2] = 0x88 + reg - 8;
-                if(reg == 12) {
-                    bin.push_back(0x24);
-                }
-            }
-            else {
-                bin[2] = 0x88 + reg;
-                if(reg == 4) {
-                    bin.push_back(0x24);
-                }
-            }
-            if(reg >= 8) bin.insert(bin.begin(), 0x41);
-        }
-        else {
-            // movq disp(%reg, %index, scale), %mm1
-            bin.resize(4);
-            bin[0] = 0x0f;
-            bin[1] = 0x6f;
-            bin[2] = 0x8c;
-            // scale | index(3) | base(3)
-            size_t bits = 0;
-            while(scale /= 2) bits++;
-            unsigned char sib = bits << 6;
-            if(reg >= 8) sib |= (reg - 8);
-            else         sib |= reg;
-            if(indexReg > 8) sib |= (indexReg - 8) << 3;
-            else             sib |= indexReg << 3;
-            bin[3] = sib;
-            if(reg >= 8) bin.insert(bin.begin(), 0x42);
-        }
-        for(int i = 0; i < 4; i++) {
-            bin.push_back(displacement & 0xff);
-            displacement >>= 8;
-        }
-
-        static DisasmHandle handle(true);
-        auto ins1 = DisassembleInstruction(handle).instruction(bin);
-
-        // movq %mm1, (%rsp)
-        auto ins2 = DisassembleInstruction(handle).instruction(
-            (std::vector<unsigned char>){0x0f, 0x7f, 0x0c, 0x24});
-
-        return {ins1, ins2};
-#endif
     }
     else {
-        // movq %reg, (%rsp)
-        unsigned char rex = 0x48;
+        // movq %reg, %r11
+        unsigned char rex = 0x49;
         if(reg >= 8) rex |= 0b0100;
-        bin.push_back(rex);
-        bin.push_back(0x89);
-        unsigned char operand = 0x04;
+        bin2.push_back(rex);
+        bin2.push_back(0x89);
+        unsigned char operand = 0xc3;
         if(reg >= 8) operand |= (reg - 8) << 3;
         else         operand |= reg << 3;
-        bin.push_back(operand);
-        bin.push_back(0x24);
-        static DisasmHandle handle(true);
-        return {DisassembleInstruction(handle).instruction(bin)};
+        bin2.push_back(operand);
     }
+    DisasmHandle handle(true);
+    auto ins1 = DisassembleInstruction(handle).instruction(bin2);
+
+    // movq %r11, (%rsp)
+    std::vector<unsigned char> bin4{0x4c, 0x89, 0x1c, 0x24};
+    auto ins2 = DisassembleInstruction(handle).instruction(bin4);
+    return {ins1, ins2};
 #else
     return {};
 #endif
