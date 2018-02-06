@@ -10,9 +10,11 @@
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dreorder
 #include "log/log.h"
+#include "log/temp.h"
 
 #ifdef ARCH_X86_64
 void ReachingDef::analyze() {
+    //TemporaryLogLevel tll("dreorder", 0);
 #ifdef ARCH_X86_64
     #define INVALID_ID  X86_INS_INVALID
 #elif defined(ARCH_AARCH64)
@@ -145,18 +147,20 @@ void ReachingDef::setBarrier(Instruction *instr) {
 }
 
 void ReachingDef::dump() {
-    for(auto instr : CIter::children(block)) {
-        LOG0(1, "affects of " << instr->getName() << ", ");
-        ChunkDumper dump;
-        instr->accept(&dump);
-        auto it = killMap.find(instr);
-        if(it == killMap.end()) continue;
-
-        const auto &set = (*it).second;
-        for(auto kill : set) {
-            LOG0(1, "    kills    " << kill->getName() << ", ");
+    IF_LOG(1) {
+        for(auto instr : CIter::children(block)) {
+            LOG0(1, "affects of " << instr->getName() << ", ");
             ChunkDumper dump;
-            kill->accept(&dump);
+            instr->accept(&dump);
+            auto it = killMap.find(instr);
+            if(it == killMap.end()) continue;
+
+            const auto &set = (*it).second;
+            for(auto kill : set) {
+                LOG0(1, "    kills    " << kill->getName() << ", ");
+                ChunkDumper dump;
+                kill->accept(&dump);
+            }
         }
     }
 }
@@ -168,8 +172,8 @@ const std::map<int, ReachingDef::HandlerType> ReachingDef::handlers = {
     {X86_INS_CMP,       &ReachingDef::fillCmp},
     {X86_INS_LEA,       &ReachingDef::fillLea},
     {X86_INS_MOV,       &ReachingDef::fillMov},
-    {X86_INS_MOVD,      &ReachingDef::fillMov},
-    {X86_INS_MOVQ,      &ReachingDef::fillMov},
+    //{X86_INS_MOVD,      &ReachingDef::fillMov}, // xmm
+    //{X86_INS_MOVQ,      &ReachingDef::fillMov}, // xmm
     {X86_INS_MOVABS,    &ReachingDef::fillMovabs},
     {X86_INS_MOVSXD,    &ReachingDef::fillMovsxd},
     {X86_INS_MOVZX,     &ReachingDef::fillMovzx},
@@ -213,6 +217,7 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
 int ReachingDef::getReg(AssemblyPtr assembly, int index) {
     auto op = assembly->getAsmOperands()->getOperands()[index].reg;
 
+    assert(X86Register::convertToPhysical(op) != -1);
     return X86Register::convertToPhysical(op);
 }
 
@@ -220,11 +225,15 @@ void ReachingDef::handleMem(AssemblyPtr assembly, int index, Instruction *instr)
     auto mem = assembly->getAsmOperands()->getOperands()[index].mem;
 
     if(mem.index != INVALID_REGISTER) {
+        assert(X86Register::convertToPhysical(mem.index) != -1);
         setRegRead(X86Register::convertToPhysical(mem.index), instr);
     }
 
     if(mem.base != INVALID_REGISTER) {
-        setRegRead(X86Register::convertToPhysical(mem.base), instr);
+        if(mem.base != X86_REG_RIP) {
+            assert(X86Register::convertToPhysical(mem.base) != -1);
+            setRegRead(X86Register::convertToPhysical(mem.base), instr);
+        }
     }
 }
 
@@ -240,19 +249,24 @@ void ReachingDef::setMemWrite(Instruction *instr) {
 void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
-        setRegWrite(getReg(assembly, 1), instr);
+        auto reg1 = getReg(assembly, 1);
+        setRegRead(reg1, instr);
+        setRegWrite(reg1, instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_REG_REG) {
         setRegRead(getReg(assembly, 0), instr);
-        setRegWrite(getReg(assembly, 1), instr);
+        auto reg1 = getReg(assembly, 1);
+        setRegRead(reg1, instr);
+        setRegWrite(reg1, instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
-        setMemWrite(instr);
         setMemRead(instr);
-        setRegWrite(getReg(assembly, 1), instr);
+        auto reg1 = getReg(assembly, 1);
+        setRegRead(reg1, instr);
+        setRegWrite(reg1, instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else {
@@ -263,7 +277,9 @@ void ReachingDef::fillAddOrSub(Instruction *instr, AssemblyPtr assembly) {
 void ReachingDef::fillAnd(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
-        setRegWrite(getReg(assembly, 1), instr);
+        auto reg1 = getReg(assembly, 1);
+        setRegRead(reg1, instr);
+        setRegWrite(reg1, instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else {
@@ -274,8 +290,8 @@ void ReachingDef::fillAnd(Instruction *instr, AssemblyPtr assembly) {
 void ReachingDef::fillBsf(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_REG) {
-        setRegWrite(getReg(assembly, 0), instr);
-        setRegRead(getReg(assembly, 1), instr);
+        setRegRead(getReg(assembly, 0), instr);
+        setRegWrite(getReg(assembly, 1), instr);
         setRegWrite(X86Register::FLAGS, instr);
     }
     else {
@@ -326,7 +342,6 @@ void ReachingDef::fillLea(Instruction *instr, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_MEM_REG) {
         handleMem(assembly, 0, instr);
-        setMemRead(instr);
         setRegWrite(getReg(assembly, 1), instr);
     }
     else {
@@ -380,11 +395,13 @@ void ReachingDef::fillPush(Instruction *instr, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG) {
         setRegRead(getReg(assembly, 0), instr);
         setMemWrite(instr);
+        setRegRead(X86Register::SP, instr);
         setRegWrite(X86Register::SP, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM) {
         handleMem(assembly, 0, instr);
         setMemWrite(instr);
+        setRegRead(X86Register::SP, instr);
         setRegWrite(X86Register::SP, instr);
     }
     else {
@@ -397,11 +414,13 @@ void ReachingDef::fillPop(Instruction *instr, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG) {
         setRegWrite(getReg(assembly, 0), instr);
         setMemRead(instr);
+        setRegRead(X86Register::SP, instr);
         setRegWrite(X86Register::SP, instr);
     }
     else if(mode == AssemblyOperands::MODE_MEM) {
         handleMem(assembly, 0, instr);
         setMemRead(instr);
+        setRegRead(X86Register::SP, instr);
         setRegWrite(X86Register::SP, instr);
     }
     else {
