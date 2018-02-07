@@ -10,6 +10,7 @@ private:
     int argc;
     char **argv;
     char **envp;
+    bool fromArchive;
 public:
     EgalitoLoader();
     bool parse(const char *filename);

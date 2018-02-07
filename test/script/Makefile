@@ -17,7 +17,7 @@ test:
 	./hello.sh
 	./argv.sh
 	./islower.sh
-	./jumptable-rtl.sh
+	$(call none,./jumptable-rtl.sh)
 	$(call arch_dep,./jumptable-libc.sh)
 	./environ.sh
 	./codeform.sh
