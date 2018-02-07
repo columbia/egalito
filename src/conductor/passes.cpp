@@ -9,8 +9,10 @@
 #include "chunk/aliasmap.h"
 #include "chunk/tls.h"
 #include "chunk/dataregion.h"
+#include "conductor/conductor.h"
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
+#include "pass/collapseplt.h"
 #include "pass/fallthrough.h"
 #include "pass/nonreturn.h"
 #include "pass/splitbasicblock.h"
@@ -88,12 +90,13 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(InferLinksPass(elf), module);
 }
 
+void ConductorPasses::prepareForExecution() {
+    CollapsePLTPass collapsePLT(conductor);
+    conductor->acceptInAllModules(&collapsePLT, true);
+}
+
 void ConductorPasses::newArchivePasses(Program *program) {
     //RUN_PASS(ChunkDumper(), program);
-
-    RUN_PASS(FallThroughFunctionPass(), program);
-
-    RUN_PASS(InternalCalls(), program);
 
     for(auto module : CIter::children(program)) {
         if(!module->getDataRegionList()) {

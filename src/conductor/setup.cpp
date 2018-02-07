@@ -5,6 +5,7 @@
 #include "config.h"
 #include "setup.h"
 #include "conductor.h"
+#include "conductor/passes.h"
 #include "transform/generator.h"
 #include "load/segmap.h"
 #include "load/emulator.h"
@@ -80,6 +81,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
 #ifndef RELEASE_BUILD
     conductor->check();
 #endif
+
+    ConductorPasses(conductor).prepareForExecution();
 
     // At this point, all the effort for resolving the links should have
     // been performed (except for special cases)

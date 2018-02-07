@@ -34,9 +34,12 @@
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
+#include "util/timing.h"
 #include "log/registry.h"
 #include "log/temp.h"
 #include "log/log.h"
+
+//EgalitoTiming *m;
 
 extern address_t egalito_entry;
 extern const char *egalito_initial_stack;
@@ -56,10 +59,12 @@ bool EgalitoLoader::parse(const char *filename) {
         if(ElfMap::isElf(filename)) {
             LOG(1, "parsing ELF file [" << filename << "]");
             setup->parseElfFiles(filename, true, true);
+            fromArchive = false;
         }
         else {
             LOG(1, "parsing archive [" << filename << "]");
             setup->parseEgalitoArchive(filename);
+            fromArchive = true;
         }
     }
     catch(const char *message) {
@@ -132,7 +137,7 @@ void EgalitoLoader::run() {
     std::fflush(stdout);
 
     // on egalito2, this is needed
-    AssemblyFactory::getInstance()->clearCache();
+    if(!fromArchive) AssemblyFactory::getInstance()->clearCache();
 
     ShufflingSandbox *shufflingSandbox
         = dynamic_cast<ShufflingSandbox *>(sandbox);
@@ -140,6 +145,8 @@ void EgalitoLoader::run() {
     // --- last point virtual functions work ---
     // update vtable pointers to new libegalito code (LOG needs vtable)
     DataStructMigrator().migrate(setup);
+
+    //delete m;
 
     // --- last point accesses to loader TLS work ('new' needs loader TLS)
     PrepareTLS::prepare(setup->getConductor());
@@ -181,7 +188,7 @@ void EgalitoLoader::otherPasses() {
     setup->getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
-#if 1
+#if 0
     if(1 || isFeatureEnabled("EGALITO_USE_GS")) {
         //TemporaryLogLevel tll("pass", 20);
 
@@ -228,8 +235,10 @@ void EgalitoLoader::otherPasses() {
     }
 
 #ifdef ARCH_X86_64
-    PromoteJumpsPass promoteJumps;
-    setup->getConductor()->acceptInAllModules(&promoteJumps, true);
+    if(!fromArchive) {
+        PromoteJumpsPass promoteJumps;
+        setup->getConductor()->acceptInAllModules(&promoteJumps, true);
+    }
 #endif
 
     // enable CollapsePLTPass for better result
@@ -257,6 +266,7 @@ void EgalitoLoader::otherPassesAfterMove() {
 
 #include <sys/personality.h>
 int main(int argc, char *argv[]) {
+    //m = new EgalitoTiming("load time");
     if(argc < 2) {
         printUsage(argv[0]);
         return -1;
@@ -276,11 +286,27 @@ int main(int argc, char *argv[]) {
     const char *program = argv[1];
 
     EgalitoLoader loader;
+#if 1
     if(loader.parse(program)) {
         loader.setupEnvironment(argc, argv);
         loader.generateCode();
         loader.run();  // never returns
     }
+#else
+    {
+        EgalitoTiming m1("parse");
+        loader.parse(program);
+    }
+    {
+        EgalitoTiming m2("setupEnvironment");
+        loader.setupEnvironment(argc, argv);
+    }
+    {
+        EgalitoTiming m3("generateCode");
+        loader.generateCode();
+    }
+    loader.run();  // never returns
+#endif
 
     return 0;
 }
