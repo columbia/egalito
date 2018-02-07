@@ -1,4 +1,5 @@
 #include <cassert>
+#include "config.h"
 #include "fallthrough.h"
 #include "disasm/disassemble.h"
 #include "instr/linked-aarch64.h"
@@ -86,6 +87,10 @@ void FallThroughFunctionPass::visit(Function *function) {
         else if(dynamic_cast<LiteralInstruction *>(semantic)) {
             falling = false;
         }
+        //for archive
+        else if(dynamic_cast<LinkedInstruction *>(semantic)) {
+            falling = true;
+        }
         else {
             assert("FallThroughFunctionPass semantic type?" && 0);
             falling = false;
@@ -106,7 +111,10 @@ void FallThroughFunctionPass::visit(Function *function) {
             targetAddress = (targetAddress + 15) & ~0xf;
             target = CIter::spatial(list)->find(targetAddress);
         }
+#ifndef LINUX_KERNEL_MODE
+        // temporarily disabled
         assert(target);
+#endif
         if(target) {
             auto connecting = new Block();
             PositionFactory *positionFactory
