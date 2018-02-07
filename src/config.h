@@ -3,7 +3,9 @@
 #include "../config/config.h"
 
 #ifndef EGALITO_PATH
-    #define EGALITO_PATH    "./libegalito.so"
+    // unless overridden here, will look for libegalito in the same
+    // directory that the etshell/loader executable is run from
+    //#define EGALITO_PATH    "./libegalito.so"
 #endif
 
 // just to make the code compile

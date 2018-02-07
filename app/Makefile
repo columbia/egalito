@@ -65,6 +65,7 @@ $(BUILDTREE): ../config/config.h
 	@echo "LN-S" $(OUTPUTS)
 	@ln -sf $(ETSHELL)
 	@ln -sf $(ETOBJDUMP)
+	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
 .PHONY: rebuild-src
 rebuild-src:
