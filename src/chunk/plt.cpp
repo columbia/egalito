@@ -117,6 +117,7 @@ void PLTTrampoline::serialize(ChunkSerializerOperations &op,
     writer.write(getAddress());
     writer.writeID(op.assign(externalSymbol));
     writer.write(gotPLTEntry);
+    writer.write<bool>(pltGot);
 
     op.serializeChildren(this, writer);
 }
@@ -127,6 +128,7 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsolutePosition(reader.read<address_t>()));
     externalSymbol = op.lookupAs<ExternalSymbol>(reader.readID());
     gotPLTEntry = reader.read<address_t>();
+    pltGot = reader.read<bool>();
 
     op.deserializeChildren(this, reader);
     {

@@ -8,13 +8,13 @@
 #include "instr/serializer.h"
 #include "visitor.h"
 #include "chunk/aliasmap.h"
-#include "chunk/dump.h"
 #include "elf/elfspace.h"
 #include "operation/find.h"
 #include "operation/mutator.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 DataVariable *DataVariable::create(Module *module, address_t address,
     Link *dest, Symbol *symbol) {
@@ -83,6 +83,7 @@ bool DataVariable::deserialize(ChunkSerializerOperations &op,
     setPosition(new AbsoluteOffsetPosition(this, reader.read<address_t>()));
     name = reader.readString();
     dest = LinkSerializer(op).deserialize(reader);
+    setDest(dest);
     setSize(reader.read<size_t>());
     return reader.stillGood();
 }

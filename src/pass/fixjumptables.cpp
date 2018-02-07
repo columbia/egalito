@@ -30,7 +30,9 @@ void FixJumpTablesPass::visit(JumpTable *jumpTable) {
         jumpTable->accept(&dumper);
     }
 
+#ifdef ARCH_AARCH64
     auto scale = descriptor->getScale();
+#endif
     for(auto entry : CIter::children(jumpTable)) {
         address_t slot = entry->getDataVariable()->getAddress();
         address_t target = entry->getLink()->getTargetAddress();

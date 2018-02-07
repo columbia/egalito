@@ -68,7 +68,9 @@ void ReloCheckPass::checkDataVariable(Module *module) {
     for(auto region : CIter::regions(module)) {
         for(auto sec : CIter::children(region)) {
             for(auto var : CIter::children(sec)) {
-                if(var->getDest()->getTarget()) {
+                if(auto t = var->getDest()->getTarget()) {
+                    LOG(10, " var " << std::hex << var->getAddress()
+                        << " resolved to " << t->getName());
                     continue;
                 }
                 if(dynamic_cast<UnresolvedLink *>(var->getDest())) {
