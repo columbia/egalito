@@ -199,9 +199,11 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
     }
 
     // avoid self-loops e.g. xor %eax, %eax
+    bool loop = false;
     auto it2 = currentReadMap[reg].find(instr);
     if(it2 != currentReadMap[reg].end()) {
         currentReadMap[reg].erase(it2);
+        loop = true;
     }
 
     killMap[instr].insert(
@@ -212,6 +214,9 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
 
     currentWriteMap[reg] = instr;
     currentReadMap[reg].clear();
+    if(loop) {
+        currentReadMap[reg].insert(instr);
+    }
 }
 
 int ReachingDef::getReg(AssemblyPtr assembly, int index) {
