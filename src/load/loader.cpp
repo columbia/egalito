@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdio>  // for std::fflush
 #include <cstdlib>  // for getenv
+#include <unistd.h>  // for STDERR_FILENO
 
 #include "loader.h"
 #include "usage.h"
@@ -35,6 +36,7 @@
 #include "transform/sandbox.h"
 #include "util/feature.h"
 #include "util/timing.h"
+#include "cminus/print.h"
 #include "log/registry.h"
 #include "log/temp.h"
 #include "log/log.h"
@@ -48,6 +50,8 @@ extern "C" void _start2(void);
 extern ConductorSetup *egalito_conductor_setup;
 
 static GSTable *gsTable;
+
+static std::chrono::high_resolution_clock::time_point masterLoadTime;
 
 EgalitoLoader::EgalitoLoader() : sandbox(nullptr) {
     this->setup = new ConductorSetup();
@@ -146,7 +150,13 @@ void EgalitoLoader::run() {
     // update vtable pointers to new libegalito code (LOG needs vtable)
     DataStructMigrator().migrate(setup);
 
-    //delete m;
+    if(isFeatureEnabled("EGALITO_MEASURE_LOADTIME")) {
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>
+            (endTime - masterLoadTime).count();
+        egalito_fprintf(egalito_stderr, "load time: %d\n",
+            static_cast<int>(duration / 1000));
+    }
 
     // --- last point accesses to loader TLS work ('new' needs loader TLS)
     PrepareTLS::prepare(setup->getConductor());
@@ -266,7 +276,6 @@ void EgalitoLoader::otherPassesAfterMove() {
 
 #include <sys/personality.h>
 int main(int argc, char *argv[]) {
-    //m = new EgalitoTiming("load time");
     if(argc < 2) {
         printUsage(argv[0]);
         return -1;
@@ -275,6 +284,10 @@ int main(int argc, char *argv[]) {
     if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
         printUsage(argv[0]);
         return -2;
+    }
+
+    if(isFeatureEnabled("EGALITO_MEASURE_LOADTIME")) {
+        masterLoadTime = std::chrono::high_resolution_clock::now();
     }
 
     personality(personality(-1) & ~READ_IMPLIES_EXEC);
