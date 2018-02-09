@@ -185,6 +185,9 @@ const std::map<int, ReachingDef::HandlerType> ReachingDef::handlers = {
 };
 
 void ReachingDef::setRegRead(int reg, Instruction *instr) {
+    // For instructions that could refer to the same register multiple times,
+    // we require that setRegRead() be called before setRegWrite(). That way
+    // only setRegWrite() has to care about loops, and we don't care here!
     auto it = currentWriteMap.find(reg);
     if(it != currentWriteMap.end() && (*it).second != instr) {
         killMap[instr].insert((*it).second);
@@ -198,7 +201,10 @@ void ReachingDef::setRegWrite(int reg, Instruction *instr) {
         killMap[instr].insert((*it).second);
     }
 
-    // avoid self-loops e.g. xor %eax, %eax
+    // In instructions which refer to the same register multiple times,
+    // e.g. xor %eax, %eax, we may be partially through updating the state,
+    // but all the setRegReads()/setRegWrites() should apply atomically, so
+    // undo the effects of earlier setRegReads() here for now.
     bool loop = false;
     auto it2 = currentReadMap[reg].find(instr);
     if(it2 != currentReadMap[reg].end()) {
