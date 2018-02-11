@@ -42,6 +42,8 @@ void ChunkMutator::append(Chunk *child) {
     // parent pointer must be set first for it to return correct address
     // which is needed for spatial map, which is updated in genericAdd()
     child->setParent(chunk);
+    firstChildChanged = std::min(firstChildChanged,
+        chunk->getChildren()->genericGetSize());
     chunk->getChildren()->genericAdd(child);
 
     if(!child->getPosition()) makePositionFor(child);
@@ -53,6 +55,7 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
     auto list = chunk->getChildren();
     size_t index = (insertPoint ? list->genericIndexOf(insertPoint) + 1 : 0);
     list->genericInsertAt(index, newChunk);
+    firstChildChanged = std::min(firstChildChanged, index);
     newChunk->setParent(chunk);
 
     if(!newChunk->getPosition()) makePositionFor(newChunk);
@@ -82,6 +85,7 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
     auto list = chunk->getChildren();
     size_t index = list->genericIndexOf(insertPoint);
     list->genericInsertAt(index, newChunk);
+    firstChildChanged = std::min(firstChildChanged, index);
     newChunk->setParent(chunk);
 
     // must run before the first-entry update below
@@ -117,12 +121,7 @@ void ChunkMutator::remove(Chunk *child) {
     chunk->getChildren()->genericRemove(child);
 
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
-        // only if size is tracked
-        if(c->getSize() != 0) {
-            c->addToSize(-child->getSize());
-        }
-    }
+    addToSizeRecursively(-child->getSize());
 
     // update authority pointers in positions
     updateGenerationCounts(chunk);  // ???
@@ -137,12 +136,7 @@ void ChunkMutator::removeLast(int n) {
     }
 
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
-        // only if size is tracked
-        if(c->getSize() != 0) {
-            c->addToSize(-removedSize);
-        }
-    }
+    addToSizeRecursively(-removedSize);
 
     // update authority pointers in positions
     updateGenerationCounts(chunk);  // ???
@@ -269,9 +263,7 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
-        c->addToSize(added);
-    }
+    addToSizeRecursively(added);
 
     // update authority pointers in positions
     updateGenerationCounts(child);
@@ -284,9 +276,7 @@ void ChunkMutator::setPosition(address_t address) {
 
 void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {
     // update sizes of parents and grandparents
-    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
-        c->addToSize(child->getSize());
-    }
+    addToSizeRecursively(child->getSize());
 
     // update authority pointers in positions
     updateGenerationCounts(child);
@@ -321,34 +311,52 @@ void ChunkMutator::updatePositions() {
     if(!allowUpdates) return;
     if(!PositionFactory::getInstance()->needsUpdatePasses()) return;
 
-    if(false && dynamic_cast<Function *>(chunk)) {
-        updatePositionHelper(chunk);
 #if 0
-        for(Chunk *c = chunk; c; c = c->getParent()) {
-            if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
-                updatePositionHelper(c);
-                break;
-            }
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
+
+        Chunk *prev = nullptr;
+        for(auto cursor = ChunkCursor::makeBegin(c); !cursor.isEnd();
+            cursor.next()) {
+
+            auto child = cursor.get();
+            child->getPosition()->recalculate(prev);
+            prev = child;
         }
+
+        // If the size of this Chunk hasn't changed, its siblings higher up
+        // in the tree have the same offsets as before.
+        if(!sizeChanged) break;
+    }
+#elif 1
+    size_t changeStart = firstChildChanged;
+    for(Chunk *c = chunk; c; c = c->getParent()) {
+        if(!c->getPosition()) break;
+
+        size_t genericSize = c->getChildren()->genericGetSize();
+        Chunk *prev = nullptr;
+        for(size_t i = changeStart; i < genericSize; i ++) {
+            auto child = c->getChildren()->genericGetAt(i);
+            child->getPosition()->recalculate(prev);
+            prev = child;
+        }
+
+        // If the size of this Chunk hasn't changed, its siblings higher up
+        // in the tree have the same offsets as before.
+        if(!sizeChanged) break;
+
+        // We're going up the tree, get the index of this Chunk, since that's
+        // where changes have happened.
+        if(c->getParent()) {
+            changeStart = ChunkCursor::getIndex(c);
+        }
+    }
 #endif
-    }
-    else {
-        for(Chunk *c = chunk; c; c = c->getParent()) {
-            if(!c->getPosition()) break;
-
-            Chunk *prev = nullptr;
-            for(auto cursor = ChunkCursor::makeBegin(c); !cursor.isEnd();
-                cursor.next()) {
-
-                auto child = cursor.get();
-                child->getPosition()->recalculate(prev);
-                prev = child;
-            }
-        }
-    }
 }
 
 void ChunkMutator::updatePositionsFully() {
+    // Find the Function that contains this chunk, and recalculate the offset
+    // in every Position within the Function.
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
             updatePositionHelper(c);
@@ -381,4 +389,13 @@ void ChunkMutator::updatePositionHelper(Chunk *root) {
 
         previous = child;
     }
+}
+
+void ChunkMutator::addToSizeRecursively(int added) {
+    // update sizes of parents and grandparents
+    for(Chunk *c = chunk; c && !dynamic_cast<Module *>(c); c = c->getParent()) {
+        c->addToSize(added);
+    }
+
+    sizeChanged = true;
 }

@@ -67,3 +67,8 @@ Chunk *ChunkCursor::getNext(Chunk *chunk) {
     if(!cursor.next()) return nullptr;
     return cursor.get();
 }
+
+size_t ChunkCursor::getIndex(Chunk *chunk) {
+    ChunkCursor cursor(chunk);
+    return cursor.getIndex();
+}

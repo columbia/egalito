@@ -27,6 +27,7 @@ public:
 
     static Chunk *getPrevious(Chunk *chunk);
     static Chunk *getNext(Chunk *chunk);
+    static size_t getIndex(Chunk *chunk);
 };
 
 #endif

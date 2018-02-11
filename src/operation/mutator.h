@@ -19,9 +19,12 @@ class ChunkMutator {
 private:
     Chunk *chunk;
     bool allowUpdates;
+    size_t firstChildChanged;
+    bool sizeChanged;
 public:
     ChunkMutator(Chunk *chunk, bool allowUpdates = true)
-        : chunk(chunk), allowUpdates(allowUpdates) {}
+        : chunk(chunk), allowUpdates(allowUpdates),
+        firstChildChanged(static_cast<size_t>(-1)), sizeChanged(false) {}
     ~ChunkMutator() { updatePositions(); }
 
     void makePositionFor(Chunk *child);
@@ -82,6 +85,7 @@ private:
     void updateGenerationCounts(Chunk *child);
     void updateAuthorityHelper(Chunk *root);
     void updatePositionHelper(Chunk *root);
+    void addToSizeRecursively(int added);
 };
 
 #endif
