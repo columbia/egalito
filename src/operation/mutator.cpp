@@ -1,4 +1,4 @@
-#include <algorithm>  // for std::max
+#include <algorithm>  // for std::max, std::min
 #include <iomanip>
 #include <cassert>
 #include "mutator.h"
@@ -60,19 +60,6 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
 
     if(!newChunk->getPosition()) makePositionFor(newChunk);
     updateSizesAndAuthorities(newChunk);
-
-    // if the next sibling has children, need to update their position
-    // (this happens when inserting one Block between two others)
-    if(index + 1 < list->genericGetSize()) {
-        auto next = list->genericGetAt(index + 1);
-        if(next->getChildren() && next->getChildren()->genericGetSize() > 0) {
-            auto nextChild = next->getChildren()->genericGetAt(0);
-            delete nextChild->getPosition();
-            nextChild->setPosition(nullptr);
-
-            ChunkMutator(next, false).makePositionFor(nextChild);
-        }
-    }
 }
 
 void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
@@ -117,6 +104,9 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
 }
 
 void ChunkMutator::remove(Chunk *child) {
+    firstChildChanged = std::min(firstChildChanged,
+        ChunkCursor::getIndex(child));
+
     // remove from parent
     chunk->getChildren()->genericRemove(child);
 
@@ -262,6 +252,9 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
 }
 
 void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
+    firstChildChanged = std::min(firstChildChanged,
+        ChunkCursor::getIndex(child));
+
     // update sizes of parents and grandparents
     addToSizeRecursively(added);
 
@@ -311,7 +304,9 @@ void ChunkMutator::updatePositions() {
     if(!allowUpdates) return;
     if(!PositionFactory::getInstance()->needsUpdatePasses()) return;
 
-#if 0
+#if 0  // fully safe, update all children in this function
+    updatePositionsFully();
+#elif 1  // only update parent siblings if size changed, skip cousins
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(!c->getPosition()) break;
 
@@ -328,7 +323,7 @@ void ChunkMutator::updatePositions() {
         // in the tree have the same offsets as before.
         if(!sizeChanged) break;
     }
-#elif 1
+#elif 0  // when updating lists, begin at the modified index
     size_t changeStart = firstChildChanged;
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(!c->getPosition()) break;
