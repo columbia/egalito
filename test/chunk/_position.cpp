@@ -98,7 +98,6 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
         const char *name;
     } mode[] = {
         {PositionFactory::MODE_GENERATION_OFFSET,       "GenerationalOffsetPosition"},
-        {PositionFactory::MODE_CACHED_OFFSET,           "CachedOffsetPosition"},
         {PositionFactory::MODE_OFFSET,                  "OffsetPosition"},
     };
 

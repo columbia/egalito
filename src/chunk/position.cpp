@@ -114,7 +114,6 @@ PositionFactory PositionFactory::instance;  // use default mode
 
 PositionFactory::PositionFactory()
     : mode(MODE_OFFSET)
-    //: mode(MODE_CACHED_OFFSET)
     //: mode(MODE_GENERATION_OFFSET)
 {
 }
@@ -132,12 +131,6 @@ Position *PositionFactory::makePosition(Chunk *chunk, address_t offset) {
     switch(mode) {
     case MODE_GENERATION_OFFSET:
         return setOffset(new GenerationalOffsetPosition(chunk), offset);
-    case MODE_CACHED_OFFSET: {
-        auto p = new CachedOffsetPosition(chunk);
-        p->setOffset(offset);
-        //p->recalculate();
-        return p;
-    }
     case MODE_OFFSET:
         return new OffsetPosition(chunk, offset);
     default:
@@ -150,8 +143,7 @@ bool PositionFactory::needsGenerationTracking() const {
 }
 
 bool PositionFactory::needsUpdatePasses() const {
-    return mode == MODE_CACHED_OFFSET
-        || mode == MODE_OFFSET;
+    return mode != MODE_GENERATION_OFFSET;
 }
 
 //-----------------------------------------------------------------------------

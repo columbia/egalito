@@ -89,28 +89,6 @@ protected:
     void setOffset(address_t offset) { this->offset = offset; }
 };
 
-/** Caches another Position type (useful for any computed type).
-
-    The cached value must be updated whenever the parent Chunk is moved to a
-    new address. These updates are done by ChunkMutator.
-*/
-template <typename PositionType>
-class CachedPositionDecorator : public PositionType {
-private:
-    mutable address_t cache;
-public:
-    CachedPositionDecorator(ChunkRef object)
-        : PositionType(object), cache(0) {}
-
-    virtual address_t get() const { return cache; }
-    virtual void set(address_t value) { PositionType::set(value); }
-
-    virtual void recalculate(Chunk *previous)
-        { PositionType::recalculate(previous); cache = PositionType::get(); }
-};
-
-typedef CachedPositionDecorator<OffsetPosition> CachedOffsetPosition;
-
 /** Decorator to allow generation tracking of any Position.
 */
 template <typename PositionType>
@@ -194,11 +172,9 @@ public:
 public:
     enum Mode {
         MODE_GENERATION_OFFSET,
-        MODE_CACHED_OFFSET,
         MODE_OFFSET,
 
         MODE_FAST_UPDATES = MODE_GENERATION_OFFSET,
-        MODE_FAST_RETRIEVAL = MODE_CACHED_OFFSET,
     };
 private:
     Mode mode;
