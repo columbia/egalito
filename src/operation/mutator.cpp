@@ -364,17 +364,11 @@ void ChunkMutator::setPosition(address_t address) {
 void ChunkMutator::setPreviousSibling(Chunk *c, Chunk *prev) {
     c->setPreviousSibling(prev);
     if(!prev) return;
-    if(auto v = dynamic_cast<SubsequentPosition *>(c->getPosition())) {
-        v->setAfterThis(prev);
-    }
 }
 
 void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
     c->setNextSibling(next);
     if(!next) return;
-    if(auto v = dynamic_cast<SubsequentPosition *>(next->getPosition())) {
-        v->setAfterThis(c);
-    }
 }
 
 void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {

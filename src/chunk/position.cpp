@@ -52,16 +52,6 @@ void AbsoluteOffsetPosition::set(address_t value) {
     setOffset(value - chunk->getParent()->getPosition()->get());
 }
 
-address_t SubsequentPosition::get() const {
-    return afterThis->getPosition()->get() + afterThis->getSize();
-}
-
-void SubsequentPosition::set(address_t value) {
-    throw "Can't set position of a SubsequentPosition";
-}
-
-template class GenerationalPositionDecorator<
-    TrackedPositionDecorator<SubsequentPosition>>;
 template class GenerationalPositionDecorator<
     TrackedPositionDecorator<OffsetPosition>>;
 
@@ -124,11 +114,8 @@ void GenerationalPositionDecorator<PositionType>::recalculate() {
 PositionFactory PositionFactory::instance;  // use default mode
 
 PositionFactory::PositionFactory()
-    //: mode(MODE_DEBUGGING_NO_CACHE)     // 9.30 s
-    //: mode(MODE_CACHED_SUBSEQUENT)      // ~6.04 s
     : mode(MODE_OFFSET)                 // 5.89 s
     //: mode(MODE_CACHED_OFFSET)          // 6.98 s
-    //: mode(MODE_GENERATION_SUBSEQUENT)  // ~7.50 s
     //: mode(MODE_GENERATION_OFFSET)
 {
 }
@@ -158,40 +145,30 @@ Position *PositionFactory::makePosition(Chunk *previous, Chunk *chunk,
     switch(mode) {
     case MODE_GENERATION_OFFSET:
         return setOffset(new GenerationalOffsetPosition(chunk), offset);
-    case MODE_GENERATION_SUBSEQUENT:
-        return new GenerationalSubsequentPosition(previous);
     case MODE_CACHED_OFFSET: {
         auto p = new CachedOffsetPosition(chunk);
         p->setOffset(offset);
         p->recalculate();
         return p;
     }
-    case MODE_CACHED_SUBSEQUENT:
-        return new CachedSubsequentPosition(previous);
     case MODE_OFFSET:
         return new OffsetPosition(chunk, offset);
-    case MODE_SUBSEQUENT:
-        return new SubsequentPosition(previous);
     default:
         throw "Unknown mode in PositionFactory";
     }
 }
 
 bool PositionFactory::needsGenerationTracking() const {
-    return mode == MODE_GENERATION_OFFSET
-        || mode == MODE_GENERATION_SUBSEQUENT;
+    return mode == MODE_GENERATION_OFFSET;
 }
 
 bool PositionFactory::needsUpdatePasses() const {
     return mode == MODE_CACHED_OFFSET
-        || mode == MODE_CACHED_SUBSEQUENT
         || mode == MODE_OFFSET;
 }
 
 bool PositionFactory::needsSpecialCaseFirst() const {
-    return mode == MODE_SUBSEQUENT
-        || mode == MODE_CACHED_SUBSEQUENT
-        || mode == MODE_GENERATION_SUBSEQUENT;
+    return false;
 }
 
 //-----------------------------------------------------------------------------

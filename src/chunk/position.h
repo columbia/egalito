@@ -89,25 +89,6 @@ protected:
     void setOffset(address_t offset) { this->offset = offset; }
 };
 
-/** Represents a Chunk that immediately follows another.
-
-    The afterThis Chunk can be the immediately prior sibling, or the
-    Chunk immediately before this Chunk's parent, for instance.
-*/
-class SubsequentPosition : public Position {
-    friend class PositionDump;
-private:
-    ChunkRef afterThis;
-public:
-    SubsequentPosition(ChunkRef afterThis) : afterThis(afterThis) {}
-
-    virtual address_t get() const;
-    virtual void set(address_t value);
-    void setAfterThis(ChunkRef afterThis) { this->afterThis = afterThis; }
-protected:
-    virtual Chunk *getDependency() const { return &*afterThis; }
-};
-
 /** Caches another Position type (useful for any computed type).
 
     The cached value must be updated whenever the parent Chunk is moved to a
@@ -128,7 +109,6 @@ public:
         { PositionType::recalculate(); cache = PositionType::get(); }
 };
 
-typedef CachedPositionDecorator<SubsequentPosition> CachedSubsequentPosition;
 typedef CachedPositionDecorator<OffsetPosition> CachedOffsetPosition;
 
 /** Decorator to allow generation tracking of any Position.
@@ -201,9 +181,6 @@ private:
 };
 
 typedef GenerationalPositionDecorator<
-    TrackedPositionDecorator<SubsequentPosition>>
-        GenerationalSubsequentPosition;
-typedef GenerationalPositionDecorator<
     TrackedPositionDecorator<OffsetPosition>>
         GenerationalOffsetPosition;
 
@@ -217,16 +194,11 @@ public:
 public:
     enum Mode {
         MODE_GENERATION_OFFSET,
-        MODE_GENERATION_SUBSEQUENT,
         MODE_CACHED_OFFSET,
-        MODE_CACHED_SUBSEQUENT,
         MODE_OFFSET,
-        MODE_SUBSEQUENT,
 
         MODE_FAST_UPDATES = MODE_GENERATION_OFFSET,
         MODE_FAST_RETRIEVAL = MODE_CACHED_OFFSET,
-        MODE_LOWER_MEMORY = MODE_CACHED_SUBSEQUENT,
-        MODE_DEBUGGING_NO_CACHE = MODE_SUBSEQUENT
     };
 private:
     Mode mode;

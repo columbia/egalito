@@ -15,6 +15,21 @@ static address_t *findAuxiliaryVector(char **argv) {
     return address;
 }
 
+bool invokedAsImplicitLoader(char **argv, ElfMap *elf) {
+    address_t *auxv = findAuxiliaryVector(argv);
+
+    // Loop through all auxiliary vector entries, stopping at the terminating
+    // entry of type AT_NULL.
+    for(address_t *p = auxv; p[0] != AT_NULL; p += 2) {
+        switch(p[0]) {
+        case AT_ENTRY:
+            return elf->getBaseAddress() + elf->getEntryPoint() == p[1];
+        }
+    }
+
+    return false;
+}
+
 void adjustAuxiliaryVector(char **argv, ElfMap *elf, ElfMap *interpreter) {
     if(!elf) return;
     ElfMap *beginning = (interpreter ? interpreter : elf);

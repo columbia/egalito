@@ -114,11 +114,8 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
         const char *name;
     } mode[] = {
         {PositionFactory::MODE_GENERATION_OFFSET,       "GenerationalOffsetPosition"},
-        {PositionFactory::MODE_GENERATION_SUBSEQUENT,   "GenerationalSubsequentPosition"},
         {PositionFactory::MODE_CACHED_OFFSET,           "CachedOffsetPosition"},
-        {PositionFactory::MODE_CACHED_SUBSEQUENT,       "CachedSubsequentPosition"},
         {PositionFactory::MODE_OFFSET,                  "OffsetPosition"},
-        {PositionFactory::MODE_SUBSEQUENT,              "SubsequentPosition"}
     };
 
     for(size_t m = 0; m < sizeof(mode)/sizeof(*mode); m ++) {

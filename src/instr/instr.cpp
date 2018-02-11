@@ -33,7 +33,7 @@ void Instruction::serialize(ChunkSerializerOperations &op,
     // not called for Functions, just for PLTTrampolines
 #if 1
     writer.write(getAddress());
-    writer.write(op.assign(getPreviousSibling() ? getPreviousSibling() : getParent()));
+    //writer.write(op.assign(getPreviousSibling() ? getPreviousSibling() : getParent()));
 
     InstrSerializer(op).serialize(getSemantic(), writer);
 #endif
@@ -46,8 +46,8 @@ bool Instruction::deserialize(ChunkSerializerOperations &op,
 #if 1
     auto address = reader.read<address_t>();
     //setPosition(new AbsolutePosition(address));
-    auto afterThis = op.lookup(reader.readID());
-    setPosition(new SubsequentPosition(afterThis));
+    //auto afterThis = op.lookup(reader.readID());
+    //setPosition(new SubsequentPosition(afterThis));
 
     auto semantic = InstrSerializer(op).deserialize(this, address, reader);
     setSemantic(semantic);

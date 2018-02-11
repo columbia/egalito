@@ -14,11 +14,6 @@ void PositionDump::visit(Chunk *chunk, int indent) {
             << v->getDependency()->getName()
             << " + " << v->getOffset());
     }
-    else if(auto v = dynamic_cast<SubsequentPosition *>(pos)) {
-        LOG(1, "SubsequentPosition after "
-            << v->getDependency()->getName() << ", i.e. after "
-            << v->getDependency()->getPosition()->get());
-    }
     else {
         LOG(1, "???");
     }
