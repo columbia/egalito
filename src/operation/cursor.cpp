@@ -37,9 +37,9 @@ bool ChunkCursor::prev() {
 }
 
 bool ChunkCursor::next() {
-    if(index + 1 < list->genericGetSize()) {
+    if(index < list->genericGetSize()) {
         index ++;
-        return true;
+        return index < list->genericGetSize();
     }
     return false;
 }

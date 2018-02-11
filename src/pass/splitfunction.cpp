@@ -25,7 +25,7 @@ void SplitFunction::visit(FunctionList *functionList) {
         if(!splitPoints.empty()) {
             functionList->accept(&nonReturnPass);
         }
-    }while(!splitPoints.empty());
+    } while(!splitPoints.empty());
 }
 
 void SplitFunction::visit(Function *function) {
@@ -69,7 +69,7 @@ void SplitFunction::visit(Function *function) {
                && block->getChildren()->getIterable()->getCount() == 1
                && semantic->getAssembly()->getId() == ARM64_INS_NOP) {
 
-                LOG(10, "   a signle nop can not be a function");
+                LOG(10, "   a single nop cannot be a function");
                 continue;
             }
 

@@ -90,12 +90,13 @@ void SplitBasicBlock::visit(Function *function) {
         << splitPoints.size() << " new points");*/
 
     {std::string foo=StreamAsString()<<"SplitBasicBlock part 3 for " << function->getName();EgalitoTiming timing(foo.c_str(), 100);
-    ChunkMutator m(function);
+    ChunkMutator m(function, false);  // false, because we updatePositionsFully
     for(auto it = splitPoints.rbegin(); it != splitPoints.rend(); it ++) {
         auto instr = *it;
         //LOG(1, "    split at 0x" << std::hex << instr->getAddress());
         m.splitBlockBefore(instr);
     }
+    m.updatePositionsFully();
     function->getChildren()->clearSpatial();
     }
 

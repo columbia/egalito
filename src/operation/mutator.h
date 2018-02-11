@@ -75,6 +75,8 @@ public:
 
     /** Force positions to be updated, if using cached positions. */
     void updatePositions();
+
+    void updatePositionsFully();
 private:
     void updateSizesAndAuthorities(Chunk *child);
     void updateGenerationCounts(Chunk *child);

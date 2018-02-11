@@ -48,7 +48,7 @@ void StackExtendPass::visit(Function *function) {
         addExtendStack(function, &frame);
         addShrinkStack(function, &frame);
 #endif
-        ChunkMutator(function).updatePositions();
+        ChunkMutator(function, false).updatePositionsFully();
     }
     useStack(function, &frame);
     IF_LOG(10) frame.dump();

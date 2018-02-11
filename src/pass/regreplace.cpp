@@ -81,7 +81,7 @@ void AARCH64RegReplacePass::useStack(
         replacePerInstruction(frame, &regUsage, dualID);
     }
 
-    ChunkMutator(function).updatePositions();
+    ChunkMutator(function, false).updatePositionsFully();
 
 #if 0
     LOG(1, "modified:");

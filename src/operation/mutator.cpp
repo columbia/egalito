@@ -321,10 +321,38 @@ void ChunkMutator::updatePositions() {
     if(!allowUpdates) return;
     if(!PositionFactory::getInstance()->needsUpdatePasses()) return;
 
+    if(false && dynamic_cast<Function *>(chunk)) {
+        updatePositionHelper(chunk);
+#if 0
+        for(Chunk *c = chunk; c; c = c->getParent()) {
+            if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
+                updatePositionHelper(c);
+                break;
+            }
+        }
+#endif
+    }
+    else {
+        for(Chunk *c = chunk; c; c = c->getParent()) {
+            if(!c->getPosition()) break;
+
+            Chunk *prev = nullptr;
+            for(auto cursor = ChunkCursor::makeBegin(c); !cursor.isEnd();
+                cursor.next()) {
+
+                auto child = cursor.get();
+                child->getPosition()->recalculate(prev);
+                prev = child;
+            }
+        }
+    }
+}
+
+void ChunkMutator::updatePositionsFully() {
     for(Chunk *c = chunk; c; c = c->getParent()) {
         if(dynamic_cast<AbsolutePosition *>(c->getPosition())) {
             updatePositionHelper(c);
-            //PositionDump().visit(c);
+            break;
         }
     }
 }
