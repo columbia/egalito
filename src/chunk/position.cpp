@@ -9,29 +9,25 @@
 
 address_t OffsetPosition::get() const {
     if(chunk == nullptr || chunk->getParent() == nullptr) return 0;
-    //return chunk->getParent()->getPosition()->get() + offset;
     return chunk->getParent()->getAddress() + offset;
 }
 
 void OffsetPosition::set(address_t value) {
     assert(chunk != nullptr);
     assert(chunk->getParent() != nullptr);
-    //setOffset(value - chunk->getParent()->getPosition()->get());
     setOffset(value - chunk->getParent()->getAddress());
 }
 
-void OffsetPosition::recalculate() {
+void OffsetPosition::recalculate(Chunk *previous) {
     if(!chunk->getParent()) {
         offset = 0;
         return;
     }
 
-    auto prev = ChunkCursor::getPrevious(chunk);
-    if(prev) {
+    if(previous) {
         auto parent = chunk->getParent();
-        //offset = (prev->getPosition()->get() - parent->getPosition()->get())
-            //+ prev->getSize();
-        offset = (prev->getAddress() - parent->getAddress()) + prev->getSize();
+        offset = (previous->getAddress() - parent->getAddress())
+            + previous->getSize();
     }
     else {
         offset = 0;
@@ -60,7 +56,7 @@ template <typename PositionType>
 address_t GenerationalPositionDecorator<PositionType>::get() const {
     if(authority && getGeneration() != getAuthorityGeneration()) {
         const_cast<GenerationalPositionDecorator<PositionType> *>(this)
-            ->recalculate();
+            ->recalculate(nullptr /* !!! */);
         setGeneration(getAuthorityGeneration());
     }
     return cache;
@@ -107,8 +103,10 @@ int GenerationalPositionDecorator<PositionType>
 }
 
 template <typename PositionType>
-void GenerationalPositionDecorator<PositionType>::recalculate() {
-    PositionType::recalculate();
+void GenerationalPositionDecorator<PositionType>::recalculate(
+    Chunk *previous) {
+
+    PositionType::recalculate(previous);
     cache = PositionType::get();
 }
 
@@ -137,7 +135,7 @@ Position *PositionFactory::makePosition(Chunk *chunk, address_t offset) {
     case MODE_CACHED_OFFSET: {
         auto p = new CachedOffsetPosition(chunk);
         p->setOffset(offset);
-        p->recalculate();
+        //p->recalculate();
         return p;
     }
     case MODE_OFFSET:

@@ -104,11 +104,11 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     insertPoint->setSemantic(sem2);
     newChunk->setSemantic(sem1);
 
-    if(auto linked = dynamic_cast<LinkedInstruction *>(sem1)) {
-        linked->setInstruction(newChunk);
+    if(auto linked1 = dynamic_cast<LinkedInstruction *>(sem1)) {
+        linked1->setInstruction(newChunk);
     }
-    if(auto linked = dynamic_cast<LinkedInstruction *>(sem2)) {
-        linked->setInstruction(insertPoint);
+    if(auto linked2 = dynamic_cast<LinkedInstruction *>(sem2)) {
+        linked2->setInstruction(insertPoint);
     }
 }
 
@@ -340,15 +340,17 @@ void ChunkMutator::updateAuthorityHelper(Chunk *root) {
 }
 
 void ChunkMutator::updatePositionHelper(Chunk *root) {
-    if(!root->getPosition()) return;
+    if(!root->getChildren()) return;
 
-    // Must recalculate root's position before descending into children,
-    // since some Position types depend on parents.
-    root->getPosition()->recalculate();
+    Chunk *previous = nullptr;
+    for(auto child : root->getChildren()->genericIterable()) {
+        // Since the root has a position, we assume that the child does
+        // too.
+        //assert(child->getPosition());
 
-    if(root->getChildren()) {
-        for(auto child : root->getChildren()->genericIterable()) {
-            updatePositionHelper(child);
-        }
+        child->getPosition()->recalculate(previous);
+        updatePositionHelper(child);
+
+        previous = child;
     }
 }

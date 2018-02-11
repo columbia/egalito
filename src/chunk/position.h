@@ -20,7 +20,7 @@ public:
     virtual Chunk *findAuthority() const { return nullptr; }
     virtual void updateAuthority() {}
 
-    virtual void recalculate() {}
+    virtual void recalculate(Chunk *previous) {}
     virtual int getGeneration() const { return 0; }
     virtual void setGeneration(int gen) const {}
     virtual void incrementGeneration() const {}
@@ -64,7 +64,7 @@ public:
     virtual address_t get() const;
     virtual void set(address_t value);
 
-    virtual void recalculate();
+    virtual void recalculate(Chunk *previous);
 
     address_t getOffset() const { return offset; }
     void setOffset(address_t offset) { this->offset = offset; }
@@ -100,13 +100,13 @@ private:
     mutable address_t cache;
 public:
     CachedPositionDecorator(ChunkRef object)
-        : PositionType(object) { recalculate(); }
+        : PositionType(object), cache(0) {}
 
     virtual address_t get() const { return cache; }
     virtual void set(address_t value) { PositionType::set(value); }
 
-    virtual void recalculate()
-        { PositionType::recalculate(); cache = PositionType::get(); }
+    virtual void recalculate(Chunk *previous)
+        { PositionType::recalculate(previous); cache = PositionType::get(); }
 };
 
 typedef CachedPositionDecorator<OffsetPosition> CachedOffsetPosition;
@@ -161,12 +161,12 @@ private:
     mutable address_t cache;
 public:
     GenerationalPositionDecorator(ChunkRef chunk)
-        : PositionType(chunk), authority(nullptr) { updateAuthority(); recalculate(); }
+        : PositionType(chunk), authority(nullptr) { updateAuthority(); }
 
     virtual address_t get() const;
     virtual void set(address_t value);
 
-    virtual void recalculate();
+    virtual void recalculate(Chunk *previous);
 
     virtual bool isAuthority() const { return false; }
     virtual Chunk *findAuthority() const;
