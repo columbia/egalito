@@ -27,7 +27,6 @@ void Block::serialize(ChunkSerializerOperations &op,
 
     // not called for Functions, just for PLTTrampolines
     //writer.write(getAddress());
-    writer.write(op.assign(getPreviousSibling() ? getPreviousSibling() : getParent()));
     writer.write<size_t>(getAddress() - getParent()->getAddress());
     writer.write<size_t>(getSize());
 
@@ -43,10 +42,8 @@ bool Block::deserialize(ChunkSerializerOperations &op,
     // not called for Functions, just for PLTTrampolines
     //auto address = reader.read<address_t>();
     //setPosition(new AbsolutePosition(address));
-    auto afterThis = op.lookup(reader.readID());
     auto offset = reader.read<size_t>();
-    setPosition(PositionFactory::getInstance()->makePosition(afterThis, this,
-        offset));
+    setPosition(PositionFactory::getInstance()->makePosition(this, offset));
     size_t size = reader.read<size_t>();
 
     //LOG(1, "deserialized Block at offset " << offset << " of size " << size);
@@ -54,20 +51,12 @@ bool Block::deserialize(ChunkSerializerOperations &op,
     op.deserializeChildren(this, reader);
     {
         PositionFactory *positionFactory = PositionFactory::getInstance();
-        Chunk *prevChunk = this;
 
         for(uint64_t i = 0; i < getChildren()->genericGetSize(); i ++) {
             auto instr = this->getChildren()->getIterable()->get(i);
 
-            if(i > 0) {
-                instr->setPreviousSibling(prevChunk);
-                prevChunk->setNextSibling(instr);
-            }
-
             instr->setPosition(positionFactory->makePosition(
-                prevChunk, instr, this->getSize()));
-            prevChunk = instr;
-
+                instr, this->getSize()));
             this->addToSize(instr->getSize());
         }
     }

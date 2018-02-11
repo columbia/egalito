@@ -206,10 +206,9 @@ public:
     PositionFactory();  // use default mode
     PositionFactory(Mode mode) : mode(mode) {}
     Position *makeAbsolutePosition(address_t address);
-    Position *makePosition(Chunk *previous, Chunk *chunk, address_t offset);
+    Position *makePosition(Chunk *chunk, address_t offset);
     bool needsGenerationTracking() const;
     bool needsUpdatePasses() const;
-    bool needsSpecialCaseFirst() const;
 private:
     template <typename PosType>
     PosType *setOffset(PosType *pos, address_t offset)

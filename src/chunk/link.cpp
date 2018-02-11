@@ -117,9 +117,8 @@ Link *LinkFactory::makeInferredMarkerLink(Module *module, address_t address,
 static void appendNop(Function *function, size_t size) {
 #ifdef ARCH_X86_64
     auto block = new Block();
-    auto prev = function->getChildren()->getIterable()->getLast();
     block->setPosition(PositionFactory::getInstance()
-        ->makePosition(prev, block, function->getSize()));
+        ->makePosition(block, function->getSize()));
 
     DisasmHandle handle(true);
     Instruction *i = nullptr;

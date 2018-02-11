@@ -8,6 +8,7 @@
 #include "instr/concrete.h"
 #include "operation/find2.h"
 #include "operation/mutator.h"
+#include "operation/cursor.h"
 #include "disasm/disassemble.h"
 #include "chunk/dump.h"
 #include "log/log.h"
@@ -278,8 +279,8 @@ void UseGSTablePass::rewriteTailRecursion(Block *block, Instruction *instr) {
                 << " at " << std::hex << instr->getAddress());
             assert(0);
         }
-        assert(!movOffset->getNextSibling());
-        auto next = block->getNextSibling();
+        //assert(!movOffset->getNextSibling());
+        auto next = ChunkCursor::getNext(block);
         auto nextI = *next->getChildren()->genericIterable().begin();
         assert(nextI);
         cfi->setLink(new NormalLink(nextI, Link::SCOPE_EXTERNAL_JUMP));

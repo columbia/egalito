@@ -20,27 +20,10 @@ void ChunkMutator::makePositionFor(Chunk *child) {
     ChunkCursor prev = cursor;
     if(prev.prev()) {
         pos = positionFactory->makePosition(
-            prev.get(), child, prev.get()->getAddress() - chunk->getAddress());
+            child, prev.get()->getAddress() - chunk->getAddress());
     }
     else {
-        Chunk *prevChunk = nullptr;
-#if 0
-        Chunk *a = chunk, *b = child;
-        while(a) {
-            ChunkCursor parentCursor(a, b);
-            if(parentCursor.getIndex() > 0) {
-                prevChunk = parentCursor.get();
-                break;
-            }
-
-            auto temp = a;
-            a = a->getParent();
-            b = temp;
-        }
-
-        LOG(1, "WE ARE using parent " << (prevChunk ? prevChunk->getName() : ""));
-#endif
-        pos = positionFactory->makePosition(prevChunk, child, 0);
+        pos = positionFactory->makePosition(child, 0);
     }
     child->setPosition(pos);
 }
@@ -55,17 +38,6 @@ void ChunkMutator::prepend(Chunk *child) {
 }
 
 void ChunkMutator::append(Chunk *child) {
-    // set sibling pointers
-    auto prev = chunk->getChildren()->genericGetLast();
-    if(prev) {
-        setPreviousSibling(child, prev);
-        setNextSibling(prev, child);
-    }
-    else {
-        child->setPreviousSibling(nullptr);
-        child->setNextSibling(nullptr);
-    }
-
     // set children and parent pointers
     // parent pointer must be set first for it to return correct address
     // which is needed for spatial map, which is updated in genericAdd()
@@ -77,18 +49,6 @@ void ChunkMutator::append(Chunk *child) {
 }
 
 void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
-    // set sibling pointers
-    setPreviousSibling(newChunk, insertPoint);
-    if(insertPoint) {
-        auto next = insertPoint->getNextSibling();
-        if(next) setPreviousSibling(next, newChunk);
-        setNextSibling(newChunk, next);
-        setNextSibling(insertPoint, newChunk);
-    }
-    else {
-        newChunk->setNextSibling(nullptr);
-    }
-
     // set children and parent pointers
     auto list = chunk->getChildren();
     size_t index = (insertPoint ? list->genericIndexOf(insertPoint) + 1 : 0);
@@ -100,7 +60,8 @@ void ChunkMutator::insertAfter(Chunk *insertPoint, Chunk *newChunk) {
 
     // if the next sibling has children, need to update their position
     // (this happens when inserting one Block between two others)
-    if(auto next = newChunk->getNextSibling()) {
+    if(index + 1 < list->genericGetSize()) {
+        auto next = list->genericGetAt(index + 1);
         if(next->getChildren() && next->getChildren()->genericGetSize() > 0) {
             auto nextChild = next->getChildren()->genericGetAt(0);
             delete nextChild->getPosition();
@@ -117,13 +78,6 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
         return;
     }
 
-    // set sibling pointers
-    auto prev = insertPoint->getPreviousSibling();
-    if(prev) setNextSibling(prev, newChunk);
-    setNextSibling(newChunk, insertPoint);
-    setPreviousSibling(newChunk, prev);
-    setPreviousSibling(insertPoint, newChunk);
-
     // set children and parent pointers
     auto list = chunk->getChildren();
     size_t index = list->genericIndexOf(insertPoint);
@@ -132,20 +86,6 @@ void ChunkMutator::insertBefore(Chunk *insertPoint, Chunk *newChunk) {
 
     // must run before the first-entry update below
     if(!newChunk->getPosition()) makePositionFor(newChunk);
-
-    if(PositionFactory::getInstance()->needsSpecialCaseFirst()
-        && !newChunk->getPreviousSibling()) {
-
-        // We are replacing the first entry in a block, which is
-        // special-cased to an OffsetPosition. We should make sure
-        // the first and only the first entry is an OffsetPosition.
-        // Maintain that invariant.
-
-        PositionFactory *positionFactory = PositionFactory::getInstance();
-        delete insertPoint->getPosition();
-        insertPoint->setPosition(positionFactory->makePosition(
-            newChunk, insertPoint, newChunk->getSize()));
-    }
 
     updateSizesAndAuthorities(newChunk);
 }
@@ -173,16 +113,6 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
 }
 
 void ChunkMutator::remove(Chunk *child) {
-    // set sibling pointers
-    auto prev = child->getPreviousSibling();
-    auto next = child->getNextSibling();
-    if(prev) {
-        setNextSibling(prev, next);
-    }
-    if(next) {
-        setPreviousSibling(next, prev);
-    }
-
     // remove from parent
     chunk->getChildren()->genericRemove(child);
 
@@ -202,12 +132,7 @@ void ChunkMutator::removeLast(int n) {
     size_t removedSize = 0;
     for(int i = 0; i < n; i ++) {
         Chunk *last = chunk->getChildren()->genericGetLast();
-        if(auto prev = last->getPreviousSibling()) {
-            prev->setNextSibling(nullptr);
-        }
-
         removedSize += last->getSize();
-
         chunk->getChildren()->genericRemoveLast();
     }
 
@@ -270,7 +195,7 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
     // instruction in newBlock.
     Block *newBlock = new Block();
     newBlock->setPosition(PositionFactory::getInstance()->makePosition(
-        block, newBlock, point->getAddress() - chunk->getAddress()));
+        newBlock, point->getAddress() - chunk->getAddress()));
 
     // How many instructions to leave in the original block?
     size_t leaveBehindCount = block->getChildren()->getIterable()
@@ -288,8 +213,6 @@ void ChunkMutator::splitBlockBefore(Instruction *point) {
 
     // Clear old pointers and references from instructions.
     for(auto instr : moveInstr) {
-        instr->setPreviousSibling(nullptr);
-        instr->setNextSibling(nullptr);
         instr->setParent(nullptr);
         delete instr->getPosition();
         instr->setPosition(nullptr);
@@ -336,13 +259,11 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
     auto functionList = dynamic_cast<FunctionList *>(function->getParent());
     functionList->getChildren()->add(function2);
 
-    Chunk *prevChunk = function;
     for(auto child : moveList) {
         child->setPosition(positionFactory->makePosition(
-            prevChunk, child, function2->getSize()));
+            child, function2->getSize()));
 
         ChunkMutator(function2).append(child);
-        prevChunk = child;
     }
 }
 
@@ -359,16 +280,6 @@ void ChunkMutator::modifiedChildSize(Chunk *child, int added) {
 void ChunkMutator::setPosition(address_t address) {
     //chunk->getPosition()->set(address);
     PositionManager::setAddress(chunk, address);
-}
-
-void ChunkMutator::setPreviousSibling(Chunk *c, Chunk *prev) {
-    c->setPreviousSibling(prev);
-    if(!prev) return;
-}
-
-void ChunkMutator::setNextSibling(Chunk *c, Chunk *next) {
-    c->setNextSibling(next);
-    if(!next) return;
 }
 
 void ChunkMutator::updateSizesAndAuthorities(Chunk *child) {

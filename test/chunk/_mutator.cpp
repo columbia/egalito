@@ -30,7 +30,7 @@ static Block *makeBlock() {
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Block *block = new Block();
     block->setPosition(
-        positionFactory->makePosition(nullptr, block, 0));
+        positionFactory->makePosition(block, 0));
     return block;
 }
 
@@ -57,14 +57,11 @@ TEST_CASE("calling append() on ChunkMutator", "[chunk][normal]") {
 
     Block *block = makeBlock();
 
-    Chunk *prevChunk = nullptr;
     for(unsigned char c = 1; c <= 3; c ++) {
         auto instr = makeWithImmediate(c);
         instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, block->getSize()));
+            positionFactory->makePosition(instr, block->getSize()));
         ChunkMutator(block).append(instr);
-
-        prevChunk = instr;
     }
 
     ensureValues(block, {1, 2, 3});
@@ -79,28 +76,25 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
     SECTION("empty list") {
         SECTION("call prepend()") {
             auto instr = makeWithImmediate(22);
-            instr->setPosition(positionFactory->makePosition(block, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).prepend(instr);
             ensureValues(block, {22});
         }
     }
 
     SECTION("non-empty list") {
-        Chunk *prevChunk = nullptr;
         for(unsigned char c = 1; c <= 3; c ++) {
             auto instr = makeWithImmediate(c);
             instr->setPosition(
-                positionFactory->makePosition(prevChunk, instr, block->getSize()));
+                positionFactory->makePosition(instr, block->getSize()));
             ChunkMutator(block).append(instr);
-
-            prevChunk = instr;
         }
 
         ensureValues(block, {1, 2, 3});
 
         SECTION("call prepend()") {
             auto instr = makeWithImmediate(22);
-            instr->setPosition(positionFactory->makePosition(block, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).prepend(instr);
             ensureValues(block, {22, 1, 2, 3});
         }
@@ -108,7 +102,7 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
         SECTION("call insertAfter()") {
             auto point = block->getChildren()->genericGetAt(0);  // gives the '1'
             auto instr = makeWithImmediate(44);
-            instr->setPosition(positionFactory->makePosition(point, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).insertAfter(point, instr);
             ensureValues(block, {1, 44, 2, 3});
         }
@@ -117,14 +111,14 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
             auto point1 = block->getChildren()->genericGetAt(0);  // gives the '1'
             auto point2 = block->getChildren()->genericGetAt(1);  // gives the '2'
             auto instr = makeWithImmediate(44);
-            instr->setPosition(positionFactory->makePosition(point1, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).insertBefore(point2, instr);
             ensureValues(block, {1, 44, 2, 3});
         }
 
         SECTION("call insertAfter() with NULL point") {
             auto instr = makeWithImmediate(44);
-            instr->setPosition(positionFactory->makePosition(block, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).insertAfter(nullptr, instr);
             ensureValues(block, {44, 1, 2, 3});
         }
@@ -132,7 +126,7 @@ TEST_CASE("calling insert functions with ChunkMutator", "[chunk][normal]") {
         SECTION("call insertBefore() with NULL point") {
             auto point3 = block->getChildren()->genericGetLast();  // gives the '3'
             auto instr = makeWithImmediate(44);
-            instr->setPosition(positionFactory->makePosition(point3, instr, 0));
+            instr->setPosition(positionFactory->makePosition(instr, 0));
             ChunkMutator(block).insertBefore(nullptr, instr);
             ensureValues(block, {1, 2, 3, 44});
         }

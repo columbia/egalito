@@ -4,6 +4,7 @@
 #include "position.h"
 #include "chunk.h"
 #include "chunklist.h"  // for getChildren()
+#include "operation/cursor.h"
 #include "log/log.h"
 
 address_t OffsetPosition::get() const {
@@ -25,7 +26,7 @@ void OffsetPosition::recalculate() {
         return;
     }
 
-    auto prev = chunk->getPreviousSibling();
+    auto prev = ChunkCursor::getPrevious(chunk);
     if(prev) {
         auto parent = chunk->getParent();
         //offset = (prev->getPosition()->get() - parent->getPosition()->get())
@@ -114,8 +115,8 @@ void GenerationalPositionDecorator<PositionType>::recalculate() {
 PositionFactory PositionFactory::instance;  // use default mode
 
 PositionFactory::PositionFactory()
-    : mode(MODE_OFFSET)                 // 5.89 s
-    //: mode(MODE_CACHED_OFFSET)          // 6.98 s
+    : mode(MODE_OFFSET)
+    //: mode(MODE_CACHED_OFFSET)
     //: mode(MODE_GENERATION_OFFSET)
 {
 }
@@ -129,19 +130,7 @@ Position *PositionFactory::makeAbsolutePosition(address_t address) {
     }
 }
 
-Position *PositionFactory::makePosition(Chunk *previous, Chunk *chunk,
-    address_t offset) {
-
-    if(!previous) {
-        // e.g. first block in function
-        if(needsGenerationTracking()) {
-            return setOffset(new GenerationalOffsetPosition(chunk), offset);
-        }
-        else {
-            return new OffsetPosition(chunk, offset);
-        }
-    }
-
+Position *PositionFactory::makePosition(Chunk *chunk, address_t offset) {
     switch(mode) {
     case MODE_GENERATION_OFFSET:
         return setOffset(new GenerationalOffsetPosition(chunk), offset);
@@ -165,10 +154,6 @@ bool PositionFactory::needsGenerationTracking() const {
 bool PositionFactory::needsUpdatePasses() const {
     return mode == MODE_CACHED_OFFSET
         || mode == MODE_OFFSET;
-}
-
-bool PositionFactory::needsSpecialCaseFirst() const {
-    return false;
 }
 
 //-----------------------------------------------------------------------------

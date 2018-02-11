@@ -106,46 +106,28 @@ bool Function::deserialize(ChunkSerializerOperations &op,
 
         PositionFactory *positionFactory = PositionFactory::getInstance();
 
-        Chunk *prevChunk1 = this;
-
         size_t totalSize = 0;
         uint64_t blockCount = reader.read<uint32_t>();
         for(uint64_t b = 0; b < blockCount; b ++) {
             Block *block = getChildren()->getIterable()->get(b);
             block->setPosition(positionFactory->makePosition(
-                prevChunk1, block, this->getSize()));
-
-            if(b > 0) {
-                block->setPreviousSibling(prevChunk1);
-                prevChunk1->setNextSibling(block);
-            }
-
-            Chunk *prevChunk2 = block;
+                block, this->getSize()));
 
             uint64_t instrCount = reader.read<uint32_t>();
             for(uint64_t i = 0; i < instrCount; i ++) {
                 auto instr = block->getChildren()->getIterable()->get(i);
-
-                if(i > 0) {
-                    instr->setPreviousSibling(prevChunk2);
-                    prevChunk2->setNextSibling(instr);
-                }
 
                 auto semantic = InstrSerializer(op).deserialize(instr,
                     address + totalSize, reader);
                 instr->setSemantic(semantic);
 
                 instr->setPosition(positionFactory->makePosition(
-                    prevChunk2, instr, block->getSize()));
-                prevChunk2 = instr;
-
+                    instr, block->getSize()));
                 totalSize += instr->getSize();
                 block->addToSize(instr->getSize());
-                //ChunkMutator(block, true);  // recalculate addresses
             }
 
             this->addToSize(block->getSize());
-            prevChunk1 = block;
         }
 
         ChunkMutator(this, true);  // recalculate addresses

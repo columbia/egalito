@@ -24,6 +24,9 @@ public:
 
     static ChunkCursor makeBegin(Chunk *parent);
     static ChunkCursor makeEnd(Chunk *parent);
+
+    static Chunk *getPrevious(Chunk *chunk);
+    static Chunk *getNext(Chunk *chunk);
 };
 
 #endif

@@ -133,20 +133,12 @@ bool PLTTrampoline::deserialize(ChunkSerializerOperations &op,
     op.deserializeChildren(this, reader);
     {
         PositionFactory *positionFactory = PositionFactory::getInstance();
-        Chunk *prevChunk = this;
 
         for(uint64_t i = 0; i < getChildren()->genericGetSize(); i ++) {
             auto block = this->getChildren()->getIterable()->get(i);
 
-            if(i > 0) {
-                block->setPreviousSibling(prevChunk);
-                prevChunk->setNextSibling(block);
-            }
-
             block->setPosition(positionFactory->makePosition(
-                prevChunk, block, this->getSize()));
-            prevChunk = block;
-
+                block, this->getSize()));
             this->addToSize(block->getSize());
         }
     }

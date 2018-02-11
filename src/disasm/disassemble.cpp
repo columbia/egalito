@@ -937,12 +937,7 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
-    Block *block = makeBlock(function, nullptr);
-
-    Chunk *prevChunk = nullptr;
-    if(function->getChildren()->getIterable()->getCount() > 0) {
-        prevChunk = function->getChildren()->getIterable()->getLast();
-    }
+    Block *block = makeBlock(function);
 
     size_t literalSize;
     for(size_t sz = 0; sz < readSize; sz += literalSize) {
@@ -957,8 +952,7 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
         li->setData(raw);
         instr->setSemantic(li);
         instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, block->getSize()));
-        prevChunk = instr;
+            positionFactory->makePosition(instr, block->getSize()));
         ChunkMutator(block, false).append(instr);
     }
 
@@ -986,7 +980,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     size_t count = cs_disasm(handle.raw(),
         (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
 
-    Block *block = makeBlock(function, nullptr);
+    Block *block = makeBlock(function);
 
     for(size_t j = 0; j < count; j++) {
         auto ins = &insn[j];
@@ -997,25 +991,15 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
         // Create Instruction from cs_insn
         auto instr = Disassemble::instruction(ins, handle, true);
 
-        Chunk *prevChunk = nullptr;
-        if(block->getChildren()->getIterable()->getCount() > 0) {
-            prevChunk = block->getChildren()->getIterable()->getLast();
-        }
-        else if(function->getChildren()->getIterable()->getCount() > 0) {
-            prevChunk = function->getChildren()->getIterable()->getLast();
-        }
-        else {
-            prevChunk = nullptr;
-        }
         instr->setPosition(
-            positionFactory->makePosition(prevChunk, instr, block->getSize()));
+            positionFactory->makePosition(instr, block->getSize()));
 
         ChunkMutator(block, false).append(instr);
         if(split) {
             LOG(11, "split-instr in block: " << j+1);
             ChunkMutator(function, false).append(block);
 
-            block = makeBlock(function, block);
+            block = makeBlock(function);
         }
     }
 
@@ -1077,26 +1061,18 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
                 }
             }
         }
-        for(size_t j = 0; j < count; j ++) {
-        }
     }
 #endif
 
     cs_free(insn, count);
 }
 
-Block *DisassembleFunctionBase::makeBlock(Function *function, Block *prev) {
+Block *DisassembleFunctionBase::makeBlock(Function *function) {
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
-    if(prev == nullptr) {
-        if(function->getChildren()->getIterable()->getCount() > 0) {
-            prev = function->getChildren()->getIterable()->getLast();
-        }
-    }
     Block *block = new Block();
     block->setPosition(
-        positionFactory->makePosition(prev, block,
-                                      function->getSize()));
+        positionFactory->makePosition(block, function->getSize()));
     return block;
 }
 

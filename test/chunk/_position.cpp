@@ -60,23 +60,7 @@ public:
 
         CHECK(instruction->getParent() == block);
         auto here = block->getChildren()->getIterable()->indexOf(instruction);
-        REQUIRE(here != NONE);
-        auto prev = static_cast<Instruction *>(instruction->getPreviousSibling());
-        auto next = static_cast<Instruction *>(instruction->getNextSibling());
-
-        auto count = block->getChildren()->getIterable()->getCount();
-        if(here > 0) CHECK(prev != nullptr);
-        if(here + 1 < count) CHECK(next != nullptr);
-
-        auto prevIndex = NONE;
-        auto nextIndex = NONE;
-        if(prev) prevIndex = block->getChildren()->getIterable()->indexOf(prev);
-        if(next) nextIndex = block->getChildren()->getIterable()->indexOf(next);
-
-        if(!prev) CHECK(prevIndex == NONE);
-        else CHECK(prevIndex + 1 == here);
-        if(!next) CHECK(nextIndex == NONE);
-        else CHECK(here + 1 == nextIndex);
+        CHECK(here != NONE);
     }
 };
 
@@ -157,7 +141,7 @@ TEST_CASE("position validation for simple main over each Position type", "[chunk
             SECTION("position validation after calling insertAfter()") {
                 /*PositionFactory *positionFactory = PositionFactory::getInstance();
                 breakInstr->setPosition(positionFactory->makePosition(
-                    firstInstr, breakInstr, firstInstr->getSize()));*/
+                    breakInstr, firstInstr->getSize()));*/
 
                 ChunkMutator(firstBlock).insertAfter(firstInstr, breakInstr);
 

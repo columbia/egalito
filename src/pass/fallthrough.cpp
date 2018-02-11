@@ -121,7 +121,7 @@ void FallThroughFunctionPass::visit(Function *function) {
                 = PositionFactory::getInstance();
 
             connecting->setPosition(
-                positionFactory->makePosition(block, connecting,
+                positionFactory->makePosition(connecting,
                     function->getSize()));
             LOG(10, "target = " << target->getName());
             // add a branch instruction to the 'target' instruction

@@ -55,7 +55,7 @@ public:
     DisassembleFunctionBase(DisasmHandle &handle, ElfMap *elfMap)
         : handle(handle), elfMap(elfMap) {}
 protected:
-    Block *makeBlock(Function *function, Block *prev);
+    Block *makeBlock(Function *function);
     void disassembleBlocks(Function *function, address_t readAddress,
         size_t readSize, address_t virtualAddress);
 

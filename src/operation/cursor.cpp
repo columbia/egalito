@@ -37,7 +37,7 @@ bool ChunkCursor::prev() {
 }
 
 bool ChunkCursor::next() {
-    if(!isEnd()) {
+    if(index + 1 < list->genericGetSize()) {
         index ++;
         return true;
     }
@@ -54,4 +54,16 @@ ChunkCursor ChunkCursor::makeBegin(Chunk *parent) {
 ChunkCursor ChunkCursor::makeEnd(Chunk *parent) {
     return ChunkCursor(parent,
         parent->getChildren()->genericGetSize());
+}
+
+Chunk *ChunkCursor::getPrevious(Chunk *chunk) {
+    ChunkCursor cursor(chunk);
+    if(!cursor.prev()) return nullptr;
+    return cursor.get();
+}
+
+Chunk *ChunkCursor::getNext(Chunk *chunk) {
+    ChunkCursor cursor(chunk);
+    if(!cursor.next()) return nullptr;
+    return cursor.get();
 }

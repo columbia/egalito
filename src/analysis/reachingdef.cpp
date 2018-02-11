@@ -6,6 +6,7 @@
 #include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "instr/register.h"
+#include "operation/cursor.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dreorder
@@ -133,7 +134,10 @@ bool ReachingDef::areDependenciesCovered(Instruction *instr,
 }
 
 void ReachingDef::setBarrier(Instruction *instr) {
-    for(Chunk *c = instr->getPreviousSibling(); c; c = c->getPreviousSibling()) {
+    //for(Chunk *c = instr->getPreviousSibling(); c; c = c->getPreviousSibling()) {
+    ChunkCursor cursor{instr};
+    while(cursor.prev()) {
+        Chunk *c = cursor.get();
         assert(instr != c);
         if(auto v = dynamic_cast<Instruction *>(c)) {
             killMap[instr].insert(v);
