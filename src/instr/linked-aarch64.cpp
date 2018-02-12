@@ -60,7 +60,7 @@ const LinkedInstruction::AARCH64_modeInfo_t LinkedInstruction::AARCH64_ImInfo[AA
       {0xFFE003FF,
        [] (address_t dest, address_t src, uint32_t fixed) {
            diff_t disp = dest & 0xFFF;
-           int scale = fixed >> 30;
+           int scale = (fixed & 0x00800000)>>21| fixed >> 30;
            uint32_t imm = (disp >> scale) << 10;
            return (imm & ~0xFFE003FF); },
        1
@@ -234,6 +234,21 @@ uint32_t LinkedInstruction::rebuild() {
     return fixedBytes | imm;
 }
 
+// only works before move
+bool LinkedInstruction::check() {
+    uint32_t original;
+    std::memcpy(&original, &getData()[0], 4);
+
+    uint32_t rebuilt = rebuild();
+    if(original != rebuilt) {
+        LOG(10, "original: " << std::hex << original);
+        TemporaryLogLevel tll("instr", 11);
+        rebuilt = rebuild();
+        assert(original == rebuilt);
+    }
+    return true;
+}
+
 int64_t LinkedInstruction::getOriginalOffset() const {
     auto operands = const_cast<LinkedInstruction *>(this)
         ->getAssembly()->getAsmOperands()->getOperands();
@@ -274,11 +289,27 @@ LinkedInstruction::Mode LinkedInstruction::getMode(const Assembly &assembly) {
     case ARM64_INS_ADR:     m = AARCH64_IM_ADR;     break;
     case ARM64_INS_ADD:     m = AARCH64_IM_ADDIMM;  break;
     case ARM64_INS_LDR:
-        if((assembly.getBytes()[3] & 0xBF) == 0xB9) {
-            m = AARCH64_IM_LDRIMM;
+        if((assembly.getBytes()[3] & 0x04) == 0x00) { // INT
+            if(assembly.getBytes()[3] & 0x80) {
+                m = AARCH64_IM_LDRIMM;
+                if(!(assembly.getBytes()[3] & 0x01)) {
+                    assert("post-index or pre-index LDR with IMM?" && 0);
+                }
+            }
+            else {
+                m = AARCH64_IM_LDRLIT;
+            }
         }
-        else {
-            m = AARCH64_IM_LDRLIT;
+        else {  // FP
+            if(assembly.getBytes()[3] & 0x20) {
+                m = AARCH64_IM_LDRIMM;
+                if(!(assembly.getBytes()[3] & 0x01)) {
+                    assert("post-index or pre-index LDR with IMM?" && 0);
+                }
+            }
+            else {
+                m = AARCH64_IM_LDRLIT;
+            }
         }
         break;
     case ARM64_INS_LDRH:    m = AARCH64_IM_LDRH;    break;

@@ -70,6 +70,7 @@ public:
     virtual int64_t getOriginalOffset() const;
 
     uint32_t rebuild();
+    bool check();
 
     // should be only necessary in insertBeforeJumpTo
     void setInstruction(Instruction *instruction)
