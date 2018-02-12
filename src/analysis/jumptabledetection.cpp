@@ -16,6 +16,7 @@ void JumptableDetection::detect(Module *module) {
     for(auto f : CIter::functions(module)) {
         //TemporaryLogLevel tll2("analysis", 11, f->hasName("vfprintf"));
         detect(f);
+        //IF_LOG(11) std::cout.flush();
     }
 }
 
@@ -336,10 +337,19 @@ void JumptableDetection::makeDescriptor(Instruction *instruction,
         link = LinkFactory::makeDataLink(module, info->targetBase, true);
     }
     else {
+#ifdef ARCH_X86_64
+        assert("X86_64: jump table base == targetBase?" && 0);
+#endif
         auto function
             = dynamic_cast<Function *>(instruction->getParent()->getParent());
         auto target = ChunkFind().findInnermostAt(function, info->targetBase);
-        link = LinkFactory::makeNormalLink(target, true, false);
+        if(target) {
+            link = LinkFactory::makeNormalLink(target, true, false);
+        }
+        else {
+            link = module->getMarkerList()->createTableJumpTargetMarkerLink(
+                    instruction, instruction->getSize(), module, false);
+        }
     }
     assert(link);
     jtd->setTargetBaseLink(link);
