@@ -389,6 +389,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_STRH,    &UseDef::fillStrh},
     {ARM64_INS_SUB,     &UseDef::fillAddOrSub},
     {ARM64_INS_SXTW,    &UseDef::fillSxtw},
+    {ARM64_INS_UBFIZ,   &UseDef::fillUbfiz},
 #endif
 };
 
@@ -1898,6 +1899,19 @@ void UseDef::fillSxtw(UDState *state, AssemblyPtr assembly) {
     if(mode == AssemblyOperands::MODE_REG_REG) {
         LOG(10, "NYI fully: " << assembly->getMnemonic());
         fillRegToReg(state, assembly);
+    }
+    else {
+        LOG(10, "skipping mode " << mode);
+    }
+}
+void UseDef::fillUbfiz(UDState *state, AssemblyPtr assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_REG_REG_IMM_IMM) {
+        LOG(10, "NYI fully: " << assembly->getMnemonic());
+
+        auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+        int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+        defReg(state, reg0, nullptr);
     }
     else {
         LOG(10, "skipping mode " << mode);

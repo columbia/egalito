@@ -435,6 +435,7 @@ private:
     void fillStrb(UDState *state, AssemblyPtr assembly);
     void fillStrh(UDState *state, AssemblyPtr assembly);
     void fillSxtw(UDState *state, AssemblyPtr assembly);
+    void fillUbfiz(UDState *state, AssemblyPtr assembly);
 #endif
 };
 
