@@ -299,27 +299,11 @@ int main(int argc, char *argv[]) {
     const char *program = argv[1];
 
     EgalitoLoader loader;
-#if 1
     if(loader.parse(program)) {
         loader.setupEnvironment(argc, argv);
         loader.generateCode();
         loader.run();  // never returns
     }
-#else
-    {
-        EgalitoTiming m1("parse");
-        loader.parse(program);
-    }
-    {
-        EgalitoTiming m2("setupEnvironment");
-        loader.setupEnvironment(argc, argv);
-    }
-    {
-        EgalitoTiming m3("generateCode");
-        loader.generateCode();
-    }
-    loader.run();  // never returns
-#endif
 
     return 0;
 }
