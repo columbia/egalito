@@ -28,6 +28,7 @@ public:
         MODE_REG_MEM_IMM,
         MODE_REG_REG_REG_REG,
         MODE_REG_REG_MEM_IMM,
+        MODE_REG_REG_IMM_IMM,
     };
 
 private:

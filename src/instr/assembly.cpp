@@ -226,6 +226,13 @@ AssemblyOperands::OperandsMode AssemblyOperands::getMode() const {
 
             mode = MODE_REG_REG_MEM_IMM;
         }
+        else if(operands[0].type == ARM64_OP_REG
+            && operands[1].type == ARM64_OP_REG
+            && operands[2].type == ARM64_OP_IMM
+            && operands[3].type == ARM64_OP_IMM) {
+
+            mode = MODE_REG_REG_IMM_IMM;
+        }
     }
     else {
         LOG(1, "op_count = " << int(op_count));
