@@ -41,8 +41,6 @@
 #include "log/temp.h"
 #include "log/log.h"
 
-//EgalitoTiming *m;
-
 extern address_t egalito_entry;
 extern const char *egalito_initial_stack;
 extern "C" void _start2(void);

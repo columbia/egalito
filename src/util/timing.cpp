@@ -20,7 +20,6 @@ EgalitoTiming::~EgalitoTiming() {
         (endTime - startTime).count();
 
     if(static_cast<unsigned long>(duration / 1000) >= printThresholdMS) {
-#if 1
         if(!egalito_init_done) {
             CLOG(1, "TIMING: %8.6fs for \"%s\"", duration / 1e6, message);
         }
@@ -28,9 +27,5 @@ EgalitoTiming::~EgalitoTiming() {
             egalito_printf("timing: %d ms %d us for \"%s\"\n",
                 (int)(duration/1000), (int)(duration%1000), message);
         }
-#else
-        egalito_printf("timing: %d ms %d us for \"%s\"\n",
-            (int)(duration/1000), (int)(duration%1000), message);
-#endif
     }
 }
