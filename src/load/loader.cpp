@@ -198,14 +198,12 @@ void EgalitoLoader::otherPasses() {
     setup->getConductor()->getProgram()->getMain()->accept(&nopPass);
 #endif
 
-#if 0
     if(1 || isFeatureEnabled("EGALITO_USE_GS")) {
         //TemporaryLogLevel tll("pass", 20);
 
         CollapsePLTPass collapsePLT(setup->getConductor());
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }
-#endif
 
     if(isFeatureEnabled("EGALITO_USE_GS")) {
         {

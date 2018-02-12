@@ -11,7 +11,6 @@ public:
     void newElfPasses(ElfSpace *space);
     void newArchivePasses(Program *program);
     void reloadedArchivePasses(Module *module);
-    void prepareForExecution();
 };
 
 #endif

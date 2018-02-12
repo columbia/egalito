@@ -90,11 +90,6 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(InferLinksPass(elf), module);
 }
 
-void ConductorPasses::prepareForExecution() {
-    CollapsePLTPass collapsePLT(conductor);
-    conductor->acceptInAllModules(&collapsePLT, true);
-}
-
 void ConductorPasses::newArchivePasses(Program *program) {
     //RUN_PASS(ChunkDumper(), program);
 

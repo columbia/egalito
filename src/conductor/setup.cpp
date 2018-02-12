@@ -82,8 +82,6 @@ void ConductorSetup::parseElfFiles(const char *executable,
     conductor->check();
 #endif
 
-    ConductorPasses(conductor).prepareForExecution();
-
     // At this point, all the effort for resolving the links should have
     // been performed (except for special cases)
 
