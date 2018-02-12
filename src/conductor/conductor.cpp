@@ -21,6 +21,7 @@
 #include "pass/fixdataregions.h"
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
+#include "pass/encodingcheckpass.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
 #include "log/log.h"
@@ -328,4 +329,9 @@ ElfSpace *Conductor::getMainSpace() const {
 void Conductor::check() {
     ReloCheckPass checker;
     acceptInAllModules(&checker, true);
+
+#ifdef ARCH_AARCH64
+    EncodingCheckPass checker2;
+    acceptInAllModules(&checker2, true);
+#endif
 }

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <cassert>
 #include "pointerdetection.h"
 #include "analysis/slicingtree.h"
 #include "analysis/usedef.h"
@@ -56,7 +57,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
     }
     catch(const char *s) {
         working->getCFG()->dumpDot();
-        throw "pointer detection error";
+        assert("pointer detection error" && 0);
     }
 }
 
