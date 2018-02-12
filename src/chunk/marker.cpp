@@ -119,6 +119,12 @@ Link *MarkerList::createInferredMarkerLink(address_t address,
     return nullptr;
 }
 
+Link *MarkerList::createTableJumpTargetMarkerLink(Instruction *jump,
+    size_t offset, Module *module, bool isRelative) {
+
+    return createGeneralMarkerLink(jump, offset, module, isRelative);
+}
+
 static Link *makeMarkerLink(Marker *marker, bool isRelative) {
     if(isRelative) {
         return new MarkerLink(marker);

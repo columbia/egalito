@@ -58,6 +58,8 @@ public:
         bool isRelative);
     Link *createInferredMarkerLink(address_t address, Module *module,
         bool isRelative);
+    Link *createTableJumpTargetMarkerLink(Instruction *jump, size_t offset,
+        Module *module, bool isRelative);
     Marker *addGeneralMarker(Chunk *chunk, size_t addend);
     Marker *addStartMarker(DataSection *dataSection);
     Marker *addEndMarker(DataSection *dataSection);
