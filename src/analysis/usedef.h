@@ -414,6 +414,7 @@ private:
     void fillCsel(UDState *state, AssemblyPtr assembly);
     void fillCset(UDState *state, AssemblyPtr assembly);
     void fillEor(UDState *state, AssemblyPtr assembly);
+    void fillFmov(UDState *state, AssemblyPtr assembly);
     void fillLdaxr(UDState *state, AssemblyPtr assembly);
     void fillLdp(UDState *state, AssemblyPtr assembly);
     void fillLdr(UDState *state, AssemblyPtr assembly);

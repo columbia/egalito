@@ -367,6 +367,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_CSEL,    &UseDef::fillCsel},
     {ARM64_INS_CSET,    &UseDef::fillCset},
     {ARM64_INS_EOR,     &UseDef::fillEor},
+    {ARM64_INS_FMOV,    &UseDef::fillFmov},
     {ARM64_INS_LDAXR,   &UseDef::fillLdaxr},
     {ARM64_INS_LDP,     &UseDef::fillLdp},
     {ARM64_INS_LDR,     &UseDef::fillLdr},
@@ -1701,6 +1702,12 @@ void UseDef::fillEor(UDState *state, AssemblyPtr assembly) {
     defReg(state,
         reg0,
         TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0));
+    LOG(10, "NYI (fully): " << assembly->getMnemonic());
+}
+void UseDef::fillFmov(UDState *state, AssemblyPtr assembly) {
+    auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
+    int reg0 = AARCH64GPRegister::convertToPhysical(op0);
+    defReg(state, reg0, nullptr);
     LOG(10, "NYI (fully): " << assembly->getMnemonic());
 }
 void UseDef::fillLdaxr(UDState *state, AssemblyPtr assembly) {
