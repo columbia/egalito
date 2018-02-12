@@ -9,6 +9,7 @@
 
 #include "log/log.h"
 #include "log/temp.h"
+#include "chunk/dump.h"
 
 void FallThroughFunctionPass::visit(Function *function) {
     auto block = function->getChildren()->getIterable()->getLast();
@@ -72,7 +73,10 @@ void FallThroughFunctionPass::visit(Function *function) {
                     nop++;
                 }
 #elif defined(ARCH_AARCH64)
-                if(assembly->getId() == ARM64_INS_NOP) {
+                if(assembly->getId() == ARM64_INS_BRK) {
+                    falling = false;
+                }
+                else if(assembly->getId() == ARM64_INS_NOP) {
                     nop++;
                 }
 #endif
@@ -90,6 +94,9 @@ void FallThroughFunctionPass::visit(Function *function) {
         //for archive
         else if(dynamic_cast<LinkedInstruction *>(semantic)) {
             falling = true;
+        }
+        else if(dynamic_cast<BreakInstruction *>(semantic)) {
+            falling = false;
         }
         else {
             assert("FallThroughFunctionPass semantic type?" && 0);
@@ -131,8 +138,8 @@ void FallThroughFunctionPass::visit(Function *function) {
             auto semantic = new ControlFlowInstruction(
                 X86_INS_JMP, branch, "\xe9", "jmp", 4);
 #elif defined(ARCH_AARCH64)
-            auto bin = AARCH64InstructionBinary(
-                0x14000000 | targetAddress >> 2);
+            //will look like from targetAddress to targetAddress temporarily
+            auto bin = AARCH64InstructionBinary(0x14000000);
             auto semantic = new ControlFlowInstruction(branch);
             semantic->setAssembly(DisassembleInstruction(handle)
                 .makeAssemblyPtr(bin.getVector()));
