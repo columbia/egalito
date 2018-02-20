@@ -58,7 +58,7 @@ void ReorderPush::visit(Function *function) {
             enforcePopOrder = false;
         }
 
-        LOG(1, "ReorderPush for block " << block->getName() << ", push="
+        LOG(10, "ReorderPush for block " << block->getName() << ", push="
             << (allowPushReorder ? 'y' : 'n') << ", pop="
             << (enforcePopOrder ? 'y' : 'n'));
 
@@ -67,11 +67,17 @@ void ReorderPush::visit(Function *function) {
             LOG(1, "skipping a too big basic block in " << function->getName());
             continue;
         }
+        if(block->getChildren()->getIterable()->getCount() == 1) {
+            LOG(10, "skipping a basic block with one instruction");
+            continue;
+        }
 
         ReachingDef reachingDef(block);
         reachingDef.analyze();
 
-        reachingDef.dump();
+        IF_LOG(10) {
+            reachingDef.dump();
+        }
         reachingDef.computeDependencyClosure(
             allowPushReorder || enforcePopOrder);
 
@@ -90,6 +96,11 @@ void ReorderPush::visit(Function *function) {
 
         if(allowPushReorder) realPushOrder = pushOrder;
 
+        IF_LOG(10) {
+            LOG(1, "OLD");
+            ChunkDumper d;
+            block->accept(&d);
+        }
         ChunkMutator mutator(block, true);
         size_t n = 0;
         for(auto s : newOrder) {
@@ -103,6 +114,11 @@ void ReorderPush::visit(Function *function) {
                 }
                 mutator.modifiedChildSize(ins, old->getSize() - s->getSize());
             }
+        }
+        IF_LOG(10) {
+            LOG(1, "NEW");
+            ChunkDumper d;
+            block->accept(&d);
         }
     }
     pushOrder.clear();
@@ -135,7 +151,7 @@ Instruction *ReorderPush::pickNextInstruction(std::vector<Instruction *> list,
         assert(!list.empty());
     }
 
-    IF_LOG(1) {
+    IF_LOG(10) {
         LOG0(1, "choose between");
         for(auto i : list) {
             LOG0(1, " " << i->getName());
@@ -144,7 +160,7 @@ Instruction *ReorderPush::pickNextInstruction(std::vector<Instruction *> list,
     }
 
     auto ins = list[std::rand() % list.size()];
-    IF_LOG(1) {
+    IF_LOG(10) {
         LOG0(1, "choose order: ");
         ChunkDumper dump;
         ins->accept(&dump);

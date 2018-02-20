@@ -56,9 +56,9 @@ int X86Register::convertToPhysicalINT(int id) {
 
     switch(id) {
     case X86_REG_AH: return R0;
-    case X86_REG_BH: return R1;
-    case X86_REG_CH: return R2;
-    case X86_REG_DH: return R3;
+    case X86_REG_BH: return R3;
+    case X86_REG_CH: return R1;
+    case X86_REG_DH: return R2;
     }
 
     return X86Register::INVALID;
