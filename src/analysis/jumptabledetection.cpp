@@ -337,9 +337,8 @@ void JumptableDetection::makeDescriptor(Instruction *instruction,
         link = LinkFactory::makeDataLink(module, info->targetBase, true);
     }
     else {
-#ifdef ARCH_X86_64
-        assert("X86_64: jump table base == targetBase?" && 0);
-#endif
+        // even for X86_64, jump table base != target base for hand-written
+        // jump tables
         auto function
             = dynamic_cast<Function *>(instruction->getParent()->getParent());
         auto target = ChunkFind().findInnermostAt(function, info->targetBase);
