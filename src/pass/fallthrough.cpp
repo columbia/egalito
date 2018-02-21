@@ -12,6 +12,7 @@
 #include "chunk/dump.h"
 
 void FallThroughFunctionPass::visit(Function *function) {
+    //TemporaryLogLevel tll("pass", 10);
     auto block = function->getChildren()->getIterable()->getLast();
 
     bool falling = true;
@@ -109,11 +110,18 @@ void FallThroughFunctionPass::visit(Function *function) {
             return ;
         }
 
-        LOG(10, "fallThrough Function " << function->getName());
         auto instr = block->getChildren()->getIterable()->getLast();
         auto targetAddress = instr->getAddress() + instr->getSize();
         auto list = dynamic_cast<FunctionList *>(function->getParent());
         auto target = CIter::spatial(list)->find(targetAddress);
+#if defined(ARCH_AARCH64)
+        if(!target) {
+            // a gap is usually filled with zero, which is an invalid
+            // instruction
+            return ;
+        }
+#endif
+        LOG(10, "fallThrough Function " << function->getName());
         if(!target) {   // only CISC
             targetAddress = (targetAddress + 15) & ~0xf;
             target = CIter::spatial(list)->find(targetAddress);
@@ -138,7 +146,6 @@ void FallThroughFunctionPass::visit(Function *function) {
             auto semantic = new ControlFlowInstruction(
                 X86_INS_JMP, branch, "\xe9", "jmp", 4);
 #elif defined(ARCH_AARCH64)
-            //will look like from targetAddress to targetAddress temporarily
             auto bin = AARCH64InstructionBinary(0x14000000);
             auto semantic = new ControlFlowInstruction(branch);
             semantic->setAssembly(DisassembleInstruction(handle)

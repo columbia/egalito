@@ -241,9 +241,10 @@ bool LinkedInstruction::check() {
 
     uint32_t rebuilt = rebuild();
     if(original != rebuilt) {
-        LOG(10, "original: " << std::hex << original);
         TemporaryLogLevel tll("instr", 11);
+        LOG(10, "original: " << std::hex << original);
         rebuilt = rebuild();
+        std::cout.flush();
         assert(original == rebuilt);
     }
     return true;
