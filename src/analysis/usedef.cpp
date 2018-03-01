@@ -146,6 +146,7 @@ void UseList::dump() const {
 
 void MemOriginList::set(TreeNode *place, UDState *origin) {
     bool found = false;
+    if(!place) return;
     MemLocation m1(place);
     for(auto it = list.rbegin(); it != list.rend(); ++it) {
         MemLocation m2(it->place);
@@ -167,6 +168,7 @@ void MemOriginList::set(TreeNode *place, UDState *origin) {
 
 void MemOriginList::add(TreeNode *place, UDState *origin) {
     bool duplicate = false;
+    if(!place) return;
     MemLocation m1(place);
     for(const auto& mem : list) {
         if(mem.origin == origin) {
@@ -189,6 +191,7 @@ void MemOriginList::addList(const MemOriginList& other) {
 }
 
 void MemOriginList::del(TreeNode *tree) {
+    if(!tree) return;
     MemLocation m1(tree);
     for(auto it = list.rbegin(); it != list.rend(); ++it) {
         MemLocation m2(it->place);
@@ -279,6 +282,7 @@ void UDWorkingSet::transitionTo(ControlFlowNode *node) {
 void UDWorkingSet::copyFromMemSetFor(
     UDState *state, int reg, TreeNode *place) {
 
+    if(!place) return;
     MemLocation loc1(place);
     for(auto &m : *memSet) {
         MemLocation loc2(m.place);
