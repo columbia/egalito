@@ -675,6 +675,10 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     std::tie(reg1, width1) = getPhysicalRegister(
         assembly->getAsmOperands()->getOperands()[1].reg);
 
+    if(mem.segment != INVALID_REGISTER) {
+        defReg(state, reg1, nullptr);
+        return;
+    }
     TreeNode *tree = nullptr;
     auto memTree = makeMemTree(state, mem);
     auto id = assembly->getId();
