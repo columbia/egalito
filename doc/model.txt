@@ -1,6 +1,0 @@
-Every generation is independent of its source code (the source may be erased).
-
-Steps:
-1. rewrite code, increasing size as much as necessary.
-2. assign addresses (from the sandbox), resolving all function locations.
-3. write out code into slots, only one pass needed to generate everything.

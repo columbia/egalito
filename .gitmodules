@@ -7,3 +7,6 @@
 [submodule "dep/distorm3"]
 	path = dep/distorm3
 	url = https://github.com/gdabah/distorm
+[submodule "docs"]
+	path = docs
+	url = git@github.com:columbia/egalito-docs.git
