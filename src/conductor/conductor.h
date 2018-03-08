@@ -1,6 +1,7 @@
 #ifndef EGALITO_CONDUCTOR_CONDUCTOR_H
 #define EGALITO_CONDUCTOR_CONDUCTOR_H
 
+#include <string>
 #include "types.h"
 #include "chunk/program.h"
 #include "chunk/module.h"
@@ -22,9 +23,10 @@ public:
     Conductor();
     ~Conductor();
 
-    Module *parseExecutable(ElfMap *elf);
-    Module *parseEgalito(ElfMap *elf);
-    void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module);
+    Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
+    Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
+    void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
+        const std::string &fullPath = "");
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     void parseEgalitoArchive(const char *archive);

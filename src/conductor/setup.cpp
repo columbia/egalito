@@ -41,13 +41,12 @@ void ConductorSetup::parseEgalito(bool fromArchive) {
         auto library = conductor->getProgram()->getLibraryList()
             ->byRole(Library::ROLE_EGALITO);
         egalitoModule = library->getModule();
-        conductor->parseEgalitoElfSpaceOnly(egalito, egalitoModule);
+        conductor->parseEgalitoElfSpaceOnly(egalito, egalitoModule, path);
     }
     else {
-        egalitoModule = conductor->parseEgalito(egalito);
+        egalitoModule = conductor->parseEgalito(egalito, path);
     }
 
-    egalitoModule->getLibrary()->setResolvedPath(path);
     LoaderEmulator::getInstance().setup(conductor);
 }
 
@@ -58,8 +57,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     ::egalito_conductor = conductor;
 
     this->elf = new ElfMap(executable);
-    auto mainModule = conductor->parseExecutable(elf);
-    mainModule->getLibrary()->setResolvedPath(executable);
+    auto mainModule = conductor->parseExecutable(elf, executable);
 
     findEntryPointFunction();
 

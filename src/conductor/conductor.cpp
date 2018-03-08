@@ -38,18 +38,23 @@ Conductor::~Conductor() {
     delete program;
 }
 
-Module *Conductor::parseExecutable(ElfMap *elf) {
+Module *Conductor::parseExecutable(ElfMap *elf, const std::string &fullPath) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
+    library->setResolvedPath(fullPath);
     return parse(elf, library);
 }
 
-Module *Conductor::parseEgalito(ElfMap *elf) {
+Module *Conductor::parseEgalito(ElfMap *elf, const std::string &fullPath) {
     auto library = new Library("(egalito)", Library::ROLE_EGALITO);
+    library->setResolvedPath(fullPath);
     return parse(elf, library);
 }
 
-void Conductor::parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module) {
+void Conductor::parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
+    const std::string &fullPath) {
+
     auto library = module->getLibrary();
+    library->setResolvedPath(fullPath);
 
     ElfSpace *space = new ElfSpace(elf, library->getName(),
         library->getResolvedPath());
