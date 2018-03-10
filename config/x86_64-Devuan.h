@@ -1,5 +1,5 @@
-#ifndef EGALITO_CONFIG_X86_64_DEBIAN_H
-#define EGALITO_CONFIG_X86_64_DEBIAN_H
+#ifndef EGALITO_CONFIG_X86_64_DEVUAN_H
+#define EGALITO_CONFIG_X86_64_DEVUAN_H
 
 /* For Debian testing (buster) on X86_64 */
 
