@@ -1,5 +1,8 @@
 # Setup for egalito compilation environment
 
+# Compute the root directory of the repo, containing env.mk.
+EGALITO_ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+
 CC      = $(EGALITO_CCACHE) $(CROSS)gcc
 CXX     = $(EGALITO_CCACHE) $(CROSS)g++
 
@@ -28,7 +31,7 @@ else
 endif
 endif
 
-CAPSTONE_DIR = ../dep/capstone/install
+CAPSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/capstone/install
 GENERIC_FLAGS += -I $(CAPSTONE_DIR)/include
 
 OPT_FLAGS       = -g3 -O2
