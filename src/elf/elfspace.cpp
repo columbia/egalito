@@ -1,6 +1,7 @@
 #include <stdlib.h>  // for realpath() [ARM]
 #include <libgen.h>  // for dirname() [ARM]
 #include <limits.h>  // for PATH_MAX [ARM]
+#include <unistd.h>  // for access()
 #include <iomanip>
 #include <sstream>
 #include <elf.h>
@@ -59,7 +60,6 @@ void ElfSpace::findSymbolsAndRelocs() {
 }
 
 std::string ElfSpace::getAlternativeSymbolFile() const {
-#ifdef USR_LIB_DEBUG_BY_HASH
     auto buildIdSection = elf->findSection(".note.gnu.build-id");
     if(buildIdSection) {
         auto buildIdHeader = buildIdSection->getHeader();
@@ -80,14 +80,14 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
                 }
                 symbolFile << ".debug";
 
-                return symbolFile.str();
+                if(access(symbolFile.str().c_str(), F_OK) == 0) return symbolFile.str();
             }
 
             size_t align = ~((1 << buildIdHeader->sh_addralign) - 1);
             note += ((sizeof(*note) + note->n_namesz + note->n_descsz) + (align-1)) & align;
         }
     }
-#elif defined(USR_LIB_DEBUG_BY_NAME)
+
     std::ostringstream symbolFile;
     symbolFile << "/usr/lib/debug";
     char realPath[PATH_MAX];
@@ -100,10 +100,9 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
         else {
             symbolFile << realPath << ".debug";
         }
+        if(access(symbolFile.str().c_str(), F_OK) == 0) return symbolFile.str();
         return symbolFile.str();
     }
-#else
-    #error "Please define one of USR_LIB_DEBUG_BY_{NAME,HASH} in config/*.h"
-#endif
+
     return "";
 }
