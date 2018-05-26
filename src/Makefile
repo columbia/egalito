@@ -119,7 +119,7 @@ $(BUILDDIR)elf/sharedlib.o: elf/sharedlib.cpp
 
 # Programs and libraries
 $(LOADER): $(LOADER_OBJECTS)
-	$(SHORT_LINK) -static -o $@ -pg \
+	$(SHORT_LINK) -static -o $@ \
 		-nostartfiles $(STARTFILES) $^ $(CLDFLAGS) $(ENDFILES) -Wl,--eh-frame-hdr \
 		-Wl,-Ttext-segment=0x60000000 $(DISTORM_A) -lpthread
 $(LIBRARY): $(TYPICAL_OBJECTS)

@@ -89,6 +89,7 @@ CRTBEGIN = $(shell $(CC) --print-file-name=crtbegin.o)
 CRTEND = $(shell $(CC) --print-file-name=crtend.o)
 CRTN = $(shell $(CC) --print-file-name=crtn.o)
 
+# We do not include crt1.o in STARTFILES because we specify our own _start.
 STARTFILES = $(CRTI) $(CRTBEGIN)
 ENDFILES = $(CRTEND) $(CRTN)
 

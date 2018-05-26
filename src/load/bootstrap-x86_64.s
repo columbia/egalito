@@ -80,5 +80,16 @@ _get_gs:
     retq
 */
 
+/*
+    Needed since glibc 2.27. See bug at
+    https://sourceware.org/bugzilla/show_bug.cgi?id=19574.
+
+    This is part of the ASLR system for static PIE, which we need to bypass in
+    our loader.
+*/
+.global _dl_relocate_static_pie
+_dl_relocate_static_pie:
+    retq
+
 .section    .note.GNU-stack, "", @progbits
 
