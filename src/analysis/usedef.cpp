@@ -1565,7 +1565,9 @@ void UseDef::fillXor(UDState *state, AssemblyPtr assembly) {
         if(op0 == op1) {
             int reg0;
             std::tie(reg0, std::ignore) = getPhysicalRegister(op0);
-            defReg(state, reg0, nullptr);
+
+            defReg(state, reg0,
+                TreeFactory::instance().make<TreeNodeConstant>(0));
         }
     }
     LOG(10, "NYI (fully): " << assembly->getMnemonic());
