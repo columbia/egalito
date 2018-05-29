@@ -351,6 +351,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_TEST,      &UseDef::fillTest},
     {X86_INS_PUSH,      &UseDef::fillPush},
     {X86_INS_SUB,       &UseDef::fillAddOrSub},
+    {X86_INS_SYSCALL,   &UseDef::fillSyscall},
     {X86_INS_XOR,       &UseDef::fillXor},
 #elif defined(ARCH_AARCH64)
     {ARM64_INS_ADD,     &UseDef::fillAddOrSub},
@@ -1541,6 +1542,23 @@ void UseDef::fillMovsxd(UDState *state, AssemblyPtr assembly) {
 }
 void UseDef::fillMovzx(UDState *state, AssemblyPtr assembly) {
     fillMov(state, assembly);
+}
+void UseDef::fillSyscall(UDState *state, AssemblyPtr assembly) {
+    // On Linux, the syscall calling convention allows rax, rcx, and r11 to be
+    // clobbered to unknown values, but no others.
+    defReg(state, X86Register::convertToPhysical(X86_REG_RAX), nullptr);
+    defReg(state, X86Register::convertToPhysical(X86_REG_RCX), nullptr);
+    defReg(state, X86Register::convertToPhysical(X86_REG_R11), nullptr);
+
+    // On Linux, syscall uses rax as the syscall number, and then rdi, rsi,
+    // rdx, r10, r8, r9 as the arguments.
+    useReg(state, X86Register::convertToPhysical(X86_REG_RAX));
+    useReg(state, X86Register::convertToPhysical(X86_REG_RDI));
+    useReg(state, X86Register::convertToPhysical(X86_REG_RSI));
+    useReg(state, X86Register::convertToPhysical(X86_REG_RDX));
+    useReg(state, X86Register::convertToPhysical(X86_REG_R10));
+    useReg(state, X86Register::convertToPhysical(X86_REG_R8));
+    useReg(state, X86Register::convertToPhysical(X86_REG_R9));
 }
 void UseDef::fillTest(UDState *state, AssemblyPtr assembly) {
     defReg(state, X86Register::FLAGS, nullptr);
