@@ -6,6 +6,7 @@
 /egalito
 /libegalito.a
 /libegalito.so
+/libaddon.so
 /example
 /ex
 /regression/elfgen_test
@@ -13,3 +14,4 @@
 /build_x86_64
 /build_aarch64
 /symbols.elf
+/core
