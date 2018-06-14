@@ -163,7 +163,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
 
     if(auto s = findSizeZero(list, "_start")) {
 #ifdef ARCH_X86_64
-        s->setSize(42);  // no really! :)
+        // s->setSize(42);  // no really! :)
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         // this is harmful since there are two _start()
         //s->setSize(56);  // this does not include embedded following literals
