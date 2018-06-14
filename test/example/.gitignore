@@ -4,3 +4,5 @@
 
 *.c
 *.o
+
+/hellocpp
