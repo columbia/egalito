@@ -52,6 +52,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(FallThroughFunctionPass(), module);
 
     DataRegionList::buildDataRegionList(elf, module);
+    module->getChildren()->add(module->getDataRegionList());
 
     PLTList::parsePLTList(elf, relocList, module);
 
