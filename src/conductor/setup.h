@@ -33,6 +33,8 @@ public:
         bool injectEgalito = false);
     void parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);
+    std::vector<Module *> addExtraLibraries(
+        std::vector<const char *> filenames);
     Sandbox *makeLoaderSandbox();
     ShufflingSandbox *makeShufflingSandbox();
     Sandbox *makeFileSandbox(const char *outputFile);

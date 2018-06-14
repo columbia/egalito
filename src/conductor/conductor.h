@@ -2,6 +2,7 @@
 #define EGALITO_CONDUCTOR_CONDUCTOR_H
 
 #include <string>
+#include <set>
 #include "types.h"
 #include "chunk/program.h"
 #include "chunk/module.h"
@@ -19,6 +20,8 @@ private:
     address_t mainThreadPointer;
     size_t TLSOffsetFromTCB;
     IFuncList *ifuncList;
+
+    std::set<Module *> resolveFinished;
 public:
     Conductor();
     ~Conductor();
@@ -29,6 +32,7 @@ public:
         const std::string &fullPath = "");
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
+    Module *parseExtraLibrary(ElfMap *elf, const std::string &name = "");
     void parseEgalitoArchive(const char *archive);
 
     void resolvePLTLinks();

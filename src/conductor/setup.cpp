@@ -150,6 +150,39 @@ void ConductorSetup::injectLibrary(const char *filename) {
     conductor->resolvePLTLinks();
 }
 
+std::vector<Module *> ConductorSetup::addExtraLibraries(
+    std::vector<const char *> filenames) {
+
+    unsigned long maxAddress = 0;
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        maxAddress = std::max(maxAddress, module->getBaseAddress());
+    }
+
+    std::vector<Module *> modules;
+
+    for(auto filename : filenames) {
+        if(auto elfmap = new ElfMap(filename)) {
+            auto module = conductor->parseExtraLibrary(elfmap, filename);
+            maxAddress += 0x100000000;
+            setBaseAddress(module, elfmap, maxAddress);
+
+            for(auto region : CIter::regions(module)) {
+                region->updateAddressFor(elfmap->getBaseAddress());
+            }
+
+            modules.push_back(module);
+        }
+        else modules.push_back(nullptr);
+    }
+
+    conductor->resolvePLTLinks();
+    conductor->resolveData();
+    conductor->resolveTLSLinks();
+    conductor->resolveVTables();
+
+    return modules;
+}
+
 Sandbox *ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(sandboxBase, 10 * 0x1000 * 0x1000);
     sandboxBase += 10 * 0x1000 * 0x1000;
