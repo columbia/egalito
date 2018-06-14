@@ -24,6 +24,7 @@ public:
         ROLE_LIBC,
         ROLE_LIBCPP,
         ROLE_NORMAL,        // any other library -- may be multiple
+        ROLE_EXTRA,         // extra libraries, not directly referenced
         ROLE_SUPPORT,       // any tool support lib -- may be multiple
         ROLES
     };

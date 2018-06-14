@@ -95,6 +95,12 @@ Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
     return module;
 }
 
+Module *Conductor::parseExtraLibrary(ElfMap *elf, const std::string &name) {
+    auto library = new Library("(extra)-" + name, Library::ROLE_EXTRA);
+    auto module = parse(elf, library);
+    return module;
+}
+
 Module *Conductor::parse(ElfMap *elf, Library *library) {
     program->add(library);  // add current lib before its dependencies
 
@@ -165,6 +171,8 @@ void Conductor::resolveData(bool justBridge) {
     for(auto module : CIter::modules(program)) {
         auto space = module->getElfSpace();
 
+        if(resolveFinished.count(module)) continue;
+
         LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
         RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList()), module);
 
@@ -190,6 +198,9 @@ void Conductor::resolveData(bool justBridge) {
 void Conductor::resolveVTables() {
     for(auto module : CIter::modules(program)) {
         if(!module->getElfSpace()) continue;
+
+        if(resolveFinished.count(module)) continue;
+        resolveFinished.insert(module);
 
         // this needs data regions
         module->setVTableList(DisassembleVTables().makeVTableList(
