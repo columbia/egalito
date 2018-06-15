@@ -1486,6 +1486,17 @@ void UseDef::fillJmp(UDState *state, AssemblyPtr assembly) {
             useReg(state, reg);
         }
     }
+    else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic)) {
+        // external jumps should preserve ABI registers.
+        if(cfi->getLink()->isExternalJump()) {
+            for(int i = 0; i < 3; i++) {
+                useReg(state, i);
+            }
+            for(int i = 6; i < 12; i++) {
+                useReg(state, i);
+            }
+        }
+    }
 #if 0
     // %gs: direct jump becomes IsolatedInstruction
     else if(!dynamic_cast<ControlFlowInstruction *>(semantic)) {
