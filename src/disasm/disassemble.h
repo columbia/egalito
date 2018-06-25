@@ -32,6 +32,8 @@ public:
         address_t address = 0);
     static Instruction *instruction(cs_insn *ins, DisasmHandle &handle,
         bool details = true);
+    static Instruction *strInstruction(const std::string &str,
+        bool details = true, address_t address = 0);
 
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);

@@ -1,3 +1,4 @@
+#include <sstream>
 #include "stackxor.h"
 #include "disasm/disassemble.h"
 #include "operation/mutator.h"
@@ -19,6 +20,7 @@ void StackXOR::visit(Block *block) {
 
 void StackXOR::visit(Instruction *instruction) {
     auto parent = dynamic_cast<Block *>(instruction->getParent());
+
     auto s = instruction->getSemantic();
     if(dynamic_cast<ReturnInstruction *>(s)) {
         addInstructions(parent, instruction);
@@ -39,12 +41,30 @@ void StackXOR::addInstructions(Block *block, Instruction *instruction) {
            7:   00 00
            9:   4c 31 1c 24             xor    %r11,(%rsp)
     */
+
+    /*
+      Intel syntax
+      MOV r11, qword [fs:0x28];
+      XOR rsp, r11
+
+    */
     ChunkMutator mutator(block);
+
+    std::stringstream ss;
+    ss << "MOV r11, fs:[0x" << std::hex << xorOffset << "];";
+    mutator.insertBefore(instruction, Disassemble::strInstruction(ss.str()));
+
+    mutator.insertBefore(instruction, Disassemble::strInstruction("XOR [rsp], r11"));
+    /*
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x64, 0x4c, 0x8b, 0x1c, 0x25,
             (unsigned char)xorOffset, 0x00, 0x00, 0x00}));
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x4c, 0x31, 0x1c, 0x24}));
+
+    */
+
+
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     /*
            0:   92800010        mov     x16, #0xffffffffffffffff        // #-1
