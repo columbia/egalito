@@ -38,7 +38,7 @@ OPT_FLAGS       = -g3 -O2
 DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++14 $(GENERIC_FLAGS) $(OPT_FLAGS)
-CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR)/lib -lcapstone -Wl,-rpath,$(abspath $(CAPSTONE_DIR)/lib)
+CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR)/lib -lcapstone -lkeystone -Wl,-rpath,$(abspath $(CAPSTONE_DIR)/lib)
 
 ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
 	CFLAGS += -no-pie -pg

@@ -6,6 +6,7 @@
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
+#include <keystone/keystone.h>
 #include "disassemble.h"
 #include "dump.h"
 #include "makesemantic.h"
@@ -58,6 +59,8 @@ Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
 
     return DisassembleInstruction(handle, details).instruction(ins);
 }
+
+
 Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     address_t address) {
 
