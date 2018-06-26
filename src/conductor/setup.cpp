@@ -101,7 +101,8 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
             || library->getRole() == Library::ROLE_LIBCPP) {
 
             auto elfMap = new ElfMap(library->getResolvedPathCStr());
-            conductor->parseEgalitoElfSpaceOnly(elfMap, module);
+            conductor->parseEgalitoElfSpaceOnly(elfMap, module,
+                library->getResolvedPathCStr());
         }
     }
 

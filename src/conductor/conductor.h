@@ -26,7 +26,7 @@ public:
     Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
     Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
     void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
-        const std::string &fullPath = "");
+        const std::string &fullPath);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     void parseEgalitoArchive(const char *archive);
