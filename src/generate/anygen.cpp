@@ -290,16 +290,18 @@ void AnyGen::makeText() {
         }
         auto textSection = new Section(name.c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
-#if 0
+#if 1
         auto textValue = new DeferredString(
             reinterpret_cast<const char *>(address), size);
 #else
+        // Don't modify backing after this point to avoid invalidating c_str
+        auto copy = new std::string(backing->getBuffer());
         auto textValue = new DeferredString(
-            reinterpret_cast<const char *>(backing->getBuffer().c_str()),
+            reinterpret_cast<const char *>(copy->c_str()),
             size);
 #endif
-        //textSection->getHeader()->setAddress(address);
-        textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
+        textSection->getHeader()->setAddress(address);
+        //textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
         textSection->setContent(textValue);
         sectionList.addSection(textSection);
 
