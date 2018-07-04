@@ -61,39 +61,6 @@ Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
 }
 
 
-Instruction *Disassemble::strInstruction(const std::string &str, bool details,
-   address_t address) {
-
-      ks_engine *ks;
-      auto err = ks_open(KS_ARCH_X86, KS_MODE_64, &ks);
-      if (err != KS_ERR_OK) {
-          LOG(0, "Cannot load keystone library!");
-          return nullptr;
-      }
-
-      const char *code = str.data();
-      unsigned char *encode;
-      size_t size, count;
-
-      if (ks_asm(ks, code, 0, &encode, &size, &count) != KS_ERR_OK) {
-          LOG(0, "ERROR: ks_asm() failed" << ks_errno(ks));
-      } else {
-          for (size_t i = 0; i < size; i++) {
-              LOG(10, encode[i]);
-          }
-          LOG(0, "Compiled: " << size << "bytes, statements: " << count);
-      }
-
-      std::vector<unsigned char> bytes(encode, encode + size);
-
-      ks_free(encode);
-
-      ks_close(ks);
-
-      return Disassemble::instruction(bytes, details, address);
-}
-
-
 Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     address_t address) {
 
