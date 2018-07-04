@@ -10,7 +10,7 @@ void StackXOR::visit(Function *function) {
     if(block1->getChildren()->getIterable()->getCount() > 0) {
         first = block1->getChildren()->getIterable()->get(0);
     }
-    addInstructions(block1, first);
+    addInstructions(block1, first, false);
     recurse(function);
 }
 
@@ -23,17 +23,17 @@ void StackXOR::visit(Instruction *instruction) {
 
     auto s = instruction->getSemantic();
     if(dynamic_cast<ReturnInstruction *>(s)) {
-        addInstructions(parent, instruction);
+        addInstructions(parent, instruction, true);
     }
     else if(auto v = dynamic_cast<ControlFlowInstruction *>(s)) {
         // not a call, but still external; must be tail recursion
         if(v->getMnemonic() != "callq" && s->getLink()->isExternalJump()) {
-            addInstructions(parent, instruction);
+            addInstructions(parent, instruction, true);
         }
     }
 }
 
-void StackXOR::addInstructions(Block *block, Instruction *instruction) {
+void StackXOR::addInstructions(Block *block, Instruction *instruction, bool beforeJumpTo) {
 #ifdef ARCH_X86_64
     /*
         0000000000000000 <xor_ret_addr>:
@@ -51,10 +51,10 @@ void StackXOR::addInstructions(Block *block, Instruction *instruction) {
     ChunkMutator mutator(block);
 
     std::stringstream ss;
-    ss << "MOV r11, fs:[0x" << std::hex << xorOffset << "];";
-    mutator.insertBefore(instruction, Disassemble::strInstruction(ss.str()));
+    ss << "mov %fs:0x" << std::hex << xorOffset << ",%r11\nxor %r11,(%rsp)";
 
-    mutator.insertBefore(instruction, Disassemble::strInstruction("XOR [rsp], r11"));
+    mutator.insertBefore(instruction, Reassemble::instructions(ss.str()), beforeJumpTo);
+
     /*
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x64, 0x4c, 0x8b, 0x1c, 0x25,
