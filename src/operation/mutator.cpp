@@ -174,12 +174,15 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     }
 }
 
-void ChunkMutator::insertBefore(Instruction* insertPoint, std::vector<Instruction*> toBeInserted, bool beforeJumpTo) {
-    if (beforeJumpTo) {
+void ChunkMutator::insertBefore(Instruction *insertPoint,
+    const std::vector<Instruction *> &toBeInserted, bool beforeJumpTo) {
+    
+    if(beforeJumpTo) {
         for(auto it = toBeInserted.rbegin(); it != toBeInserted.rend(); it++) {
             insertBeforeJumpTo(insertPoint, *it);
         }
-    } else {
+    }
+    else {
         for(auto it = toBeInserted.begin(); it != toBeInserted.end(); it++) {
             insertBefore(insertPoint, *it);
         }

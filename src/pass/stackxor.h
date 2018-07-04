@@ -13,7 +13,8 @@ public:
     virtual void visit(Block *block);
     virtual void visit(Instruction *instruction);
 private:
-    void addInstructions(Block *block, Instruction *instruction, bool beforeJumpTo);
+    void addInstructions(Block *block, Instruction *instruction,
+        bool beforeJumpTo);
 };
 
 #endif
