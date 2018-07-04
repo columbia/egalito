@@ -33,7 +33,8 @@ void StackXOR::visit(Instruction *instruction) {
     }
 }
 
-void StackXOR::addInstructions(Block *block, Instruction *instruction, bool beforeJumpTo) {
+void StackXOR::addInstructions(Block *block, Instruction *instruction,
+    bool beforeJumpTo) {
 #ifdef ARCH_X86_64
     /*
         0000000000000000 <xor_ret_addr>:
@@ -42,12 +43,6 @@ void StackXOR::addInstructions(Block *block, Instruction *instruction, bool befo
            9:   4c 31 1c 24             xor    %r11,(%rsp)
     */
 
-    /*
-      Intel syntax
-      MOV r11, qword [fs:0x28];
-      XOR rsp, r11
-
-    */
     ChunkMutator mutator(block);
 
     std::stringstream ss;
