@@ -335,8 +335,24 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-    disassembleBlocks(
-        function, readAddress, readSize, virtualAddress);
+    if(!std::strcmp(function->getSymbol()->getName(), "ffi_call_unix64")) {
+        disassembleCustomBlocks(function, readAddress, virtualAddress,
+            std::vector<std::pair<address_t, size_t>>{
+                {0x0, 0x71},
+                {0xad, readSize - 0xad}
+            });
+    }
+    else if(!std::strcmp(function->getSymbol()->getName(), "ffi_closure_unix64")) {
+        disassembleCustomBlocks(function, readAddress, virtualAddress,
+            std::vector<std::pair<address_t, size_t>>{
+                {0x0, 0x62},
+                {0x9e, readSize - 0x9e}
+            });
+    }
+    else {
+        disassembleBlocks(
+            function, readAddress, readSize, virtualAddress);
+    }
 
     {
         ChunkMutator m(function);  // recalculate cached values if necessary
@@ -1083,6 +1099,144 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
 #endif
 
     cs_free(insn, count);
+}
+
+void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
+    address_t readAddress, address_t virtualAddress,
+    const std::vector<std::pair<address_t, size_t>> &blockBoundaries) {
+
+    LOG(1, "disassembling function using custom block layout");
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+
+    for(auto boundary : blockBoundaries) {
+        if(boundary.second == 0) continue;
+
+        // insert padding to function representation to make addresses line up
+        if(boundary.first > function->getSize()) {
+            size_t gap = boundary.first - function->getSize();
+            LOG(10, "creating gap block of size 0x" << std::hex << gap);
+
+            Block *gapBlock = makeBlock(function, nullptr);
+
+#ifdef ARCH_X86_64
+            for(size_t i = 0; i < gap; i ++) {
+                // HLT instruction byte
+                auto instr = Disassemble::instruction({0xf4},
+                    false, function->getAddress() + function->getSize() + i);
+                ChunkMutator(gapBlock, false).append(instr);
+            }
+#elif defined(ARCH_AARCH64)
+            if((gap % 4) != 0) {
+                LOG(1, "gap block size not multiple of 4!");
+            }
+            for(size_t i = 0; i < gap; i += 4) {
+                // instruction bytes for nop:
+                // 1F 20 03 D5
+                auto instr = Disassemble::instruction({0x1f, 0x20, 0x03, 0xd5},
+                    false, function->getAddress() + function->getSize() + i);
+                ChunkMutator(gapBlock, false).append(instr);
+            }
+#else
+    #error "Need to implement padding scheme for current architecture!"
+#endif
+            ChunkMutator(function, false).append(gapBlock);
+        }
+
+        cs_insn *insn;
+        LOG(19, "disassemble 0x" << std::hex << (readAddress+boundary.first)
+            << " size " << boundary.second << ", virtual address "
+            << (virtualAddress+boundary.first));
+        size_t count = cs_disasm(handle.raw(),
+            (const uint8_t *)readAddress + boundary.first, boundary.second,
+            virtualAddress + boundary.first, 0, &insn);
+
+        if(count == 0) {
+            LOG(1, "Disassembly error encountered in function ["
+                << function->getName()
+                << "] in custom block starting at offset 0x"
+                << std::hex << boundary.first);
+            continue;
+        }
+
+        Block *block = makeBlock(function, nullptr);
+
+        // re-set starting position because we may have skipped bytes
+        #if 0
+        delete block->getPosition();
+        block->setPosition(new AbsoluteOffsetPosition(block, boundary.first));
+        /*block->setPosition(
+            positionFactory->makePosition(block->getPreviousSibling(), block,
+                                          boundary.first));*/
+        #endif
+
+        #if 0
+        size_t boundaryOffset = 0;
+        #endif
+        for(size_t j = 0; j < count; j++) {
+            auto ins = &insn[j];
+
+            // check if this instruction ends the current basic block
+            bool split = shouldSplitBlockAt(ins);
+
+            // Create Instruction from cs_insn
+            auto instr = Disassemble::instruction(ins, handle, true);
+
+            Chunk *prevChunk = nullptr;
+            if(block->getChildren()->getIterable()->getCount() > 0) {
+                prevChunk = block->getChildren()->getIterable()->getLast();
+            }
+            else if(function->getChildren()->getIterable()->getCount() > 0) {
+                prevChunk = function->getChildren()->getIterable()->getLast();
+            }
+            else {
+                prevChunk = nullptr;
+            }
+            instr->setPosition(
+                positionFactory->makePosition(prevChunk, instr, block->getSize()));
+            #if 0
+            boundaryOffset += instr->getSize();
+            #endif
+
+            ChunkMutator(block, false).append(instr);
+            if(split) {
+                LOG(11, "split-instr in block: " << j+1);
+                ChunkMutator(function, false).append(block);
+
+                block = makeBlock(function, block);
+                #if 0
+                block->setPosition(
+                    new AbsoluteOffsetPosition(block, boundary.first + boundaryOffset));
+                #endif
+            }
+        }
+
+        if(block->getSize() > 0) {
+            CLOG0(10, "fall-through function [%s]... "
+                "adding basic block\n", function->getName().c_str());
+            ChunkMutator(function, false).append(block);
+        }
+        if(block->getSize() == 0) {
+            delete block;
+        }
+
+        cs_free(insn, count);
+    }
+
+    LOG(1, "before recalculation:");
+    for(auto block : CIter::children(function)) {
+        LOG(1, "    block address: " << std::hex << block->getAddress());
+    }
+
+    // force block recalculation
+    {
+        ChunkMutator(function, true);
+    }
+
+    LOG(1, "after recalculation:");
+    for(auto block : CIter::children(function)) {
+        LOG(1, "    block address: " << std::hex << block->getAddress());
+    }
 }
 
 Block *DisassembleFunctionBase::makeBlock(Function *function, Block *prev) {
