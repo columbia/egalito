@@ -327,7 +327,7 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                     module->getFunctionList(), target)) {
 
                     LOG(1, "is this a hand-crafted jump table? " << target);
-                    return nullptr;
+                    //return nullptr;
                 }
                 else {
 #ifdef ARCH_AARCH64

@@ -58,6 +58,9 @@ protected:
     Block *makeBlock(Function *function, Block *prev);
     void disassembleBlocks(Function *function, address_t readAddress,
         size_t readSize, address_t virtualAddress);
+    void disassembleCustomBlocks(Function *function, address_t readAddress,
+        address_t virtualAddress,
+        const std::vector<std::pair<address_t, size_t>> &blockBoundaries);
 
     bool shouldSplitBlockAt(cs_insn *ins);
     bool shouldSplitFunctionDueTo(cs_insn *ins, address_t *target);
