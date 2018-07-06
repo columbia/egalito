@@ -19,6 +19,7 @@
 #include "instr/writer.h"  // for debugging
 #include "log/log.h"
 #include "log/temp.h"
+#include "conductor/parseoverride.h"
 
 #include "chunk/dump.h"
 
@@ -335,19 +336,28 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
 
-    if(!std::strcmp(function->getSymbol()->getName(), "ffi_call_unix64")) {
-        disassembleCustomBlocks(function, readAddress, virtualAddress,
-            std::vector<std::pair<address_t, size_t>>{
-                {0x0, 0x71},
-                {0xad, readSize - 0xad}
-            });
+    auto context = ParseOverride::getInstance()->makeContext(
+        function->getSymbol()->getName());
+
+    LOG(1, "context dump:");
+    if(auto str = std::get<0>(context)) {
+        LOG(1, "    module:   " << str.value());
     }
-    else if(!std::strcmp(function->getSymbol()->getName(), "ffi_closure_unix64")) {
+    if(auto str = std::get<1>(context)) {
+        LOG(1, "    function: " << str.value());
+    }
+    if(auto addr = std::get<2>(context)) {
+        LOG(1, "    address:  " << addr.value());
+    }
+
+    if(auto over = ParseOverride::getInstance()->getBlockBoundaryOverride(
+        context)) {
+
+        LOG(1, "%%%% Using parsing override!");
+
         disassembleCustomBlocks(function, readAddress, virtualAddress,
-            std::vector<std::pair<address_t, size_t>>{
-                {0x0, 0x62},
-                {0x9e, readSize - 0x9e}
-            });
+            over->getOverrideList());
+
     }
     else {
         disassembleBlocks(

@@ -1,6 +1,7 @@
 #include <cassert>
 #include "config.h"
 #include "conductor.h"
+#include "parseoverride.h"
 #include "passes.h"
 #include "chunk/ifunc.h"
 #include "chunk/tls.h"
@@ -24,6 +25,9 @@
 #include "pass/encodingcheckpass.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
+
+#include "parseoverride.h"
+
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -32,6 +36,8 @@ IFuncList *egalito_ifuncList __attribute__((weak));
 Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
     program = new Program();
     program->setLibraryList(new LibraryList());
+
+    ParseOverride::getInstance()->parse("ffi.override");
 }
 
 Conductor::~Conductor() {
@@ -101,6 +107,8 @@ Module *Conductor::parse(ElfMap *elf, Library *library) {
     ElfSpace *space = new ElfSpace(elf, library->getName(),
         library->getResolvedPath());
 
+    ParseOverride::getInstance()->setCurrentModule("module-" + library->getName());
+
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
         << space->getName() << "] ===");
     space->findSymbolsAndRelocs();
@@ -113,6 +121,9 @@ Module *Conductor::parse(ElfMap *elf, Library *library) {
     auto module = space->getModule();  // created in previous line
     program->add(module);
     module->setParent(program);
+
+    ParseOverride::getInstance()->clearCurrentModule();
+
     return module;
 }
 
