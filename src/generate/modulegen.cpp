@@ -124,13 +124,17 @@ void ModuleGen::makeText() {
             textValue = new DeferredString(
                 reinterpret_cast<const char *>(copy->c_str()),
                 size);
-            textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
         }
         else {
             textValue = new DeferredString(
                 reinterpret_cast<const char *>(address), size);
-            textSection->getHeader()->setAddress(address);
         } 
+        if(config.isKernel()) {
+            textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
+        }
+        else {
+            textSection->getHeader()->setAddress(address);
+        }
         textSection->setContent(textValue);
 
         sectionList->addSection(textSection);
@@ -142,6 +146,14 @@ void ModuleGen::makeText() {
         loadSegment->addContains(textSection);
         phdrTable->add(loadSegment);
     }
+}
+
+void ModuleGen::makeTextAccumulative() {
+    auto backing = config.getCodeBacking();
+    auto address = backing->getBase();
+    auto size = backing->getSize();
+    makeRelocSectionFor(".text");
+    makeSymbolsAndRelocs(address, size, ".text");
 }
 
 void ModuleGen::makeRelocSectionFor(const std::string &otherName) {

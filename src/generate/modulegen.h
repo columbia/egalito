@@ -16,6 +16,7 @@ public:
     private:
         bool isDynamicallyLinked;
         bool uniqueSectionNames;
+        bool isFreestandingKernel;
 
         /** If generating a kernel, use a memory backing to store serialized
             code, avoiding mapping into invalid addresses. If null, read
@@ -24,7 +25,7 @@ public:
         MemoryBufferBacking *backing;
     public:
         Config() : isDynamicallyLinked(false), uniqueSectionNames(false),
-            backing(nullptr) {}
+            isFreestandingKernel(false), backing(nullptr) {}
 
         void setDynamicallyLinked(bool enable) 
             { isDynamicallyLinked = enable; }
@@ -32,12 +33,13 @@ public:
             { uniqueSectionNames = enable; }
         void setCodeBacking(MemoryBufferBacking *backing)
             { this->backing = backing; }
+        void setFreestandingKernel(bool enable)
+            { this->isFreestandingKernel = enable; }
         
         bool getDynamicallyLinked() const { return isDynamicallyLinked; }
         bool getUniqueSectionNames() const { return uniqueSectionNames; }
         MemoryBufferBacking *getCodeBacking() const { return backing; }
-
-        bool isKernel() const { return backing != nullptr; }
+        bool isKernel() const { return this->isFreestandingKernel; }
     };
 private:
     Config config;
@@ -49,6 +51,7 @@ public:
     void makeDataSections();
 
     void makeText();
+    void makeTextAccumulative();
     void makeRelocSectionFor(const std::string &otherName);
     void makeSymbolsAndRelocs(address_t begin, size_t size,
         const std::string &textSection);

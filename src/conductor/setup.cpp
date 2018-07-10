@@ -189,6 +189,10 @@ Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
     return new SandboxImpl<AnyGenerateBacking, WatermarkAllocator<AnyGenerateBacking>>(backing);
 }
 
+Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
+    auto backing = StaticGenerateBacking(conductor->getProgram(), outputFile);
+    return new SandboxImpl<StaticGenerateBacking, WatermarkAllocator<StaticGenerateBacking>>(backing);
+}
 void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
     // 1. assign new addresses to all code
     moveCodeAssignAddresses(sandbox, useDisps);
