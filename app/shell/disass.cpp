@@ -166,6 +166,12 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->moveCode(sandbox, true);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
 
+    topLevel->add("generate-static", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto sandbox = setup->makeStaticExecutableSandbox(args.front().c_str());
+        setup->moveCode(sandbox, true);  // calls sandbox->finalize()
+    }, "writes out the current code to an ELF file");
+    
 #if 0
     // this is currently broken due to Marker rafactoring
     topLevel->add("bin", [&] (Arguments args) {
