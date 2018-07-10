@@ -1,4 +1,4 @@
-#include "disasm/assemblyFormatter.h"
+#include "disasm/formatter.h"
 
 size_t findHash(const string &str) {
     size_t startPos = 0;
