@@ -4,6 +4,7 @@
 #include "sandbox.h"
 #include "generate/objgen.h"
 #include "generate/anygen.h"
+#include "generate/staticgen.h"
 #include "chunk/module.h"
 #include "config.h"
 
@@ -100,6 +101,19 @@ AnyGenerateBacking::AnyGenerateBacking(Module *module, std::string filename)
 void AnyGenerateBacking::finalize() {
     MemoryBufferBacking::finalize();
     AnyGen *gen = new AnyGen(module, this);
+    gen->generate(filename);
+    delete gen;
+}
+
+StaticGenerateBacking::StaticGenerateBacking(Program *program, std::string filename)
+    : MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
+    program(program), filename(filename) {
+
+}
+
+void StaticGenerateBacking::finalize() {
+    MemoryBufferBacking::finalize();
+    StaticGen *gen = new StaticGen(program, this);
     gen->generate(filename);
     delete gen;
 }

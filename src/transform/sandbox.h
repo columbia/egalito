@@ -31,6 +31,7 @@ public:
     address_t getBase() const;
     size_t getSize() const { return size; }
     size_t getMemorySize() const { return memSize; }
+    bool supportsDirectWrites() const { return true; } 
 };
 
 class MemoryBacking : public SandboxBacking {
@@ -57,6 +58,7 @@ public:
 
     address_t getBase() const { return base; }
     std::string &getBuffer() { return buffer; }
+    bool supportsDirectWrites() const { return false; }
 
     void finalize();
     bool reopen();
@@ -92,6 +94,18 @@ private:
     std::string filename;
 public:
     AnyGenerateBacking(Module *module, std::string filename);
+
+    void finalize();
+    bool reopen() { return false; }
+};
+
+class Program;
+class StaticGenerateBacking : public MemoryBufferBacking {
+private:
+    Program *program;
+    std::string filename;
+public:
+    StaticGenerateBacking(Program *program, std::string filename);
 
     void finalize();
     bool reopen() { return false; }
@@ -176,6 +190,7 @@ public:
     virtual bool reopen() = 0;
 
     virtual SandboxBacking *getBacking() = 0;
+    virtual bool supportsDirectWrites() const = 0;
 };
 
 template <typename T> struct id { typedef T type; };
@@ -196,6 +211,8 @@ public:
 
     void recreate() { recreate(id<Backing>()); }
     virtual SandboxBacking *getBacking() { return &backing; }
+    virtual bool supportsDirectWrites() const 
+        { return backing.supportsDirectWrites(); }
 
 private:
     void recreate(id<MemoryBacking>);
@@ -225,6 +242,8 @@ public:
     virtual bool reopen() { return sandbox[i]->reopen(); }
     void recreate() const { sandbox[i]->recreate(); }
     virtual SandboxBacking *getBacking() { return sandbox[i]->getBacking(); }
+    virtual bool supportsDirectWrites() const 
+        { return sandbox[i]->supportsDirectWrites(); }
 };
 
 using ShufflingSandbox = DualSandbox<

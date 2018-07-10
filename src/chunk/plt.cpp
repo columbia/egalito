@@ -62,6 +62,30 @@ bool PLTTrampoline::isIFunc() const {
     return false;
 }
 
+void PLTTrampoline::writeTo(std::string &target) {
+#ifdef ARCH_X86_64 
+    bool isIFunc = this->isIFunc();
+    if(externalSymbol) {
+        LOG(1, "making PLT entry for [" << externalSymbol->getName()
+            << "] : ifunc? " << (isIFunc ? "yes":"no"));
+    }
+
+    for(auto block : CIter::children(this)) {
+        for(auto instr : CIter::children(block)) {
+            LOG(1, "PLT instruction here!");
+            InstrWriterCppString writer(target);
+            instr->getSemantic()->accept(&writer);
+        }
+    }
+#elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    auto originalSize = target.length();
+    const size_t ARMPLTSize = PLTList::getPLTTrampolineSize();
+    target.resize(originalSize + ARMPLTSize);
+    char *output = target.data() + originalSize;
+    writeTo(output);
+#endif
+}
+
 void PLTTrampoline::writeTo(char *target) {
 #ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
@@ -78,6 +102,7 @@ void PLTTrampoline::writeTo(char *target) {
         }
     }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
+    
     static const uint32_t plt[] = {
         0x90000010, //adrp x16, .
         0xf9400211, //ldr  x17, [x16, #0]

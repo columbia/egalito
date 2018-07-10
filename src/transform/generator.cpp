@@ -84,52 +84,66 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
-            copyPLTToSandbox(plt);
+            copyPLTToSandbox(plt, sandbox);
         }
     }
 }
 
 void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
-#ifndef LINUX_KERNEL_MODE
-    char *output = reinterpret_cast<char *>(function->getAddress());
-    if(auto cache = function->getCache()) {
-        //LOG(0, "generating with Cache: " << function->getName());
-        cache->copyAndFix(output);
-        return;
-    }
-    for(auto b : CIter::children(function)) {
-        for(auto i : CIter::children(b)) {
-            LOG(10, " at " << std::hex << i->getAddress());
-            if(useDisps) {
-                InstrWriterCString writer(output);
-                i->getSemantic()->accept(&writer);
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(function->getAddress());
+        if(auto cache = function->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                LOG(10, " at " << std::hex << i->getAddress());
+                if(useDisps) {
+                    InstrWriterCString writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                else {
+                    InstrWriterForObjectFile writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                output += i->getSemantic()->getSize();
             }
-            else {
-                InstrWriterForObjectFile writer(output);
-                i->getSemantic()->accept(&writer);
-            }
-            output += i->getSemantic()->getSize();
         }
     }
-#else
-    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
-    InstrWriterCppString writer(backing->getBuffer());
-    for(auto b : CIter::children(function)) {
-        for(auto i : CIter::children(b)) {
-            i->getSemantic()->accept(&writer);
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        InstrWriterCppString writer(backing->getBuffer());
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                i->getSemantic()->accept(&writer);
+            }
         }
     }
-#endif
 }
 
-void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
-    char *output = reinterpret_cast<char *>(trampoline->getAddress());
-    if(auto cache = trampoline->getCache()) {
-        //LOG(0, "generating with Cache: " << function->getName());
-        cache->copyAndFix(output);
-        return;
+void Generator::copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(trampoline->getAddress());
+        if(auto cache = trampoline->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        trampoline->writeTo(output);
     }
-    trampoline->writeTo(output);
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        size_t expectedSize = backing->getBuffer().length() + PLTList::getPLTTrampolineSize();
+        trampoline->writeTo(backing->getBuffer());
+        size_t actualSize = backing->getBuffer().length();
+        if (actualSize > expectedSize) {
+            LOG(0, "Writing too much data to PLT entry!!!!!");
+        } else { 
+            backing->getBuffer().append(expectedSize - actualSize, (char)0xf4);
+        }
+    }
 }
 
 void Generator::pickFunctionAddressInSandbox(Function *function,
@@ -155,7 +169,7 @@ void Generator::instantiate(Function *function, Sandbox *sandbox) {
 
 void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
     pickPLTAddressInSandbox(trampoline, sandbox);
-    copyPLTToSandbox(trampoline);
+    copyPLTToSandbox(trampoline, sandbox);
 }
 
 void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,

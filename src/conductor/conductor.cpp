@@ -147,6 +147,8 @@ void Conductor::resolvePLTLinks() {
     if(program->getEgalito()) {
         PopulatePLTPass populatePLT(this);
         program->accept(&populatePLT);
+    } else {
+        LOG(5, "Warning: not populating PLT entries");
     }
 }
 
