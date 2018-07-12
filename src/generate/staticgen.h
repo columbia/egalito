@@ -28,6 +28,7 @@ private:
     void makePhdrTable();
     void makeTextMapping();
     void makeDynamicSection();
+    void makePhdrLoadSegment();
 private:
     void updateOffsets();
     void serialize(const std::string &filename);

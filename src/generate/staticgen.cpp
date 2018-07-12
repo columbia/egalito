@@ -17,6 +17,10 @@ StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     auto header = new Section("=elfheader");
     sectionList.addSection(header);
 
+    auto phdrTable = new PhdrTableContent(&sectionList);
+    auto phdrTableSection = new Section("=phdr_table", phdrTable);
+    sectionList.addSection(phdrTableSection);
+    
     auto strtab = new Section(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
     sectionList.addSection(strtab);
@@ -180,13 +184,13 @@ void StaticGen::makeShdrTable() {
 
 void StaticGen::makePhdrTable() {
     LOG(1, "generating phdr table");
-    auto phdrTable = new PhdrTableContent(&sectionList);
-    auto phdrTableSection = new Section("=phdr_table", phdrTable);
-    sectionList.addSection(phdrTableSection);
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
 
     auto phdr = new SegmentInfo(PT_PHDR, PF_R | PF_X, 0x8);
     phdr->addContains(sectionList["=elfheader"]);
     phdrTable->add(phdr);
+
+    makePhdrLoadSegment();
 
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
     const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
@@ -249,6 +253,14 @@ void StaticGen::makeDynamicSection() {
     dynamicSegment->addContains(dynamicSection);
     auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
     phdrTable->add(dynamicSegment);
+}
+
+void StaticGen::makePhdrLoadSegment() {
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
+    auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x8);
+    loadSegment->addContains(sectionList["=elfheader"]);
+    loadSegment->addContains(sectionList["=phdr_table"]);
+    phdrTable->add(loadSegment);
 }
 
 void StaticGen::updateOffsets() {

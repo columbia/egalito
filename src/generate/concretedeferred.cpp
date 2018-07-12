@@ -193,6 +193,11 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
                 address = firstSection->getHeader()->getAddress();
             }
         }
+        for(auto section : segment->getContainsList()) {
+            if(section->getName() == "=elfheader") {
+               address = 0x12300000;
+            }
+        }
 
         phdr->p_type    = segment->getType();
         phdr->p_flags   = segment->getFlags();
