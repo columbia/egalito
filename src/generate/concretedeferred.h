@@ -154,4 +154,25 @@ public:
         DataSection *targetSection);
 };
 
+class DynamicDataPair {
+private:
+    unsigned long key;
+    unsigned long value;
+public:
+    DynamicDataPair(unsigned long key, unsigned long value = 0)
+        : key(key), value(value) {}
+    unsigned long getKey() const { return key; }
+    unsigned long getValue() const { return value; }
+    void setKey(unsigned long key) { this->key = key; }
+    void setValue(unsigned long value) { this->value = value; }
+};
+
+class DynamicSectionContent : public DeferredList<DynamicDataPair> {
+public:
+    typedef DeferredValueImpl<DynamicDataPair> DeferredType;
+
+    DeferredType *addPair(unsigned long key,
+        std::function<address_t ()> generator);
+    DeferredType *addPair(unsigned long key, unsigned long value);
+};
 #endif

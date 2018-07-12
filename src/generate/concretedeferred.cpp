@@ -368,3 +368,24 @@ RelocSectionContent2::DeferredType *RelocSectionContent2
     DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
     return deferred;
 }
+
+DynamicSectionContent::DeferredType *DynamicSectionContent
+    ::addPair(unsigned long key, std::function<address_t ()> generator) {
+
+    auto deferred = new DeferredType(new DynamicDataPair(key));
+    deferred->addFunction([generator] (DynamicDataPair *data) {
+        data->setValue(static_cast<unsigned long>(generator()));
+    });
+
+    DeferredList<DynamicDataPair>::add(deferred);
+    return deferred;
+}
+
+DynamicSectionContent::DeferredType *DynamicSectionContent
+    ::addPair(unsigned long key, unsigned long value) {
+
+    auto deferred = new DeferredType(new DynamicDataPair(key, value));
+
+    DeferredList<DynamicDataPair>::add(deferred);
+    return deferred;
+}
