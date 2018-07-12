@@ -47,7 +47,9 @@ void ModuleGen::makeDataSections() {
 
                 auto bssSection = new Section(section->getName(),
                     SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
-                bssSection->setContent(new DeferredString(""));
+                bssSection->setContent(new DeferredString(
+                        std::string(section->getSize(), 0x0)));
+                //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
                 loadSegment->addContains(bssSection);

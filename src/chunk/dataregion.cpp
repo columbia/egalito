@@ -104,6 +104,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
     else if(shdr->sh_type == SHT_PROGBITS) {
         if(name == ".data" || name == ".rodata"
+            || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
             || name == ".vvar") {
