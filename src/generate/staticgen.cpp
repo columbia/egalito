@@ -17,6 +17,9 @@ StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     auto header = new Section("=elfheader");
     sectionList.addSection(header);
 
+    auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
+    sectionList.addSection(interpSection);
+
     auto phdrTable = new PhdrTableContent(&sectionList);
     auto phdrTableSection = new Section("=phdr_table", phdrTable);
     sectionList.addSection(phdrTableSection);
@@ -190,16 +193,15 @@ void StaticGen::makePhdrTable() {
     phdr->addContains(sectionList["=elfheader"]);
     phdrTable->add(phdr);
 
-    makePhdrLoadSegment();
-
-    auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
+    auto interpSection = sectionList[".interp"];
     const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
     auto interpContent = new DeferredString(interpreter, strlen(interpreter) + 1);
     interpSection->setContent(interpContent);
-    sectionList.addSection(interpSection);
     auto interp = new SegmentInfo(PT_INTERP, PF_R, 0x1);
     interp->addContains(interpSection);
     phdrTable->add(interp);
+
+    makePhdrLoadSegment();
 }
 
 void StaticGen::makeTextMapping() {
