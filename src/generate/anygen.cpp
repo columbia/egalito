@@ -32,6 +32,7 @@ void AnyGen::generate(const std::string &filename) {
     makeSymtabSection();
     {
         ModuleGen::Config config;
+        config.setCodeBacking(backing);
         ModuleGen moduleGen(config, module, &sectionList);
         moduleGen.makeText();
         moduleGen.makeDataSections();
