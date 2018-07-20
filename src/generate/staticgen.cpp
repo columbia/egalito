@@ -11,6 +11,9 @@
 #include "log/log.h"
 #include "config.h"
 
+#define ENABLE_DYNAMIC
+#define USE_MUSL
+
 StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     : program(program), backing(backing) {
 
@@ -31,12 +34,25 @@ StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
     shstrtab->setContent(new DeferredStringList());
     sectionList.addSection(shstrtab);
+
+#ifdef ENABLE_DYNAMIC
+    ModuleGen(ModuleGen::Config(), nullptr, &sectionList).makePaddingSection(0);
+    auto dynstr = new Section(".dynstr", SHT_STRTAB);
+    auto stringList = new DeferredStringList();
+    stringList->add("123456", true);
+    dynstr->setContent(stringList);
+    sectionList.addSection(dynstr);
+#endif 
 }
 
 void StaticGen::generate(const std::string &filename) {
     makeHeader();
     makePhdrTable();  // can add phdrs after this
     makeSymtabSection();
+#ifdef ENABLE_DYNAMIC
+    makeDynamicSection();
+#endif
+    makePhdrLoadSegment();  // must be after makeSymtabSection (for .dynsym)
     for(auto module : CIter::children(program)) {
         ModuleGen::Config config;
         config.setUniqueSectionNames(true);
@@ -46,7 +62,6 @@ void StaticGen::generate(const std::string &filename) {
         moduleGen.makeTextAccumulative();
     }
     makeTextMapping();
-    makeDynamicSection();
     makeShdrTable();  // don't create new shdrs after this
     makeSectionSymbols();
     updateOffsets();  // don't insert any new bytes after this
@@ -111,18 +126,37 @@ void StaticGen::makeHeader() {
 }
 
 void StaticGen::makeSymtabSection() {
-    auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
+    {
+        auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
 
-    auto symtab = new SymbolTableContent(strtab);
-    auto symtabSection = new Section(".symtab", SHT_SYMTAB);
-    symtabSection->setContent(symtab);
+        auto symtab = new SymbolTableContent(strtab);
+        auto symtabSection = new Section(".symtab", SHT_SYMTAB);
+        symtabSection->setContent(symtab);
 
-    symtab->addNullSymbol();
-    // other symbols will be added later
+        symtab->addNullSymbol();
+        // other symbols will be added later
 
-    symtabSection->getHeader()->setSectionLink(
-        new SectionRef(&sectionList, ".strtab"));
-    sectionList.addSection(symtabSection);
+        symtabSection->getHeader()->setSectionLink(
+            new SectionRef(&sectionList, ".strtab"));
+        sectionList.addSection(symtabSection);
+    }
+#ifdef ENABLE_DYNAMIC
+    {
+        auto dynstr = sectionList[".dynstr"]->castAs<DeferredStringList *>();
+
+        auto dynsym = new SymbolTableContent(dynstr);
+        auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
+        dynsymSection->setContent(dynsym);
+
+        dynsym->addNullSymbol();
+        // other symbols will be added later
+
+        dynsymSection->getHeader()->setSectionLink(
+            new SectionRef(&sectionList, ".dynstr"));
+        dynsymSection->getHeader()->setShdrFlags(SHF_ALLOC);
+        sectionList.addSection(dynsymSection);
+    }
+#endif
 }
 
 void StaticGen::makeSectionSymbols() {
@@ -163,9 +197,10 @@ void StaticGen::makeShdrTable() {
             deferred->getElfPtr()->sh_name
                 = shstrtab->add(section->getName(), true);
 
-            if(dynamic_cast<SymbolTableContent *>(section->getContent())) {
-                deferred->addFunction([this, shdrTable] (ElfXX_Shdr *shdr) {
-                    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+            if(auto symtab = dynamic_cast<SymbolTableContent *>(section->getContent())) {
+                deferred->addFunction([symtab] (ElfXX_Shdr *shdr) {
+                    //auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+                    
                     shdr->sh_info = symtab->getFirstGlobalIndex();
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
                     shdr->sh_addralign = 8;
@@ -190,18 +225,30 @@ void StaticGen::makePhdrTable() {
     auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
 
     auto phdr = new SegmentInfo(PT_PHDR, PF_R | PF_X, 0x8);
-    phdr->addContains(sectionList["=elfheader"]);
-    phdrTable->add(phdr);
-
+    phdr->addContains(sectionList["=phdr_table"]);
+    auto deferred = phdrTable->add(phdr);
+    deferred->addFunction([this] (ElfXX_Phdr *phdr) {
+        phdr->p_vaddr = 0x200000 + sectionList["=phdr_table"]->getOffset();
+        phdr->p_paddr = phdr->p_vaddr;
+            
+    });
+    
     auto interpSection = sectionList[".interp"];
+#ifndef USE_MUSL
     const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
+#else
+    const char *interpreter = "/lib/ld-musl-x86_64.so.1";
+#endif
     auto interpContent = new DeferredString(interpreter, strlen(interpreter) + 1);
     interpSection->setContent(interpContent);
     auto interp = new SegmentInfo(PT_INTERP, PF_R, 0x1);
     interp->addContains(interpSection);
-    phdrTable->add(interp);
+    auto interpDeferred = phdrTable->add(interp);
+    interpDeferred->addFunction([this] (ElfXX_Phdr *phdr) {
+        phdr->p_vaddr = 0x200000 + sectionList[".interp"]->getOffset();
+        phdr->p_paddr = phdr->p_vaddr;
+    });
 
-    makePhdrLoadSegment();
 }
 
 void StaticGen::makeTextMapping() {
@@ -247,22 +294,46 @@ void StaticGen::makeTextMapping() {
 void StaticGen::makeDynamicSection() {
     auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
     auto dynamic = new DynamicSectionContent();
+    dynamic->addPair(DT_STRTAB, [this] () {
+        auto dynstrSection = sectionList[".dynstr"];
+        return dynstrSection->getHeader()->getAddress();
+    });
+    
+    dynamic->addPair(DT_SYMTAB, [this] () {
+        auto dynsymSection = sectionList[".dynsym"];
+        return dynsymSection->getHeader()->getAddress();
+    });
+    
     dynamic->addPair(0, 0);
+
     dynamicSection->setContent(dynamic);
+    dynamicSection->getHeader()->setSectionLink(new SectionRef(&sectionList, ".dynstr"));
     sectionList.addSection(dynamicSection);
 
-    auto dynamicSegment = new SegmentInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
-    dynamicSegment->addContains(dynamicSection);
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
-    phdrTable->add(dynamicSegment);
 }
 
 void StaticGen::makePhdrLoadSegment() {
     auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
-    auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x8);
+    auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
     loadSegment->addContains(sectionList["=elfheader"]);
+    loadSegment->addContains(sectionList[".interp"]);
     loadSegment->addContains(sectionList["=phdr_table"]);
-    phdrTable->add(loadSegment);
+    //loadSegment->addContains(sectionList[".strtab"]);
+    //loadSegment->addContains(sectionList[".shstrtab"]);
+    phdrTable->add(loadSegment, 0x200000);
+    
+    auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
+    dynSegment->addContains(sectionList[".dynstr"]);
+    dynSegment->addContains(sectionList[".symtab"]);
+    dynSegment->addContains(sectionList[".dynsym"]);
+    dynSegment->addContains(sectionList[".dynamic"]);
+    phdrTable->add(dynSegment, 0x400000);
+
+    auto dynamicSection = sectionList[".dynamic"];
+
+    auto dynamicSegment = new SegmentInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
+    dynamicSegment->addContains(dynamicSection);
+    phdrTable->add(dynamicSegment);
 }
 
 void StaticGen::updateOffsets() {

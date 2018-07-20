@@ -174,7 +174,7 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
 
     auto deferred = new DeferredType(phdr);
 
-    deferred->addFunction([this, segment] (ElfXX_Phdr *phdr) {
+    deferred->addFunction([segment] (ElfXX_Phdr *phdr) {
         LOG(1, "generating phdr for segment of type " << segment->getType()
             << ", containing:");
 
@@ -193,10 +193,55 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
                 address = firstSection->getHeader()->getAddress();
             }
         }
+
+        phdr->p_type    = segment->getType();
+        phdr->p_flags   = segment->getFlags();
+        phdr->p_offset  = offset;
+        phdr->p_vaddr   = address;
+        phdr->p_paddr   = address;
+        phdr->p_filesz  = fileSize;
+        phdr->p_memsz   = fileSize + segment->getAdditionalMemSize();
+        phdr->p_align   = segment->getAlignment();
+
+        if((phdr->p_vaddr & LINUX_KERNEL_BASE) == LINUX_KERNEL_BASE) {
+            phdr->p_paddr -= LINUX_KERNEL_BASE;
+        }
+    });
+
+    DeferredMap<SegmentInfo *, ElfXX_Phdr>::add(segment, deferred);
+    return deferred;
+}
+
+PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment,
+    address_t address) {
+
+    auto phdr = new ElfXX_Phdr();
+    std::memset(phdr, 0, sizeof(*phdr));
+
+    auto deferred = new DeferredType(phdr);
+
+    deferred->addFunction([segment, address] (ElfXX_Phdr *phdr) {
+        LOG(1, "generating phdr for segment of type " << segment->getType()
+            << ", containing:");
+
+        size_t fileSize = 0;
         for(auto section : segment->getContainsList()) {
-            if(section->getName() == "=elfheader") {
-               address = 0x12300000;
+            LOG(2, "    " << section->getName());
+            fileSize += section->getContent()->getSize();
+        }
+
+        size_t offset = 0;
+        if(!segment->getContainsList().empty()) {
+            auto firstSection = segment->getContainsList()[0];
+            offset = firstSection->getOffset();
+        }
+
+        address_t sectionAddress = address;
+        for(auto sec : segment->getContainsList()) {
+            if(sec->hasHeader()) {
+                sec->getHeader()->setAddress(sectionAddress);
             }
+            sectionAddress += sec->getContent()->getSize();
         }
 
         phdr->p_type    = segment->getType();

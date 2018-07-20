@@ -99,6 +99,7 @@ public:
     PhdrTableContent(SectionList *sectionList) : sectionList(sectionList) {}
 
     DeferredType *add(SegmentInfo *segment);
+    DeferredType *add(SegmentInfo *segment, address_t address);
 };
 
 class PagePaddingContent : public DeferredValue {

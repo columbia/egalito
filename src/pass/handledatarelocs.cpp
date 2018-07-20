@@ -89,6 +89,9 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return nullptr;
     }
     else if(reloc->getType() == R_X86_64_RELATIVE) {
+        if (reloc->getAddress() == 0x3c45f8) {
+            LOG(1, "Found 3c45f8!");
+        }
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
     }
     else if(reloc->getType() == R_X86_64_IRELATIVE) {
