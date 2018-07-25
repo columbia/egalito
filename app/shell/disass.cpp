@@ -5,6 +5,7 @@
 #include "analysis/controlflow.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
+#include "conductor/passes.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
 #include "chunk/serializer.h"
@@ -27,6 +28,7 @@
 #include "pass/dumplink.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
+#include "load/segmap.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -168,8 +170,18 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("generate-static", [&] (Arguments args) {
         args.shouldHave(1);
+        auto program = setup->getConductor()->getProgram();
         auto sandbox = setup->makeStaticExecutableSandbox(args.front().c_str());
-        setup->moveCode(sandbox, true);  // calls sandbox->finalize()
+
+        //setup->moveCode(sandbox, true);  // calls sandbox->finalize()
+        setup->moveCodeAssignAddresses(sandbox, true);
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(setup);
+            ConductorPasses(setup->getConductor()).newExecutablePasses(program);
+        }
+        setup->copyCodeToNewAddresses(sandbox, true);
+        setup->moveCodeMakeExecutable(sandbox);
     }, "writes out the current code to an ELF file");
     
 #if 0

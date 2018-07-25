@@ -168,7 +168,7 @@ void Conductor::resolveData(bool justBridge) {
         auto space = module->getElfSpace();
 
         LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
-        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList()), module);
+        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList(), this), module);
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(

@@ -273,6 +273,8 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
         }
         else if(type == R_X86_64_GLOB_DAT) {
             // search first in the executable namespace for COPY
+            LOG(1, "Handling glob_dat relocation at 0x"
+                        << std::hex << reloc->getAddress());
             auto program = dynamic_cast<Program *>(module->getParent());
             auto main = program->getMain();
             if(auto list = main->getElfSpace()->getSymbolList()) {

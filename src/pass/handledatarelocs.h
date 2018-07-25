@@ -29,8 +29,8 @@ private:
 
 class HandleDataRelocsInternalStrong : public HandleDataRelocsPass {
 public:
-    HandleDataRelocsInternalStrong(RelocList *relocList)
-        : HandleDataRelocsPass(relocList, true, false, nullptr) {}
+    HandleDataRelocsInternalStrong(RelocList *relocList, Conductor *conductor = nullptr)
+        : HandleDataRelocsPass(relocList, true, false, conductor) {}
 };
 
 class HandleDataRelocsInternalWeak : public HandleDataRelocsPass {

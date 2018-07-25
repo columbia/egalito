@@ -117,6 +117,16 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             << ") in " << module->getName());
         return nullptr;
     }
+    else if(reloc->getType() == R_X86_64_GLOB_DAT) {
+        if(!internal) {
+            LOG(0, "processing R_X86_64_GLOB_DAT ("
+                << std::hex << reloc->getAddress()
+                << ") in " << module->getName());
+            auto l = PerfectLinkResolver().resolveExternally(reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+            LOG(0, "link is " << l);
+            return l;
+        }
+    }
 #else
     // We can't resolve the address yet, because a link may point to a TLS
     // in another module e.g. errno referred from libm (tls can be nullptr)

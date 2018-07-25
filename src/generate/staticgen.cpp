@@ -12,7 +12,7 @@
 #include "config.h"
 
 #define ENABLE_DYNAMIC
-#define USE_MUSL
+//#define USE_MUSL
 
 StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     : program(program), backing(backing) {
