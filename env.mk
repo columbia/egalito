@@ -32,13 +32,15 @@ endif
 endif
 
 CAPSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/capstone/install
-GENERIC_FLAGS += -I $(CAPSTONE_DIR)/include
+KEYSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/keystone
+GENERIC_FLAGS += -I $(CAPSTONE_DIR)/include -I $(KEYSTONE_DIR)/include
 
 OPT_FLAGS       = -g3 -O2
 DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++14 $(GENERIC_FLAGS) $(OPT_FLAGS)
-CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR)/lib -lcapstone -lkeystone -Wl,-rpath,$(abspath $(CAPSTONE_DIR)/lib)
+CLDFLAGS        = $(CROSSLD) -L $(CAPSTONE_DIR)/lib -lcapstone -L $(KEYSTONE_DIR)/build/llvm/lib -lkeystone \
+	-Wl,-rpath,$(abspath $(CAPSTONE_DIR)/lib) -Wl,-rpath,$(abspath $(KEYSTONE_DIR)/build/llvm/lib)
 
 ifdef PROFILE  # set PROFILE=1 to enable gprof profiling
 	CFLAGS += -no-pie -pg
