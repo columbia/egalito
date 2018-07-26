@@ -431,6 +431,39 @@ DynamicSectionContent::DeferredType *DynamicSectionContent
     return deferred;
 }
 
+Section *DataRelocSectionContent::getTargetSection() {
+    return outer->get();
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addUndefinedRef(DataVariable *var, LDSOLoaderLink *link) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    auto region = var->getParent()->getParent();
+
+    rela->r_offset  = var->getAddress() - region->getAddress();
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    char *name = new char[link->getTargetName().length() + 1];
+    std::strcpy(name, link->getTargetName().c_str());
+    auto symbol = new Symbol(0, 0, name,
+        Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    auto elfSym = symtab->addUndefinedSymbol(symbol);
+    deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
+        LOG(1, "Creating data reloc for [" << name << "]");
+        size_t index = symtab->indexOf(elfSym);
+        //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+        rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
 DynamicSectionContent::DeferredType *DynamicSectionContent
     ::addPair(unsigned long key, unsigned long value) {
 

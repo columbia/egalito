@@ -29,6 +29,7 @@
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
+#include "load/emulator.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -170,6 +171,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("generate-static", [&] (Arguments args) {
         args.shouldHave(1);
+        // this has to run before parse2
+        //LoaderEmulator::getInstance().setupForExecutableGen(setup->getConductor());
         auto program = setup->getConductor()->getProgram();
         auto sandbox = setup->makeStaticExecutableSandbox(args.front().c_str());
 

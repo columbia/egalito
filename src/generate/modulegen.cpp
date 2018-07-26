@@ -39,6 +39,7 @@ void ModuleGen::makeDataSections() {
                 dataSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(dataSection);
                 loadSegment->addContains(dataSection);
+                maybeMakeDataRelocSection(section, dataSection);
                 break;
             }
             case DataSection::TYPE_BSS: {
@@ -68,6 +69,32 @@ void ModuleGen::makeDataSections() {
             phdrTable->add(loadSegment);
         }
     }
+}
+
+void ModuleGen::maybeMakeDataRelocSection(DataSection *section, Section *sec) {
+    std::vector<DataVariable *> relocVars;
+    for(auto var : CIter::children(section)) {
+        if(!var->getDest()) continue;
+        if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
+            relocVars.push_back(var);
+        }
+    }
+    if(relocVars.empty()) return;
+
+    auto otherName = section->getName();
+    auto reloc = new DataRelocSectionContent(
+        new SectionRef(sectionList, otherName), sectionList);
+    auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
+    relocSection->setContent(reloc);
+    /*relocSection->getHeader()->setSectionLink(
+        new SectionRef(sectionList, ".symtab"));*/
+
+    for(auto var : relocVars) {
+        reloc->addUndefinedRef(var,
+            dynamic_cast<LDSOLoaderLink *>(var->getDest()));
+    }
+
+    sectionList->addSection(relocSection);
 }
 
 void ModuleGen::makeText() {

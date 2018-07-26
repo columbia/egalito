@@ -64,6 +64,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(injectEgalito) {
         this->parseEgalito();
     }
+    else {
+        // !!! this should be done differently
+        LoaderEmulator::getInstance().setupForExecutableGen(conductor);
+    }
 
     if(withSharedLibs) {
         conductor->parseLibraries();

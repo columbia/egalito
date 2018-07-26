@@ -171,6 +171,20 @@ public:
     virtual address_t getTargetAddress() const;
 };
 
+// Only used for executable generation
+class LDSOLoaderLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_CODE, Link> {
+private:
+    std::string targetName;
+public:
+    LDSOLoaderLink(const std::string &name) : targetName(name) {}
+
+    const std::string &getTargetName() const { return targetName; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return 0; }
+};
+
+
 class StackLink : public LinkScopeDecorator<
     Link::SCOPE_UNKNOWN, Link> {
 private:

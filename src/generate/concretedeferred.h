@@ -155,6 +155,22 @@ public:
         DataSection *targetSection);
 };
 
+class DataVariable;
+class DataRelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
+public:
+    typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
+private:
+    SectionRef *outer;
+    SectionList *sectionList;
+public:
+    DataRelocSectionContent(SectionRef *outer, SectionList *sectionList)
+        : outer(outer), sectionList(sectionList) {}
+
+    Section *getTargetSection();
+
+    DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
+};
+
 class DynamicDataPair {
 private:
     unsigned long key;

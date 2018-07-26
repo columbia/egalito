@@ -23,6 +23,7 @@ private:
     std::map<std::string, address_t> dataMap;
 public:
     void setup(Conductor *conductor);
+    void setupForExecutableGen(Conductor *conductor);
 
     void setStackLinks(char **argv, char **envp);
     void initRT(Conductor *conductor);

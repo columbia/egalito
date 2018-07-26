@@ -122,7 +122,8 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             LOG(0, "processing R_X86_64_GLOB_DAT ("
                 << std::hex << reloc->getAddress()
                 << ") in " << module->getName());
-            auto l = PerfectLinkResolver().resolveExternally(reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+            auto l = PerfectLinkResolver().resolveExternally(
+                reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
             LOG(0, "link is " << l);
             return l;
         }

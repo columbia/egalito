@@ -214,6 +214,14 @@ void StaticGen::makeShdrTable() {
                     shdr->sh_link = shdrIndexOf(".symtab");
                 });
             }
+            else if(auto v = dynamic_cast<DataRelocSectionContent *>(section->getContent())) {
+                deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_info = shdrIndexOf(v->getTargetSection());
+                    shdr->sh_addralign = 8;
+                    shdr->sh_entsize = sizeof(ElfXX_Rela);
+                    shdr->sh_link = shdrIndexOf(".symtab");
+                });
+            }
         }
     }
 
@@ -309,7 +317,6 @@ void StaticGen::makeDynamicSection() {
     dynamicSection->setContent(dynamic);
     dynamicSection->getHeader()->setSectionLink(new SectionRef(&sectionList, ".dynstr"));
     sectionList.addSection(dynamicSection);
-
 }
 
 void StaticGen::makePhdrLoadSegment() {
