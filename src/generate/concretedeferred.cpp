@@ -444,7 +444,8 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     auto region = var->getParent()->getParent();
 
-    rela->r_offset  = var->getAddress() - region->getAddress();
+    //rela->r_offset  = var->getAddress() - region->getAddress();
+    rela->r_offset  = var->getAddress();
     rela->r_info    = 0;
     rela->r_addend  = 0;
 
@@ -452,7 +453,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     std::strcpy(name, link->getTargetName().c_str());
     auto symbol = new Symbol(0, 0, name,
         Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
-    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
         LOG(1, "Creating data reloc for [" << name << "]");

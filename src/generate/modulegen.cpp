@@ -39,7 +39,7 @@ void ModuleGen::makeDataSections() {
                 dataSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(dataSection);
                 loadSegment->addContains(dataSection);
-                maybeMakeDataRelocSection(section, dataSection);
+                maybeMakeDataRelocs(section, dataSection);
                 break;
             }
             case DataSection::TYPE_BSS: {
@@ -71,7 +71,7 @@ void ModuleGen::makeDataSections() {
     }
 }
 
-void ModuleGen::maybeMakeDataRelocSection(DataSection *section, Section *sec) {
+void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
     std::vector<DataVariable *> relocVars;
     for(auto var : CIter::children(section)) {
         if(!var->getDest()) continue;
@@ -81,20 +81,22 @@ void ModuleGen::maybeMakeDataRelocSection(DataSection *section, Section *sec) {
     }
     if(relocVars.empty()) return;
 
-    auto otherName = section->getName();
+    /*auto otherName = section->getName();
     auto reloc = new DataRelocSectionContent(
         new SectionRef(sectionList, otherName), sectionList);
     auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
-    relocSection->setContent(reloc);
+    relocSection->setContent(reloc);*/
     /*relocSection->getHeader()->setSectionLink(
         new SectionRef(sectionList, ".symtab"));*/
 
+    auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>(); 
     for(auto var : relocVars) {
-        reloc->addUndefinedRef(var,
+        relaDyn->addUndefinedRef(var,
             dynamic_cast<LDSOLoaderLink *>(var->getDest()));
     }
 
-    sectionList->addSection(relocSection);
+    //sectionList->addSection(relocSection);
+    //relocSections.push_back(relocSection);
 }
 
 void ModuleGen::makeText() {

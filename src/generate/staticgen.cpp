@@ -216,10 +216,10 @@ void StaticGen::makeShdrTable() {
             }
             else if(auto v = dynamic_cast<DataRelocSectionContent *>(section->getContent())) {
                 deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
-                    shdr->sh_info = shdrIndexOf(v->getTargetSection());
+                    //shdr->sh_info = shdrIndexOf(v->getTargetSection());
                     shdr->sh_addralign = 8;
                     shdr->sh_entsize = sizeof(ElfXX_Rela);
-                    shdr->sh_link = shdrIndexOf(".symtab");
+                    shdr->sh_link = shdrIndexOf(".dynsym");
                 });
             }
         }
@@ -300,6 +300,15 @@ void StaticGen::makeTextMapping() {
 }
 
 void StaticGen::makeDynamicSection() {
+    {
+        auto relaDyn = new DataRelocSectionContent(
+            nullptr /*new SectionRef(&sectionList, ".dynsym")*/,
+            &sectionList);
+        auto relaDynSection = new Section(".rela.dyn", SHT_RELA);
+        relaDynSection->setContent(relaDyn);
+        sectionList.addSection(relaDynSection);
+    }
+
     auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
     auto dynamic = new DynamicSectionContent();
     dynamic->addPair(DT_STRTAB, [this] () {
@@ -311,7 +320,17 @@ void StaticGen::makeDynamicSection() {
         auto dynsymSection = sectionList[".dynsym"];
         return dynsymSection->getHeader()->getAddress();
     });
-    
+
+    dynamic->addPair(DT_RELA, [this] () {
+        auto relaDyn = sectionList[".rela.dyn"];
+        return relaDyn->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_RELASZ, [this] () {
+        auto relaDyn = sectionList[".rela.dyn"];
+        return relaDyn->getHeader()->getSize();
+    });
+    dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
+
     dynamic->addPair(0, 0);
 
     dynamicSection->setContent(dynamic);
@@ -333,6 +352,7 @@ void StaticGen::makePhdrLoadSegment() {
     dynSegment->addContains(sectionList[".dynstr"]);
     dynSegment->addContains(sectionList[".symtab"]);
     dynSegment->addContains(sectionList[".dynsym"]);
+    dynSegment->addContains(sectionList[".rela.dyn"]);
     dynSegment->addContains(sectionList[".dynamic"]);
     phdrTable->add(dynSegment, 0x400000);
 

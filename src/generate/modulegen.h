@@ -54,7 +54,7 @@ public:
     void makeText();
     void makeTextAccumulative();
     void makeRelocSectionFor(const std::string &otherName);
-    void maybeMakeDataRelocSection(DataSection *section, Section *sec);
+    void maybeMakeDataRelocs(DataSection *section, Section *sec);
     void makeSymbolsAndRelocs(address_t begin, size_t size,
         const std::string &textSection);
     void makeSymbolInText(Function *func, const std::string &textSection);

@@ -89,10 +89,10 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return nullptr;
     }
     else if(reloc->getType() == R_X86_64_RELATIVE) {
-        if (reloc->getAddress() == 0x3c45f8) {
-            LOG(1, "Found 3c45f8!");
-        }
-        return PerfectLinkResolver().resolveInternally(reloc, module, weak);
+        auto l =  PerfectLinkResolver().resolveInternally(reloc, module, weak);
+        LOG(0, "reloc relative at 0x" << std::hex << reloc->getAddress() 
+            << ", link = " << std::hex << l);
+        return l;
     }
     else if(reloc->getType() == R_X86_64_IRELATIVE) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
