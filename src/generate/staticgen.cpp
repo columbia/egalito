@@ -311,6 +311,13 @@ void StaticGen::makeDynamicSection() {
 
     auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
     auto dynamic = new DynamicSectionContent();
+
+    // Add DT_NEEDED dependency on ld.so because we combine libc into
+    // our executable, and libc uses _rtld_global{,_ro} from ld.so.
+    auto dynstr = sectionList[".dynstr"]->castAs<DeferredStringList *>();
+    dynamic->addPair(DT_NEEDED,
+        dynstr->add("ld-linux-x86-64.so.2", true));
+
     dynamic->addPair(DT_STRTAB, [this] () {
         auto dynstrSection = sectionList[".dynstr"];
         return dynstrSection->getHeader()->getAddress();
@@ -327,7 +334,7 @@ void StaticGen::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELASZ, [this] () {
         auto relaDyn = sectionList[".rela.dyn"];
-        return relaDyn->getHeader()->getSize();
+        return relaDyn->getContent()->getSize();
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
