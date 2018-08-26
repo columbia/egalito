@@ -7,22 +7,24 @@ class PLTTrampoline;
 
 class Generator {
 private:
+    Sandbox *sandbox;
     bool useDisps;
 public:
-    Generator(bool useDisps = true) : useDisps(useDisps) {}
-    void pickAddressesInSandbox(Module *module, Sandbox *sandbox);
-    void copyCodeToSandbox(Module *module, Sandbox *sandbox);
-    void copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox);
-    void instantiate(Function *function, Sandbox *sandbox);
-    void instantiate(PLTTrampoline *trampoline, Sandbox *sandbox);
+    Generator(Sandbox *sandbox, bool useDisps = true)
+        : sandbox(sandbox), useDisps(useDisps) {}
+    void pickAddressesInSandbox(Module *module);
+    void copyCodeToSandbox(Module *module);
+    void copyPLTEntriesToSandbox(Module *module);
+    void instantiate(Function *function);
+    void instantiate(PLTTrampoline *trampoline);
 
     void jumpToSandbox(Sandbox *sandbox, Module *module,
         const char *function = "main");
 private:
-    void pickFunctionAddressInSandbox(Function *function, Sandbox *sandbox);
-    void pickPLTAddressInSandbox(PLTTrampoline *trampoline, Sandbox *sandbox);
-    void copyFunctionToSandbox(Function *function, Sandbox *sandbox);
-    void copyPLTToSandbox(PLTTrampoline *trampoline, Sandbox* sandbox);
+    void pickFunctionAddressInSandbox(Function *function);
+    void pickPLTAddressInSandbox(PLTTrampoline *trampoline);
+    void copyFunctionToSandbox(Function *function);
+    void copyPLTToSandbox(PLTTrampoline *trampoline);
 };
 
 #endif
