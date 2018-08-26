@@ -171,20 +171,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("generate-static", [&] (Arguments args) {
         args.shouldHave(1);
-        // this has to run before parse2
-        //LoaderEmulator::getInstance().setupForExecutableGen(setup->getConductor());
-        auto program = setup->getConductor()->getProgram();
-        auto sandbox = setup->makeStaticExecutableSandbox(args.front().c_str());
-
-        //setup->moveCode(sandbox, true);  // calls sandbox->finalize()
-        setup->moveCodeAssignAddresses(sandbox, true);
-        {
-            // get data sections; allow links to change bytes in data sections
-            SegMap::mapAllSegments(setup);
-            ConductorPasses(setup->getConductor()).newExecutablePasses(program);
-        }
-        setup->copyCodeToNewAddresses(sandbox, true);
-        setup->moveCodeMakeExecutable(sandbox);
+        setup->generateStaticExecutable(args.front().c_str());
     }, "writes out the current code to an ELF file");
     
 #if 0

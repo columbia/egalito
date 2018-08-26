@@ -37,6 +37,7 @@ public:
     ShufflingSandbox *makeShufflingSandbox();
     Sandbox *makeFileSandbox(const char *outputFile);
     Sandbox *makeStaticExecutableSandbox(const char *outputFile);
+    bool generateStaticExecutable(const char *outputFile);
     void moveCode(Sandbox *sandbox, bool useDisps = true);
 public:
     void moveCodeAssignAddresses(Sandbox *sandbox, bool useDisps);

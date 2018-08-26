@@ -5,7 +5,7 @@
 #include "config.h"
 #include "setup.h"
 #include "conductor.h"
-#include "conductor/passes.h"
+#include "passes.h"
 #include "transform/generator.h"
 #include "load/segmap.h"
 #include "load/emulator.h"
@@ -14,6 +14,7 @@
 #include "pass/clearspatial.h"
 #include "pass/dumplink.h"
 #include "util/feature.h"
+#include "generate/staticgen.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -184,19 +185,35 @@ ShufflingSandbox *ConductorSetup::makeShufflingSandbox() {
 }
 
 Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
-    // auto backing = ExeBacking(conductor->getMainSpace(), outputFile);
-    // this->sandbox = new SandboxImpl<ExeBacking,
-    //     WatermarkAllocator<ExeBacking>>(backing);
-    //auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
-    //return new SandboxImpl<ObjBacking, WatermarkAllocator<ObjBacking>>(backing);
-    auto backing = AnyGenerateBacking(conductor->getProgram()->getMain(), outputFile);
-    return new SandboxImpl<AnyGenerateBacking, WatermarkAllocator<AnyGenerateBacking>>(backing);
+    auto backing = MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
+    return new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
 }
 
 Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
-    auto backing = StaticGenerateBacking(conductor->getProgram(), outputFile);
-    return new SandboxImpl<StaticGenerateBacking, WatermarkAllocator<StaticGenerateBacking>>(backing);
+    auto backing = MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
+    return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
 }
+
+bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto program = conductor->getProgram();
+
+    //moveCode(sandbox, true);  // calls sandbox->finalize()
+    moveCodeAssignAddresses(sandbox, true);
+    {
+        // get data sections; allow links to change bytes in data sections
+        SegMap::mapAllSegments(this);
+        ConductorPasses(conductor).newExecutablePasses(program);
+    }
+    copyCodeToNewAddresses(sandbox, true);
+    moveCodeMakeExecutable(sandbox);
+
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto generator = StaticGen(program, backing);
+    generator.generate(outputFile);
+    return true;
+}
+
 void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
     // 1. assign new addresses to all code
     moveCodeAssignAddresses(sandbox, useDisps);

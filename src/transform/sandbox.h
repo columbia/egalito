@@ -16,8 +16,6 @@ private:
 public:
     Slot(address_t address, size_t size)
         : address(address), available(size) {}
-    uint8_t *read() { return 0; }
-    bool append(uint8_t *data, size_t size);
     address_t getAddress() const { return address; }
 };
 
@@ -63,52 +61,6 @@ public:
     void finalize();
     bool reopen();
     bool recreate();
-};
-
-class ExeBacking : public MemoryBacking {
-private:
-    ElfSpace *elfSpace;
-    std::string filename;
-public:
-    ExeBacking(ElfSpace *elfSpace, std::string filename);
-
-    void finalize();
-    bool reopen() { return false; }
-};
-
-class ObjBacking : public MemoryBacking {
-private:
-    ElfSpace *elfSpace;
-    std::string filename;
-public:
-    ObjBacking(ElfSpace *elfSpace, std::string filename);
-
-    void finalize();
-    bool reopen() { return false; }
-};
-
-class Module;
-class AnyGenerateBacking : public MemoryBufferBacking {
-private:
-    Module *module;
-    std::string filename;
-public:
-    AnyGenerateBacking(Module *module, std::string filename);
-
-    void finalize();
-    bool reopen() { return false; }
-};
-
-class Program;
-class StaticGenerateBacking : public MemoryBufferBacking {
-private:
-    Program *program;
-    std::string filename;
-public:
-    StaticGenerateBacking(Program *program, std::string filename);
-
-    void finalize();
-    bool reopen() { return false; }
 };
 
 template <typename Backing>
@@ -248,5 +200,13 @@ public:
 
 using ShufflingSandbox = DualSandbox<
     SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>>;
+
+/*class SandboxBuilder {
+public:
+    Sandbox *makeLoaderSandbox();
+    ShufflingSandbox *makeShufflingSandbox();
+    Sandbox *makeFileSandbox(const char *outputFile);
+    Sandbox *makeStaticExecutableSandbox(const char *outputFile);
+};*/
 
 #endif
