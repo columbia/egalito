@@ -12,14 +12,19 @@ private:
 public:
     Generator(Sandbox *sandbox, bool useDisps = true)
         : sandbox(sandbox), useDisps(useDisps) {}
-    void pickAddressesInSandbox(Module *module);
-    void copyCodeToSandbox(Module *module);
-    void copyPLTEntriesToSandbox(Module *module);
-    void instantiate(Function *function);
-    void instantiate(PLTTrampoline *trampoline);
 
-    void jumpToSandbox(Sandbox *sandbox, Module *module,
-        const char *function = "main");
+    void assignAddresses(Program *program);
+    void generateCode(Program *program);
+
+    void assignAddresses(Module *module);
+    void generateCode(Module *module);
+
+    // For JIT-Shuffling. Assign an address and generate code.
+    void assignAndGenerate(Function *function);
+    void assignAndGenerate(PLTTrampoline *trampoline);
+
+    // For testing purposes only. Jumps directly to main, skipping init.
+    void jumpToSandbox(Module *module, const char *function = "main");
 private:
     void pickFunctionAddressInSandbox(Function *function);
     void pickPLTAddressInSandbox(PLTTrampoline *trampoline);

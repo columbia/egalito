@@ -16,7 +16,19 @@
 
 #include "config.h"
 
-void Generator::pickAddressesInSandbox(Module *module) {
+void Generator::assignAddresses(Program *program) {
+    for(auto module : CIter::modules(program)) {
+        assignAddresses(module);
+    }
+}
+
+void Generator::generateCode(Program *program) {
+    for(auto module : CIter::modules(program)) {
+        generateCode(module);
+    }
+}
+
+void Generator::assignAddresses(Module *module) {
 #ifdef LINUX_KERNEL_MODE
     Function *startup_64 = ChunkFind2()
         .findFunctionInModule("startup_64", module);
@@ -57,7 +69,7 @@ void Generator::pickAddressesInSandbox(Module *module) {
     module->accept(&clearSpatial);
 }
 
-void Generator::copyCodeToSandbox(Module *module) {
+void Generator::generateCode(Module *module) {
 #ifdef LINUX_KERNEL_MODE
     Function *startup_64 = ChunkFind2()
         .findFunctionInModule("startup_64", module);
@@ -77,10 +89,6 @@ void Generator::copyCodeToSandbox(Module *module) {
         copyFunctionToSandbox(f);
     }
 
-    copyPLTEntriesToSandbox(module);
-}
-
-void Generator::copyPLTEntriesToSandbox(Module *module) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
@@ -158,19 +166,17 @@ void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline) {
     PositionManager::setAddress(trampoline, slot.getAddress());
 }
 
-void Generator::instantiate(Function *function) {
+void Generator::assignAndGenerate(Function *function) {
     pickFunctionAddressInSandbox(function);
     copyFunctionToSandbox(function);
 }
 
-void Generator::instantiate(PLTTrampoline *trampoline) {
+void Generator::assignAndGenerate(PLTTrampoline *trampoline) {
     pickPLTAddressInSandbox(trampoline);
     copyPLTToSandbox(trampoline);
 }
 
-void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
-    const char *function) {
-
+void Generator::jumpToSandbox(Module *module, const char *function) {
     auto f = CIter::named(module->getFunctionList())->find(function);
     if(!f) return;
 

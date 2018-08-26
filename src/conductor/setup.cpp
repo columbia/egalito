@@ -209,19 +209,11 @@ void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
 }
 
 void ConductorSetup::moveCodeAssignAddresses(Sandbox *sandbox, bool useDisps) {
-    Generator generator(sandbox, useDisps);
-
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        generator.pickAddressesInSandbox(module);
-    }
+    Generator(sandbox, useDisps).assignAddresses(conductor->getProgram());
 }
 
 void ConductorSetup::copyCodeToNewAddresses(Sandbox *sandbox, bool useDisps) {
-    Generator generator(sandbox, useDisps);
-
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        generator.copyCodeToSandbox(module);
-    }
+    Generator(sandbox, useDisps).generateCode(conductor->getProgram());
 }
 
 void ConductorSetup::moveCodeMakeExecutable(Sandbox *sandbox) {
