@@ -13,7 +13,7 @@ class MemoryBufferBacking;
 
 class StaticGen {
 private:
-    Program *program;;
+    Program *program;
     MemoryBufferBacking *backing;
     SectionList sectionList;
 public:
@@ -29,6 +29,8 @@ private:
     void makeTextMapping();
     void makeDynamicSection();
     void makePhdrLoadSegment();
+    void makeInitArraySections();
+    void makeInitArraySectionLinks();
 private:
     void updateOffsets();
     void serialize(const std::string &filename);

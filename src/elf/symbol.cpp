@@ -181,7 +181,15 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
         if(fini) s->setSize(fini->getHeader()->sh_size);
         if(fini) LOG(6, "setting the size of _init to " << fini->getHeader()->sh_size);
     }
-    
+    if(auto s = list->find("__init_array_begin")) {
+        s->setType(Symbol::TYPE_OBJECT);  // this is really a marker
+        s->setSize(8);
+    }
+    if(auto s = list->find("__init_array_end")) {
+        s->setType(Symbol::TYPE_OBJECT);  // this is really a marker
+        s->setSize(8);
+    }
+
     if(auto s = list->find("_dl_starting_up")) {
         s->setType(Symbol::TYPE_OBJECT);
         LOG(1, "Found symbol _dl_starting_up");

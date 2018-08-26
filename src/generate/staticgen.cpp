@@ -5,7 +5,9 @@
 #include "modulegen.h"
 #include "concretedeferred.h"
 #include "transform/sandbox.h"
+#include "operation/mutator.h"
 #include "chunk/concrete.h"
+#include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
@@ -26,6 +28,10 @@ StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     auto phdrTable = new PhdrTableContent(&sectionList);
     auto phdrTableSection = new Section("=phdr_table", phdrTable);
     sectionList.addSection(phdrTableSection);
+
+    auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
+        SHF_WRITE | SHF_ALLOC);
+    sectionList.addSection(initArraySection);
     
     auto strtab = new Section(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
@@ -52,7 +58,9 @@ void StaticGen::generate(const std::string &filename) {
 #ifdef ENABLE_DYNAMIC
     makeDynamicSection();
 #endif
+    makeInitArraySections(); // must be before makePhdrLoadSegment
     makePhdrLoadSegment();  // must be after makeSymtabSection (for .dynsym)
+    makeInitArraySectionLinks(); // must be after makePhdrLoadSegment
     for(auto module : CIter::children(program)) {
         ModuleGen::Config config;
         config.setUniqueSectionNames(true);
@@ -240,7 +248,7 @@ void StaticGen::makePhdrTable() {
         phdr->p_paddr = phdr->p_vaddr;
             
     });
-    
+
     auto interpSection = sectionList[".interp"];
 #ifndef USE_MUSL
     const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
@@ -348,14 +356,17 @@ void StaticGen::makeDynamicSection() {
 void StaticGen::makePhdrLoadSegment() {
     auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
     auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
-    loadSegment->addContains(sectionList["=elfheader"]);
-    loadSegment->addContains(sectionList[".interp"]);
+    loadSegment->addContains(sectionList["=elfheader"]);  // constant size
+    loadSegment->addContains(sectionList[".interp"]);     // constant size
+    loadSegment->addContains(sectionList[".init_array"]);
     loadSegment->addContains(sectionList["=phdr_table"]);
     //loadSegment->addContains(sectionList[".strtab"]);
     //loadSegment->addContains(sectionList[".shstrtab"]);
     phdrTable->add(loadSegment, 0x200000);
     
-    auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
+    phdrTable->assignAddressesToSections(loadSegment, 0x200000);
+    //auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
+    auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x400000);
     dynSegment->addContains(sectionList[".dynstr"]);
     dynSegment->addContains(sectionList[".symtab"]);
     dynSegment->addContains(sectionList[".dynsym"]);
@@ -369,6 +380,74 @@ void StaticGen::makePhdrLoadSegment() {
     dynamicSegment->addContains(dynamicSection);
     phdrTable->add(dynamicSegment);
 }
+
+void StaticGen::makeInitArraySections() {
+    /*auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
+        SHF_WRITE | SHF_ALLOC);*/
+    auto initArraySection = sectionList[".init_array"];
+    auto content = new InitArraySectionContent();
+
+    std::vector<Link *> initFunctions;
+    for(auto module : CIter::children(program)) {
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+                if(section->getType() == DataSection::TYPE_INIT_ARRAY) {
+                    for(auto var : CIter::children(section)) {
+                        initFunctions.push_back(var->getDest());
+                        LOG(0, "Adding init function 0x" << var->getDest()->getTargetAddress() << " to .init_array");
+                    }
+                }
+            }
+        }
+    }
+
+    for(auto link : initFunctions) {
+        content->addPointer([link] () { return link->getTargetAddress(); });
+    }
+
+    initArraySection->setContent(content);
+    //sectionList.addSection(initArraySection);
+    //
+
+}
+
+void StaticGen::makeInitArraySectionLinks() {
+    auto initArraySection = sectionList[".init_array"];
+    auto main = program->getMain();
+    Function* func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
+    auto block = func->getChildren()->getIterable()->get(0);
+    int counter = 0;
+    for(auto instr: CIter::children(block)) {
+        if(auto link = instr->getSemantic()->getLink()) {
+            ++counter;
+            if(counter == 1) {
+                auto addr = initArraySection->getHeader()->getAddress();
+                instr->getSemantic()->setLink(new UnresolvedLink(addr));
+                dynamic_cast<LinkedInstruction *>(instr->getSemantic())
+                    ->clearAssembly();
+                LOG(0, "Change link from 0x" << link->getTargetAddress()
+                    << " to 0x" << addr);
+            }
+            if(counter == 2) {
+                auto addr = initArraySection->getHeader()->getAddress()
+                    + initArraySection->getContent()->getSize();
+                instr->getSemantic()->setLink(new UnresolvedLink(addr));
+                dynamic_cast<LinkedInstruction *>(instr->getSemantic())
+                    ->clearAssembly();
+                LOG(0, "Change link from 0x" << link->getTargetAddress()
+                    << " to 0x" << addr);
+            }
+
+
+            if(counter >= 2) break;
+        }
+    }
+    ChunkDumper d;
+    func->accept(&d);
+
+    ChunkMutator m{block, true};
+}
+
 
 void StaticGen::updateOffsets() {
     // every Section is written to the file, even those without SectionHeaders

@@ -100,6 +100,7 @@ public:
 
     DeferredType *add(SegmentInfo *segment);
     DeferredType *add(SegmentInfo *segment, address_t address);
+    void assignAddressesToSections(SegmentInfo *segment, address_t addr);
 };
 
 class PagePaddingContent : public DeferredValue {
@@ -192,4 +193,16 @@ public:
         std::function<address_t ()> generator);
     DeferredType *addPair(unsigned long key, unsigned long value);
 };
+
+class InitArraySectionContent : public DeferredValue {
+private:
+    std::vector<std::function<address_t ()>> array;
+    std::vector<std::function<void ()>> callbacks;
+public:
+    void addPointer(std::function<address_t ()> func) { array.push_back(func); }
+    void addCallback(std::function<void ()> func) { callbacks.push_back(func); }
+    virtual size_t getSize() const { return array.size() * sizeof(address_t); }
+    virtual void writeTo(std::ostream &stream);
+};
+
 #endif

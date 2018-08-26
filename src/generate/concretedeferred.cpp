@@ -262,6 +262,26 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment,
     return deferred;
 }
 
+void PhdrTableContent::assignAddressesToSections(SegmentInfo *segment, address_t addr) {
+    /*if(segment->getContainsList().empty()) return;
+    auto firstSection = segment->getContainsList()[0];
+
+    if(!firstSection->hasHeader()) return;
+    auto header = firstSection->getHeader();
+
+    if(!header->getAddress()) return;*/
+    address_t sectionAddress = addr;
+
+    for(auto sec : segment->getContainsList()) {
+        if(sec->hasHeader()) {
+            LOG(0, "assign address 0x" << sectionAddress 
+                << "  to section [" << sec->getName() << "]");
+            sec->getHeader()->setAddress(sectionAddress);
+        }
+        sectionAddress += sec->getContent()->getSize();
+    }
+}
+
 size_t PagePaddingContent::getSize() const {
     size_t lastByte = previousSection->getOffset();
     if(previousSection->hasContent()) {
@@ -472,4 +492,15 @@ DynamicSectionContent::DeferredType *DynamicSectionContent
 
     DeferredList<DynamicDataPair>::add(deferred);
     return deferred;
+}
+
+void InitArraySectionContent::writeTo(std::ostream &stream) {
+    for(auto func: callbacks) {
+        func();
+    }
+    for(auto func : array) {
+        address_t address = func();
+        std::string str{reinterpret_cast<char *>(&address), sizeof(address_t)};
+        stream << str;
+    }
 }
