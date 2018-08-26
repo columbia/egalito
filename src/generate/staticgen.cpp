@@ -5,9 +5,7 @@
 #include "modulegen.h"
 #include "concretedeferred.h"
 #include "transform/sandbox.h"
-#include "operation/mutator.h"
 #include "chunk/concrete.h"
-#include "chunk/dump.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
@@ -264,7 +262,6 @@ void StaticGen::makePhdrTable() {
         phdr->p_vaddr = 0x200000 + sectionList[".interp"]->getOffset();
         phdr->p_paddr = phdr->p_vaddr;
     });
-
 }
 
 void StaticGen::makeTextMapping() {
@@ -363,8 +360,8 @@ void StaticGen::makePhdrLoadSegment() {
     //loadSegment->addContains(sectionList[".strtab"]);
     //loadSegment->addContains(sectionList[".shstrtab"]);
     phdrTable->add(loadSegment, 0x200000);
-    
     phdrTable->assignAddressesToSections(loadSegment, 0x200000);
+
     //auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
     auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x400000);
     dynSegment->addContains(sectionList[".dynstr"]);
@@ -394,7 +391,9 @@ void StaticGen::makeInitArraySections() {
                 if(section->getType() == DataSection::TYPE_INIT_ARRAY) {
                     for(auto var : CIter::children(section)) {
                         initFunctions.push_back(var->getDest());
-                        LOG(0, "Adding init function 0x" << var->getDest()->getTargetAddress() << " to .init_array");
+                        LOG(0, "Adding init function 0x"
+                            << var->getDest()->getTargetAddress()
+                            << " to .init_array");
                     }
                 }
             }
@@ -406,18 +405,15 @@ void StaticGen::makeInitArraySections() {
     }
 
     initArraySection->setContent(content);
-    //sectionList.addSection(initArraySection);
-    //
-
 }
 
 void StaticGen::makeInitArraySectionLinks() {
     auto initArraySection = sectionList[".init_array"];
     auto main = program->getMain();
-    Function* func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
+    auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
     auto block = func->getChildren()->getIterable()->get(0);
     int counter = 0;
-    for(auto instr: CIter::children(block)) {
+    for(auto instr : CIter::children(block)) {
         if(auto link = instr->getSemantic()->getLink()) {
             ++counter;
             if(counter == 1) {
@@ -438,14 +434,9 @@ void StaticGen::makeInitArraySectionLinks() {
                     << " to 0x" << addr);
             }
 
-
             if(counter >= 2) break;
         }
     }
-    ChunkDumper d;
-    func->accept(&d);
-
-    ChunkMutator m{block, true};
 }
 
 
@@ -471,23 +462,11 @@ void StaticGen::serialize(const std::string &filename) {
 }
 
 size_t StaticGen::shdrIndexOf(Section *section) {
-#if 0
-    auto shdrTableSection = sectionList["=shdr_table"];
-    auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
-    return shdrTable->indexOf(shdrTable->find(section));
-#else
     return sectionList.indexOf(section);
-#endif
 }
 
 size_t StaticGen::shdrIndexOf(const std::string &name) {
-#if 0
-    auto shdrTableSection = sectionList["=shdr_table"];
-    auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
-    return shdrTable->indexOf(shdrTable->find(sectionList[name]));
-#else
     return sectionList.indexOf(name);
-#endif
 }
 
 bool StaticGen::blacklistedSymbol(const std::string &name) {
