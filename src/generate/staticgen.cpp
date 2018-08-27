@@ -16,21 +16,23 @@
 
 StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
     : program(program), backing(backing) {
+}
 
+void StaticGen::makeBasicSections() {
     auto header = new Section("=elfheader");
     sectionList.addSection(header);
 
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
     sectionList.addSection(interpSection);
 
-    auto phdrTable = new PhdrTableContent(&sectionList);
-    auto phdrTableSection = new Section("=phdr_table", phdrTable);
-    sectionList.addSection(phdrTableSection);
-
     auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
         SHF_WRITE | SHF_ALLOC);
     sectionList.addSection(initArraySection);
     
+    auto phdrTable = new PhdrTableContent(&sectionList);
+    auto phdrTableSection = new Section("=phdr_table", phdrTable);
+    sectionList.addSection(phdrTableSection);
+
     auto strtab = new Section(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
     sectionList.addSection(strtab);
@@ -49,16 +51,34 @@ StaticGen::StaticGen(Program *program, MemoryBufferBacking *backing)
 #endif 
 }
 
-void StaticGen::generate(const std::string &filename) {
+void StaticGen::preCodeGeneration() {
+    makeBasicSections();
+    makeInitArraySections(); // must be before makePhdrLoadSegment
     makeHeader();
     makePhdrTable();  // can add phdrs after this
     makeSymtabSection();
 #ifdef ENABLE_DYNAMIC
     makeDynamicSection();
 #endif
-    makeInitArraySections(); // must be before makePhdrLoadSegment
     makePhdrLoadSegment();  // must be after makeSymtabSection (for .dynsym)
     makeInitArraySectionLinks(); // must be after makePhdrLoadSegment
+}
+
+void StaticGen::afterAddressAssign() {
+    
+}
+
+void StaticGen::generate(const std::string &filename) {
+    /*
+    makeHeader();
+    makePhdrTable();  // can add phdrs after this
+    makeSymtabSection();
+#ifdef ENABLE_DYNAMIC
+    makeDynamicSection();
+#endif
+    makePhdrLoadSegment();  // must be after makeSymtabSection (for .dynsym)
+    makeInitArraySectionLinks(); // must be after makePhdrLoadSegment
+    */
     for(auto module : CIter::children(program)) {
         ModuleGen::Config config;
         config.setUniqueSectionNames(true);
@@ -123,7 +143,9 @@ void StaticGen::makeHeader() {
     });
     
     if(program->getEntryPoint()) {
-        header->e_entry = program->getEntryPointAddress();
+        deferred->addFunction([this] (ElfXX_Ehdr *header) {
+            header->e_entry = program->getEntryPointAddress();
+        });
     } else {
         LOG(1, "No entry point found in program when generating ELF file");
     }
@@ -244,7 +266,6 @@ void StaticGen::makePhdrTable() {
     deferred->addFunction([this] (ElfXX_Phdr *phdr) {
         phdr->p_vaddr = 0x200000 + sectionList["=phdr_table"]->getOffset();
         phdr->p_paddr = phdr->p_vaddr;
-            
     });
 
     auto interpSection = sectionList[".interp"];
@@ -409,6 +430,8 @@ void StaticGen::makeInitArraySections() {
 
 void StaticGen::makeInitArraySectionLinks() {
     auto initArraySection = sectionList[".init_array"];
+    auto content = dynamic_cast<InitArraySectionContent *>(
+        initArraySection->getContent());
     auto main = program->getMain();
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
     auto block = func->getChildren()->getIterable()->get(0);
@@ -417,28 +440,32 @@ void StaticGen::makeInitArraySectionLinks() {
         if(auto link = instr->getSemantic()->getLink()) {
             ++counter;
             if(counter == 1) {
-                auto addr = initArraySection->getHeader()->getAddress();
-                instr->getSemantic()->setLink(new UnresolvedLink(addr));
-                dynamic_cast<LinkedInstruction *>(instr->getSemantic())
-                    ->clearAssembly();
-                LOG(0, "Change link from 0x" << link->getTargetAddress()
-                    << " to 0x" << addr);
+                // can't be deferred because otherwise code generation picks up old value
+                //content->addCallback([initArraySection, instr, link]() {
+                    auto addr = initArraySection->getHeader()->getAddress();
+                    instr->getSemantic()->setLink(new UnresolvedLink(addr));
+                    dynamic_cast<LinkedInstruction *>(instr->getSemantic())
+                        ->clearAssembly();
+                    LOG(0, "Change link from 0x" << link->getTargetAddress()
+                        << " to 0x" << addr);
+                //});
             }
             if(counter == 2) {
-                auto addr = initArraySection->getHeader()->getAddress()
-                    + initArraySection->getContent()->getSize();
-                instr->getSemantic()->setLink(new UnresolvedLink(addr));
-                dynamic_cast<LinkedInstruction *>(instr->getSemantic())
-                    ->clearAssembly();
-                LOG(0, "Change link from 0x" << link->getTargetAddress()
-                    << " to 0x" << addr);
+                //content->addCallback([initArraySection, instr, link]() {
+                    auto addr = initArraySection->getHeader()->getAddress()
+                        + initArraySection->getContent()->getSize();
+                    instr->getSemantic()->setLink(new UnresolvedLink(addr));
+                    dynamic_cast<LinkedInstruction *>(instr->getSemantic())
+                        ->clearAssembly();
+                    LOG(0, "Change link from 0x" << link->getTargetAddress()
+                        << " to 0x" << addr);
+                //});
             }
 
             if(counter >= 2) break;
         }
     }
 }
-
 
 void StaticGen::updateOffsets() {
     // every Section is written to the file, even those without SectionHeaders
@@ -452,6 +479,11 @@ void StaticGen::updateOffsets() {
 
 void StaticGen::serialize(const std::string &filename) {
     std::ofstream fs(filename, std::ios::out | std::ios::binary);
+    if(!fs.is_open()) {
+        LOG(0, "Cannot open executable file [" << filename << "]");
+        std::cerr << "Cannot open executable file [" << filename << "]" << std::endl;
+        return;
+    }
     for(auto section : sectionList) {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()

@@ -19,8 +19,11 @@ private:
 public:
     StaticGen(Program *program, MemoryBufferBacking *backing);
 
+    void preCodeGeneration();
+    void afterAddressAssign();
     void generate(const std::string &filename);
 private:
+    void makeBasicSections();
     void makeHeader();
     void makeSymtabSection();
     void makeSectionSymbols();

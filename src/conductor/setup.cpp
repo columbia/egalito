@@ -196,20 +196,25 @@ Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
 
 bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
     auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
     auto program = conductor->getProgram();
 
-    //moveCode(sandbox, true);  // calls sandbox->finalize()
-    moveCodeAssignAddresses(sandbox, true);
-    {
-        // get data sections; allow links to change bytes in data sections
-        SegMap::mapAllSegments(this);
-        ConductorPasses(conductor).newExecutablePasses(program);
-    }
-    copyCodeToNewAddresses(sandbox, true);
-    moveCodeMakeExecutable(sandbox);
-
-    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
     auto generator = StaticGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        //moveCode(sandbox, true);  // calls sandbox->finalize()
+        moveCodeAssignAddresses(sandbox, true);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newExecutablePasses(program);
+        }
+        copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
     generator.generate(outputFile);
     return true;
 }

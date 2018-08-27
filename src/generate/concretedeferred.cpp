@@ -289,9 +289,17 @@ size_t PagePaddingContent::getSize() const {
     }
 
     // how much data is needed to round from lastByte to a page boundary?
+#if 0
     size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
         - lastByte;
     return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+#else
+    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+        - lastByte;
+    LOG(0, "desiredOffset = " << desiredOffset << ", got = " 
+        << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
+    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+#endif
 }
 
 void PagePaddingContent::writeTo(std::ostream &stream) {
@@ -500,6 +508,7 @@ void InitArraySectionContent::writeTo(std::ostream &stream) {
     }
     for(auto func : array) {
         address_t address = func();
+        LOG(0, "init_array value = " << address); 
         std::string str{reinterpret_cast<char *>(&address), sizeof(address_t)};
         stream << str;
     }
