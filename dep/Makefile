@@ -29,7 +29,7 @@ distorm3:
 # directly use make to install to 'lib'
 CAPSTONE_INSTALL := $(abspath capstone/install)
 capstone:
-	-@cd capstone \
+	@cd capstone \
 		&& rm -fr install \
 		&& git checkout $(capstone-VERSION) > /dev/null 2>&1 \
 		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
