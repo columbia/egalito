@@ -37,7 +37,7 @@ Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
     program = new Program();
     program->setLibraryList(new LibraryList());
 
-    ParseOverride::getInstance()->parse("ffi.override");
+    ParseOverride::getInstance()->parseFromEnvironmentVar();
 }
 
 Conductor::~Conductor() {

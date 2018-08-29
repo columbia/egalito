@@ -339,21 +339,10 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     auto context = ParseOverride::getInstance()->makeContext(
         function->getSymbol()->getName());
 
-    LOG(1, "context dump:");
-    if(auto str = std::get<0>(context)) {
-        LOG(1, "    module:   " << str.value());
-    }
-    if(auto str = std::get<1>(context)) {
-        LOG(1, "    function: " << str.value());
-    }
-    if(auto addr = std::get<2>(context)) {
-        LOG(1, "    address:  " << addr.value());
-    }
-
     if(auto over = ParseOverride::getInstance()->getBlockBoundaryOverride(
         context)) {
 
-        LOG(1, "%%%% Using parsing override!");
+        LOG(10, "Using parsing override!");
 
         disassembleCustomBlocks(function, readAddress, virtualAddress,
             over->getOverrideList());
@@ -1233,9 +1222,11 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
         cs_free(insn, count);
     }
 
-    LOG(1, "before recalculation:");
-    for(auto block : CIter::children(function)) {
-        LOG(1, "    block address: " << std::hex << block->getAddress());
+    IF_LOG(10) {
+        LOG(10, "before recalculation:");
+        for(auto block : CIter::children(function)) {
+            LOG(10, "    block address: " << std::hex << block->getAddress());
+        }
     }
 
     // force block recalculation
@@ -1243,9 +1234,17 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
         ChunkMutator(function, true);
     }
 
-    LOG(1, "after recalculation:");
-    for(auto block : CIter::children(function)) {
-        LOG(1, "    block address: " << std::hex << block->getAddress());
+    IF_LOG(10) {
+        LOG(10, "before recalculation:");
+        for(auto block : CIter::children(function)) {
+            LOG(10, "    block address: " << std::hex << block->getAddress());
+        }
+    }
+    IF_LOG(10) {
+        LOG(10, "after recalculation:");
+        for(auto block : CIter::children(function)) {
+            LOG(10, "    block address: " << std::hex << block->getAddress());
+        }
     }
 }
 

@@ -145,8 +145,10 @@ public:
     BlockBoundaryOverride *getBlockBoundaryOverride(
         const OverrideContext &where);
 
+    void parseFromEnvironmentVar();
     void parse(const std::string &from);
 private:
+    void parseDir(const std::string &dirname);
     void parseFile(const std::string &filename);
     void parseBlockOverride(std::istream &stream);
 };
