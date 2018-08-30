@@ -327,6 +327,13 @@ Link *DataRegionList::createDataLink(address_t target, Module *module,
                     module->getFunctionList(), target)) {
 
                     LOG(1, "is this a hand-crafted jump table? " << target);
+                    // NOTE: we used to return nullptr here because having a
+                    // data-offset link into a code region doesn't make much
+                    // sense. However certain hand-coded assembly that can be
+                    // parsed properly with parse overrides will validly create
+                    // a DataOffsetLink referring to a jump table inside a code
+                    // section, e.g. inlined inside a function body.
+
                     //return nullptr;
                 }
                 else {
