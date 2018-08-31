@@ -107,8 +107,9 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
             || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
-            || name == ".vvar") {
-
+            || name == ".vvar" || name == "__libc_atexit") {
+            
+            LOG(0, "[" << name << "] is a data section");
             type = TYPE_DATA;
         }
         else type = TYPE_UNKNOWN;

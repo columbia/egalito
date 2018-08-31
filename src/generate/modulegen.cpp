@@ -22,9 +22,19 @@ void ModuleGen::makeDataSections() {
     auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
-        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
-
+        SegmentInfo *loadSegment = nullptr;
+        address_t previousEndAddress = 0;
         for(auto section : CIter::children(region)) {
+            if (section->getAddress() != previousEndAddress) {
+                if(loadSegment) {
+                    if(!loadSegment->getContainsList().empty()) {
+                        phdrTable->add(loadSegment);
+                    }
+                    else delete loadSegment;
+                }
+                loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
+            }
+
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
                 LOG(0, "DATA section " << section->getName());
@@ -40,6 +50,7 @@ void ModuleGen::makeDataSections() {
                 sectionList->addSection(dataSection);
                 loadSegment->addContains(dataSection);
                 maybeMakeDataRelocs(section, dataSection);
+                previousEndAddress = section->getAddress() + section->getSize();
                 break;
             }
             case DataSection::TYPE_BSS: {
@@ -49,11 +60,12 @@ void ModuleGen::makeDataSections() {
                 auto bssSection = new Section(section->getName(),
                     SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
                 bssSection->setContent(new DeferredString(
-                        std::string(section->getSize(), 0x0)));
+                    std::string(section->getSize(), 0x0)));
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
                 loadSegment->addContains(bssSection);
+                previousEndAddress = section->getAddress() + section->getSize();
                 break;
             }
             case DataSection::TYPE_UNKNOWN:
