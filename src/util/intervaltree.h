@@ -35,6 +35,7 @@ public:
     bool findLowerBound(address_t point, Range *bound);
     bool findLowerBoundOrOverlapping(address_t point, Range *bound);
     bool findUpperBound(address_t point, Range *bound);
+    bool findUpperBoundOrOverlapping(address_t point, Range *bound);
     Range upperBound(address_t point);
 
     void inStartOrderTraversal(std::function<void (Range)> callback);
@@ -59,6 +60,7 @@ public:
     bool findLowerBound(address_t point, Range *lowerBound);
     bool findLowerBoundOrOverlapping(address_t point, Range *lowerBound);
     bool findUpperBound(address_t point, Range *upperBound);
+    bool findUpperBoundOrOverlapping(address_t point, Range *upperBound);
     void subtract(Range range);
     void subtractWithAddendum(Range range, Range addendum);
     IntervalTree complement();
@@ -66,6 +68,8 @@ public:
 
     IntervalTreeNode *getRoot() const { return tree; }
     std::vector<Range> getAllData() const;
+
+    void dump() const;
 };
 
 #endif

@@ -173,6 +173,25 @@ bool IntervalTreeNode::findUpperBound(address_t point, Range *bound) {
     return false;
 }
 
+bool IntervalTreeNode::findUpperBoundOrOverlapping(
+    address_t point, Range *bound) {
+
+    if(point < midpoint) {
+        if(lower && lower->findUpperBoundOrOverlapping(point, bound)) return true;
+    }
+
+    for(const auto &r : overlapStart) {
+        if(point < r || r.contains(point)) {
+            *bound = r;
+            return true;
+        }
+    }
+
+    if(higher && higher->findUpperBoundOrOverlapping(point, bound)) return true;
+
+    return false;
+}
+
 void IntervalTreeNode::inStartOrderTraversal(std::function<void (Range)> callback) {
     if(lower) lower->inStartOrderTraversal(callback);
 
@@ -230,6 +249,10 @@ bool IntervalTree::findLowerBoundOrOverlapping(address_t point,
 
 bool IntervalTree::findUpperBound(address_t point, Range *upperBound) {
     return tree->findUpperBound(point, upperBound);
+}
+
+bool IntervalTree::findUpperBoundOrOverlapping(address_t point, Range *upperBound) {
+    return tree->findUpperBoundOrOverlapping(point, upperBound);
 }
 
 void IntervalTree::subtract(Range range) {
@@ -293,4 +316,12 @@ std::vector<Range> IntervalTree::getAllData() const {
         output.push_back(r);
     });
     return std::move(output);
+}
+
+void IntervalTree::dump() const {
+    LOG(9, "Interval tree dump:");
+    auto data = getAllData();
+    for(auto r : data) {
+        LOG(9, "\t" << r);
+    }
 }
