@@ -354,6 +354,10 @@ void JumptableDetection::makeDescriptor(Instruction *instruction,
     jtd->setTargetBaseLink(link);
     jtd->setScale(info->scale);
     jtd->setEntries(info->entries);
+
+    auto contentSection =
+        module->getDataRegionList()->findDataSectionContaining(info->tableBase);
+    jtd->setContentSection(contentSection);
     tableList.push_back(jtd);
 
     LOG(10, "jump table jump at "

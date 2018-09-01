@@ -16,19 +16,6 @@ void JumpTableOverestimate::visit(Module *module) {
 void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
     recurse(jumpTableList);
 
-#ifdef ARCH_X86_64
-    auto tableSection = module->getElfSpace()->getElfMap()
-        ->findSection(".text");
-    auto tableReadPtr = module->getElfSpace()->getElfMap()
-        ->getSectionReadPtr<unsigned char *>(tableSection);
-#else
-    auto tableSection = module->getElfSpace()->getElfMap()
-        ->findSection(".rodata");
-    if(!tableSection) return;
-    auto tableReadPtr = module->getElfSpace()->getElfMap()
-        ->getSectionReadPtr<unsigned char *>(tableSection);
-#endif
-
     for(auto it = tableMap.begin(); it != tableMap.end(); it ++) {
         JumpTable *currentTable = (*it).second;
         if(currentTable->getDescriptor()->getEntries() > 0) {
@@ -37,6 +24,16 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
         }
 
         address_t address = currentTable->getDescriptor()->getAddress();
+
+        auto contentSection =
+            currentTable->getDescriptor()->getContentSection();
+        if(!contentSection) continue;
+        auto tableSection =
+            module->getElfSpace()->getElfMap()->findSection(
+                contentSection->getName().c_str());
+        auto tableReadPtr = module->getElfSpace()->getElfMap()
+            ->getSectionReadPtr<unsigned char *>(tableSection);
+
         int scale = currentTable->getDescriptor()->getScale();
         for(int count = 1; ; count ++) {
             address_t computed = address + count*scale;

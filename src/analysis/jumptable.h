@@ -20,6 +20,7 @@ private:
     Function *function;
     Instruction *instruction;  // indirect jump to this jump table
     address_t address;
+    DataSection *contentSection;
     Link *targetBaseLink;
     TreeNode *indexExpr;
     Register indexRegister;
@@ -28,12 +29,14 @@ private:
 public:
     JumpTableDescriptor(Function *function, Instruction *instruction)
         : function(function), instruction(instruction),
-        address(0), targetBaseLink(nullptr), indexExpr(nullptr),
-        indexRegister(INVALID_REGISTER), scale(1), bound(LONG_MAX) {}
+        address(0), contentSection(nullptr), targetBaseLink(nullptr),
+        indexExpr(nullptr), indexRegister(INVALID_REGISTER), scale(1),
+        bound(LONG_MAX) {}
 
     Function *getFunction() const { return function; }
     Instruction *getInstruction() const { return instruction; }
     address_t getAddress() const { return address; }
+    DataSection *getContentSection() const { return contentSection; }
     Link *getTargetBaseLink() const { return targetBaseLink; }
     TreeNode *getIndexExpr() const { return indexExpr; }
     Register getIndexRegister() const { return indexRegister; }
@@ -43,6 +46,7 @@ public:
     long getEntries() const;
 
     void setAddress(address_t a) { address = a; }
+    void setContentSection(DataSection *section) { contentSection = section; }
     void setTargetBaseLink(Link *link) { this->targetBaseLink = link; }
     void setIndexExpr(TreeNode *node) { indexExpr = node; }
     void setIndexRegister(Register r) { indexRegister = r; }

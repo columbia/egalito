@@ -132,14 +132,18 @@ size_t JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
     auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
 
-    auto firstAddress = jumpTable->getAddress() + 0;
-    auto region
-        = module->getDataRegionList()->findRegionContaining(firstAddress);
-    auto section = CIter::spatial(region)->findContaining(firstAddress);
+    auto section = descriptor->getContentSection();
+
+    auto elfSection =
+        module->getElfSpace()->getElfMap()->findSection(
+            section->getName().c_str());
+    auto tableReadPtr = module->getElfSpace()->getElfMap()
+        ->getSectionReadPtr<unsigned char *>(elfSection);
 
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
-        auto p = elfMap->getCopyBaseAddress() + address;
+        address_t offset = elfSection->convertVAToOffset(address);
+        auto p = tableReadPtr + offset;
         ptrdiff_t value;
         switch(descriptor->getScale()) {
         case 1:
