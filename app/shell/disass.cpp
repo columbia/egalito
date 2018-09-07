@@ -25,6 +25,7 @@
 #include "pass/reorderpush.h"
 #include "pass/retpoline.h"
 #include "pass/dumplink.h"
+#include "pass/findendbr.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -562,4 +563,20 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         DumpLinkPass dumplink;
         module->accept(&dumplink);
     }, "dump all links");
+
+    topLevel->add("findendbr", [&] (Arguments args) {
+        FindEndbrPass findendbr;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&findendbr);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&findendbr);
+        }
+    }, "finds all endbr instruction and prints statistics");
 }
