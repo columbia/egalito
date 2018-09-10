@@ -272,25 +272,27 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
             addr += symbol->getAddress() + instr->getSize() - offset;
         }
         else if(type == R_X86_64_GLOB_DAT) {
-            // search first in the executable namespace for COPY
             LOG(1, "Handling glob_dat relocation at 0x"
                         << std::hex << reloc->getAddress());
             auto program = dynamic_cast<Program *>(module->getParent());
             auto main = program->getMain();
-            if(auto list = main->getElfSpace()->getSymbolList()) {
-                auto s = list->find(symbol->getName());
-                auto version = symbol->getVersion();
-                if(!s && version) {
-                    std::string versionedName(symbol->getName());
-                    versionedName.push_back('@');
-                    if(!version->isHidden()) versionedName.push_back('@');
-                    versionedName.append(version->getName());
-                    s = list->find(versionedName.c_str());
-                    if(s) {
-                        auto dlink = LinkFactory::makeDataLink(
-                            main, s->getAddress(), relative);
-                        LOG(1, "resolved to a data in module-(executable)");
-                        return dlink;
+            if(module == main) {
+                // search first in the executable namespace for COPY
+                if(auto list = main->getElfSpace()->getSymbolList()) {
+                    auto s = list->find(symbol->getName());
+                    auto version = symbol->getVersion();
+                    if(!s && version) {
+                        std::string versionedName(symbol->getName());
+                        versionedName.push_back('@');
+                        if(!version->isHidden()) versionedName.push_back('@');
+                        versionedName.append(version->getName());
+                        s = list->find(versionedName.c_str());
+                        if(s) {
+                            auto dlink = LinkFactory::makeDataLink(
+                                main, s->getAddress(), relative);
+                            LOG(1, "resolved to data in module-(executable)");
+                            return dlink;
+                        }
                     }
                 }
             }

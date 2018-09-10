@@ -58,9 +58,12 @@ void ModuleGen::makeDataSections() {
                 makePaddingSection(section->getAddress() & (0x200000-1));
 
                 auto bssSection = new Section(section->getName(),
-                    SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
-                bssSection->setContent(new DeferredString(
-                    std::string(section->getSize(), 0x0)));
+                    /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                auto content = new DeferredString(region->getDataBytes()
+                    .substr(section->getOriginalOffset(), section->getSize()));
+                bssSection->setContent(content);
+                /*bssSection->setContent(new DeferredString(
+                    std::string(section->getSize(), 0x0)));*/
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);

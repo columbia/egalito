@@ -109,7 +109,7 @@ public:
     virtual size_t getSize() const { return size; }
     const std::string &getDataBytes() const { return dataBytes; }
     size_t getSizeOfInitializedData() const { return dataBytes.length(); }
-    void saveDataBytes();
+    void saveDataBytes(bool captureUninitializedData = true);
     virtual void addToSize(diff_t add) { /* ignored */ }
 
     bool contains(address_t address);

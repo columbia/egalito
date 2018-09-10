@@ -26,6 +26,7 @@
 #include "pass/reorderpush.h"
 #include "pass/retpoline.h"
 #include "pass/dumplink.h"
+#include "pass/ldsorefs.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -171,6 +172,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("generate-static", [&] (Arguments args) {
         args.shouldHave(1);
+        LdsoRefsPass pass;
+        setup->getConductor()->getProgram()->accept(&pass);
         setup->generateStaticExecutable(args.front().c_str());
     }, "writes out the current code to an ELF file");
     

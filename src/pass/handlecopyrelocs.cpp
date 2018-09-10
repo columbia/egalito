@@ -24,6 +24,9 @@ void HandleCopyRelocs::visit(Module *module) {
             assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
+            if(r->getAddress() == 0x207040) {
+                LOG(0, "...");
+            }
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
                 false, false, true);
@@ -52,14 +55,15 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
 
     auto from = link->getTargetAddress();
     std::memcpy((void *)address, (void *)from, size);
-    LOG(10, "copy from " << std::hex << from << " to " << address
+    LOG(0, "copy from " << std::hex << from << " to " << address
         << " size " << size);
+    LOG(0, "the value is " << std::hex <<  *(unsigned long *)address);
 
     Range range(from, size);
     auto section = dynamic_cast<DataSection *>(&*link->getTarget());
     std::vector<DataVariable *> existing;
     for(auto var : CIter::children(section)) {
-        LOG(11, "var = " << std::hex << var->getAddress());
+        LOG(1, "var = " << std::hex << var->getAddress());
         if(range.contains(var->getAddress())) {
             if(dynamic_cast<NormalLink *>(var->getDest())) {
                 existing.push_back(var);

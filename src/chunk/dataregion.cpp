@@ -107,7 +107,8 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
             || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
-            || name == ".vvar" || name == "__libc_atexit") {
+            || name == ".vvar" || name == "__libc_atexit"
+            || name.substr(0, 7) == "__libc_") {
             
             LOG(0, "[" << name << "] is a data section");
             type = TYPE_DATA;
@@ -190,9 +191,15 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     // note: dataBytes may store less than getSize(). Padded with zeros.
 }
 
-void DataRegion::saveDataBytes() {
+void DataRegion::saveDataBytes(bool captureUninitializedData) {
     const char *address = reinterpret_cast<const char *>(getAddress());
-    size_t size = dataBytes.size();
+
+    // In the case of uninitialized/zeroed .bss data, if we are saving the
+    // data bytes then we may want to capture any modifications that were
+    // made e.g. by links or relocations. Essentially, we convert it to
+    // initialized data.
+    size_t size = captureUninitializedData ? getSize() : dataBytes.size();
+
     dataBytes.assign(address, size);
 }
 
