@@ -32,6 +32,7 @@
 #include "pass/debloat.h"
 #include "pass/makecache.h"
 #include "pass/reorderpush.h"
+#include "pass/endbrenforce.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -238,6 +239,11 @@ void EgalitoLoader::otherPasses() {
     if(isFeatureEnabled("EGALITO_USE_RETPOLINES")) {
         RetpolinePass retpoline;
         program->accept(&retpoline);
+    }
+
+    if(isFeatureEnabled("EGALITO_USE_ENDBR_CFI")) {
+        EndbrEnforcePass endbrEnforce;
+        program->accept(&endbrEnforce);
     }
 
 #ifdef ARCH_X86_64

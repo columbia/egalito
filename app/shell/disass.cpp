@@ -26,6 +26,7 @@
 #include "pass/retpoline.h"
 #include "pass/dumplink.h"
 #include "pass/findendbr.h"
+#include "pass/endbrenforce.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -579,4 +580,20 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&findendbr);
         }
     }, "finds all endbr instruction and prints statistics");
+
+    topLevel->add("endbrenforce", [&] (Arguments args) {
+        EndbrEnforcePass pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+    }, "add endbr-based control flow integrity checks on indirect jumps");
 }
