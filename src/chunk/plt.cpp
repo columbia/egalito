@@ -13,6 +13,7 @@
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
 #include "instr/writer.h"
+#include "disasm/disassemble.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dplt
@@ -63,7 +64,7 @@ bool PLTTrampoline::isIFunc() const {
 }
 
 void PLTTrampoline::writeTo(std::string &target) {
-#ifdef ARCH_X86_64 
+#ifdef ARCH_X86_64
     bool isIFunc = this->isIFunc();
     if(externalSymbol) {
         LOG(1, "making PLT entry for [" << externalSymbol->getName()
@@ -102,7 +103,7 @@ void PLTTrampoline::writeTo(char *target) {
         }
     }
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
-    
+
     static const uint32_t plt[] = {
         0x90000010, //adrp x16, .
         0xf9400211, //ldr  x17, [x16, #0]
@@ -287,8 +288,39 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                 }
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(symbol);
-                pltList->getChildren()->add(
-                    new PLTTrampoline(pltList, pltAddress, externalSymbol, value));
+                auto trampoline = new PLTTrampoline(
+                    pltList, pltAddress, externalSymbol, value);
+
+                static DisasmHandle handle(true);
+                auto jmp1 = new Instruction();
+                auto jmp1sem = new ControlFlowInstruction(X86_INS_JMP, jmp1,
+                    "\xff\x25", "jmpq", 4);
+                jmp1->setSemantic(jmp1sem);
+                jmp1sem->setLink(module->getDataRegionList()
+                    ->createDataLink(value, module, true));
+                auto push = DisassembleInstruction(handle, true)
+                    .instruction(std::string(
+                    reinterpret_cast<const char *>(entry + 6), 5));
+                auto jmp2 = new Instruction();
+                auto jmp2sem = new ControlFlowInstruction(X86_INS_JMP, jmp2,
+                    "\xe9", "jmpq", 4);
+                jmp2->setSemantic(jmp2sem);
+
+                auto sectionAddr = pltSection->getVirtualAddress();
+                jmp2sem->setLink(new UnresolvedLink(sectionAddr));
+                LOG(1, "plt section address is " << std::hex << sectionAddr);
+                LOG(1, "plt section link is " << std::hex << jmp2sem->getLink());
+
+                auto block = new Block();
+                ChunkMutator(trampoline).append(block);
+                {
+                    ChunkMutator m(block, true);
+                    m.append(jmp1);
+                    m.append(push);
+                    m.append(jmp2);
+                }
+
+                pltList->getChildren()->add(trampoline);
             }
         }
     }

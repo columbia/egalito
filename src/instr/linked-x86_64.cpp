@@ -204,7 +204,7 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
     return linked;
 }
 
-void ControlFlowInstruction::setSize(size_t value) {
+void ControlFlowInstructionBase::setSize(size_t value) {
     diff_t disp = value - opcode.size();
     assert(disp >= 0);
     assert(disp == 1 || disp == 2 || disp == 4);
@@ -212,22 +212,50 @@ void ControlFlowInstruction::setSize(size_t value) {
     displacementSize = disp;
 }
 
-void ControlFlowInstruction::writeTo(char *target, bool useDisp) {
+void ControlFlowInstructionBase::writeTo(char *target, bool useDisp) {
     std::memcpy(target, opcode.c_str(), opcode.size());
     diff_t disp = useDisp ? calculateDisplacement() : 0;
     std::memcpy(target + opcode.size(), &disp, displacementSize);
 }
 
-void ControlFlowInstruction::writeTo(std::string &target, bool useDisp) {
+void ControlFlowInstructionBase::writeTo(std::string &target, bool useDisp) {
     target.append(opcode);
     diff_t disp = useDisp ? calculateDisplacement() : 0;
     target.append(reinterpret_cast<const char *>(&disp), displacementSize);
 }
 
-diff_t ControlFlowInstruction::calculateDisplacement() {
-    // ControlFlowInstruction is always RIP-relative
+diff_t ControlFlowInstructionBase::calculateDisplacement() {
+#if 0
+    // ControlFlowInstructionBase is always RIP-relative
     return getLink()->getTargetAddress()
         - (getSource()->getAddress() + getSize());
+#else
+    unsigned long int disp = getLink()->getTargetAddress();
+    if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
+        && !dynamic_cast<AbsoluteDataLink *>(getLink())
+        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
+        && !dynamic_cast<GSTableLink *>(getLink())
+        && !dynamic_cast<DistanceLink *>(getLink())) {
+
+        disp -= (source->getAddress() + getSize());
+    }
+    return disp;
+#endif
+}
+
+void DataLinkedControlFlowInstruction::setLink(Link *link) {
+    if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
+        && !dynamic_cast<AbsoluteDataLink *>(getLink())
+        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
+        && !dynamic_cast<GSTableLink *>(getLink())
+        && !dynamic_cast<DistanceLink *>(getLink())) {
+
+        isRelative = true;
+    }
+    else {
+        isRelative = false;
+    }
+    ControlFlowInstructionBase::setLink(link);
 }
 
 void StackFrameInstruction::writeTo(char *target) {

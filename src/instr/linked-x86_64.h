@@ -47,7 +47,7 @@ protected:
     void makeDisplacementInfo();
 };
 
-class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
+class ControlFlowInstructionBase : public LinkDecorator<InstructionSemantic> {
 private:
     unsigned int id;
     Instruction *source;
@@ -56,7 +56,7 @@ private:
     int displacementSize;
     bool nonreturn;
 public:
-    ControlFlowInstruction(unsigned int id, Instruction *source,
+    ControlFlowInstructionBase(unsigned int id, Instruction *source,
         std::string opcode, std::string mnemonic, int displacementSize)
         : id(id), source(source), opcode(opcode), mnemonic(mnemonic),
         displacementSize(displacementSize), nonreturn(false) {}
@@ -65,7 +65,7 @@ public:
     virtual void setSize(size_t value);
 
     virtual const std::string &getData() const
-        { throw "Can't call getData() on ControlFlowInstruction"; }
+        { throw "Can't call getData() on ControlFlowInstructionBase"; }
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
@@ -73,9 +73,8 @@ public:
 
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)
-        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
+        { throw "Can't call setAssembly() on ControlFlowInstructionBase"; }
 
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
@@ -91,6 +90,29 @@ public:
     void setMnemonic(const std::string &string) { mnemonic = string; }
 public:
     diff_t calculateDisplacement();
+};
+
+class ControlFlowInstruction : public ControlFlowInstructionBase {
+public:
+    using ControlFlowInstructionBase::ControlFlowInstructionBase;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+
+class DataLinkedControlFlowInstruction : public ControlFlowInstructionBase {
+private:
+    bool isRelative;
+public:
+    DataLinkedControlFlowInstruction(unsigned int id, Instruction *source,
+        std::string opcode, std::string mnemonic, int displacementSize)
+        : ControlFlowInstructionBase(
+            id, source, opcode, mnemonic, displacementSize), isRelative(true) {}
+
+    bool getIsRelative() const { return isRelative; }
+    virtual void setLink(Link *link);  // sets isRelative
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
 // no link yet

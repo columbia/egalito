@@ -43,13 +43,13 @@ void DisasmDump::printInstructionCalculated(address_t address, Assembly *instr,
 }
 
 void DisasmDump::printInstructionRaw(unsigned long address, int offset,
-    const char *opcode, unsigned long target, const char *name,
+    const char *opcode, unsigned long target, bool star, const char *name,
     const std::string &rawDisasm, bool calculatedStyle) {
 
     IF_LOG(9) {} else return;
 
     char targetString[64];
-    sprintf(targetString, "0x%lx", target);
+    sprintf(targetString, "%s0x%lx", star ? "*" : "", target);
 
     printInstructionRaw(address, offset, opcode, targetString, name, rawDisasm,
         calculatedStyle);

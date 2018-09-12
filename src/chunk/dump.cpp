@@ -72,6 +72,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
     LOG(4, "---[" << trampoline->getName() << "]---");
+    LOG(4, "    plt size: " << trampoline->getSize() << " (standard size: " << PLTList::getPLTTrampolineSize() << ")");
     recurse(trampoline);
 }
 
@@ -186,6 +187,14 @@ void InstrDumper::visit(LinkedInstruction *semantic) {
 }
 
 void InstrDumper::visit(ControlFlowInstruction *semantic) {
+    dumpControlFlow(semantic, false);
+}
+
+void InstrDumper::visit(DataLinkedControlFlowInstruction *semantic) {
+    dumpControlFlow(semantic, true);
+}
+
+void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar) {
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
 

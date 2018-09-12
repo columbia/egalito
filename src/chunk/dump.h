@@ -54,12 +54,14 @@ public:
     virtual void visit(IsolatedInstruction *semantic);
     virtual void visit(LinkedInstruction *semantic);
     virtual void visit(ControlFlowInstruction *semantic);
+    virtual void visit(DataLinkedControlFlowInstruction *semantic);
     virtual void visit(IndirectJumpInstruction *semantic);
     virtual void visit(IndirectCallInstruction *semantic);
     virtual void visit(StackFrameInstruction *semantic);
     virtual void visit(LiteralInstruction *semantic);
     virtual void visit(LinkedLiteralInstruction *semantic);
 private:
+    void dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar);
     std::string getBytes(InstructionSemantic *semantic);
 };
 

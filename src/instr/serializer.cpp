@@ -14,6 +14,7 @@ enum EgalitoInstrType {
     TYPE_IsolatedInstruction,
     TYPE_LinkedInstruction,
     TYPE_ControlFlowInstruction,
+    TYPE_DataLinkedControlFlowInstruction,
     TYPE_ReturnInstruction,
     TYPE_IndirectJumpInstruction,
     TYPE_IndirectCallInstruction,
@@ -54,6 +55,7 @@ public:
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+    virtual void visit(DataLinkedControlFlowInstruction *controlFlow);
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
@@ -99,6 +101,27 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     writer.write<uint8_t>(controlFlow->getDisplacementSize());
 #endif
     writer.write<bool>(controlFlow->returns());
+
+    assert(controlFlow->getLink());
+    LinkSerializer(op).serialize(controlFlow->getLink(), writer);
+}
+
+void SemanticSerializer::visit(DataLinkedControlFlowInstruction *controlFlow) {
+    writer.write<uint8_t>(TYPE_DataLinkedControlFlowInstruction);
+#ifdef ARCH_X86_64
+    writer.write<uint32_t>(controlFlow->getId());
+#endif
+    writer.writeID(op.assign(controlFlow->getSource()));
+#ifdef ARCH_X86_64
+    writer.writeBytes<uint8_t>(controlFlow->getOpcode());
+#endif
+    writer.writeString(controlFlow->getMnemonic());
+#ifdef ARCH_X86_64
+    writer.write<uint8_t>(controlFlow->getDisplacementSize());
+#endif
+    writer.write<bool>(controlFlow->returns());
+
+    writer.write<bool>(controlFlow->getIsRelative());
 
     assert(controlFlow->getLink());
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
@@ -201,6 +224,26 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
 #endif
         bool returns = reader.read<bool>();
         if(!returns) semantic->setNonreturn();
+
+        semantic->setLink(LinkSerializer(op).deserialize(reader));
+        return semantic;
+    }
+    case TYPE_DataLinkedControlFlowInstruction: {
+#ifdef ARCH_X86_64
+        auto id = reader.read<uint32_t>();  // NOT a chunk ID
+        auto source = op.lookupAs<Instruction>(reader.readID());
+        auto opcode = reader.readBytes<uint8_t>();
+        auto mnemonic = reader.readString();
+        auto dispSize = reader.read<uint8_t>();
+        auto semantic = new DataLinkedControlFlowInstruction(id, source, opcode,
+            mnemonic, dispSize);
+#elif defined(ARCH_AARCH64)
+        auto semantic = new DataLinkedControlFlowInstruction(instruction);
+#endif
+        bool returns = reader.read<bool>();
+        if(!returns) semantic->setNonreturn();
+
+        bool isRelative = reader.read<bool>(); // not needed, setLink sets isRelative
 
         semantic->setLink(LinkSerializer(op).deserialize(reader));
         return semantic;
