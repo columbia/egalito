@@ -15,7 +15,7 @@ public:
     virtual void visit(Module *module);
     virtual void visit(DataRegionList *dataRegionList) { recurse(dataRegionList); }
     virtual void visit(DataRegion *dataRegion) { recurse(dataRegion); }
-    virtual void visit(DataSection *dataSection);
+    virtual void visit(DataSection *dataSection) { recurse(dataSection); }
     virtual void visit(DataVariable *dataVariable);
     virtual void visit(PLTList *pltList) { recurse(pltList); }
     virtual void visit(PLTTrampoline *pltTrampoline);

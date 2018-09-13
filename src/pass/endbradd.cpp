@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "endbradd.h"
 #include "disasm/disassemble.h"
 #include "operation/mutator.h"
@@ -6,6 +7,8 @@
 #include "log/log.h"
 
 void EndbrAddPass::visit(Program *program) {
+    LOG(1, "Adding endbr instructions to all modules");
+
     recurse(program);
 
     {
@@ -24,13 +27,13 @@ void EndbrAddPass::visit(Program *program) {
     }
 
     for(auto function : indirectTargets) {
-        LOG(9, "    indirect target " << function->getName());
+        LOG(12, "    indirect target " << function->getName());
         auto block1 = function->getChildren()->getIterable()->get(0);
         auto instr1 = block1->getChildren()->getIterable()->get(0);
         auto semantic = instr1->getSemantic();
-        if (auto v = dynamic_cast<IsolatedInstruction *>(semantic)) {
+        if(auto v = dynamic_cast<IsolatedInstruction *>(semantic)) {
 #ifdef ARCH_X86_64
-            if (v->getAssembly()->getId() == X86_INS_ENDBR64) {
+            if(v->getAssembly()->getId() == X86_INS_ENDBR64) {
                 // already an endbr
                 continue;
             }
@@ -42,14 +45,13 @@ void EndbrAddPass::visit(Program *program) {
             //    0:   f3 0f 1e fa             endbr64
             auto endbr = Disassemble::instruction({ 0xf3, 0x0f, 0x1e, 0xfa});
             ChunkMutator(block1, true).insertBefore(instr1, endbr);
-            LOG(9, "    add endbr in [" << function->getName() << "]");
+            LOG(13, "    add endbr in [" << function->getName() << "]");
 #endif
         }
     }
 }
 
 void EndbrAddPass::visit(Module *module) {
-    LOG(9, "Adding endbr instructions in [" << module->getName() << "]");
     recurse(module);  // to get to instructions
     recurse(module->getDataRegionList());  // to get to data variables
     recurse(module->getPLTList());  // to get IFUNC plt refs
@@ -67,31 +69,17 @@ void EndbrAddPass::visit(Module *module) {
         }
     }
 
-    LOG(2, "after parsing module [" << module->getName() << "] we have " << indirectTargets.size() << " indirect targets");
-}
-
-void EndbrAddPass::visit(DataSection *dataSection) {
-    
-    //for(auto var : CIter::children(dataSection)) {
-    //for(auto child : dataSection->getChildren()->genericIterable()) {
-    //    auto var = static_cast<DataVariable *>(child);
-    //    auto target = var->getDest()->getTarget();
-    //    LOG0(1, "var: " << var->getAddress());
-    //    if(target) {
-    //        LOG(1, " --> " << target->getName());
-    //    }
-    //    else LOG(1, "");
-    //}
-    recurse(dataSection);
+    LOG(9, "after parsing module [" << module->getName()
+        << "] we have " << std::dec << indirectTargets.size()
+        << " indirect targets");
 }
 
 void EndbrAddPass::visit(DataVariable *variable) {
-    LOG(0, "visiting data variable");
-    if (variable->getDest() == nullptr) return;
+    if(variable->getDest() == nullptr) return;
 
     auto f = dynamic_cast<Function *>(variable->getDest()->getTarget());
-    if (!f) return;
-    LOG( 0, "data var says that " << f->getName() << " is an indirect target");
+    if(!f) return;
+    //LOG(12, "    data var says that " << f->getName() << " is an indirect target");
     indirectTargets.insert(f);
 }
 
@@ -110,18 +98,17 @@ void EndbrAddPass::visit(PLTTrampoline *pltTrampoline) {
 
 void EndbrAddPass::visit(Instruction *instruction) {
     // should be a linked instruction
-    auto li
-        = dynamic_cast<LinkedInstruction *>(instruction->getSemantic());
+    auto li = dynamic_cast<LinkedInstruction *>(instruction->getSemantic());
+    if(!li) return;
 
-    if (!li) return;
     auto link = li->getLink();
     auto target = link->getTarget();
     auto func_target = dynamic_cast<Function *>(target);
-    if (func_target) {
+    if(func_target) {
         indirectTargets.insert(func_target);
     }
-    else if (auto plt = dynamic_cast<PLTTrampoline *>(target)) {
-        if (auto ext_target
+    else if(auto plt = dynamic_cast<PLTTrampoline *>(target)) {
+        if(auto ext_target
             = dynamic_cast<Function *>(plt->getTarget())) {
             indirectTargets.insert(ext_target);
         }
