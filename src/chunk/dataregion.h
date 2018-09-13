@@ -44,7 +44,7 @@ public:
     virtual bool deserialize(ChunkSerializerOperations &op,
         ArchiveStreamReader &reader);
 
-    virtual void accept(ChunkVisitor *visitor) {}
+    virtual void accept(ChunkVisitor *visitor); 
 
     static DataVariable *create(DataSection *section, address_t address,
         Link *dest, Symbol *symbol);

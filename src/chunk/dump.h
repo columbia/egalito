@@ -37,6 +37,7 @@ public:
     virtual void visit(JumpTableEntry *jumpTableEntry);
     virtual void visit(DataRegion *dataRegion);
     virtual void visit(DataSection *dataSection);
+    virtual void visit(DataVariable *dataVariable);
     virtual void visit(MarkerList *markerList);
     virtual void visit(VTable *vtable);
     virtual void visit(VTableEntry *vtableEntry);

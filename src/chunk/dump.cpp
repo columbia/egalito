@@ -119,6 +119,15 @@ void ChunkDumper::visit(DataSection *dataSection) {
     }
 }
 
+void ChunkDumper::visit(DataVariable *dataVariable) {
+    LOG0(1, "data variable at " << dataVariable->getAddress());
+    auto target = dataVariable->getDest()->getTarget();
+    if(target) {
+        LOG(1, " --> " << target->getName());
+    }
+    else LOG(1, "");
+}
+
 void ChunkDumper::visit(MarkerList *markerList) {
     LOG(1, "--[markers]--");
     for(auto marker : CIter::children(markerList)) {

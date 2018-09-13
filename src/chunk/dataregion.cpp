@@ -88,6 +88,10 @@ bool DataVariable::deserialize(ChunkSerializerOperations &op,
     return reader.stillGood();
 }
 
+void DataVariable::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
 DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     ElfXX_Shdr *shdr) {
 
