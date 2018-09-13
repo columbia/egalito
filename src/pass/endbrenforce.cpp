@@ -109,17 +109,6 @@ void EndbrEnforcePass::visit(Module *module) {
     recurse(module);
 }
 
-void EndbrEnforcePass::visit(Function *function) {
-    auto block1 = function->getChildren()->getIterable()->get(0);
-    auto instr1 = block1->getChildren()->getIterable()->get(0);
-
-    //    0:   f3 0f 1e fa             endbr64
-    auto endbr = Disassemble::instruction({ 0xf3, 0x0f, 0x1e, 0xfa});
-    ChunkMutator(block1, true).insertBefore(instr1, endbr);
-
-    recurse(function);
-}
-
 void EndbrEnforcePass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {

@@ -32,6 +32,7 @@
 #include "pass/debloat.h"
 #include "pass/makecache.h"
 #include "pass/reorderpush.h"
+#include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
@@ -242,6 +243,8 @@ void EgalitoLoader::otherPasses() {
     }
 
     if(isFeatureEnabled("EGALITO_USE_ENDBR_CFI")) {
+        EndbrAddPass endbrAdd;
+        program->accept(&endbrAdd);
         EndbrEnforcePass endbrEnforce;
         program->accept(&endbrEnforce);
     }
