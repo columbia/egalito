@@ -23,6 +23,7 @@
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "pass/encodingcheckpass.h"
+#include "pass/findinitfuncs.h"
 #include "disasm/objectoriented.h"
 #include "transform/data.h"
 
@@ -206,6 +207,9 @@ void Conductor::resolveData(bool justBridge) {
         LOG(10, "[[[4 HandleDataRelocsExternalWeak]]] " << module->getName());
         HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
         module->accept(&pass3);
+
+        // requires DataVariables
+        RUN_PASS(FindInitFuncs(), module);
     }
 }
 
