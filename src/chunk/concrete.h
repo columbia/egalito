@@ -22,6 +22,7 @@
 
 #include "marker.h"
 #include "vtable.h"
+#include "initfunction.h"
 #include "ifunc.h"
 #include "external.h"
 

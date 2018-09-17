@@ -13,6 +13,7 @@ class JumpTableList;
 class DataRegionList;
 class MarkerList;
 class VTableList;
+class InitFunctionList;
 class ExternalSymbolList;
 
 class Module : public ChunkSerializerImpl<TYPE_Module,
@@ -29,11 +30,14 @@ private:
     DataRegionList *dataRegionList;
     MarkerList *markerList;
     VTableList *vtableList;
+    InitFunctionList *initFunctionList;
+    InitFunctionList *finiFunctionList;
     ExternalSymbolList *externalSymbolList;
 public:
     Module() : baseAddress(0), library(nullptr), elfSpace(nullptr),
         functionList(nullptr), pltList(nullptr), jumpTableList(nullptr),
         dataRegionList(nullptr), markerList(nullptr), vtableList(nullptr),
+        initFunctionList(nullptr), finiFunctionList(nullptr),
         externalSymbolList(nullptr) {}
 
     std::string getName() const { return name; }
@@ -52,6 +56,8 @@ public:
     DataRegionList *getDataRegionList() const { return dataRegionList; }
     MarkerList *getMarkerList() const { return markerList; }
     VTableList *getVTableList() const { return vtableList; }
+    InitFunctionList *getInitFunctionList() const { return initFunctionList; }
+    InitFunctionList *getFiniFunctionList() const { return finiFunctionList; }
     ExternalSymbolList *getExternalSymbolList() const
         { return externalSymbolList; }
 
@@ -61,6 +67,8 @@ public:
     void setDataRegionList(DataRegionList *list) { dataRegionList = list; }
     void setMarkerList(MarkerList *list) { markerList = list; }
     void setVTableList(VTableList *list) { vtableList = list; }
+    void setInitFunctionList(InitFunctionList *list) { initFunctionList = list; }
+    void setFiniFunctionList(InitFunctionList *list) { finiFunctionList = list; }
     void setExternalSymbolList(ExternalSymbolList *list)
         { externalSymbolList = list; }
 

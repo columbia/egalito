@@ -11,6 +11,7 @@ enum EgalitoChunkType {
     TYPE_PLTList,
     TYPE_JumpTableList,
     TYPE_DataRegionList,
+    TYPE_InitFunctionList,
     TYPE_ExternalSymbolList,
     TYPE_LibraryList,
     TYPE_VTableList,
@@ -28,6 +29,7 @@ enum EgalitoChunkType {
     TYPE_Marker,
     TYPE_VTable,
     TYPE_VTableEntry,
+    TYPE_InitFunction,
     TYPE_ExternalSymbol,
     TYPE_Library,
 };
