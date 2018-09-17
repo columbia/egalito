@@ -89,6 +89,8 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     }
 #endif
     RUN_PASS(InferLinksPass(elf), module);
+
+    // DataVariables created later in Conductor::resolveData().
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {

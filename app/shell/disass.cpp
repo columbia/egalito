@@ -671,7 +671,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         for (auto kv : pass.getNumberMap()) {
             auto instr = kv.first;
             auto values = kv.second;
-            std::cout << instr->getName() << " in [" 
+            std::cout << instr->getName() << " in ["
                 << instr->getParent()->getParent()->getName() << "] invokes syscalls";
             for (auto v : values) {
                 std::cout << " " << std::dec << v;
@@ -695,4 +695,26 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "enforce syscalls");
+
+    topLevel->add("initfunctions", [&] (Arguments args) {
+        ChunkDumper dump;
+        if(args.size() == 1) {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(module) {
+                std::cout << "Init functions:\n";
+                module->getInitFunctionList()->accept(&dump);
+                std::cout << "Fini functions:\n";
+                module->getFiniFunctionList()->accept(&dump);
+            }
+        }
+        else {
+            for (auto module : CIter::modules(setup->getConductor()->getProgram())) {
+                std::cout << module->getName() << " Init functions:\n";
+                module->getInitFunctionList()->accept(&dump);
+                std::cout << module->getName() << " Fini functions:\n";
+                module->getFiniFunctionList()->accept(&dump);
+            }
+        }
+    }, "shows a list of all functions in a module");
 }
