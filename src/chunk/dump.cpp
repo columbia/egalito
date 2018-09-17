@@ -33,6 +33,10 @@ void ChunkDumper::visit(VTableList *vtableList) {
     LOG(1, "--[vtables]--");
     recurse(vtableList);
 }
+void ChunkDumper::visit(InitFunctionList *initFunctionList) {
+    LOG(1, "--[init-functions]--");
+    recurse(initFunctionList);
+}
 void ChunkDumper::visit(ExternalSymbolList *externalSymbolList) {
     LOG(1, "--[external-symbols]--");
     recurse(externalSymbolList);
@@ -149,6 +153,13 @@ void ChunkDumper::visit(VTableEntry *vtableEntry) {
     else {
         LOG(1, " " << std::hex << vtableEntry->getLink()->getTargetAddress());
     }
+}
+
+void ChunkDumper::visit(InitFunction *initFunction) {
+    auto link = initFunction->getLink();
+    std::string name = link->getTarget() ? link->getTarget()->getName() : "???";
+    LOG(1, "    init function at 0x" << std::hex << initFunction->getAddress()
+        << " refers to 0x" << link->getTargetAddress() << " [" << name << "]");
 }
 
 void ChunkDumper::visit(ExternalSymbol *externalSymbol) {

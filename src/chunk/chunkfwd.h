@@ -8,6 +8,7 @@ class PLTList;
 class JumpTableList;
 class DataRegionList;
 class VTableList;
+class InitFunctionList;
 class ExternalSymbolList;
 class LibraryList;
 class Function;
@@ -23,6 +24,7 @@ class MarkerList;
 class Marker;
 class VTable;
 class VTableEntry;
+class InitFunction;
 class ExternalSymbol;
 class Library;
 

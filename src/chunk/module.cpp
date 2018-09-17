@@ -1,6 +1,7 @@
 #include <string>
 #include "module.h"
 #include "library.h"
+#include "initfunction.h"
 #include "elf/elfspace.h"
 #include "elf/sharedlib.h"
 #include "serializer.h"
@@ -42,6 +43,12 @@ void Module::serialize(ChunkSerializerOperations &op,
 
     auto vtableListID = getVTableList() ? op.serialize(getVTableList()) : FlatChunk::NoneID;
     writer.write(vtableListID);
+
+    auto initFunctionListID = getInitFunctionList() ? op.serialize(getInitFunctionList()) : FlatChunk::NoneID;
+    writer.write(initFunctionListID);
+
+    auto finiFunctionListID = getFiniFunctionList() ? op.serialize(getFiniFunctionList()) : FlatChunk::NoneID;
+    writer.write(finiFunctionListID);
 
     auto externalSymbolListID = op.serialize(getExternalSymbolList());
     writer.write(externalSymbolListID);
@@ -99,6 +106,24 @@ bool Module::deserialize(ChunkSerializerOperations &op,
         if(vtableList) {
             getChildren()->add(vtableList);
             setVTableList(vtableList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto initFunctionList = op.lookupAs<InitFunctionList>(id);
+        if(initFunctionList) {
+            getChildren()->add(initFunctionList);
+            setInitFunctionList(initFunctionList);
+        }
+    }
+
+    {
+        auto id = reader.readID();
+        auto finiFunctionList = op.lookupAs<InitFunctionList>(id);
+        if(finiFunctionList) {
+            getChildren()->add(finiFunctionList);
+            setFiniFunctionList(finiFunctionList);
         }
     }
 

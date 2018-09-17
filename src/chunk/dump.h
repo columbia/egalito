@@ -27,6 +27,7 @@ public:
     virtual void visit(JumpTableList *jumpTableList);
     virtual void visit(DataRegionList *dataRegionList);
     virtual void visit(VTableList *vtable);
+    virtual void visit(InitFunctionList *initFunctionList);
     virtual void visit(ExternalSymbolList *externalSymbolList);
     virtual void visit(LibraryList *libraryList);
     virtual void visit(Function *function);
@@ -41,6 +42,7 @@ public:
     virtual void visit(MarkerList *markerList);
     virtual void visit(VTable *vtable);
     virtual void visit(VTableEntry *vtableEntry);
+    virtual void visit(InitFunction *initFunction);
     virtual void visit(ExternalSymbol *externalSymbol);
     virtual void visit(Library *library);
 };
