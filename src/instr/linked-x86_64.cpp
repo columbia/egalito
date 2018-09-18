@@ -12,7 +12,7 @@
 #include "chunk/dump.h"
 
 #ifdef ARCH_X86_64
-void LinkedInstruction::makeDisplacementInfo() {
+void LinkedInstructionBase::makeDisplacementInfo() {
     assert(opIndex != -1);
     auto assembly = getAssembly();
     displacementSize
@@ -21,7 +21,7 @@ void LinkedInstruction::makeDisplacementInfo() {
         = MakeSemantic::getDispOffset(&*assembly, opIndex);
 }
 
-unsigned long LinkedInstruction::calculateDisplacement() {
+unsigned long LinkedInstructionBase::calculateDisplacement() {
     unsigned long int disp = getLink()->getTargetAddress();
     if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
         && !dynamic_cast<AbsoluteDataLink *>(getLink())
@@ -34,7 +34,7 @@ unsigned long LinkedInstruction::calculateDisplacement() {
     return disp;
 }
 
-void LinkedInstruction::writeTo(char *target, bool useDisp) {
+void LinkedInstructionBase::writeTo(char *target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned long int newDisp = useDisp ? calculateDisplacement() : 0;
@@ -48,7 +48,7 @@ void LinkedInstruction::writeTo(char *target, bool useDisp) {
         assembly->getSize() - dispSize - dispOffset);
 }
 
-void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
+void LinkedInstructionBase::writeTo(std::string &target, bool useDisp) {
     auto assembly = getAssembly();
     auto dispSize = getDispSize();
     unsigned long int newDisp = useDisp ? calculateDisplacement() : 0;
@@ -61,7 +61,7 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
         assembly->getSize() - dispSize - dispOffset);
 }
 
-void LinkedInstruction::regenerateAssembly() {
+void LinkedInstructionBase::regenerateAssembly() {
     // Regenerate the raw std::string representation, and then the Assembly
     // that corresponds to it, using the current Instruction address. This
     // is needed whenever the raw bytes are accessed after the link target
@@ -243,6 +243,16 @@ diff_t ControlFlowInstructionBase::calculateDisplacement() {
 #endif
 }
 
+DataLinkedControlFlowInstruction::DataLinkedControlFlowInstruction(
+    unsigned int id, Instruction *source, std::string opcode,
+    std::string mnemonic, int displacementSize)
+    : LinkedInstructionBase(source), isRelative(true) {
+
+    std::string bytes = opcode;
+    bytes.append(displacementSize, '\0');
+    setData(bytes);
+}
+
 void DataLinkedControlFlowInstruction::setLink(Link *link) {
     if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
         && !dynamic_cast<AbsoluteDataLink *>(getLink())
@@ -255,7 +265,7 @@ void DataLinkedControlFlowInstruction::setLink(Link *link) {
     else {
         isRelative = false;
     }
-    ControlFlowInstructionBase::setLink(link);
+    LinkedInstructionBase::setLink(link);
 }
 
 void StackFrameInstruction::writeTo(char *target) {

@@ -293,11 +293,14 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
 
                 static DisasmHandle handle(true);
                 auto jmp1 = new Instruction();
-                auto jmp1sem = new ControlFlowInstruction(X86_INS_JMP, jmp1,
+                auto jmp1sem = new DataLinkedControlFlowInstruction(X86_INS_JMP, jmp1,
                     "\xff\x25", "jmpq", 4);
                 jmp1->setSemantic(jmp1sem);
+                /// data link null???
                 jmp1sem->setLink(module->getDataRegionList()
                     ->createDataLink(value, module, true));
+                jmp1->setPosition(new AbsolutePosition(0x0));
+                jmp1sem->regenerateAssembly();
                 auto push = DisassembleInstruction(handle, true)
                     .instruction(std::string(
                     reinterpret_cast<const char *>(entry + 6), 5));

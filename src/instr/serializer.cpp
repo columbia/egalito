@@ -108,23 +108,12 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
 
 void SemanticSerializer::visit(DataLinkedControlFlowInstruction *controlFlow) {
     writer.write<uint8_t>(TYPE_DataLinkedControlFlowInstruction);
-#ifdef ARCH_X86_64
-    writer.write<uint32_t>(controlFlow->getId());
-#endif
-    writer.writeID(op.assign(controlFlow->getSource()));
-#ifdef ARCH_X86_64
-    writer.writeBytes<uint8_t>(controlFlow->getOpcode());
-#endif
-    writer.writeString(controlFlow->getMnemonic());
-#ifdef ARCH_X86_64
-    writer.write<uint8_t>(controlFlow->getDisplacementSize());
-#endif
-    writer.write<bool>(controlFlow->returns());
-
-    writer.write<bool>(controlFlow->getIsRelative());
-
     assert(controlFlow->getLink());
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
+#ifdef ARCH_X86_64
+    writer.write<uint8_t>(controlFlow->getIndex());
+#endif
+    writer.write<bool>(controlFlow->getIsRelative());
 }
 
 void SemanticSerializer::visit(IndirectJumpInstruction *indirect) {
@@ -229,23 +218,15 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         return semantic;
     }
     case TYPE_DataLinkedControlFlowInstruction: {
-#ifdef ARCH_X86_64
-        auto id = reader.read<uint32_t>();  // NOT a chunk ID
-        auto source = op.lookupAs<Instruction>(reader.readID());
-        auto opcode = reader.readBytes<uint8_t>();
-        auto mnemonic = reader.readString();
-        auto dispSize = reader.read<uint8_t>();
-        auto semantic = new DataLinkedControlFlowInstruction(id, source, opcode,
-            mnemonic, dispSize);
-#elif defined(ARCH_AARCH64)
         auto semantic = new DataLinkedControlFlowInstruction(instruction);
+        semantic->setData(reader.readBytes<uint8_t>());
+        semantic->setLink(LinkSerializer(op).deserialize(reader));
+#ifdef ARCH_X86_64
+        semantic->setIndex(reader.read<uint8_t>());
 #endif
-        bool returns = reader.read<bool>();
-        if(!returns) semantic->setNonreturn();
 
         bool isRelative = reader.read<bool>(); // not needed, setLink sets isRelative
 
-        semantic->setLink(LinkSerializer(op).deserialize(reader));
         return semantic;
     }
     default:

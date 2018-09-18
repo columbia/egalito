@@ -11,14 +11,14 @@ class Instruction;
 class Module;
 class Reloc;
 
-class LinkedInstruction : public LinkDecorator<SemanticImpl> {
+class LinkedInstructionBase : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;
     int opIndex;
     size_t displacementSize;
     size_t displacementOffset;
 public:
-    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1),
+    LinkedInstructionBase(Instruction *i) : instruction(i), opIndex(-1),
         displacementSize(0), displacementOffset(0) {}
 
     void writeTo(char *target, bool useDisp);
@@ -35,16 +35,22 @@ public:
     void setInstruction(Instruction *instruction)
         { this->instruction = instruction; }
 
+protected:
+    Instruction *getInstruction() const { return instruction; }
+    unsigned long calculateDisplacement();
+    void makeDisplacementInfo();
+};
+
+class LinkedInstruction : public LinkedInstructionBase {
+public:
+    using LinkedInstructionBase::LinkedInstructionBase;
+
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, AssemblyPtr assembly);
     static LinkedInstruction *makeLinked(Module *module,
         Instruction *instruction, AssemblyPtr assembly, Reloc *reloc);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
-protected:
-    Instruction *getInstruction() const { return instruction; }
-    unsigned long calculateDisplacement();
-    void makeDisplacementInfo();
 };
 
 class ControlFlowInstructionBase : public LinkDecorator<InstructionSemantic> {
@@ -99,15 +105,14 @@ public:
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
-
-class DataLinkedControlFlowInstruction : public ControlFlowInstructionBase {
+class DataLinkedControlFlowInstruction : public LinkedInstructionBase {
 private:
     bool isRelative;
 public:
+    DataLinkedControlFlowInstruction(Instruction *source)
+        : LinkedInstructionBase(source), isRelative(true) {}
     DataLinkedControlFlowInstruction(unsigned int id, Instruction *source,
-        std::string opcode, std::string mnemonic, int displacementSize)
-        : ControlFlowInstructionBase(
-            id, source, opcode, mnemonic, displacementSize), isRelative(true) {}
+        std::string opcode, std::string mnemonic, int displacementSize);
 
     bool getIsRelative() const { return isRelative; }
     virtual void setLink(Link *link);  // sets isRelative
