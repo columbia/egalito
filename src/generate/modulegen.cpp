@@ -22,7 +22,7 @@ void ModuleGen::makeDataSections() {
     auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
-        if(region == regionList->getTLS()) continue;  // handled in makeTLS()
+        //if(region == regionList->getTLS()) continue;  // handled in makeTLS()
 
         SegmentInfo *loadSegment = nullptr;
         address_t previousEndAddress = 0;
@@ -106,7 +106,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
     /*relocSection->getHeader()->setSectionLink(
         new SectionRef(sectionList, ".symtab"));*/
 
-    auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>(); 
+    auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
     for(auto var : relocVars) {
         relaDyn->addUndefinedRef(var,
             dynamic_cast<LDSOLoaderLink *>(var->getDest()));
@@ -158,11 +158,11 @@ void ModuleGen::makeText() {
         std::string name;
         if(codeRegions.size() == 1 && !config.getUniqueSectionNames()) {
             name = ".text";
-        } 
+        }
         else {
             name = StreamAsString() << ".text.0x" << std::hex << address;
         }
-        
+
         auto textSection = new Section(name.c_str(), SHT_PROGBITS,
             SHF_ALLOC | SHF_EXECINSTR);
         DeferredString *textValue = nullptr;
@@ -176,7 +176,7 @@ void ModuleGen::makeText() {
         else {
             textValue = new DeferredString(
                 reinterpret_cast<const char *>(address), size);
-        } 
+        }
         if(config.isKernel()) {
             textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
         }
@@ -242,8 +242,8 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 #if 0
         makeRelocInText(func, textSection);
 #endif
-        
-        if(config.isKernel()) { 
+
+        if(config.isKernel()) {
             // undo address fix
             auto backing = config.getCodeBacking();
             func->getPosition()->set(backing->getBase() + func->getAddress());
@@ -354,7 +354,7 @@ void ModuleGen::makeTLS() {
 
             // by default, make everything writable
             auto dataSection = new Section(section->getName(),
-                SHT_NOBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
+                SHT_PROGBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
             auto content = new DeferredString(tlsRegion->getDataBytes()
                 .substr(section->getOriginalOffset(), section->getSize()));
             dataSection->setContent(content);
@@ -368,7 +368,7 @@ void ModuleGen::makeTLS() {
             LOG(0, "TLS BSS section " << section->getName());
 
             auto bssSection = new Section(section->getName(),
-                /*SHT_NOBITS*/ SHT_NOBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
+                /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
             /*auto content = new DeferredString(region->getDataBytes()
                 .substr(section->getOriginalOffset(), section->getSize()));
             bssSection->setContent(content);*/

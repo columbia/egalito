@@ -28,7 +28,7 @@ void StaticGen::makeBasicSections() {
     auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
         SHF_WRITE | SHF_ALLOC);
     sectionList.addSection(initArraySection);
-    
+
     auto phdrTable = new PhdrTableContent(&sectionList);
     auto phdrTableSection = new Section("=phdr_table", phdrTable);
     sectionList.addSection(phdrTableSection);
@@ -48,7 +48,7 @@ void StaticGen::makeBasicSections() {
     stringList->add("123456", true);
     dynstr->setContent(stringList);
     sectionList.addSection(dynstr);
-#endif 
+#endif
 }
 
 void StaticGen::preCodeGeneration() {
@@ -65,7 +65,7 @@ void StaticGen::preCodeGeneration() {
 }
 
 void StaticGen::afterAddressAssign() {
-    
+
 }
 
 void StaticGen::generate(const std::string &filename) {
@@ -144,7 +144,7 @@ void StaticGen::makeHeader() {
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
         header->e_shstrndx = shdrIndexOf(".shstrtab");
     });
-    
+
     if(program->getEntryPoint()) {
         deferred->addFunction([this] (ElfXX_Ehdr *header) {
             header->e_entry = program->getEntryPointAddress();
@@ -231,7 +231,7 @@ void StaticGen::makeShdrTable() {
             if(auto symtab = dynamic_cast<SymbolTableContent *>(section->getContent())) {
                 deferred->addFunction([symtab] (ElfXX_Shdr *shdr) {
                     //auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
-                    
+
                     shdr->sh_info = symtab->getFirstGlobalIndex();
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
                     shdr->sh_addralign = 8;
@@ -261,7 +261,7 @@ void StaticGen::makeShdrTable() {
 
 void StaticGen::makePhdrTable() {
     LOG(1, "generating phdr table");
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
 
     auto phdr = new SegmentInfo(PT_PHDR, PF_R | PF_X, 0x8);
     phdr->addContains(sectionList["=phdr_table"]);
@@ -295,14 +295,14 @@ void StaticGen::makeTextMapping() {
     ModuleGen(ModuleGen::Config(), nullptr, &sectionList)
         .makePaddingSection(0);
 
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
     // Finally, map all code regions as individual ELF segments.
     auto address = backing->getBase();
     //auto size = backing->getSize();
     auto size = (backing->getBuffer().length() + 0xfff) & ~0x1000;
     LOG(1, "map " << std::hex << address << " size " << size);
 
-    
+
     auto textSection = new Section(".text", SHT_PROGBITS,
         SHF_ALLOC | SHF_EXECINSTR);
     DeferredString *textValue = nullptr;
@@ -311,7 +311,7 @@ void StaticGen::makeTextMapping() {
     textValue = new DeferredString(
         reinterpret_cast<const char *>(copy->c_str()),
         copy->length());
-    
+
     //TODO isKernel
     if(false) {
         textSection->getHeader()->setAddress(LINUX_KERNEL_CODE_BASE);
@@ -351,7 +351,7 @@ void StaticGen::makeDynamicSection() {
         auto dynstrSection = sectionList[".dynstr"];
         return dynstrSection->getHeader()->getAddress();
     });
-    
+
     dynamic->addPair(DT_SYMTAB, [this] () {
         auto dynsymSection = sectionList[".dynsym"];
         return dynsymSection->getHeader()->getAddress();
@@ -367,6 +367,8 @@ void StaticGen::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
+    dynamic->addPair(DT_FLAGS, DF_STATIC_TLS);
+
     dynamic->addPair(0, 0);
 
     dynamicSection->setContent(dynamic);
@@ -375,7 +377,7 @@ void StaticGen::makeDynamicSection() {
 }
 
 void StaticGen::makePhdrLoadSegment() {
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>(); 
+    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
     auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
     loadSegment->addContains(sectionList["=elfheader"]);  // constant size
     loadSegment->addContains(sectionList[".interp"]);     // constant size
