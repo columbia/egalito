@@ -170,6 +170,8 @@ public:
     Section *getTargetSection();
 
     DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
+    DeferredType *addDataRef(address_t source, address_t target,
+        DataSection *targetSection);
 };
 
 class DynamicDataPair {

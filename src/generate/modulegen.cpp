@@ -387,6 +387,31 @@ void ModuleGen::makeTLS() {
     }
 
     phdrTable->add(segment);
+    makeTLSRelocs(tlsRegion);
+}
+
+void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
+    for(auto section : CIter::children(region)) {
+        std::vector<DataVariable *> relocVars;
+        LOG(1, "Searching for relocations in [" << section->getName() << "]");
+        for(auto var : CIter::children(section)) {
+            LOG(1, "    considering relocation at 0x" << var->getAddress());
+            if(!var->getDest()) continue;
+            relocVars.push_back(var);
+        }
+
+        auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
+        for(auto var : relocVars) {
+            LOG(1, "Generating TLS relocation at 0x" << var->getAddress()
+                << " pointing to 0x" << var->getDest()->getTargetAddress());
+            relaDyn->addDataRef(var->getAddress(),
+                var->getDest()->getTargetAddress(),
+                section);
+        }
+    }
+
+    //sectionList->addSection(relocSection);
+    //relocSections.push_back(relocSection);
 }
 
 void ModuleGen::makePaddingSection(size_t desiredAlignment) {

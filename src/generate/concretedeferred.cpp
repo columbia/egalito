@@ -274,7 +274,7 @@ void PhdrTableContent::assignAddressesToSections(SegmentInfo *segment, address_t
 
     for(auto sec : segment->getContainsList()) {
         if(sec->hasHeader()) {
-            LOG(0, "assign address 0x" << sectionAddress 
+            LOG(0, "assign address 0x" << sectionAddress
                 << "  to section [" << sec->getName() << "]");
             sec->getHeader()->setAddress(sectionAddress);
         }
@@ -296,7 +296,7 @@ size_t PagePaddingContent::getSize() const {
 #else
     size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
         - lastByte;
-    LOG(0, "desiredOffset = " << desiredOffset << ", got = " 
+    LOG(0, "desiredOffset = " << desiredOffset << ", got = "
         << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
     return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
 #endif
@@ -493,6 +493,33 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
     return deferred;
 }
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataRef(address_t source, address_t target, DataSection *targetSection) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = target; // - targetSection->getAddress();
+
+    auto name = targetSection->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        /*size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }*/
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
 DynamicSectionContent::DeferredType *DynamicSectionContent
     ::addPair(unsigned long key, unsigned long value) {
 
@@ -508,7 +535,7 @@ void InitArraySectionContent::writeTo(std::ostream &stream) {
     }
     for(auto func : array) {
         address_t address = func();
-        LOG(0, "init_array value = " << address); 
+        LOG(0, "init_array value = " << address);
         std::string str{reinterpret_cast<char *>(&address), sizeof(address_t)};
         stream << str;
     }

@@ -98,7 +98,8 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     setSize(shdr->sh_size);
 
     // !!! there is probably a better way to determine the type!
-    if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
+    if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
+    else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
     else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
@@ -109,7 +110,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
             || name == ".data_nosave" || name == ".altinstr_aux"
             || name == ".vvar" || name == "__libc_atexit"
             || name.substr(0, 7) == "__libc_") {
-            
+
             LOG(0, "[" << name << "] is a data section");
             type = TYPE_DATA;
         }
@@ -294,8 +295,19 @@ void TLSDataRegion::setBaseAddress(address_t baseAddress) {
 }
 
 bool TLSDataRegion::containsData(address_t address) {
-    auto size = getSizeOfInitializedData();
+    /*
+     * When iterating through relocations in the source elf file, there will be
+     * some relocations in the uninitialized (.tbss) portion of the TLS. We want
+     * to associate those relocations (and hence data variables) with the TLS
+     * rather than the load segment which occupies the same virtual addresses as
+     * the TLS. So, pretend the size of TLS is the full memsize.
+     */
+#if 0
+    auto size = getSizeOfInitializedData();  // this is filesize
     return Range(getAddress(), size).contains(address);
+#else
+    return getRange().contains(address);  // getSize() is memsize
+#endif
 }
 
 void TLSDataRegion::serialize(ChunkSerializerOperations &op,

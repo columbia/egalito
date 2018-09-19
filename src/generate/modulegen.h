@@ -10,6 +10,7 @@ class Module;
 class Function;
 class MemoryBufferBacking;
 class DataSection;
+class TLSDataRegion;
 
 class ModuleGen {
 public:
@@ -28,15 +29,15 @@ public:
         Config() : isDynamicallyLinked(false), uniqueSectionNames(false),
             isFreestandingKernel(false), backing(nullptr) {}
 
-        void setDynamicallyLinked(bool enable) 
+        void setDynamicallyLinked(bool enable)
             { isDynamicallyLinked = enable; }
-        void setUniqueSectionNames(bool enable) 
+        void setUniqueSectionNames(bool enable)
             { uniqueSectionNames = enable; }
         void setCodeBacking(MemoryBufferBacking *backing)
             { this->backing = backing; }
         void setFreestandingKernel(bool enable)
             { this->isFreestandingKernel = enable; }
-        
+
         bool getDynamicallyLinked() const { return isDynamicallyLinked; }
         bool getUniqueSectionNames() const { return uniqueSectionNames; }
         MemoryBufferBacking *getCodeBacking() const { return backing; }
@@ -61,6 +62,7 @@ public:
     void makeRelocInText(Function *func, const std::string &textSection);
 
     void makeTLS();
+    void makeTLSRelocs(TLSDataRegion *region);
 
     void makePaddingSection(size_t desiredAlignment);
 private:
