@@ -488,6 +488,9 @@ void StaticGen::serialize(const std::string &filename) {
     if(!fs.is_open()) {
         LOG(0, "Cannot open executable file [" << filename << "]");
         std::cerr << "Cannot open executable file [" << filename << "]" << std::endl;
+        LOG(0, "");
+        LOG(0, "*******************************************************");
+        LOG(0, "**** PLEASE RE-RUN WITH DIFFERENT OUTPUT FILENAME! ****");
         return;
     }
     for(auto section : sectionList) {
