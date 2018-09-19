@@ -98,23 +98,25 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     setSize(shdr->sh_size);
 
     // !!! there is probably a better way to determine the type!
-    if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
-    else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
-    else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
+    if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
     else if(shdr->sh_type == SHT_PROGBITS) {
-        if(name == ".data" || name == ".tdata" || name == ".rodata"
+        if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
+        else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
+        else if(name == ".data" || name == ".tdata" || name == ".rodata"
             || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
-            || name == ".vvar" || name == "__libc_atexit"
-            || name.substr(0, 7) == "__libc_") {
+            || name == ".vvar") {
 
-            LOG(0, "[" << name << "] is a data section");
             type = TYPE_DATA;
         }
         else type = TYPE_UNKNOWN;
+
+        if (type == TYPE_DATA) {
+            LOG(0, "[" << name << "] is a data section");
+        }
     }
     else type = TYPE_UNKNOWN;
 }
