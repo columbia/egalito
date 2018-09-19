@@ -1,6 +1,7 @@
 #include <set>
 #include <fstream>
 #include <string.h>
+#include <sys/stat.h>
 #include "staticgen.h"
 #include "modulegen.h"
 #include "concretedeferred.h"
@@ -496,6 +497,7 @@ void StaticGen::serialize(const std::string &filename) {
         fs << *section;
     }
     fs.close();
+    chmod(filename.c_str(), 0744);
 }
 
 size_t StaticGen::shdrIndexOf(Section *section) {
