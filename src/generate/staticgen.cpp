@@ -86,6 +86,9 @@ void StaticGen::generate(const std::string &filename) {
         auto moduleGen = ModuleGen(config, module, &sectionList);
         moduleGen.makeDataSections();
         moduleGen.makeTextAccumulative();
+        if(module->getLibrary()->getRole() == Library::ROLE_LIBC) {
+            moduleGen.makeTLS();
+        }
     }
     makeTextMapping();
     makeShdrTable();  // don't create new shdrs after this

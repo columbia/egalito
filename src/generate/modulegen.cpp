@@ -22,6 +22,8 @@ void ModuleGen::makeDataSections() {
     auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
+        if(region == regionList->getTLS()) continue;  // handled in makeTLS()
+
         SegmentInfo *loadSegment = nullptr;
         address_t previousEndAddress = 0;
         for(auto section : CIter::children(region)) {
@@ -336,6 +338,55 @@ void ModuleGen::makeRelocInText(Function *func, const std::string &textSection) 
             }
         }
     }
+}
+
+void ModuleGen::makeTLS() {
+    auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
+    auto regionList = module->getDataRegionList();
+    auto tlsRegion = regionList->getTLS();
+    if(!tlsRegion) return;
+    SegmentInfo *segment = new SegmentInfo(PT_TLS, PF_R | PF_W, 0x8);
+    makePaddingSection(tlsRegion->getAddress() & (0x1000-1));
+    for(auto section : CIter::children(tlsRegion)) {
+        switch(section->getType()) {
+        case DataSection::TYPE_DATA: {
+            LOG(0, "TLS DATA section " << section->getName());
+
+            // by default, make everything writable
+            auto dataSection = new Section(section->getName(),
+                SHT_NOBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
+            auto content = new DeferredString(tlsRegion->getDataBytes()
+                .substr(section->getOriginalOffset(), section->getSize()));
+            dataSection->setContent(content);
+            dataSection->getHeader()->setAddress(section->getAddress());
+            sectionList->addSection(dataSection);
+            segment->addContains(dataSection);
+            maybeMakeDataRelocs(section, dataSection);
+            break;
+        }
+        case DataSection::TYPE_BSS: {
+            LOG(0, "TLS BSS section " << section->getName());
+
+            auto bssSection = new Section(section->getName(),
+                /*SHT_NOBITS*/ SHT_NOBITS, SHF_ALLOC | SHF_WRITE | SHF_TLS);
+            /*auto content = new DeferredString(region->getDataBytes()
+                .substr(section->getOriginalOffset(), section->getSize()));
+            bssSection->setContent(content);*/
+            bssSection->setContent(new DeferredString(
+                std::string(section->getSize(), 0x0)));
+            //bssSection->setContent(new DeferredString(""));
+            bssSection->getHeader()->setAddress(section->getAddress());
+            sectionList->addSection(bssSection);
+            segment->addContains(bssSection);
+            break;
+        }
+        case DataSection::TYPE_UNKNOWN:
+        default:
+            break;
+        }
+    }
+
+    phdrTable->add(segment);
 }
 
 void ModuleGen::makePaddingSection(size_t desiredAlignment) {

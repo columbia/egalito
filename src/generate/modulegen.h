@@ -60,6 +60,8 @@ public:
     void makeSymbolInText(Function *func, const std::string &textSection);
     void makeRelocInText(Function *func, const std::string &textSection);
 
+    void makeTLS();
+
     void makePaddingSection(size_t desiredAlignment);
 private:
     size_t shdrIndexOf(Section *section);
