@@ -73,6 +73,8 @@ public:
     virtual const std::string &getData() const
         { throw "Can't call getData() on ControlFlowInstructionBase"; }
 
+    virtual bool isControlFlow() const { return true; }
+
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
     size_t getDispOffset() const { return opcode.size(); }
@@ -118,6 +120,7 @@ public:
     virtual void setLink(Link *link);  // sets isRelative
 
     bool isCall() const;
+    virtual bool isControlFlow() const { return true; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };

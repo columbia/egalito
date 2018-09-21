@@ -25,6 +25,8 @@ public:
     virtual Link *getLink() const = 0;
     virtual void setLink(Link *newLink) = 0;
 
+    virtual bool isControlFlow() const = 0;
+
     virtual AssemblyPtr getAssembly() = 0;
     virtual void setAssembly(AssemblyPtr assembly) = 0;
 
@@ -39,6 +41,8 @@ public:
     virtual size_t getSize() const { return storage.getSize(); }
     virtual void setData(const std::string &data)
         { storage.setData(data); }
+
+    virtual bool isControlFlow() const { return false; }
 
     virtual AssemblyPtr getAssembly()
         { return storage.getAssembly(0x0); }

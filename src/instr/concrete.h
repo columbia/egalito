@@ -39,6 +39,8 @@ class LinkedLiteralInstruction;
 
 class ReturnInstruction : public IsolatedInstruction {
 public:
+    virtual bool isControlFlow() const { return true; }
+
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
@@ -64,6 +66,8 @@ public:
     Register getIndexRegister() const { return index; }
     size_t getScale() const { return scale; }
     int64_t getDisplacement() const { return displacement; }
+
+    virtual bool isControlFlow() const { return true; }
 };
 
 class JumpTable;
