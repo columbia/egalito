@@ -15,7 +15,7 @@
 #include "log/temp.h"
 #include "chunk/dump.h"
 
-address_t NormalLink::getTargetAddress() const {
+address_t NormalLinkBase::getTargetAddress() const {
     return target->getAddress();
 }
 
@@ -43,7 +43,7 @@ address_t EgalitoLoaderLink::getTargetAddress() const {
     return LoaderBridge::getInstance()->getAddress(targetName);
 }
 
-address_t MarkerLink::getTargetAddress() const {
+address_t MarkerLinkBase::getTargetAddress() const {
     return marker->getAddress();
 }
 
@@ -63,11 +63,11 @@ address_t DistanceLink::getTargetAddress() const {
     return target->getAddress() + target->getSize() - base->getAddress();
 }
 
-ChunkRef DataOffsetLink::getTarget() const {
+ChunkRef DataOffsetLinkBase::getTarget() const {
     return section;
 }
 
-address_t DataOffsetLink::getTargetAddress() const {
+address_t DataOffsetLinkBase::getTargetAddress() const {
     return section->getAddress() + target + addend;
 }
 

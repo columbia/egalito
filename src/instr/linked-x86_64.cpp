@@ -23,12 +23,7 @@ void LinkedInstructionBase::makeDisplacementInfo() {
 
 unsigned long LinkedInstructionBase::calculateDisplacement() {
     unsigned long int disp = getLink()->getTargetAddress();
-    if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
-        && !dynamic_cast<AbsoluteDataLink *>(getLink())
-        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
-        && !dynamic_cast<GSTableLink *>(getLink())
-        && !dynamic_cast<DistanceLink *>(getLink())) {
-
+    if(getLink()->isRIPRelative()) {
         disp -= (instruction->getAddress() + getSize());
     }
     return disp;
@@ -114,7 +109,7 @@ LinkedInstructionBase *LinkedInstruction::makeLinked(Module *module,
     auto asmOps = assembly->getAsmOperands();
     int immIndex = -1;
     int dispIndex = -1;
-    NormalLink *immLink = nullptr;
+    NormalLinkBase *immLink = nullptr;
     Link *dispLink = nullptr;
     for(size_t i = 0; i < asmOps->getOpCount(); i ++) {
         const cs_x86_op *op = &asmOps->getOperands()[i];
@@ -243,12 +238,7 @@ diff_t ControlFlowInstructionBase::calculateDisplacement() {
         - (getSource()->getAddress() + getSize());
 #else
     unsigned long int disp = getLink()->getTargetAddress();
-    if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
-        && !dynamic_cast<AbsoluteDataLink *>(getLink())
-        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
-        && !dynamic_cast<GSTableLink *>(getLink())
-        && !dynamic_cast<DistanceLink *>(getLink())) {
-
+    if(getLink()->isRIPRelative()) {
         disp -= (source->getAddress() + getSize());
     }
     return disp;
@@ -266,21 +256,11 @@ DataLinkedControlFlowInstruction::DataLinkedControlFlowInstruction(
 }
 
 void DataLinkedControlFlowInstruction::setLink(Link *link) {
-    if(!dynamic_cast<AbsoluteNormalLink *>(getLink())
-        && !dynamic_cast<AbsoluteDataLink *>(getLink())
-        && !dynamic_cast<AbsoluteMarkerLink *>(getLink())
-        && !dynamic_cast<GSTableLink *>(getLink())
-        && !dynamic_cast<DistanceLink *>(getLink())) {
-
-        isRelative = true;
-    }
-    else {
-        isRelative = false;
-    }
+    isRelative = link->isRIPRelative();
     LinkedInstructionBase::setLink(link);
 }
 
-bool DataLinkedControlFlowInstruction::isCall() const { 
+bool DataLinkedControlFlowInstruction::isCall() const {
     // unfortunately getAssembly is not const
     return const_cast<DataLinkedControlFlowInstruction *>(this)
         ->getAssembly()->getId() == X86_INS_CALL;
