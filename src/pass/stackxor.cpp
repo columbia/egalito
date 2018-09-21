@@ -31,6 +31,15 @@ void StackXOR::visit(Instruction *instruction) {
             addInstructions(parent, instruction, true);
         }
     }
+    else if(auto v = dynamic_cast<IndirectJumpInstruction *>(s)) {
+        if(!v->isForJumpTable()) {
+            addInstructions(parent, instruction, true);
+        }
+    }
+    else if(s->isControlFlow()) {
+        // includes IndirectCallInstruction and DataLinkedControlFlowInstruction
+        addInstructions(parent, instruction, true);
+    }
 }
 
 void StackXOR::addInstructions(Block *block, Instruction *instruction,
