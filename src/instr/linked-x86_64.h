@@ -45,9 +45,9 @@ class LinkedInstruction : public LinkedInstructionBase {
 public:
     using LinkedInstructionBase::LinkedInstructionBase;
 
-    static LinkedInstruction *makeLinked(Module *module,
+    static LinkedInstructionBase *makeLinked(Module *module,
         Instruction *instruction, AssemblyPtr assembly);
-    static LinkedInstruction *makeLinked(Module *module,
+    static LinkedInstructionBase *makeLinked(Module *module,
         Instruction *instruction, AssemblyPtr assembly, Reloc *reloc);
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
@@ -116,6 +116,8 @@ public:
 
     bool getIsRelative() const { return isRelative; }
     virtual void setLink(Link *link);  // sets isRelative
+
+    bool isCall() const;
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };

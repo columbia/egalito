@@ -29,6 +29,9 @@ void FallThroughFunctionPass::visit(Function *function) {
         else if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
             falling = false;
         }
+        else if(dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+            falling = false;
+        }
         else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic)) {
             falling = false;
 #ifdef ARCH_X86_64

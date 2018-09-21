@@ -84,7 +84,7 @@ static PLTTrampoline *findPLTTrampoline(Module *module, address_t target) {
     return CIter::spatial(pltList)->find(target);
 }
 
-LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
+LinkedInstructionBase *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, AssemblyPtr assembly, Reloc *reloc) {
 
     size_t offset = reloc->getAddress() - instruction->getAddress();
@@ -95,14 +95,20 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         = PerfectLinkResolver().resolveInternally(reloc, module, true, relative);
     if(!link) return nullptr;
 
-    auto linked = new LinkedInstruction(instruction);
+    LinkedInstructionBase *linked = nullptr;
+    if(dynamic_cast<DataLinkedControlFlowInstruction *>(instruction->getSemantic())) {
+        linked = new DataLinkedControlFlowInstruction(instruction);
+    }
+    else {
+        linked = new LinkedInstruction(instruction);
+    }
     linked->setAssembly(assembly);
     linked->setIndex(index);
     linked->setLink(link);
     return linked;
 }
 
-LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
+LinkedInstructionBase *LinkedInstruction::makeLinked(Module *module,
     Instruction *instruction, AssemblyPtr assembly) {
 
     auto asmOps = assembly->getAsmOperands();
@@ -186,7 +192,13 @@ LinkedInstruction *LinkedInstruction::makeLinked(Module *module,
         return nullptr;
     }
 
-    auto linked = new LinkedInstruction(instruction);
+    LinkedInstructionBase *linked = nullptr;
+    if(dynamic_cast<DataLinkedControlFlowInstruction *>(instruction->getSemantic())) {
+        linked = new DataLinkedControlFlowInstruction(instruction);
+    }
+    else {
+        linked = new LinkedInstruction(instruction);
+    }
     linked->setAssembly(assembly);
     if(immIndex >= 0 && dispIndex >= 0) {
         auto dualLink = new ImmAndDispLink(immLink, dispLink);
@@ -266,6 +278,12 @@ void DataLinkedControlFlowInstruction::setLink(Link *link) {
         isRelative = false;
     }
     LinkedInstructionBase::setLink(link);
+}
+
+bool DataLinkedControlFlowInstruction::isCall() const { 
+    // unfortunately getAssembly is not const
+    return const_cast<DataLinkedControlFlowInstruction *>(this)
+        ->getAssembly()->getId() == X86_INS_CALL;
 }
 
 void StackFrameInstruction::writeTo(char *target) {
