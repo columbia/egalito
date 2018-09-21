@@ -28,6 +28,7 @@
 #include "pass/findendbr.h"
 #include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
+#include "pass/findsyscalls.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 
@@ -613,4 +614,30 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "add endbr-based control flow integrity checks on indirect jumps");
+
+    topLevel->add("findsyscalls", [&] (Arguments args) {
+        FindSyscalls pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+        for (auto kv : pass.getNumberMap()) {
+            auto instr = kv.first;
+            auto values = kv.second;
+            std::cout << instr->getName() << " in [" 
+                << instr->getParent()->getParent()->getName() << "] invokes syscalls";
+            for (auto v : values) {
+                std::cout << " " << std::dec << v;
+            }
+            std::cout << "\n";
+        }
+    }, "find and print all syscalls using dataflow analysis");
 }
