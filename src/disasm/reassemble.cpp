@@ -1,3 +1,4 @@
+#ifdef USE_KEYSTONE
 #include <keystone/keystone.h>
 #include <sstream>
 #include <cstdlib>
@@ -37,7 +38,7 @@ Reassemble::InstructionList Reassemble::instructions(const std::string &str) {
 
     for (auto& op: compiledOpcodes) {
         Instruction* instr = Disassemble::instruction(op);
-        ret.push_back(instr);   
+        ret.push_back(instr);
     }
 
     return ret;
@@ -66,7 +67,7 @@ Reassemble::Opcode Reassemble::opcode(const std::string &s) {
         }
         LOG(0, "Keystone: compiled " << size << " bytes");
     }
-    
+
     Opcode ret(encode, encode + size);
     return ret;
 }
@@ -74,12 +75,12 @@ Reassemble::Opcode Reassemble::opcode(const std::string &s) {
 Reassemble::OpcodeList Reassemble::opcodes(const std::string& str) {
     std::vector<std::string> statements;
     statements = split(str, '\n');
-    
+
     OpcodeList ret;
-    
+
     for (std::string& stmt: statements) {
         Opcode op = reassembleCache.get(stmt);
-        
+
         if (op.size() > 0) ret.push_back(op);
         else {
             Opcode compiledOp = opcode(stmt);
@@ -99,3 +100,4 @@ Reassemble::Opcode ReassemblerCache::get(const std::string &str) {
         return Reassemble::Opcode();
     }
 }
+#endif

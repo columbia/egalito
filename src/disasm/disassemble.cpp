@@ -6,7 +6,11 @@
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
 #include <capstone/arm.h>
+
+#ifdef USE_KEYSTONE
 #include <keystone/keystone.h>
+#endif
+
 #include "disassemble.h"
 #include "dump.h"
 #include "makesemantic.h"

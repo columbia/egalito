@@ -49,21 +49,18 @@ void StackXOR::addInstructions(Block *block, Instruction *instruction, bool befo
 
     */
     ChunkMutator mutator(block);
-
+#ifdef USE_KEYSTONE
     std::stringstream ss;
     ss << "mov %fs:0x" << std::hex << xorOffset << ",%r11\nxor %r11,(%rsp)";
 
     mutator.insertBefore(instruction, Reassemble::instructions(ss.str()), beforeJumpTo);
-
-    /*
+#else
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x64, 0x4c, 0x8b, 0x1c, 0x25,
             (unsigned char)xorOffset, 0x00, 0x00, 0x00}));
     mutator.insertBefore(instruction, Disassemble::instruction(
         {0x4c, 0x31, 0x1c, 0x24}));
-
-    */
-
+#endif
 
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     /*

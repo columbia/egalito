@@ -36,9 +36,13 @@ capstone:
 		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
 		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install
 
+ifdef USE_KEYSTONE
 keystone:
 	-@cd keystone \
 		&& mkdir build \
 		&& cd build \
 		&& ../make-share.sh \
-		&& ../make-lib.sh 
+		&& ../make-lib.sh
+else
+keystone:
+endif

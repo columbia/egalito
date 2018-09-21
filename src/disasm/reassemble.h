@@ -1,6 +1,8 @@
 #ifndef EGALITO_DISASM_REASSEMBLE_H
 #define EGALITO_DISASM_REASSEMBLE_H
 
+#ifdef USE_KEYSTONE
+
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -13,7 +15,7 @@ public:
     using Opcode = std::vector<unsigned char>;
     using OpcodeList = std::vector<Opcode>;
     using InstructionList = std::vector<Instruction *>;
-    
+
     /**
         We use semicolon seperated string
     */
@@ -50,4 +52,5 @@ public:
     Reassemble::Opcode get(const std::string &str);
 };
 
+#endif  // USE_KEYSTONE
 #endif
