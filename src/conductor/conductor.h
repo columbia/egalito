@@ -36,7 +36,7 @@ public:
     void resolveData(bool justBridge = false);
     void resolveVTables();
     void setupIFuncLazySelector();
-    void fixDataSections();
+    void fixDataSections(bool allocateTLS = true);
     EgalitoTLS *getEgalitoTLS() const;
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");

@@ -391,6 +391,8 @@ void ModuleGen::makeTLS() {
 }
 
 void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
+    auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
+
     for(auto section : CIter::children(region)) {
         std::vector<DataVariable *> relocVars;
         LOG(1, "Searching for relocations in [" << section->getName() << "]");
@@ -400,7 +402,6 @@ void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
             relocVars.push_back(var);
         }
 
-        auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
         for(auto var : relocVars) {
             LOG(1, "Generating TLS relocation at 0x" << var->getAddress()
                 << " pointing to 0x" << var->getDest()->getTargetAddress());
@@ -410,6 +411,20 @@ void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
         }
     }
 
+    auto regionList = module->getDataRegionList();
+    for(auto r : CIter::children(regionList)) {
+        for(auto s : CIter::children(r)) {
+            if(s->getType() != DataSection::TYPE_DATA) continue;
+            for(auto var : CIter::children(s)) {
+                if(auto v = dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
+                    LOG(1, "Generating TLS TPOFF64 relocation at 0x"
+                        << var->getAddress() << " referring to index "
+                        << v->getRawTarget());
+                    relaDyn->addTLSOffsetRef(var->getAddress(), v);
+                }
+            }
+        }
+    }
     //sectionList->addSection(relocSection);
     //relocSections.push_back(relocSection);
 }

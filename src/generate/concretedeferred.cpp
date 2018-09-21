@@ -520,6 +520,21 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     return deferred;
 }
 
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addTLSOffsetRef(address_t source, TLSDataOffsetLink *link) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_TPOFF64);
+    rela->r_addend  = link->getRawTarget();
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
 DynamicSectionContent::DeferredType *DynamicSectionContent
     ::addPair(unsigned long key, unsigned long value) {
 

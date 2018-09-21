@@ -72,10 +72,15 @@ address_t DataOffsetLink::getTargetAddress() const {
 }
 
 ChunkRef TLSDataOffsetLink::getTarget() const {
+    LOG(1, "calling TLSDataOffsetLink::getTarget(), "
+        "target equals " << tls->getName());
     return tls;
 }
 
 address_t TLSDataOffsetLink::getTargetAddress() const {
+    LOG(1, "calling TLSDataOffsetLink::getTargetAddress(), "
+        "target equals " << std::hex << tls->getTLSOffset()
+        << " + " << target);
     return tls->getTLSOffset() + target;
 }
 
