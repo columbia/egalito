@@ -11,8 +11,8 @@ void EndbrAddPass::visit(Program *program) {
 
     recurse(program);
 
-    {
-        auto egalito = program->getEgalito();
+    auto egalito = program->getEgalito();
+    if(egalito) {
         auto f = ChunkFind2(program).findFunctionInModule(
             "egalito_runtime_init", egalito);
         if(f) indirectTargets.insert(f);
