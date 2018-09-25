@@ -297,6 +297,10 @@ void TLSDataRegion::setBaseAddress(address_t baseAddress) {
 }
 
 bool TLSDataRegion::containsData(address_t address) {
+#if 1
+    auto size = getSizeOfInitializedData();  // this is filesize
+    return Range(getAddress(), size).contains(address);
+#else
     /*
      * When iterating through relocations in the source elf file, there will be
      * some relocations in the uninitialized (.tbss) portion of the TLS. We want
@@ -304,10 +308,6 @@ bool TLSDataRegion::containsData(address_t address) {
      * rather than the load segment which occupies the same virtual addresses as
      * the TLS. So, pretend the size of TLS is the full memsize.
      */
-#if 0
-    auto size = getSizeOfInitializedData();  // this is filesize
-    return Range(getAddress(), size).contains(address);
-#else
     return getRange().contains(address);  // getSize() is memsize
 #endif
 }

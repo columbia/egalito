@@ -62,11 +62,10 @@ void StaticGen::preCodeGeneration() {
     makeDynamicSection();
 #endif
     makePhdrLoadSegment();  // must be after makeSymtabSection (for .dynsym)
-    makeInitArraySectionLinks(); // must be after makePhdrLoadSegment
 }
 
 void StaticGen::afterAddressAssign() {
-
+    makeInitArraySectionLinks(); // must be after makePhdrLoadSegment
 }
 
 void StaticGen::generate(const std::string &filename) {
@@ -416,6 +415,7 @@ void StaticGen::makeInitArraySections() {
         for(auto region : CIter::regions(module)) {
             for(auto section : CIter::children(region)) {
                 if(section->getType() == DataSection::TYPE_INIT_ARRAY) {
+                    LOG(1, "Found init_array section in " << module->getName());
                     for(auto var : CIter::children(section)) {
                         initFunctions.push_back(var->getDest());
                         LOG(0, "Adding init function 0x"
@@ -449,22 +449,24 @@ void StaticGen::makeInitArraySectionLinks() {
                 // can't be deferred because otherwise code generation picks up old value
                 //content->addCallback([initArraySection, instr, link]() {
                     auto addr = initArraySection->getHeader()->getAddress();
+                    addr -= instr->getAddress() + instr->getSize();
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
                     LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr);
+                        << " to 0x" << addr << " for " << instr->getAddress());
                 //});
             }
             if(counter == 2) {
                 //content->addCallback([initArraySection, instr, link]() {
                     auto addr = initArraySection->getHeader()->getAddress()
                         + initArraySection->getContent()->getSize();
+                    addr -= instr->getAddress() + instr->getSize();
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
                     LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr);
+                        << " to 0x" << addr << " for " << instr->getAddress());
                 //});
             }
 

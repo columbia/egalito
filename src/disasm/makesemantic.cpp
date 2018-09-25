@@ -61,7 +61,6 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
                 semantic = new DataLinkedControlFlowInstruction(instruction);
                 //semantic->setLink(LinkFactory::makeDataLink(module, address, true));
-                semantic->setLink(nullptr);
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
             else {
@@ -76,7 +75,6 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
                 semantic = new DataLinkedControlFlowInstruction(instruction);
                 //semantic->setLink(LinkFactory::makeDataLink(module, address, false));
-                semantic->setLink(nullptr);
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
             else {

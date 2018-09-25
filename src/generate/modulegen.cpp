@@ -402,6 +402,19 @@ void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
             relocVars.push_back(var);
         }
 
+        auto overlappingRegion = module->getDataRegionList()
+            ->findNonTLSRegionContaining(region->getAddress());
+        for(auto s : CIter::children(overlappingRegion)) {
+            if(!section->getRange().overlaps(s->getRange())) continue;
+            for(auto v : CIter::children(s)) {
+                if(section->getRange().contains(v->getAddress())) {
+                    LOG(1, "    considering relocation at 0x" << v->getAddress());
+                    if(!v->getDest()) continue;
+                    relocVars.push_back(v);
+                }
+            }
+        }
+
         for(auto var : relocVars) {
             LOG(1, "Generating TLS relocation at 0x" << var->getAddress()
                 << " pointing to 0x" << var->getDest()->getTargetAddress());

@@ -299,6 +299,8 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                 /// data link null???
                 jmp1sem->setLink(module->getDataRegionList()
                     ->createDataLink(value, module, true));
+                LOG(1, "Trying to create link to 0x" << value << ", got "
+                        << jmp1sem->getLink());
                 jmp1->setPosition(new AbsolutePosition(0x0));
                 jmp1sem->regenerateAssembly();
                 auto push = DisassembleInstruction(handle, true)
