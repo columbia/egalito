@@ -101,6 +101,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
+    else if(shdr->sh_type == SHT_DYNAMIC) type = TYPE_DYNAMIC;
     else if(shdr->sh_type == SHT_PROGBITS) {
         if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
         else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;

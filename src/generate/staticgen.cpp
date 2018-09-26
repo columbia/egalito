@@ -7,6 +7,9 @@
 #include "concretedeferred.h"
 #include "transform/sandbox.h"
 #include "chunk/concrete.h"
+#include "operation/find2.h"
+#include "elf/elfspace.h"
+#include "elf/symbol.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
@@ -410,6 +413,7 @@ void StaticGen::makeInitArraySections() {
     auto initArraySection = sectionList[".init_array"];
     auto content = new InitArraySectionContent();
 
+    address_t firstInit = 0;
     std::vector<Link *> initFunctions;
     for(auto module : CIter::children(program)) {
         for(auto region : CIter::regions(module)) {
@@ -423,7 +427,42 @@ void StaticGen::makeInitArraySections() {
                             << " to .init_array");
                     }
                 }
+                if(section->getType() == DataSection::TYPE_DYNAMIC) {
+#if 0
+                    auto elf = module->getElfSpace()->getElfMap();
+                    auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
+                    for(unsigned long *pointer = dynamic; *pointer != DT_NULL; pointer += 2) {
+                        unsigned long type = pointer[0];
+                        unsigned long value = pointer[1];
+
+                        if(type == DT_INIT) {
+                            initFunctions.push_back;
+                        }
+                    }
+#endif
+                    auto bytes = region->getDataBytes();
+                    auto p = reinterpret_cast<const unsigned long*>(bytes.c_str() 
+                        + section->getOriginalOffset());
+                    auto size = section->getSize();
+                    for(size_t i = 0; i*sizeof(unsigned long) < size; i += 2) {
+                        if(p[i] == DT_NULL) {
+                            break;
+                        }
+                        else if(p[i] == DT_INIT) {
+                            firstInit = p[i+1];
+                        }
+                    }
+                }
             }
+        }
+        if(firstInit) {
+            content->addPointer([this, module, firstInit] () {
+                auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
+                auto function = ChunkFind2(program).findFunctionInModule(symbol
+                    ->getName(), module);
+                LOG(1, "Found _init at " << function->getAddress());
+                return function->getAddress();
+            });
         }
     }
 

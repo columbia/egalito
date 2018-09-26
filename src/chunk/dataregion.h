@@ -62,6 +62,7 @@ public:
         TYPE_CODE,
         TYPE_INIT_ARRAY,
         TYPE_FINI_ARRAY,
+        TYPE_DYNAMIC,
     };
 private:
     std::string name;

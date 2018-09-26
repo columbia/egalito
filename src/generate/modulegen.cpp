@@ -64,8 +64,8 @@ void ModuleGen::makeDataSections() {
                 auto content = new DeferredString(region->getDataBytes()
                     .substr(section->getOriginalOffset(), section->getSize()));
                 bssSection->setContent(content);
-                /*bssSection->setContent(new DeferredString(
-                    std::string(section->getSize(), 0x0)));*/
+                // bssSection->setContent(new DeferredString(
+                //     std::string(section->getSize(), 0x0)));
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
@@ -402,6 +402,7 @@ void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
             relocVars.push_back(var);
         }
 
+    #if 0
         auto overlappingRegion = module->getDataRegionList()
             ->findNonTLSRegionContaining(region->getAddress());
         for(auto s : CIter::children(overlappingRegion)) {
@@ -414,6 +415,7 @@ void ModuleGen::makeTLSRelocs(TLSDataRegion *region) {
                 }
             }
         }
+    #endif
 
         for(auto var : relocVars) {
             LOG(1, "Generating TLS relocation at 0x" << var->getAddress()
