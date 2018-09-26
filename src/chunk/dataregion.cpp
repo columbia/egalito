@@ -106,6 +106,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
         if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
         else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
         else if(name == ".data" || name == ".tdata" || name == ".rodata"
+            || name == ".data.rel.ro"
             || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"

@@ -392,7 +392,7 @@ void StaticGen::makePhdrLoadSegment() {
     phdrTable->assignAddressesToSections(loadSegment, 0x200000);
 
     //auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
-    auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x400000);
+    auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x400000*/ 0x1000);
     dynSegment->addContains(sectionList[".dynstr"]);
     dynSegment->addContains(sectionList[".symtab"]);
     dynSegment->addContains(sectionList[".dynsym"]);
@@ -441,7 +441,7 @@ void StaticGen::makeInitArraySections() {
                     }
 #endif
                     auto bytes = region->getDataBytes();
-                    auto p = reinterpret_cast<const unsigned long*>(bytes.c_str() 
+                    auto p = reinterpret_cast<const unsigned long*>(bytes.c_str()
                         + section->getOriginalOffset());
                     auto size = section->getSize();
                     for(size_t i = 0; i*sizeof(unsigned long) < size; i += 2) {

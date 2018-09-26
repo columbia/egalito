@@ -34,7 +34,7 @@ void ModuleGen::makeDataSections() {
                     }
                     else delete loadSegment;
                 }
-                loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
+                loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
             }
 
             switch(section->getType()) {
@@ -61,11 +61,17 @@ void ModuleGen::makeDataSections() {
 
                 auto bssSection = new Section(section->getName(),
                     /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
-                auto content = new DeferredString(region->getDataBytes()
-                    .substr(section->getOriginalOffset(), section->getSize()));
-                bssSection->setContent(content);
-                // bssSection->setContent(new DeferredString(
-                //     std::string(section->getSize(), 0x0)));
+                if(region == regionList->getTLS()) {
+                    bssSection->setContent(new DeferredString(
+                        std::string(section->getSize(), 0x0)));
+                    LOG(1, "   Initializing bss with 0");
+                }
+                else {
+                    auto content = new DeferredString(region->getDataBytes()
+                        .substr(section->getOriginalOffset(), section->getSize()));
+                    bssSection->setContent(content);
+                    LOG(1, "   Initializing bss with data bytes");
+                }
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
