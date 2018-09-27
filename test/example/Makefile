@@ -27,7 +27,7 @@ endif
 
 space =
 empty = $(space) $(space)
-TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr islower getenv cfg
+TARGET_NAMES = hello hi0 hi5 jumptable fp stack log stderr islower getenv cfg sandbox-write
 TARGETS = $(addprefix $(BUILDDIR),$(TARGET_NAMES))
 TARGETS-q = $(addsuffix -q,$(TARGETS))
 TARGETS-strip = $(filter-out hi5-strip,$(addsuffix -strip,$(TARGETS)))
@@ -99,6 +99,7 @@ $(eval $(call dep_rule,islower,islower.c))
 $(eval $(call dep_rule,getenv,getenv.c))
 $(eval $(call dep_rule,cfg,cfg.c))
 $(eval $(call dep_rule,firmware,firmware.c))
+$(eval $(call dep_rule,sandbox-write,sandbox-write.c))
 
 $(BUILDDIR)hello-obj: hello-obj.c
 
