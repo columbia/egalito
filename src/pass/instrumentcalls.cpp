@@ -49,7 +49,7 @@ void InstrumentCallsPass::addAdvice(
     // call f
     auto callIns = new Instruction();
     auto callSem
-        = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "call", 4);
+        = new ControlFlowInstruction(X86_INS_CALL, callIns, "\xe8", "callq", 4);
     callSem->setLink(new NormalLink(advice, Link::SCOPE_EXTERNAL_JUMP));
     callIns->setSemantic(callSem);
 

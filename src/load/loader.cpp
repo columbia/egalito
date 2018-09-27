@@ -34,6 +34,7 @@
 #include "pass/reorderpush.h"
 #include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
+#include "pass/syscallsandbox.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -247,6 +248,10 @@ void EgalitoLoader::otherPasses() {
         program->accept(&endbrAdd);
         EndbrEnforcePass endbrEnforce;
         program->accept(&endbrEnforce);
+    }
+    if(isFeatureEnabled("EGALITO_USE_SYSCALL_SANDBOX")) {
+        SyscallSandbox sandbox(program);
+        program->accept(&sandbox);
     }
 
 #ifdef ARCH_X86_64
