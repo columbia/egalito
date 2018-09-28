@@ -65,6 +65,7 @@ public:
     void makeTLSRelocs(TLSDataRegion *region);
 
     void makePaddingSection(size_t desiredAlignment);
+    void makeIntraPaddingSection(size_t desiredAlignment);
 private:
     size_t shdrIndexOf(Section *section);
     size_t shdrIndexOf(const std::string &name);

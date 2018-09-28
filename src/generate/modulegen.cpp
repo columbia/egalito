@@ -22,8 +22,81 @@ void ModuleGen::makeDataSections() {
     auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     auto regionList = module->getDataRegionList();
     for(auto region : CIter::children(regionList)) {
-        //if(region == regionList->getTLS()) continue;  // handled in makeTLS()
+        auto tls = regionList->getTLS();
+        if(region == tls) continue;
 
+        std::map<address_t, DataSection *> sectionMap;
+        for(auto section : CIter::children(region)) {
+            sectionMap[section->getAddress()] = section;
+        }
+        /*auto tlsOverlappingRegion = module->getDataRegionList()
+            ->findNonTLSRegionContaining(regionList->getTLS()->getAddress());*/
+
+        if(tls && region->getRange().overlaps(tls->getRange())) {
+            for(auto section : CIter::children(tls)) {
+                sectionMap[section->getAddress()] = section;
+            }
+        }
+
+        if(sectionMap.empty()) continue;
+
+        makePaddingSection((*sectionMap.begin()).second->getAddress() & (0x200000-1));
+
+        address_t previousEndAddress = 0;
+        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
+        for(auto kv: sectionMap) {
+            auto section = kv.second;
+            switch(section->getType()) {
+            case DataSection::TYPE_DATA: {
+                LOG(0, "DATA section " << section->getName());
+                LOG(0, "    seems like we need " << (section->getAddress() - previousEndAddress) << " padding bytes");
+                makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+
+                // by default, make everything writable
+                auto dataSection = new Section(section->getName(),
+                    SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                auto content = new DeferredString(region->getDataBytes()
+                    .substr(section->getOriginalOffset(), section->getSize()));
+                dataSection->setContent(content);
+                dataSection->getHeader()->setAddress(section->getAddress());
+                sectionList->addSection(dataSection);
+                loadSegment->addContains(dataSection);
+                maybeMakeDataRelocs(section, dataSection);
+                previousEndAddress = section->getAddress() + section->getSize();
+                break;
+            }
+            case DataSection::TYPE_BSS: {
+                LOG(0, "BSS section " << section->getName());
+                makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+
+                auto bssSection = new Section(section->getName(),
+                    /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                if(region == regionList->getTLS()) {
+                    bssSection->setContent(new DeferredString(
+                        std::string(section->getSize(), 0x0)));
+                    LOG(1, "   Initializing bss with 0");
+                }
+                else {
+                    auto content = new DeferredString(region->getDataBytes()
+                        .substr(section->getOriginalOffset(), section->getSize()));
+                    bssSection->setContent(content);
+                    LOG(1, "   Initializing bss with data bytes");
+                }
+                //bssSection->setContent(new DeferredString(""));
+                bssSection->getHeader()->setAddress(section->getAddress());
+                sectionList->addSection(bssSection);
+                loadSegment->addContains(bssSection);
+                previousEndAddress = section->getAddress() + section->getSize();
+                break;
+            }
+            case DataSection::TYPE_UNKNOWN:
+            default:
+                break;
+            }
+        }
+
+        phdrTable->add(loadSegment);
+#if 0
         SegmentInfo *loadSegment = nullptr;
         address_t previousEndAddress = 0;
         for(auto section : CIter::children(region)) {
@@ -91,6 +164,7 @@ void ModuleGen::makeDataSections() {
         else {
             phdrTable->add(loadSegment);
         }
+#endif
     }
 }
 
@@ -456,6 +530,16 @@ void ModuleGen::makePaddingSection(size_t desiredAlignment) {
     auto paddingSection = new Section("=padding");
     auto paddingContent = new PagePaddingContent(
         sectionList->back(), desiredAlignment);
+    paddingSection->setContent(paddingContent);
+    sectionList->addSection(paddingSection);
+}
+
+void ModuleGen::makeIntraPaddingSection(size_t desiredAlignment) {
+    // We could assign unique names to the padding sections, but since we
+    // never look them up by name in SectionList, it doesn't actually matter.
+    auto paddingSection = new Section("=intra-padding");
+    auto paddingContent = new PagePaddingContent(
+        sectionList->back(), desiredAlignment, false);
     paddingSection->setContent(paddingContent);
     sectionList->addSection(paddingSection);
 }

@@ -288,18 +288,21 @@ size_t PagePaddingContent::getSize() const {
         lastByte += previousSection->getContent()->getSize();
     }
 
-    // how much data is needed to round from lastByte to a page boundary?
-#if 0
-    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
-        - lastByte;
-    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
-#else
-    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
-        - lastByte;
-    LOG(0, "desiredOffset = " << desiredOffset << ", got = "
-        << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
-    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
-#endif
+    if(isIsolatedPadding) {
+        // how much data is needed to round from lastByte to a page boundary?
+        size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+            - lastByte;
+        LOG(0, "desiredOffset = " << desiredOffset << ", got = "
+            << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
+        return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+    }
+    else {
+        static const address_t PAGE_SIZE = 0x1000;
+        size_t size = (desiredOffset - (lastByte & (PAGE_SIZE-1)) + PAGE_SIZE) & (PAGE_SIZE-1);
+        LOG(0, "add " << size << " bytes; desiredOffset = " << desiredOffset << ", got = "
+            << ((lastByte + size) & (PAGE_SIZE-1)));
+        return size;
+    }
 }
 
 void PagePaddingContent::writeTo(std::ostream &stream) {

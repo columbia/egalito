@@ -109,9 +109,11 @@ private:
 private:
     Section *previousSection;
     address_t desiredOffset;
+    bool isIsolatedPadding;  // true if data outside map region should be null
 public:
-    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0)
-        : previousSection(previousSection), desiredOffset(desiredOffset) {}
+    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0,
+        bool isIsolatedPadding = true) : previousSection(previousSection),
+        desiredOffset(desiredOffset), isIsolatedPadding(isIsolatedPadding) {}
 
     virtual size_t getSize() const;
     virtual void writeTo(std::ostream &stream);
