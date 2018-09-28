@@ -17,12 +17,16 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
     freeChildren(trampoline, 2);
 
     auto block1 = new Block();
-    block1->setPosition(new AbsolutePosition(0x0));
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    block1->setPosition(positionFactory->makePosition(nullptr, block1, 0));
+    //block1->setPosition(new AbsolutePosition(0x0));
     {
         ChunkMutator m1(block1);
         m1.append(Disassemble::instruction({0x50}));  // push %rax
         m1.append(Disassemble::instruction({0x53}));  // push %rbx
         m1.append(Disassemble::instruction({0x51}));  // push %rcx
+        m1.append(Disassemble::instruction({0x52}));  // push %rdx
+        // note: keep stack 16-byte aligned for %xmm registers
 
         auto call = new Instruction();
         auto callSem = new ControlFlowInstruction(X86_INS_CALL, call, "\xe8", "callq", 4);
@@ -41,14 +45,21 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
         // return value placed in %rax
     }
 
+    {
+        ChunkMutator m(trampoline, true);
+        m.append(block1);
+    }
+
     auto block2 = new Block();
-    block2->setPosition(new AbsolutePosition(0x0));
+    block2->setPosition(positionFactory->makePosition(block1, block2, block1->getSize()));
+    //block2->setPosition(new AbsolutePosition(0x0));
     {
         ChunkMutator m2(block2);
 
         // mov %rax, %r11
         m2.append(Disassemble::instruction({0x49, 0x89, 0xc3}));
 
+        m2.append(Disassemble::instruction({0x5a}));  // pop %rdx
         m2.append(Disassemble::instruction({0x59}));  // pop %rcx
         m2.append(Disassemble::instruction({0x5b}));  // pop %rbx
         m2.append(Disassemble::instruction({0x58}));  // pop %rax
@@ -57,9 +68,10 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
         m2.append(Disassemble::instruction({0x41, 0xff, 0xe3}));
     }
 
-    ChunkMutator m(trampoline, true);
-    m.append(block1);
-    m.append(block2);
+    {
+        ChunkMutator m(trampoline, true);
+        m.append(block2);
+    }
 }
 
 void IFuncPLTs::freeChildren(Chunk *chunk, int level) {

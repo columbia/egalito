@@ -151,6 +151,8 @@ public:
     PLTTrampoline *getPLTTrampoline() const { return pltTrampoline; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return true; }
 };
 
 class JumpTable;
