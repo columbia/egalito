@@ -35,7 +35,7 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
             }
             auto target = var->getDest()->getTargetAddress();
             address_t address = var->getAddress();
-            LOG(0, "set variable " << std::hex << address << " => " << target);
+            LOG(0, "set variable " << std::hex << address << " => " << target << " (size " << var->getSize() << ")");
             if(var->getSize() == sizeof(address_t)) {
                 *reinterpret_cast<address_t *>(address) = target;
             }

@@ -46,6 +46,7 @@ void ModuleGen::makeDataSections() {
         auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
         for(auto kv: sectionMap) {
             auto section = kv.second;
+
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
                 LOG(0, "DATA section " << section->getName());
@@ -66,12 +67,18 @@ void ModuleGen::makeDataSections() {
                 break;
             }
             case DataSection::TYPE_BSS: {
+                // The TLS .tbss overlaps with other sections, don't write
+                // it out here or too much data (e.g. 0x1000) will appear in the
+                // output ELF, misaligning virtual addresses.
+                if(section->getParent() == tls) continue;
+
                 LOG(0, "BSS section " << section->getName());
                 makeIntraPaddingSection(section->getAddress() & (0x1000-1));
 
                 auto bssSection = new Section(section->getName(),
                     /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
-                if(region == regionList->getTLS()) {
+                //if(region == regionList->getTLS()) {
+                if(false && section->getParent() == regionList->getTLS()) {
                     bssSection->setContent(new DeferredString(
                         std::string(section->getSize(), 0x0)));
                     LOG(1, "   Initializing bss with 0");
@@ -452,12 +459,13 @@ void ModuleGen::makeTLS() {
             /*auto content = new DeferredString(region->getDataBytes()
                 .substr(section->getOriginalOffset(), section->getSize()));
             bssSection->setContent(content);*/
-            bssSection->setContent(new DeferredString(
-                std::string(section->getSize(), 0x0)));
-            //bssSection->setContent(new DeferredString(""));
+            /*bssSection->setContent(new DeferredString(
+                std::string(section->getSize(), 0x0)));*/
+            bssSection->setContent(new DeferredString(""));
             bssSection->getHeader()->setAddress(section->getAddress());
             sectionList->addSection(bssSection);
             segment->addContains(bssSection);
+            segment->setAdditionalMemSize(section->getSize());
             break;
         }
         case DataSection::TYPE_UNKNOWN:
