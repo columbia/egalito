@@ -14,6 +14,8 @@ void IFuncPLTs::visit(PLTList *pltList) {
 }
 
 void IFuncPLTs::visit(PLTTrampoline *trampoline) {
+    if(!trampoline->isIFunc()) return;
+
     freeChildren(trampoline, 2);
 
     auto block1 = new Block();

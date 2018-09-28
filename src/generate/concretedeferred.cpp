@@ -122,6 +122,28 @@ SymbolTableContent::DeferredType *SymbolTableContent
 }
 
 SymbolTableContent::DeferredType *SymbolTableContent
+    ::addPLTSymbol(PLTTrampoline *plt, Symbol *sym) {
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = SHN_UNDEF;
+    symbol->st_value = plt ? plt->getAddress() : 0;
+    symbol->st_size = plt ? plt->getSize() : 0;
+    auto value = new DeferredType(symbol);
+    auto sit = SymbolInTable(SymbolInTable::TYPE_PLT, sym);
+    insertSorted(sit, value);
+    firstGlobalIndex ++;
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
     ::addUndefinedSymbol(Symbol *sym) {
 
     // uses st_shndx = SHN_UNDEF by default

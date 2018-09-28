@@ -337,6 +337,23 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
         }
     }
 
+    // Make symbols for PLT entries
+    for(auto plt : CIter::plts(module)){
+        auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
+
+        auto external = plt->getExternalSymbol();
+        auto nameCopy = new std::string(plt->getName().c_str());
+        auto sym = new Symbol(plt->getAddress(), plt->getSize(),
+            nameCopy->c_str(), external->getType(), external->getBind(),
+            0, 0);
+
+        // add name to string table
+        auto value = symtab->addPLTSymbol(plt, sym);
+        value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
+            symbol->st_shndx = shdrIndexOf(textSection);
+        });
+    }
+
 #if 0
     // Handle any other types of symbols that need generating.
     for(auto sym : *elfSpace->getSymbolList()) {

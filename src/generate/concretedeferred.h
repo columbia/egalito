@@ -20,9 +20,10 @@ public:
     enum type_t {
         TYPE_NULL,
         TYPE_SECTION,
+        TYPE_PLT,
         TYPE_LOCAL,
         TYPE_UNDEF,
-        TYPE_GLOBAL
+        TYPE_GLOBAL,
     };
 private:
     type_t type;
@@ -53,6 +54,7 @@ public:
     void addNullSymbol();
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
+    DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);
 
     size_t indexOfSectionSymbol(const std::string &section,
