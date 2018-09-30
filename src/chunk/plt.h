@@ -38,6 +38,7 @@ public:
     bool isIFunc() const;
     bool isPltGot() const { return pltGot; }
     void writeTo(char *target);
+    void writeTo(std::string &target);
     address_t getGotPLTEntry() const;
 
     virtual void serialize(ChunkSerializerOperations &op,

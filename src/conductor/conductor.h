@@ -29,7 +29,7 @@ public:
     Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
     Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
     void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
-        const std::string &fullPath = "");
+        const std::string &fullPath);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
     Module *parseExtraLibrary(ElfMap *elf, const std::string &name = "");
@@ -40,7 +40,7 @@ public:
     void resolveData(bool justBridge = false);
     void resolveVTables();
     void setupIFuncLazySelector();
-    void fixDataSections();
+    void fixDataSections(bool allocateTLS = true);
     EgalitoTLS *getEgalitoTLS() const;
 
     void writeDebugElf(const char *filename, const char *suffix = "$new");

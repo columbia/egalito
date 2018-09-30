@@ -103,6 +103,16 @@ void ConductorPasses::newArchivePasses(Program *program) {
     }
 }
 
+void ConductorPasses::newExecutablePasses(Program *program) {
+    conductor->fixDataSections(false);
+    for(auto module : CIter::children(program)) {
+        if(!module->getDataRegionList()) continue;
+        for(auto region : CIter::children(module->getDataRegionList())) {
+            region->saveDataBytes();    
+        }
+    }
+}
+
 void ConductorPasses::reloadedArchivePasses(Module *module) {
     module->getElfSpace()->setAliasMap(new FunctionAliasMap(module));
 }

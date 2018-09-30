@@ -7,21 +7,28 @@ class PLTTrampoline;
 
 class Generator {
 private:
+    Sandbox *sandbox;
     bool useDisps;
 public:
-    Generator(bool useDisps = true) : useDisps(useDisps) {}
-    void pickAddressesInSandbox(Module *module, Sandbox *sandbox);
-    void copyCodeToSandbox(Module *module, Sandbox *sandbox);
-    void copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox);
-    void instantiate(Function *function, Sandbox *sandbox);
-    void instantiate(PLTTrampoline *trampoline, Sandbox *sandbox);
+    Generator(Sandbox *sandbox, bool useDisps = true)
+        : sandbox(sandbox), useDisps(useDisps) {}
 
-    void jumpToSandbox(Sandbox *sandbox, Module *module,
-        const char *function = "main");
+    void assignAddresses(Program *program);
+    void generateCode(Program *program);
+
+    void assignAddresses(Module *module);
+    void generateCode(Module *module);
+
+    // For JIT-Shuffling. Assign an address and generate code.
+    void assignAndGenerate(Function *function);
+    void assignAndGenerate(PLTTrampoline *trampoline);
+
+    // For testing purposes only. Jumps directly to main, skipping init.
+    void jumpToSandbox(Module *module, const char *function = "main");
 private:
-    void pickFunctionAddressInSandbox(Function *function, Sandbox *sandbox);
-    void pickPLTAddressInSandbox(PLTTrampoline *trampoline, Sandbox *sandbox);
-    void copyFunctionToSandbox(Function *function, Sandbox *sandbox);
+    void pickFunctionAddressInSandbox(Function *function);
+    void pickPLTAddressInSandbox(PLTTrampoline *trampoline);
+    void copyFunctionToSandbox(Function *function);
     void copyPLTToSandbox(PLTTrampoline *trampoline);
 };
 

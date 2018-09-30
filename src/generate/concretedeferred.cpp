@@ -122,6 +122,28 @@ SymbolTableContent::DeferredType *SymbolTableContent
 }
 
 SymbolTableContent::DeferredType *SymbolTableContent
+    ::addPLTSymbol(PLTTrampoline *plt, Symbol *sym) {
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = SHN_UNDEF;
+    symbol->st_value = plt ? plt->getAddress() : 0;
+    symbol->st_size = plt ? plt->getSize() : 0;
+    auto value = new DeferredType(symbol);
+    auto sit = SymbolInTable(SymbolInTable::TYPE_PLT, sym);
+    insertSorted(sit, value);
+    firstGlobalIndex ++;
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
     ::addUndefinedSymbol(Symbol *sym) {
 
     // uses st_shndx = SHN_UNDEF by default
@@ -174,7 +196,7 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
 
     auto deferred = new DeferredType(phdr);
 
-    deferred->addFunction([this, segment] (ElfXX_Phdr *phdr) {
+    deferred->addFunction([segment] (ElfXX_Phdr *phdr) {
         LOG(1, "generating phdr for segment of type " << segment->getType()
             << ", containing:");
 
@@ -212,16 +234,97 @@ PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment) {
     return deferred;
 }
 
+PhdrTableContent::DeferredType *PhdrTableContent::add(SegmentInfo *segment,
+    address_t address) {
+
+    auto phdr = new ElfXX_Phdr();
+    std::memset(phdr, 0, sizeof(*phdr));
+
+    auto deferred = new DeferredType(phdr);
+
+    deferred->addFunction([segment, address] (ElfXX_Phdr *phdr) {
+        LOG(1, "generating phdr for segment of type " << segment->getType()
+            << ", containing:");
+
+        size_t fileSize = 0;
+        for(auto section : segment->getContainsList()) {
+            LOG(2, "    " << section->getName());
+            fileSize += section->getContent()->getSize();
+        }
+
+        size_t offset = 0;
+        if(!segment->getContainsList().empty()) {
+            auto firstSection = segment->getContainsList()[0];
+            offset = firstSection->getOffset();
+        }
+
+        address_t sectionAddress = address;
+        for(auto sec : segment->getContainsList()) {
+            if(sec->hasHeader()) {
+                sec->getHeader()->setAddress(sectionAddress);
+            }
+            sectionAddress += sec->getContent()->getSize();
+        }
+
+        phdr->p_type    = segment->getType();
+        phdr->p_flags   = segment->getFlags();
+        phdr->p_offset  = offset;
+        phdr->p_vaddr   = address;
+        phdr->p_paddr   = address;
+        phdr->p_filesz  = fileSize;
+        phdr->p_memsz   = fileSize + segment->getAdditionalMemSize();
+        phdr->p_align   = segment->getAlignment();
+
+        if((phdr->p_vaddr & LINUX_KERNEL_BASE) == LINUX_KERNEL_BASE) {
+            phdr->p_paddr -= LINUX_KERNEL_BASE;
+        }
+    });
+
+    DeferredMap<SegmentInfo *, ElfXX_Phdr>::add(segment, deferred);
+    return deferred;
+}
+
+void PhdrTableContent::assignAddressesToSections(SegmentInfo *segment, address_t addr) {
+    /*if(segment->getContainsList().empty()) return;
+    auto firstSection = segment->getContainsList()[0];
+
+    if(!firstSection->hasHeader()) return;
+    auto header = firstSection->getHeader();
+
+    if(!header->getAddress()) return;*/
+    address_t sectionAddress = addr;
+
+    for(auto sec : segment->getContainsList()) {
+        if(sec->hasHeader()) {
+            LOG(0, "assign address 0x" << sectionAddress
+                << "  to section [" << sec->getName() << "]");
+            sec->getHeader()->setAddress(sectionAddress);
+        }
+        sectionAddress += sec->getContent()->getSize();
+    }
+}
+
 size_t PagePaddingContent::getSize() const {
     size_t lastByte = previousSection->getOffset();
     if(previousSection->hasContent()) {
         lastByte += previousSection->getContent()->getSize();
     }
 
-    // how much data is needed to round from lastByte to a page boundary?
-    size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
-        - lastByte;
-    return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+    if(isIsolatedPadding) {
+        // how much data is needed to round from lastByte to a page boundary?
+        size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+            - lastByte;
+        LOG(0, "desiredOffset = " << desiredOffset << ", got = "
+            << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
+        return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
+    }
+    else {
+        static const address_t PAGE_SIZE = 0x1000;
+        size_t size = (desiredOffset - (lastByte & (PAGE_SIZE-1)) + PAGE_SIZE) & (PAGE_SIZE-1);
+        LOG(0, "add " << size << " bytes; desiredOffset = " << desiredOffset << ", got = "
+            << ((lastByte + size) & (PAGE_SIZE-1)));
+        return size;
+    }
 }
 
 void PagePaddingContent::writeTo(std::ostream &stream) {
@@ -367,4 +470,113 @@ RelocSectionContent2::DeferredType *RelocSectionContent2
 
     DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
     return deferred;
+}
+
+DynamicSectionContent::DeferredType *DynamicSectionContent
+    ::addPair(unsigned long key, std::function<address_t ()> generator) {
+
+    auto deferred = new DeferredType(new DynamicDataPair(key));
+    deferred->addFunction([generator] (DynamicDataPair *data) {
+        data->setValue(static_cast<unsigned long>(generator()));
+    });
+
+    DeferredList<DynamicDataPair>::add(deferred);
+    return deferred;
+}
+
+Section *DataRelocSectionContent::getTargetSection() {
+    return outer->get();
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addUndefinedRef(DataVariable *var, LDSOLoaderLink *link) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    auto region = var->getParent()->getParent();
+
+    //rela->r_offset  = var->getAddress() - region->getAddress();
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    char *name = new char[link->getTargetName().length() + 1];
+    std::strcpy(name, link->getTargetName().c_str());
+    auto symbol = new Symbol(0, 0, name,
+        Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    auto elfSym = symtab->addUndefinedSymbol(symbol);
+    deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
+        LOG(1, "Creating data reloc for [" << name << "]");
+        size_t index = symtab->indexOf(elfSym);
+        //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
+        rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataRef(address_t source, address_t target, DataSection *targetSection) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = target; // - targetSection->getAddress();
+
+    auto name = targetSection->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        /*size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }*/
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addTLSOffsetRef(address_t source, TLSDataOffsetLink *link) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_TPOFF64);
+    rela->r_addend  = link->getRawTarget();
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
+DynamicSectionContent::DeferredType *DynamicSectionContent
+    ::addPair(unsigned long key, unsigned long value) {
+
+    auto deferred = new DeferredType(new DynamicDataPair(key, value));
+
+    DeferredList<DynamicDataPair>::add(deferred);
+    return deferred;
+}
+
+void InitArraySectionContent::writeTo(std::ostream &stream) {
+    for(auto func: callbacks) {
+        func();
+    }
+    for(auto func : array) {
+        address_t address = func();
+        LOG(0, "init_array value = " << address);
+        std::string str{reinterpret_cast<char *>(&address), sizeof(address_t)};
+        stream << str;
+    }
 }

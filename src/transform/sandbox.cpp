@@ -4,17 +4,9 @@
 #include "sandbox.h"
 #include "generate/objgen.h"
 #include "generate/anygen.h"
+#include "generate/staticgen.h"
 #include "chunk/module.h"
 #include "config.h"
-
-bool Slot::append(uint8_t *data, size_t size) {
-    if(size > available) return false;
-
-    std::memcpy((void *)address, (void *)data, size);
-    address += size;
-    size -= available;
-    return true;
-}
 
 MemoryBacking::MemoryBacking(address_t address, size_t size)
     : SandboxBacking(size) {
@@ -61,45 +53,4 @@ bool MemoryBufferBacking::reopen() {
 bool MemoryBufferBacking::recreate() {
     buffer.clear();
     return false;
-}
-
-ExeBacking::ExeBacking(ElfSpace *elfSpace, std::string filename)
-    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
-    elfSpace(elfSpace), filename(filename) {
-
-}
-
-void ExeBacking::finalize() {
-    MemoryBacking::finalize();
-#if 0
-    ExeGen *gen = new ExeGen(elfSpace, this, filename);
-    gen->generate();
-    delete gen;
-#endif
-}
-
-ObjBacking::ObjBacking(ElfSpace *elfSpace, std::string filename)
-    : MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
-    elfSpace(elfSpace), filename(filename) {
-
-}
-
-void ObjBacking::finalize() {
-    MemoryBacking::finalize();
-    ObjGen *gen = new ObjGen(elfSpace, this, filename);
-    gen->generate();
-    delete gen;
-}
-
-AnyGenerateBacking::AnyGenerateBacking(Module *module, std::string filename)
-    : MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE),
-    module(module), filename(filename) {
-
-}
-
-void AnyGenerateBacking::finalize() {
-    MemoryBufferBacking::finalize();
-    AnyGen *gen = new AnyGen(module, this);
-    gen->generate(filename);
-    delete gen;
 }

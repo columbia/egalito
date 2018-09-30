@@ -18,8 +18,7 @@ protected:
 private:
     void log_instruction(Instruction *instr, const char *message);
     Function *makeOutlinedTrampoline(Module *module, Instruction *instr);
-    std::vector<Instruction *> makeMovInstructionForJump(Instruction *instr);
-    std::vector<Instruction *> makeMovInstructionForCall(Instruction *instr);
+    std::vector<Instruction *> makeMovInstruction(Instruction *instr);
 };
 
 #endif

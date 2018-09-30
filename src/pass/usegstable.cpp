@@ -58,10 +58,10 @@ void UseGSTablePass::visit(Block *block) {
                 }
             }
         }
-        if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+        else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
             indirectCalls.emplace_back(block, instr);
         }
-        if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        else if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
             if(!v->isForJumpTable()) {
                 indirectTailRecursions.emplace_back(block, instr);
             }
@@ -69,15 +69,20 @@ void UseGSTablePass::visit(Block *block) {
                 jumpTableJumps.emplace_back(block, instr);
             }
         }
-        if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
-            auto assembly = v->getAssembly();
-            if(assembly->getId() == X86_INS_CALL) {
+        else if(auto v = dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+            if(v->isCall()) {
                 RIPrelativeCalls.emplace_back(block, instr);
             }
-            else if(assembly->getId() == X86_INS_JMP) {
+            else {
                 RIPrelativeJumps.emplace_back(block, instr);
             }
-            else if(assembly->getId() == X86_INS_LEA) {
+        }
+        else if(dynamic_cast<ReturnInstruction *>(semantic)) {
+            functionReturns.emplace_back(block, instr);
+        }
+        else if(auto v = dynamic_cast<LinkedInstruction *>(semantic)) {
+            auto assembly = v->getAssembly();
+            if(assembly->getId() == X86_INS_LEA) {
                 pointerLoads.emplace_back(block, instr);
             }
             else if(auto link = v->getLink()) {
@@ -85,9 +90,6 @@ void UseGSTablePass::visit(Block *block) {
                     pointerLinks.emplace_back(block, instr);
                 }
             }
-        }
-        if(dynamic_cast<ReturnInstruction *>(semantic)) {
-            functionReturns.emplace_back(block, instr);
         }
     }
 }

@@ -183,6 +183,22 @@ void LoaderEmulator::setup(Conductor *conductor) {
     }
 }
 
+void LoaderEmulator::setupForExecutableGen(Conductor *conductor) {
+    const char *ldsoVars[] = {
+        "_rtld_global",
+        "_rtld_global_ro",
+        //"_dl_argv",
+        //"__environ",
+        //"environ",
+        //"__libc_stack_end",
+        //"_dl_starting_up",
+        //"__libc_enable_secure",
+    };
+    for(auto sym : ldsoVars) {
+        addData(sym, 0);
+    }
+}
+
 void LoaderEmulator::addFunction(const std::string &symbol,
     Function *function) {
 
@@ -205,6 +221,10 @@ Link *LoaderEmulator::makeDataLink(const std::string &symbol,
     if(it == dataMap.end()) return nullptr;
 
     auto addr = (*it).second;
+    if(!addr) {
+        // special case for static executable generation
+        return new LDSOLoaderLink(symbol);
+    }
     if(afterMapping) {
         addr += egalito->getElfSpace()->getElfMap()->getBaseAddress();
     }

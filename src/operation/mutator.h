@@ -1,6 +1,7 @@
 #ifndef EGALITO_OPERATION_MUTATOR_H
 #define EGALITO_OPERATION_MUTATOR_H
 
+#include "disasm/reassemble.h"
 #include "chunk/chunk.h"
 #include "chunk/chunklist.h"
 #include "cursor.h"
@@ -44,6 +45,11 @@ public:
     */
     void insertBefore(Chunk *insertPoint, Chunk *newChunk);
 
+    /** Adds a list of instructions before insertPoint. */
+    void insertBefore(Instruction *insertPoint, 
+        const std::vector<Instruction *> &toBeInserted, 
+        bool beforeJumpTo = false);
+
     /** Like insertBefore(), adds a new child immediately before insertPoint.
         However, if some jump instruction targeted insertPoint, it will now
         target the newly inserted instruction.
@@ -51,7 +57,7 @@ public:
         If insertPoint is NULL, the newChunk is appended to the end.
     */
     void insertBeforeJumpTo(Instruction *insertPoint, Instruction *newChunk);
-
+    
     /** Removes a child. */
     void remove(Chunk *child);
 
@@ -61,7 +67,7 @@ public:
     /** Splits a block at an instruction
 
         block cannot be NULL.
-     */
+    */
     void splitBlockBefore(Instruction* point);
 
     void splitFunctionBefore(Block *point);

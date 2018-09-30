@@ -5,7 +5,7 @@
 #include "config.h"
 #include "setup.h"
 #include "conductor.h"
-#include "conductor/passes.h"
+#include "passes.h"
 #include "transform/generator.h"
 #include "load/segmap.h"
 #include "load/emulator.h"
@@ -14,6 +14,7 @@
 #include "pass/clearspatial.h"
 #include "pass/dumplink.h"
 #include "util/feature.h"
+#include "generate/staticgen.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -64,6 +65,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(injectEgalito) {
         this->parseEgalito();
     }
+    else {
+        // !!! this should be done differently
+        LoaderEmulator::getInstance().setupForExecutableGen(conductor);
+    }
 
     if(withSharedLibs) {
         conductor->parseLibraries();
@@ -101,7 +106,8 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
             || library->getRole() == Library::ROLE_LIBCPP) {
 
             auto elfMap = new ElfMap(library->getResolvedPathCStr());
-            conductor->parseEgalitoElfSpaceOnly(elfMap, module);
+            conductor->parseEgalitoElfSpaceOnly(elfMap, module,
+                library->getResolvedPathCStr());
         }
     }
 
@@ -212,13 +218,38 @@ ShufflingSandbox *ConductorSetup::makeShufflingSandbox() {
 }
 
 Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
-    // auto backing = ExeBacking(conductor->getMainSpace(), outputFile);
-    // this->sandbox = new SandboxImpl<ExeBacking,
-    //     WatermarkAllocator<ExeBacking>>(backing);
-    //auto backing = ObjBacking(conductor->getMainSpace(), outputFile);
-    //return new SandboxImpl<ObjBacking, WatermarkAllocator<ObjBacking>>(backing);
-    auto backing = AnyGenerateBacking(conductor->getProgram()->getMain(), outputFile);
-    return new SandboxImpl<AnyGenerateBacking, WatermarkAllocator<AnyGenerateBacking>>(backing);
+    auto backing = MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
+    return new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
+}
+
+Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
+    auto backing = MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
+    return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
+}
+
+bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = StaticGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        //moveCode(sandbox, true);  // calls sandbox->finalize()
+        moveCodeAssignAddresses(sandbox, true);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newExecutablePasses(program);
+        }
+        copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
+    generator.generate(outputFile);
+    return true;
 }
 
 void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
@@ -233,19 +264,11 @@ void ConductorSetup::moveCode(Sandbox *sandbox, bool useDisps) {
 }
 
 void ConductorSetup::moveCodeAssignAddresses(Sandbox *sandbox, bool useDisps) {
-    Generator generator(useDisps);
-
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        generator.pickAddressesInSandbox(module, sandbox);
-    }
+    Generator(sandbox, useDisps).assignAddresses(conductor->getProgram());
 }
 
 void ConductorSetup::copyCodeToNewAddresses(Sandbox *sandbox, bool useDisps) {
-    Generator generator(useDisps);
-
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        generator.copyCodeToSandbox(module, sandbox);
-    }
+    Generator(sandbox, useDisps).generateCode(conductor->getProgram());
 }
 
 void ConductorSetup::moveCodeMakeExecutable(Sandbox *sandbox) {

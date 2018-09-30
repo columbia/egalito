@@ -40,12 +40,12 @@ size_t egalito_jit_gs_fixup(size_t offset) {
     if(targetFunction || targetTrampoline) {
         auto sandbox = EgalitoTLS::getSandbox();
         sandbox->reopen();
-        Generator generator(true);
+        Generator generator(sandbox, true);
         if(targetFunction) {
-            generator.instantiate(targetFunction, sandbox);
+            generator.assignAndGenerate(targetFunction);
         }
         else {
-            generator.instantiate(targetTrampoline, sandbox);
+            generator.assignAndGenerate(targetTrampoline);
         }
         sandbox->finalize();
         address = target->getAddress();
@@ -74,16 +74,16 @@ extern "C"
 void egalito_jit_gs_init(ShufflingSandbox *sandbox, GSTable *gsTable) {
     sandbox->reopen();
     sandbox->recreate();
-    Generator generator(true);
+    Generator generator(sandbox, true);
     for(auto gsEntry : CIter::children(gsTable)) {
         if(gsEntry->getIndex() == gsTable->getJITStartIndex()) break;
 
         auto target = gsEntry->getTarget();
         if(auto f = dynamic_cast<Function *>(target)) {
-            generator.instantiate(f, sandbox);
+            generator.assignAndGenerate(f);
         }
         else if(auto trampoline = dynamic_cast<PLTTrampoline *>(target)) {
-            generator.instantiate(trampoline, sandbox);
+            generator.assignAndGenerate(trampoline);
         }
     }
     sandbox->finalize();

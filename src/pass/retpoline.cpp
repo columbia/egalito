@@ -155,11 +155,8 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
 
         {
             std::vector<Instruction *> movInsList;
-            if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
-                movInsList = makeMovInstructionForJump(instr);
-            }
-            else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
-                movInsList = makeMovInstructionForCall(instr);
+            if(dynamic_cast<IndirectControlFlowInstructionBase *>(semantic)) {
+                movInsList = makeMovInstruction(instr);
             }
 
             if(movInsList.empty()) {
@@ -197,9 +194,11 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
 #endif
 }
 
-template <typename SemanticType>
-static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
+std::vector<Instruction *> RetpolinePass::makeMovInstruction(
+    Instruction *instr) {
+
 #ifdef ARCH_X86_64
+    auto semantic = static_cast<IndirectControlFlowInstructionBase *>(instr->getSemantic());
     auto cs_reg = semantic->getRegister();
     assert(cs_reg != X86_REG_RIP);
     auto reg = X86Register::convertToPhysical(cs_reg);
@@ -278,30 +277,6 @@ static std::vector<Instruction *> makeMovInstruction(SemanticType *semantic) {
     std::vector<unsigned char> bin4{0x4c, 0x89, 0x1c, 0x24};
     auto ins2 = DisassembleInstruction(handle).instruction(bin4);
     return {ins1, ins2};
-#else
-    return {};
-#endif
-}
-
-std::vector<Instruction *> RetpolinePass::makeMovInstructionForJump(
-    Instruction *instr) {
-
-#ifdef ARCH_X86_64
-    auto semantic = static_cast<IndirectJumpInstruction *>(instr->getSemantic());
-
-    return makeMovInstruction(semantic);
-#else
-    return {};
-#endif
-}
-
-std::vector<Instruction *> RetpolinePass::makeMovInstructionForCall(
-    Instruction *instr) {
-
-#ifdef ARCH_X86_64
-    auto semantic = static_cast<IndirectCallInstruction *>(instr->getSemantic());
-
-    return makeMovInstruction(semantic);
 #else
     return {};
 #endif

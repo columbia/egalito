@@ -58,8 +58,12 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
         if(ins->id == X86_INS_CALL) {
-            // for RIP-relative call, make a LinkedInstruction afterward
-            if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
+            if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
+                semantic = new DataLinkedControlFlowInstruction(instruction);
+                //semantic->setLink(LinkFactory::makeDataLink(module, address, true));
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            else {
                 semantic = new IndirectCallInstruction(
                     static_cast<Register>(op->mem.base),
                     static_cast<Register>(op->mem.index),
@@ -68,8 +72,12 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             }
         }
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            // for RIP-relative jump, make a LinkedInstruction afterward
-            if(op->mem.base != X86_REG_RIP && op->mem.base != X86_REG_INVALID) {
+            if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
+                semantic = new DataLinkedControlFlowInstruction(instruction);
+                //semantic->setLink(LinkFactory::makeDataLink(module, address, false));
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            else {
                 semantic = new IndirectJumpInstruction(
                     static_cast<Register>(op->mem.base), ins->mnemonic,
                     static_cast<Register>(op->mem.index),

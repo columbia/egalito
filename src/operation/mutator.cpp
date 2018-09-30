@@ -5,6 +5,8 @@
 #include "chunk/position.h"
 #include "pass/positiondump.h"
 #include "instr/instr.h"
+#include "disasm/reassemble.h"
+#include "disasm/disassemble.h"
 #ifdef ARCH_X86_64
     #include "instr/linked-x86_64.h"
 #endif
@@ -169,6 +171,21 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     }
     if(auto linked = dynamic_cast<LinkedInstruction *>(sem2)) {
         linked->setInstruction(insertPoint);
+    }
+}
+
+void ChunkMutator::insertBefore(Instruction *insertPoint,
+    const std::vector<Instruction *> &toBeInserted, bool beforeJumpTo) {
+    
+    if(beforeJumpTo) {
+        for(auto it = toBeInserted.rbegin(); it != toBeInserted.rend(); it++) {
+            insertBeforeJumpTo(insertPoint, *it);
+        }
+    }
+    else {
+        for(auto it = toBeInserted.begin(); it != toBeInserted.end(); it++) {
+            insertBefore(insertPoint, *it);
+        }
     }
 }
 

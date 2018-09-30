@@ -102,12 +102,16 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     setSize(shdr->sh_size);
 
     // !!! there is probably a better way to determine the type!
-    if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
-    else if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
+    if(shdr->sh_type == SHT_NOBITS) type = TYPE_BSS;
     else if(shdr->sh_type == SHT_INIT_ARRAY) type = TYPE_INIT_ARRAY;
     else if(shdr->sh_type == SHT_FINI_ARRAY) type = TYPE_FINI_ARRAY;
+    else if(shdr->sh_type == SHT_DYNAMIC) type = TYPE_DYNAMIC;
     else if(shdr->sh_type == SHT_PROGBITS) {
-        if(name == ".data" || name == ".rodata" || name == ".data.rel.ro"
+        if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
+        else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
+        else if(name == ".data" || name == ".tdata" || name == ".rodata"
+            || name == ".data.rel.ro"
+            || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
             || name == ".vvar") {
@@ -115,6 +119,10 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
             type = TYPE_DATA;
         }
         else type = TYPE_UNKNOWN;
+
+        if (type == TYPE_DATA) {
+            LOG(0, "[" << name << "] is a data section");
+        }
     }
     else type = TYPE_UNKNOWN;
 }
@@ -192,9 +200,15 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
     // note: dataBytes may store less than getSize(). Padded with zeros.
 }
 
-void DataRegion::saveDataBytes() {
+void DataRegion::saveDataBytes(bool captureUninitializedData) {
     const char *address = reinterpret_cast<const char *>(getAddress());
-    size_t size = dataBytes.size();
+
+    // In the case of uninitialized/zeroed .bss data, if we are saving the
+    // data bytes then we may want to capture any modifications that were
+    // made e.g. by links or relocations. Essentially, we convert it to
+    // initialized data.
+    size_t size = captureUninitializedData ? getSize() : dataBytes.size();
+
     dataBytes.assign(address, size);
 }
 
@@ -289,8 +303,19 @@ void TLSDataRegion::setBaseAddress(address_t baseAddress) {
 }
 
 bool TLSDataRegion::containsData(address_t address) {
-    auto size = getSizeOfInitializedData();
+#if 1
+    auto size = getSizeOfInitializedData();  // this is filesize
     return Range(getAddress(), size).contains(address);
+#else
+    /*
+     * When iterating through relocations in the source elf file, there will be
+     * some relocations in the uninitialized (.tbss) portion of the TLS. We want
+     * to associate those relocations (and hence data variables) with the TLS
+     * rather than the load segment which occupies the same virtual addresses as
+     * the TLS. So, pretend the size of TLS is the full memsize.
+     */
+    return getRange().contains(address);  // getSize() is memsize
+#endif
 }
 
 void TLSDataRegion::serialize(ChunkSerializerOperations &op,

@@ -11,14 +11,14 @@ class Instruction;
 class Module;
 class Reloc;
 
-class LinkedInstruction : public LinkDecorator<SemanticImpl> {
+class LinkedInstructionBase : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;
     int opIndex;
     size_t displacementSize;
     size_t displacementOffset;
 public:
-    LinkedInstruction(Instruction *i) : instruction(i), opIndex(-1),
+    LinkedInstructionBase(Instruction *i) : instruction(i), opIndex(-1),
         displacementSize(0), displacementOffset(0) {}
 
     void writeTo(char *target, bool useDisp);
@@ -35,19 +35,25 @@ public:
     void setInstruction(Instruction *instruction)
         { this->instruction = instruction; }
 
-    static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, AssemblyPtr assembly);
-    static LinkedInstruction *makeLinked(Module *module,
-        Instruction *instruction, AssemblyPtr assembly, Reloc *reloc);
-
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 protected:
     Instruction *getInstruction() const { return instruction; }
     unsigned long calculateDisplacement();
     void makeDisplacementInfo();
 };
 
-class ControlFlowInstruction : public LinkDecorator<InstructionSemantic> {
+class LinkedInstruction : public LinkedInstructionBase {
+public:
+    using LinkedInstructionBase::LinkedInstructionBase;
+
+    static LinkedInstructionBase *makeLinked(Module *module,
+        Instruction *instruction, AssemblyPtr assembly);
+    static LinkedInstructionBase *makeLinked(Module *module,
+        Instruction *instruction, AssemblyPtr assembly, Reloc *reloc);
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+class ControlFlowInstructionBase : public LinkDecorator<InstructionSemantic> {
 private:
     unsigned int id;
     Instruction *source;
@@ -56,7 +62,7 @@ private:
     int displacementSize;
     bool nonreturn;
 public:
-    ControlFlowInstruction(unsigned int id, Instruction *source,
+    ControlFlowInstructionBase(unsigned int id, Instruction *source,
         std::string opcode, std::string mnemonic, int displacementSize)
         : id(id), source(source), opcode(opcode), mnemonic(mnemonic),
         displacementSize(displacementSize), nonreturn(false) {}
@@ -65,7 +71,9 @@ public:
     virtual void setSize(size_t value);
 
     virtual const std::string &getData() const
-        { throw "Can't call getData() on ControlFlowInstruction"; }
+        { throw "Can't call getData() on ControlFlowInstructionBase"; }
+
+    virtual bool isControlFlow() const { return true; }
 
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
@@ -73,9 +81,8 @@ public:
 
     virtual AssemblyPtr getAssembly() { return AssemblyPtr(); }
     virtual void setAssembly(AssemblyPtr assembly)
-        { throw "Can't call setAssembly() on ControlFlowInstruction"; }
+        { throw "Can't call setAssembly() on ControlFlowInstructionBase"; }
 
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 
     Instruction *getSource() const { return source; }
     std::string getMnemonic() const { return mnemonic; }
@@ -91,6 +98,31 @@ public:
     void setMnemonic(const std::string &string) { mnemonic = string; }
 public:
     diff_t calculateDisplacement();
+};
+
+class ControlFlowInstruction : public ControlFlowInstructionBase {
+public:
+    using ControlFlowInstructionBase::ControlFlowInstructionBase;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
+class DataLinkedControlFlowInstruction : public LinkedInstructionBase {
+private:
+    bool isRelative;
+public:
+    DataLinkedControlFlowInstruction(Instruction *source)
+        : LinkedInstructionBase(source), isRelative(true) {}
+    DataLinkedControlFlowInstruction(unsigned int id, Instruction *source,
+        std::string opcode, std::string mnemonic, int displacementSize);
+
+    bool getIsRelative() const { return isRelative; }
+    virtual void setLink(Link *link);  // sets isRelative
+
+    bool isCall() const;
+    virtual bool isControlFlow() const { return true; }
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
 // no link yet

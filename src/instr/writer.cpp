@@ -58,6 +58,17 @@ void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
     controlFlow->writeTo(data, useDisp);
 }
 
+// DataLinkedControlFlow Instruction
+void InstrWriterCString::visit(DataLinkedControlFlowInstruction *controlFlow) {
+    controlFlow->writeTo(target, true);
+}
+void InstrWriterCppString::visit(DataLinkedControlFlowInstruction *controlFlow) {
+    controlFlow->writeTo(target, true);
+}
+void InstrWriterGetData::visit(DataLinkedControlFlowInstruction *controlFlow) {
+    controlFlow->writeTo(data, true);
+}
+
 void InstrWriterMakeReloc::visit(LinkedInstruction *linked) {
     if(!linked->getLink()) return;
 

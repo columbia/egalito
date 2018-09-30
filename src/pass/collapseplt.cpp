@@ -54,7 +54,7 @@ CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
 
     for(auto pair : ifuncMap) {
         assert(pair.second);
-        LOG(10, "IFunc " << pair.first << " -> " << pair.second->getName());
+        LOG(1, "IFunc " << pair.first << " -> " << pair.second->getName());
     }
 }
 
@@ -75,14 +75,14 @@ void CollapsePLTPass::visit(Instruction *instr) {
             auto name = trampoline->getExternalSymbol()->getName();
             auto it = ifuncMap.find(name);
             if(it != ifuncMap.end()) {
-                LOG(10, "resolving IFunc " << name
+                LOG(1, "resolving IFunc " << name
                     << " as " << it->second->getName());
                 instr->getSemantic()->setLink(
                     new NormalLink(it->second, Link::SCOPE_EXTERNAL_JUMP));
                 delete pltLink;
             }
             else {
-                LOG(10, "IFunc " << name << " will be resolved at runtime");
+                LOG(1, "IFunc " << name << " will be resolved at runtime");
             }
             return;  // we don't handle this yet
         }
@@ -109,7 +109,7 @@ void CollapsePLTPass::visit(DataSection *section) {
         if(auto f = dynamic_cast<Function *>(dest->getTarget())) {
             auto it = ifuncMap.find(f->getName());
             if(it != ifuncMap.end()) {
-                LOG(10, "redirecting IFUNC " << f->getName()
+                LOG(1, "redirecting IFUNC " << f->getName()
                     << " to " << it->second->getName());
                 auto link
                     = new NormalLink(it->second, Link::SCOPE_EXTERNAL_JUMP);

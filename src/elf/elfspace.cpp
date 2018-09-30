@@ -101,7 +101,6 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
             symbolFile << realPath << ".debug";
         }
         if(access(symbolFile.str().c_str(), F_OK) == 0) return symbolFile.str();
-        return symbolFile.str();
     }
 
     return "";

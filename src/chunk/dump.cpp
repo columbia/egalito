@@ -72,6 +72,7 @@ void ChunkDumper::visit(Instruction *instruction) {
 
 void ChunkDumper::visit(PLTTrampoline *trampoline) {
     LOG(4, "---[" << trampoline->getName() << "]---");
+    LOG(4, "    plt size: " << trampoline->getSize() << " (standard size: " << PLTList::getPLTTrampolineSize() << ")");
     recurse(trampoline);
 }
 
@@ -171,6 +172,10 @@ void InstrDumper::visit(IsolatedInstruction *semantic) {
 }
 
 void InstrDumper::visit(LinkedInstruction *semantic) {
+    dumpLinkedBase(semantic, false);
+}
+
+void InstrDumper::dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF) {
     semantic->regenerateAssembly();
     auto assembly = semantic->getAssembly();
     auto link = semantic->getLink();
@@ -183,18 +188,49 @@ void InstrDumper::visit(LinkedInstruction *semantic) {
             address, &*assembly, pos, targetName.str().c_str());
         return;
     }
-    if(target) {
-        DisasmDump::printInstruction(
-            address, &*assembly, pos, target->getName().c_str());
+    if(isCF) {
+        std::ostringstream name;
+#ifdef ARCH_X86_64
+        if(semantic->getAssembly()->getMnemonic() == "callq") name << "(CALL)";
+#elif defined(ARCH_AARCH64)
+        if(semantic->getAssembly()->getMnemonic() == "bl") name << "(CALL)";
+#elif defined(ARCH_ARM)
+        if(semantic->getAssembly()->getMnemonic() == "bl"
+            || semantic->getAssembly()->getMnemonic() == "blx") name << "(CALL)";
+#endif
+        else {
+            name << "(JUMP " << semantic->getAssembly()->getMnemonic() << ")";
+            //name << " [opcode size " << semantic->getOpcode().length() << ", dispSize " << semantic->getDisplacementSize() << "] ";
+        }
+        std::string bytes = getBytes(semantic);
+        std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
+        DisasmDump::printInstructionRaw(address,
+            pos, name.str().c_str(),
+            semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+            false);
     }
     else {
-        unsigned long targetAddress = link->getTargetAddress();
-        DisasmDump::printInstructionCalculated(
-            address, &*assembly, pos, targetAddress);
+        if(target) {
+            DisasmDump::printInstruction(
+                address, &*assembly, pos, target->getName().c_str());
+        }
+        else {
+            unsigned long targetAddress = link->getTargetAddress();
+            DisasmDump::printInstructionCalculated(
+                address, &*assembly, pos, targetAddress);
+        }
     }
 }
 
 void InstrDumper::visit(ControlFlowInstruction *semantic) {
+    dumpControlFlow(semantic, false);
+}
+
+void InstrDumper::visit(DataLinkedControlFlowInstruction *semantic) {
+    dumpLinkedBase(semantic, true);
+}
+
+void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar) {
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
 
@@ -235,6 +271,7 @@ void InstrDumper::visit(ControlFlowInstruction *semantic) {
         pos,
         name.str().c_str(),
         link ? link->getTargetAddress() : 0,
+        printStar,
         targetName.str().c_str(),
         bytes2.c_str());
 }

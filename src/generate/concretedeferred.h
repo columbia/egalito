@@ -20,9 +20,10 @@ public:
     enum type_t {
         TYPE_NULL,
         TYPE_SECTION,
+        TYPE_PLT,
         TYPE_LOCAL,
         TYPE_UNDEF,
-        TYPE_GLOBAL
+        TYPE_GLOBAL,
     };
 private:
     type_t type;
@@ -53,6 +54,7 @@ public:
     void addNullSymbol();
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
+    DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);
 
     size_t indexOfSectionSymbol(const std::string &section,
@@ -99,6 +101,8 @@ public:
     PhdrTableContent(SectionList *sectionList) : sectionList(sectionList) {}
 
     DeferredType *add(SegmentInfo *segment);
+    DeferredType *add(SegmentInfo *segment, address_t address);
+    void assignAddressesToSections(SegmentInfo *segment, address_t addr);
 };
 
 class PagePaddingContent : public DeferredValue {
@@ -107,9 +111,11 @@ private:
 private:
     Section *previousSection;
     address_t desiredOffset;
+    bool isIsolatedPadding;  // true if data outside map region should be null
 public:
-    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0)
-        : previousSection(previousSection), desiredOffset(desiredOffset) {}
+    PagePaddingContent(Section *previousSection, address_t desiredOffset = 0,
+        bool isIsolatedPadding = true) : previousSection(previousSection),
+        desiredOffset(desiredOffset), isIsolatedPadding(isIsolatedPadding) {}
 
     virtual size_t getSize() const;
     virtual void writeTo(std::ostream &stream);
@@ -152,6 +158,58 @@ public:
 
     DeferredType *addDataRef(address_t source, address_t target,
         DataSection *targetSection);
+};
+
+class DataVariable;
+class DataRelocSectionContent : public DeferredMap<address_t, ElfXX_Rela> {
+public:
+    typedef DeferredValueImpl<ElfXX_Rela> DeferredType;
+private:
+    SectionRef *outer;
+    SectionList *sectionList;
+public:
+    DataRelocSectionContent(SectionRef *outer, SectionList *sectionList)
+        : outer(outer), sectionList(sectionList) {}
+
+    Section *getTargetSection();
+
+    DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
+    DeferredType *addDataRef(address_t source, address_t target,
+        DataSection *targetSection);
+    DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);
+};
+
+class DynamicDataPair {
+private:
+    unsigned long key;
+    unsigned long value;
+public:
+    DynamicDataPair(unsigned long key, unsigned long value = 0)
+        : key(key), value(value) {}
+    unsigned long getKey() const { return key; }
+    unsigned long getValue() const { return value; }
+    void setKey(unsigned long key) { this->key = key; }
+    void setValue(unsigned long value) { this->value = value; }
+};
+
+class DynamicSectionContent : public DeferredList<DynamicDataPair> {
+public:
+    typedef DeferredValueImpl<DynamicDataPair> DeferredType;
+
+    DeferredType *addPair(unsigned long key,
+        std::function<address_t ()> generator);
+    DeferredType *addPair(unsigned long key, unsigned long value);
+};
+
+class InitArraySectionContent : public DeferredValue {
+private:
+    std::vector<std::function<address_t ()>> array;
+    std::vector<std::function<void ()>> callbacks;
+public:
+    void addPointer(std::function<address_t ()> func) { array.push_back(func); }
+    void addCallback(std::function<void ()> func) { callbacks.push_back(func); }
+    virtual size_t getSize() const { return array.size() * sizeof(address_t); }
+    virtual void writeTo(std::ostream &stream);
 };
 
 #endif

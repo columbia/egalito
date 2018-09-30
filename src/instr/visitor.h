@@ -4,6 +4,7 @@
 class IsolatedInstruction;
 class LinkedInstruction;
 class ControlFlowInstruction;
+class DataLinkedControlFlowInstruction;
 class ReturnInstruction;
 class IndirectJumpInstruction;
 class IndirectCallInstruction;
@@ -17,6 +18,7 @@ public:
     virtual void visit(IsolatedInstruction *isolated) = 0;
     virtual void visit(LinkedInstruction *linked) = 0;
     virtual void visit(ControlFlowInstruction *controlFlow) = 0;
+    virtual void visit(DataLinkedControlFlowInstruction *dataLinked) = 0;
     virtual void visit(ReturnInstruction *retInstr);
     virtual void visit(IndirectJumpInstruction *indirect);
     virtual void visit(IndirectCallInstruction *indirect);

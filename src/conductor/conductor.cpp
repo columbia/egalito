@@ -164,6 +164,8 @@ void Conductor::resolvePLTLinks() {
     if(program->getEgalito()) {
         PopulatePLTPass populatePLT(this);
         program->accept(&populatePLT);
+    } else {
+        LOG(5, "Warning: not populating PLT entries");
     }
 }
 
@@ -185,7 +187,7 @@ void Conductor::resolveData(bool justBridge) {
         if(resolveFinished.count(module)) continue;
 
         LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
-        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList()), module);
+        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList(), this), module);
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(
@@ -231,10 +233,12 @@ void Conductor::setupIFuncLazySelector() {
 #endif
 }
 
-void Conductor::fixDataSections() {
+void Conductor::fixDataSections(bool allocateTLS) {
     const static address_t base = 0x20000000;
-    allocateTLSArea(base);
-    loadTLSData();
+    if(allocateTLS) {
+        allocateTLSArea(base);
+        loadTLSData();
+    }
 
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);
@@ -248,7 +252,7 @@ void Conductor::fixDataSections() {
     HandleCopyRelocs handleCopyRelocs(this);
     program->accept(&handleCopyRelocs);
 
-    backupTLSData();
+    if(allocateTLS) backupTLSData();
 }
 
 EgalitoTLS *Conductor::getEgalitoTLS() const {

@@ -14,6 +14,7 @@ enum EgalitoInstrType {
     TYPE_IsolatedInstruction,
     TYPE_LinkedInstruction,
     TYPE_ControlFlowInstruction,
+    TYPE_DataLinkedControlFlowInstruction,
     TYPE_ReturnInstruction,
     TYPE_IndirectJumpInstruction,
     TYPE_IndirectCallInstruction,
@@ -54,6 +55,7 @@ public:
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+    virtual void visit(DataLinkedControlFlowInstruction *controlFlow);
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
@@ -102,6 +104,16 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
 
     assert(controlFlow->getLink());
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
+}
+
+void SemanticSerializer::visit(DataLinkedControlFlowInstruction *controlFlow) {
+    writer.write<uint8_t>(TYPE_DataLinkedControlFlowInstruction);
+    assert(controlFlow->getLink());
+    LinkSerializer(op).serialize(controlFlow->getLink(), writer);
+#ifdef ARCH_X86_64
+    writer.write<uint8_t>(controlFlow->getIndex());
+#endif
+    writer.write<bool>(controlFlow->getIsRelative());
 }
 
 void SemanticSerializer::visit(IndirectJumpInstruction *indirect) {
@@ -203,6 +215,18 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         if(!returns) semantic->setNonreturn();
 
         semantic->setLink(LinkSerializer(op).deserialize(reader));
+        return semantic;
+    }
+    case TYPE_DataLinkedControlFlowInstruction: {
+        auto semantic = new DataLinkedControlFlowInstruction(instruction);
+        semantic->setData(reader.readBytes<uint8_t>());
+        semantic->setLink(LinkSerializer(op).deserialize(reader));
+#ifdef ARCH_X86_64
+        semantic->setIndex(reader.read<uint8_t>());
+#endif
+
+        bool isRelative = reader.read<bool>(); // not needed, setLink sets isRelative
+
         return semantic;
     }
     default:

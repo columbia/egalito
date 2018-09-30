@@ -5,6 +5,7 @@
 #include "analysis/controlflow.h"
 #include "conductor/setup.h"
 #include "conductor/conductor.h"
+#include "conductor/passes.h"
 #include "chunk/dump.h"
 #include "chunk/concrete.h"
 #include "chunk/serializer.h"
@@ -25,6 +26,8 @@
 #include "pass/reorderpush.h"
 #include "pass/retpoline.h"
 #include "pass/dumplink.h"
+#include "pass/ldsorefs.h"
+#include "pass/ifuncplts.h"
 #include "pass/findendbr.h"
 #include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
@@ -32,6 +35,8 @@
 #include "pass/syscallsandbox.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
+#include "load/segmap.h"
+#include "load/emulator.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -170,6 +175,39 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         ////setup->moveCode(sandbox, false);  // calls sandbox->finalize()
         setup->moveCode(sandbox, true);  // calls sandbox->finalize()
     }, "writes out the current code to an ELF file");
+
+    topLevel->add("generate-static", [&] (Arguments args) {
+        args.shouldHave(1);
+        LdsoRefsPass pass;
+        setup->getConductor()->getProgram()->accept(&pass);
+        IFuncPLTs ifuncPLTs;
+        setup->getConductor()->getProgram()->accept(&ifuncPLTs);
+
+        setup->generateStaticExecutable(args.front().c_str());
+    }, "writes out the current code to an ELF file");
+
+    topLevel->add("ifunc-plts", [&] (Arguments args) {
+        args.shouldHave(0);
+        IFuncPLTs ifuncPLTs;
+        setup->getConductor()->getProgram()->accept(&ifuncPLTs);
+    }, "make a static non-caching stub for each ifunc plt");
+
+    topLevel->add("plts", [&] (Arguments args) {
+        args.shouldHave(1);
+        auto module = CIter::findChild(setup->getConductor()->getProgram(),
+            args.front().c_str());
+        if(!module) {
+            std::cout << "No such module.\n";
+            return;
+        }
+        if(!module->getPLTList()) {
+            std::cout << "module contains no PLT entries.\n";
+            return;
+        }
+
+        ChunkDumper dump;
+        module->getPLTList()->accept(&dump);
+    }, "transforms indirect jumps to use retpolines (Spectre defense)");
 
 #if 0
     // this is currently broken due to Marker rafactoring

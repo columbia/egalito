@@ -53,8 +53,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         return;
     }
     if(dynamic_cast<IndirectCallInstruction *>(instruction->getSemantic())) {
-        // if this is RIP-relative, we should try to convert this to
-        // ControlFlowInstruction
+        // if this is RIP-relative, it will instead be DataLinkedControlFlowInstruction
         LOG(10, "r = " << std::hex << r->getAddress()
             << " is already IndirectCallInstruction");
         return;

@@ -16,7 +16,19 @@
 
 #include "config.h"
 
-void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
+void Generator::assignAddresses(Program *program) {
+    for(auto module : CIter::modules(program)) {
+        assignAddresses(module);
+    }
+}
+
+void Generator::generateCode(Program *program) {
+    for(auto module : CIter::modules(program)) {
+        generateCode(module);
+    }
+}
+
+void Generator::assignAddresses(Module *module) {
 #ifdef LINUX_KERNEL_MODE
     Function *startup_64 = ChunkFind2()
         .findFunctionInModule("startup_64", module);
@@ -57,12 +69,12 @@ void Generator::pickAddressesInSandbox(Module *module, Sandbox *sandbox) {
     module->accept(&clearSpatial);
 }
 
-void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
+void Generator::generateCode(Module *module) {
 #ifdef LINUX_KERNEL_MODE
     Function *startup_64 = ChunkFind2()
         .findFunctionInModule("startup_64", module);
     if(startup_64) {
-        copyFunctionToSandbox(startup_64, sandbox);
+        copyFunctionToSandbox(startup_64);
     }
 #endif
 
@@ -74,13 +86,9 @@ void Generator::copyCodeToSandbox(Module *module, Sandbox *sandbox) {
         LOG(2, "    writing out [" << f->getName() << "] at 0x"
             << std::hex << f->getAddress());
 
-        copyFunctionToSandbox(f, sandbox);
+        copyFunctionToSandbox(f);
     }
 
-    copyPLTEntriesToSandbox(module, sandbox);
-}
-
-void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
@@ -89,78 +97,86 @@ void Generator::copyPLTEntriesToSandbox(Module *module, Sandbox *sandbox) {
     }
 }
 
-void Generator::copyFunctionToSandbox(Function *function, Sandbox *sandbox) {
-#ifndef LINUX_KERNEL_MODE
-    char *output = reinterpret_cast<char *>(function->getAddress());
-    if(auto cache = function->getCache()) {
-        //LOG(0, "generating with Cache: " << function->getName());
-        cache->copyAndFix(output);
-        return;
-    }
-    for(auto b : CIter::children(function)) {
-        for(auto i : CIter::children(b)) {
-            LOG(10, " at " << std::hex << i->getAddress());
-            if(useDisps) {
-                InstrWriterCString writer(output);
-                i->getSemantic()->accept(&writer);
+void Generator::copyFunctionToSandbox(Function *function) {
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(function->getAddress());
+        if(auto cache = function->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                LOG(10, " at " << std::hex << i->getAddress());
+                if(useDisps) {
+                    InstrWriterCString writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                else {
+                    InstrWriterForObjectFile writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                output += i->getSemantic()->getSize();
             }
-            else {
-                InstrWriterForObjectFile writer(output);
-                i->getSemantic()->accept(&writer);
-            }
-            output += i->getSemantic()->getSize();
         }
     }
-#else
-    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
-    InstrWriterCppString writer(backing->getBuffer());
-    for(auto b : CIter::children(function)) {
-        for(auto i : CIter::children(b)) {
-            i->getSemantic()->accept(&writer);
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        InstrWriterCppString writer(backing->getBuffer());
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                i->getSemantic()->accept(&writer);
+            }
         }
     }
-#endif
 }
 
 void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
-    char *output = reinterpret_cast<char *>(trampoline->getAddress());
-    if(auto cache = trampoline->getCache()) {
-        //LOG(0, "generating with Cache: " << function->getName());
-        cache->copyAndFix(output);
-        return;
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(trampoline->getAddress());
+        if(auto cache = trampoline->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        trampoline->writeTo(output);
     }
-    trampoline->writeTo(output);
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        size_t expectedSize = backing->getBuffer().length() + PLTList::getPLTTrampolineSize();
+        trampoline->writeTo(backing->getBuffer());
+        size_t actualSize = backing->getBuffer().length();
+        if (actualSize > expectedSize) {
+            LOG(0, "Writing too much data to PLT entry!!!!!");
+        } else { 
+            backing->getBuffer().append(expectedSize - actualSize, (char)0xf4);
+        }
+    }
 }
 
-void Generator::pickFunctionAddressInSandbox(Function *function,
-    Sandbox *sandbox) {
-
+// These two functions are only used during JIT-Shuffling
+void Generator::pickFunctionAddressInSandbox(Function *function) {
     auto slot = sandbox->allocate(function->getSize());
     //ChunkMutator(function).setPosition(slot.getAddress());
     PositionManager::setAddress(function, slot.getAddress());
 }
-
-void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline,
-    Sandbox *sandbox) {
-
+void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline) {
     auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
     //ChunkMutator(trampoline).setPosition(slot.getAddress());
     PositionManager::setAddress(trampoline, slot.getAddress());
 }
 
-void Generator::instantiate(Function *function, Sandbox *sandbox) {
-    pickFunctionAddressInSandbox(function, sandbox);
-    copyFunctionToSandbox(function, sandbox);
+void Generator::assignAndGenerate(Function *function) {
+    pickFunctionAddressInSandbox(function);
+    copyFunctionToSandbox(function);
 }
 
-void Generator::instantiate(PLTTrampoline *trampoline, Sandbox *sandbox) {
-    pickPLTAddressInSandbox(trampoline, sandbox);
+void Generator::assignAndGenerate(PLTTrampoline *trampoline) {
+    pickPLTAddressInSandbox(trampoline);
     copyPLTToSandbox(trampoline);
 }
 
-void Generator::jumpToSandbox(Sandbox *sandbox, Module *module,
-    const char *function) {
-
+void Generator::jumpToSandbox(Module *module, const char *function) {
     auto f = CIter::named(module->getFunctionList())->find(function);
     if(!f) return;
 

@@ -23,9 +23,7 @@ void DetectNullPtrPass::visit(Module *module) {
 void DetectNullPtrPass::visit(Instruction *instruction) {
 #ifdef ARCH_X86_64
     auto sem = instruction->getSemantic();
-    if(dynamic_cast<IndirectJumpInstruction *>(sem)
-        || dynamic_cast<IndirectCallInstruction *>(sem)) {
-
+    if(dynamic_cast<IndirectControlFlowInstructionBase *>(sem)) {
         LOG(1, "adding null ptr check at " << instruction->getName());
         auto block = dynamic_cast<Block *>(instruction->getParent());
 

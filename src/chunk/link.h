@@ -35,9 +35,19 @@ public:
     virtual ChunkRef getTarget() const = 0;
     virtual address_t getTargetAddress() const = 0;
 
+    virtual bool isAbsolute() const = 0;
+    virtual bool isRIPRelative() const = 0;
+
     virtual LinkScope getScope() const = 0;
     virtual bool isExternalJump() const = 0;
     virtual bool isWithinModule() const = 0;
+};
+
+template <typename BaseType>
+class LinkDefaultAttributeDecorator : public BaseType {
+public:
+    virtual bool isAbsolute() const { return false; }
+    virtual bool isRIPRelative() const { return false; }
 };
 
 template <Link::LinkScope Scope, typename BaseType>
@@ -53,7 +63,7 @@ private:
         { return (Scope & s) == s; }
 };
 
-class LinkImpl : public Link {
+class LinkImpl : public LinkDefaultAttributeDecorator<Link> {
 private:
     Link::LinkScope scope;
 public:
@@ -74,28 +84,37 @@ private:
 
 // --- standard Chunk links ---
 
-/** A relative reference to another Chunk.
-
-    The source and destination address may both be updated for this Link.
-*/
-class NormalLink : public LinkImpl {
+class NormalLinkBase : public LinkImpl {
 private:
     ChunkRef target;
 public:
-    NormalLink(ChunkRef target, Link::LinkScope scope)
+    NormalLinkBase(ChunkRef target, Link::LinkScope scope)
         : LinkImpl(scope), target(target) {}
 
     virtual ChunkRef getTarget() const { return target; }
     virtual address_t getTargetAddress() const;
 };
 
+/** A relative reference to another Chunk.
+
+    The source and destination address may both be updated for this Link.
+*/
+class NormalLink : public NormalLinkBase {
+public:
+    using NormalLinkBase::NormalLinkBase;
+
+    virtual bool isRIPRelative() const { return true; }
+};
+
 /** An absolute reference to another Chunk.
 
     Here the source address is irrelevant to getTargetAddress().
 */
-class AbsoluteNormalLink : public NormalLink {
+class AbsoluteNormalLink : public NormalLinkBase {
 public:
-    using NormalLink::NormalLink;
+    using NormalLinkBase::NormalLinkBase;
+
+    virtual bool isAbsolute() const { return true; }
 };
 
 /** Stores a link to a target Chunk, offset a given number of bytes from
@@ -112,6 +131,8 @@ public:
 
     virtual ChunkRef getTarget() const { return target; }
     virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return true; }
 };
 
 
@@ -119,7 +140,7 @@ public:
 
 class PLTTrampoline;
 class PLTLink : public LinkScopeDecorator<
-    Link::SCOPE_WITHIN_MODULE, Link> {
+    Link::SCOPE_WITHIN_MODULE, LinkDefaultAttributeDecorator<Link>> {
 private:
     address_t originalAddress;
     PLTTrampoline *pltTrampoline;
@@ -130,11 +151,13 @@ public:
     PLTTrampoline *getPLTTrampoline() const { return pltTrampoline; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return true; }
 };
 
 class JumpTable;
 class JumpTableLink : public LinkScopeDecorator<
-    Link::SCOPE_WITHIN_MODULE, Link> {
+    Link::SCOPE_WITHIN_MODULE, LinkDefaultAttributeDecorator<Link>> {
 private:
     JumpTable *jumpTable;
 public:
@@ -142,11 +165,14 @@ public:
 
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
+
+    // in position-independent code, always RIP-relative
+    virtual bool isRIPRelative() const { return true; }
 };
 
 class Symbol;
 class SymbolOnlyLink : public LinkScopeDecorator<
-    Link::SCOPE_WITHIN_MODULE, Link> {
+    Link::SCOPE_WITHIN_MODULE, LinkDefaultAttributeDecorator<Link>> {
 private:
     Symbol *symbol;
     address_t target;
@@ -157,10 +183,12 @@ public:
     Symbol *getSymbol() const { return symbol; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const { return target; }
+
+    virtual bool isRIPRelative() const { return true; }
 };
 
 class EgalitoLoaderLink : public LinkScopeDecorator<
-    Link::SCOPE_EXTERNAL_CODE, Link> {
+    Link::SCOPE_EXTERNAL_CODE, LinkDefaultAttributeDecorator<Link>> {
 private:
     std::string targetName;
 public:
@@ -169,10 +197,27 @@ public:
     const std::string &getTargetName() const { return targetName; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return true; }
+};
+
+// Only used for executable generation
+class LDSOLoaderLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_CODE, LinkDefaultAttributeDecorator<Link>> {
+private:
+    std::string targetName;
+public:
+    LDSOLoaderLink(const std::string &name) : targetName(name) {}
+
+    const std::string &getTargetName() const { return targetName; }
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return 0; }
+
+    virtual bool isRIPRelative() const { return true; }
 };
 
 class StackLink : public LinkScopeDecorator<
-    Link::SCOPE_UNKNOWN, Link> {
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
 private:
     address_t targetAddress;
 public:
@@ -183,27 +228,33 @@ public:
 };
 
 class Marker;
-class MarkerLink : public LinkScopeDecorator<
-    Link::SCOPE_UNKNOWN, Link> {
+class MarkerLinkBase : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
 private:
     Marker *marker;
-
 public:
-    MarkerLink(Marker *marker) : marker(marker) {}
+    MarkerLinkBase(Marker *marker) : marker(marker) {}
 
     Marker *getMarker() const { return marker; }
     virtual ChunkRef getTarget() const { return nullptr; }
     virtual address_t getTargetAddress() const;
 };
-
-class AbsoluteMarkerLink : public MarkerLink {
+class MarkerLink : public MarkerLinkBase {
 public:
-    using MarkerLink::MarkerLink;
+    using MarkerLinkBase::MarkerLinkBase;
+
+    virtual bool isRIPRelative() const { return true; }
+};
+class AbsoluteMarkerLink : public MarkerLinkBase {
+public:
+    using MarkerLinkBase::MarkerLinkBase;
+
+    virtual bool isAbsolute() const { return true; }
 };
 
 class GSTableEntry;
 class GSTableLink : public LinkScopeDecorator<
-    Link::SCOPE_UNKNOWN, Link> {
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
 private:
     GSTableEntry *entry;
 public:
@@ -215,7 +266,7 @@ public:
 };
 
 class DistanceLink : public LinkScopeDecorator<
-    Link::SCOPE_UNKNOWN, Link> {
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
 private:
     ChunkRef base;
     ChunkRef target;
@@ -228,29 +279,40 @@ public:
 // --- data links ---
 
 class DataSection;
-class DataOffsetLink : public LinkImpl {
+class DataOffsetLinkBase : public LinkImpl {
 private:
     DataSection *section;
     address_t target;
     size_t addend;
 public:
-    DataOffsetLink(DataSection *section, address_t target,
-        Link::LinkScope scope = Link::SCOPE_INTERNAL_DATA)
-        : LinkImpl(scope), section(section), target(target), addend(0) {}
+    DataOffsetLinkBase(DataSection *section, address_t target,
+        Link::LinkScope scope) : LinkImpl(scope), section(section),
+        target(target), addend(0) {}
 
     void setAddend(size_t addend) { this->addend = addend; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };
-
-class AbsoluteDataLink : public DataOffsetLink {
+class DataOffsetLink : public DataOffsetLinkBase {
 public:
-    using DataOffsetLink::DataOffsetLink;
+    DataOffsetLink(DataSection *section, address_t target,
+        Link::LinkScope scope = Link::LinkScope::SCOPE_UNKNOWN)
+        : DataOffsetLinkBase(section, target, scope) {}
+
+    virtual bool isRIPRelative() const { return true; }
+};
+class AbsoluteDataLink : public DataOffsetLinkBase {
+public:
+    AbsoluteDataLink(DataSection *section, address_t target,
+        Link::LinkScope scope = Link::LinkScope::SCOPE_UNKNOWN)
+        : DataOffsetLinkBase(section, target, scope) {}
+
+    virtual bool isAbsolute() const { return true; }
 };
 
 class TLSDataRegion;
 class TLSDataOffsetLink : public LinkScopeDecorator<Link::SCOPE_WITHIN_MODULE,
-    Link> {
+    LinkDefaultAttributeDecorator<Link>> {
 private:
     TLSDataRegion *tls;
     Symbol *symbol;
@@ -273,7 +335,7 @@ public:
 /** We know that this is a Link, but we're not sure what it points at yet.
 */
 class UnresolvedLink : public LinkScopeDecorator<
-    Link::SCOPE_UNKNOWN, Link> {
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
 private:
     address_t target;
 public:
@@ -288,14 +350,14 @@ public:
     Most Link-processing code for Instructions needs to handle this case
     specially.
 */
-class ImmAndDispLink : public Link {
+class ImmAndDispLink : public LinkDefaultAttributeDecorator<Link> {
 private:
-    NormalLink *immLink;
+    NormalLinkBase *immLink;
     Link *dispLink;
 public:
-    ImmAndDispLink(NormalLink *immLink, Link *dispLink)
+    ImmAndDispLink(NormalLinkBase *immLink, Link *dispLink)
         : immLink(immLink), dispLink(dispLink) {}
-    NormalLink *getImmLink() const { return immLink; }
+    NormalLinkBase *getImmLink() const { return immLink; }
     Link *getDispLink() const { return dispLink; }
 
     virtual ChunkRef getTarget() const { throw "ImmAndDispLink not handled"; }

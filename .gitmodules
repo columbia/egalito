@@ -10,3 +10,6 @@
 [submodule "docs"]
 	path = docs
 	url = git@github.com:columbia/egalito-docs.git
+[submodule "dep/keystone"]
+	path = dep/keystone
+	url = git@github.com:keystone-engine/keystone.git

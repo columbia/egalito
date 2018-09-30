@@ -59,6 +59,8 @@ Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
 
     return DisassembleInstruction(handle, details).instruction(ins);
 }
+
+
 Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     address_t address) {
 

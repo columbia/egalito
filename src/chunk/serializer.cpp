@@ -12,6 +12,10 @@
 #include "log/log.h"
 
 FlatChunk::IDType ChunkSerializerOperations::assign(Chunk *object) {
+    if(!object) {
+        LOG(1, "Trying to assign serialization ID to null chunk, skipping");
+        return FlatChunk::NoneID;
+    }
     auto id = ArchiveIDOperations<Chunk>::assign(object);
     if(id != FlatChunk::NoneID) {
         if(debugNames.size() <= id) debugNames.resize(id + 1);
