@@ -109,6 +109,15 @@ void EndbrEnforcePass::visit(Module *module) {
     recurse(module);
 }
 
+void EndbrEnforcePass::visit(Function *function) {
+    // in StaticGen, these functions call back into the loader
+    if(function->getName() == "_dl_vdso_vsym") return;
+    if(function->getName() == "_dl_addr") return;
+    if(function->getName() == "__run_exit_handlers") return;
+
+    recurse(function);
+}
+
 void EndbrEnforcePass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {

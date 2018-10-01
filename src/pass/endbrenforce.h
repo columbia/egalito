@@ -9,6 +9,7 @@ private:
 public:
     EndbrEnforcePass() : violationTarget(nullptr) {}
     virtual void visit(Module *module);
+    virtual void visit(Function *function);
     virtual void visit(Instruction *instruction);
 private:
     void makeEnforcementCode(Instruction *point); 
