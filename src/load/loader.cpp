@@ -35,6 +35,7 @@
 #include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
 #include "pass/syscallsandbox.h"
+#include "pass/clearplts.h"
 #include "runtime/managegs.h"
 #include "transform/sandbox.h"
 #include "util/feature.h"
@@ -258,6 +259,10 @@ void EgalitoLoader::otherPasses() {
     if(!fromArchive) {
         PromoteJumpsPass promoteJumps;
         setup->getConductor()->acceptInAllModules(&promoteJumps, true);
+    }
+    {
+        ClearPLTs clearPLTs;
+        program->accept(&clearPLTs);
     }
 #endif
 
