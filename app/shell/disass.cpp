@@ -37,6 +37,7 @@
 #include "dwarf/parser.h"
 #include "load/segmap.h"
 #include "load/emulator.h"
+#include "log/temp.h"
 
 static bool findInstrInModule(Module *module, address_t address) {
     for(auto f : CIter::functions(module)) {
@@ -76,6 +77,36 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             std::cout << "can't find function or address \"" << args.front() << "\"\n";
         }
     }, "disassembles a single function (like the GDB command)");
+
+    topLevel->add("disass/r", [&] (Arguments args) {
+        TemporaryLogLevel t1("chunk", 20);
+        TemporaryLogLevel t2("disasm", 20);
+
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(1);
+
+        Function *func = nullptr;
+        address_t addr;
+        if(args.asHex(0, &addr)) {
+            func = ChunkFind2(setup->getConductor())
+                .findFunctionContaining(addr);
+        }
+        else {
+            func = ChunkFind2(setup->getConductor())
+                .findFunction(args.front().c_str());
+        }
+
+        if(func) {
+            ChunkDumper dump;
+            func->accept(&dump);
+        }
+        else {
+            std::cout << "can't find function or address \"" << args.front() << "\"\n";
+        }
+    }, "disassembles a single function, showing raw bytes");
 
     topLevel->add("disass2", [&] (Arguments args) {
         if(!setup->getConductor()) {
