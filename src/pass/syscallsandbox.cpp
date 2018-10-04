@@ -48,35 +48,37 @@ void SyscallSandbox::addEnforcement(Function *function, Instruction *syscallInst
            1:	48 89 e7             	mov    %rsp,%rdi
            4:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp
            8:	57                   	push   %rdi
-           9:	56                   	push   %rsi
-           a:	52                   	push   %rdx
-           b:	41 52                	push   %r10
-           d:	41 50                	push   %r8
-           f:	41 51                	push   %r9
-          11:	51                   	push   %rcx
-          12:	4c 89 d1             	mov    %r10,%rcx
-          15:	50                   	push   %rax
+           9:	48 8b 7c 24 08       	mov    0x8(%rsp),%rdi
+           e:	56                   	push   %rsi
+           f:	52                   	push   %rdx
+          10:	41 52                	push   %r10
+          12:	41 50                	push   %r8
+          14:	41 51                	push   %r9
+          16:	51                   	push   %rcx
+          17:	4c 89 d1             	mov    %r10,%rcx
+          1a:	50                   	push   %rax
+          1b:	90                   	nop
 
                                         ; call enforce
 
-          17:	49 89 c3             	mov    %rax,%r11
-          1a:	58                   	pop    %rax
-          1b:	59                   	pop    %rcx
-          1c:	41 59                	pop    %r9
-          1e:	41 58                	pop    %r8
-          20:	41 5a                	pop    %r10
-          22:	5a                   	pop    %rdx
-          23:	5e                   	pop    %rsi
-          24:	5f                   	pop    %rdi
-          25:	48 89 fc             	mov    %rdi,%rsp
-          28:	5f                   	pop    %rdi
-          29:	4d 85 db             	test   %r11,%r11
-          2c:	74 02                	je     30 <skip>
+          21:	49 89 c3             	mov    %rax,%r11
+          24:	58                   	pop    %rax
+          25:	59                   	pop    %rcx
+          26:	41 59                	pop    %r9
+          28:	41 58                	pop    %r8
+          2a:	41 5a                	pop    %r10
+          2c:	5a                   	pop    %rdx
+          2d:	5e                   	pop    %rsi
+          2e:	5f                   	pop    %rdi
+          2f:	48 89 fc             	mov    %rdi,%rsp
+          32:	5f                   	pop    %rdi
+          33:	4d 85 db             	test   %r11,%r11
+          36:	74 02                	je     3a <skip>
 
-          2e:	0f 05                	syscall 
+          38:	0f 05                	syscall 
 
-        0000000000000030 <skip>:
-          30:	90                   	nop
+        000000000000003a <skip>:
+          3a:	90                   	nop
     */
 
     auto epilogue = static_cast<Instruction *>(syscallInstr->getNextSibling());
@@ -98,6 +100,7 @@ void SyscallSandbox::addEnforcement(Function *function, Instruction *syscallInst
         bm.append(Disassemble::instruction({0x48, 0x89, 0xe7}));    // mov %rsp, %rdi
         bm.append(Disassemble::instruction({0x48, 0x83, 0xe4, 0xf0}));    // and $-0x10, %rsp
         bm.append(Disassemble::instruction({0x57}));    // push %rdi
+        bm.append(Disassemble::instruction({0x48, 0x8b, 0x7c, 0x24, 0x08}));    // mov 0x8(%rsp),%rdi
         bm.append(Disassemble::instruction({0x56}));    // push %rsi
         bm.append(Disassemble::instruction({0x52}));    // push %rdx
         bm.append(Disassemble::instruction({0x41, 0x52}));    // push %r10
