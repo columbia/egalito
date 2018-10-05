@@ -23,13 +23,12 @@ public:
 
 class ElfGeneratorImpl : public ElfGeneratorBase {
 private:
-    ElfData data;
+    ElfData *data;
     ElfConfig config;
 public:
-    ElfGeneratorImpl(Program *program, SandboxBacking *backing)
-        : data(program, backing) {}
+    ElfGeneratorImpl(Program *program, SandboxBacking *backing);
 
-    ElfData *getData() { return &data; }
+    ElfData *getData() { return data; }
     ElfConfig *getConfig() { return &config; }
 };
 

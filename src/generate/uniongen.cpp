@@ -3,18 +3,25 @@
 #include "data.h"
 #include "concrete.h"
 
+UnionGen::UnionGen(Program *program, SandboxBacking *backing)
+    : ElfGeneratorImpl(program, backing) {
+
+    getConfig()->setDynamicallyLinked(true);
+}
+
 void UnionGen::preCodeGeneration() {
     ElfPipeline pipeline(getData(), getConfig());
     pipeline.add(new BasicElfCreator());
+    pipeline.add(new MakeInitArray(/*stage=*/ 0));  // !AssignSectionsToSegments
     pipeline.add(new BasicElfStructure());
+    pipeline.add(new AssignSectionsToSegments());
     pipeline.execute();
 }
 
 void UnionGen::afterAddressAssign() {
     ElfPipeline pipeline(getData(), getConfig());
     pipeline.addDependency("BasicElfStructure");
-    pipeline.add(new MakeInitArray());
-    pipeline.add(new AssignSectionsToSegments());
+    pipeline.add(new MakeInitArray(/*stage=*/ 1));  // AssignSectionsToSegments
     pipeline.execute();
 }
 
@@ -25,7 +32,8 @@ void UnionGen::generateContent(const std::string &filename) {
     for(auto module : CIter::children(getData()->getProgram())) {
         ModuleGen::Config config;
         config.setUniqueSectionNames(true);
-        config.setCodeBacking(getData()->getBacking());
+        config.setCodeBacking(dynamic_cast<MemoryBufferBacking *>
+            (getData()->getBacking()));
         auto moduleGen = ModuleGen(config, module, getData()->getSectionList());
         moduleGen.makeDataSections();
         moduleGen.makeTextAccumulative();

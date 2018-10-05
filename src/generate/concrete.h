@@ -4,13 +4,20 @@
 #include <string>
 #include "data.h"
 
-class BasicElfCreator : public UnnamedElfOperation {
+class ConcreteElfOperation : public UnnamedElfOperation {
+protected:
+    Section *getSection(const std::string &name) const
+        { return getData()->getSection(name); }
+    SectionList *getSectionList() const { return getData()->getSectionList(); }
+};
+
+class BasicElfCreator : public ConcreteElfOperation {
 public:
     virtual void execute();
     virtual std::string getName() const { return "BasicElfCreator"; }
 };
 
-class BasicElfStructure : public UnnamedElfOperation {
+class BasicElfStructure : public ConcreteElfOperation {
 public:
     virtual void execute();
     virtual std::string getName() const { return "BasicElfStructure"; }
@@ -22,14 +29,14 @@ private:
 };
 
 // Can't change size of certain sections after this
-class AssignSectionsToSegments : public UnnamedElfOperation {
+class AssignSectionsToSegments : public ConcreteElfOperation {
 public:
     virtual void execute();
     virtual std::string getName() const { return "AssignSectionsToSegments"; }
 };
 
 // Can't make any new sections after this
-class GenerateSectionTable : public UnnamedElfOperation {
+class GenerateSectionTable : public ConcreteElfOperation {
 public:
     virtual void execute();
     virtual std::string getName() const { return "GenerateSectionTable"; }
@@ -38,22 +45,24 @@ private:
     void makeSectionSymbols();
 };
 
-class TextSectionCreator : public UnnamedElfOperation {
+class TextSectionCreator : public ConcreteElfOperation {
 public:
     virtual void execute();
     virtual std::string getName() const { return "TextSectionCreator"; }
 };
 
-class MakeInitArray : public UnnamedElfOperation {
+class MakeInitArray : public NormalElfOperation {
+private:
+    int stage;
 public:
+    MakeInitArray(int stage);
     virtual void execute();
-    virtual std::string getName() const { return "MakeInitArray"; }
 private:
     void makeInitArraySections();
     void makeInitArraySectionLinks();
 };
 
-class ElfFileWriter : public UnnamedElfOperation {
+class ElfFileWriter : public ConcreteElfOperation {
 private:
     std::string filename;
 public:

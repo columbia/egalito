@@ -15,6 +15,7 @@
 #include "pass/dumplink.h"
 #include "util/feature.h"
 #include "generate/staticgen.h"
+#include "generate/uniongen.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -232,7 +233,8 @@ bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
     auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
     auto program = conductor->getProgram();
 
-    auto generator = StaticGen(program, backing);
+    //auto generator = StaticGen(program, backing);
+    auto generator = UnionGen(program, backing);
     generator.preCodeGeneration();
 
     {
@@ -248,7 +250,8 @@ bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
         moveCodeMakeExecutable(sandbox);
     }
 
-    generator.generate(outputFile);
+    //generator.generate(outputFile);
+    generator.generateContent(outputFile);
     return true;
 }
 

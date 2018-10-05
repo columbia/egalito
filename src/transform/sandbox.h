@@ -20,47 +20,62 @@ public:
 };
 
 class SandboxBacking {
-private:
-    size_t size;
-    size_t memSize;
 public:
-    SandboxBacking(size_t size) : size(size) {}
+    virtual ~SandboxBacking() {}
 
-    address_t getBase() const;
-    size_t getSize() const { return size; }
-    size_t getMemorySize() const { return memSize; }
-    bool supportsDirectWrites() const { return true; } 
+    virtual address_t getBase() const = 0;
+    virtual std::string &getBuffer() = 0;
+    virtual size_t getSize() const = 0;
+    virtual bool supportsDirectWrites() const = 0;
+
+    virtual void finalize() = 0;
+    virtual bool reopen() = 0;
+    virtual void recreate() = 0;
 };
 
-class MemoryBacking : public SandboxBacking {
+class SandboxBackingImpl : public SandboxBacking {
 private:
     address_t base;
+    size_t size;
+public:
+    SandboxBackingImpl(address_t base, size_t size) : base(base), size(size) {}
+
+    virtual address_t getBase() const { return base; }
+    virtual std::string &getBuffer()
+        { throw "SandboxBackingImplt::getBuffer() is unimplemented"; }
+    virtual size_t getSize() const { return size; }
+    virtual bool supportsDirectWrites() const = 0;
+protected:
+    void setBase(address_t base) { this->base = base; }
+};
+
+// Mapped at final base address, can directly write to mem addresses.
+class MemoryBacking : public SandboxBackingImpl {
 public:
     /** May throw std::bad_alloc. */
     MemoryBacking(address_t address, size_t size);
-    /*MemoryBacking(const MemoryBacking &other)
-        : SandboxBacking(other.getSize()), base(other.base) {}*/
-    address_t getBase() const { return base; }
 
-    void finalize();
-    bool reopen();
-    void recreate(address_t end);
+    virtual bool supportsDirectWrites() const { return true; }
+
+    virtual void finalize();
+    virtual bool reopen();
+    virtual void recreate();
 };
 
-class MemoryBufferBacking : public SandboxBacking {
+// Not mapped at final address, please write into the buffer instead.
+class MemoryBufferBacking : public SandboxBackingImpl {
 private:
-    address_t base;
     std::string buffer;
 public:
+    // Ensure that address is already mapped before calling this function
     MemoryBufferBacking(address_t address, size_t size);
 
-    address_t getBase() const { return base; }
-    std::string &getBuffer() { return buffer; }
-    bool supportsDirectWrites() const { return false; }
+    virtual std::string &getBuffer() { return buffer; }
+    virtual bool supportsDirectWrites() const { return false; }
 
-    void finalize();
-    bool reopen();
-    bool recreate();
+    virtual void finalize();
+    virtual bool reopen();
+    virtual void recreate();
 };
 
 template <typename Backing>
@@ -163,7 +178,7 @@ public:
 
     void recreate() { recreate(id<Backing>()); }
     virtual SandboxBacking *getBacking() { return &backing; }
-    virtual bool supportsDirectWrites() const 
+    virtual bool supportsDirectWrites() const
         { return backing.supportsDirectWrites(); }
 
 private:
@@ -172,7 +187,7 @@ private:
 
 template <typename Backing, typename Allocator>
 void SandboxImpl<Backing, Allocator>::recreate(id<MemoryBacking>) {
-    backing.recreate(alloc.getCurrent());
+    backing.recreate(/*alloc.getCurrent()*/);
     alloc.reset();
 }
 
@@ -194,7 +209,7 @@ public:
     virtual bool reopen() { return sandbox[i]->reopen(); }
     void recreate() const { sandbox[i]->recreate(); }
     virtual SandboxBacking *getBacking() { return sandbox[i]->getBacking(); }
-    virtual bool supportsDirectWrites() const 
+    virtual bool supportsDirectWrites() const
         { return sandbox[i]->supportsDirectWrites(); }
 };
 

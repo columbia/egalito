@@ -1,36 +1,51 @@
+#include <cstring>
+#include <fstream>
+#include <sys/stat.h>
 #include "concrete.h"
+#include "modulegen.h"
+#include "sectionlist.h"
+#include "concretedeferred.h"
+#include "transform/sandbox.h"
+#include "chunk/concrete.h"
+#include "operation/find2.h"
+#include "elf/elfspace.h"
+#include "elf/symbol.h"
+#include "instr/concrete.h"
+#include "util/streamasstring.h"
+#include "log/log.h"
+#include "config.h"
 
 void BasicElfCreator::execute() {
     auto header = new Section("=elfheader");
-    sectionList.addSection(header);
+    getSectionList()->addSection(header);
 
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
-    sectionList.addSection(interpSection);
+    getSectionList()->addSection(interpSection);
 
     auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
         SHF_WRITE | SHF_ALLOC);
-    sectionList.addSection(initArraySection);
+    getSectionList()->addSection(initArraySection);
 
-    auto phdrTable = new PhdrTableContent(&sectionList);
+    auto phdrTable = new PhdrTableContent(getSectionList());
     auto phdrTableSection = new Section("=phdr_table", phdrTable);
-    sectionList.addSection(phdrTableSection);
+    getSectionList()->addSection(phdrTableSection);
 
     auto strtab = new Section(".strtab", SHT_STRTAB);
     strtab->setContent(new DeferredStringList());
-    sectionList.addSection(strtab);
+    getSectionList()->addSection(strtab);
 
     auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
     shstrtab->setContent(new DeferredStringList());
-    sectionList.addSection(shstrtab);
+    getSectionList()->addSection(shstrtab);
 
-    if(getConfig().isDynamicallyLinked()) {
-        ModuleGen(ModuleGen::Config(), nullptr, &sectionList)
+    if(getConfig()->isDynamicallyLinked()) {
+        ModuleGen(ModuleGen::Config(), nullptr, getSectionList())
             .makePaddingSection(0);
         auto dynstr = new Section(".dynstr", SHT_STRTAB);
         auto stringList = new DeferredStringList();
         stringList->add("123456", true);
         dynstr->setContent(stringList);
-        sectionList.addSection(dynstr);
+        getSectionList()->addSection(dynstr);
     }
 }
 
@@ -49,7 +64,7 @@ void BasicElfStructure::makeHeader() {
     auto deferred = new DeferredValueImpl<ElfXX_Ehdr>(header);
 
     // set up e_ident field
-    memset(header->e_ident, 0, EI_NIDENT);
+    std::memset(header->e_ident, 0, EI_NIDENT);
     strncpy(reinterpret_cast<char *>(header->e_ident), ELFMAG, SELFMAG);
     header->e_ident[EI_CLASS] = ELFCLASS64;
 #ifdef ARCH_X86_64
@@ -76,35 +91,35 @@ void BasicElfStructure::makeHeader() {
     header->e_shentsize = sizeof(ElfXX_Shdr);
 
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
-        auto shdrTableSection = sectionList["=shdr_table"];
+        auto shdrTableSection = getSection("=shdr_table");
         auto shdrTable = shdrTableSection->castAs<ShdrTableContent *>();
         header->e_shoff = shdrTableSection->getOffset();
         header->e_shnum = shdrTable->getCount();
     });
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
-        auto phdrTableSection = sectionList["=phdr_table"];
+        auto phdrTableSection = getSection("=phdr_table");
         auto phdrTable = phdrTableSection->castAs<PhdrTableContent *>();
         header->e_phoff = phdrTableSection->getOffset();
         header->e_phnum = phdrTable->getCount();
     });
     deferred->addFunction([this] (ElfXX_Ehdr *header) {
-        header->e_shstrndx = shdrIndexOf(".shstrtab");
+        header->e_shstrndx = getSectionList()->indexOf(".shstrtab");
     });
 
-    if(program->getEntryPoint()) {
+    if(getData()->getProgram()->getEntryPoint()) {
         deferred->addFunction([this] (ElfXX_Ehdr *header) {
-            header->e_entry = program->getEntryPointAddress();
+            header->e_entry = getData()->getProgram()->getEntryPointAddress();
         });
     } else {
         LOG(1, "No entry point found in program when generating ELF file");
     }
 
-    sectionList["=elfheader"]->setContent(deferred);
+    getSection("=elfheader")->setContent(deferred);
 }
 
 void BasicElfStructure::makeSymtabSection() {
     {
-        auto strtab = sectionList[".strtab"]->castAs<DeferredStringList *>();
+        auto strtab = getSection(".strtab")->castAs<DeferredStringList *>();
 
         auto symtab = new SymbolTableContent(strtab);
         auto symtabSection = new Section(".symtab", SHT_SYMTAB);
@@ -114,11 +129,11 @@ void BasicElfStructure::makeSymtabSection() {
         // other symbols will be added later
 
         symtabSection->getHeader()->setSectionLink(
-            new SectionRef(&sectionList, ".strtab"));
-        sectionList.addSection(symtabSection);
+            new SectionRef(getSectionList(), ".strtab"));
+        getSectionList()->addSection(symtabSection);
     }
     if(getConfig()->isDynamicallyLinked()) {
-        auto dynstr = sectionList[".dynstr"]->castAs<DeferredStringList *>();
+        auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
 
         auto dynsym = new SymbolTableContent(dynstr);
         auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
@@ -128,10 +143,15 @@ void BasicElfStructure::makeSymtabSection() {
         // other symbols will be added later
 
         dynsymSection->getHeader()->setSectionLink(
-            new SectionRef(&sectionList, ".dynstr"));
+            new SectionRef(getSectionList(), ".dynstr"));
         dynsymSection->getHeader()->setShdrFlags(SHF_ALLOC);
-        sectionList.addSection(dynsymSection);
+        getSectionList()->addSection(dynsymSection);
     }
+}
+
+void GenerateSectionTable::execute() {
+    makeShdrTable();
+    makeSectionSymbols();
 }
 
 void GenerateSectionTable::makeShdrTable() {
@@ -139,14 +159,15 @@ void GenerateSectionTable::makeShdrTable() {
     auto shdrTable = new ShdrTableContent();
     auto shdrTableSection = new Section("=shdr_table", shdrTable);
 
-    auto shstrtab = sectionList[".shstrtab"]->castAs<DeferredStringList *>();
+    auto shstrtab = getSection(".shstrtab")->castAs<DeferredStringList *>();
 
     auto nullSection = new Section("", static_cast<ElfXX_Word>(SHT_NULL));
     auto nullDeferred = shdrTable->add(nullSection);
     nullDeferred->getElfPtr()->sh_name
         = shstrtab->add(nullSection->getName(), true);
 
-    for(auto section : sectionList) {
+    auto sectionList = getSectionList();
+    for(auto section : *sectionList) {
         if(section->hasHeader()) {
             auto deferred = shdrTable->add(section);
             deferred->getElfPtr()->sh_name
@@ -154,7 +175,7 @@ void GenerateSectionTable::makeShdrTable() {
 
             if(auto symtab = dynamic_cast<SymbolTableContent *>(section->getContent())) {
                 deferred->addFunction([symtab] (ElfXX_Shdr *shdr) {
-                    //auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+                    //auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
 
                     shdr->sh_info = symtab->getFirstGlobalIndex();
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
@@ -162,31 +183,30 @@ void GenerateSectionTable::makeShdrTable() {
                 });
             }
             else if(auto v = dynamic_cast<RelocSectionContent2 *>(section->getContent())) {
-                deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
-                    shdr->sh_info = shdrIndexOf(v->getTargetSection());
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_info = sectionList->indexOf(v->getTargetSection());
                     shdr->sh_addralign = 8;
                     shdr->sh_entsize = sizeof(ElfXX_Rela);
-                    shdr->sh_link = shdrIndexOf(".symtab");
+                    shdr->sh_link = sectionList->indexOf(".symtab");
                 });
             }
             else if(auto v = dynamic_cast<DataRelocSectionContent *>(section->getContent())) {
-                deferred->addFunction([this, v] (ElfXX_Shdr *shdr) {
-                    //shdr->sh_info = shdrIndexOf(v->getTargetSection());
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
                     shdr->sh_addralign = 8;
                     shdr->sh_entsize = sizeof(ElfXX_Rela);
-                    shdr->sh_link = shdrIndexOf(".dynsym");
+                    shdr->sh_link = sectionList->indexOf(".dynsym");
                 });
             }
         }
     }
 
-    sectionList.addSection(shdrTableSection);
+    getSectionList()->addSection(shdrTableSection);
 }
 
 void GenerateSectionTable::makeSectionSymbols() {
     // update section indices in symbol table
-    auto shdrTable = sectionList["=shdr_table"]->castAs<ShdrTableContent *>();
-    auto symtab = sectionList[".symtab"]->castAs<SymbolTableContent *>();
+    auto shdrTable = getSection("=shdr_table")->castAs<ShdrTableContent *>();
+    auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
 
     // add section symbols
     for(auto shdr : *shdrTable) {
@@ -197,25 +217,26 @@ void GenerateSectionTable::makeSectionSymbols() {
         auto symbol = new Symbol(0, 0, "",
             Symbol::typeFromElfToInternal(STT_SECTION),
             Symbol::bindFromElfToInternal(STB_LOCAL),
-            0, sectionList.indexOf(section));
+            0, getSectionList()->indexOf(section));
         symtab->addSectionSymbol(symbol);
     }
     symtab->recalculateIndices();
 }
 
+
 void BasicElfStructure::makePhdrTable() {
     LOG(1, "generating phdr table");
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
+    auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
 
     auto phdr = new SegmentInfo(PT_PHDR, PF_R | PF_X, 0x8);
-    phdr->addContains(sectionList["=phdr_table"]);
+    phdr->addContains(getSection("=phdr_table"));
     auto deferred = phdrTable->add(phdr);
     deferred->addFunction([this] (ElfXX_Phdr *phdr) {
-        phdr->p_vaddr = 0x200000 + sectionList["=phdr_table"]->getOffset();
+        phdr->p_vaddr = 0x200000 + getSection("=phdr_table")->getOffset();
         phdr->p_paddr = phdr->p_vaddr;
     });
 
-    auto interpSection = sectionList[".interp"];
+    auto interpSection = getSection(".interp");
 #ifndef USE_MUSL
     const char *interpreter = "/lib64/ld-linux-x86-64.so.2";
 #else
@@ -227,7 +248,7 @@ void BasicElfStructure::makePhdrTable() {
     interp->addContains(interpSection);
     auto interpDeferred = phdrTable->add(interp);
     interpDeferred->addFunction([this] (ElfXX_Phdr *phdr) {
-        phdr->p_vaddr = 0x200000 + sectionList[".interp"]->getOffset();
+        phdr->p_vaddr = 0x200000 + getSection(".interp")->getOffset();
         phdr->p_paddr = phdr->p_vaddr;
     });
 }
@@ -236,10 +257,10 @@ void BasicElfStructure::makeDynamicSection() {
     {
         auto relaDyn = new DataRelocSectionContent(
             nullptr /*new SectionRef(&sectionList, ".dynsym")*/,
-            &sectionList);
+            getSectionList());
         auto relaDynSection = new Section(".rela.dyn", SHT_RELA);
         relaDynSection->setContent(relaDyn);
-        sectionList.addSection(relaDynSection);
+        getSectionList()->addSection(relaDynSection);
     }
 
     auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
@@ -247,26 +268,26 @@ void BasicElfStructure::makeDynamicSection() {
 
     // Add DT_NEEDED dependency on ld.so because we combine libc into
     // our executable, and libc uses _rtld_global{,_ro} from ld.so.
-    auto dynstr = sectionList[".dynstr"]->castAs<DeferredStringList *>();
+    auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
     dynamic->addPair(DT_NEEDED,
         dynstr->add("ld-linux-x86-64.so.2", true));
 
     dynamic->addPair(DT_STRTAB, [this] () {
-        auto dynstrSection = sectionList[".dynstr"];
+        auto dynstrSection = getSection(".dynstr");
         return dynstrSection->getHeader()->getAddress();
     });
 
     dynamic->addPair(DT_SYMTAB, [this] () {
-        auto dynsymSection = sectionList[".dynsym"];
+        auto dynsymSection = getSection(".dynsym");
         return dynsymSection->getHeader()->getAddress();
     });
 
     dynamic->addPair(DT_RELA, [this] () {
-        auto relaDyn = sectionList[".rela.dyn"];
+        auto relaDyn = getSection(".rela.dyn");
         return relaDyn->getHeader()->getAddress();
     });
     dynamic->addPair(DT_RELASZ, [this] () {
-        auto relaDyn = sectionList[".rela.dyn"];
+        auto relaDyn = getSection(".rela.dyn");
         return relaDyn->getContent()->getSize();
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
@@ -276,33 +297,33 @@ void BasicElfStructure::makeDynamicSection() {
     dynamic->addPair(0, 0);
 
     dynamicSection->setContent(dynamic);
-    dynamicSection->getHeader()->setSectionLink(new SectionRef(&sectionList, ".dynstr"));
-    sectionList.addSection(dynamicSection);
+    dynamicSection->getHeader()->setSectionLink(new SectionRef(getSectionList(), ".dynstr"));
+    getSectionList()->addSection(dynamicSection);
 }
 
 void AssignSectionsToSegments::execute() {
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
+    auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
-    loadSegment->addContains(sectionList["=elfheader"]);  // constant size
-    loadSegment->addContains(sectionList[".interp"]);     // constant size
-    loadSegment->addContains(sectionList[".init_array"]);
-    loadSegment->addContains(sectionList["=phdr_table"]);
-    //loadSegment->addContains(sectionList[".strtab"]);
-    //loadSegment->addContains(sectionList[".shstrtab"]);
+    loadSegment->addContains(getSection("=elfheader"));  // constant size
+    loadSegment->addContains(getSection(".interp"));     // constant size
+    loadSegment->addContains(getSection(".init_array"));
+    loadSegment->addContains(getSection("=phdr_table"));
+    //loadSegment->addContains(getSection(".strtab"));
+    //loadSegment->addContains(getSection(".shstrtab"));
     phdrTable->add(loadSegment, 0x200000);
     phdrTable->assignAddressesToSections(loadSegment, 0x200000);
 
     if(getConfig()->isDynamicallyLinked()) {
         //auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
         auto dynSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x400000*/ 0x1000);
-        dynSegment->addContains(sectionList[".dynstr"]);
-        dynSegment->addContains(sectionList[".symtab"]);
-        dynSegment->addContains(sectionList[".dynsym"]);
-        dynSegment->addContains(sectionList[".rela.dyn"]);
-        dynSegment->addContains(sectionList[".dynamic"]);
+        dynSegment->addContains(getSection(".dynstr"));
+        dynSegment->addContains(getSection(".symtab"));
+        dynSegment->addContains(getSection(".dynsym"));
+        dynSegment->addContains(getSection(".rela.dyn"));
+        dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
 
-        auto dynamicSection = sectionList[".dynamic"];
+        auto dynamicSection = getSection(".dynamic");
 
         auto dynamicSegment = new SegmentInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
         dynamicSegment->addContains(dynamicSection);
@@ -319,11 +340,11 @@ void TextSectionCreator::execute() {
     makePadding.setConfig(getConfig());
     makePadding.execute();
 
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
+    auto phdrTable = getSection("=phdr_table")->castAs<PhdrTableContent *>();
     // Finally, map all code regions as individual ELF segments.
-    auto address = backing->getBase();
-    //auto size = backing->getSize();
-    auto size = (backing->getBuffer().length() + 0xfff) & ~0x1000;
+    auto address = getData()->getBacking()->getBase();
+    //auto size = getData()->getBacking()->getSize();
+    auto size = (getData()->getBacking()->getBuffer().length() + 0xfff) & ~0x1000;
     LOG(1, "map " << std::hex << address << " size " << size);
 
 
@@ -331,7 +352,7 @@ void TextSectionCreator::execute() {
         SHF_ALLOC | SHF_EXECINSTR);
     DeferredString *textValue = nullptr;
     // Don't modify backing after this point to avoid invalidating c_str
-    auto copy = new std::string(backing->getBuffer());
+    auto copy = new std::string(getData()->getBacking()->getBuffer());
     textValue = new DeferredString(
         reinterpret_cast<const char *>(copy->c_str()),
         copy->length());
@@ -344,16 +365,23 @@ void TextSectionCreator::execute() {
     }
     textSection->setContent(textValue);
 
-    sectionList.addSection(textSection);
+    getSectionList()->addSection(textSection);
 
     auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x1000);
     loadSegment->addContains(textSection);
     phdrTable->add(loadSegment);
 }
 
+MakeInitArray::MakeInitArray(int stage) : stage(stage) {
+    setName(StreamAsString() << "MakeInitArray{stage=" << stage << "}");
+}
+
 void MakeInitArray::execute() {
-    makeInitArraySections();
-    makeInitArraySectionLinks();
+    if(stage==0) {
+        makeInitArraySections();
+    } else {
+        makeInitArraySectionLinks();
+    }
 }
 
 void MakeInitArray::makeInitArraySections() {
@@ -463,10 +491,15 @@ void MakeInitArray::makeInitArraySectionLinks() {
     }
 }
 
+void ElfFileWriter::execute() {
+    updateOffsets();
+    serialize();
+}
+
 void ElfFileWriter::updateOffsets() {
     // every Section is written to the file, even those without SectionHeaders
     size_t offset = 0;
-    for(auto section : *getData()->getSectionList()) {
+    for(auto section : *getSectionList()) {
         LOG(1, "section [" << section->getName() << "] is at offset " << std::dec << offset);
         section->setOffset(offset);
         offset += section->getContent()->getSize();
@@ -483,7 +516,7 @@ void ElfFileWriter::serialize() {
         LOG(0, "**** PLEASE RE-RUN WITH DIFFERENT OUTPUT FILENAME! ****");
         return;
     }
-    for(auto section : *getData()->getSectionList()) {
+    for(auto section : *getSectionList()) {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
             << " of size " << std::dec << section->getContent()->getSize());
@@ -506,7 +539,8 @@ void MakePaddingSection::execute() {
     auto paddingSection = new Section(
         isIsolatedPadding ? "=padding" : "=intra-padding");
     auto paddingContent = new PagePaddingContent(
-        sectionList->back(), desiredAlignment, isIsolatedPadding);
+        getData()->getSectionList()->back(), desiredAlignment, isIsolatedPadding);
     paddingSection->setContent(paddingContent);
-    sectionList->addSection(paddingSection);
+    getData()->getSectionList()->addSection(paddingSection);
 }
+

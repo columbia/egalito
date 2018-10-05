@@ -1,9 +1,6 @@
-#include "types.h"
+#include "basegen.h"
 
-size_t BaseGen::shdrIndexOf(Section *section) {
-    return sectionList.indexOf(section);
-}
+ElfGeneratorImpl::ElfGeneratorImpl(Program *program, SandboxBacking *backing)
+    : data(new ElfDataImpl(program, backing)) {
 
-size_t BaseGen::shdrIndexOf(const std::string &name) {
-    return sectionList.indexOf(name);
 }

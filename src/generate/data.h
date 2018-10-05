@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "sectionlist.h"
+#include "transform/sandbox.h"
 
 class Program;
 class ElfOperationTrace;
@@ -15,9 +16,9 @@ public:
     virtual ~ElfData() {}
 
     virtual Program *getProgram() const = 0;
-    virtual SandboxBacking *getBacking() const = 0;
-    virtual SectionList *getSectionList() const = 0;
-    virtual Section *getSection(const std::string &name) const = 0;
+    virtual SandboxBacking *getBacking() = 0;
+    virtual SectionList *getSectionList() = 0;
+    virtual Section *getSection(const std::string &name) = 0;
     virtual ElfOperationTrace *getOperationTrace() const = 0;
 };
 
@@ -32,9 +33,9 @@ public:
     virtual ~ElfDataImpl();
 
     virtual Program *getProgram() const { return program; }
-    virtual SandboxBacking *getBacking() const { return backing; }
-    virtual SectionList *getSectionList() const { return &sectionList; }
-    virtual Section *getSection(const std::string &name) const
+    virtual SandboxBacking *getBacking() { return backing; }
+    virtual SectionList *getSectionList() { return &sectionList; }
+    virtual Section *getSection(const std::string &name)
         { return sectionList[name]; }
     virtual ElfOperationTrace *getOperationTrace() const { return opTrace; }
 };
@@ -110,10 +111,10 @@ private:
     std::vector<ElfOperation *> pipeline;
 public:
     ElfPipeline(ElfData *data, ElfConfig *config)
-        : NormalElfOperation(data, config) {}
+        { setData(data); setConfig(config); }
 
     void addDependency(const std::string &dep) { dependencyList.insert(dep); }
-    void add(ElfOperation *op);
+    void add(UnnamedElfOperation *op);
 
     virtual void execute();
 private:
