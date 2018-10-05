@@ -103,6 +103,7 @@ Module *Conductor::parseAddOnLibrary(ElfMap *elf) {
 
 Module *Conductor::parseExtraLibrary(ElfMap *elf, const std::string &name) {
     auto library = new Library("(extra)-" + name, Library::ROLE_EXTRA);
+    library->setResolvedPath(name);
     auto module = parse(elf, library);
     return module;
 }

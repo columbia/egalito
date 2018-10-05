@@ -18,7 +18,7 @@ BlockBoundaryOverride *BlockBoundaryOverride::parse(std::istream &stream,
     BlockBoundaryOverride *result = new BlockBoundaryOverride();
 
     while(std::getline(stream, line)) {
-        if(line[0] != ' ') return result;
+        if(line.length() == 0 || line[0] != ' ') return result;
         std::istringstream ss(line);
         address_t start;
         size_t size;
