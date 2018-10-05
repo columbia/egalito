@@ -2,9 +2,6 @@
 #include <cstring>
 #include <sys/mman.h>
 #include "sandbox.h"
-#include "generate/objgen.h"
-#include "generate/anygen.h"
-#include "generate/staticgen.h"
 #include "chunk/module.h"
 #include "config.h"
 

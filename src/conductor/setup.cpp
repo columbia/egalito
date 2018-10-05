@@ -14,7 +14,6 @@
 #include "pass/clearspatial.h"
 #include "pass/dumplink.h"
 #include "util/feature.h"
-#include "generate/staticgen.h"
 #include "generate/uniongen.h"
 #include "log/registry.h"
 #include "log/log.h"
