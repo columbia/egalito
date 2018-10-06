@@ -21,10 +21,12 @@ void BasicElfCreator::execute() {
 
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
     getSectionList()->addSection(interpSection);
-
-    auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
-        SHF_WRITE | SHF_ALLOC);
-    getSectionList()->addSection(initArraySection);
+    
+    if (makeInitArray) {
+        auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
+            SHF_WRITE | SHF_ALLOC);
+        getSectionList()->addSection(initArraySection);
+    }
 
     auto phdrTable = new PhdrTableContent(getSectionList());
     auto phdrTableSection = new Section("=phdr_table", phdrTable);
@@ -306,7 +308,7 @@ void AssignSectionsToSegments::execute() {
     auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x200000);
     loadSegment->addContains(getSection("=elfheader"));  // constant size
     loadSegment->addContains(getSection(".interp"));     // constant size
-    loadSegment->addContains(getSection(".init_array"));
+    if(auto s = getSection(".init_array")) loadSegment->addContains(s);
     loadSegment->addContains(getSection("=phdr_table"));
     //loadSegment->addContains(getSection(".strtab"));
     //loadSegment->addContains(getSection(".shstrtab"));

@@ -186,6 +186,12 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->generateStaticExecutable(args.front().c_str());
     }, "writes out the current code to an ELF file");
 
+    topLevel->add("generate-kernel", [&] (Arguments args) {
+        args.shouldHave(1);
+
+        setup->generateKernel(args.front().c_str());
+    }, "writes out the current code to an executable linux kernel");
+
     topLevel->add("ifunc-plts", [&] (Arguments args) {
         args.shouldHave(0);
         IFuncPLTs ifuncPLTs;

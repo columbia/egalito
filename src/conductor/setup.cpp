@@ -15,6 +15,7 @@
 #include "pass/dumplink.h"
 #include "util/feature.h"
 #include "generate/uniongen.h"
+#include "generate/kernelgen.h"
 #include "log/registry.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -227,6 +228,11 @@ Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
     return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
 }
 
+Sandbox *ConductorSetup::makeKernelSandbox(const char *outputFile) {
+    auto backing = MemoryBufferBacking(LINUX_KERNEL_CODE_BASE, MAX_SANDBOX_SIZE);
+    return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
+}
+
 bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
     auto sandbox = makeStaticExecutableSandbox(outputFile);
     auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
@@ -250,6 +256,31 @@ bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
     }
 
     //generator.generate(outputFile);
+    generator.generateContent(outputFile);
+    return true;
+}
+
+bool ConductorSetup::generateKernel(const char *outputFile) {
+    auto sandbox = makeKernelSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = KernelGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        //moveCode(sandbox, true);  // calls sandbox->finalize()
+        moveCodeAssignAddresses(sandbox, true);
+        generator.afterAddressAssign();
+        if(0) {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newExecutablePasses(program);
+        }
+        copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
     generator.generateContent(outputFile);
     return true;
 }

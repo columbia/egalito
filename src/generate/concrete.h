@@ -12,7 +12,10 @@ protected:
 };
 
 class BasicElfCreator : public ConcreteElfOperation {
+private:
+    bool makeInitArray;
 public:
+    BasicElfCreator(bool makeInitArray = true) : makeInitArray(makeInitArray) {}
     virtual void execute();
     virtual std::string getName() const { return "BasicElfCreator"; }
 };
