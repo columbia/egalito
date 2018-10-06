@@ -73,7 +73,7 @@ address_t DataOffsetLinkBase::getTargetAddress() const {
 
 ChunkRef TLSDataOffsetLink::getTarget() const {
     LOG(1, "calling TLSDataOffsetLink::getTarget(), "
-        "target equals " << tls->getName());
+        "target equals " << (tls ? tls->getName() : "NULL"));
     return tls;
 }
 

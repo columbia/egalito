@@ -95,9 +95,12 @@ void PLTTrampoline::writeTo(char *target) {
             << "] : ifunc? " << (isIFunc ? "yes":"no"));
     }
 
+    LOG(11, "    write plt at address 0x" << std::hex << getAddress());
     for(auto block : CIter::children(this)) {
+        LOG(11, "    write plt block at address 0x" << std::hex << block->getAddress());
         for(auto instr : CIter::children(block)) {
             char *output = reinterpret_cast<char *>(instr->getAddress());
+            LOG(11, "    write plt instruction at address 0x" << std::hex << instr->getAddress());
             InstrWriterCString writer(output);
             instr->getSemantic()->accept(&writer);
         }
@@ -301,8 +304,8 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                     ->createDataLink(value, module, true));
                 LOG(1, "Trying to create link to 0x" << value << ", got "
                         << jmp1sem->getLink());
-                jmp1->setPosition(new AbsolutePosition(0x0));
-                jmp1sem->regenerateAssembly();
+                //jmp1->setPosition(new AbsolutePosition(0x0));
+                //jmp1sem->regenerateAssembly();
                 auto push = DisassembleInstruction(handle, true)
                     .instruction(std::string(
                     reinterpret_cast<const char *>(entry + 6), 5));

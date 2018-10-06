@@ -58,7 +58,15 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     }
     else if(x->op_count > 0 && x->operands[0].type == X86_OP_MEM) {
         if(ins->id == X86_INS_CALL) {
-            if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
+            if((op->mem.segment == X86_REG_GS || op->mem.segment == X86_REG_FS)
+                && op->mem.base == X86_REG_INVALID) {
+
+                // just for internal libegalito.so instruction: jmpq *%gs:0x8
+                semantic = new DataLinkedControlFlowInstruction(instruction);
+                semantic->setLink(new UnresolvedLink(op->mem.disp));
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            else if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
                 semantic = new DataLinkedControlFlowInstruction(instruction);
                 //semantic->setLink(LinkFactory::makeDataLink(module, address, true));
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
@@ -72,7 +80,15 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             }
         }
         if(cs_insn_group(handle.raw(), ins, X86_GRP_JUMP)) {
-            if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
+            if((op->mem.segment == X86_REG_GS || op->mem.segment == X86_REG_FS)
+                && op->mem.base == X86_REG_INVALID) {
+
+                // just for internal libegalito.so instruction: jmpq *%gs:0x8
+                semantic = new DataLinkedControlFlowInstruction(instruction);
+                semantic->setLink(new UnresolvedLink(op->mem.disp));
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            else if(op->mem.base == X86_REG_RIP || op->mem.base == X86_REG_INVALID) {
                 semantic = new DataLinkedControlFlowInstruction(instruction);
                 //semantic->setLink(LinkFactory::makeDataLink(module, address, false));
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
