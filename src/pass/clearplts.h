@@ -4,7 +4,10 @@
 #include "chunkpass.h"
 
 class ClearPLTs : public ChunkPass {
+private:
+    bool clearIFuncs;
 public:
+    ClearPLTs(bool clearIFuncs = false) : clearIFuncs(clearIFuncs) {}
     virtual void visit(Module *module);
     virtual void visit(PLTTrampoline *plt);
 private:

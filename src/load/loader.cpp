@@ -260,7 +260,7 @@ void EgalitoLoader::otherPasses() {
         PromoteJumpsPass promoteJumps;
         setup->getConductor()->acceptInAllModules(&promoteJumps, true);
     }
-    {
+    if(0) {
         ClearPLTs clearPLTs;
         program->accept(&clearPLTs);
     }

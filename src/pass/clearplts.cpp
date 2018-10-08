@@ -5,7 +5,7 @@ void ClearPLTs::visit(Module *module) {
 }
 
 void ClearPLTs::visit(PLTTrampoline *plt) {
-    if(plt->isIFunc()) return;
+    if(!clearIFuncs && plt->isIFunc()) return;
 
     freeChildren(plt, 2);
 }
