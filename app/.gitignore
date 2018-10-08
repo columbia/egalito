@@ -3,6 +3,7 @@
 /etshell
 /etobjdump
 /pyshell
+/libsandbox.so
 /build_x86_64
 /build_aarch64
 /.etshell_history

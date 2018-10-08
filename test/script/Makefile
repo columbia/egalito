@@ -33,6 +33,7 @@ test:
 	./nginx-thread.sh
 	$(call x86_only,./coreutils.sh)
 	./cout.sh
+	./sandbox-stage3.sh
 
 jt:
 	$(call arch_dep,./jumptable-libc.sh)

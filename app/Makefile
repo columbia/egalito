@@ -13,6 +13,7 @@ CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
 	-Wl,-rpath=$(abspath ../src/$(BUILDDIR)) \
 	-Wl,-rpath=$(abspath ../dep/capstone/install/lib)
 
+SANDBOX_SOURCES     = $(wildcard sandbox/*.c sandbox/*.cpp)
 SHELL_SOURCES       = $(wildcard shell/*.cpp)
 OBJDUMP_SOURCES     = $(wildcard objdump/*.cpp)
 PYTHON_SOURCES      = $(wildcard python/*.cpp)
@@ -25,8 +26,10 @@ ETSHELL_SOURCES = $(SHELL_SOURCES)
 ETSHELL_OBJECTS = $(call obj-filename,$(ETSHELL_SOURCES))
 ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
 ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
+LIBSANDBOX_SOURCES = $(SANDBOX_SOURCES)
+LIBSANDBOX_OBJECTS = $(call obj-filename,$(LIBSANDBOX_SOURCES))
 
-ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES))
+ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) $(LIBSANDBOX_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
@@ -36,8 +39,9 @@ ETSHELL = $(BUILDDIR)etshell
 ETOBJDUMP = $(BUILDDIR)etobjdump
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
+SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
 
-OUTPUTS = $(ETSHELL) $(ETOBJDUMP)
+OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(SANDBOX_LIBRARY)
 
 # Default target
 .PHONY: all
@@ -65,6 +69,7 @@ $(BUILDTREE): ../config/config.h
 	@echo "LN-S" $(OUTPUTS)
 	@ln -sf $(ETSHELL)
 	@ln -sf $(ETOBJDUMP)
+	@ln -sf $(SANDBOX_LIBRARY)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
 .PHONY: rebuild-src
@@ -98,7 +103,10 @@ $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
 
+$(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libsandbox.so $^ -o $@
+
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump
+	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump libsandbox.so
