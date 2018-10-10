@@ -436,9 +436,17 @@ void MakeInitArray::makeInitArraySections() {
         }
         if(firstInit) {
             content->addPointer([this, module, firstInit] () {
-                auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
-                auto function = ChunkFind2(getData()->getProgram())
-                    .findFunctionInModule(symbol->getName(), module);
+                Function *function = nullptr;
+                if(module->getElfSpace()->getSymbolList()) {
+                    auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
+                    function = ChunkFind2(getData()->getProgram())
+                        .findFunctionInModule(symbol->getName(), module);
+                }
+                else {
+                    std::string name2 = StreamAsString() << "fuzzyfunc-0x" << std::hex << firstInit;
+                    function = ChunkFind2(getData()->getProgram())
+                        .findFunctionInModule(name2.c_str(), module);
+                }
                 LOG(1, "Found _init at " << function->getAddress());
                 return function->getAddress();
             });
@@ -458,6 +466,26 @@ void MakeInitArray::makeInitArraySectionLinks() {
         initArraySection->getContent());
     auto main = getData()->getProgram()->getMain();
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
+    if(!func) {
+        auto entry = dynamic_cast<Function *>(getData()->getProgram()->getEntryPoint());
+        if(entry) {
+            auto block = entry->getChildren()->getIterable()->get(0);
+            int counter = 0;
+            for(auto instr : CIter::children(block)) {
+                if(auto link = instr->getSemantic()->getLink()) {
+                    ++counter;
+                    if(counter == 2) {
+                        func = dynamic_cast<Function *>(link->getTarget());
+                        break;
+                    }
+                }
+            }
+        }
+        if(!func) {
+            LOG(1, "Warning: MakeInitArray can't find __libc_csu_init");
+            return;
+        }
+    }
     auto block = func->getChildren()->getIterable()->get(0);
     int counter = 0;
     for(auto instr : CIter::children(block)) {

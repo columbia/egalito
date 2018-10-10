@@ -20,9 +20,9 @@ public:
     Function *findFunctionInModule(const char *name, Module *module);
 
     Function *findFunctionContaining(address_t address);
+    Function *findFunctionContainingInModule(address_t address, Module *module);
 private:
     Function *findFunctionHelper(const char *name, Module *module);
-    Function *findFunctionContainingHelper(address_t address, Module *module);
 };
 
 #endif

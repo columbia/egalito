@@ -24,14 +24,6 @@ Function *ChunkFind2::findFunctionHelper(const char *name, Module *module) {
     return nullptr;
 }
 
-Function *ChunkFind2::findFunctionContainingHelper(address_t address,
-    Module *module) {
-
-    auto f = CIter::spatial(module->getFunctionList())
-        ->findContaining(address);
-    return f;
-}
-
 Function *ChunkFind2::findFunction(const char *name, Module *source) {
     if(source) {
         if(auto f = findFunctionHelper(name, source)) {
@@ -55,10 +47,18 @@ Function *ChunkFind2::findFunctionInModule(const char *name, Module *module) {
 
 Function *ChunkFind2::findFunctionContaining(address_t address) {
     for(auto module : CIter::children(program)) {
-        if(auto f = findFunctionContainingHelper(address, module)) {
+        if(auto f = findFunctionContainingInModule(address, module)) {
             return f;
         }
     }
 
     return nullptr;
+}
+
+Function *ChunkFind2::findFunctionContainingInModule(address_t address,
+    Module *module) {
+
+    auto f = CIter::spatial(module->getFunctionList())
+        ->findContaining(address);
+    return f;
 }

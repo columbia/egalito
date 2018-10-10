@@ -190,7 +190,7 @@ void LoaderEmulator::setupForExecutableGen(Conductor *conductor) {
         //"_dl_argv",
         //"__environ",
         //"environ",
-        //"__libc_stack_end",
+        "__libc_stack_end",
         //"_dl_starting_up",
         //"__libc_enable_secure",
     };

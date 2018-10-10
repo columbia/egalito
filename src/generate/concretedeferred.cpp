@@ -94,6 +94,13 @@ void SymbolTableContent::addSectionSymbol(Symbol *sym) {
 SymbolTableContent::DeferredType *SymbolTableContent
     ::addSymbol(Function *func, Symbol *sym) {
 
+    if(!sym) {
+        char *name = new char[func->getName().length() + 1];
+        std::strcpy(name, func->getName().c_str());
+        sym = new Symbol(0, 0, name,
+            Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+    }
+
     auto name = std::string(sym->getName());
     auto index = strtab->add(name, true);  // add name to string table
 
@@ -109,14 +116,14 @@ SymbolTableContent::DeferredType *SymbolTableContent
     auto value = new DeferredType(symbol);
     if(sym->getBind() == Symbol::BIND_LOCAL) {
         auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
-        insertSorted(sit, value);
+        if(!insertSorted(sit, value)) value = find(sit);
         firstGlobalIndex ++;
     }
     else {
         auto sit = SymbolInTable(func
             ? SymbolInTable::TYPE_GLOBAL
             : SymbolInTable::TYPE_UNDEF, sym);
-        insertSorted(sit, value);
+        if(!insertSorted(sit, value)) value = find(sit);
     }
     return value;
 }
@@ -511,6 +518,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
         LOG(1, "Creating data reloc for [" << name << "]");
         size_t index = symtab->indexOf(elfSym);
+        LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
         //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
         rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
     });

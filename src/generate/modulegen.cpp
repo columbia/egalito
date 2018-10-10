@@ -378,7 +378,7 @@ void ModuleGen::makeSymbolInText(Function *func, const std::string &textSection)
         symbol->st_shndx = shdrIndexOf(textSection);
     });
 
-    for(auto alias : func->getSymbol()->getAliases()) {
+    if(func->getSymbol()) for(auto alias : func->getSymbol()->getAliases()) {
         // skip functions with the same name (due to versioning)
         if(alias->getName() == func->getName()) continue;
 
