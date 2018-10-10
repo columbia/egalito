@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstring>
 #include "populateplt.h"
+#include "clearplts.h"
 #include "conductor/conductor.h"
 #include "disasm/disassemble.h"
 #include "instr/concrete.h"
@@ -19,6 +20,11 @@ void PopulatePLTPass::visit(Module *module) {
 }
 
 void PopulatePLTPass::visit(PLTTrampoline *trampoline) {
+    // We are clearing the code that was created during disassembly and
+    // generating new instructions.
+    ClearPLTs clear(true);
+    trampoline->accept(&clear);
+
     if(trampoline->isIFunc()) {
         populateLazyTrampoline(trampoline);
     }

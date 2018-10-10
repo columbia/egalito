@@ -68,6 +68,12 @@ void mainLoop() {
         args.shouldHave(1);
         setup.injectLibrary(args.front().c_str());
     }, "parse and inject the given library");
+    topLevel.add("add-library", [&] (Arguments args) {
+        args.shouldHave(1);
+        std::vector<std::string> names;
+        names.push_back(args.front());
+        setup.addExtraLibraries(names);
+    }, "parse and inject the given library");
     topLevel.add("run", [&] (Arguments args) {
         executeLoader(&setup, args);
     }, "saves data to an archive and exec's the loader");

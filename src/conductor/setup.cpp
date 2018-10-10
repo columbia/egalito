@@ -158,7 +158,7 @@ void ConductorSetup::injectLibrary(const char *filename) {
 }
 
 std::vector<Module *> ConductorSetup::addExtraLibraries(
-    std::vector<const char *> filenames) {
+    const std::vector<std::string> &filenames) {
 
     unsigned long maxAddress = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
@@ -167,10 +167,11 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
 
     std::vector<Module *> modules;
 
-    for(auto filename : filenames) {
+    for(auto filenameCpp : filenames) {
+        auto filename = filenameCpp.c_str();
         if(auto elfmap = new ElfMap(filename)) {
             auto module = conductor->parseExtraLibrary(elfmap, filename);
-            maxAddress += 0x100000000;
+            maxAddress += 0x60000000;
             setBaseAddress(module, elfmap, maxAddress);
 
             for(auto region : CIter::regions(module)) {

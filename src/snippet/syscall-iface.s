@@ -6,6 +6,7 @@
     mov     %rsp, %rdi
     and     $-0x10, %rsp
     push    %rdi
+    mov     0x8(%rsp),%rdi
     push    %rsi
     push    %rdx
     push    %r10

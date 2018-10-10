@@ -1,6 +1,8 @@
 #ifndef EGALITO_CONDUCTOR_SETUP_H
 #define EGALITO_CONDUCTOR_SETUP_H
 
+#include <vector>
+#include <string>
 #include "config.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
@@ -34,7 +36,7 @@ public:
     void parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);
     std::vector<Module *> addExtraLibraries(
-        std::vector<const char *> filenames);
+        const std::vector<std::string> &filenames);
     Sandbox *makeLoaderSandbox();
     ShufflingSandbox *makeShufflingSandbox();
     Sandbox *makeFileSandbox(const char *outputFile);
