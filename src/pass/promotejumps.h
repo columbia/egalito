@@ -8,6 +8,7 @@ class PromoteJumpsPass : public ChunkPass {
 private:
     bool changed;
 public:
+    virtual void visit(Module *module) { recurse(module->getFunctionList()); }
     virtual void visit(Function *function);
     virtual void visit(Instruction *instruction);
 

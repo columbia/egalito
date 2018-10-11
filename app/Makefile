@@ -13,10 +13,11 @@ CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
 	-Wl,-rpath=$(abspath ../src/$(BUILDDIR)) \
 	-Wl,-rpath=$(abspath ../dep/capstone/install/lib)
 
-SANDBOX_SOURCES     = $(wildcard sandbox/*.c sandbox/*.cpp)
-SHELL_SOURCES       = $(wildcard shell/*.cpp)
-OBJDUMP_SOURCES     = $(wildcard objdump/*.cpp)
-PYTHON_SOURCES      = $(wildcard python/*.cpp)
+SANDBOX_SOURCES         = $(wildcard sandbox/*.c sandbox/*.cpp)
+SANDBOX_INJECT_SOURCES  = $(wildcard sandbox/inject/*.c sandbox/inject/*.cpp)
+SHELL_SOURCES           = $(wildcard shell/*.cpp)
+OBJDUMP_SOURCES         = $(wildcard objdump/*.cpp)
+PYTHON_SOURCES          = $(wildcard python/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -26,10 +27,12 @@ ETSHELL_SOURCES = $(SHELL_SOURCES)
 ETSHELL_OBJECTS = $(call obj-filename,$(ETSHELL_SOURCES))
 ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
 ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
-LIBSANDBOX_SOURCES = $(SANDBOX_SOURCES)
+ETSANDBOX_SOURCES = $(SANDBOX_SOURCES)
+ETSANDBOX_OBJECTS = $(call obj-filename,$(ETSANDBOX_SOURCES))
+LIBSANDBOX_SOURCES = $(SANDBOX_INJECT_SOURCES)
 LIBSANDBOX_OBJECTS = $(call obj-filename,$(LIBSANDBOX_SOURCES))
 
-ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) $(LIBSANDBOX_SOURCES))
+ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
@@ -37,11 +40,12 @@ BUILDTREE = $(sort $(dir $(ALL_OBJECTS) $(PYTHON_OBJECTS)))
 
 ETSHELL = $(BUILDDIR)etshell
 ETOBJDUMP = $(BUILDDIR)etobjdump
+ETSANDBOX = $(BUILDDIR)etsandbox
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
 
-OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(SANDBOX_LIBRARY)
+OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY)
 
 # Default target
 .PHONY: all
@@ -69,6 +73,7 @@ $(BUILDTREE): ../config/config.h
 	@echo "LN-S" $(OUTPUTS)
 	@ln -sf $(ETSHELL)
 	@ln -sf $(ETOBJDUMP)
+	@ln -sf $(ETSANDBOX)
 	@ln -sf $(SANDBOX_LIBRARY)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
@@ -99,6 +104,10 @@ $(ETOBJDUMP): $(ETOBJDUMP_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETOBJDUMP): ../src/$(BUILDDIR)libegalito.so
 
+$(ETSANDBOX): $(ETSANDBOX_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETSANDBOX): ../src/$(BUILDDIR)libegalito.so
+
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
@@ -109,4 +118,4 @@ $(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump libsandbox.so
+	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump etsandbox libsandbox.so

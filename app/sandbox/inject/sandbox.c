@@ -34,7 +34,9 @@ int egalito_sandbox_syscall_9(void *addr, size_t length, int prot, int flags, in
     *syscallNum = addr2;
     for (size_t i = 0; i < length; i += 0x1000) {
         unsigned long address = (unsigned long)addr2 + i;
-        if ((perm[address % PERM_SIZE] & PROT_WRITE) && (prot & PROT_EXEC)) {
+        if (((perm[address % PERM_SIZE] & PROT_WRITE) && (prot & PROT_EXEC))
+            || ((prot & PROT_WRITE) && (prot & PROT_EXEC))) {
+
             syscall(60, 10);  // exit
             //return 0;
         }
@@ -52,7 +54,9 @@ int egalito_sandbox_syscall_10(void *addr, size_t len, int prot) {
 
     for (size_t i = 0; i < len; i += 0x1000) {
         unsigned long address = (unsigned long)addr + i;
-        if ((perm[address % PERM_SIZE] & PROT_WRITE) && (prot & PROT_EXEC)) {
+        if (((perm[address % PERM_SIZE] & PROT_WRITE) && (prot & PROT_EXEC))
+            || ((prot & PROT_WRITE) && (prot & PROT_EXEC))) {
+
             syscall(60, 10);  // exit
             //return 0;
         }
