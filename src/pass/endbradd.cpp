@@ -98,10 +98,24 @@ void EndbrAddPass::visit(PLTTrampoline *pltTrampoline) {
     }
 }
 
+void EndbrAddPass::visit(InitFunctionList *initFunctionList) {
+    recurse(initFunctionList);
+
+    auto specialCase = initFunctionList->getSpecialCaseFunction();
+    if(specialCase) {
+        indirectTargets.insert(specialCase);
+    }
+}
+
 void EndbrAddPass::visit(InitFunction *initFunction) {
     auto target = dynamic_cast<Function *>(initFunction->getLink()->getTarget());
     if(target) {
         indirectTargets.insert(target);
+    }
+
+    auto i = dynamic_cast<Instruction *>(initFunction->getLink()->getTarget());
+    if(i) {
+        indirectTargets.insert(dynamic_cast<Function *>(i->getParent()->getParent()));
     }
 }
 

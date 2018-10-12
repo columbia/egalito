@@ -452,6 +452,7 @@ void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
     if(count > 0) cs_free(insn, count);
 }
 
+// for deregister_tm_clones, register_tm_clones, __do_global_dtors_aux, and frame_dummy
 void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
     Range crtbegin, IntervalTree &splitRanges) {
 
@@ -583,7 +584,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     // Hack to find the crtbegin functions...
     auto entryPoint = elfMap->getEntryPoint();
     Range crtBeginFunction;  // blob of all crtbegin functions
-    if(functionsWithoutPadding.findUpperBoundOrOverlapping(
+    if(functionsWithoutPadding.findUpperBound(
         entryPoint, &crtBeginFunction)) {
 
         disassembleCrtBeginFunctions(section, crtBeginFunction,

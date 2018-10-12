@@ -1,6 +1,7 @@
 #include "findinitfuncs.h"
 #include "chunk/module.h"
 #include "chunk/initfunction.h"
+#include "operation/find2.h"
 #include "log/log.h"
 
 void FindInitFuncs::visit(Module *module) {
@@ -24,6 +25,21 @@ void FindInitFuncs::visit(Module *module) {
                     finiFunction->setPosition(new AbsolutePosition(var->getAddress()));
                     finiFunctionList->getChildren()->add(finiFunction);
                     finiFunction->setParent(finiFunctionList);
+                }
+            }
+            // .init, .fini not handled
+            if(section->getName() == ".init") {
+                auto program = dynamic_cast<Program *>(module->getParent());
+                auto func = ChunkFind2(program).findFunctionContainingInModule(section->getAddress(), module);
+                if(func) {
+                    initFunctionList->setSpecialCaseFunction(func);
+                }
+            }
+            if(section->getName() == ".fini") {
+                auto program = dynamic_cast<Program *>(module->getParent());
+                auto func = ChunkFind2(program).findFunctionContainingInModule(section->getAddress(), module);
+                if(func) {
+                    finiFunctionList->setSpecialCaseFunction(func);
                 }
             }
         }

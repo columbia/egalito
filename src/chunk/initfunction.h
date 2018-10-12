@@ -24,14 +24,21 @@ public:
     virtual void accept(ChunkVisitor *visitor);
 };
 
+class Function;
+
 class InitFunctionList : public ChunkSerializerImpl<TYPE_InitFunctionList,
     CollectionChunkImpl<InitFunction>> {
 private:
     bool isInit;  // or fini
+    Function *specialCase;  // referred to by .init or .fini section
 public:
-    InitFunctionList(bool isInit = true) : isInit(isInit) {}
+    InitFunctionList(bool isInit = true)
+        : isInit(isInit), specialCase(nullptr) {}
 
     bool getIsInit() const { return isInit; }
+
+    void setSpecialCaseFunction(Function *f) { specialCase = f; }
+    Function *getSpecialCaseFunction() const { return specialCase; }
 
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored

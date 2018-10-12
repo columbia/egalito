@@ -19,7 +19,7 @@ public:
     virtual void visit(DataVariable *dataVariable);
     virtual void visit(PLTList *pltList) { recurse(pltList); }
     virtual void visit(PLTTrampoline *pltTrampoline);
-    virtual void visit(InitFunctionList *initFunctionList) { recurse(initFunctionList); }
+    virtual void visit(InitFunctionList *initFunctionList);
     virtual void visit(InitFunction *initFunction);
     virtual void visit(Instruction *instruction);
 };

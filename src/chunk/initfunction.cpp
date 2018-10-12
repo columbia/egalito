@@ -1,4 +1,5 @@
 #include "initfunction.h"
+#include "function.h"
 #include "serializer.h"
 #include "visitor.h"
 
@@ -25,6 +26,7 @@ void InitFunctionList::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
     writer.write<bool>(isInit);
+    writer.writeID(op.assign(specialCase));
     op.serializeChildren(this, writer);
 }
 
@@ -32,6 +34,7 @@ bool InitFunctionList::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
     isInit = reader.read<bool>();
+    setSpecialCaseFunction(op.lookupAs<Function>(reader.readID()));
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
