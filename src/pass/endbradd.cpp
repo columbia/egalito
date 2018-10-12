@@ -55,6 +55,8 @@ void EndbrAddPass::visit(Module *module) {
     recurse(module);  // to get to instructions
     recurse(module->getDataRegionList());  // to get to data variables
     recurse(module->getPLTList());  // to get IFUNC plt refs
+    recurse(module->getInitFunctionList());
+    recurse(module->getFiniFunctionList());
 
     static const char *entryPoints[] = {
         "_init",
@@ -92,6 +94,13 @@ void EndbrAddPass::visit(PLTTrampoline *pltTrampoline) {
     // never called. However, atleast in our current loader, IFUNC plt
     // entries (e.g. memcpy) are still used and we need to detect them here.
     if(!haveCollapsedPLT || pltTrampoline->isIFunc()) {
+        indirectTargets.insert(target);
+    }
+}
+
+void EndbrAddPass::visit(InitFunction *initFunction) {
+    auto target = dynamic_cast<Function *>(initFunction->getLink()->getTarget());
+    if(target) {
         indirectTargets.insert(target);
     }
 }

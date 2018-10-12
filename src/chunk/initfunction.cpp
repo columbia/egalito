@@ -24,12 +24,14 @@ void InitFunction::accept(ChunkVisitor *visitor) {
 void InitFunctionList::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    writer.write<bool>(isInit);
     op.serializeChildren(this, writer);
 }
 
 bool InitFunctionList::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
+    isInit = reader.read<bool>();
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }

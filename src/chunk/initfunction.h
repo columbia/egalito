@@ -26,8 +26,13 @@ public:
 
 class InitFunctionList : public ChunkSerializerImpl<TYPE_InitFunctionList,
     CollectionChunkImpl<InitFunction>> {
-    // TODO: needs bool for init vs fini?
+private:
+    bool isInit;  // or fini
 public:
+    InitFunctionList(bool isInit = true) : isInit(isInit) {}
+
+    bool getIsInit() const { return isInit; }
+
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
 

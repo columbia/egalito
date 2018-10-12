@@ -4,8 +4,8 @@
 #include "log/log.h"
 
 void FindInitFuncs::visit(Module *module) {
-    auto initFunctionList = new InitFunctionList();
-    auto finiFunctionList = new InitFunctionList();
+    auto initFunctionList = new InitFunctionList(true);
+    auto finiFunctionList = new InitFunctionList(false);
     for(auto region : CIter::regions(module)) {
         for(auto section : CIter::children(region)) {
             //LOG(1, "Examing Section: " << section->getName());

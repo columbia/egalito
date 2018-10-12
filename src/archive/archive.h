@@ -8,7 +8,7 @@
 class EgalitoArchive {
 public:
     static const char *SIGNATURE;
-    static const uint32_t VERSION = 23;
+    static const uint32_t VERSION = 24;
 private:
     FlatChunkList flatList;
     std::string sourceFilename;
