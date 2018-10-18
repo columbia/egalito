@@ -608,6 +608,13 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         LOG(11, "Split into function " << range << " at section offset "
             << section->convertVAToOffset(range.getStart()));
         Function *function = fuzzyFunction(range, section);
+
+        if(auto dsym = dynamicSymbolList->find(range.getStart())) {
+            LOG(12, "    renaming fuzzy function [" << function->getName()
+                << "] to [" << dsym->getName() << "]");
+            function->setName(dsym->getName());
+        }
+
         functionList->getChildren()->add(function);
         function->setParent(functionList);
     }
