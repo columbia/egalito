@@ -36,6 +36,11 @@ void ElfDynamic::parse(ElfMap *elf, Library *library) {
     resolveLibraries();
 }
 
+void ElfDynamic::addDependency(Library *library, std::string soname) {
+    dependencyList.push_back(std::make_pair(soname, library));
+    resolveLibraries();
+}
+
 template <typename Out>
 static void split(const std::string &s, char delim, Out result) {
     std::stringstream ss;
