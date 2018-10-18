@@ -56,6 +56,7 @@ void BasicElfStructure::execute() {
     makePhdrTable();  // can add phdrs after this
     makeSymtabSection();
     if(getConfig()->isDynamicallyLinked()) {
+        makeExternalPLT();
         makeDynamicSection();
     }
 }
@@ -196,7 +197,12 @@ void GenerateSectionTable::makeShdrTable() {
                 deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
                     shdr->sh_addralign = 8;
                     shdr->sh_entsize = sizeof(ElfXX_Rela);
-                    shdr->sh_link = sectionList->indexOf(".dynsym");
+                    if(auto target = v->getTargetSection()) {
+                        shdr->sh_link = sectionList->indexOf(target);
+                    }
+                    else {
+                        shdr->sh_link = sectionList->indexOf(".dynsym");
+                    }
                 });
             }
         }
@@ -284,6 +290,22 @@ void BasicElfStructure::makeDynamicSection() {
         return dynsymSection->getHeader()->getAddress();
     });
 
+    if(false && getSection(".plt2")) {
+        dynamic->addPair(DT_PLTREL, DT_RELA);
+        dynamic->addPair(DT_PLTGOT, [this] () {
+            auto got2 = getSection(".got2");
+            return got2->getHeader()->getAddress();
+        });
+        dynamic->addPair(DT_JMPREL, [this] () {
+            auto relaplt = getSection(".rela.plt2");
+            return relaplt->getHeader()->getAddress();
+        });
+        dynamic->addPair(DT_PLTRELSZ, [this] () {
+            auto relaplt = getSection(".rela.plt2");
+            return relaplt->getContent()->getSize();
+        });
+    }
+
     dynamic->addPair(DT_RELA, [this] () {
         auto relaDyn = getSection(".rela.dyn");
         return relaDyn->getHeader()->getAddress();
@@ -301,6 +323,27 @@ void BasicElfStructure::makeDynamicSection() {
     dynamicSection->setContent(dynamic);
     dynamicSection->getHeader()->setSectionLink(new SectionRef(getSectionList(), ".dynstr"));
     getSectionList()->addSection(dynamicSection);
+}
+
+void BasicElfStructure::makeExternalPLT() {
+    // .rela.plt links to .got in normal executables
+    auto relaPLT = new DataRelocSectionContent(
+        new SectionRef(getSectionList(), ".dynsym"),
+        getSectionList());
+    auto relaPLTSection = new Section(".rela.plt2", SHT_RELA);
+    relaPLTSection->setContent(relaPLT);
+    getSectionList()->addSection(relaPLTSection);
+
+    auto got2 = new Section(".got2", SHT_PROGBITS);
+    unsigned long got2Data[] = {0, 0, 0};
+    auto got2Content = new DeferredString(reinterpret_cast<char *>(got2Data), sizeof(got2Data));
+    got2->setContent(got2Content);
+    getSectionList()->addSection(got2);
+
+    auto plt2 = new Section(".plt2", SHT_PROGBITS);
+    auto plt2Content = new DeferredString("........");
+    plt2->setContent(plt2Content);
+    getSectionList()->addSection(plt2);
 }
 
 void AssignSectionsToSegments::execute() {
@@ -321,8 +364,23 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
-        dynSegment->addContains(getSection(".rela.dyn"));
         dynSegment->addContains(getSection(".dynamic"));
+
+        // rela sections need 8-byte alignment, add padding for them
+        MakePaddingSection makePadding(0, false);
+        makePadding.setData(getData());
+        makePadding.setConfig(getConfig());
+        makePadding.execute();
+        dynSegment->addContains(getSectionList()->back());
+        dynSegment->addContains(getSection(".rela.dyn"));
+
+        if(getSection(".plt2")) {
+            // rela listed first for 8-byte alignment
+            dynSegment->addContains(getSection(".rela.plt2"));
+            dynSegment->addContains(getSection(".got2"));
+            dynSegment->addContains(getSection(".plt2"));
+        }
+
         phdrTable->add(dynSegment, 0x400000);
 
         auto dynamicSection = getSection(".dynamic");

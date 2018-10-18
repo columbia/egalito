@@ -29,6 +29,7 @@ private:
     void makeSymtabSection();
     void makePhdrTable();
     void makeDynamicSection();
+    void makeExternalPLT();
 };
 
 // Can't change size of certain sections after this

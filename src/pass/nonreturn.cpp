@@ -113,7 +113,7 @@ bool NonReturnFunction::neverReturns(Function *function) {
                     if(!cfg) cfg = new ControlFlowGraph(function);
                     //ControlFlowGraph cfg(function);
                     LOG(11, "--Function " << function->getName());
-                    IF_LOG(11) {
+                    IF_LOG(21) {
                         ChunkDumper dump;
                         function->accept(&dump);
                         cfg->dump();

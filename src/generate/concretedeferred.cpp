@@ -492,7 +492,7 @@ DynamicSectionContent::DeferredType *DynamicSectionContent
 }
 
 Section *DataRelocSectionContent::getTargetSection() {
-    return outer->get();
+    return outer ? outer->get() : nullptr;
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
