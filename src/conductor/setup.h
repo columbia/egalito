@@ -37,6 +37,7 @@ public:
     void injectLibrary(const char *filename);
     std::vector<Module *> addExtraLibraries(
         const std::vector<std::string> &filenames);
+    void ensureBaseAddresses();
     Sandbox *makeLoaderSandbox();
     ShufflingSandbox *makeShufflingSandbox();
     Sandbox *makeFileSandbox(const char *outputFile);

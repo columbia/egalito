@@ -19,6 +19,8 @@ public:
     ElfDynamic(LibraryList *libraryList)
         : rpath(nullptr), libraryList(libraryList) {}
     void parse(ElfMap *elf, Library *library);
+
+    void addDependency(Library *library, std::string soname);
 private:
     std::vector<std::string> doGlob(std::string pattern);
     bool isValidElf(std::ifstream &file);

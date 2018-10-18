@@ -192,6 +192,23 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
     return modules;
 }
 
+void ConductorSetup::ensureBaseAddresses() {
+    unsigned long maxAddress = 0;
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        maxAddress = std::max(maxAddress, module->getBaseAddress());
+    }
+
+    for(auto module : CIter::modules(conductor->getProgram())) {
+        if(module->getBaseAddress() != 0) continue;
+        maxAddress += 0x100000000;
+
+        auto elfMap = module->getElfSpace()
+            ? module->getElfSpace()->getElfMap() : nullptr;
+
+        setBaseAddress(module, elfMap, maxAddress);
+    }
+}
+
 Sandbox *ConductorSetup::makeLoaderSandbox() {
     auto backing = MemoryBacking(sandboxBase, 10 * 0x1000 * 0x1000);
     sandboxBase += 10 * 0x1000 * 0x1000;
