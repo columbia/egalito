@@ -281,7 +281,18 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                         << std::hex << reloc->getAddress());
             auto program = dynamic_cast<Program *>(module->getParent());
             auto main = program->getMain();
-            if(module == main) {
+
+            /*
+            for(auto r : *relocList) {
+                if(r->getAddress() == s && r->getType() == R_X86_64_COPY) {
+
+                }
+            }*/
+
+            /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
+             * should point at the executable's copy of the global if COPY reloc is present
+             */
+            if(true /*module == main*/) {
                 // search first in the executable namespace for COPY
                 if(auto list = main->getElfSpace()->getSymbolList()) {
                     auto s = list->find(symbol->getName());
@@ -295,7 +306,8 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                         if(s) {
                             auto dlink = LinkFactory::makeDataLink(
                                 main, s->getAddress(), relative);
-                            LOG(1, "resolved to data in module-(executable)");
+                            LOG(1, "resolved to data in module-(executable): "
+                                <<  s->getAddress());
                             return dlink;
                         }
                     }
