@@ -1,23 +1,14 @@
-#ifndef EGALITO_SANDBOX_H
-#define EGALITO_SANDBOX_H
+#ifndef EGALITO_TRANSFORM_SANDBOX_H
+#define EGALITO_TRANSFORM_SANDBOX_H
 
 #include <vector>
 #include <new>
 #include <string>
+#include "slot.h"
 #include "types.h"
 #include "elf/elfspace.h"
 
 #define MAX_SANDBOX_SIZE (16 * 0x1000 * 0x1000)
-
-class Slot {
-private:
-    address_t address;
-    size_t available;
-public:
-    Slot(address_t address, size_t size)
-        : address(address), available(size) {}
-    address_t getAddress() const { return address; }
-};
 
 class SandboxBacking {
 public:

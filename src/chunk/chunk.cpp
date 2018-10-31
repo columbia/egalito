@@ -4,7 +4,7 @@
 
 void ChunkImpl::setPosition(Position *newPosition) {
     throw "Operation not supported: ChunkImpl::setPosition"
-        " (use ChunkPositionDecorator)";
+        " (use ChunkSinglePositionDecorator)";
 }
 
 void ChunkImpl::setSize(size_t newSize) {

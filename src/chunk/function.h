@@ -11,7 +11,7 @@ class Function;
 class ChunkCache;
 
 class Function : public ChunkSerializerImpl<TYPE_Function,
-    CompositeChunkImpl<Block>> {
+    AssignableCompositeChunkImpl<Block>> {
 private:
     Symbol *symbol;
     std::string name;

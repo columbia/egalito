@@ -1,7 +1,8 @@
-#ifndef EGALITO_POSITION_H
-#define EGALITO_POSITION_H
+#ifndef EGALITO_CHUNK_POSITION_H
+#define EGALITO_CHUNK_POSITION_H
 
 #include "chunkref.h"
+#include "transform/slot.h"
 #include "types.h"
 
 class PositionDump;
@@ -106,6 +107,21 @@ public:
     void setAfterThis(ChunkRef afterThis) { this->afterThis = afterThis; }
 protected:
     virtual Chunk *getDependency() const { return &*afterThis; }
+};
+
+class SlotPosition : public Position {
+    friend class PositionDump;
+private:
+    Slot slot;
+public:
+    SlotPosition(Slot slot) : slot(slot) {}
+
+    virtual address_t get() const;
+    virtual void set(address_t value);
+
+    Slot getSlot() const { return slot; }
+    size_t getAssignedSize() const { return slot.getSize(); }
+    void set(Slot newSlot) { slot = newSlot; }
 };
 
 /** Caches another Position type (useful for any computed type).

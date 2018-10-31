@@ -16,7 +16,7 @@ class ExternalSymbol;
 class ChunkCache;
 
 class PLTTrampoline : public ChunkSerializerImpl<TYPE_PLTTrampoline,
-    CompositeChunkImpl<Block>> {
+    AssignableCompositeChunkImpl<Block>> {
 private:
     ExternalSymbol *externalSymbol;
     address_t gotPLTEntry;

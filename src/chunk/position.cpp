@@ -60,6 +60,14 @@ void SubsequentPosition::set(address_t value) {
     throw "Can't set position of a SubsequentPosition";
 }
 
+address_t SlotPosition::get() const {
+    return slot.getAddress();
+}
+
+void SlotPosition::set(address_t value) {
+    slot = Slot(value, slot.getSize());
+}
+
 template class GenerationalPositionDecorator<
     TrackedPositionDecorator<SubsequentPosition>>;
 template class GenerationalPositionDecorator<

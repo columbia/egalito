@@ -50,6 +50,9 @@ public:
 
     virtual Position *getPosition() const = 0;
     virtual void setPosition(Position *newPosition) = 0;
+    virtual Position *getOriginalPosition() const = 0;
+    virtual Position *getAssignedPosition() const = 0;
+
     virtual size_t getSize() const = 0;
     virtual void setSize(size_t newSize) = 0;
     virtual void addToSize(diff_t add) = 0;
@@ -93,6 +96,9 @@ public:
 
     virtual Position *getPosition() const { return nullptr; }
     virtual void setPosition(Position *newPosition);
+    virtual Position *getOriginalPosition() const { return nullptr; }
+    virtual Position *getAssignedPosition() const { return getPosition(); }
+
     virtual size_t getSize() const { return 0; }
     virtual void setSize(size_t newSize);
     virtual void addToSize(diff_t add);
@@ -111,16 +117,50 @@ public:
 };
 
 template <typename ChunkType>
-class ChunkPositionDecorator : public ChunkType {
+class ChunkSinglePositionDecorator : public ChunkType {
 private:
     Position *position;
 public:
-    ChunkPositionDecorator(Position *position = nullptr)
+    ChunkSinglePositionDecorator(Position *position = nullptr)
         : position(position) {}
 
     virtual Position *getPosition() const { return position; }
     virtual void setPosition(Position *newPosition) { position = newPosition; }
+    virtual Position *getOriginalPosition() const { return nullptr; }
+    virtual Position *getAssignedPosition() const { return position; }
 };
+
+template <typename ChunkType, typename AssignedPositionType = SlotPosition>
+class ChunkDoublePositionDecorator : public ChunkType {
+private:
+    Position *originalPosition;
+    AssignedPositionType *slotPosition;
+public:
+    ChunkDoublePositionDecorator()
+        : originalPosition(nullptr), slotPosition(nullptr) {}
+
+    virtual Position *getPosition() const
+        { return slotPosition ? slotPosition : originalPosition; }
+    virtual void setPosition(Position *newPosition);
+    virtual Position *getOriginalPosition() const { return originalPosition; }
+    virtual AssignedPositionType *getAssignedPosition() const
+        { return slotPosition; }
+
+    void setOriginalPosition(Position *newPosition)
+        { this->originalPosition = newPosition; }
+    void setAssignedPosition(AssignedPositionType *newPosition)
+        { this->slotPosition = newPosition; }
+};
+
+template <typename ChunkType, typename AssignedPositionType>
+void ChunkDoublePositionDecorator<ChunkType, AssignedPositionType>
+    ::setPosition(Position *newPosition) {
+
+    if(!getOriginalPosition()) setOriginalPosition(newPosition);
+    else {
+        setAssignedPosition(dynamic_cast<AssignedPositionType *>(newPosition));
+    }
+}
 
 template <typename ChunkType, typename ChildType>
 class ChildListDecorator : public ChunkType {
@@ -143,7 +183,15 @@ public:
 };
 
 /** Represents a leaf Chunk with a Position. */
-typedef ChunkPositionDecorator<ChunkImpl> AddressableChunkImpl;
+typedef ChunkSinglePositionDecorator<ChunkImpl> AddressableChunkImpl;
+
+/** Represents a leaf Chunk with original and assigned Positions. */
+typedef ChunkDoublePositionDecorator<ChunkImpl> AssignableChunkImpl;
+
+/** A Chunk that contains a list of other Chunks, but has no Position. */
+template <typename ChildType>
+class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
+};
 
 /** A Chunk that contains a list of other Chunks, and has a Position. */
 template <typename ChildType>
@@ -151,9 +199,10 @@ class CompositeChunkImpl : public ChildListDecorator<
     ComputedSizeDecorator<AddressableChunkImpl>, ChildType> {
 };
 
-/** A Chunk that contains a list of other Chunks, but has no Position. */
+/** A Chunk that contains a list, and has original/assigned Positions. */
 template <typename ChildType>
-class CollectionChunkImpl : public ChildListDecorator<ChunkImpl, ChildType> {
+class AssignableCompositeChunkImpl : public ChildListDecorator<
+    ComputedSizeDecorator<AssignableChunkImpl>, ChildType> {
 };
 
 /** Some default code for serializable Chunks. */
