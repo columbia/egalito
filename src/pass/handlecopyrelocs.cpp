@@ -24,9 +24,6 @@ void HandleCopyRelocs::visit(Module *module) {
             assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
-            if(r->getAddress() == 0x207040) {
-                LOG(0, "...");
-            }
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
                 false, false, true);
