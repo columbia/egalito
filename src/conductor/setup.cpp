@@ -221,17 +221,20 @@ ShufflingSandbox *ConductorSetup::makeShufflingSandbox() {
 
 Sandbox *ConductorSetup::makeFileSandbox(const char *outputFile) {
     auto backing = MemoryBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
-    return new SandboxImpl<MemoryBacking, WatermarkAllocator<MemoryBacking>>(backing);
+    return new SandboxImpl<MemoryBacking,
+        WatermarkAllocator<MemoryBacking>>(backing);
 }
 
 Sandbox *ConductorSetup::makeStaticExecutableSandbox(const char *outputFile) {
     auto backing = MemoryBufferBacking(SANDBOX_BASE_ADDRESS, MAX_SANDBOX_SIZE);
-    return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
+    return new SandboxImpl<MemoryBufferBacking,
+        AlignedWatermarkAllocator<MemoryBufferBacking>>(backing);
 }
 
 Sandbox *ConductorSetup::makeKernelSandbox(const char *outputFile) {
     auto backing = MemoryBufferBacking(LINUX_KERNEL_CODE_BASE, MAX_SANDBOX_SIZE);
-    return new SandboxImpl<MemoryBufferBacking, WatermarkAllocator<MemoryBufferBacking>>(backing);
+    return new SandboxImpl<MemoryBufferBacking,
+        AlignedWatermarkAllocator<MemoryBufferBacking>>(backing);
 }
 
 bool ConductorSetup::generateStaticExecutable(const char *outputFile) {

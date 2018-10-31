@@ -28,8 +28,6 @@ public:
 private:
     void pickFunctionAddressInSandbox(Function *function);
     void pickPLTAddressInSandbox(PLTTrampoline *trampoline);
-    void copyFunctionToSandbox(Function *function);
-    void copyPLTToSandbox(PLTTrampoline *trampoline);
 };
 
 #endif

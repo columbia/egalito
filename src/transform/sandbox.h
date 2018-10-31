@@ -86,7 +86,8 @@ private:
     address_t base;
     address_t watermark;
 public:
-    WatermarkAllocator(Backing *backing) : SandboxAllocator<Backing>(backing),
+    WatermarkAllocator(Backing *backing)
+        : SandboxAllocator<Backing>(backing),
         base(backing->getBase()), watermark(backing->getBase()) {}
 
     Slot allocate(size_t request);
@@ -97,7 +98,6 @@ public:
 template <typename Backing>
 Slot WatermarkAllocator<Backing>::allocate(size_t request) {
     size_t max = this->backing->getBase() + this->backing->getSize();
-
     if(watermark + request > max) {
         throw std::bad_alloc();
     }
@@ -114,10 +114,16 @@ private:
     address_t watermark;
     size_t alignment;
 public:
-    AlignedWatermarkAllocator(Backing *backing)
+    AlignedWatermarkAllocator(Backing *backing, size_t alignment
+#ifdef ARCH_X86_64
+            = 0x10  // 16-byte alloc size alignment for functions
+#else
+            = 0x1
+#endif
+        )
         : SandboxAllocator<Backing>(backing),
         base(backing->getBase()), watermark(backing->getBase()),
-        alignment(16) {}
+        alignment(alignment) {}
 
     Slot allocate(size_t request);
     address_t getCurrent() const { return watermark; }
@@ -126,13 +132,14 @@ public:
 
 template <typename Backing>
 Slot AlignedWatermarkAllocator<Backing>::allocate(size_t request) {
-    size_t max = this->backing->getBase() + this->backing->getSize();
+    request = (request + alignment-1) & ~(alignment-1);
 
-    if(watermark + request + alignment > max) {
+    size_t max = this->backing->getBase() + this->backing->getSize();
+    if(watermark + request > max) {
         throw std::bad_alloc();
     }
 
-    watermark = (watermark + alignment - 1) & ~(alignment - 1);
+    //watermark = (watermark + alignment - 1) & ~(alignment - 1);
     address_t region = watermark;
     watermark += request;
     return Slot(region, request);

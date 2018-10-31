@@ -1,6 +1,7 @@
 #include <iostream>  // for std::cout.flush()
 #include <iomanip>
 #include <cstdio>  // for std::fflush
+#include <cstring>
 #include "generator.h"
 #include "chunk/cache.h"
 #include "operation/mutator.h"
@@ -15,6 +16,126 @@
 #include "log/temp.h"
 
 #include "config.h"
+
+// Instantiated for Function, PLTTrampoline
+template <typename ChunkType>
+class GeneratorHelper {
+public:
+    void assignAddress(ChunkType *chunk, Slot slot);
+    void copyToSandbox(ChunkType *chunk, Sandbox *sandbox);
+private:
+    void addPaddingBytes(ChunkType *chunk, Sandbox *sandbox);
+};
+
+template <typename ChunkType>
+void GeneratorHelper<ChunkType>::assignAddress(ChunkType *chunk, Slot slot) {
+#if 0
+    ChunkMutator(chunk).setPosition(slot.getAddress());
+#else
+    if(auto v = chunk->getAssignedPosition()) {
+        v->set(slot);
+    }
+    else {
+        chunk->setAssignedPosition(new SlotPosition(slot));
+    }
+#endif
+}
+
+template <>
+void GeneratorHelper<Function>::copyToSandbox(Function *function, Sandbox *sandbox) {
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(function->getAddress());
+        if(auto cache = function->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                LOG(10, " at " << std::hex << i->getAddress());
+                if(true /*useDisps*/) {
+                    InstrWriterCString writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                else {
+                    InstrWriterForObjectFile writer(output);
+                    i->getSemantic()->accept(&writer);
+                }
+                output += i->getSemantic()->getSize();
+            }
+        }
+    }
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        InstrWriterCppString writer(backing->getBuffer());
+        for(auto b : CIter::children(function)) {
+            for(auto i : CIter::children(b)) {
+                i->getSemantic()->accept(&writer);
+            }
+        }
+    }
+    addPaddingBytes(function, sandbox);
+}
+
+template <>
+void GeneratorHelper<PLTTrampoline>::copyToSandbox(PLTTrampoline *trampoline, Sandbox *sandbox) {
+    if(sandbox->supportsDirectWrites()) {
+        char *output = reinterpret_cast<char *>(trampoline->getAddress());
+        if(auto cache = trampoline->getCache()) {
+            //LOG(0, "generating with Cache: " << function->getName());
+            cache->copyAndFix(output);
+            return;
+        }
+        trampoline->writeTo(output);
+    }
+    else {
+        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+        //size_t expectedSize = backing->getBuffer().length() + PLTList::getPLTTrampolineSize();
+        size_t expectedSize = backing->getBuffer().length() + trampoline->getSize();
+        trampoline->writeTo(backing->getBuffer());
+#if 1
+        size_t actualSize = backing->getBuffer().length();
+        if (actualSize > expectedSize) {
+            LOG(0, "Writing too much data to PLT entry!!!!!");
+        } else {
+            backing->getBuffer().append(expectedSize - actualSize, (char)0xf4);
+        }
+#endif
+    }
+    addPaddingBytes(trampoline, sandbox);
+}
+
+template <typename ChunkType>
+void GeneratorHelper<ChunkType>::addPaddingBytes(ChunkType *chunk, Sandbox *sandbox) {
+    auto assignedSize = chunk->getAssignedPosition()->getAssignedSize();
+    if(assignedSize > chunk->getSize()) {
+        // Add appropriate number of NOP bytes
+        auto padding = assignedSize - chunk->getSize();
+        if(sandbox->supportsDirectWrites()) {
+            char *output = reinterpret_cast<char *>(chunk->getAddress());
+#ifdef ARCH_X86_64
+            std::memset(output + chunk->getSize(), 0x90, padding);
+#else
+            // Should use platform-specific NOP here
+            std::memset(output + chunk->getSize(), 0x0, padding);
+#endif
+        }
+        else {
+            auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+#ifdef ARCH_X86_64
+            backing->getBuffer().append(padding, static_cast<char>(0x90));
+#else
+            // Should use platform-specific NOP here
+            backing->getBuffer().append(padding, static_cast<char>(0x0));
+#endif
+        }
+    }
+    else if(assignedSize < chunk->getSize()) {
+        LOG(0, "ERROR: assigned size " << std::dec << assignedSize
+            << " is too small to store chunk ["
+            << chunk->getName() << "] of size " << chunk->getSize());
+    }
+}
 
 void Generator::assignAddresses(Program *program) {
     for(auto module : CIter::modules(program)) {
@@ -37,7 +158,7 @@ void Generator::assignAddresses(Module *module) {
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << startup_64->getName()
             << "] size " << std::dec << startup_64->getSize());
-        ChunkMutator(startup_64).setPosition(slot.getAddress());
+        GeneratorHelper<Function>().assignAddress(startup_64, slot);
     }
 #endif
 
@@ -45,23 +166,22 @@ void Generator::assignAddresses(Module *module) {
 #ifdef LINUX_KERNEL_MODE
         if(f == startup_64) continue;
 #endif
-        //auto slot = sandbox->allocate(std::max((size_t)0x1000, f->getSize()));
         auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
             << "] size " << std::dec << f->getSize());
-        ChunkMutator(f).setPosition(slot.getAddress());
+        GeneratorHelper<Function>().assignAddress(f, slot);
     }
 
     if(module->getPLTList()) {
         // these don't have to be contiguous
-        const size_t pltSize = PLTList::getPLTTrampolineSize();
+        //const size_t pltSize = PLTList::getPLTTrampolineSize();
         for(auto plt : CIter::plts(module)) {
-            auto slot = sandbox->allocate(pltSize);
+            auto slot = sandbox->allocate(plt->getSize());
             LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
                 << " for [" << plt->getName()
-                << "] size " << std::dec << pltSize);
-            ChunkMutator(plt).setPosition(slot.getAddress());
+                << "] size " << std::dec << plt->getSize());
+            GeneratorHelper<PLTTrampoline>().assignAddress(plt, slot);
         }
     }
 
@@ -74,7 +194,7 @@ void Generator::generateCode(Module *module) {
     Function *startup_64 = ChunkFind2()
         .findFunctionInModule("startup_64", module);
     if(startup_64) {
-        copyFunctionToSandbox(startup_64);
+        GeneratorHelper<Function>().copyToSandbox(startup_64, sandbox);
     }
 #endif
 
@@ -86,70 +206,13 @@ void Generator::generateCode(Module *module) {
         LOG(2, "    writing out [" << f->getName() << "] at 0x"
             << std::hex << f->getAddress());
 
-        copyFunctionToSandbox(f);
+        GeneratorHelper<Function>().copyToSandbox(f, sandbox);
     }
 
     if(module->getPLTList()) {
         LOG(1, "Copying PLT entries into sandbox");
         for(auto plt : CIter::plts(module)) {
-            copyPLTToSandbox(plt);
-        }
-    }
-}
-
-void Generator::copyFunctionToSandbox(Function *function) {
-    if(sandbox->supportsDirectWrites()) {
-        char *output = reinterpret_cast<char *>(function->getAddress());
-        if(auto cache = function->getCache()) {
-            //LOG(0, "generating with Cache: " << function->getName());
-            cache->copyAndFix(output);
-            return;
-        }
-        for(auto b : CIter::children(function)) {
-            for(auto i : CIter::children(b)) {
-                LOG(10, " at " << std::hex << i->getAddress());
-                if(useDisps) {
-                    InstrWriterCString writer(output);
-                    i->getSemantic()->accept(&writer);
-                }
-                else {
-                    InstrWriterForObjectFile writer(output);
-                    i->getSemantic()->accept(&writer);
-                }
-                output += i->getSemantic()->getSize();
-            }
-        }
-    }
-    else {
-        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
-        InstrWriterCppString writer(backing->getBuffer());
-        for(auto b : CIter::children(function)) {
-            for(auto i : CIter::children(b)) {
-                i->getSemantic()->accept(&writer);
-            }
-        }
-    }
-}
-
-void Generator::copyPLTToSandbox(PLTTrampoline *trampoline) {
-    if(sandbox->supportsDirectWrites()) {
-        char *output = reinterpret_cast<char *>(trampoline->getAddress());
-        if(auto cache = trampoline->getCache()) {
-            //LOG(0, "generating with Cache: " << function->getName());
-            cache->copyAndFix(output);
-            return;
-        }
-        trampoline->writeTo(output);
-    }
-    else {
-        auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
-        size_t expectedSize = backing->getBuffer().length() + PLTList::getPLTTrampolineSize();
-        trampoline->writeTo(backing->getBuffer());
-        size_t actualSize = backing->getBuffer().length();
-        if (actualSize > expectedSize) {
-            LOG(0, "Writing too much data to PLT entry!!!!!");
-        } else { 
-            backing->getBuffer().append(expectedSize - actualSize, (char)0xf4);
+            GeneratorHelper<PLTTrampoline>().copyToSandbox(plt, sandbox);
         }
     }
 }
@@ -161,19 +224,20 @@ void Generator::pickFunctionAddressInSandbox(Function *function) {
     PositionManager::setAddress(function, slot.getAddress());
 }
 void Generator::pickPLTAddressInSandbox(PLTTrampoline *trampoline) {
-    auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
+    //auto slot = sandbox->allocate(PLTList::getPLTTrampolineSize());
+    auto slot = sandbox->allocate(trampoline->getSize());
     //ChunkMutator(trampoline).setPosition(slot.getAddress());
     PositionManager::setAddress(trampoline, slot.getAddress());
 }
 
 void Generator::assignAndGenerate(Function *function) {
     pickFunctionAddressInSandbox(function);
-    copyFunctionToSandbox(function);
+    GeneratorHelper<Function>().copyToSandbox(function, sandbox);
 }
 
 void Generator::assignAndGenerate(PLTTrampoline *trampoline) {
     pickPLTAddressInSandbox(trampoline);
-    copyPLTToSandbox(trampoline);
+    GeneratorHelper<PLTTrampoline>().copyToSandbox(trampoline, sandbox);
 }
 
 void Generator::jumpToSandbox(Module *module, const char *function) {
