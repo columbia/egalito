@@ -51,7 +51,8 @@ void ModuleGen::makeDataSections() {
             case DataSection::TYPE_DATA: {
                 LOG(0, "DATA section " << section->getName());
                 LOG(0, "    seems like we need " << (section->getAddress() - previousEndAddress) << " padding bytes");
-                makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+                auto padding = makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+                if(previousEndAddress) loadSegment->addContains(padding);
 
                 // by default, make everything writable
                 auto dataSection = new Section(section->getName(),
@@ -73,7 +74,8 @@ void ModuleGen::makeDataSections() {
                 if(section->getParent() == tls) continue;
 
                 LOG(0, "BSS section " << section->getName());
-                makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+                auto padding = makeIntraPaddingSection(section->getAddress() & (0x1000-1));
+                if(previousEndAddress) loadSegment->addContains(padding);
 
                 auto bssSection = new Section(section->getName(),
                     /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
@@ -198,6 +200,11 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
         relaDyn->addUndefinedRef(var,
             dynamic_cast<LDSOLoaderLink *>(var->getDest()));
     }
+
+    // very important! dynsyms are created on demand per reloc, which are not
+    // necessarily sorted by name, so indices may have been invalidated.
+    auto dynsym = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    dynsym->recalculateIndices();
 
     //sectionList->addSection(relocSection);
     //relocSections.push_back(relocSection);
@@ -559,7 +566,7 @@ void ModuleGen::makePaddingSection(size_t desiredAlignment) {
     sectionList->addSection(paddingSection);
 }
 
-void ModuleGen::makeIntraPaddingSection(size_t desiredAlignment) {
+Section *ModuleGen::makeIntraPaddingSection(size_t desiredAlignment) {
     // We could assign unique names to the padding sections, but since we
     // never look them up by name in SectionList, it doesn't actually matter.
     auto paddingSection = new Section("=intra-padding");
@@ -567,6 +574,7 @@ void ModuleGen::makeIntraPaddingSection(size_t desiredAlignment) {
         sectionList->back(), desiredAlignment, false);
     paddingSection->setContent(paddingContent);
     sectionList->addSection(paddingSection);
+    return paddingSection;
 }
 
 size_t ModuleGen::shdrIndexOf(Section *section) {

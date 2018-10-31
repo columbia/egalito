@@ -49,6 +49,11 @@ bool SymbolInTable::operator < (const SymbolInTable &other) const {
 bool SymbolInTable::operator == (const SymbolInTable &other) const {
     // right now we never copy Symbols, so we can just compare addresses
     return sym == other.get();
+    if(sym == other.get()) return true;
+    return type == other.type
+        && ((sym == nullptr) == (other.get() == nullptr))
+        && std::strcmp(sym->getName(), other.get()->getName()) == 0
+        && sym->getSectionIndex() == other.get()->getSectionIndex();
 }
 
 std::string SymbolInTable::getName() const {
@@ -101,6 +106,17 @@ SymbolTableContent::DeferredType *SymbolTableContent
             Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
     }
 
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+    else {
+        auto sit = SymbolInTable(func
+            ? SymbolInTable::TYPE_GLOBAL
+            : SymbolInTable::TYPE_UNDEF, sym);
+        if(contains(sit)) return find(sit);
+    }
+
     auto name = std::string(sym->getName());
     auto index = strtab->add(name, true);  // add name to string table
 
@@ -116,14 +132,14 @@ SymbolTableContent::DeferredType *SymbolTableContent
     auto value = new DeferredType(symbol);
     if(sym->getBind() == Symbol::BIND_LOCAL) {
         auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
-        if(!insertSorted(sit, value)) value = find(sit);
+        insertSorted(sit, value);
         firstGlobalIndex ++;
     }
     else {
         auto sit = SymbolInTable(func
             ? SymbolInTable::TYPE_GLOBAL
             : SymbolInTable::TYPE_UNDEF, sym);
-        if(!insertSorted(sit, value)) value = find(sit);
+        insertSorted(sit, value);
     }
     return value;
 }
@@ -517,6 +533,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     auto elfSym = symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
         LOG(1, "Creating data reloc for [" << name << "]");
+        LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
         //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
