@@ -28,12 +28,17 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
         m1.append(Disassemble::instruction({0x53}));  // push %rbx
         m1.append(Disassemble::instruction({0x51}));  // push %rcx
         m1.append(Disassemble::instruction({0x52}));  // push %rdx
+        m1.append(Disassemble::instruction({0x56}));  // push %rsi
+        m1.append(Disassemble::instruction({0x57}));  // push %rdi
+
         // note: keep stack 16-byte aligned for %xmm registers
+        // the call instruction adds 8 bytes on its own, so push odd number first
+        m1.append(Disassemble::instruction({0x52}));  // push %rdx
 
         auto call = new Instruction();
         auto callSem = new ControlFlowInstruction(X86_INS_CALL, call, "\xe8", "callq", 4);
         if(trampoline->getTarget()) {
-            LOG(1, "creating IFUNC plt contents pointing to [" 
+            LOG(1, "creating IFUNC plt contents pointing to ["
                 << trampoline->getTarget()->getName() << "]");
             callSem->setLink(new NormalLink(trampoline->getTarget(), Link::SCOPE_EXTERNAL_JUMP));
         }
@@ -61,6 +66,9 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
         // mov %rax, %r11
         m2.append(Disassemble::instruction({0x49, 0x89, 0xc3}));
 
+        m2.append(Disassemble::instruction({0x5a}));  // pop %rdx (alignment)
+        m2.append(Disassemble::instruction({0x5f}));  // pop %rdi
+        m2.append(Disassemble::instruction({0x5e}));  // pop %rsi
         m2.append(Disassemble::instruction({0x5a}));  // pop %rdx
         m2.append(Disassemble::instruction({0x59}));  // pop %rcx
         m2.append(Disassemble::instruction({0x5b}));  // pop %rbx

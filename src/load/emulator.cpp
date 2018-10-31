@@ -192,7 +192,7 @@ void LoaderEmulator::setupForExecutableGen(Conductor *conductor) {
         //"environ",
         "__libc_stack_end",
         //"_dl_starting_up",
-        //"__libc_enable_secure",
+        "__libc_enable_secure",
     };
     for(auto sym : ldsoVars) {
         addData(sym, 0);
