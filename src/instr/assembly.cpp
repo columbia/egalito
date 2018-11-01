@@ -2,6 +2,43 @@
 #include "instr/register.h"
 #include "log/log.h"
 
+
+#ifdef ARCH_RISCV
+Assembly::Assembly(const rv_instr &instr) {
+    id = instr.op;
+    for(uint8_t i = 0; i < instr.len; i++) {
+        bytes.push_back((instr.inst >> (i * 8)) & 0xff);
+    }
+    mnemonic = instr.op_name;
+
+    regs_read_count = 0;
+
+    // instructions with no register writes
+    if(instr.codec == rv_codec_sb
+        || instr.codec == rv_codec_r_f
+        || instr.codec == rv_codec_none
+        || instr.codec == rv_codec_illegal
+        || instr.codec == rv_codec_ci_none
+        || instr.codec == rv_codec_s
+        || instr.codec == rv_codec_cs_sw
+        || instr.codec == rv_codec_cs_sd
+        || instr.codec == rv_codec_css_swsp
+        || instr.codec == rv_codec_css_sdsp
+        || instr.codec == rv_codec_cb
+        || instr.codec == rv_codec_sb
+        || mnemonic == "sfence.vm"
+        || mnemonic == "sfence.vma"
+        || mnemonic == "j"
+        ) {
+
+        regs_write_count = 0;
+    }
+    else {
+        
+    }
+}
+#endif
+
 #ifdef ARCH_X86_64
 void AssemblyOperands::overrideCapstone(const cs_insn &insn) {
     if(insn.id == X86_INS_CMP) {
