@@ -3,13 +3,19 @@
 # Compute the root directory of the repo, containing env.mk.
 EGALITO_ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-CC      = $(EGALITO_CCACHE) $(CROSS)gcc
-CXX     = $(EGALITO_CCACHE) $(CROSS)g++
+ifeq ($(TARGET),)
+	TARGET=$(CROSS)
+endif
 
-AS      = $(CC)
-LINK    = $(CXX)
+CC         = $(EGALITO_CCACHE) $(CROSS)gcc
+CXX        = $(EGALITO_CCACHE) $(CROSS)g++
+TARGET_CC  = $(EGALITO_CCACHE) $(TARGET)gcc
+TARGET_CXX = $(EGALITO_CCACHE) $(TARGET)g++
 
-AR      = ar
+AS         = $(CC)
+LINK       = $(CXX)
+
+AR         = ar
 
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 
@@ -24,10 +30,12 @@ ifneq ($(CAPSTONE_LIB),)
 else
 	$(error Capstone Lib directory not defined)
 endif
-ifneq ($(RTLD_CROSS),)
-	RTLD_EXEC = $(RTLD_CROSS)
+endif
+ifneq ($(TARGET),)
+ifneq ($(RTLD_TARGET),)
+	RTLD_EXEC = $(RTLD_TARGET)
 else
-	$(error Specify command to execute rtld for currect arch)
+	$(error Specify command to execute target rtld for current arch)
 endif
 endif
 
@@ -68,8 +76,8 @@ else
 	CXXFLAGS += -fno-stack-protector
 endif
 
-ifneq ($(CROSS),)
-	P_ARCH := $(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
+ifneq ($(TARGET),)
+	P_ARCH := $(strip $(shell echo $(TARGET_CC) | awk -F- '{print $$1}'))
 else
 	P_ARCH := $(shell uname -m)
 	ifeq (armv7l,$(P_ARCH))
@@ -79,7 +87,7 @@ else
 endif
 export P_ARCH
 
-$(if $(VERBOSE),$(info "Building for $(P_ARCH)"))
+$(if $(VERBOSE),$(info Building for $(P_ARCH)))
 
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
@@ -96,8 +104,13 @@ else ifeq (arm,$(P_ARCH))
 	CXXFLAGS += -DARCH_ARM
 	AFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
+else ifeq (riscv64,$(P_ARCH))
+	CFLAGS += -DARCH_RISCV
+	CXXFLAGS += -DARCH_RISCV
+	AFLAGS += -DARCH_RISCV
+	BUILDDIR = build_riscv/
 else
-	$(error "Unsupported platform, we only handle arm, aarch64, and x86_64")
+	$(error "Unsupported platform $(P_ARCH), we only handle arm, aarch64, riscv, and x86_64")
 endif
 
 GLIBCDIR = $(dirname $(shell $(CC) --print-file-name=libc.so))
