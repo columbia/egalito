@@ -235,6 +235,9 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
 #elif defined(ARCH_AARCH64)
     #define R_JUMP_SLOT R_AARCH64_JUMP_SLOT
     #define R_IRELATIVE R_AARCH64_IRELATIVE
+#elif defined(ARCH_RISCV)
+    #define R_JUMP_SLOT R_RISCV_JUMP_SLOT
+    #define R_IRELATIVE R_RISCV_RELATIVE // XXX: check this
 #endif
 
     PLTRegistry *registry = new PLTRegistry();

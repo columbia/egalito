@@ -1,4 +1,5 @@
 #include <cstring>  // for memcpy, memset
+#include <assert.h>
 #include <sys/mman.h>
 #include <fstream>
 #include "data.h"
@@ -22,6 +23,9 @@ address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
     // header is at the beginning
     address_t tp = base + sizeof(struct my_pthread);
     *offset += sizeof(struct my_pthread);
+#elif defined(ARCH_RISCV)
+    address_t tp;
+    assert(0); // XXX: no idea yet
 #endif
     size += sizeof(struct my_pthread);
 

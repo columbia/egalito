@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "findsyscalls.h"
 #include "analysis/dataflow.h"
 #include "analysis/slicingtree.h"
@@ -9,6 +11,7 @@
 #include "log/log.h"
 
 void FindSyscalls::visit(Function *function) {
+#ifdef ARCH_X86_64
     LOG(10, "Finding syscalls in function " << function->getName());
     // skip the syscall() function inside libc, as it will definitely not have
     // a constant syscall set, and in fact we actually track calls to it as
@@ -88,6 +91,9 @@ void FindSyscalls::visit(Function *function) {
 #endif
         }
     }
+#else
+    assert(0);
+#endif
 }
 
 bool FindSyscalls::isSyscallFunction(Function *function) {

@@ -74,7 +74,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         instruction->setSemantic(linked);
         delete semantic;
     }
-#else
+#elif defined(ARCH_AARCH64)
     if(auto v = dynamic_cast<LiteralInstruction *>(semantic)) {
         auto linked = LinkedLiteralInstruction::makeLinked(module, instruction,
             v->getData(), r, resolveWeak);
@@ -91,6 +91,8 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
             delete semantic;
         }
     }
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea?
 #endif
 }
 

@@ -319,6 +319,8 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfMap,
     SymbolList *list = new SymbolList();
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     SymbolList *list = new SymbolListWithMapping();
+#elif defined(ARCH_RISCV)
+    SymbolList *list = new SymbolList(); // XXX: maybe?
 #endif
 
     auto section = elfMap->findSection(sectionName);

@@ -29,9 +29,11 @@ void FallThroughFunctionPass::visit(Function *function) {
         else if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
             falling = false;
         }
+#ifdef ARCH_X86_64
         else if(dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
             falling = false;
         }
+#endif
         else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic)) {
             falling = false;
 #ifdef ARCH_X86_64
@@ -82,6 +84,16 @@ void FallThroughFunctionPass::visit(Function *function) {
                 }
                 else if(assembly->getId() == ARM64_INS_NOP) {
                     nop++;
+                }
+#elif defined(ARCH_RISCV)
+                // XXX: this needs to be populated properly.
+                assert(0);
+                if(assembly->getId() == rv_op_j) {
+                    falling = false;
+                }
+                else if(assembly->getId() == rv_op_jalr) {
+                    // XXX: may be fall-through, may not be...
+                    falling = false;
                 }
 #endif
                 else {
@@ -153,6 +165,9 @@ void FallThroughFunctionPass::visit(Function *function) {
             auto semantic = new ControlFlowInstruction(branch);
             semantic->setAssembly(DisassembleInstruction(handle)
                 .makeAssemblyPtr(bin.getVector()));
+#elif defined(ARCH_RISCV)
+            assert(0); // XXX: no idea for now?
+            auto semantic = new ControlFlowInstruction(branch);
 #endif
             semantic->setLink(
                 new NormalLink(target, Link::SCOPE_EXTERNAL_JUMP));

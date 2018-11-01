@@ -36,6 +36,7 @@ class LinkedLiteralInstruction;
 #include "linked-x86_64.h"
 #include "linked-aarch64.h"
 #include "linked-arm.h"
+#include "linked-riscv.h"
 
 class ReturnInstruction : public IsolatedInstruction {
 public:

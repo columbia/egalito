@@ -21,8 +21,12 @@ else ifeq (arm,$(P_ARCH))
 	CFLAGS += -DARCH_ARM
 	STATIC_CFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
+else ifeq (riscv64,$(P_ARCH))
+	CFLAGS += -DARCH_RISCV
+	STATIC_CFLAGS += -DARCH_RISCV
+	BUILDDIR = build_riscv/
 else
-$(error Unsupported platform, we only handle arm, aarch64, and x86_64)
+$(error Unsupported platform, we only handle arm, aarch64, riscv, and x86_64)
 endif
 
 space =

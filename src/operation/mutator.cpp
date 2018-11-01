@@ -13,6 +13,9 @@
 #ifdef ARCH_AARCH64
     #include "instr/linked-aarch64.h"
 #endif
+#ifdef ARCH_RISCV
+    #include "instr/linked-riscv.h"
+#endif
 #include "log/log.h"
 
 void ChunkMutator::makePositionFor(Chunk *child) {

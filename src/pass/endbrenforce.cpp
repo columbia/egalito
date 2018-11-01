@@ -131,6 +131,7 @@ void EndbrEnforcePass::visit(Instruction *instruction) {
 }
 
 void EndbrEnforcePass::makeEnforcementCode(Instruction *point) {
+#ifdef ARCH_X86_64
     //    0:   f3 0f 1e fa             endbr64
 
     //    4:   49 89 c3                mov    %rax, %r11
@@ -185,4 +186,5 @@ void EndbrEnforcePass::makeEnforcementCode(Instruction *point) {
     ChunkMutator(point->getParent(), true).modifiedChildSize(point,
         newSem->getSize() - semantic->getSize());
     delete semantic;
+#endif
 }

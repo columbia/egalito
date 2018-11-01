@@ -1142,6 +1142,17 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
                     false, function->getAddress() + function->getSize() + i);
                 ChunkMutator(gapBlock, false).append(instr);
             }
+#elif defined(ARCH_RISCV)
+            if((gap % 2) != 0) {
+                LOG(1, "gap block size not multiple of 2!");
+            }
+            for(size_t i = 0; i < gap; i += 2) {
+                // instruction bytes for nop:
+                // 01 00
+                auto instr = Disassemble::instruction({0x01, 0x00},
+                    false, function->getAddress() + function->getSize() + i);
+                ChunkMutator(gapBlock, false).append(instr);
+            }
 #else
     #error "Need to implement padding scheme for current architecture!"
 #endif

@@ -453,6 +453,8 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     #define INVALID_ID  X86_INS_INVALID
 #elif defined(ARCH_AARCH64)
     #define INVALID_ID  ARM64_INS_INVALID
+#elif defined(ARCH_RISCV)
+    #define INVALID_ID rv_op_illegal
 #endif
     AssemblyPtr assembly = instruction->getSemantic()->getAssembly();
     int id = INVALID_ID;

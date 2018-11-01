@@ -159,6 +159,10 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
 #elif defined(ARCH_AARCH64)
     auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
     auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
+#elif defined(ARCH_RISCV)
+    // XXX: maybe? seems vaguely right, but...
+    auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
+    auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
 #endif
 
     LOG(10, "parseJumptable");

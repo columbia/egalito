@@ -82,12 +82,19 @@ public:
     bool getWriteback() const { return writeback; }
     const cs_arm_op *getOperands() const { return operands.data(); }
 #elif defined(ARCH_RISCV)
+private:
+    std::vector<rv_oper> operands;
 public:
     AssemblyOperands(const cs_insn &) {
         // should never be reached on RISC-V
         assert(0);
     }
 
+    AssemblyOperands(const rv_instr &instr)
+        : op_count(instr.oper_count),
+        operands(instr.oper, instr.oper + instr.oper_count) {}
+
+    const rv_oper *getOperands() const { return operands.data(); }
 #endif
 public:
     AssemblyOperands() {}

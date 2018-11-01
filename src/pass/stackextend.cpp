@@ -28,6 +28,9 @@ void StackExtendPass::visit(Module *module) {
     else if(extendSize & 0x7) {
         LOG(1, "extend size must be multiple of 8");
     }
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea?
+    if(0) {}
 #endif
     else {
         LOG(5, "extending by " << extendSize);

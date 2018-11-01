@@ -25,6 +25,12 @@
 // callee-saved registers (save them on stack instead).
 #define EGALITO_CONTEXT_SIZE    (8*22)
 #define REGISTER_SAVE_LIST      {0, 1}
+#elif defined(ARCH_RISCV)
+// For RISC-V, this means...? XXX: figure this out
+
+#define EGALITO_CONTEXT_SIZE    (8*64)
+#define REGISTER_SAVE_LIST      {0, 1}
+
 #endif
 
 class SwitchContextPass : public StackExtendPass {

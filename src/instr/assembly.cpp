@@ -34,8 +34,26 @@ Assembly::Assembly(const rv_instr &instr) {
         regs_write_count = 0;
     }
     else {
-        
+        // one single reg write
+        regs_write_count = 1;
+        assert(instr.oper[0].type == rv_oper::rv_oper_reg);
+        regs_write.push_back(instr.oper[0].value.reg);
     }
+
+    for(size_t i = regs_write_count; i < instr.oper_count; i ++) {
+        switch(instr.oper[i].type) {
+            case rv_oper::rv_oper_imm: break;
+            case rv_oper::rv_oper_reg:
+                regs_read.push_back(instr.oper[i].value.reg);
+                break;
+            case rv_oper::rv_oper_mem:
+                regs_read.push_back(instr.oper[i].value.mem.basereg);
+                break;
+            default:
+                break;
+        }
+    }
+    regs_read_count = regs_read.size();
 }
 #endif
 

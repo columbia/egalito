@@ -14,6 +14,7 @@ void IFuncPLTs::visit(PLTList *pltList) {
 }
 
 void IFuncPLTs::visit(PLTTrampoline *trampoline) {
+#ifdef ARCH_X86_64
     if(!trampoline->isIFunc()) return;
 
     freeChildren(trampoline, 2);
@@ -74,6 +75,9 @@ void IFuncPLTs::visit(PLTTrampoline *trampoline) {
         ChunkMutator m(trampoline, true);
         m.append(block2);
     }
+#else
+    assert(0); // shouldn't be reached
+#endif
 }
 
 void IFuncPLTs::freeChildren(Chunk *chunk, int level) {

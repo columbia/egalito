@@ -62,8 +62,10 @@ public:
     virtual void visit(LiteralInstruction *semantic);
     virtual void visit(LinkedLiteralInstruction *semantic);
 private:
+#ifdef ARCH_X86_64
     void dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF);
     void dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar);
+#endif
     std::string getBytes(InstructionSemantic *semantic);
 };
 
