@@ -2475,8 +2475,8 @@ void rv_disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst i
     format_inst(buf, buflen, 32, &dec);
 }
 
-uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip, uint8_t *code,
-                     uint64_t code_size) {
+uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
+    const uint8_t *code, uint64_t code_size) {
 
     if(code_size < 2) return 0;
 
@@ -2512,6 +2512,24 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip, uint8_t *code,
     extract_inst(instr, &dec);
 
     return instr->len;
+}
+
+
+std::vector<rv_instr> rv_disasm_buffer(rv_isa isa, uint64_t ip,
+    const uint8_t *code, uint64_t code_size) {
+
+    std::vector<rv_instr> result;
+
+    uint64_t off = 0;
+    while(off < code_size) {
+        rv_instr next;
+        uint8_t next_size =
+            rv_disasm_instr(&next, isa, ip + off, code + off, code_size - off);
+        if(next_size == 0) break;
+        result.push_back(next);
+    }
+
+    return result;
 }
 
 #endif

@@ -163,6 +163,18 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
+InstructionSemantic *MakeSemantic::makeNormalSemantic(
+    Instruction *instruction, rv_instr *ins) {
+
+    InstructionSemantic *semantic = nullptr;
+    DisasmHandle handle(true);
+
+    // XXX: fill this in
+    assert(0);
+
+    return semantic;
+}
+
 int MakeSemantic::determineDisplacementSize(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM

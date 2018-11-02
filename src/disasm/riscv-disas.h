@@ -36,6 +36,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include <vector>
+
 /* types */
 
 typedef uint64_t rv_inst;
@@ -576,7 +578,7 @@ typedef struct {
     // codec
     uint8_t codec;
     // opcode
-    uint16_t op;
+    rv_op op;
     // opcode name (as string)
     const char *op_name;
 
@@ -595,10 +597,14 @@ typedef struct {
 } rv_instr;
 
 size_t rv_inst_length(rv_inst inst);
-void rv_disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst);
+void rv_disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc,
+    rv_inst inst);
 
-uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip, uint8_t *code,
-                     uint64_t code_size);
+uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
+    const uint8_t *code, uint64_t code_size);
+
+std::vector<rv_instr> rv_disasm_buffer(rv_isa isa, uint64_t ip,
+    const uint8_t *code, uint64_t code_size);
 
 #endif
 
