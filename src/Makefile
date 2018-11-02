@@ -68,7 +68,11 @@ SHARED_LIBRARY = $(BUILDDIR)libegalito.so
 ADDON_LIBRARY = $(BUILDDIR)libaddon.so
 LOADERPIE = $(BUILDDIR)loader-pie
 
-OUTPUTS = $(LOADER) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
+# If $(CROSS) == $(TARGET), then we want to build the loader.
+# Otherwise, we don't.
+LOADER_MAYBE=$(if $(filter-out $(TARGET), $(CROSS)), $(LOADER),)
+
+OUTPUTS = $(LOADER_MAYBE) $(BINLOADER) $(LIBRARY) $(SHARED_LIBRARY) \
 		$(ADDON_LIBRARY)
 SYMLINKS = $(notdir $(OUTPUTS))
 

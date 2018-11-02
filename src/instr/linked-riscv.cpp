@@ -2,7 +2,7 @@
 
 #include "linked-riscv.h"
 
-#ifndef ARCH_RISCV
+#ifdef ARCH_RISCV
 
 void LinkedInstruction::writeTo(char *target, bool useDisp) {
     *reinterpret_cast<uint32_t *>(target) = rebuild();

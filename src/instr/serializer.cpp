@@ -55,7 +55,9 @@ public:
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+#ifdef ARCH_X86_64
     virtual void visit(DataLinkedControlFlowInstruction *controlFlow);
+#endif
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
