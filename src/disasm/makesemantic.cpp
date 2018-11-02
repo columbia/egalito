@@ -169,8 +169,42 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     InstructionSemantic *semantic = nullptr;
     DisasmHandle handle(true);
 
+    bool is_cflow = false;
+    if(ins->codec == rv_codec_sb) is_cflow = true;
+
+    const std::set<rv_op> cflow = {
+        rv_op_j,
+        rv_op_jr,
+        rv_op_jal,
+        rv_op_jalr,
+
+        rv_op_c_j,
+        rv_op_c_jr,
+        rv_op_c_jal,
+        rv_op_c_jalr,
+
+        rv_op_ret
+    };
+
+    is_cflow |= cflow.count(ins->op) > 0;
+
+    if(is_cflow) {
+        auto cfi = new ControlFlowInstruction(instruction);
+
+        
+        std::string raw;
+        raw.assign(reinterpret_cast<char *>(&ins->op), ins->len);
+        cfi->setData(raw);
+
+            /*ins->op, instruction,
+            std::string((char *)ins->inst, ins->len),
+            ins->op_name);*/
+        //cfi->setLink(new UnresolvedLink(imm));
+        semantic = cfi;
+    }
+
     // XXX: fill this in
-    assert(0);
+    // if(!semantic) assert(0);
 
     return semantic;
 }

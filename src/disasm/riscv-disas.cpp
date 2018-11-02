@@ -2107,6 +2107,9 @@ size_t rv_inst_length(rv_inst inst)
      * 0111111 - 64 bit
      */
 
+    //if((inst & 0b11) != 0b11) return 2;
+    //else if((inst & 0b11100) != 0b11100) return 4;
+
     return (inst &      0b11) != 0b11      ? 2
          : (inst &   0b11100) != 0b11100   ? 4
          : (inst &  0b111111) == 0b011111  ? 6
@@ -2293,6 +2296,7 @@ static void extract_inst(rv_instr *instr, rv_decode *dec)
 {
     const char *fmt;
 
+    instr->op = (rv_op)dec->op;
     instr->codec = dec->codec;
     
     fmt = opcode_data[dec->op].format;
@@ -2480,24 +2484,30 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
 
     if(code_size < 2) return 0;
 
+    memset(instr, 0, sizeof(*instr));
+
     rv_decode dec;
     memset(&dec, 0, sizeof(dec));
     dec.pc = ip;
 
-    if(rv_inst_length(*(uint16_t *)code) != 2) {
-        if(rv_inst_length(*(uint32_t *)code) != 4) {
-            instr->len = 4;
-            dec.inst = *(uint32_t *)code;
-        }
-        else {
-            // XXX: only supporting 16/32 bit instructions for now
-            return 0;
-        }
-    }
-    else {
-        instr->len = 2;
+    printf("considering %x\n", *(uint16_t *)code);
+
+    // length up to 64 bits can be determined from first 16 bits
+    instr->len = rv_inst_length(*(uint16_t *)code);
+    if(instr->len == 2) {
         dec.inst = *(uint16_t *)code;
     }
+    else if(instr->len == 4 && code_size >= 4) {
+        const uint16_t *code16 = (uint16_t *)code;
+        dec.inst = code16[0] | ((uint32_t)code16[1] << 16);
+        //dec.inst = *(uint32_t *)code;
+        //dec.inst = *(uint16_t *)code;
+    }
+    else {
+        printf("Instruction length not 16/32 bits\n");
+        return 0;
+    }
+    printf("inst: %lx\n", dec.inst);
 
     decode_inst_opcode(&dec, isa);
     decode_inst_operands(&dec);
@@ -2508,8 +2518,10 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     }
     decode_inst_lift_pseudo(&dec);
 
-    memset(instr, 0, sizeof(*instr));
     extract_inst(instr, &dec);
+
+    printf("len: %d\n", instr->len);
+    printf("op: %d\n", instr->op);
 
     return instr->len;
 }
@@ -2527,7 +2539,10 @@ std::vector<rv_instr> rv_disasm_buffer(rv_isa isa, uint64_t ip,
             rv_disasm_instr(&next, isa, ip + off, code + off, code_size - off);
         if(next_size == 0) break;
         result.push_back(next);
+        off += next_size;
     }
+
+    printf("disassembly size: %ld\n", result.size());
 
     return result;
 }

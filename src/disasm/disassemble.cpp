@@ -234,6 +234,13 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
     InstructionSemantic *semantic = nullptr;
 
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
+    if(!semantic) {
+        auto isolated = new IsolatedInstruction();
+        std::string raw;
+        raw.assign(reinterpret_cast<char *>(&ins->op), ins->len);
+        isolated->setData(raw);
+        semantic = isolated;
+    }
     assert(semantic); // XXX: this should be more flexible, as above
     instr->setSemantic(semantic);
 
@@ -1021,6 +1028,73 @@ bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
     return false;
 }
 
+Function *DisassembleRISCVFunction::function(Symbol *symbol,
+    SymbolList *symbolList) {
+
+    LOG(1, "Disassembling function " << symbol->getName());
+
+    auto sectionIndex = symbol->getSectionIndex();
+    auto section = elfMap->findSection(sectionIndex);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    Function *function = new Function(symbol);
+
+    address_t symbolAddress = symbol->getAddress();
+
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(symbolAddress));
+
+    auto readAddress =
+        section->getReadAddress() + section->convertVAToOffset(symbolAddress);
+    auto readSize = symbol->getSize();
+    auto virtualAddress = symbol->getAddress();
+
+    auto context = ParseOverride::getInstance()->makeContext(
+        function->getSymbol()->getName());
+
+    if(auto over = ParseOverride::getInstance()->getBlockBoundaryOverride(
+        context)) {
+
+        LOG(10, "Using parsing override!");
+
+        disassembleCustomBlocks(function, readAddress, virtualAddress,
+            over->getOverrideList());
+
+    }
+    else {
+        disassembleBlocks(
+            function, readAddress, readSize, virtualAddress);
+    }
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
+    }
+
+    return function;
+}
+
+FunctionList *DisassembleRISCVFunction::linearDisassembly(
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+    SymbolList *dynamicSymbolList, RelocList *relocList) {
+
+    FunctionList *functionList = new FunctionList();
+
+    assert(0); // Shouldn't ever be needed, we have symbols
+
+    #if 0
+    for(const Range &range : intervalList) {
+        LOG(11, "Split into function " << range << " at section offset "
+            << section->convertVAToOffset(range.getStart()));
+        Function *function = fuzzyFunction(range, section);
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+    }
+    #endif
+
+    return functionList;
+}
+
+
 void DisassembleFunctionBase::disassembleBlocks(Function *function,
     address_t readAddress, size_t readSize, address_t virtualAddress) {
 
@@ -1385,6 +1459,8 @@ bool DisassembleFunctionBase::shouldSplitBlockAt(rv_instr *ins) {
         rv_op_c_jr,
         rv_op_c_jal,
         rv_op_c_jalr,
+
+        rv_op_ret
     };
 
     return cflow.count(ins->op) > 0;
