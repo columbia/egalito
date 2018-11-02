@@ -227,9 +227,19 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         // indirect jumps
         else if(ins->op == rv_op_jr) {
             // indirect jump to oper[0] (reg)
+            delete semantic;
+            assert(ins->oper[0].type == rv_oper::rv_oper_reg);
+            semantic = new IndirectJumpInstruction(ins->oper[0].value.reg,
+                ins->op_name);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
         else if(ins->op == rv_op_c_jr) {
             // indirect jump to oper[1] (reg)
+            delete semantic;
+            assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+            semantic = new IndirectJumpInstruction(ins->oper[1].value.reg,
+                ins->op_name);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
         }
         // indirect calls
         else if(ins->op == rv_op_jalr) {

@@ -46,7 +46,7 @@ KEYSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/keystone
 GENERIC_FLAGS += -I $(KEYSTONE_DIR)/include
 endif
 
-OPT_FLAGS       = -g3 -O2
+OPT_FLAGS       = -g3 -Og
 DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++14 $(GENERIC_FLAGS) $(OPT_FLAGS)
