@@ -166,8 +166,13 @@ public:
     Assembly makeAssembly(const std::vector<unsigned char> &bytes,
         address_t address = 0);
 private:
+    #ifndef ARCH_RISCV
     cs_insn *runDisassembly(const uint8_t *bytes, size_t size,
         address_t address);
+    #else
+    rv_instr *runDisassembly(const uint8_t *bytes, size_t size,
+        address_t address);
+    #endif
 };
 
 class AARCH64InstructionBinary {

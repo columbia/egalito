@@ -190,21 +190,71 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
 
     if(is_cflow) {
         auto cfi = new ControlFlowInstruction(instruction);
+        semantic = cfi;
 
-        
         std::string raw;
         raw.assign(reinterpret_cast<char *>(&ins->op), ins->len);
         cfi->setData(raw);
 
-            /*ins->op, instruction,
-            std::string((char *)ins->inst, ins->len),
-            ins->op_name);*/
-        //cfi->setLink(new UnresolvedLink(imm));
-        semantic = cfi;
-    }
+        // for the conditional branch instructions
+        // the psuedo-ops against zero have one less operand
+        if(ins->op == rv_op_beqz
+            || ins->op == rv_op_bnez
+            || ins->op == rv_op_blez
+            || ins->op == rv_op_bgez
+            || ins->op == rv_op_bltz
+            || ins->op == rv_op_bgtz) {
 
-    // XXX: fill this in
-    // if(!semantic) assert(0);
+            assert(ins->oper[1].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[1].value.imm));
+        }
+        // the rest of the conditional branches
+        else if(ins->codec == rv_codec_sb) {
+            assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[2].value.imm));
+        }
+        else if(ins->op == rv_op_j
+            || ins->op == rv_op_c_j
+            || ins->op == rv_op_c_jal) {
+
+            assert(ins->oper[0].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[0].value.imm));
+        }
+        else if(ins->op == rv_op_jal) {
+            assert(ins->oper[1].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[1].value.imm));
+        }
+        // indirect jumps
+        else if(ins->op == rv_op_jr) {
+            // indirect jump to oper[0] (reg)
+        }
+        else if(ins->op == rv_op_c_jr) {
+            // indirect jump to oper[1] (reg)
+        }
+        // indirect calls
+        else if(ins->op == rv_op_jalr) {
+            // oper[0] is rd
+            // oper[1] is rs
+            // oper[2] is imm
+            assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+            assert(ins->oper[2].value.imm == 0); // XXX: for now, no IndirectCallInstruction that takes an offset, so...
+
+            assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+            semantic = new IndirectCallInstruction(ins->oper[1].value.reg);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        }
+        else if(ins->op == rv_op_c_jalr) {
+            // XXX: not implemented yet
+            assert(0);
+        }
+
+        else if(ins->op == rv_op_ret) {
+            delete semantic;
+            semantic = new ReturnInstruction();
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        }
+
+    }
 
     return semantic;
 }

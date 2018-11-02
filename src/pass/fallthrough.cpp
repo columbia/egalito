@@ -86,15 +86,34 @@ void FallThroughFunctionPass::visit(Function *function) {
                     nop++;
                 }
 #elif defined(ARCH_RISCV)
-                // XXX: this needs to be populated properly.
-                assert(0);
                 if(assembly->getId() == rv_op_j) {
                     falling = false;
                 }
-                else if(assembly->getId() == rv_op_jalr) {
-                    // XXX: may be fall-through, may not be...
+                else if(assembly->getId() == rv_op_jr) {
                     falling = false;
                 }
+                else if(assembly->getId() == rv_op_c_j) {
+                    falling = false;
+                }
+                else if(assembly->getId() == rv_op_c_jr) {
+                    falling = false;
+                }
+                else if(assembly->getId() == rv_op_jal) {
+                    // jal is fall-through unless destination is x0
+                    auto ops = assembly->getAsmOperands()->getOperands();
+                    assert(ops[0].type == rv_oper::rv_oper_reg);
+                    if(ops[0].value.reg == rv_ireg_zero) falling = false;
+                    else falling = true;
+                }
+                else if(assembly->getId() == rv_op_jalr) {
+                    // jalr is fall-through unless destination is x0
+                    auto ops = assembly->getAsmOperands()->getOperands();
+                    assert(ops[0].type == rv_oper::rv_oper_reg);
+                    if(ops[0].value.reg == rv_ireg_zero) falling = false;
+                    else falling = true;
+                }
+                // c.jalr always writes to x1, so it's a fall-through
+                // c.jal (RV32C-only) likewise
 #endif
                 else {
                     falling = true;

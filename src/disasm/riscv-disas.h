@@ -133,7 +133,11 @@ typedef enum {
     rv_freg_ft8,
     rv_freg_ft9,
     rv_freg_ft10,
-    rv_freg_ft11
+    rv_freg_ft11,
+
+    rv_reg_ending,
+
+    rv_reg_invalid = -1
 } rv_reg;
 
 typedef enum {
@@ -559,10 +563,10 @@ typedef struct {
         rv_oper_mem
     } type;
     union {
-        uint8_t reg;
+        rv_reg reg;
         int32_t imm;
         struct {
-            uint8_t basereg;
+            rv_reg basereg;
             int64_t disp;
         } mem;
     } value;

@@ -197,7 +197,7 @@ Instruction *DisassembleInstruction::instruction(const std::string &bytes,
 Instruction *DisassembleInstruction::instruction(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+    auto ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
 
     return instruction(ins);
@@ -206,6 +206,10 @@ Instruction *DisassembleInstruction::instruction(
 Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
+
+    #ifdef ARCH_RISCV
+    assert(0); // should never be reached
+    #endif
 
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
 
@@ -237,9 +241,11 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
     if(!semantic) {
         auto isolated = new IsolatedInstruction();
         std::string raw;
-        raw.assign(reinterpret_cast<char *>(&ins->op), ins->len);
+        raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
         isolated->setData(raw);
         semantic = isolated;
+        LOG(1, "C: semantic data length: " << semantic->getData().length());
+        for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
     }
     assert(semantic); // XXX: this should be more flexible, as above
     instr->setSemantic(semantic);
@@ -251,7 +257,7 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
 InstructionSemantic *DisassembleInstruction::instructionSemantic(
     Instruction *instr, const std::string &bytes, address_t address) {
 
-    cs_insn *ins = runDisassembly(
+    auto ins = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
 
@@ -263,13 +269,21 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
         if(details) {
             semantic = new IsolatedInstruction();
             semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            LOG(1, "D: semantic data length: " << semantic->getData().length());
+            for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
         else {
             std::string raw;
+            #ifndef ARCH_RISCV
             raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            #else
+            raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
+            #endif
             auto isolated = new IsolatedInstruction();
             isolated->setData(raw);
             semantic = isolated;
+            LOG(1, "E: semantic data length: " << semantic->getData().length());
+            for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
     }
     instr->setSemantic(semantic);
@@ -288,21 +302,31 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
 Assembly *DisassembleInstruction::allocateAssembly(const std::string &bytes,
     address_t address) {
 
-    cs_insn *insn = runDisassembly(
+    auto insn = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
     Assembly *assembly = new Assembly(*insn);
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
 Assembly *DisassembleInstruction::allocateAssembly(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+    auto insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
     Assembly *assembly = new Assembly(*insn);
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
@@ -321,14 +345,21 @@ AssemblyPtr DisassembleInstruction::makeAssemblyPtr(
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *insn = runDisassembly(
+    auto insn = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
-    Assembly assembly{*insn};
+    Assembly assembly(*insn);
+
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
+#ifndef ARCH_RISCV
 cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
     size_t size, address_t address) {
 
@@ -348,6 +379,20 @@ cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 
     return ins;
 }
+#else
+rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
+    size_t size, address_t address) {
+
+    rv_instr *ins = new rv_instr;
+    auto buf = rv_disasm_buffer(rv64, address, bytes, size);
+    if(buf.size() == 0) {
+        throw "Invalid instruction provided\n";
+    }
+    *ins = buf[0];
+
+    return ins;
+}
+#endif
 
 // --- X86_64 disassembly code
 

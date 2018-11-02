@@ -2313,37 +2313,41 @@ static void extract_inst(rv_instr *instr, rv_decode *dec)
             break;
         case '0':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rd;
+            instr->oper[instr->oper_count].value.reg = (rv_reg)dec->rd;
             instr->oper_count ++;
             break;
         case '1':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rs1;
+            instr->oper[instr->oper_count].value.reg = (rv_reg)dec->rs1;
             instr->oper_count ++;
             break;
         case '2':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rs2;
+            instr->oper[instr->oper_count].value.reg = (rv_reg)dec->rs2;
             instr->oper_count ++;
             break;
         case '3':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rd + rv_freg_base;
+            instr->oper[instr->oper_count].value.reg =
+                (rv_reg)(rv_freg_base + dec->rd);
             instr->oper_count ++;
             break;
         case '4':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rs1 + rv_freg_base;
+            instr->oper[instr->oper_count].value.reg =
+                (rv_reg)(dec->rs1 + rv_freg_base);
             instr->oper_count ++;
             break;
         case '5':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rs2 + rv_freg_base;
+            instr->oper[instr->oper_count].value.reg =
+                (rv_reg)(dec->rs2 + rv_freg_base);
             instr->oper_count ++;
             break;
         case '6':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_reg;
-            instr->oper[instr->oper_count].value.reg = dec->rs3 + rv_freg_base;
+            instr->oper[instr->oper_count].value.reg = 
+                (rv_reg)(dec->rs3 + rv_freg_base);
             instr->oper_count ++;
             break;
         case '7':
@@ -2385,12 +2389,12 @@ static void extract_inst(rv_instr *instr, rv_decode *dec)
             break;
         case '!':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_mem;
-            instr->oper[instr->oper_count].value.mem.basereg = dec->rs1;
+            instr->oper[instr->oper_count].value.mem.basereg = (rv_reg)dec->rs1;
             instr->oper_count ++;
             break;
         case 'I':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_mem;
-            instr->oper[instr->oper_count].value.mem.basereg = dec->rs1;
+            instr->oper[instr->oper_count].value.mem.basereg = (rv_reg)dec->rs1;
             instr->oper[instr->oper_count].value.mem.disp = dec->imm;
             instr->oper_count ++;
             break;
@@ -2491,6 +2495,7 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     dec.pc = ip;
 
     printf("considering %x\n", *(uint16_t *)code);
+    if(*(uint16_t *)code == 0) assert(0);
 
     // length up to 64 bits can be determined from first 16 bits
     instr->len = rv_inst_length(*(uint16_t *)code);
@@ -2505,6 +2510,7 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     }
     else {
         printf("Instruction length not 16/32 bits\n");
+        assert(0);
         return 0;
     }
     printf("inst: %lx\n", dec.inst);
@@ -2522,6 +2528,9 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
 
     printf("len: %d\n", instr->len);
     printf("op: %d\n", instr->op);
+    printf("op str: %s\n", instr->op_name);
+
+    instr->inst = dec.inst;
 
     return instr->len;
 }
