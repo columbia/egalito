@@ -29,6 +29,11 @@ public:
     void writeTo(char *target, bool useDisp);
     void writeTo(std::string &target, bool useDisp);
     uint32_t rebuild();
+
+    static void makeAllLinked(Module *module);
+private:
+    static void resolveLinks(Module *module,
+        const std::vector<std::pair<Instruction *, address_t>> &list);
 };
 
 // XXX: may not be used for RISCV?

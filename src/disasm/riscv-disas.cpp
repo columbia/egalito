@@ -2494,7 +2494,7 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     memset(&dec, 0, sizeof(dec));
     dec.pc = ip;
 
-    printf("considering %x\n", *(uint16_t *)code);
+    printf("[@%lx] considering first parcel %04x\n", ip, *(uint16_t *)code);
     if(*(uint16_t *)code == 0) assert(0);
 
     // length up to 64 bits can be determined from first 16 bits
@@ -2513,7 +2513,7 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
         assert(0);
         return 0;
     }
-    printf("inst: %lx\n", dec.inst);
+    printf("inst: %08lx\n", dec.inst);
 
     decode_inst_opcode(&dec, isa);
     decode_inst_operands(&dec);

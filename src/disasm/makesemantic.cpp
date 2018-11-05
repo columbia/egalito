@@ -193,7 +193,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
         semantic = cfi;
 
         std::string raw;
-        raw.assign(reinterpret_cast<char *>(&ins->op), ins->len);
+        raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
         cfi->setData(raw);
 
         // for the conditional branch instructions

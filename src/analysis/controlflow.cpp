@@ -80,8 +80,18 @@ void ControlFlowGraph::construct(Block *block) {
             fallThrough = false;
         }
 #elif defined(ARCH_RISCV)
-        assert(0); // XXX: no idea?
-        //if(cfi->getMnemonic() == "j"
+        if(cfi->getMnemonic() == "j" || cfi->getMnemonic() == "jr"
+            || cfi->getMnemonic() == "c.j" || cfi->getMnemonic() == "c.jr") {
+
+            fallThrough = false;
+        }
+        else if(cfi->getMnemonic() == "jal" || cfi->getMnemonic() == "jalr"
+            || cfi->getMnemonic() == "c.jal"
+            || cfi->getMnemonic() == "c.jalr") {
+
+            fallThrough = cfi->returns();
+        }
+        else fallThrough = true;
 #endif
 #ifdef ARCH_X86_64
         if(cfi->getMnemonic() != "callq" && link && link->getTarget()) {
@@ -90,6 +100,7 @@ void ControlFlowGraph::construct(Block *block) {
 #elif defined(ARCH_RISCV)
         // XXX: no idea what the mnemonic should be here
         if(cfi->getMnemonic() != "j" && link && link->getTarget()) {
+            assert(0); // XXX: not sure if this was the right condition
 #endif
             auto target = link->getTarget();
             if(auto v = dynamic_cast<Block *>(&*target)) {

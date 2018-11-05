@@ -7,11 +7,12 @@
 #include "chunk/concrete.h"
 #include "instr/isolated.h"
 #include "instr/linked-aarch64.h"
+#include "disasm/riscv-disas.h"
 
 #include "log/log.h"
 #include "log/temp.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_RISCV)
 void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
     UDConfiguration config(cfg);
     UDRegMemWorkingSet working(function, cfg);
@@ -41,6 +42,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
                 auto assembly = semantic->getAssembly();
                 if(!assembly) continue;
+#ifdef ARCH_AARCH64
                 if(assembly->getId() == ARM64_INS_LDR) {
                     if((assembly->getBytes()[3] & 0xBF) == 0x18) {
                         detectAtLDR(working->getState(instr));
@@ -52,6 +54,11 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 else if(assembly->getId() == ARM64_INS_ADRP) {
                     detectAtADRP(working->getState(instr));
                 }
+#elif defined(ARCH_RISCV)
+                if(assembly->getId() == rv_op_auipc) {
+                    detectAtAUIPC(working->getState(instr));
+                }
+#endif
             }
         }
     }
@@ -61,6 +68,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
     }
 }
 
+#ifdef ARCH_AARCH64
 void PointerDetection::detectAtLDR(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
@@ -119,6 +127,15 @@ void PointerDetection::detectAtADRP(UDState *state) {
         break;  // there should be only one
     }
 }
+
+#elif defined(ARCH_RISCV)
+
+void PointerDetection::detectAtAUIPC(UDState *state) {
+    LOG(1, "detected AUIPC!");
+    assert(0); // XXX: need to implement, similar to ADRP above
+}
+
+#endif
 
 bool PageOffsetList::detectOffset(UDState *state, int reg) {
     LOG(10, "==== detectOffset state 0x" << std::hex
