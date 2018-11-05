@@ -30,6 +30,7 @@ uint32_t LinkedInstruction::rebuild() {
 
 void LinkedInstruction::makeAllLinked(Module *module) {
     LOG(0, "Finding split pointers in module " << module->getName());
+    #if 0
     for(auto function : CIter::children(module->getFunctionList())) {
         LOG(0, "[" << function->getName() << "]");
         auto graph = new ControlFlowGraph(function);
@@ -50,24 +51,18 @@ void LinkedInstruction::makeAllLinked(Module *module) {
     }
 
     assert(0);
+    #endif
 
-    /*DataFlow df;
-    LiveRegister live;
+    DataFlow df;
     PointerDetection pd;
     for(auto func : CIter::functions(module)) {
         df.addUseDefFor(func);
     }
     for(auto func : CIter::functions(module)) {
-        live.detect(df.getWorkingSet(func));
-    }
-    for(auto func : CIter::functions(module)) {
-        df.adjustCallUse(&live, func, module);
-    }
-    for(auto func : CIter::functions(module)) {
         pd.detect(df.getWorkingSet(func));
     }
 
-    resolveLinks(module, pd.getList());*/
+    resolveLinks(module, pd.getList());
 }
 
 void LinkedInstruction::resolveLinks(Module *module,

@@ -98,9 +98,9 @@ void ControlFlowGraph::construct(Block *block) {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(cfi->getMnemonic() != "bl" && link && link->getTarget()) {
 #elif defined(ARCH_RISCV)
-        // XXX: no idea what the mnemonic should be here
-        if(cfi->getMnemonic() != "j" && link && link->getTarget()) {
-            assert(0); // XXX: not sure if this was the right condition
+        // XXX: the correct mnemonic may not be jalr/jal
+        if((cfi->getMnemonic() != "jalr" && cfi->getMnemonic() != "jal")
+            && link && link->getTarget()) {
 #endif
             auto target = link->getTarget();
             if(auto v = dynamic_cast<Block *>(&*target)) {

@@ -798,12 +798,9 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     auto rs1tree =
         TreeFactory::instance().make<TreeNodePhysicalRegister>(mem.basereg, 8);
 
-    TreeNode *memTree = rs1tree;
-    if(mem.disp != 0) {
-        memTree = TreeFactory::instance().make<TreeNodeAddition>(
-            rs1tree,
-            TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
-    }
+    auto memTree = TreeFactory::instance().make<TreeNodeAddition>(
+        rs1tree,
+        TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
 
     // int width = 0;
     switch(assembly->getId()) {

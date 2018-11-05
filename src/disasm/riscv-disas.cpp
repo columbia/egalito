@@ -2298,6 +2298,7 @@ static void extract_inst(rv_instr *instr, rv_decode *dec)
 
     instr->op = (rv_op)dec->op;
     instr->codec = dec->codec;
+    instr->ip = dec->pc;
     
     fmt = opcode_data[dec->op].format;
     while (*fmt) {

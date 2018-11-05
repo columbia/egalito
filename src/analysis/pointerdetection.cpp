@@ -131,8 +131,40 @@ void PointerDetection::detectAtADRP(UDState *state) {
 #elif defined(ARCH_RISCV)
 
 void PointerDetection::detectAtAUIPC(UDState *state) {
-    LOG(1, "detected AUIPC!");
-    assert(0); // XXX: need to implement, similar to ADRP above
+    for(auto& def : state->getRegDefList()) {
+        auto reg = def.first;
+        if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            auto page = tree->getValue();
+
+            PageOffsetList offsetList;
+            offsetList.detectOffset(state, reg);
+            int64_t offset = 0;
+            for(auto& o : offsetList.getList()) {
+                if(offset == 0) {
+                    offset = o.second;
+                }
+                else {
+                    if(offset != o.second) {
+                        TemporaryLogLevel tll("analysis", 1);
+                        LOG(1, "for page " << std::hex << page << " at 0x"
+                            << state->getInstruction()->getAddress());
+                        for(auto& o2 : offsetList.getList()) {
+                            LOG(1, "offset " << o2.second << " at "
+                                << o2.first->getInstruction()->getAddress());
+                        }
+                        throw "inconsistent offset value";
+                    }
+                }
+                pointerList.emplace_back(
+                    o.first->getInstruction(), page + o.second);
+            }
+            if(offsetList.getCount() > 0) {
+                pointerList.emplace_back(
+                    state->getInstruction(), page + offset);
+            }
+        }
+        break;  // there should be only one
+    }
 }
 
 #endif
