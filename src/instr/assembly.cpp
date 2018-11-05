@@ -4,7 +4,7 @@
 
 
 #ifdef ARCH_RISCV
-Assembly::Assembly(const rv_instr &instr) {
+Assembly::Assembly(const rv_instr &instr) : operands(instr) {
     id = instr.op;
     for(uint8_t i = 0; i < instr.len; i++) {
         bytes.push_back((instr.inst >> (i * 8)) & 0xff);

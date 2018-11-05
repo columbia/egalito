@@ -78,9 +78,19 @@ private:
         const arm64_op_mem *mem;
     } a3;
 #elif defined(ARCH_RISCV)
-    union arg1_t {} a1;
+    typedef rv_oper arg1_t;
+    arg1_t a1;
+    typedef rv_oper arg2_t;
+    arg2_t a2;
+    typedef rv_oper arg3_t;
+    arg3_t a3;
+    #if 0
+    union arg1_t {
+        //rv_ reg;
+    } a1;
     union arg2_t {} a2;
     union arg3_t {} a3;
+    #endif
     // XXX: figure this out!
 #endif
 public:
@@ -201,6 +211,11 @@ void SlicingInstructionState::determineMode(AssemblyPtr assembly) {
     }
 #elif defined(ARCH_ARM)
     mode = MODE_UNKNOWN;
+#elif defined(ARCH_RISCV)
+    // if(assembly->getImplicitRegsWriteCount() 
+    if(asmOps->getOpCount() == 2) {
+        // mode = MODE_REG;
+    }
 #endif
 }
 
@@ -1301,10 +1316,14 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(12, "        cmp found");
         break;
+#elif defined(ARCH_RISCV)
+    case rv_op_add:
+        break;
 #endif
     default:
         LOG(11, "        got instr id " << assembly->getId()
             << "(" << assembly->getMnemonic() << ")");
+        assert(0); // XXX: remove after debugging
         break;
     }
 }

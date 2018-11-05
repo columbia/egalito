@@ -591,6 +591,9 @@ typedef struct {
     // result operand
     rv_oper oper[8];
 
+    // width (8/16/32/64 bits)
+    uint8_t width;
+
     // fence info
     uint8_t pred, succ;
 

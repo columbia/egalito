@@ -8,6 +8,7 @@
 #include "analysis/dataflow.h"
 #include "analysis/liveregister.h"
 #include "analysis/pointerdetection.h"
+#include "analysis/walker.h"
 
 #include "log/log.h"
 
@@ -28,7 +29,29 @@ uint32_t LinkedInstruction::rebuild() {
 }
 
 void LinkedInstruction::makeAllLinked(Module *module) {
-    DataFlow df;
+    LOG(0, "Finding split pointers in module " << module->getName());
+    for(auto function : CIter::children(module->getFunctionList())) {
+        LOG(0, "[" << function->getName() << "]");
+        auto graph = new ControlFlowGraph(function);
+        auto config = new UDConfiguration(graph);
+        auto working = new UDRegMemWorkingSet(function, graph);
+        auto usedef = new UseDef(config, working);
+
+        SccOrder order(graph);
+        order.genFull(0);
+        usedef->analyze(order.get());
+
+        
+
+        delete usedef;
+        delete working;
+        delete config;
+        delete graph;
+    }
+
+    assert(0);
+
+    /*DataFlow df;
     LiveRegister live;
     PointerDetection pd;
     for(auto func : CIter::functions(module)) {
@@ -44,7 +67,7 @@ void LinkedInstruction::makeAllLinked(Module *module) {
         pd.detect(df.getWorkingSet(func));
     }
 
-    resolveLinks(module, pd.getList());
+    resolveLinks(module, pd.getList());*/
 }
 
 void LinkedInstruction::resolveLinks(Module *module,
