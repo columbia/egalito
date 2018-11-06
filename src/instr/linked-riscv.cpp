@@ -30,28 +30,6 @@ uint32_t LinkedInstruction::rebuild() {
 
 void LinkedInstruction::makeAllLinked(Module *module) {
     LOG(0, "Finding split pointers in module " << module->getName());
-    #if 0
-    for(auto function : CIter::children(module->getFunctionList())) {
-        LOG(0, "[" << function->getName() << "]");
-        auto graph = new ControlFlowGraph(function);
-        auto config = new UDConfiguration(graph);
-        auto working = new UDRegMemWorkingSet(function, graph);
-        auto usedef = new UseDef(config, working);
-
-        SccOrder order(graph);
-        order.genFull(0);
-        usedef->analyze(order.get());
-
-        
-
-        delete usedef;
-        delete working;
-        delete config;
-        delete graph;
-    }
-
-    assert(0);
-    #endif
 
     DataFlow df;
     PointerDetection pd;
@@ -73,7 +51,7 @@ void LinkedInstruction::resolveLinks(Module *module,
     for(auto it : list) {
         auto instruction = it.first;
         auto address = it.second;
-        LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
+        LOG(1, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction);

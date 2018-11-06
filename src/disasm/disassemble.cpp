@@ -244,8 +244,6 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
         raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
         isolated->setData(raw);
         semantic = isolated;
-        LOG(1, "C: semantic data length: " << std::dec << semantic->getData().length());
-        for(auto c : semantic->getData()) LOG(1, "    " << std::hex << (int)c);
     }
     assert(semantic); // XXX: this should be more flexible, as above
     instr->setSemantic(semantic);

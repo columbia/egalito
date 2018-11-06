@@ -92,6 +92,7 @@ void HandleRelocsPass::handleRelocation(Reloc *r, Instruction *instruction) {
         }
     }
 #elif defined(ARCH_RISCV)
+    LOG(1, "instruction @" << std::hex << instruction->getAddress() << " has mnemonic " << instruction->getSemantic()->getAssembly()->getMnemonic());
     assert(0); // XXX: no idea?
 #endif
 }

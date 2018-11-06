@@ -212,6 +212,7 @@ void SlicingInstructionState::determineMode(AssemblyPtr assembly) {
 #elif defined(ARCH_ARM)
     mode = MODE_UNKNOWN;
 #elif defined(ARCH_RISCV)
+    assert(0); // XXX: slicing NYI
     // if(assembly->getImplicitRegsWriteCount() 
     if(asmOps->getOpCount() == 2) {
         // mode = MODE_REG;

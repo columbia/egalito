@@ -133,7 +133,9 @@ void PointerDetection::detectAtADRP(UDState *state) {
 void PointerDetection::detectAtAUIPC(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         auto reg = def.first;
+        CLOG(1, "auipc @0x%lx defines register %d", state->getInstruction()->getAddress(), reg);
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            CLOG(1, "address is: 0x%lx", tree->getValue());
             auto page = tree->getValue();
 
             PageOffsetList offsetList;

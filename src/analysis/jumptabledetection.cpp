@@ -136,6 +136,99 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
             }
         }
     }
+#elif defined(ARCH_RISCV)
+    /* Example jump table use:
+        auipc   a4,0x0
+        addi    a4,a4,418 # 10600 <__libc_csu_fini+0x6>
+            a4: jump table base
+        slli    a5,a5,0x2
+            a5: jump table offset
+        add     a5,a5,a4
+            a5: jump table offset + jump table base = address of jump table entry
+        lw      a5,0(a5)
+            a5: jump table entry
+        add     a5,a5,a4
+            a5: jump table entry + jump table base
+        jr      a5
+
+
+
+            +
+                jump table entry
+                +
+                    TreeNodeAddress
+                    TreeNodeConstant
+
+     */
+
+
+    /*typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternAny,
+            TreePatternAny>,
+            //TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+            //TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+            //>
+        TreePatternCapture<TreePatternAny>
+        // TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
+        > MakeJumpTargetForm1;*/
+    typedef TreePatternAny MakeJumpTargetForm1;
+
+    LOG(1, "dumping working set...");
+    working->dumpSet();
+
+    // R15 defined at 0x1046c
+    // @0x1046c, R15 defined as (+ R15 R14)
+    //          R15 defined at 0x1046a, R14 defined at 0x10462
+    //
+
+    for(auto block : CIter::children(working->getFunction())) {
+        auto instr = block->getChildren()->getIterable()->getLast();
+        auto s = instr->getSemantic();
+        if(auto ij = dynamic_cast<IndirectJumpInstruction *>(s)) {
+            // XXX: for testing purposes
+            if(instr->getAddress() != 0x1046e) continue;
+            LOG(1, "***** indirect jump at 0x" << std::hex << instr->getAddress());
+            CLOG(1, "register: %d", ij->getRegister());
+
+            auto state = working->getState(instr);
+            state->dumpState();
+
+            TreePrinter tp;
+
+            auto rr = state->getRegRef(ij->getRegister());
+            for(auto s : rr) {
+                for(auto t : s->getRegDefList()) {
+                    t.second->print(tp);
+                }
+            }
+
+            std::cout << std::endl;
+
+            JumptableInfo info(working->getCFG(), working, state);
+            auto parser = [&](UDState *s, TreeCapture& cap) {
+                LOG(1, "XXXXXXXXXXXXXXXXXXXXXX parser called");
+                return false;
+                //return parseJumptable(s, cap, &info);
+            };
+
+            LOG(10, "trying MakeJumpTargetForm1");
+            auto assembly = s->getAssembly();
+            auto reg = assembly->getAsmOperands()->getOperands()[0].value.reg;
+            FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser);
+
+            /*if(info.valid) {
+                makeDescriptor(instr, &info);
+                continue;
+            }*/
+            
+        }
+
+    }
+
+    /*typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<*/
+    // assert(0); // XXX: no idea
 #endif
 }
 
@@ -489,6 +582,8 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     }
     LOG(10, "        not found");
     return false;
+#elif defined(ARCH_RISCV)
+    assert("XXX: no idea what should be here" && 0);
 #endif
 }
 
@@ -554,6 +649,8 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
         return std::make_tuple(true, addr);
     }
     return parseSavedAddress(state, reg);
+#elif defined(ARCH_RISCV)
+    assert("XXX: no idea what should be here" && 0);
 #endif
 }
 
@@ -612,6 +709,9 @@ auto JumptableDetection::parseMovedAddress(UDState *state, int reg)
     return std::make_tuple(found, addr);
 #elif defined(ARCH_AARCH64)
     return std::make_tuple(false, 0);
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
+    return std::make_tuple(false, 0);
 #endif
 }
 
@@ -642,6 +742,10 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
     };
     FlowUtil::searchUpDef<MakeBaseAddressForm>(state, reg, parser);
     return std::make_tuple(found, addr);
+#elif defined(ARCH_RISCV)
+    
+    assert(0); // XXX: no idea
+    return std::make_tuple(false, 0);
 #endif
 }
 
@@ -917,6 +1021,10 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     }
     LOG(10, "======");
     return found;
+#elif defined(ARCH_RISCV)
+    // XXX: no idea
+    assert(0);
+    return false;
 #endif
 }
 
@@ -1036,6 +1144,9 @@ bool JumptableDetection::getBoundFromCompare(UDState *state, int bound,
                 << " " << assembly->getMnemonic());
         }
     }
+    return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
     return false;
 #endif
 }
@@ -1554,6 +1665,9 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
         return found;
     }
     return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
+    return false;
 #endif
 }
 
@@ -1695,6 +1809,9 @@ bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
             return true;
         }
     }
+    return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
     return false;
 #endif
 }

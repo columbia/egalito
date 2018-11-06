@@ -441,6 +441,7 @@ private:
 #endif
 
 #ifdef ARCH_RISCV
+    void fillB(UDState *state, AssemblyPtr assembly);
     void fillJ(UDState *state, AssemblyPtr assembly);
     void fillJal(UDState *state, AssemblyPtr assembly);
     void fillJalr(UDState *state, AssemblyPtr assembly);

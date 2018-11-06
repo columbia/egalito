@@ -398,17 +398,28 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_and,         &UseDef::fillRegRegToReg},
     {rv_op_andi,        &UseDef::fillRegImmToReg},
     {rv_op_auipc,       &UseDef::fillImmToReg},
+    {rv_op_beq,         &UseDef::fillB},
+    {rv_op_beqz,        &UseDef::fillB},
+    {rv_op_bgtu,        &UseDef::fillB},
+    {rv_op_bne,         &UseDef::fillB},
+    {rv_op_bnez,        &UseDef::fillB},
     {rv_op_j,           &UseDef::fillJ},
     {rv_op_jal,         &UseDef::fillJal},
     {rv_op_jalr,        &UseDef::fillJalr},
     {rv_op_jr,          &UseDef::fillJr},
+    {rv_op_lb,          &UseDef::fillLoad},
     {rv_op_lbu,         &UseDef::fillLoad},
+    {rv_op_lh,          &UseDef::fillLoad},
+    {rv_op_lhu,         &UseDef::fillLoad},
     {rv_op_ld,          &UseDef::fillLoad},
+    {rv_op_lw,          &UseDef::fillLoad},
+    {rv_op_lwu,         &UseDef::fillLoad},
     {rv_op_lui,         &UseDef::fillImmToReg},
     {rv_op_mv,          &UseDef::fillRegToReg},
     {rv_op_ret,         &UseDef::fillRet},
     {rv_op_sb,          &UseDef::fillStore},
     {rv_op_sd,          &UseDef::fillStore},
+    {rv_op_slli,        &UseDef::fillRegImmToReg},
     {rv_op_srai,        &UseDef::fillRegImmToReg},
     {rv_op_srli,        &UseDef::fillRegImmToReg},
     {rv_op_sub,         &UseDef::fillRegRegToReg},
@@ -502,6 +513,8 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     }
     if(!handled) {
         LOG0(10, "handler disabled (or not found)");
+        LOG(1, "mnemonic not implemented: " << assembly->getMnemonic());
+        assert(0);
         if(assembly) {
             LOG(10, " " << assembly->getMnemonic());
             LOG(10, "mode: " << assembly->getAsmOperands()->getMode());
@@ -691,6 +704,8 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
     auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
     auto rs = assembly->getAsmOperands()->getOperands()[1].value.reg;
 
+    useReg(state, rs);
+
     TreeNode *tree = nullptr;
     switch(assembly->getId()) {
     case rv_op_mv:
@@ -805,20 +820,21 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     // int width = 0;
     switch(assembly->getId()) {
     case rv_op_lb:
+    case rv_op_lbu:
         width = 1;
         break;
     case rv_op_lh:
+    case rv_op_lhu:
         width = 2;
         break;
     case rv_op_lw:
+    case rv_op_lwu:
         width = 4;
         break;
     case rv_op_ld:
         width = 8;
         break;
     }
-
-    LOG(1, "XXX: width of store not specified!");
 
     useMem(state, memTree, width);
     defReg(state, rd,
@@ -896,9 +912,10 @@ void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
     case rv_op_auipc:
         // Capstone includes ip in the imm for e.g. adrp
         // but our riscv disas doesn't, so we need to add it manually
+        // the disas does, however, pre-shift the imm by 12.
         uint64_t ip = state->getInstruction()->getAddress();
         tree = TreeFactory::instance().make<TreeNodeAddress>(
-                ip + (int64_t)(imm << 12));
+                ip + (int64_t)(imm));
         break;
     }
     defReg(state, rd, tree);
@@ -1192,14 +1209,22 @@ void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
         helper(8);
         tree = TreeFactory::instance().make<TreeNodeAddition>(
             reg1tree, immtree);
+        break;
     case rv_op_addiw:
         helper(4);
         tree = TreeFactory::instance().make<TreeNodeAddition>(
             reg1tree, immtree);
+        break;
     case rv_op_andi:
         helper(8);
         tree = TreeFactory::instance().make<TreeNodeAnd>(
             reg1tree, immtree);
+        break;
+    case rv_op_slli:
+        helper(8);
+        tree = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(
+            reg1tree, immtree);
+        break;
     case rv_op_srai:
         helper(8);
         tree = TreeFactory::instance().make<TreeNodeArithmeticShiftRight>(
@@ -2174,12 +2199,23 @@ void UseDef::fillUbfiz(UDState *state, AssemblyPtr assembly) {
 #endif
 
 #ifdef ARCH_RISCV
-void UseDef::fillJ(UDState *state, AssemblyPtr assembly) {
+void UseDef::fillB(UDState *state, AssemblyPtr assembly) {
+    // mark relevant registers as used
+    size_t count = assembly->getAsmOperands()->getOpCount();
+    const rv_oper *opers = assembly->getAsmOperands()->getOperands();
 
+    for(size_t i = 0; i < count; i ++) {
+        if(opers[i].type == rv_oper::rv_oper_reg)
+            useReg(state, opers[i].value.reg);
+    }
+}
+
+void UseDef::fillJ(UDState *state, AssemblyPtr assembly) {
+    // nothing to do
 }
 
 void UseDef::fillJal(UDState *state, AssemblyPtr assembly) {
-
+    useReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg);
 }
 
 void UseDef::fillJalr(UDState *state, AssemblyPtr assembly) {
@@ -2187,7 +2223,7 @@ void UseDef::fillJalr(UDState *state, AssemblyPtr assembly) {
 }
 
 void UseDef::fillJr(UDState *state, AssemblyPtr assembly) {
-
+    useReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg);
 }
 
 void UseDef::fillLoad(UDState *state, AssemblyPtr assembly) {
