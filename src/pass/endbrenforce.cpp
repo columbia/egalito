@@ -115,6 +115,11 @@ void EndbrEnforcePass::visit(Function *function) {
     if(function->getName() == "_dl_addr") return;
     if(function->getName() == "__run_exit_handlers") return;
 
+    // we currently allow longjmp to go anywhere instead of identifying
+    // setjmp calls
+    if(function->getName() == "__longjmp") return;
+    if(function->getName() == "____longjmp_chk") return;
+
     recurse(function);
 }
 
