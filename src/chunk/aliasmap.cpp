@@ -27,11 +27,15 @@ FunctionAliasMap::FunctionAliasMap(Module *module) {
 }
 
 void FunctionAliasMap::maybeSpecialAlias(const char *alias, Function *func) {
-    auto specialVersion = std::strstr(alias, "@@GLIBC");
-    if(specialVersion) {
-        std::string splice(alias, specialVersion - alias);
-        aliasMap[splice] = func;
-        LOG(5, "SPECIAL alias [" << splice << "] to [" << alias << "]");
+    const char *ext[] = {"@@GLIBC", "@GLIBC"};
+    for(size_t i = 0; i < sizeof(ext)/sizeof(*ext); i ++) {
+        auto specialVersion = std::strstr(alias, ext[i]);
+        if(specialVersion) {
+            std::string splice(alias, specialVersion - alias);
+            aliasMap[splice] = func;
+            LOG(5, "SPECIAL alias [" << splice << "] to [" << alias << "]");
+            break;
+        }
     }
 }
 

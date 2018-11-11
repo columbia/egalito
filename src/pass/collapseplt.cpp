@@ -14,19 +14,19 @@ static Function *findFunction(Conductor *conductor, const char *name) {
     //return ChunkFind2(conductor).findFunction(#target);
 
     for(auto f : CIter::functions(conductor->getProgram()->getLibc())) {
-        if(f->hasName(name)) {
+        if(!f->isIFunc() && f->hasName(name)) {
             LOG(12, "found ifunc target [" << f->getName()
                 << "] for " << name);
-            if(!f->isIFunc()) return f;
+            return f;
         }
     }
     for(auto module : CIter::modules(conductor->getProgram())) {
         if(module->getName() == "module-libm.so.6") {
             for(auto f : CIter::functions(module)) {
-                if(f->hasName(name)) {
+                if(!f->isIFunc() && f->hasName(name)) {
                     LOG(12, "found ifunc target [" << f->getName()
                         << "] for " << name);
-                    if(!f->isIFunc()) return f;
+                    return f;
                 }
             }
         }
@@ -37,6 +37,7 @@ static Function *findFunction(Conductor *conductor, const char *name) {
 CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
     : conductor(conductor) {
 
+    TemporaryLogLevel tll("pass", 20);
     Function *function = nullptr;
 #if 0
 #define KNOWN_IFUNC_ENTRY(name, target) \
