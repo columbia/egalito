@@ -14,8 +14,18 @@
 
 #ifdef ARCH_RISCV
 
+void LinkedInstruction::regenerateAssembly() {
+    LOG(10, "assembly regeneration NYI for RISC-V");
+}
+
 void LinkedInstruction::writeTo(char *target, bool useDisp) {
-    *reinterpret_cast<uint32_t *>(target) = rebuild();
+    if(getSize() == 2) {
+        *reinterpret_cast<uint16_t *>(target) = rebuild();
+    }
+    else if(getSize() == 4) {
+        *reinterpret_cast<uint32_t *>(target) = rebuild();
+    }
+    else assert(0);
 }
 
 void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
@@ -24,7 +34,14 @@ void LinkedInstruction::writeTo(std::string &target, bool useDisp) {
 }
 
 uint32_t LinkedInstruction::rebuild() {
-    assert(0);
+    LOG(10, "assembly rebuilding NYI for RISC-V");
+    if(getSize() == 2) {
+        return *(uint16_t *)(instruction->getSemantic()->getData().data());
+    }
+    else if(getSize() == 4) {
+        return *(uint32_t *)(instruction->getSemantic()->getData().data());
+    }
+    else assert("RISC-V instruction size is not 16 or 32 bits" && 0);
     return 0;
 }
 

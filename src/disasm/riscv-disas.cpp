@@ -67,6 +67,12 @@ static const char rv_freg_name_sym[32][5] = {
     "fs8",  "fs9",  "fs10", "fs11", "ft8",  "ft9",  "ft10", "ft11",
 };
 
+const char *rv_reg_sym(rv_reg reg) {
+    if(reg == rv_reg_invalid) return "invalid";
+    if(reg < rv_freg_base) return rv_ireg_name_sym[reg];
+    else return rv_ireg_name_sym[reg - rv_freg_base];
+}
+
 /* instruction formats */
 
 static const char rv_fmt_none[]                   = "O\t";

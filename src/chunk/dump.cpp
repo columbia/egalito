@@ -172,12 +172,9 @@ void InstrDumper::visit(IsolatedInstruction *semantic) {
 }
 
 void InstrDumper::visit(LinkedInstruction *semantic) {
-#ifdef ARCH_X86_64
     dumpLinkedBase(semantic, false);
-#endif
 }
 
-#ifdef ARCH_X86_64
 void InstrDumper::dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF) {
     semantic->regenerateAssembly();
     auto assembly = semantic->getAssembly();
@@ -201,7 +198,7 @@ void InstrDumper::dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF) {
         if(semantic->getAssembly()->getMnemonic() == "bl"
             || semantic->getAssembly()->getMnemonic() == "blx") name << "(CALL)";
 #elif defined(ARCH_RISCV)
-        if(semantic->getAssembly()->getMnemonic() == "call") name << "(CALL)";
+        if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
 #endif
         else {
             name << "(JUMP " << semantic->getAssembly()->getMnemonic() << ")";
@@ -226,21 +223,17 @@ void InstrDumper::dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF) {
         }
     }
 }
-#endif
 
 void InstrDumper::visit(ControlFlowInstruction *semantic) {
-    #ifdef ARCH_X86_64
     dumpControlFlow(semantic, false);
-    #endif
-}
-
-void InstrDumper::visit(DataLinkedControlFlowInstruction *semantic) {
-    #ifdef ARCH_X86_64
-    dumpLinkedBase(semantic, true);
-    #endif
 }
 
 #ifdef ARCH_X86_64
+void InstrDumper::visit(DataLinkedControlFlowInstruction *semantic) {
+    dumpLinkedBase(semantic, true);
+}
+#endif
+
 void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar) {
     auto link = semantic->getLink();
     auto target = link ? link->getTarget() : nullptr;
@@ -270,7 +263,7 @@ void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool pri
 #elif defined(ARCH_ARM)
     if(semantic->getMnemonic() == "bl" || semantic->getMnemonic() == "blx") name << "(CALL)";
 #elif defined(ARCH_RISCV)
-        if(semantic->getAssembly()->getMnemonic() == "call") name << "(CALL)";
+        if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
 #endif
     else {
         name << "(JUMP " << semantic->getMnemonic() << ")";
@@ -288,7 +281,6 @@ void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool pri
         targetName.str().c_str(),
         bytes2.c_str());
 }
-#endif
 
 void InstrDumper::visit(IndirectJumpInstruction *semantic) {
     std::ostringstream name;

@@ -23,6 +23,8 @@ public:
     Instruction *getSource() const { return instruction; }
     std::string getMnemonic() { return getAssembly()->getMnemonic(); }
 
+    void regenerateAssembly();
+
     void setInstruction(Instruction *instruction)
         { this->instruction = instruction; }
 
@@ -35,6 +37,8 @@ private:
     static void resolveLinks(Module *module,
         const std::vector<std::pair<Instruction *, address_t>> &list);
 };
+
+typedef LinkedInstruction LinkedInstructionBase;
 
 // XXX: may not be used for RISCV?
 class LinkedLiteralInstruction : public SemanticImpl {
@@ -53,6 +57,8 @@ public:
     bool returns() const { return !nonreturn; }
     void setNonreturn() { nonreturn = true; }
 };
+
+typedef ControlFlowInstruction ControlFlowInstructionBase;
 
 #endif
 

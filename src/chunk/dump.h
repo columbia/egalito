@@ -55,17 +55,17 @@ public:
     virtual void visit(IsolatedInstruction *semantic);
     virtual void visit(LinkedInstruction *semantic);
     virtual void visit(ControlFlowInstruction *semantic);
+#ifdef ARCH_X86_64
     virtual void visit(DataLinkedControlFlowInstruction *semantic);
+#endif
     virtual void visit(IndirectJumpInstruction *semantic);
     virtual void visit(IndirectCallInstruction *semantic);
     virtual void visit(StackFrameInstruction *semantic);
     virtual void visit(LiteralInstruction *semantic);
     virtual void visit(LinkedLiteralInstruction *semantic);
 private:
-#ifdef ARCH_X86_64
     void dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF);
     void dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar);
-#endif
     std::string getBytes(InstructionSemantic *semantic);
 };
 

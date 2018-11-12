@@ -603,6 +603,7 @@ typedef struct {
     uint8_t aq, rl;
 } rv_instr;
 
+const char *rv_reg_sym(rv_reg reg);
 size_t rv_inst_length(rv_inst inst);
 void rv_disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc,
     rv_inst inst);
@@ -612,6 +613,7 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
 
 std::vector<rv_instr> rv_disasm_buffer(rv_isa isa, uint64_t ip,
     const uint8_t *code, uint64_t code_size);
+
 
 #endif
 

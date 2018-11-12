@@ -183,8 +183,6 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
         auto instr = block->getChildren()->getIterable()->getLast();
         auto s = instr->getSemantic();
         if(auto ij = dynamic_cast<IndirectJumpInstruction *>(s)) {
-            // XXX: for testing purposes
-            if(instr->getAddress() != 0x1046e) continue;
             LOG(1, "***** indirect jump at 0x" << std::hex << instr->getAddress());
             CLOG(1, "register: %d", ij->getRegister());
 
@@ -193,7 +191,6 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
 
             JumptableInfo info(working->getCFG(), working, state);
             auto parser1 = [&](UDState *s, TreeCapture& cap) {
-                LOG(1, "XXXXXXXXXXXXXXXXXXXXXX parser called");
                 return parseJumptable(s, cap, &info);
             };
 
@@ -202,10 +199,10 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
             auto reg = assembly->getAsmOperands()->getOperands()[0].value.reg;
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser1);
 
-            /*if(info.valid) {
+            if(info.valid) {
                 makeDescriptor(instr, &info);
                 continue;
-            }*/
+            }
             
         }
 
@@ -264,6 +261,10 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
         LOG(1, "Found jump table!");
         info->valid = true;
         info->targetBase = targetBase;
+        #ifdef ARCH_RISCV
+        LOG(1, "XXX: assuming tableBase and targetBase are equal");
+        info->tableBase = targetBase;
+        #endif
         return true;
     }
     return false;
@@ -439,6 +440,7 @@ void JumptableDetection::makeDescriptor(Instruction *instruction,
 
     auto contentSection =
         module->getDataRegionList()->findDataSectionContaining(info->tableBase);
+    assert(contentSection);
     jtd->setContentSection(contentSection);
     tableList.push_back(jtd);
 
@@ -568,6 +570,8 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     LOG(10, "        not found");
     return false;
 #elif defined(ARCH_RISCV)
+    //typedef TreePatternBinary<
+
     typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
@@ -584,6 +588,8 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
             TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>>
         > LoadForm;
 
+    bool found_li = false;
+    bool found_compare = false;
     bool found_shift = false;
     bool found_add = false;
     bool found_load = false;
@@ -594,6 +600,17 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
         if(static_cast<TreeNodeConstant *>(cap.get(1))->getValue() != 2) {
             LOG(1, "XXX: found shift other than 2, probably not a jump table?");
             return false;
+        }
+        info->scale = 4; // XXX: should actually be load size
+
+        // look for limit if we can
+        auto uselist = s->getRegUse(
+            static_cast<TreeNodeRegister *>(cap.get(0))->getRegister());
+
+        // for now just print out addresses
+        LOG(1, "uses of register:");
+        for(auto use : uselist) {
+            LOG(1, "    address " << use->getInstruction()->getAddress());
         }
 
         found_shift = true;
@@ -614,6 +631,7 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     auto load_parser = [&](UDState *s, TreeCapture &cap) {
         found_add = false;
         LOG(1, "found load form");
+
         // search for add form
         if(static_cast<TreeNodeConstant *>(cap.get(1))->getValue() != 0) {
             LOG(1, "XXX: found non-zero load? probably not a jump table");
@@ -623,6 +641,8 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
             static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
             add_parser);
         if(found_add) found_load = true;
+
+
         return found_load;
     };
 

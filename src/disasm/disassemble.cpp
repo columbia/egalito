@@ -237,6 +237,8 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
+    LOG(1, "op str: " << ins->op_name);
+
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
     if(!semantic) {
         auto isolated = new IsolatedInstruction();
@@ -267,7 +269,6 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
         if(details) {
             semantic = new IsolatedInstruction();
             semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
-            LOG(1, "D: semantic data length: " << semantic->getData().length());
             for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
         else {
@@ -280,7 +281,6 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
             auto isolated = new IsolatedInstruction();
             isolated->setData(raw);
             semantic = isolated;
-            LOG(1, "E: semantic data length: " << semantic->getData().length());
             for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
     }
@@ -386,6 +386,7 @@ rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
     if(buf.size() == 0) {
         throw "Invalid instruction provided\n";
     }
+    assert(buf.size() == 1);
     *ins = buf[0];
 
     return ins;
