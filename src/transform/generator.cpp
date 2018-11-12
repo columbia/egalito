@@ -149,23 +149,41 @@ void Generator::generateCode(Program *program) {
     }
 }
 
-void Generator::assignAddresses(Module *module) {
+std::vector<Function *> Generator::pickFunctionOrder(Module *module) {
+    std::vector<Function *> order;
+
+    Function *startup_64 = nullptr;
 #ifdef LINUX_KERNEL_MODE
-    Function *startup_64 = ChunkFind2()
-        .findFunctionInModule("startup_64", module);
-    if(startup_64) {
-        auto slot = sandbox->allocate(startup_64->getSize());
-        LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
-            << " for [" << startup_64->getName()
-            << "] size " << std::dec << startup_64->getSize());
-        GeneratorHelper<Function>().assignAddress(startup_64, slot);
-    }
+    startup_64 = ChunkFind2().findFunctionInModule("startup_64", module);
 #endif
 
+#if 0  // order functions according to their symbol name
+    order.push_back(startup_64);
     for(auto f : CIter::functions(module)) {
-#ifdef LINUX_KERNEL_MODE
         if(f == startup_64) continue;
+        order.push_back(f);
+    }
+#else  // order functions according to original order
+    for(auto f : CIter::functions(module)) {
+        order.push_back(f);
+    }
+
+    std::sort(order.begin(), order.end(), [startup_64] (Function *a, Function *b) {
+#ifdef LINUX_KERNEL_MODE
+        // always put startup_64 first
+        if(a == startup_64) return true;
+        if(b == startup_64) return false;
 #endif
+        return a->getAddress() < b->getAddress();
+    });
+#endif
+
+    return order;
+}
+
+void Generator::assignAddresses(Module *module) {
+    auto order = pickFunctionOrder(module);
+    for(auto f : order) {
         auto slot = sandbox->allocate(f->getSize());
         LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
             << " for [" << f->getName()
@@ -190,19 +208,9 @@ void Generator::assignAddresses(Module *module) {
 }
 
 void Generator::generateCode(Module *module) {
-#ifdef LINUX_KERNEL_MODE
-    Function *startup_64 = ChunkFind2()
-        .findFunctionInModule("startup_64", module);
-    if(startup_64) {
-        GeneratorHelper<Function>().copyToSandbox(startup_64, sandbox);
-    }
-#endif
-
     LOG(1, "Copying code into sandbox");
-    for(auto f : CIter::functions(module)) {
-#ifdef LINUX_KERNEL_MODE
-        if(f == startup_64) continue;
-#endif
+    auto order = pickFunctionOrder(module);
+    for(auto f : order) {
         LOG(2, "    writing out [" << f->getName() << "] at 0x"
             << std::hex << f->getAddress());
 
