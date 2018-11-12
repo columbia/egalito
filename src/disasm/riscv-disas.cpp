@@ -2113,9 +2113,6 @@ size_t rv_inst_length(rv_inst inst)
      * 0111111 - 64 bit
      */
 
-    //if((inst & 0b11) != 0b11) return 2;
-    //else if((inst & 0b11100) != 0b11100) return 4;
-
     return (inst &      0b11) != 0b11      ? 2
          : (inst &   0b11100) != 0b11100   ? 4
          : (inst &  0b111111) == 0b011111  ? 6
@@ -2358,10 +2355,9 @@ static void extract_inst(rv_instr *instr, rv_decode *dec)
             instr->oper_count ++;
             break;
         case '7':
-            assert(0);
-            // XXX: not sure what to do here...
-            // snprintf(tmp, sizeof(tmp), "%d", dec->rs1);
-            // append(buf, tmp, buflen);
+            instr->oper[instr->oper_count].type = rv_oper::rv_oper_imm;
+            instr->oper[instr->oper_count].value.imm = dec->rs1;
+            instr->oper_count ++;
             break;
         case 'i':
             instr->oper[instr->oper_count].type = rv_oper::rv_oper_imm;

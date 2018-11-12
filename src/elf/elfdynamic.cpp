@@ -8,6 +8,7 @@
 #include "elfmap.h"
 #include "elfxx.h"
 #include "util/feature.h"
+#include "conductor/filesystem.h"
 
 #include "log/log.h"
 
@@ -75,7 +76,8 @@ void ElfDynamic::parseLdConfig(std::string filename,
             searchPath.push_back(tokens[0]);
         }
         else if(tokens[0] == "include") {
-            std::vector<std::string> files = doGlob(tokens[1]);
+            std::vector<std::string> files = doGlob(
+                ConductorFilesystem::instance().transform(tokens[1]));
             for(auto f : files) {
                 parseLdConfig(f, searchPath);
             }
@@ -121,12 +123,15 @@ void ElfDynamic::resolveLibraries() {
         split(ld_library_path, ':', std::back_inserter(searchPath));
     }
 
-    parseLdConfig("/etc/ld.so.conf", searchPath);
-    searchPath.push_back("/lib");
-    searchPath.push_back("/usr/lib");
-    searchPath.push_back("/lib64");
-    searchPath.push_back("/usr/lib64");
-    searchPath.push_back("/usr/local/musl/lib");
+    parseLdConfig(ConductorFilesystem::instance().transform("/etc/ld.so.conf"),
+        searchPath);
+    searchPath.push_back(ConductorFilesystem::instance().transform("/lib"));
+    searchPath.push_back(ConductorFilesystem::instance().transform("/usr/lib"));
+    searchPath.push_back(ConductorFilesystem::instance().transform("/lib64"));
+    searchPath.push_back(
+        ConductorFilesystem::instance().transform("/usr/lib64"));
+    searchPath.push_back(
+        ConductorFilesystem::instance().transform("/usr/local/musl/lib"));
 
     for(auto &pair : dependencyList) {
         auto library = pair.first;
@@ -162,7 +167,8 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     const std::string &filename, Library *depend) {
 
     if(filename == "ld-linux-x86-64.so.2"
-        || filename == "ld-linux-aarch64.so.1") {
+        || filename == "ld-linux-aarch64.so.1"
+        || filename == "ld-linux-riscv64-lp64d.so.0") {
 
         LOG(2, "    skipping processing of ld.so for now");
         return;

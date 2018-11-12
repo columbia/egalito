@@ -247,12 +247,25 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             // oper[0] is rd
             // oper[1] is rs
             // oper[2] is imm
-            assert(ins->oper[2].type == rv_oper::rv_oper_imm);
-            assert(ins->oper[2].value.imm == 0); // XXX: for now, no IndirectCallInstruction that takes an offset, so...
+            // if rd is 0, it's an indirect jump
+            if(ins->oper[0].value.reg == rv_ireg_zero) {
+                assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+                assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+                semantic = new IndirectJumpInstruction(ins->oper[1].value.reg,
+                    ins->op_name, Register::rv_reg_invalid, 0,
+                    ins->oper[2].value.imm);
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            // otherwise it's an indirect call
+            else {
+                LOG(1, "JALR, destination reg is " << ins->oper[0].value.reg);
+                assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+                assert(ins->oper[2].value.imm == 0); // XXX: for now, no IndirectCallInstruction that takes an offset, so...
 
-            assert(ins->oper[1].type == rv_oper::rv_oper_reg);
-            semantic = new IndirectCallInstruction(ins->oper[1].value.reg);
-            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+                assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+                semantic = new IndirectCallInstruction(ins->oper[1].value.reg);
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
         }
         else if(ins->op == rv_op_c_jalr) {
             // XXX: not implemented yet

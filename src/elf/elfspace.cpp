@@ -15,6 +15,7 @@
 #include "chunk/aliasmap.h"
 #include "elfxx.h"
 #include "types.h"
+#include "conductor/filesystem.h"
 #include "log/log.h"
 
 #include "config.h"
@@ -71,7 +72,8 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
                 const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
 
                 std::ostringstream symbolFile;
-                symbolFile << "/usr/lib/debug/.build-id/";
+                symbolFile << ConductorFilesystem::instance().transform(
+                    "/usr/lib/debug/.build-id/");
 
                 for(size_t i = 0; i < note->n_descsz; i ++) {
                     symbolFile << std::setw(2) << std::setfill('0') << std::hex
@@ -89,7 +91,7 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
     }
 
     std::ostringstream symbolFile;
-    symbolFile << "/usr/lib/debug";
+    symbolFile << ConductorFilesystem::instance().transform("/usr/lib/debug");
     char realPath[PATH_MAX];
     if(realpath(fullPath.c_str(), realPath)) {
         auto debuglink = elf->findSection(".gnu_debuglink");
