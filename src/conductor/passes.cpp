@@ -75,6 +75,9 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(JumpTableBounds(), module);
     RUN_PASS(JumpTableOverestimate(), module);
 #endif
+#ifdef ARCH_RISCV
+    RUN_PASS(JumpTableOverestimate(), module);
+#endif
 
     // run again with jump table information
     RUN_PASS(SplitBasicBlock(), module);
