@@ -120,6 +120,10 @@ void FallThroughFunctionPass::visit(Function *function) {
                 if(assembly->getId() == rv_op_illegal) {
                     falling = false;
                 }
+                // glibc uses ebreak as an "invalid instruction"/abort
+                else if(assembly->getId() == rv_op_ebreak) {
+                    falling = false;
+                }
 #endif
                 else {
                     falling = true;
@@ -191,8 +195,14 @@ void FallThroughFunctionPass::visit(Function *function) {
             semantic->setAssembly(DisassembleInstruction(handle)
                 .makeAssemblyPtr(bin.getVector()));
 #elif defined(ARCH_RISCV)
-            assert(0); // XXX: no idea for now?
+            LOG(1, "In function " << function->getName());
+            // jmp to next instruction
+            std::vector<uint8_t> data{0x6f, 0x00, 0x40, 0x00};
+
             auto semantic = new ControlFlowInstruction(branch);
+            semantic->setAssembly(DisassembleInstruction(handle)
+                .makeAssemblyPtr(data));
+            LOG(1, "XXX: this fallthrough may not be right");
 #endif
             semantic->setLink(
                 new NormalLink(target, Link::SCOPE_EXTERNAL_JUMP));

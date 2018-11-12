@@ -381,9 +381,16 @@ cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
     size_t size, address_t address) {
 
+    assert(size == 2 || size == 4);
+
     rv_instr *ins = new rv_instr;
     auto buf = rv_disasm_buffer(rv64, address, bytes, size);
     if(buf.size() == 0) {
+        LOG(1, "When disassembling at address " << address);
+        LOG(1, "bytes: (len " << std::dec << size << ")");
+        for(size_t i = 0; i < size; i ++) {
+            CLOG(1, "    %x\n", bytes[i]);
+        }
         throw "Invalid instruction provided\n";
     }
     assert(buf.size() == 1);

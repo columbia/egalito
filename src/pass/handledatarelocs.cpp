@@ -146,6 +146,18 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     }
 #endif
 
+#ifdef R_RISCV_TLS_TPREL64
+    if(reloc->getType() == R_RISCV_TLS_TPREL64) {
+        LOG(1, "dealing with TPREL64 relocation...");
+        auto tls = module->getDataRegionList()->getTLS();
+        if(symbol && symbol->getSectionIndex() == SHN_UNDEF) {
+            tls = nullptr;
+        }
+        return new TLSDataOffsetLink(
+            tls, reloc->getSymbol(), reloc->getAddend());
+    }
+#endif
+
     if(internal) {
         return PerfectLinkResolver().resolveInternally(reloc, module, weak);
     }

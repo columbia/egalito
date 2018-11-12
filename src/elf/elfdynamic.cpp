@@ -168,7 +168,7 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
 
     if(filename == "ld-linux-x86-64.so.2"
         || filename == "ld-linux-aarch64.so.1"
-        || filename == "ld-linux-riscv64-lp64d.so.0") {
+        || filename == "ld-linux-riscv64-lp64d.so.1") {
 
         LOG(2, "    skipping processing of ld.so for now");
         return;

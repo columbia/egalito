@@ -401,6 +401,8 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_beq,         &UseDef::fillB},
     {rv_op_beqz,        &UseDef::fillB},
     {rv_op_bgtu,        &UseDef::fillB},
+    {rv_op_bleu,        &UseDef::fillB},
+    {rv_op_blez,        &UseDef::fillB},
     {rv_op_bne,         &UseDef::fillB},
     {rv_op_bnez,        &UseDef::fillB},
     {rv_op_j,           &UseDef::fillJ},
@@ -416,6 +418,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_lwu,         &UseDef::fillLoad},
     {rv_op_lui,         &UseDef::fillImmToReg},
     {rv_op_mv,          &UseDef::fillRegToReg},
+    {rv_op_neg,         &UseDef::fillRegToReg},
     {rv_op_ret,         &UseDef::fillRet},
     {rv_op_sb,          &UseDef::fillStore},
     {rv_op_sd,          &UseDef::fillStore},
@@ -514,7 +517,7 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     if(!handled) {
         LOG0(10, "handler disabled (or not found)");
         LOG(1, "mnemonic not implemented: " << assembly->getMnemonic());
-        assert(0);
+        // assert(0);
         if(assembly) {
             LOG(10, " " << assembly->getMnemonic());
             LOG(10, "mode: " << assembly->getAsmOperands()->getMode());
@@ -710,6 +713,11 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
     switch(assembly->getId()) {
     case rv_op_mv:
         tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8);
+        break;
+    case rv_op_neg:
+        tree = TreeFactory::instance().make<TreeNodeSubtraction>(
+            TreeFactory::instance().make<TreeNodeConstant>(0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
         break;
     default:
         LOG(1, "Unhandled instruction " << assembly->getMnemonic());

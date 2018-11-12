@@ -260,10 +260,10 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             else {
                 LOG(1, "JALR, destination reg is " << ins->oper[0].value.reg);
                 assert(ins->oper[2].type == rv_oper::rv_oper_imm);
-                assert(ins->oper[2].value.imm == 0); // XXX: for now, no IndirectCallInstruction that takes an offset, so...
 
                 assert(ins->oper[1].type == rv_oper::rv_oper_reg);
-                semantic = new IndirectCallInstruction(ins->oper[1].value.reg);
+                semantic = new IndirectCallInstruction(ins->oper[1].value.reg,
+                    ins->oper[2].value.imm);
                 semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
             }
         }
