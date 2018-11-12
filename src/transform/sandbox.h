@@ -116,7 +116,7 @@ private:
 public:
     AlignedWatermarkAllocator(Backing *backing, size_t alignment
 #ifdef ARCH_X86_64
-            = 0x10  // 16-byte alloc size alignment for functions
+            = 0x2  // 2-byte alloc size alignment for functions
 #else
             = 0x1
 #endif
