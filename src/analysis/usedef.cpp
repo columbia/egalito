@@ -429,6 +429,10 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_lui,         &UseDef::fillImmToReg},
     {rv_op_mv,          &UseDef::fillRegToReg},
     {rv_op_neg,         &UseDef::fillRegToReg},
+    {rv_op_negw,        &UseDef::fillRegToReg},
+    {rv_op_not,         &UseDef::fillRegToReg},
+    {rv_op_or,          &UseDef::fillRegRegToReg},
+    {rv_op_ori,         &UseDef::fillRegImmToReg},
     {rv_op_ret,         &UseDef::fillRet},
     {rv_op_sb,          &UseDef::fillStore},
     {rv_op_sc_d,        &UseDef::fillStore},
@@ -443,7 +447,10 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_srai,        &UseDef::fillRegImmToReg},
     {rv_op_srli,        &UseDef::fillRegImmToReg},
     {rv_op_sub,         &UseDef::fillRegRegToReg},
+    {rv_op_subw,        &UseDef::fillRegRegToReg},
     {rv_op_sw,          &UseDef::fillStore},
+    {rv_op_xor,         &UseDef::fillRegRegToReg},
+    {rv_op_xori,        &UseDef::fillRegImmToReg},
 #endif
 };
 
@@ -735,6 +742,15 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
     case rv_op_neg:
         tree = TreeFactory::instance().make<TreeNodeSubtraction>(
             TreeFactory::instance().make<TreeNodeConstant>(0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
+        break;
+    case rv_op_negw:
+        tree = TreeFactory::instance().make<TreeNodeSubtraction>(
+            TreeFactory::instance().make<TreeNodeConstant>(0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 4));
+        break;
+    case rv_op_not:
+        tree = TreeFactory::instance().make<TreeNodeNot>(
             TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
         break;
     case rv_op_seqz:
@@ -1037,10 +1053,25 @@ void UseDef::fillRegRegToReg(UDState *state, AssemblyPtr assembly) {
         tree = TreeFactory::instance().make<
             TreeNodeAnd>(reg1tree, reg2tree);
         break;
+    case rv_op_or:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeOr>(reg1tree, reg2tree);
+        break;
     case rv_op_sub:
         helper(8);
         tree = TreeFactory::instance().make<
             TreeNodeSubtraction>(reg1tree, reg2tree);
+        break;
+    case rv_op_subw:
+        helper(4);
+        tree = TreeFactory::instance().make<
+            TreeNodeSubtraction>(reg1tree, reg2tree);
+        break;
+    case rv_op_xor:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeXor>(reg1tree, reg2tree);
         break;
     default:
         LOG(1, "NYI: " << assembly->getMnemonic());
@@ -1267,6 +1298,11 @@ void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
         tree = TreeFactory::instance().make<TreeNodeAnd>(
             reg1tree, immtree);
         break;
+    case rv_op_ori:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeOr>(reg1tree, immtree);
+        break;
     case rv_op_slli:
         helper(8);
         tree = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(
@@ -1281,6 +1317,11 @@ void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
         helper(8);
         tree = TreeFactory::instance().make<TreeNodeLogicalShiftRight>(
             reg1tree, immtree);
+        break;
+    case rv_op_xori:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeXor>(reg1tree, immtree);
         break;
     default:
         LOG(1, "Mnemonic " << assembly->getMnemonic() << " NYI");
