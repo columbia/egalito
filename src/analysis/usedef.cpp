@@ -2232,7 +2232,11 @@ void UseDef::fillJal(UDState *state, AssemblyPtr assembly) {
 }
 
 void UseDef::fillJalr(UDState *state, AssemblyPtr assembly) {
-
+    useReg(state, assembly->getAsmOperands()->getOperands()[1].value.reg);
+    defReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg,
+        TreeFactory::instance().make<TreeNodeAddress>(
+        state->getInstruction()->getAddress() + state->getInstruction()->getSize()
+        ));
 }
 
 void UseDef::fillJr(UDState *state, AssemblyPtr assembly) {
