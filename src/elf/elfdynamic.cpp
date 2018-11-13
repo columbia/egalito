@@ -73,7 +73,8 @@ void ElfDynamic::parseLdConfig(std::string filename,
         split(line, ' ', std::back_inserter(tokens));
         if(tokens.size() == 0) continue;
         else if(tokens.size() == 1) {
-            searchPath.push_back(tokens[0]);
+            searchPath.push_back(
+                ConductorFilesystem::instance().transform(tokens[0]));
         }
         else if(tokens[0] == "include") {
             std::vector<std::string> files = doGlob(

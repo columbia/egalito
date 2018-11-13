@@ -410,6 +410,8 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_bltz,        &UseDef::fillB},
     {rv_op_bne,         &UseDef::fillB},
     {rv_op_bnez,        &UseDef::fillB},
+    {rv_op_ebreak,      &UseDef::fillEins},
+    {rv_op_ecall,       &UseDef::fillEins},
     {rv_op_j,           &UseDef::fillJ},
     {rv_op_jal,         &UseDef::fillJal},
     {rv_op_jalr,        &UseDef::fillJalr},
@@ -2220,6 +2222,29 @@ void UseDef::fillB(UDState *state, AssemblyPtr assembly) {
     for(size_t i = 0; i < count; i ++) {
         if(opers[i].type == rv_oper::rv_oper_reg)
             useReg(state, opers[i].value.reg);
+    }
+}
+
+void UseDef::fillEins(UDState *state, AssemblyPtr assembly) {
+    if(assembly->getId() == rv_op_ecall) {
+        // system call
+        // syscall number in a7
+        useReg(state, rv_ireg_a7);
+        // arguments in a0-a6
+        useReg(state, rv_ireg_a0);
+        useReg(state, rv_ireg_a1);
+        useReg(state, rv_ireg_a2);
+        useReg(state, rv_ireg_a3);
+        useReg(state, rv_ireg_a4);
+        useReg(state, rv_ireg_a5);
+        useReg(state, rv_ireg_a6);
+        // return value in a0
+        defReg(state, rv_ireg_a0, nullptr);
+    }
+    else if(assembly->getId() == rv_op_ebreak
+        || assembly->getId() == rv_op_c_ebreak) {
+
+        // nothing to do, for now
     }
 }
 
