@@ -412,6 +412,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_bnez,        &UseDef::fillB},
     {rv_op_ebreak,      &UseDef::fillEins},
     {rv_op_ecall,       &UseDef::fillEins},
+    {rv_op_fence,       &UseDef::fillFence},
     {rv_op_j,           &UseDef::fillJ},
     {rv_op_jal,         &UseDef::fillJal},
     {rv_op_jalr,        &UseDef::fillJalr},
@@ -421,6 +422,8 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_lh,          &UseDef::fillLoad},
     {rv_op_lhu,         &UseDef::fillLoad},
     {rv_op_ld,          &UseDef::fillLoad},
+    {rv_op_lr_d,        &UseDef::fillLoad},
+    {rv_op_lr_w,        &UseDef::fillLoad},
     {rv_op_lw,          &UseDef::fillLoad},
     {rv_op_lwu,         &UseDef::fillLoad},
     {rv_op_lui,         &UseDef::fillImmToReg},
@@ -428,11 +431,19 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {rv_op_neg,         &UseDef::fillRegToReg},
     {rv_op_ret,         &UseDef::fillRet},
     {rv_op_sb,          &UseDef::fillStore},
+    {rv_op_sc_d,        &UseDef::fillStore},
+    {rv_op_sc_w,        &UseDef::fillStore},
     {rv_op_sd,          &UseDef::fillStore},
+    {rv_op_seqz,        &UseDef::fillRegToReg},
+    {rv_op_sext_w,      &UseDef::fillRegToReg},
+    {rv_op_sgtz,        &UseDef::fillRegToReg},
+    {rv_op_sh,          &UseDef::fillStore},
     {rv_op_slli,        &UseDef::fillRegImmToReg},
+    {rv_op_snez,        &UseDef::fillRegToReg},
     {rv_op_srai,        &UseDef::fillRegImmToReg},
     {rv_op_srli,        &UseDef::fillRegImmToReg},
     {rv_op_sub,         &UseDef::fillRegRegToReg},
+    {rv_op_sw,          &UseDef::fillStore},
 #endif
 };
 
@@ -726,6 +737,23 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
             TreeFactory::instance().make<TreeNodeConstant>(0),
             TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
         break;
+    case rv_op_seqz:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
+    case rv_op_sext_w:
+        // XXX: sign extension
+        tree = TreeFactory::instance().make<TreeNodeSignExtendWord>(
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 4));
+        break;
+    case rv_op_sgtz:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
+    case rv_op_snez:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
     default:
         LOG(1, "Unhandled instruction " << assembly->getMnemonic());
         assert(0);
@@ -842,10 +870,12 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     case rv_op_lhu:
         width = 2;
         break;
+    case rv_op_lr_w:
     case rv_op_lw:
     case rv_op_lwu:
         width = 4;
         break;
+    case rv_op_lr_d:
     case rv_op_ld:
         width = 8;
         break;
@@ -1150,9 +1180,11 @@ void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
     case rv_op_sh:
         width = 2;
         break;
+    case rv_op_sc_w:
     case rv_op_sw:
         width = 4;
         break;
+    case rv_op_sc_d:
     case rv_op_sd:
         width = 8;
         break;
@@ -2246,6 +2278,10 @@ void UseDef::fillEins(UDState *state, AssemblyPtr assembly) {
 
         // nothing to do, for now
     }
+}
+
+void UseDef::fillFence(UDState *state, AssemblyPtr assembly) {
+    // nothing to do
 }
 
 void UseDef::fillJ(UDState *state, AssemblyPtr assembly) {
