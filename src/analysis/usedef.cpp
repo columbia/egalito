@@ -1221,7 +1221,7 @@ void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
         break;
     }
 
-    LOG(1, "XXX: width of store not specified!");
+    // LOG(1, "XXX: width of store not specified!");
 
     defMem(state, memTree, rs2);
 #endif
@@ -1285,13 +1285,27 @@ void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
     switch(assembly->getId()) {
     case rv_op_addi:
         helper(8);
-        tree = TreeFactory::instance().make<TreeNodeAddition>(
-            reg1tree, immtree);
+        if(rs1 != rv_ireg_zero) {
+            tree = TreeFactory::instance().make<TreeNodeAddition>(
+                reg1tree, immtree);
+        }
+        else {
+            delete reg1tree;
+            tree = immtree;
+        }
         break;
     case rv_op_addiw:
         helper(4);
         tree = TreeFactory::instance().make<TreeNodeAddition>(
             reg1tree, immtree);
+        if(rs1 != rv_ireg_zero) {
+            tree = TreeFactory::instance().make<TreeNodeAddition>(
+                reg1tree, immtree);
+        }
+        else {
+            delete reg1tree;
+            tree = immtree;
+        }
         break;
     case rv_op_andi:
         helper(8);
