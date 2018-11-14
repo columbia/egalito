@@ -77,6 +77,16 @@ void LinkedInstruction::resolveLinks(Module *module,
         auto link = PerfectLinkResolver().resolveInferred(
             address, instruction, module, true);
 
+        if(!link && assembly->getImplicitRegsWriteCount() > 0
+            && assembly->getImplicitRegsWrite()[0] == rv_ireg_gp) {
+
+            LOG(1, "GP setup link found!");
+            auto gpmarker
+                = module->getMarkerList()->addGlobalPointerMarker(address);
+            link = new AbsoluteMarkerLink(gpmarker);
+            //link = module->getMarkerList()->createInferredMarkerLink(
+                //address, module, true);
+        }
         if(link) {
             linked->setLink(link);
             auto v = instruction->getSemantic();

@@ -47,6 +47,11 @@ void SectionEndMarker::setAddress(address_t address) {
     bias = address - getAddress();
 }
 
+GlobalPointerMarker::GlobalPointerMarker(address_t address)
+    : address(address) {
+    
+}
+
 void MarkerList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
@@ -179,3 +184,8 @@ Marker *MarkerList::addEndMarker(DataSection *dataSection) {
     return marker;
 }
 
+Marker *MarkerList::addGlobalPointerMarker(address_t address) {
+    auto marker = new GlobalPointerMarker(address);
+    getChildren()->add(marker);
+    return marker;
+}

@@ -170,6 +170,12 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
 #endif
         s->setType(Symbol::TYPE_FUNC);  // sometimes UNKNOWN
     }
+    #ifdef ARCH_RISCV
+    if(auto s = list->find("_start")) {
+        LOG(1, "Overriding _start size to 54 bytes.");
+        s->setSize(54);
+    }
+    #endif
 
     if(auto s = list->find("_init")) {  // musl incorrectly sets this to 4
         auto init = elfMap->findSection(".init");
