@@ -17,7 +17,7 @@ void allocate_perm(void) {
     arch_prctl(ARCH_SET_GS, memory);
 }
 
-unsigned char *get_perm() {
+static unsigned char *get_perm() {
     unsigned long p;
     arch_prctl(ARCH_GET_GS, &p);
     return (unsigned char *)p;
