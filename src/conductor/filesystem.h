@@ -9,9 +9,9 @@ private:
 
     ConductorFilesystem();
 public:
-    static ConductorFilesystem &instance() {
+    static ConductorFilesystem *getInstance() {
         static ConductorFilesystem instance;
-        return instance;
+        return &instance;
     }
     std::string transform(const std::string &path);
 };

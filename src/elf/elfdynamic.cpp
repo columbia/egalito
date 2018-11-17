@@ -74,11 +74,11 @@ void ElfDynamic::parseLdConfig(std::string filename,
         if(tokens.size() == 0) continue;
         else if(tokens.size() == 1) {
             searchPath.push_back(
-                ConductorFilesystem::instance().transform(tokens[0]));
+                ConductorFilesystem::getInstance()->transform(tokens[0]));
         }
         else if(tokens[0] == "include") {
             std::vector<std::string> files = doGlob(
-                ConductorFilesystem::instance().transform(tokens[1]));
+                ConductorFilesystem::getInstance()->transform(tokens[1]));
             for(auto f : files) {
                 parseLdConfig(f, searchPath);
             }
@@ -124,15 +124,13 @@ void ElfDynamic::resolveLibraries() {
         split(ld_library_path, ':', std::back_inserter(searchPath));
     }
 
-    parseLdConfig(ConductorFilesystem::instance().transform("/etc/ld.so.conf"),
-        searchPath);
-    searchPath.push_back(ConductorFilesystem::instance().transform("/lib"));
-    searchPath.push_back(ConductorFilesystem::instance().transform("/usr/lib"));
-    searchPath.push_back(ConductorFilesystem::instance().transform("/lib64"));
-    searchPath.push_back(
-        ConductorFilesystem::instance().transform("/usr/lib64"));
-    searchPath.push_back(
-        ConductorFilesystem::instance().transform("/usr/local/musl/lib"));
+    auto cfs = ConductorFilesystem::getInstance();
+    parseLdConfig(cfs->transform("/etc/ld.so.conf"), searchPath);
+    searchPath.push_back(cfs->transform("/lib"));
+    searchPath.push_back(cfs->transform("/usr/lib"));
+    searchPath.push_back(cfs->transform("/lib64"));
+    searchPath.push_back(cfs->transform("/usr/lib64"));
+    searchPath.push_back(cfs->transform("/usr/local/musl/lib"));
 
     for(auto &pair : dependencyList) {
         auto library = pair.first;

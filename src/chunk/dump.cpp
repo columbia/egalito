@@ -263,7 +263,7 @@ void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool pri
 #elif defined(ARCH_ARM)
     if(semantic->getMnemonic() == "bl" || semantic->getMnemonic() == "blx") name << "(CALL)";
 #elif defined(ARCH_RISCV)
-        if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
+    if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
 #endif
     else {
         name << "(JUMP " << semantic->getMnemonic() << ")";

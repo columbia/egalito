@@ -72,7 +72,7 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
                 const char *p = reinterpret_cast<const char *>(note + 1) + 4;  // +4 to skip "GNU" string
 
                 std::ostringstream symbolFile;
-                symbolFile << ConductorFilesystem::instance().transform(
+                symbolFile << ConductorFilesystem::getInstance()->transform(
                     "/usr/lib/debug/.build-id/");
 
                 for(size_t i = 0; i < note->n_descsz; i ++) {
@@ -91,7 +91,7 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
     }
 
     std::ostringstream symbolFile;
-    symbolFile << ConductorFilesystem::instance().transform("/usr/lib/debug");
+    symbolFile << ConductorFilesystem::getInstance()->transform("/usr/lib/debug");
     char realPath[PATH_MAX];
     if(realpath(fullPath.c_str(), realPath)) {
         auto debuglink = elf->findSection(".gnu_debuglink");
