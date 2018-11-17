@@ -136,6 +136,81 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
             }
         }
     }
+#elif defined(ARCH_RISCV)
+    /* Example jump table use:
+        auipc   a4,0x0
+        addi    a4,a4,418 # 10600 <__libc_csu_fini+0x6>
+            a4: jump table base
+        slli    a5,a5,0x2
+            a5: jump table offset
+        add     a5,a5,a4
+            a5: jump table offset + jump table base = address of jump table entry
+        lw      a5,0(a5)
+            a5: jump table entry
+        add     a5,a5,a4
+            a5: jump table entry + jump table base
+        jr      a5
+
+
+
+            +
+                jump table entry
+                +
+                    TreeNodeAddress
+                    TreeNodeConstant
+
+     */
+
+
+    /*typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternAny,
+            TreePatternAny>,
+            //TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+            //TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+            //>
+        TreePatternCapture<TreePatternAny>
+        // TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
+        > MakeJumpTargetForm1;*/
+    //typedef TreePatternAny MakeJumpTargetForm1;
+    
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
+        > MakeJumpTargetForm1;
+
+    for(auto block : CIter::children(working->getFunction())) {
+        auto instr = block->getChildren()->getIterable()->getLast();
+        auto s = instr->getSemantic();
+        if(auto ij = dynamic_cast<IndirectJumpInstruction *>(s)) {
+            LOG(1, "***** indirect jump at 0x" << std::hex << instr->getAddress());
+            CLOG(1, "register: %d", ij->getRegister());
+
+            auto state = working->getState(instr);
+            state->dumpState();
+
+            JumptableInfo info(working->getCFG(), working, state);
+            auto parser1 = [&](UDState *s, TreeCapture& cap) {
+                return parseJumptable(s, cap, &info);
+            };
+
+            LOG(10, "trying MakeJumpTargetForm1");
+            auto assembly = s->getAssembly();
+            auto reg = assembly->getAsmOperands()->getOperands()[0].value.reg;
+            FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser1);
+
+            if(info.valid) {
+                makeDescriptor(instr, &info);
+                continue;
+            }
+            
+        }
+
+    }
+
+    /*typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<*/
+    // assert(0); // XXX: no idea
 #endif
 }
 
@@ -159,6 +234,9 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
 #elif defined(ARCH_AARCH64)
     auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
     auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
+#elif defined(ARCH_RISCV)
+    auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
+    auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0));
 #endif
 
     LOG(10, "parseJumptable");
@@ -180,8 +258,13 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
         }
     }
     if(found) {
+        LOG(10, "Found jump table at 0x" << std::hex << targetBase);
         info->valid = true;
         info->targetBase = targetBase;
+        #ifdef ARCH_RISCV
+        LOG(1, "XXX: assuming tableBase and targetBase are equal");
+        info->tableBase = targetBase;
+        #endif
         return true;
     }
     return false;
@@ -357,6 +440,7 @@ void JumptableDetection::makeDescriptor(Instruction *instruction,
 
     auto contentSection =
         module->getDataRegionList()->findDataSectionContaining(info->tableBase);
+    assert(contentSection);
     jtd->setContentSection(contentSection);
     tableList.push_back(jtd);
 
@@ -485,6 +569,86 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     }
     LOG(10, "        not found");
     return false;
+#elif defined(ARCH_RISCV)
+    //typedef TreePatternBinary<
+
+    typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+        > ShiftForm;
+
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternTerminal<TreeNodePhysicalRegister>
+        > AddForm;
+
+    typedef TreePatternUnary<TreeNodeDereference,
+        TreePatternBinary<TreeNodeAddition,
+            TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+            TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>>
+        > LoadForm;
+
+    bool found_li = false;
+    bool found_compare = false;
+    bool found_shift = false;
+    bool found_add = false;
+    bool found_load = false;
+
+    auto shift_parser = [&](UDState *s, TreeCapture &cap) {
+        LOG(1, "found shift form");
+
+        if(static_cast<TreeNodeConstant *>(cap.get(1))->getValue() != 2) {
+            LOG(1, "XXX: found shift other than 2, probably not a jump table?");
+            return false;
+        }
+        info->scale = 4; // XXX: should actually be load size
+
+        // look for limit if we can
+        auto uselist = s->getRegUse(
+            static_cast<TreeNodeRegister *>(cap.get(0))->getRegister());
+
+        // for now just print out addresses
+        LOG(1, "uses of register:");
+        for(auto use : uselist) {
+            LOG(1, "    address " << use->getInstruction()->getAddress());
+        }
+
+        found_shift = true;
+        return true;
+    };
+
+    auto add_parser = [&](UDState *s, TreeCapture &cap) {
+        found_shift = false;
+        LOG(1, "found add form");
+
+        FlowUtil::searchUpDef<ShiftForm>(s,
+            static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
+            shift_parser);
+        if(found_shift) found_add = true;
+        return found_add;
+    };
+
+    auto load_parser = [&](UDState *s, TreeCapture &cap) {
+        found_add = false;
+        LOG(1, "found load form");
+
+        // search for add form
+        if(static_cast<TreeNodeConstant *>(cap.get(1))->getValue() != 0) {
+            LOG(1, "XXX: found non-zero load? probably not a jump table");
+            return false;
+        }
+        FlowUtil::searchUpDef<AddForm>(s,
+            static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
+            add_parser);
+        if(found_add) found_load = true;
+
+
+        return found_load;
+    };
+
+    FlowUtil::searchUpDef<LoadForm>(state, reg, load_parser);
+
+    return found_load;
 #endif
 }
 
@@ -550,6 +714,46 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
         return std::make_tuple(true, addr);
     }
     return parseSavedAddress(state, reg);
+#elif defined(ARCH_RISCV)
+    // looking for auipc / addi combo
+    typedef TreePatternCapture<TreePatternTerminal<TreeNodeAddress>> AuipcForm;
+    typedef TreePatternBinary<TreeNodeAddition,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > AddiForm;
+    
+    address_t auipc_addr = 0;
+    bool found_auipc = false;
+    address_t addr = 0;
+    bool found = false;
+
+    auto auipc_parser = [&](UDState *s, TreeCapture &cap) {
+        LOG(1, "found auipc form");
+        auipc_addr = static_cast<TreeNodeAddress *>(cap.get(0))->getValue();
+        found_auipc = true;
+        return true;
+    };
+
+    auto parser = [&](UDState *s, TreeCapture& cap) {
+        LOG(1, "found addition form");
+        found_auipc = false;
+        FlowUtil::searchUpDef<AuipcForm>(s,
+            static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
+            auipc_parser);
+        if(!found_auipc) return false;
+        addr =
+            auipc_addr
+            + static_cast<TreeNodeConstant *>(cap.get(1))->getValue();
+        found = true;
+        return true;
+    };
+
+    FlowUtil::searchUpDef<AddiForm>(state, reg, parser);
+
+    if(found) {
+        return std::make_tuple(true, addr);
+    }
+    else return std::make_tuple(false, 0);
 #endif
 }
 
@@ -608,6 +812,9 @@ auto JumptableDetection::parseMovedAddress(UDState *state, int reg)
     return std::make_tuple(found, addr);
 #elif defined(ARCH_AARCH64)
     return std::make_tuple(false, 0);
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
+    return std::make_tuple(false, 0);
 #endif
 }
 
@@ -638,6 +845,10 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
     };
     FlowUtil::searchUpDef<MakeBaseAddressForm>(state, reg, parser);
     return std::make_tuple(found, addr);
+#elif defined(ARCH_RISCV)
+    
+    assert(0); // XXX: no idea
+    return std::make_tuple(false, 0);
 #endif
 }
 
@@ -913,6 +1124,10 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     }
     LOG(10, "======");
     return found;
+#elif defined(ARCH_RISCV)
+    // XXX: no idea
+    assert(0);
+    return false;
 #endif
 }
 
@@ -1032,6 +1247,9 @@ bool JumptableDetection::getBoundFromCompare(UDState *state, int bound,
                 << " " << assembly->getMnemonic());
         }
     }
+    return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
     return false;
 #endif
 }
@@ -1550,6 +1768,9 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
         return found;
     }
     return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
+    return false;
 #endif
 }
 
@@ -1691,6 +1912,9 @@ bool JumptableDetection::getBoundFromArgument(UDState *state, int reg,
             return true;
         }
     }
+    return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea
     return false;
 #endif
 }

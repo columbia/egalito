@@ -229,6 +229,9 @@ bool FrameType::detectFrame(Function *function) {
         }
     }
     return false;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea?
+    return false;
 #endif
 }
 

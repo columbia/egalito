@@ -43,6 +43,7 @@ void SyscallSandbox::visit(Function *function) {
 }
 
 void SyscallSandbox::addEnforcement(Function *function, Instruction *syscallInstr, Function*enforce) {
+#ifdef ARCH_X86_64
     /*
            0:	57                   	push   %rdi
            1:	48 89 e7             	mov    %rsp,%rdi
@@ -150,4 +151,5 @@ void SyscallSandbox::addEnforcement(Function *function, Instruction *syscallInst
     //ChunkMutator(function, true);  // recalculate everything
 
     LOG(9, "Adding sandbox enforcement to syscall in [" << function->getName() << "]");
+#endif
 }

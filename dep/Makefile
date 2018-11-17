@@ -20,8 +20,12 @@ realclean:
 	-@rm -rf keystone/build
 	-@rm -f built
 
+ifeq ($(USE_LOADER),1)
 rtld:
 	$(call short-make,rtld)
+else
+rtld:
+endif
 ifunc:
 	$(call short-make,ifunc)
 distorm3:
@@ -36,7 +40,7 @@ capstone:
 		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
 		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install
 
-ifdef USE_KEYSTONE
+ifeq ($(USE_KEYSTONE),1)
 keystone:
 	-@cd keystone \
 		&& mkdir build \

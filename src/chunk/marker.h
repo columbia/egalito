@@ -50,6 +50,16 @@ public:
     virtual void setAddress(address_t address);
 };
 
+// On RISC-V, sometimes accesses are relative to the global pointer
+class GlobalPointerMarker : public Marker {
+private:
+    address_t address;
+public:
+    GlobalPointerMarker(address_t address);
+
+    virtual address_t getAddress() const { return address; }
+};
+
 class MarkerList : public CollectionChunkImpl<Marker> {
 public:
     virtual void accept(ChunkVisitor *visitor);
@@ -63,6 +73,7 @@ public:
     Marker *addGeneralMarker(Chunk *chunk, size_t addend);
     Marker *addStartMarker(DataSection *dataSection);
     Marker *addEndMarker(DataSection *dataSection);
+    Marker *addGlobalPointerMarker(address_t address);
 
 private:
     Link *createGeneralMarkerLink(Chunk *chunk,

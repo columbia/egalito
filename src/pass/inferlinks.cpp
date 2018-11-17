@@ -5,7 +5,7 @@
 
 void InferLinksPass::visit(Module *module) {
     this->module = module;
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_RISCV)
     LinkedInstruction::makeAllLinked(module);
 #else
     recurse(module);

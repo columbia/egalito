@@ -5,8 +5,13 @@
 #include <string>
 #include <vector>
 #include <memory>  // for std::shared_ptr
+#include <assert.h>
 
 #include <capstone/capstone.h>
+
+#ifdef ARCH_RISCV
+#include "../disasm/riscv-disas.h"
+#endif
 
 class AssemblyOperands {
 public:
@@ -76,6 +81,20 @@ public:
             insn.detail->arm.operands + insn.detail->arm.op_count) {}
     bool getWriteback() const { return writeback; }
     const cs_arm_op *getOperands() const { return operands.data(); }
+#elif defined(ARCH_RISCV)
+private:
+    std::vector<rv_oper> operands;
+public:
+    AssemblyOperands(const cs_insn &) {
+        // should never be reached on RISC-V
+        assert(0);
+    }
+
+    AssemblyOperands(const rv_instr &instr)
+        : op_count(instr.oper_count),
+        operands(instr.oper, instr.oper + instr.oper_count) {}
+
+    const rv_oper *getOperands() const { return operands.data(); }
 #endif
 public:
     AssemblyOperands() {}
@@ -117,6 +136,9 @@ public:
           regs_write(insn.detail->regs_write,
                      insn.detail->regs_write + insn.detail->regs_write_count)
         { overrideCapstone(insn); }
+#ifdef ARCH_RISCV
+    Assembly(const rv_instr &instr);
+#endif
 
     unsigned int getId() const { return id; }
     size_t getSize() const { return bytes.size(); }

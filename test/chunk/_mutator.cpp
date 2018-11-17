@@ -21,6 +21,11 @@ static Instruction *makeWithImmediate(unsigned char imm) {
     unsigned char imm1 = (imm << 2) & 0xFF;
     unsigned char imm2 = (imm >> 6) & 0xFF;
     std::vector<unsigned char> bytes = {0x00, imm1, imm2, 0x91};
+#elif defined(ARCH_RISCV)
+    // addi r1, r1, imm
+    unsigned char imm1 = (imm << 4) & 0xff;
+    unsigned char imm2 = (imm >> 4) & 0xff;
+    std::vector<unsigned char> bytes = {0x93, 0x80, imm1, imm2};
 #endif
 
     return Disassemble::instruction(bytes, true, 0);

@@ -3,31 +3,56 @@
 # Compute the root directory of the repo, containing env.mk.
 EGALITO_ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-CC      = $(EGALITO_CCACHE) $(CROSS)gcc
-CXX     = $(EGALITO_CCACHE) $(CROSS)g++
+# Optional settings:
+#   USE_KEYSTONE=1
+#   USE_LOADER=1
+#   VERBOSE=1
+#   PROFILE=1
+#   STACK_PROTECTOR=1
 
-AS      = $(CC)
-LINK    = $(CXX)
+# To cross-compile, set e.g. CROSS=aarch64-linux-gnu-
+#   for loader support, also set RTLD_TARGET to an appropriate simulator for
+#   running binaries (e.g. qemu-user-*).
+# To cross-analyze, set CROSS as before and
+# 	also CROSS_ANALYZE=1 (the loader is not supported in this config)
+ifneq ($(CROSS),)
+ifeq ($(CROSS_ANALYZE),1)
+	USE_LOADER=0
+endif
+ifneq ($(RTLD_TARGET),)
+	RTLD_EXEC = $(RTLD_TARGET)
+else
+	$(error Specify command to execute target rtld for current arch)
+endif
+endif
 
-AR      = ar
+ifeq ($(USE_LOADER),)
+	USE_LOADER=1
+endif
+
+ifneq ($(CROSS_ANALYZE),1)
+CC         = $(EGALITO_CCACHE) $(CROSS)gcc
+CXX        = $(EGALITO_CCACHE) $(CROSS)g++
+else
+CC         = $(EGALITO_CCACHE) gcc
+CXX        = $(EGALITO_CCACHE) g++
+endif
+TARGET_CC  = $(EGALITO_CCACHE) $(CROSS)gcc
+TARGET_CXX = $(EGALITO_CCACHE) $(CROSS)g++
+
+AS         = $(CC)
+LINK       = $(CXX)
+
+AR         = ar
 
 GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 
 ifneq ($(CROSS),)
 ifneq ($(CAPSTONE_INC),)
 	GENERIC_FLAGS += -isystem $(CAPSTONE_INC)
-else
-	$(error Capstone Include directory not defined)
 endif
 ifneq ($(CAPSTONE_LIB),)
 	CROSSLD = -L $(CAPSTONE_LIB)
-else
-	$(error Capstone Lib directory not defined)
-endif
-ifneq ($(RTLD_CROSS),)
-	RTLD_EXEC = $(RTLD_CROSS)
-else
-	$(error Specify command to execute rtld for currect arch)
 endif
 endif
 
@@ -38,7 +63,7 @@ KEYSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/keystone
 GENERIC_FLAGS += -I $(KEYSTONE_DIR)/include
 endif
 
-OPT_FLAGS       = -g3 -O2
+OPT_FLAGS       = -g3 -Og
 DEPFLAGS        = -MT '$@ $(@:.o=.so) $(@:.o=.d)' -MMD -MF $(@:.o=.d) -MP
 CFLAGS          = -std=gnu99 $(GENERIC_FLAGS) $(OPT_FLAGS)
 CXXFLAGS        = -std=c++14 $(GENERIC_FLAGS) $(OPT_FLAGS)
@@ -68,8 +93,8 @@ else
 	CXXFLAGS += -fno-stack-protector
 endif
 
-ifneq ($(CROSS),)
-	P_ARCH := $(strip $(shell echo $(CC) | awk -F- '{print $$1}'))
+ifneq ($(CROSS_ANALYZE),)
+	P_ARCH := $(strip $(shell echo $(CROSS) | awk -F- '{print $$1}'))
 else
 	P_ARCH := $(shell uname -m)
 	ifeq (armv7l,$(P_ARCH))
@@ -79,7 +104,7 @@ else
 endif
 export P_ARCH
 
-$(if $(VERBOSE),$(info "Building for $(P_ARCH)"))
+$(if $(VERBOSE),$(info Building for $(P_ARCH)))
 
 ifeq (aarch64,$(P_ARCH))
 	CFLAGS += -DARCH_AARCH64
@@ -96,8 +121,13 @@ else ifeq (arm,$(P_ARCH))
 	CXXFLAGS += -DARCH_ARM
 	AFLAGS += -DARCH_ARM
 	BUILDDIR = build_arm/
+else ifeq (riscv64,$(P_ARCH))
+	CFLAGS += -DARCH_RISCV
+	CXXFLAGS += -DARCH_RISCV
+	AFLAGS += -DARCH_RISCV
+	BUILDDIR = build_riscv/
 else
-	$(error "Unsupported platform, we only handle arm, aarch64, and x86_64")
+	$(error "Unsupported platform $(P_ARCH), we only handle arm, aarch64, riscv, and x86_64")
 endif
 
 GLIBCDIR = $(dirname $(shell $(CC) --print-file-name=libc.so))

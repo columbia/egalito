@@ -55,7 +55,9 @@ public:
         { write(TYPE_IsolatedInstruction, isolated); }
     virtual void visit(LinkedInstruction *linked);
     virtual void visit(ControlFlowInstruction *controlFlow);
+#ifdef ARCH_X86_64
     virtual void visit(DataLinkedControlFlowInstruction *controlFlow);
+#endif
     virtual void visit(ReturnInstruction *retInstr)
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
@@ -106,15 +108,15 @@ void SemanticSerializer::visit(ControlFlowInstruction *controlFlow) {
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
 }
 
+#ifdef ARCH_X86_64
 void SemanticSerializer::visit(DataLinkedControlFlowInstruction *controlFlow) {
     writer.write<uint8_t>(TYPE_DataLinkedControlFlowInstruction);
     assert(controlFlow->getLink());
     LinkSerializer(op).serialize(controlFlow->getLink(), writer);
-#ifdef ARCH_X86_64
     writer.write<uint8_t>(controlFlow->getIndex());
-#endif
     writer.write<bool>(controlFlow->getIsRelative());
 }
+#endif
 
 void SemanticSerializer::visit(IndirectJumpInstruction *indirect) {
     writer.write<uint8_t>(TYPE_IndirectJumpInstruction);
@@ -210,6 +212,9 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
             mnemonic, dispSize);
 #elif defined(ARCH_AARCH64)
         auto semantic = new ControlFlowInstruction(instruction);
+#elif defined(ARCH_RISCV)
+        // XXX: maybe?
+        auto semantic = new ControlFlowInstruction(instruction);
 #endif
         bool returns = reader.read<bool>();
         if(!returns) semantic->setNonreturn();
@@ -217,6 +222,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         semantic->setLink(LinkSerializer(op).deserialize(reader));
         return semantic;
     }
+#ifdef ARCH_X86_64
     case TYPE_DataLinkedControlFlowInstruction: {
         auto semantic = new DataLinkedControlFlowInstruction(instruction);
         semantic->setData(reader.readBytes<uint8_t>());
@@ -229,6 +235,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
 
         return semantic;
     }
+#endif
     default:
         break;
     }

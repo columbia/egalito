@@ -59,6 +59,7 @@ void InstrWriterGetData::visit(ControlFlowInstruction *controlFlow) {
 }
 
 // DataLinkedControlFlow Instruction
+#ifdef ARCH_X86_64
 void InstrWriterCString::visit(DataLinkedControlFlowInstruction *controlFlow) {
     controlFlow->writeTo(target, true);
 }
@@ -68,6 +69,7 @@ void InstrWriterCppString::visit(DataLinkedControlFlowInstruction *controlFlow) 
 void InstrWriterGetData::visit(DataLinkedControlFlowInstruction *controlFlow) {
     controlFlow->writeTo(data, true);
 }
+#endif
 
 void InstrWriterMakeReloc::visit(LinkedInstruction *linked) {
     if(!linked->getLink()) return;
@@ -83,17 +85,17 @@ void InstrWriterMakeReloc::visit(ControlFlowInstruction *controlFlow) {
 
 // StackFrameInstruction
 void InstrWriterCString::visit(StackFrameInstruction *stackFrame) {
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     stackFrame->writeTo(target);
 #endif
 }
 void InstrWriterCppString::visit(StackFrameInstruction *stackFrame) {
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     stackFrame->writeTo(target);
 #endif
 }
 void InstrWriterGetData::visit(StackFrameInstruction *stackFrame) {
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     stackFrame->writeTo(data);
 #endif
 }

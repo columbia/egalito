@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <assert.h>
 #include "logcalls.h"
 #include "conductor/conductor.h"
 #include "instr/concrete.h"
@@ -41,6 +42,9 @@ void egalito_log_function(unsigned long address) {
     #define DISTANCE_FROM_ENTRY     9
 #elif defined(ARCH_AARCH64)
     #define DISTANCE_FROM_ENTRY     12
+#elif defined(ARCH_RISCV)
+    #define DISTANCE_FROM_ENTRY     -1
+    assert(0); // XXX: no idea
 #endif
     egalito_log_function_name(address - DISTANCE_FROM_ENTRY, 1);
 }
@@ -51,6 +55,9 @@ void egalito_log_function_ret(unsigned long address) {
     #define DISTANCE_FROM_EXIT      4
 #elif defined(ARCH_AARCH64)
     #define DISTANCE_FROM_EXIT      4
+#elif defined(ARCH_RISCV)
+    #define DISTANCE_FROM_EXIT      -1
+    assert(0); // XXX: no idea
 #endif
     egalito_log_function_name(address + DISTANCE_FROM_EXIT, -1);
 }

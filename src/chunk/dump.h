@@ -57,7 +57,9 @@ public:
     virtual void visit(IsolatedInstruction *semantic);
     virtual void visit(LinkedInstruction *semantic);
     virtual void visit(ControlFlowInstruction *semantic);
+#ifdef ARCH_X86_64
     virtual void visit(DataLinkedControlFlowInstruction *semantic);
+#endif
     virtual void visit(IndirectJumpInstruction *semantic);
     virtual void visit(IndirectCallInstruction *semantic);
     virtual void visit(StackFrameInstruction *semantic);

@@ -20,7 +20,7 @@ void StackXOR::visit(Block *block) {
 
 void StackXOR::visit(Instruction *instruction) {
     auto parent = dynamic_cast<Block *>(instruction->getParent());
-
+#ifdef ARCH_X86_64
     auto s = instruction->getSemantic();
     if(dynamic_cast<ReturnInstruction *>(s)) {
         addInstructions(parent, instruction, true);
@@ -40,6 +40,7 @@ void StackXOR::visit(Instruction *instruction) {
         // includes IndirectCallInstruction and DataLinkedControlFlowInstruction
         addInstructions(parent, instruction, true);
     }
+#endif
 }
 
 void StackXOR::addInstructions(Block *block, Instruction *instruction,

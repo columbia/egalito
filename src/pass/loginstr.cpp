@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <assert.h>
 #include "loginstr.h"
 #include "conductor/conductor.h"
 #include "instr/concrete.h"
@@ -31,6 +32,9 @@ void egalito_log_instruction(unsigned long address) {
     #define DISTANCE_FROM_ENTRY     11 // 5 for call instruction, 1 for pushfd, 5 for lea 0x80(%esp), %esp
 #elif defined(ARCH_AARCH64)
     #define DISTANCE_FROM_ENTRY     12
+#elif defined(ARCH_RISCV)
+    #define DISTANCE_FROM_ENTRY     -1
+    assert(0); // XXX: no idea
 #endif
     egalito_log_instruction_pretty(address - DISTANCE_FROM_ENTRY);
 }

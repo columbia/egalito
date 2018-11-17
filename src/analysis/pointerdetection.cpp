@@ -7,11 +7,12 @@
 #include "chunk/concrete.h"
 #include "instr/isolated.h"
 #include "instr/linked-aarch64.h"
+#include "disasm/riscv-disas.h"
 
 #include "log/log.h"
 #include "log/temp.h"
 
-#ifdef ARCH_AARCH64
+#if defined(ARCH_AARCH64) || defined(ARCH_RISCV)
 void PointerDetection::detect(Function *function, ControlFlowGraph *cfg) {
     UDConfiguration config(cfg);
     UDRegMemWorkingSet working(function, cfg);
@@ -41,6 +42,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 if(link && !dynamic_cast<UnresolvedLink *>(link)) continue;
                 auto assembly = semantic->getAssembly();
                 if(!assembly) continue;
+#ifdef ARCH_AARCH64
                 if(assembly->getId() == ARM64_INS_LDR) {
                     if((assembly->getBytes()[3] & 0xBF) == 0x18) {
                         detectAtLDR(working->getState(instr));
@@ -52,6 +54,11 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
                 else if(assembly->getId() == ARM64_INS_ADRP) {
                     detectAtADRP(working->getState(instr));
                 }
+#elif defined(ARCH_RISCV)
+                if(assembly->getId() == rv_op_auipc) {
+                    detectAtAUIPC(working->getState(instr));
+                }
+#endif
             }
         }
     }
@@ -61,6 +68,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
     }
 }
 
+#ifdef ARCH_AARCH64
 void PointerDetection::detectAtLDR(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
@@ -119,6 +127,49 @@ void PointerDetection::detectAtADRP(UDState *state) {
         break;  // there should be only one
     }
 }
+
+#elif defined(ARCH_RISCV)
+
+void PointerDetection::detectAtAUIPC(UDState *state) {
+    for(auto& def : state->getRegDefList()) {
+        auto reg = def.first;
+        CLOG(1, "auipc @0x%lx defines register %d", state->getInstruction()->getAddress(), reg);
+        if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
+            CLOG(1, "address is: 0x%lx", tree->getValue());
+            auto page = tree->getValue();
+
+            PageOffsetList offsetList;
+            offsetList.detectOffset(state, reg);
+            int64_t offset = 0;
+            for(auto& o : offsetList.getList()) {
+                if(offset == 0) {
+                    offset = o.second;
+                }
+                else {
+                    if(offset != o.second) {
+                        TemporaryLogLevel tll("analysis", 1);
+                        LOG(1, "for page " << std::hex << page << " at 0x"
+                            << state->getInstruction()->getAddress());
+                        for(auto& o2 : offsetList.getList()) {
+                            LOG(1, "offset " << o2.second << " at "
+                                << o2.first->getInstruction()->getAddress());
+                        }
+                        throw "inconsistent offset value";
+                    }
+                }
+                pointerList.emplace_back(
+                    o.first->getInstruction(), page + o.second);
+            }
+            if(offsetList.getCount() > 0) {
+                pointerList.emplace_back(
+                    state->getInstruction(), page + offset);
+            }
+        }
+        break;  // there should be only one
+    }
+}
+
+#endif
 
 bool PageOffsetList::detectOffset(UDState *state, int reg) {
     LOG(10, "==== detectOffset state 0x" << std::hex

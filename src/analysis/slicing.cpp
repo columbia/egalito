@@ -77,6 +77,21 @@ private:
         extimm_t extimm;
         const arm64_op_mem *mem;
     } a3;
+#elif defined(ARCH_RISCV)
+    typedef rv_oper arg1_t;
+    arg1_t a1;
+    typedef rv_oper arg2_t;
+    arg2_t a2;
+    typedef rv_oper arg3_t;
+    arg3_t a3;
+    #if 0
+    union arg1_t {
+        //rv_ reg;
+    } a1;
+    union arg2_t {} a2;
+    union arg3_t {} a3;
+    #endif
+    // XXX: figure this out!
 #endif
 public:
     SlicingInstructionState(SearchState *state, AssemblyPtr assembly)
@@ -196,6 +211,12 @@ void SlicingInstructionState::determineMode(AssemblyPtr assembly) {
     }
 #elif defined(ARCH_ARM)
     mode = MODE_UNKNOWN;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: slicing NYI
+    // if(assembly->getImplicitRegsWriteCount() 
+    if(asmOps->getOpCount() == 2) {
+        // mode = MODE_REG;
+    }
 #endif
 }
 
@@ -258,6 +279,9 @@ bool SlicingInstructionState::convertRegisterSize(Register &reg) {
         {ARM64_REG_W29, ARM64_REG_X29},
         {ARM64_REG_W30, ARM64_REG_X30},
     };
+#elif defined(ARCH_RISCV)
+    // RISC-V doesn't have sub-register access at all.
+    static const Register promotion[][2] = {};
 #endif
 
     for(size_t i = 0; i < sizeof(promotion)/sizeof(*promotion); i ++) {
@@ -764,10 +788,17 @@ void SlicingSearch::debugPrintRegAccesses(Instruction *i) {
     auto asmOps = assembly->getAsmOperands();
     for(size_t p = 0; p < asmOps->getOpCount(); p ++) {
         auto op = &asmOps->getOperands()[p];  // cs_x86_op*, cs_arm64_op*
+#if defined(ARCH_X86_64) || defined(ARCH_ARM) || defined(ARCH_AARCH64)
         if(static_cast<cs_op_type>(op->type) == CS_OP_REG) {
             LOG(11, "        explicit reg ref "
                 << u.printReg(op->reg));
         }
+#elif defined(ARCH_RISCV)
+        if(op->type == rv_oper::rv_oper_reg) {
+            LOG(11, "        explicit reg ref "
+                << u.printReg(op->value.reg));
+        }
+#endif
     }
 }
 
@@ -820,7 +851,9 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
     if(dynamic_cast<ControlFlowInstruction *>(
         state->getInstruction()->getSemantic())) {
-
+#elif defined(ARCH_RISCV)
+    if(0) { // XXX: no idea?
+        assert(0);
 #endif
         detectJumpRegTrees(state, firstPass);
         return;
@@ -1284,10 +1317,14 @@ void SlicingSearch::detectInstruction(SearchState *state, bool firstPass) {
         }
         LOG(12, "        cmp found");
         break;
+#elif defined(ARCH_RISCV)
+    case rv_op_add:
+        break;
 #endif
     default:
         LOG(11, "        got instr id " << assembly->getId()
             << "(" << assembly->getMnemonic() << ")");
+        assert(0); // XXX: remove after debugging
         break;
     }
 }
@@ -1301,6 +1338,9 @@ void SlicingSearch::detectJumpRegTrees(SearchState *state, bool firstPass) {
         if(v->getMnemonic() != "jmp" && v->getMnemonic() != "callq") {
 #elif defined(ARCH_AARCH64) || defined(ARCH_ARM)
         if(v->getMnemonic() != "b" && v->getMnemonic() != "bl") {
+#elif defined(ARCH_RISCV)
+        // XXX: no idea?
+        if(v->getMnemonic() != "j" && v->getMnemonic() != "jalr") {
 #endif
             if(firstPass) {
                 state->addReg(CONDITION_REGISTER);

@@ -57,9 +57,19 @@ Instruction *Disassemble::instruction(DisasmHandle &handle,
 Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
     bool details) {
 
+    #ifdef ARCH_RISCV
+    assert(0); // shouldn't be reached
+    #endif
+
     return DisassembleInstruction(handle, details).instruction(ins);
 }
+#ifdef ARCH_RISCV
+Instruction *Disassemble::instruction(rv_instr *ins, DisasmHandle &handle,
+    bool details) {
 
+    return DisassembleInstruction(handle, details).instruction(ins);
+}
+#endif
 
 Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     address_t address) {
@@ -175,17 +185,16 @@ bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
 Instruction *DisassembleInstruction::instruction(const std::string &bytes,
     address_t address) {
 
-    cs_insn *ins = runDisassembly(
+    auto ins = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
-
     return instruction(ins);
 }
 
 Instruction *DisassembleInstruction::instruction(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+    auto ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
 
     return instruction(ins);
@@ -194,6 +203,10 @@ Instruction *DisassembleInstruction::instruction(
 Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
+
+    #ifdef ARCH_RISCV
+    assert(0); // should never be reached
+    #endif
 
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
 
@@ -216,10 +229,32 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
     return instr;
 }
 
+#ifdef ARCH_RISCV
+Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
+    auto instr = new Instruction();
+    InstructionSemantic *semantic = nullptr;
+
+    LOG(1, "op str: " << ins->op_name);
+
+    semantic = MakeSemantic::makeNormalSemantic(instr, ins);
+    if(!semantic) {
+        auto isolated = new IsolatedInstruction();
+        std::string raw;
+        raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
+        isolated->setData(raw);
+        semantic = isolated;
+    }
+    assert(semantic); // XXX: this should be more flexible, as above
+    instr->setSemantic(semantic);
+
+    return instr;
+}
+#endif
+
 InstructionSemantic *DisassembleInstruction::instructionSemantic(
     Instruction *instr, const std::string &bytes, address_t address) {
 
-    cs_insn *ins = runDisassembly(
+    auto ins = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
 
@@ -231,13 +266,19 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
         if(details) {
             semantic = new IsolatedInstruction();
             semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
         else {
             std::string raw;
+            #ifndef ARCH_RISCV
             raw.assign(reinterpret_cast<char *>(ins->bytes), ins->size);
+            #else
+            raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
+            #endif
             auto isolated = new IsolatedInstruction();
             isolated->setData(raw);
             semantic = isolated;
+            for(auto c : semantic->getData()) LOG(1, "    " << (int)c);
         }
     }
     instr->setSemantic(semantic);
@@ -256,21 +297,31 @@ InstructionSemantic *DisassembleInstruction::instructionSemantic(
 Assembly *DisassembleInstruction::allocateAssembly(const std::string &bytes,
     address_t address) {
 
-    cs_insn *insn = runDisassembly(
+    auto insn = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
     Assembly *assembly = new Assembly(*insn);
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
 Assembly *DisassembleInstruction::allocateAssembly(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
+    auto insn = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
     Assembly *assembly = new Assembly(*insn);
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
@@ -289,14 +340,21 @@ AssemblyPtr DisassembleInstruction::makeAssemblyPtr(
 Assembly DisassembleInstruction::makeAssembly(
     const std::vector<unsigned char> &bytes, address_t address) {
 
-    cs_insn *insn = runDisassembly(
+    auto insn = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
-    Assembly assembly{*insn};
+    Assembly assembly(*insn);
+
+    #ifndef ARCH_RISCV
     cs_free(insn, 1);
+    #else
+    delete insn;
+    #endif
+
     return assembly;
 }
 
+#ifndef ARCH_RISCV
 cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
     size_t size, address_t address) {
 
@@ -316,6 +374,28 @@ cs_insn *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 
     return ins;
 }
+#else
+rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
+    size_t size, address_t address) {
+
+    assert(size == 2 || size == 4);
+
+    rv_instr *ins = new rv_instr;
+    auto buf = rv_disasm_buffer(rv64, address, bytes, size);
+    if(buf.size() == 0) {
+        LOG(1, "When disassembling at address " << address);
+        LOG(1, "bytes: (len " << std::dec << size << ")");
+        for(size_t i = 0; i < size; i ++) {
+            CLOG(1, "    %x\n", bytes[i]);
+        }
+        throw "Invalid instruction provided\n";
+    }
+    assert(buf.size() == 1);
+    *ins = buf[0];
+
+    return ins;
+}
+#endif
 
 // --- X86_64 disassembly code
 
@@ -1004,16 +1084,89 @@ bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
     return false;
 }
 
+Function *DisassembleRISCVFunction::function(Symbol *symbol,
+    SymbolList *symbolList) {
+
+    LOG(1, "Disassembling function " << symbol->getName());
+
+    auto sectionIndex = symbol->getSectionIndex();
+    auto section = elfMap->findSection(sectionIndex);
+
+    PositionFactory *positionFactory = PositionFactory::getInstance();
+    Function *function = new Function(symbol);
+
+    address_t symbolAddress = symbol->getAddress();
+
+    function->setPosition(
+        positionFactory->makeAbsolutePosition(symbolAddress));
+
+    auto readAddress =
+        section->getReadAddress() + section->convertVAToOffset(symbolAddress);
+    auto readSize = symbol->getSize();
+    auto virtualAddress = symbol->getAddress();
+
+    auto context = ParseOverride::getInstance()->makeContext(
+        function->getSymbol()->getName());
+
+    if(auto over = ParseOverride::getInstance()->getBlockBoundaryOverride(
+        context)) {
+
+        LOG(10, "Using parsing override!");
+
+        disassembleCustomBlocks(function, readAddress, virtualAddress,
+            over->getOverrideList());
+
+    }
+    else {
+        disassembleBlocks(
+            function, readAddress, readSize, virtualAddress);
+    }
+
+    {
+        ChunkMutator m(function);  // recalculate cached values if necessary
+    }
+
+    return function;
+}
+
+FunctionList *DisassembleRISCVFunction::linearDisassembly(
+    const char *sectionName, DwarfUnwindInfo *dwarfInfo,
+    SymbolList *dynamicSymbolList, RelocList *relocList) {
+
+    FunctionList *functionList = new FunctionList();
+
+    assert(0); // Shouldn't ever be needed, we have symbols
+
+    #if 0
+    for(const Range &range : intervalList) {
+        LOG(11, "Split into function " << range << " at section offset "
+            << section->convertVAToOffset(range.getStart()));
+        Function *function = fuzzyFunction(range, section);
+        functionList->getChildren()->add(function);
+        function->setParent(functionList);
+    }
+    #endif
+
+    return functionList;
+}
+
+
 void DisassembleFunctionBase::disassembleBlocks(Function *function,
     address_t readAddress, size_t readSize, address_t virtualAddress) {
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
-    cs_insn *insn;
     LOG(19, "disassemble 0x" << std::hex << readAddress << " size " << readSize
         << ", virtual address " << virtualAddress);
+    #ifndef ARCH_RISCV
+    cs_insn *insn;
     size_t count = cs_disasm(handle.raw(),
         (const uint8_t *)readAddress, readSize, virtualAddress, 0, &insn);
+    #else
+    auto insn = rv_disasm_buffer(rv64, virtualAddress,
+        (const uint8_t *)readAddress, readSize);
+    size_t count = insn.size();
+    #endif
 
     Block *block = makeBlock(function, nullptr);
 
@@ -1023,7 +1176,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
         // check if this instruction ends the current basic block
         bool split = shouldSplitBlockAt(ins);
 
-        // Create Instruction from cs_insn
+        // Create Instruction from cs_insn/rv_instr
         auto instr = Disassemble::instruction(ins, handle, true);
 
         Chunk *prevChunk = nullptr;
@@ -1111,7 +1264,9 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
     }
 #endif
 
+    #ifndef ARCH_RISCV
     cs_free(insn, count);
+    #endif
 }
 
 void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
@@ -1150,19 +1305,38 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
                     false, function->getAddress() + function->getSize() + i);
                 ChunkMutator(gapBlock, false).append(instr);
             }
+#elif defined(ARCH_RISCV)
+            if((gap % 2) != 0) {
+                LOG(1, "gap block size not multiple of 2!");
+            }
+            for(size_t i = 0; i < gap; i += 2) {
+                // instruction bytes for nop:
+                // 01 00
+                auto instr = Disassemble::instruction({0x01, 0x00},
+                    false, function->getAddress() + function->getSize() + i);
+                ChunkMutator(gapBlock, false).append(instr);
+            }
 #else
     #error "Need to implement padding scheme for current architecture!"
 #endif
             ChunkMutator(function, false).append(gapBlock);
         }
 
-        cs_insn *insn;
         LOG(19, "disassemble 0x" << std::hex << (readAddress+boundary.first)
             << " size " << boundary.second << ", virtual address "
             << (virtualAddress+boundary.first));
+
+
+        #ifndef ARCH_RISCV
+        cs_insn *insn;
         size_t count = cs_disasm(handle.raw(),
             (const uint8_t *)readAddress + boundary.first, boundary.second,
             virtualAddress + boundary.first, 0, &insn);
+        #else
+        auto insn = rv_disasm_buffer(rv64, virtualAddress + boundary.first,
+            (const uint8_t *)readAddress + boundary.first, boundary.second);
+        size_t count = insn.size();
+        #endif
 
         if(count == 0) {
             LOG(1, "Disassembly error encountered in function ["
@@ -1192,7 +1366,7 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
             // check if this instruction ends the current basic block
             bool split = shouldSplitBlockAt(ins);
 
-            // Create Instruction from cs_insn
+            // Create Instruction from cs_insn/rv_instr
             auto instr = Disassemble::instruction(ins, handle, true);
 
             Chunk *prevChunk = nullptr;
@@ -1233,7 +1407,9 @@ void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
             delete block;
         }
 
+        #ifndef ARCH_RISCV
         cs_free(insn, count);
+        #endif
     }
 
     IF_LOG(10) {
@@ -1323,6 +1499,31 @@ bool DisassembleFunctionBase::shouldSplitBlockAt(cs_insn *ins) {
     return split;
 }
 
+#ifdef ARCH_RISCV
+bool DisassembleFunctionBase::shouldSplitBlockAt(rv_instr *ins) {
+
+    // sb codec are the conditional branches
+    if(ins->codec == rv_codec_sb) return true;
+
+    const std::set<rv_op> cflow = {
+        rv_op_j,
+        rv_op_jr,
+        rv_op_jal,
+        rv_op_jalr,
+
+        rv_op_c_j,
+        rv_op_c_jr,
+        rv_op_c_jal,
+        rv_op_c_jalr,
+
+        rv_op_ret
+    };
+
+    return cflow.count(ins->op) > 0;
+}
+
+#endif
+
 bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
     address_t *target) {
 
@@ -1358,6 +1559,8 @@ bool DisassembleFunctionBase::shouldSplitFunctionDueTo(cs_insn *ins,
     }
 #elif defined(ARCH_ARM)
     #error "Not yet implemented"
+#elif defined(ARCH_RISCV)
+    LOG(1, "shouldSplitFunctionDueTo NYI for RISCV");
 #endif
     return false;
 }

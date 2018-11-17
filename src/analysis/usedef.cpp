@@ -392,6 +392,65 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {ARM64_INS_SUB,     &UseDef::fillAddOrSub},
     {ARM64_INS_SXTW,    &UseDef::fillSxtw},
     {ARM64_INS_UBFIZ,   &UseDef::fillUbfiz},
+#elif defined(ARCH_RISCV)
+    {rv_op_add,         &UseDef::fillRegRegToReg},
+    {rv_op_addi,        &UseDef::fillRegImmToReg},
+    {rv_op_and,         &UseDef::fillRegRegToReg},
+    {rv_op_andi,        &UseDef::fillRegImmToReg},
+    {rv_op_auipc,       &UseDef::fillImmToReg},
+    {rv_op_beq,         &UseDef::fillB},
+    {rv_op_beqz,        &UseDef::fillB},
+    {rv_op_bgez,        &UseDef::fillB},
+    {rv_op_bgt,         &UseDef::fillB},
+    {rv_op_bgtu,        &UseDef::fillB},
+    {rv_op_bgtz,        &UseDef::fillB},
+    {rv_op_ble,         &UseDef::fillB},
+    {rv_op_bleu,        &UseDef::fillB},
+    {rv_op_blez,        &UseDef::fillB},
+    {rv_op_bltz,        &UseDef::fillB},
+    {rv_op_bne,         &UseDef::fillB},
+    {rv_op_bnez,        &UseDef::fillB},
+    {rv_op_ebreak,      &UseDef::fillEins},
+    {rv_op_ecall,       &UseDef::fillEins},
+    {rv_op_fence,       &UseDef::fillFence},
+    {rv_op_j,           &UseDef::fillJ},
+    {rv_op_jal,         &UseDef::fillJal},
+    {rv_op_jalr,        &UseDef::fillJalr},
+    {rv_op_jr,          &UseDef::fillJr},
+    {rv_op_lb,          &UseDef::fillLoad},
+    {rv_op_lbu,         &UseDef::fillLoad},
+    {rv_op_lh,          &UseDef::fillLoad},
+    {rv_op_lhu,         &UseDef::fillLoad},
+    {rv_op_ld,          &UseDef::fillLoad},
+    {rv_op_lr_d,        &UseDef::fillLoad},
+    {rv_op_lr_w,        &UseDef::fillLoad},
+    {rv_op_lw,          &UseDef::fillLoad},
+    {rv_op_lwu,         &UseDef::fillLoad},
+    {rv_op_lui,         &UseDef::fillImmToReg},
+    {rv_op_mv,          &UseDef::fillRegToReg},
+    {rv_op_neg,         &UseDef::fillRegToReg},
+    {rv_op_negw,        &UseDef::fillRegToReg},
+    {rv_op_not,         &UseDef::fillRegToReg},
+    {rv_op_or,          &UseDef::fillRegRegToReg},
+    {rv_op_ori,         &UseDef::fillRegImmToReg},
+    {rv_op_ret,         &UseDef::fillRet},
+    {rv_op_sb,          &UseDef::fillStore},
+    {rv_op_sc_d,        &UseDef::fillStore},
+    {rv_op_sc_w,        &UseDef::fillStore},
+    {rv_op_sd,          &UseDef::fillStore},
+    {rv_op_seqz,        &UseDef::fillRegToReg},
+    {rv_op_sext_w,      &UseDef::fillRegToReg},
+    {rv_op_sgtz,        &UseDef::fillRegToReg},
+    {rv_op_sh,          &UseDef::fillStore},
+    {rv_op_slli,        &UseDef::fillRegImmToReg},
+    {rv_op_snez,        &UseDef::fillRegToReg},
+    {rv_op_srai,        &UseDef::fillRegImmToReg},
+    {rv_op_srli,        &UseDef::fillRegImmToReg},
+    {rv_op_sub,         &UseDef::fillRegRegToReg},
+    {rv_op_subw,        &UseDef::fillRegRegToReg},
+    {rv_op_sw,          &UseDef::fillStore},
+    {rv_op_xor,         &UseDef::fillRegRegToReg},
+    {rv_op_xori,        &UseDef::fillRegImmToReg},
 #endif
 };
 
@@ -453,6 +512,8 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     #define INVALID_ID  X86_INS_INVALID
 #elif defined(ARCH_AARCH64)
     #define INVALID_ID  ARM64_INS_INVALID
+#elif defined(ARCH_RISCV)
+    #define INVALID_ID rv_op_illegal
 #endif
     AssemblyPtr assembly = instruction->getSemantic()->getAssembly();
     int id = INVALID_ID;
@@ -480,6 +541,8 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     }
     if(!handled) {
         LOG0(10, "handler disabled (or not found)");
+        if(assembly) LOG(10, "mnemonic not implemented: " << assembly->getMnemonic());
+        // assert(0);
         if(assembly) {
             LOG(10, " " << assembly->getMnemonic());
             LOG(10, "mode: " << assembly->getAsmOperands()->getMode());
@@ -665,6 +728,54 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
         TreeNodePhysicalRegister>(reg1, width1);
 
     defReg(state, reg0, tree);
+#elif defined(ARCH_RISCV)
+    auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto rs = assembly->getAsmOperands()->getOperands()[1].value.reg;
+
+    useReg(state, rs);
+
+    TreeNode *tree = nullptr;
+    switch(assembly->getId()) {
+    case rv_op_mv:
+        tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8);
+        break;
+    case rv_op_neg:
+        tree = TreeFactory::instance().make<TreeNodeSubtraction>(
+            TreeFactory::instance().make<TreeNodeConstant>(0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
+        break;
+    case rv_op_negw:
+        tree = TreeFactory::instance().make<TreeNodeSubtraction>(
+            TreeFactory::instance().make<TreeNodeConstant>(0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 4));
+        break;
+    case rv_op_not:
+        tree = TreeFactory::instance().make<TreeNodeNot>(
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 8));
+        break;
+    case rv_op_seqz:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
+    case rv_op_sext_w:
+        // XXX: sign extension
+        tree = TreeFactory::instance().make<TreeNodeSignExtendWord>(
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(rs, 4));
+        break;
+    case rv_op_sgtz:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
+    case rv_op_snez:
+        // XXX: conditional move, either 0 or 1
+        tree = nullptr;
+        break;
+    default:
+        LOG(1, "Unhandled instruction " << assembly->getMnemonic());
+        assert(0);
+        break;
+    }
+    defReg(state, rd, tree);
 #endif
 }
 
@@ -752,6 +863,43 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     auto derefTree
         = TreeFactory::instance().make<TreeNodeDereference>(memTree, width);
     defReg(state, reg0, derefTree);
+#elif defined(ARCH_RISCV)
+    auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto mem = assembly->getAsmOperands()->getOperands()[1].value.mem;
+
+    useReg(state, mem.basereg);
+
+    auto rs1tree =
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(mem.basereg, 8);
+
+    auto memTree = TreeFactory::instance().make<TreeNodeAddition>(
+        rs1tree,
+        TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
+
+    // int width = 0;
+    switch(assembly->getId()) {
+    case rv_op_lb:
+    case rv_op_lbu:
+        width = 1;
+        break;
+    case rv_op_lh:
+    case rv_op_lhu:
+        width = 2;
+        break;
+    case rv_op_lr_w:
+    case rv_op_lw:
+    case rv_op_lwu:
+        width = 4;
+        break;
+    case rv_op_lr_d:
+    case rv_op_ld:
+        width = 8;
+        break;
+    }
+
+    useMem(state, memTree, width);
+    defReg(state, rd,
+        TreeFactory::instance().make<TreeNodeDereference>(memTree, width));
 #endif
 }
 
@@ -808,6 +956,30 @@ void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
         tree1 = TreeFactory::instance().make<TreeNodeConstant>(op1);
     }
     defReg(state, reg0, tree1);
+#elif defined(ARCH_RISCV)
+    auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto imm = assembly->getAsmOperands()->getOperands()[1].value.imm;
+    
+    TreeNode *tree = nullptr;
+    switch(assembly->getId()) {
+    case rv_op_lui:
+        tree = TreeFactory::instance().make<TreeNodeConstant>(
+            (int64_t)(imm << 12));
+      break;
+    case rv_op_c_lui:
+        tree = TreeFactory::instance().make<TreeNodeConstant>(
+            (int64_t)(imm << 12));
+        break;
+    case rv_op_auipc:
+        // Capstone includes ip in the imm for e.g. adrp
+        // but our riscv disas doesn't, so we need to add it manually
+        // the disas does, however, pre-shift the imm by 12.
+        uint64_t ip = state->getInstruction()->getAddress();
+        tree = TreeFactory::instance().make<TreeNodeAddress>(
+                ip + (int64_t)(imm));
+        break;
+    }
+    defReg(state, rd, tree);
 #endif
 }
 
@@ -853,6 +1025,60 @@ void UseDef::fillRegRegToReg(UDState *state, AssemblyPtr assembly) {
         break;
     }
     defReg(state, reg0, tree);
+#elif defined(ARCH_RISCV)
+    auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto rs1 = assembly->getAsmOperands()->getOperands()[1].value.reg;
+    auto rs2 = assembly->getAsmOperands()->getOperands()[2].value.reg;
+
+    useReg(state, rs1);
+    useReg(state, rs2);
+
+    TreeNode *reg1tree = nullptr, *reg2tree = nullptr;
+    auto helper = [&](size_t width) {
+        reg1tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(rs1,
+            width);
+        reg2tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(rs2,
+            width);
+    };
+
+    TreeNode *tree = nullptr;
+    switch(assembly->getId()) {
+    case rv_op_add:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeAddition>(reg1tree, reg2tree);
+        break;
+    case rv_op_and:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeAnd>(reg1tree, reg2tree);
+        break;
+    case rv_op_or:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeOr>(reg1tree, reg2tree);
+        break;
+    case rv_op_sub:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeSubtraction>(reg1tree, reg2tree);
+        break;
+    case rv_op_subw:
+        helper(4);
+        tree = TreeFactory::instance().make<
+            TreeNodeSubtraction>(reg1tree, reg2tree);
+        break;
+    case rv_op_xor:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeXor>(reg1tree, reg2tree);
+        break;
+    default:
+        LOG(1, "NYI: " << assembly->getMnemonic());
+        break;
+    }
+
+    defReg(state, rd, tree);
 #endif
 }
 
@@ -960,6 +1186,44 @@ void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
     }
 
     defMem(state, memTree, reg0);
+#elif defined(ARCH_RISCV)
+    auto rs2 = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto mem = assembly->getAsmOperands()->getOperands()[1].value.mem;
+
+    useReg(state, rs2);
+    useReg(state, mem.basereg);
+
+    auto rs1tree =
+        TreeFactory::instance().make<TreeNodePhysicalRegister>(mem.basereg, 8);
+
+    TreeNode *memTree = rs1tree;
+    if(mem.disp != 0) {
+        memTree = TreeFactory::instance().make<TreeNodeAddition>(
+            rs1tree,
+            TreeFactory::instance().make<TreeNodeConstant>(mem.disp));
+    }
+
+    // int width = 0;
+    switch(assembly->getId()) {
+    case rv_op_sb:
+        width = 1;
+        break;
+    case rv_op_sh:
+        width = 2;
+        break;
+    case rv_op_sc_w:
+    case rv_op_sw:
+        width = 4;
+        break;
+    case rv_op_sc_d:
+    case rv_op_sd:
+        width = 8;
+        break;
+    }
+
+    // LOG(1, "XXX: width of store not specified!");
+
+    defMem(state, memTree, rs2);
 #endif
 }
 
@@ -1003,6 +1267,81 @@ void UseDef::fillRegImmToReg(UDState *state, AssemblyPtr assembly) {
         break;
     }
     defReg(state, reg0, tree);
+#elif defined(ARCH_RISCV)
+    auto rd = assembly->getAsmOperands()->getOperands()[0].value.reg;
+    auto rs1 = assembly->getAsmOperands()->getOperands()[1].value.reg;
+    auto imm = assembly->getAsmOperands()->getOperands()[2].value.imm;
+
+    useReg(state, rs1);
+
+    TreeNode *reg1tree = nullptr, *immtree = nullptr;
+    auto helper = [&](size_t width) {
+        reg1tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(rs1,
+            width);
+        immtree = TreeFactory::instance().make<TreeNodeConstant>(imm);
+    };
+
+    TreeNode *tree = nullptr;
+    switch(assembly->getId()) {
+    case rv_op_addi:
+        helper(8);
+        if(rs1 != rv_ireg_zero) {
+            tree = TreeFactory::instance().make<TreeNodeAddition>(
+                reg1tree, immtree);
+        }
+        else {
+            delete reg1tree;
+            tree = immtree;
+        }
+        break;
+    case rv_op_addiw:
+        helper(4);
+        tree = TreeFactory::instance().make<TreeNodeAddition>(
+            reg1tree, immtree);
+        if(rs1 != rv_ireg_zero) {
+            tree = TreeFactory::instance().make<TreeNodeAddition>(
+                reg1tree, immtree);
+        }
+        else {
+            delete reg1tree;
+            tree = immtree;
+        }
+        break;
+    case rv_op_andi:
+        helper(8);
+        tree = TreeFactory::instance().make<TreeNodeAnd>(
+            reg1tree, immtree);
+        break;
+    case rv_op_ori:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeOr>(reg1tree, immtree);
+        break;
+    case rv_op_slli:
+        helper(8);
+        tree = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(
+            reg1tree, immtree);
+        break;
+    case rv_op_srai:
+        helper(8);
+        tree = TreeFactory::instance().make<TreeNodeArithmeticShiftRight>(
+            reg1tree, immtree);
+        break;
+    case rv_op_srli:
+        helper(8);
+        tree = TreeFactory::instance().make<TreeNodeLogicalShiftRight>(
+            reg1tree, immtree);
+        break;
+    case rv_op_xori:
+        helper(8);
+        tree = TreeFactory::instance().make<
+            TreeNodeXor>(reg1tree, immtree);
+        break;
+    default:
+        LOG(1, "Mnemonic " << assembly->getMnemonic() << " NYI");
+        assert(0);
+    }
+    defReg(state, rd, tree);
 #endif
 }
 
@@ -1959,6 +2298,83 @@ void UseDef::fillUbfiz(UDState *state, AssemblyPtr assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
+#endif
+
+#ifdef ARCH_RISCV
+void UseDef::fillB(UDState *state, AssemblyPtr assembly) {
+    // mark relevant registers as used
+    size_t count = assembly->getAsmOperands()->getOpCount();
+    const rv_oper *opers = assembly->getAsmOperands()->getOperands();
+
+    for(size_t i = 0; i < count; i ++) {
+        if(opers[i].type == rv_oper::rv_oper_reg)
+            useReg(state, opers[i].value.reg);
+    }
+}
+
+void UseDef::fillEins(UDState *state, AssemblyPtr assembly) {
+    if(assembly->getId() == rv_op_ecall) {
+        // system call
+        // syscall number in a7
+        useReg(state, rv_ireg_a7);
+        // arguments in a0-a6
+        useReg(state, rv_ireg_a0);
+        useReg(state, rv_ireg_a1);
+        useReg(state, rv_ireg_a2);
+        useReg(state, rv_ireg_a3);
+        useReg(state, rv_ireg_a4);
+        useReg(state, rv_ireg_a5);
+        useReg(state, rv_ireg_a6);
+        // return value in a0
+        defReg(state, rv_ireg_a0, nullptr);
+    }
+    else if(assembly->getId() == rv_op_ebreak
+        || assembly->getId() == rv_op_c_ebreak) {
+
+        // nothing to do, for now
+    }
+}
+
+void UseDef::fillFence(UDState *state, AssemblyPtr assembly) {
+    // nothing to do
+}
+
+void UseDef::fillJ(UDState *state, AssemblyPtr assembly) {
+    // nothing to do
+}
+
+void UseDef::fillJal(UDState *state, AssemblyPtr assembly) {
+    useReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg);
+}
+
+void UseDef::fillJalr(UDState *state, AssemblyPtr assembly) {
+    useReg(state, assembly->getAsmOperands()->getOperands()[1].value.reg);
+    defReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg,
+        TreeFactory::instance().make<TreeNodeAddress>(
+        state->getInstruction()->getAddress() + state->getInstruction()->getSize()
+        ));
+}
+
+void UseDef::fillJr(UDState *state, AssemblyPtr assembly) {
+    useReg(state, assembly->getAsmOperands()->getOperands()[0].value.reg);
+}
+
+void UseDef::fillLoad(UDState *state, AssemblyPtr assembly) {
+    fillMemToReg(state, assembly, -1);
+}
+
+void UseDef::fillRet(UDState *state, AssemblyPtr assembly) {
+    // return registers are {f,}a0/a1
+    useReg(state, rv_ireg_a0);
+    useReg(state, rv_ireg_a1);
+    useReg(state, rv_freg_fa0);
+    useReg(state, rv_freg_fa1);
+}
+
+void UseDef::fillStore(UDState *state, AssemblyPtr assembly) {
+    fillRegToMem(state, assembly, -1);
+}
+
 #endif
 
 void MemLocation::extract(TreeNode *tree) {

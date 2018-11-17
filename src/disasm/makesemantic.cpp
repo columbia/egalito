@@ -179,6 +179,128 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
+#ifdef ARCH_RISCV
+InstructionSemantic *MakeSemantic::makeNormalSemantic(
+    Instruction *instruction, rv_instr *ins) {
+
+    InstructionSemantic *semantic = nullptr;
+    DisasmHandle handle(true);
+
+    bool is_cflow = false;
+    if(ins->codec == rv_codec_sb) is_cflow = true;
+
+    const std::set<rv_op> cflow = {
+        rv_op_j,
+        rv_op_jr,
+        rv_op_jal,
+        rv_op_jalr,
+
+        rv_op_c_j,
+        rv_op_c_jr,
+        rv_op_c_jal,
+        rv_op_c_jalr,
+
+        rv_op_ret
+    };
+
+    is_cflow |= cflow.count(ins->op) > 0;
+
+    if(is_cflow) {
+        auto cfi = new ControlFlowInstruction(instruction);
+        semantic = cfi;
+
+        std::string raw;
+        raw.assign(reinterpret_cast<char *>(&ins->inst), ins->len);
+        cfi->setData(raw);
+
+        // for the conditional branch instructions
+        // the psuedo-ops against zero have one less operand
+        if(ins->op == rv_op_beqz
+            || ins->op == rv_op_bnez
+            || ins->op == rv_op_blez
+            || ins->op == rv_op_bgez
+            || ins->op == rv_op_bltz
+            || ins->op == rv_op_bgtz) {
+
+            assert(ins->oper[1].type == rv_oper::rv_oper_imm);
+            CLOG(1, "making new UnresolvedLink, ins->ip is %lx", ins->ip);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[1].value.imm));
+        }
+        // the rest of the conditional branches
+        else if(ins->codec == rv_codec_sb) {
+            assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[2].value.imm));
+        }
+        else if(ins->op == rv_op_j
+            || ins->op == rv_op_c_j
+            || ins->op == rv_op_c_jal) {
+
+            assert(ins->oper[0].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[0].value.imm));
+        }
+        else if(ins->op == rv_op_jal) {
+            assert(ins->oper[1].type == rv_oper::rv_oper_imm);
+            cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[1].value.imm));
+        }
+        // indirect jumps
+        else if(ins->op == rv_op_jr) {
+            // indirect jump to oper[0] (reg)
+            delete semantic;
+            assert(ins->oper[0].type == rv_oper::rv_oper_reg);
+            semantic = new IndirectJumpInstruction(ins->oper[0].value.reg,
+                ins->op_name);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        }
+        else if(ins->op == rv_op_c_jr) {
+            // indirect jump to oper[1] (reg)
+            delete semantic;
+            assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+            semantic = new IndirectJumpInstruction(ins->oper[1].value.reg,
+                ins->op_name);
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        }
+        // indirect calls
+        else if(ins->op == rv_op_jalr) {
+            // oper[0] is rd
+            // oper[1] is rs
+            // oper[2] is imm
+            // if rd is 0, it's an indirect jump
+            if(ins->oper[0].value.reg == rv_ireg_zero) {
+                assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+                assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+                semantic = new IndirectJumpInstruction(ins->oper[1].value.reg,
+                    ins->op_name, Register::rv_reg_invalid, 0,
+                    ins->oper[2].value.imm);
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+            // otherwise it's an indirect call
+            else {
+                LOG(1, "JALR, destination reg is " << ins->oper[0].value.reg);
+                assert(ins->oper[2].type == rv_oper::rv_oper_imm);
+
+                assert(ins->oper[1].type == rv_oper::rv_oper_reg);
+                semantic = new IndirectCallInstruction(ins->oper[1].value.reg,
+                    ins->oper[2].value.imm);
+                semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+            }
+        }
+        else if(ins->op == rv_op_c_jalr) {
+            // XXX: not implemented yet
+            assert(0);
+        }
+
+        else if(ins->op == rv_op_ret) {
+            delete semantic;
+            semantic = new ReturnInstruction();
+            semantic->setAssembly(AssemblyPtr(new Assembly(*ins)));
+        }
+
+    }
+
+    return semantic;
+}
+#endif
+
 int MakeSemantic::determineDisplacementSize(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64
 #ifdef HAVE_DISTORM

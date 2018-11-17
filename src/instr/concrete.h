@@ -36,6 +36,7 @@ class LinkedLiteralInstruction;
 #include "linked-x86_64.h"
 #include "linked-aarch64.h"
 #include "linked-arm.h"
+#include "linked-riscv.h"
 
 class ReturnInstruction : public IsolatedInstruction {
 public:
@@ -50,11 +51,15 @@ private:
     bool memory;
     Register index; // only relevant if memory
     size_t scale;   // only relevant if memory
-    int64_t displacement;   // only relevant if memory
+    int64_t displacement;   // only relevant if memory or on RISC-V
 public:
     IndirectControlFlowInstructionBase(Register reg)
         : reg(reg), memory(false),
         index(INVALID_REGISTER), scale(1), displacement(0) {}
+
+    IndirectControlFlowInstructionBase(Register reg, int64_t displacement)
+        : reg(reg), memory(false),
+        index(INVALID_REGISTER), scale(1), displacement(displacement) {}
 
     IndirectControlFlowInstructionBase(Register reg,
         Register index, size_t scale, int64_t displacement)
@@ -78,6 +83,11 @@ private:
 public:
     IndirectJumpInstruction(Register reg, const std::string &mnemonic)
         : IndirectControlFlowInstructionBase(reg), mnemonic(mnemonic) {}
+
+    IndirectJumpInstruction(Register reg, const std::string &mnemonic,
+        int64_t displacement)
+        : IndirectControlFlowInstructionBase(reg, displacement),
+        mnemonic(mnemonic) {}
 
     IndirectJumpInstruction(Register reg, const std::string &mnemonic,
         Register index, size_t scale, int64_t displacement)

@@ -91,6 +91,7 @@ static Instruction *makeMovR11Instruction(SemanticType *semantic) {
 }
 
 void EndbrEnforcePass::visit(Module *module) {
+#ifdef ARCH_X86_64
     auto instr = Disassemble::instruction({0x0f, 0x0b});  // ud2
     auto block = new Block();
 
@@ -107,6 +108,7 @@ void EndbrEnforcePass::visit(Module *module) {
 
     this->violationTarget = function;
     recurse(module);
+#endif
 }
 
 void EndbrEnforcePass::visit(Function *function) {
@@ -136,6 +138,7 @@ void EndbrEnforcePass::visit(Instruction *instruction) {
 }
 
 void EndbrEnforcePass::makeEnforcementCode(Instruction *point) {
+#ifdef ARCH_X86_64
     //    0:   f3 0f 1e fa             endbr64
 
     //    4:   49 89 c3                mov    %rax, %r11
@@ -190,4 +193,5 @@ void EndbrEnforcePass::makeEnforcementCode(Instruction *point) {
     ChunkMutator(point->getParent(), true).modifiedChildSize(point,
         newSem->getSize() - semantic->getSize());
     delete semantic;
+#endif
 }

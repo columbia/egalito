@@ -439,6 +439,20 @@ private:
     void fillSxtw(UDState *state, AssemblyPtr assembly);
     void fillUbfiz(UDState *state, AssemblyPtr assembly);
 #endif
+
+#ifdef ARCH_RISCV
+    void fillB(UDState *state, AssemblyPtr assembly);
+    void fillConditionalStore(UDState *state, AssemblyPtr assembly);
+    void fillEins(UDState *state, AssemblyPtr assembly);
+    void fillFence(UDState *state, AssemblyPtr assembly);
+    void fillJ(UDState *state, AssemblyPtr assembly);
+    void fillJal(UDState *state, AssemblyPtr assembly);
+    void fillJalr(UDState *state, AssemblyPtr assembly);
+    void fillJr(UDState *state, AssemblyPtr assembly);
+    void fillLoad(UDState *state, AssemblyPtr assembly);
+    void fillRet(UDState *state, AssemblyPtr assembly);
+    void fillStore(UDState *state, AssemblyPtr assembly);
+#endif
 };
 
 class MemLocation {

@@ -25,9 +25,13 @@ public:
         { return pointerList; }
 
 private:
+    #ifdef ARCH_AARCH64
     void detectAtLDR(UDState *state);
     void detectAtADR(UDState *state);
     void detectAtADRP(UDState *state);
+    #elif defined(ARCH_RISCV)
+    void detectAtAUIPC(UDState *state);
+    #endif
 };
 
 class PageOffsetList {

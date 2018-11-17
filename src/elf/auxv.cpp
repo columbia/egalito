@@ -1,5 +1,6 @@
 #include <cstring>
 #include <iostream>
+#include <assert.h>
 #include <elf.h>
 #include "auxv.h"
 #include "elfxx.h"
@@ -91,6 +92,9 @@ int removeLoaderFromArgv(void *argv) {
     size_t newSize = (char *)p - (char *)argv - remove_count*8;
     std::memmove(argv, (char *)argv + remove_count*8, newSize);
     *(unsigned long *)((char *)argv + newSize) = 0;
+    return 0;
+#elif defined(ARCH_RISCV)
+    assert(0); // XXX: no idea for now
     return 0;
 #endif
 }

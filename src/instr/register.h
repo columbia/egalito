@@ -8,11 +8,17 @@
     #include <capstone/arm64.h>
 #endif
 
+#include "disasm/riscv-disas.h"
+
 typedef
 #ifdef ARCH_X86_64
     x86_reg
-#else
+#elif defined(ARCH_AARCH64)
     arm64_reg
+#elif defined(ARCH_RISCV)
+    rv_reg
+#else
+    #error "not defined for current arch"
 #endif
     Register;
 
@@ -22,12 +28,21 @@ typedef
     #define REGISTER_ENDING     X86_REG_ENDING
     #define REGISTER_SP         X86_REG_RSP
     #define REGISTER_FP         X86_REG_RBP
-#else
+#elif defined(ARCH_AARCH64)
     #define INVALID_REGISTER    ARM64_REG_INVALID
     #define CONDITION_REGISTER  ARM64_REG_NZCV
     #define REGISTER_ENDING     ARM64_REG_ENDING
     #define REGISTER_SP         ARM64_REG_SP
     #define REGISTER_FP         ARM64_REG_FP
+#elif defined(ARCH_RISCV)
+    #define INVALID_REGISTER    rv_reg_invalid
+    // not really a condition register ...
+    #define CONDITION_REGISTER  rv_reg_invalid
+    #define REGISTER_ENDING     rv_reg_ending
+    #define REGISTER_SP         rv_ireg_sp
+    #define REGISTER_FP         rv_ireg_s0
+#else
+    #error "not defined for current arch"
 #endif
 
 #ifdef ARCH_X86_64
@@ -121,6 +136,35 @@ inline AARCH64GPRegister::ID& operator++(AARCH64GPRegister::ID &orig) {
     if(orig > AARCH64GPRegister::REGISTER_NUMBER) throw "can't ++R31";
     return orig;
 }
+#endif
+
+#ifdef ARCH_RISCV
+class RISCVRegister {
+public:
+    enum ID {
+        INVALID = -1,
+
+        // XXX: need to do this
+
+        REGISTER_NUMBER,
+
+        BP = INVALID,
+        SP = INVALID,
+
+        FLAGS = REGISTER_NUMBER
+    };
+
+private:
+    //const static int mappings[][0];
+
+public:
+    //static int convertToPhysical(int id);
+    //static size_t getWidth(int pid, int id);
+    //static int isInteger(int pid) { return (R0 <= pid && pid <= R15); }
+
+private:
+    //static int convertToPhysicalINT(int id);
+};
 #endif
 
 template <typename RegisterType>

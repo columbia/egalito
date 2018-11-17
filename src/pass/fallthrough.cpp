@@ -29,9 +29,11 @@ void FallThroughFunctionPass::visit(Function *function) {
         else if(dynamic_cast<IndirectJumpInstruction *>(semantic)) {
             falling = false;
         }
+#ifdef ARCH_X86_64
         else if(dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
             falling = false;
         }
+#endif
         else if(auto cfi = dynamic_cast<ControlFlowInstruction *>(semantic)) {
             falling = false;
 #ifdef ARCH_X86_64
@@ -49,6 +51,37 @@ void FallThroughFunctionPass::visit(Function *function) {
                 }
             }
             falling = f;
+#elif defined(ARCH_RISCV)
+            auto assembly = semantic->getAssembly();
+
+            if(assembly->getId() == rv_op_j) {
+                falling = false;
+            }
+            else if(assembly->getId() == rv_op_jr) {
+                falling = false;
+            }
+            else if(assembly->getId() == rv_op_c_j) {
+                falling = false;
+            }
+            else if(assembly->getId() == rv_op_c_jr) {
+                falling = false;
+            }
+            else if(assembly->getId() == rv_op_jal) {
+                // jal is fall-through unless destination is x0
+                auto ops = assembly->getAsmOperands()->getOperands();
+                assert(ops[0].type == rv_oper::rv_oper_reg);
+                if(ops[0].value.reg == rv_ireg_zero) falling = false;
+                else falling = true;
+            }
+            else if(assembly->getId() == rv_op_jalr) {
+                // jalr is fall-through unless destination is x0
+                auto ops = assembly->getAsmOperands()->getOperands();
+                assert(ops[0].type == rv_oper::rv_oper_reg);
+                if(ops[0].value.reg == rv_ireg_zero) falling = false;
+                else falling = true;
+            }
+            // c.jalr always writes to x1, so it's a fall-through
+            // c.jal (RV32C-only) likewise
 #endif
         }
         else if(dynamic_cast<IsolatedInstruction *>(semantic)) {
@@ -82,6 +115,14 @@ void FallThroughFunctionPass::visit(Function *function) {
                 }
                 else if(assembly->getId() == ARM64_INS_NOP) {
                     nop++;
+                }
+#elif defined(ARCH_RISCV)
+                if(assembly->getId() == rv_op_illegal) {
+                    falling = false;
+                }
+                // glibc uses ebreak as an "invalid instruction"/abort
+                else if(assembly->getId() == rv_op_ebreak) {
+                    falling = false;
                 }
 #endif
                 else {
@@ -153,6 +194,15 @@ void FallThroughFunctionPass::visit(Function *function) {
             auto semantic = new ControlFlowInstruction(branch);
             semantic->setAssembly(DisassembleInstruction(handle)
                 .makeAssemblyPtr(bin.getVector()));
+#elif defined(ARCH_RISCV)
+            LOG(1, "In function " << function->getName());
+            // jmp to next instruction
+            std::vector<uint8_t> data{0x6f, 0x00, 0x40, 0x00};
+
+            auto semantic = new ControlFlowInstruction(branch);
+            semantic->setAssembly(DisassembleInstruction(handle)
+                .makeAssemblyPtr(data));
+            LOG(1, "XXX: this fallthrough may not be right");
 #endif
             semantic->setLink(
                 new NormalLink(target, Link::SCOPE_EXTERNAL_JUMP));

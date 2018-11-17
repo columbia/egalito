@@ -1,6 +1,8 @@
 #include "dump.h"
 #include "handle.h"
 #include "instr/assembly.h"
+#include "riscv-disas.h"
+
 #include "log/log.h"
 
 std::string DisasmDump::formatBytes(const char *bytes, size_t size) {
@@ -142,6 +144,11 @@ void DisasmDump::printInstructionList(const uint8_t *code, size_t length,
 }
 
 const char *DisasmDump::getRegisterName(int reg) {
+#ifndef ARCH_RISCV
     DisasmHandle handle(true);
     return cs_reg_name(handle.raw(), reg);
+#else
+    const char *symname = rv_reg_sym(static_cast<rv_reg>(reg));
+    return symname;
+#endif
 }

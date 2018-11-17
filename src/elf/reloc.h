@@ -9,6 +9,7 @@
 #include "types.h"
 #include "elf/elfmap.h"
 #include "elf/elfxx.h"
+#include "elf/riscv-elf.h"
 
 class Symbol;
 class SymbolList;

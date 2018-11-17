@@ -143,6 +143,11 @@ public:
     TreeNodeUnsignedExtendWord(TreeNode *node)
         : TreeNodeUnary(node, "uxtw") {}
 };
+class TreeNodeNot : public TreeNodeUnary {
+public:
+    TreeNodeNot(TreeNode *node)
+        : TreeNodeUnary(node, "~") {}
+};
 
 class TreeNodeBinary : public TreeNode {
 private:
@@ -199,6 +204,16 @@ class TreeNodeAnd : public TreeNodeBinary {
 public:
     TreeNodeAnd(TreeNode *left, TreeNode *right)
         : TreeNodeBinary(left, right, "&") {}
+};
+class TreeNodeOr : public TreeNodeBinary {
+public:
+    TreeNodeOr(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "|") {}
+};
+class TreeNodeXor : public TreeNodeBinary {
+public:
+    TreeNodeXor(TreeNode *left, TreeNode *right)
+        : TreeNodeBinary(left, right, "^") {}
 };
 class TreeNodeDereferenceWithValue : public TreeNodeBinary {
 private:

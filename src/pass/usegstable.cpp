@@ -42,6 +42,7 @@ void UseGSTablePass::visit(Function *function) {
 }
 
 void UseGSTablePass::visit(Block *block) {
+#ifdef ARCH_X86_64
     ChunkDumper d;
     for(auto instr : CIter::children(block)) {
         IF_LOG(11) {
@@ -92,6 +93,7 @@ void UseGSTablePass::visit(Block *block) {
             }
         }
     }
+#endif
 }
 
 void UseGSTablePass::convert() {

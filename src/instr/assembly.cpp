@@ -1,6 +1,87 @@
+#include <sstream>
+
 #include "assembly.h"
+#include "disasm/dump.h"
 #include "instr/register.h"
 #include "log/log.h"
+
+
+#ifdef ARCH_RISCV
+Assembly::Assembly(const rv_instr &instr) : operands(instr) {
+    id = instr.op;
+    for(uint8_t i = 0; i < instr.len; i++) {
+        bytes.push_back((instr.inst >> (i * 8)) & 0xff);
+    }
+    mnemonic = instr.op_name;
+
+    regs_read_count = 0;
+
+    // instructions with no register writes
+    if(instr.codec == rv_codec_sb
+        || instr.codec == rv_codec_r_f
+        || instr.codec == rv_codec_none
+        || instr.codec == rv_codec_illegal
+        || instr.codec == rv_codec_ci_none
+        || instr.codec == rv_codec_s
+        || instr.codec == rv_codec_cs_sw
+        || instr.codec == rv_codec_cs_sd
+        || instr.codec == rv_codec_css_swsp
+        || instr.codec == rv_codec_css_sdsp
+        || instr.codec == rv_codec_cb
+        || instr.codec == rv_codec_sb
+        || mnemonic == "sfence.vm"
+        || mnemonic == "sfence.vma"
+        || mnemonic == "j"
+        ) {
+
+        regs_write_count = 0;
+    }
+    else {
+        // one single reg write
+        regs_write_count = 1;
+        assert(instr.oper[0].type == rv_oper::rv_oper_reg);
+        regs_write.push_back(instr.oper[0].value.reg);
+    }
+
+    for(size_t i = regs_write_count; i < instr.oper_count; i ++) {
+        switch(instr.oper[i].type) {
+        case rv_oper::rv_oper_imm: break;
+        case rv_oper::rv_oper_reg:
+            regs_read.push_back(instr.oper[i].value.reg);
+            break;
+        case rv_oper::rv_oper_mem:
+            regs_read.push_back(instr.oper[i].value.mem.basereg);
+            break;
+        default:
+            break;
+        }
+    }
+    regs_read_count = regs_read.size();
+
+    // build operandString
+    std::ostringstream ss;
+    for(size_t i = 0; i < instr.oper_count; i ++) {
+        if(i != 0) ss << ", ";
+        switch(instr.oper[i].type) {
+        case rv_oper::rv_oper_imm:
+            ss << std::hex << "0x" << instr.oper[i].value.imm;
+            break;
+        case rv_oper::rv_oper_reg:
+            ss << std::dec <<
+                DisasmDump::getRegisterName(instr.oper[i].value.reg);
+            break;
+        case rv_oper::rv_oper_mem:
+            ss << std::hex << "0x" << instr.oper[i].value.mem.disp << "("
+                << DisasmDump::getRegisterName(
+                    instr.oper[i].value.mem.basereg) << ")";
+            break;
+        default:
+            break;
+        }
+    }
+    operandString = ss.str();
+}
+#endif
 
 #ifdef ARCH_X86_64
 void AssemblyOperands::overrideCapstone(const cs_insn &insn) {

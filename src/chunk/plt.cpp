@@ -238,6 +238,9 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
 #elif defined(ARCH_AARCH64)
     #define R_JUMP_SLOT R_AARCH64_JUMP_SLOT
     #define R_IRELATIVE R_AARCH64_IRELATIVE
+#elif defined(ARCH_RISCV)
+    #define R_JUMP_SLOT R_RISCV_JUMP_SLOT
+    #define R_IRELATIVE R_RISCV_RELATIVE // XXX: check this
 #endif
 
     PLTRegistry *registry = new PLTRegistry();
@@ -332,7 +335,7 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
             }
         }
     }
-#else
+#elif defined(ARCH_AARCH64)
     static const size_t ENTRY_SIZE = 16;
 
     /* example format
@@ -372,6 +375,39 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
                 pltList->getChildren()->add(
                     new PLTTrampoline(pltList, pltAddress, externalSymbol, value));
             }
+        }
+    }
+#elif defined(ARCH_RISCV)
+    static const size_t ENTRY_SIZE = 16;
+
+    /* Example PLT trampoline:
+   103b0:       00002e17                auipc   t3,0x2
+   103b4:       c60e3e03                ld      t3,-928(t3) # 12010 <puts@GLIBC_2.26>
+   103b8:       000e0367                jalr    t1,t3
+   103bc:       00000013                nop
+     */
+
+    for(size_t i = 2 * ENTRY_SIZE; i < header->sh_size; i += ENTRY_SIZE) {
+        auto entry = section + i;
+        address_t pltAddress = header->sh_addr + i;
+
+        // start with the 20-bit PC-relative immediate
+        address_t base =
+            pltAddress + (*reinterpret_cast<int32_t *>(entry) & ~0xfff);
+        int32_t offset = *reinterpret_cast<int32_t *>(entry + 4);
+        offset >>= 20;
+
+        address_t value = base + offset;
+        LOG(1, "VALUE might be " << value);
+        Reloc *r = registry->find(value);
+        if(r && r->getSymbol()) {
+            LOG(1, "Found PLT entry at " << pltAddress << " -> ["
+                << r->getSymbolName() << "]");
+
+            auto externalSymbol = ExternalSymbolFactory(module)
+                .makeExternalSymbol(r->getSymbol());
+            pltList->getChildren()->add(
+                new PLTTrampoline(pltList, pltAddress, externalSymbol, value));
         }
     }
 #endif

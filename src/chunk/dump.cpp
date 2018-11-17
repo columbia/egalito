@@ -208,6 +208,8 @@ void InstrDumper::dumpLinkedBase(LinkedInstructionBase *semantic, bool isCF) {
 #elif defined(ARCH_ARM)
         if(semantic->getAssembly()->getMnemonic() == "bl"
             || semantic->getAssembly()->getMnemonic() == "blx") name << "(CALL)";
+#elif defined(ARCH_RISCV)
+        if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
 #endif
         else {
             name << "(JUMP " << semantic->getAssembly()->getMnemonic() << ")";
@@ -237,9 +239,11 @@ void InstrDumper::visit(ControlFlowInstruction *semantic) {
     dumpControlFlow(semantic, false);
 }
 
+#ifdef ARCH_X86_64
 void InstrDumper::visit(DataLinkedControlFlowInstruction *semantic) {
     dumpLinkedBase(semantic, true);
 }
+#endif
 
 void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool printStar) {
     auto link = semantic->getLink();
@@ -269,6 +273,8 @@ void InstrDumper::dumpControlFlow(ControlFlowInstructionBase *semantic, bool pri
     if(semantic->getMnemonic() == "bl") name << "(CALL)";
 #elif defined(ARCH_ARM)
     if(semantic->getMnemonic() == "bl" || semantic->getMnemonic() == "blx") name << "(CALL)";
+#elif defined(ARCH_RISCV)
+    if(semantic->getAssembly()->getMnemonic() == "jal") name << "(CALL)";
 #endif
     else {
         name << "(JUMP " << semantic->getMnemonic() << ")";
@@ -322,7 +328,7 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
 }
 
 void InstrDumper::visit(StackFrameInstruction *semantic) {
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());
     auto assembly = Disassemble::makeAssembly(v, address);

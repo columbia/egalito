@@ -2,6 +2,7 @@
 #define EGALITO_DISASM_MAKE_SEMANTIC_H
 
 #include <capstone/capstone.h>
+#include "riscv-disas.h"
 
 class Instruction;
 class InstructionSemantic;
@@ -11,6 +12,10 @@ class MakeSemantic {
 public:
     static InstructionSemantic *makeNormalSemantic(
         Instruction *instruction, cs_insn *ins);
+#ifdef ARCH_RISCV
+    static InstructionSemantic *makeNormalSemantic(
+        Instruction *instruction, rv_instr *ins);
+#endif
 
     static bool isRIPRelative(Assembly *assembly, int opIndex);
     static int determineDisplacementSize(Assembly *assembly, int opIndex);
