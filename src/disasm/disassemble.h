@@ -34,8 +34,10 @@ public:
         address_t address = 0);
     static Instruction *instruction(cs_insn *ins, DisasmHandle &handle,
         bool details = true);
+    #ifdef ARCH_RISCV
     static Instruction *instruction(rv_instr *ins, DisasmHandle &handle,
         bool details = true);
+    #endif
     static Assembly makeAssembly(const std::vector<unsigned char> &str,
         address_t address = 0);
 

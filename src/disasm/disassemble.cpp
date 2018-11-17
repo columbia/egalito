@@ -63,16 +63,13 @@ Instruction *Disassemble::instruction(cs_insn *ins, DisasmHandle &handle,
 
     return DisassembleInstruction(handle, details).instruction(ins);
 }
+#ifdef ARCH_RISCV
 Instruction *Disassemble::instruction(rv_instr *ins, DisasmHandle &handle,
     bool details) {
 
-    #ifndef ARCH_RISCV
-    assert(0); // shouldn't be reached
-    #endif
-
     return DisassembleInstruction(handle, details).instruction(ins);
 }
-
+#endif
 
 Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     address_t address) {

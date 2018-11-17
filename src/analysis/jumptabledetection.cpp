@@ -258,7 +258,7 @@ bool JumptableDetection::parseJumptable(UDState *state, TreeCapture& cap,
         }
     }
     if(found) {
-        LOG(1, "Found jump table!");
+        LOG(10, "Found jump table at 0x" << std::hex << targetBase);
         info->valid = true;
         info->targetBase = targetBase;
         #ifdef ARCH_RISCV

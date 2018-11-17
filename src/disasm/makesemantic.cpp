@@ -163,6 +163,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
     return semantic;
 }
 
+#ifdef ARCH_RISCV
 InstructionSemantic *MakeSemantic::makeNormalSemantic(
     Instruction *instruction, rv_instr *ins) {
 
@@ -282,6 +283,7 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
 
     return semantic;
 }
+#endif
 
 int MakeSemantic::determineDisplacementSize(Assembly *assembly, int opIndex) {
 #ifdef ARCH_X86_64

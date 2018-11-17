@@ -541,7 +541,7 @@ bool UseDef::callIfEnabled(UDState *state, Instruction *instruction) {
     }
     if(!handled) {
         LOG0(10, "handler disabled (or not found)");
-        LOG(1, "mnemonic not implemented: " << assembly->getMnemonic());
+        if(assembly) LOG(10, "mnemonic not implemented: " << assembly->getMnemonic());
         // assert(0);
         if(assembly) {
             LOG(10, " " << assembly->getMnemonic());
