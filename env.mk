@@ -30,8 +30,15 @@ ifeq ($(USE_LOADER),)
 	USE_LOADER=1
 endif
 
+ifneq ($(CROSS_ANALYZE),1)
 CC         = $(EGALITO_CCACHE) $(CROSS)gcc
 CXX        = $(EGALITO_CCACHE) $(CROSS)g++
+else
+CC         = $(EGALITO_CCACHE) gcc
+CXX        = $(EGALITO_CCACHE) g++
+endif
+TARGET_CC  = $(EGALITO_CCACHE) $(CROSS)gcc
+TARGET_CXX = $(EGALITO_CCACHE) $(CROSS)g++
 
 AS         = $(CC)
 LINK       = $(CXX)
@@ -43,13 +50,9 @@ GENERIC_FLAGS   = -Wall -Wextra -Wno-unused-parameter -I.
 ifneq ($(CROSS),)
 ifneq ($(CAPSTONE_INC),)
 	GENERIC_FLAGS += -isystem $(CAPSTONE_INC)
-else
-	$(error Capstone Include directory not defined)
 endif
 ifneq ($(CAPSTONE_LIB),)
 	CROSSLD = -L $(CAPSTONE_LIB)
-else
-	$(error Capstone Lib directory not defined)
 endif
 endif
 
@@ -90,8 +93,8 @@ else
 	CXXFLAGS += -fno-stack-protector
 endif
 
-ifneq ($(ANALYZE_ARCH),)
-	P_ARCH := $(strip $(shell echo $(TARGET_CC) | awk -F- '{print $$1}'))
+ifneq ($(CROSS_ANALYZE),)
+	P_ARCH := $(strip $(shell echo $(CROSS) | awk -F- '{print $$1}'))
 else
 	P_ARCH := $(shell uname -m)
 	ifeq (armv7l,$(P_ARCH))
