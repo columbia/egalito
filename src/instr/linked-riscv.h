@@ -60,6 +60,14 @@ public:
 
 typedef ControlFlowInstruction ControlFlowInstructionBase;
 
+// Not used on RISC-V, but here to make things compile
+class StackFrameInstruction : public SemanticImpl {
+public:
+    using SemanticImpl::SemanticImpl;
+
+    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+};
+
 #endif
 
 #endif

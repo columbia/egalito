@@ -62,10 +62,8 @@ public:
         { write(TYPE_ReturnInstruction, retInstr); }
     virtual void visit(IndirectJumpInstruction *indirect);
     virtual void visit(IndirectCallInstruction *indirect);
-#ifdef ARCH_X86_64
     virtual void visit(StackFrameInstruction *stackFrame)
         { write(TYPE_StackFrameInstruction, stackFrame); }
-#endif
     virtual void visit(LiteralInstruction *literal)
         { write(TYPE_LiteralInstruction, literal); }
     virtual void visit(LinkedLiteralInstruction *literal)

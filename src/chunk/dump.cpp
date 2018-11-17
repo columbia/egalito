@@ -317,7 +317,7 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
 }
 
 void InstrDumper::visit(StackFrameInstruction *semantic) {
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(ARCH_AARCH64)
     std::string data = getBytes(semantic);
     std::vector<unsigned char> v(data.begin(), data.end());
     auto assembly = Disassemble::makeAssembly(v, address);

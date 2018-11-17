@@ -52,6 +52,7 @@ void EndbrAddPass::visit(Program *program) {
 }
 
 void EndbrAddPass::visit(Module *module) {
+#ifdef ARCH_X86_64
     recurse(module);  // to get to instructions
     recurse(module->getDataRegionList());  // to get to data variables
     recurse(module->getPLTList());  // to get IFUNC plt refs
@@ -72,6 +73,7 @@ void EndbrAddPass::visit(Module *module) {
     LOG(9, "after parsing module [" << module->getName()
         << "] we have " << std::dec << indirectTargets.size()
         << " indirect targets");
+#endif
 }
 
 void EndbrAddPass::visit(DataVariable *variable) {
