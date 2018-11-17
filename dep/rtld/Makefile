@@ -2,14 +2,14 @@
 
 include ../../env.mk
 
-READELF = $(TARGET)readelf
-GDB = $(TARGET)gdb
+READELF = $(CROSS)readelf
+GDB = $(CROSS)gdb
 
 CFLAGS = -std=c99 -Wall -Wextra -Wno-format -Wno-int-conversion -Wno-unused-parameter -g
 CFLAGS_D =	-DRTLD_GLOBAL_SIZE=$(shell cat $(BUILDDIR)rtld_global_size) \
 		-DRTLD_GLOBAL_RO_SIZE=$(shell cat $(BUILDDIR)rtld_global_ro_size)
 
-LIBC = $(shell readlink -f $(shell $(TARGET_CC) --print-file-name=libc.so.6))
+LIBC = $(shell readlink -f $(shell $(CC) --print-file-name=libc.so.6))
 
 RUN_GDB = $(GDB) -n -q -x reconstruct.py
 
@@ -40,7 +40,7 @@ depends: $(BUILDDIR)interpreter $(BUILDDIR)rtld_global_size $(BUILDDIR)rtld_glob
 
 $(BUILDDIR)interpreter: $(BUILDDIR)load_test
 	$(eval INTERPRETER_NAME = $(shell $(READELF) -l $(BUILDDIR)load_test | perl -ne '/\[Requesting program interpreter: (.*)\/(.*)\]/ && print "$$2\n"'))
-	readlink -f $(shell $(TARGET_CC) --print-file-name=$(INTERPRETER_NAME)) > $@
+	readlink -f $(shell $(CC) --print-file-name=$(INTERPRETER_NAME)) > $@
 $(BUILDDIR)rtld_global_size: $(BUILDDIR)interpreter
 	$(READELF) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global@ | awk '{ print $$3 }' > $@
 $(BUILDDIR)rtld_global_ro_size: $(BUILDDIR)interpreter
@@ -59,7 +59,7 @@ $(BUILDDIR)tcbhead.h: | depends
 
 $(BUILDDIR)%.c: %.gdb | depends
 	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' > $@
-ifneq ($(TARGET),)
+ifneq ($(RTLD_EXEC),)
 $(BUILDDIR)rtld_data1.c: test
 	$(RTLD_EXEC) ./test 1 > $@
 $(BUILDDIR)rtld_data2.c: test
@@ -73,17 +73,17 @@ endif
 
 # load_test is used only to determine the system dynamic loader (ld.so)
 $(BUILDDIR)load_test: load_test.c
-	$(TARGET_CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 $(BUILDDIR)test: $(BUILDDIR)test.o
-	$(TARGET_CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 $(BUILDDIR)reproduce: $(BUILDDIR)reproduce.o
-	$(TARGET_CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 $(BUILDDIR)test.o: test.c $(GDB_GEN_FILES)
-	$(TARGET_CC) $(CFLAGS) $(CFLAGS_D) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CFLAGS_D) -c -o $@ $<
 $(BUILDDIR)reproduce.o: reproduce.c $(GDB_GEN_FILES) $(TEST_GEN_FILES)
-	$(TARGET_CC) $(CFLAGS) $(CFLAGS_D) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CFLAGS_D) -c -o $@ $<
 $(BUILDDIR)%.o: %.c
-	$(TARGET_CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PHONY: relink
 

@@ -3,14 +3,35 @@
 # Compute the root directory of the repo, containing env.mk.
 EGALITO_ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-ifeq ($(TARGET),)
-	TARGET=$(CROSS)
+# Optional settings:
+#   USE_KEYSTONE=1
+#   USE_LOADER=1
+#   VERBOSE=1
+#   PROFILE=1
+#   STACK_PROTECTOR=1
+
+# To cross-compile, set e.g. CROSS=aarch64-linux-gnu-
+#   for loader support, also set RTLD_TARGET to an appropriate simulator for
+#   running binaries (e.g. qemu-user-*).
+# To cross-analyze, set CROSS as before and
+# 	also CROSS_ANALYZE=1 (the loader is not supported in this config)
+ifneq ($(CROSS),)
+ifeq ($(CROSS_ANALYZE),1)
+	USE_LOADER=0
+endif
+ifneq ($(RTLD_TARGET),)
+	RTLD_EXEC = $(RTLD_TARGET)
+else
+	$(error Specify command to execute target rtld for current arch)
+endif
+endif
+
+ifeq ($(USE_LOADER),)
+	USE_LOADER=1
 endif
 
 CC         = $(EGALITO_CCACHE) $(CROSS)gcc
 CXX        = $(EGALITO_CCACHE) $(CROSS)g++
-TARGET_CC  = $(EGALITO_CCACHE) $(TARGET)gcc
-TARGET_CXX = $(EGALITO_CCACHE) $(TARGET)g++
 
 AS         = $(CC)
 LINK       = $(CXX)
@@ -29,13 +50,6 @@ ifneq ($(CAPSTONE_LIB),)
 	CROSSLD = -L $(CAPSTONE_LIB)
 else
 	$(error Capstone Lib directory not defined)
-endif
-endif
-ifneq ($(TARGET),)
-ifneq ($(RTLD_TARGET),)
-	RTLD_EXEC = $(RTLD_TARGET)
-else
-	$(error Specify command to execute target rtld for current arch)
 endif
 endif
 
@@ -76,7 +90,7 @@ else
 	CXXFLAGS += -fno-stack-protector
 endif
 
-ifneq ($(TARGET),)
+ifneq ($(ANALYZE_ARCH),)
 	P_ARCH := $(strip $(shell echo $(TARGET_CC) | awk -F- '{print $$1}'))
 else
 	P_ARCH := $(shell uname -m)
