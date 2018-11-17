@@ -19,15 +19,20 @@ ifneq ($(CROSS),)
 ifeq ($(CROSS_ANALYZE),1)
 	USE_LOADER=0
 endif
-ifneq ($(RTLD_TARGET),)
-	RTLD_EXEC = $(RTLD_TARGET)
-else
-	$(error Specify command to execute target rtld for current arch)
-endif
 endif
 
 ifeq ($(USE_LOADER),)
 	USE_LOADER=1
+endif
+
+ifeq ($(USE_LOADER),1)
+ifneq ($(CROSS),)
+ifneq ($(RTLD_TARGET),)
+	RTLD_EXEC = $(RTLD_TARGET)
+else
+$(error Specify command to execute target rtld for current arch)
+endif
+endif
 endif
 
 ifneq ($(CROSS_ANALYZE),1)
