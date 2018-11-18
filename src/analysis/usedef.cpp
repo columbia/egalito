@@ -395,6 +395,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
 #elif defined(ARCH_RISCV)
     {rv_op_add,         &UseDef::fillRegRegToReg},
     {rv_op_addi,        &UseDef::fillRegImmToReg},
+    {rv_op_addiw,       &UseDef::fillRegImmToReg},
     {rv_op_and,         &UseDef::fillRegRegToReg},
     {rv_op_andi,        &UseDef::fillRegImmToReg},
     {rv_op_auipc,       &UseDef::fillImmToReg},

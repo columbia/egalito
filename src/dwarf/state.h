@@ -19,8 +19,11 @@ class DwarfState {
 private:
 #ifdef ARCH_X86_64
     static const int NUM_REGISTERS = 17;
-#else
+#elif defined(ARCH_AARCH64)
     static const int NUM_REGISTERS = 32;
+#elif defined(ARCH_RISCV)
+    // XXX: we don't have a contiguous register mapping right now, so...
+    static const int NUM_REGISTERS = 256;
 #endif
 private:
     DwarfRegisterData registers[NUM_REGISTERS];

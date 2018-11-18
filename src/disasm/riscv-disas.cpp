@@ -2498,7 +2498,11 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     dec.pc = ip;
 
     // printf("[@%lx] considering first parcel %04x\n", ip, *(uint16_t *)code);
-    if(*(uint16_t *)code == 0) assert(0);
+    if(*(uint16_t *)code == 0) {
+        printf("XXX: encountered invalid instruction encoding at ip 0x%lx.\n",
+            ip);
+        return 0;
+    }
 
     // length up to 64 bits can be determined from first 16 bits
     instr->len = rv_inst_length(*(uint16_t *)code);
@@ -2513,6 +2517,8 @@ uint8_t rv_disasm_instr(rv_instr *instr, rv_isa isa, uint64_t ip,
     }
     else {
         printf("Instruction length not 16/32 bits\n");
+        printf("First parcel: %x\n", *(uint16_t *)code);
+        printf("len: %d code_size: %d\n", instr->len, code_size);
         assert(0);
         return 0;
     }
