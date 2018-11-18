@@ -239,8 +239,6 @@ Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
 
-    LOG(1, "op str: " << ins->op_name);
-
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
     if(!semantic) {
         auto isolated = new IsolatedInstruction();
@@ -1098,7 +1096,8 @@ bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
 Function *DisassembleRISCVFunction::function(Symbol *symbol,
     SymbolList *symbolList) {
 
-    LOG(1, "Disassembling function " << symbol->getName());
+    LOG(1, "Disassembling function " << symbol->getName() << "(" << std::dec
+        << symbol->getSize() << " bytes)");
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
@@ -1115,6 +1114,29 @@ Function *DisassembleRISCVFunction::function(Symbol *symbol,
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
+
+    // XXX: this is a hack to work around a compiler/linker bug
+    // sometimes the symbol sizes are 4 bytes too small.
+    Symbol *nxt;
+    const std::vector<int> offsets{2,4,6};
+    for(auto off : offsets) {
+        if(symbolList->find(virtualAddress + readSize) == nullptr
+            && (nxt = symbolList->find(virtualAddress + readSize + off)) != nullptr) {
+
+            if(nxt == symbol) {
+                LOG(1, "Found negative-sized function, skipping this size increment.");
+                continue;
+            }
+
+            LOG(1, "Increasing size of function \"" << symbol->getName() << "\"");
+            LOG(1, "\tstarting at address 0x" << std::hex << virtualAddress);
+            LOG(1, "\twhich normally has size " << std::dec << readSize);
+            LOG(1, "\tfound symbol with name \"" << nxt->getName() << "\"");
+            LOG(1, "\t\tat address 0x" << std::hex << (virtualAddress + readSize + 4));
+            readSize += off;
+            break;
+        }
+    }
 
     auto context = ParseOverride::getInstance()->makeContext(
         function->getSymbol()->getName());

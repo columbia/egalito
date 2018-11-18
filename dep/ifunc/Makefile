@@ -7,6 +7,7 @@ RUN_GDB = $(GDB) -n -batch-silent -x determine.py
 all: ifunc.h
 
 ifunc.h: determine
+	touch ifunc.h
 
 determine: determine.c
 	@$(CC) -O0 -fno-builtin -o $@ $^ -lm
