@@ -266,6 +266,7 @@ EgalitoTLS *Conductor::getEgalitoTLS() const {
 }
 
 void Conductor::allocateTLSArea(address_t base) {
+#ifdef USE_LOADER
     DataLoader dataLoader;
 
     // calculate size
@@ -305,6 +306,7 @@ void Conductor::allocateTLSArea(address_t base) {
         tls->setTLSOffset((base + offset) - mainThreadPointer);
         offset += tls->getSize();
     }
+#endif
 #endif
 }
 

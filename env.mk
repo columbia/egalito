@@ -63,9 +63,12 @@ endif
 
 CAPSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/capstone/install
 GENERIC_FLAGS += -I $(CAPSTONE_DIR)/include
-ifdef USE_KEYSTONE
+ifeq ($(USE_KEYSTONE),1)
 KEYSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/keystone
 GENERIC_FLAGS += -I $(KEYSTONE_DIR)/include
+endif
+ifeq ($(USE_LOADER),1)
+GENERIC_FLAGS += -DUSE_LOADER
 endif
 
 OPT_FLAGS       = -g3 -Og

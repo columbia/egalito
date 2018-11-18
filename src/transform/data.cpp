@@ -4,8 +4,10 @@
 #include <fstream>
 #include "data.h"
 #include "chunk/tls.h"
-#include "../dep/rtld/pthread.h"
-#include "../dep/rtld/tcbhead.h"
+#ifdef USE_LOADER
+    #include "../dep/rtld/pthread.h"
+    #include "../dep/rtld/tcbhead.h"
+#endif
 #include "elf/elfspace.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -13,6 +15,7 @@
 #define ROUND_UP(x)     (((x) + 0xfff) & ~0xfff)
 #define ROUND_UP_BY(x, y)   (((x) + (y) - 1) & ~((y) - 1))
 
+#ifdef USE_LOADER
 address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
 #ifdef ARCH_X86_64
     // header is at the end
@@ -51,6 +54,7 @@ address_t DataLoader::allocateTLS(address_t base, size_t size, size_t *offset) {
 
     return tp;
 }
+#endif
 
 void DataLoader::loadRegion(DataRegion *region) {
     const std::string &source = region->getDataBytes();

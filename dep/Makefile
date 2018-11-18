@@ -31,14 +31,20 @@ ifunc:
 distorm3:
 	$(call short-make,distorm3/make/linux) CC='gcc -Wno-missing-braces'
 
+ifeq ($(CROSS_ANALYZE),1)
+CROSS2 =
+else
+CROSS2 = $(CROSS)
+endif
+
 # directly use make to install to 'lib'
 CAPSTONE_INSTALL := $(abspath capstone/install)
 capstone:
 	@cd capstone \
 		&& rm -fr install \
 		&& git checkout $(capstone-VERSION) > /dev/null 2>&1 \
-		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) \
-		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) install
+		&& env CAPSTONE_ARCHS='x86 aarch64' $(MAKE) CROSS=$(CROSS2) \
+		&& env CAPSTONE_ARCHS='x86 aarch64' PREFIX=$(CAPSTONE_INSTALL) $(MAKE) CROSS=$(CROSS2) install
 
 ifeq ($(USE_KEYSTONE),1)
 keystone:

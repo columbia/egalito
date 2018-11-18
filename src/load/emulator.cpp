@@ -13,6 +13,7 @@
 #include "log/log.h"
 
 extern ConductorSetup *egalito_conductor_setup;
+#ifdef USE_LOADER
 namespace Emulation {
     #include "../dep/rtld/rtld.h"
 
@@ -97,6 +98,7 @@ namespace Emulation {
         return &cxa_eh_globals_offset;
     }
 }
+#endif
 
 static void createDataVariable2(Symbol *source, void *target,
     Module *egalito) {
@@ -247,6 +249,7 @@ static void createDataVariable(void *p, Function *target, Module *egalito) {
 }
 
 void LoaderEmulator::initRT(Conductor *conductor) {
+#ifdef USE_LOADER
     this->egalito = conductor->getProgram()->getEgalito();
     if(!egalito) {
         LOG(1, "WARNING: no libegalito present, cannot provide loader emulation");
@@ -278,4 +281,5 @@ void LoaderEmulator::initRT(Conductor *conductor) {
     createDataVariable(&rtld_casted->_dl_rtld_lock_recursive, f, egalito);
     createDataVariable(&rtld_casted->_dl_rtld_unlock_recursive, f, egalito);
     createDataVariable(&rtld_ro_casted->_dl_lookup_symbol_x, f, egalito);
+#endif
 }
