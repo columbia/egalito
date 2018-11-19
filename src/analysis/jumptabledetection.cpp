@@ -200,6 +200,7 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
             FlowUtil::searchUpDef<MakeJumpTargetForm1>(state, reg, parser1);
 
             if(info.valid) {
+                LOG(1, "valid jump table descriptor!");
                 makeDescriptor(instr, &info);
                 continue;
             }
@@ -570,8 +571,14 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     LOG(10, "        not found");
     return false;
 #elif defined(ARCH_RISCV)
-    //typedef TreePatternBinary<
-
+    typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+        > DoubleShiftFirstForm;
+    typedef TreePatternBinary<TreeNodeLogicalShiftRight,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+        > DoubleShiftSecondForm;
     typedef TreePatternBinary<TreeNodeLogicalShiftLeft,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
@@ -588,11 +595,40 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
             TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>>
         > LoadForm;
 
-    bool found_li = false;
-    bool found_compare = false;
+    int doubleshift_first_amount;
     bool found_shift = false;
     bool found_add = false;
     bool found_load = false;
+
+    auto doubleshift_first_parser = [&](UDState *s, TreeCapture &cap) {
+        LOG(1, "found doubleshift first form");
+        doubleshift_first_amount =
+            static_cast<TreeNodeConstant *>(cap.get(1))->getValue();
+        return true;
+    };
+
+    auto doubleshift_second_parser = [&](UDState *s, TreeCapture &cap) {
+        LOG(1, "found doubleshift second form");
+        doubleshift_first_amount = -1;
+
+        FlowUtil::searchUpDef<DoubleShiftFirstForm>(s,
+            static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
+            doubleshift_first_parser);
+
+        if(doubleshift_first_amount == -1) return false;
+
+        int delta = doubleshift_first_amount
+            - static_cast<TreeNodeConstant *>(cap.get(1))->getValue();
+        if(delta != 2) {
+            LOG(1, "XXX: found doubleshift other than 2, maybe not jump table?");
+            return false;
+        }
+
+        info->scale = 4;
+
+        found_shift = true;
+        return true;
+    };
 
     auto shift_parser = [&](UDState *s, TreeCapture &cap) {
         LOG(1, "found shift form");
@@ -603,15 +639,7 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
         }
         info->scale = 4; // XXX: should actually be load size
 
-        // look for limit if we can
-        auto uselist = s->getRegUse(
-            static_cast<TreeNodeRegister *>(cap.get(0))->getRegister());
-
-        // for now just print out addresses
-        LOG(1, "uses of register:");
-        for(auto use : uselist) {
-            LOG(1, "    address " << use->getInstruction()->getAddress());
-        }
+        // rely on limit heuristics from elsewhere (jumptable adjacency, etc.)
 
         found_shift = true;
         return true;
@@ -624,6 +652,12 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
         FlowUtil::searchUpDef<ShiftForm>(s,
             static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
             shift_parser);
+        if(!found_shift) {
+            FlowUtil::searchUpDef<DoubleShiftSecondForm>(s,
+                static_cast<TreeNodePhysicalRegister *>(
+                    cap.get(0))->getRegister(),
+                doubleshift_second_parser);
+        }
         if(found_shift) found_add = true;
         return found_add;
     };
@@ -641,7 +675,6 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
             static_cast<TreeNodePhysicalRegister *>(cap.get(0))->getRegister(),
             add_parser);
         if(found_add) found_load = true;
-
 
         return found_load;
     };
