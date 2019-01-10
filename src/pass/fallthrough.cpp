@@ -12,6 +12,9 @@
 #include "chunk/dump.h"
 
 void FallThroughFunctionPass::visit(Function *function) {
+    // skip any function that has no blocks
+    if(function->getChildren()->getIterable()->getCount() == 0) return;
+
     //TemporaryLogLevel tll("pass", 10);
     auto block = function->getChildren()->getIterable()->getLast();
 
