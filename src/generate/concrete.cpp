@@ -446,6 +446,11 @@ void MakeInitArray::makeInitArraySections() {
                     std::string name2 = StreamAsString() << "fuzzyfunc-0x" << std::hex << firstInit;
                     function = ChunkFind2(getData()->getProgram())
                         .findFunctionInModule(name2.c_str(), module);
+                    // if not found, may have a name like _init instead.
+                    if(!function) {
+                        function = ChunkFind2(getData()->getProgram())
+                            .findFunctionInModule("_init", module);
+                    }
                 }
                 LOG(1, "Found _init at " << function->getAddress());
                 return function->getAddress();
