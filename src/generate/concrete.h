@@ -65,6 +65,18 @@ private:
     void makeInitArraySectionLinks();
 };
 
+class PLTTrampoline;
+class MakeGlobalPLT : public NormalElfOperation {
+private:
+    std::vector<PLTTrampoline *> entries;
+public:
+    virtual void execute();
+private:
+    void collectPLTEntries();
+    void makePLTData();
+    void makePLTCode();
+};
+
 class ElfFileWriter : public ConcreteElfOperation {
 private:
     std::string filename;

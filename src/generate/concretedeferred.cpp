@@ -574,6 +574,40 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addPLTRef(PLTTrampoline *plt, size_t pltIndex) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = 0; // virtual address
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    char *name = new char[plt->getExternalSymbol()->getName().length()+1];
+    std::strcpy(name, plt->getExternalSymbol()->getName().c_str());
+    auto symbol = new Symbol(0, 0, name,
+        Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    auto elfSym = symtab->addUndefinedSymbol(symbol);
+    deferred->addFunction([this, symtab, elfSym, name, pltIndex] (ElfXX_Rela *rela) {
+        LOG(1, "Creating PLT reloc for [" << name << "]");
+        LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
+        size_t index = symtab->indexOf(elfSym);
+        LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
+        rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
+
+        LOG(1, "    .plt.got address: " << std::hex
+            << (*sectionList)[".plt.got"]->getHeader()->getAddress());
+        rela->r_offset = (*sectionList)[".plt.got"]->getHeader()->getAddress()
+            + (pltIndex * sizeof(address_t));
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(plt->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addTLSOffsetRef(address_t source, TLSDataOffsetLink *link) {
 
     auto rela = new ElfXX_Rela();

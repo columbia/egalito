@@ -14,6 +14,7 @@ void UnionGen::preCodeGeneration() {
     pipeline.add(new BasicElfCreator());
     pipeline.add(new MakeInitArray(/*stage=*/ 0));  // !AssignSectionsToSegments
     pipeline.add(new BasicElfStructure());
+    pipeline.add(new MakeGlobalPLT());
     pipeline.add(new AssignSectionsToSegments());
     pipeline.execute();
 }

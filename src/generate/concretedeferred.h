@@ -177,6 +177,8 @@ public:
     DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
     DeferredType *addDataRef(address_t source, address_t target,
         DataSection *targetSection);
+    DeferredType *addPLTRef(PLTTrampoline *plt, size_t pltIndex);
+
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);
 };
 
