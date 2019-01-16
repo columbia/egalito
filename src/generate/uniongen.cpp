@@ -13,8 +13,8 @@ void UnionGen::preCodeGeneration() {
     ElfPipeline pipeline(getData(), getConfig());
     pipeline.add(new BasicElfCreator());
     pipeline.add(new MakeInitArray(/*stage=*/ 0));  // !AssignSectionsToSegments
-    pipeline.add(new BasicElfStructure());
     pipeline.add(new MakeGlobalPLT());
+    pipeline.add(new BasicElfStructure());
     pipeline.add(new AssignSectionsToSegments());
     pipeline.execute();
 }

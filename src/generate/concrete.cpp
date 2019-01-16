@@ -33,7 +33,8 @@ void BasicElfCreator::execute() {
     getSectionList()->addSection(phdrTableSection);
 
     auto strtab = new Section(".strtab", SHT_STRTAB);
-    strtab->setContent(new DeferredStringList());
+    auto strtabContent = new DeferredStringList();
+    strtab->setContent(strtabContent);
     getSectionList()->addSection(strtab);
 
     auto shstrtab = new Section(".shstrtab", SHT_STRTAB);
@@ -48,6 +49,52 @@ void BasicElfCreator::execute() {
         stringList->add("123456", true);
         dynstr->setContent(stringList);
         getSectionList()->addSection(dynstr);
+
+        // symtab
+        auto symtab = new SymbolTableContent(strtabContent);
+        auto symtabSection = new Section(".symtab", SHT_SYMTAB);
+        symtabSection->setContent(symtab);
+        symtab->addNullSymbol();
+        // other symbols will be added later
+        getSectionList()->addSection(symtabSection);
+
+        auto dynsym = new SymbolTableContent(stringList);
+        auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
+        //auto dynsymSection = getSection(".dynsym");
+        dynsymSection->setContent(dynsym);
+        dynsym->addNullSymbol();
+        // other symbols will be added later
+        getSectionList()->addSection(dynsymSection);
+
+        // .rela.dyn
+        auto relaDyn = new DataRelocSectionContent(
+            nullptr /*new SectionRef(&sectionList, ".dynsym")*/,
+            getSectionList());
+        auto relaDynSection = new Section(".rela.dyn", SHT_RELA);
+        relaDynSection->setContent(relaDyn);
+        getSectionList()->addSection(relaDynSection);
+        // .dynamic
+
+        auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
+        auto dynamic = new DynamicSectionContent();
+        dynamicSection->setContent(dynamic);
+        getSectionList()->addSection(dynamicSection);
+
+        {
+            MakePaddingSection makePadding(0);
+            makePadding.setData(getData());
+            makePadding.setConfig(getConfig());
+            makePadding.execute();
+        }
+
+        // note: section contents are set later
+        auto gotplt = new Section(".g.got.plt",
+            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+        getSectionList()->addSection(gotplt);
+
+        auto relaplt = new Section(".rela.plt",
+            SHT_RELA, SHF_ALLOC | SHF_INFO_LINK);
+        getSectionList()->addSection(relaplt);
     }
 }
 
@@ -123,31 +170,38 @@ void BasicElfStructure::makeSymtabSection() {
     {
         auto strtab = getSection(".strtab")->castAs<DeferredStringList *>();
 
+        #if 0
         auto symtab = new SymbolTableContent(strtab);
         auto symtabSection = new Section(".symtab", SHT_SYMTAB);
         symtabSection->setContent(symtab);
 
         symtab->addNullSymbol();
         // other symbols will be added later
+        #endif
 
+        auto symtabSection = getSection(".symtab");
         symtabSection->getHeader()->setSectionLink(
             new SectionRef(getSectionList(), ".strtab"));
-        getSectionList()->addSection(symtabSection);
+        //getSectionList()->addSection(symtabSection);
     }
     if(getConfig()->isDynamicallyLinked()) {
+#if 0
         auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
 
         auto dynsym = new SymbolTableContent(dynstr);
-        auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
+        //auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
+        auto dynsymSection = getSection(".dynsym");
         dynsymSection->setContent(dynsym);
 
         dynsym->addNullSymbol();
         // other symbols will be added later
+#endif
+        auto dynsymSection = getSection(".dynsym");
 
         dynsymSection->getHeader()->setSectionLink(
             new SectionRef(getSectionList(), ".dynstr"));
         dynsymSection->getHeader()->setShdrFlags(SHF_ALLOC);
-        getSectionList()->addSection(dynsymSection);
+        //getSectionList()->addSection(dynsymSection);
     }
 }
 
@@ -157,6 +211,13 @@ void GenerateSectionTable::execute() {
 }
 
 void GenerateSectionTable::makeShdrTable() {
+    {
+        MakePaddingSection makePadding(0);
+        makePadding.setData(getData());
+        makePadding.setConfig(getConfig());
+        makePadding.execute();
+    }
+
     LOG(1, "generating shdr table");
     auto shdrTable = new ShdrTableContent();
     auto shdrTableSection = new Section("=shdr_table", shdrTable);
@@ -256,17 +317,19 @@ void BasicElfStructure::makePhdrTable() {
 }
 
 void BasicElfStructure::makeDynamicSection() {
+    #if 0
     {
-        auto relaDyn = new DataRelocSectionContent(
-            nullptr /*new SectionRef(&sectionList, ".dynsym")*/,
-            getSectionList());
-        auto relaDynSection = new Section(".rela.dyn", SHT_RELA);
-        relaDynSection->setContent(relaDyn);
-        getSectionList()->addSection(relaDynSection);
+        MakePaddingSection makePadding(0);
+        makePadding.setData(getData());
+        makePadding.setConfig(getConfig());
+        makePadding.execute();
     }
+    #endif
 
-    auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
-    auto dynamic = new DynamicSectionContent();
+    //auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
+    //auto dynamic = new DynamicSectionContent();
+    auto dynamicSection = getSection(".dynamic");
+    auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
 
     // Add DT_NEEDED dependency on ld.so because we combine libc into
     // our executable, and libc uses _rtld_global{,_ro} from ld.so.
@@ -319,7 +382,7 @@ void BasicElfStructure::makeDynamicSection() {
 
     dynamicSection->setContent(dynamic);
     dynamicSection->getHeader()->setSectionLink(new SectionRef(getSectionList(), ".dynstr"));
-    getSectionList()->addSection(dynamicSection);
+    //getSectionList()->addSection(dynamicSection);
 }
 
 void AssignSectionsToSegments::execute() {
@@ -340,13 +403,16 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
-        dynSegment->addContains(getSection(".got.plt"));
         dynSegment->addContains(getSection(".rela.dyn"));
-        dynSegment->addContains(getSection(".rela.plt"));
         dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
 
-        auto pltSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x10);
+        auto dynSegment2 = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x400000*/ 0x1000);
+        dynSegment2->addContains(getSection(".g.got.plt"));
+        dynSegment2->addContains(getSection(".rela.plt"));
+        phdrTable->add(dynSegment2, 0x500000);
+
+        auto pltSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x1000);
         pltSegment->addContains(getSection(".plt"));
         phdrTable->add(pltSegment, 0x600000);
 
@@ -576,8 +642,9 @@ void MakeGlobalPLT::collectPLTEntries() {
 
 void MakeGlobalPLT::makePLTData() {
     {
-        gotpltSection = new Section(".got.plt",
-            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+        /*gotpltSection = new Section(".g.got.plt",
+            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);*/
+        gotpltSection = (*getData()->getSectionList())[".g.got.plt"];
 
         // 3 slots needed for GOT padding
         size_t contentLength = sizeof(address_t) * (entries.size()+3);
@@ -585,14 +652,15 @@ void MakeGlobalPLT::makePLTData() {
         std::memset(content, 0, contentLength);
 
         gotpltSection->setContent(new DeferredString(content, contentLength));
-        getData()->getSectionList()->addSection(gotpltSection);
+//        getData()->getSectionList()->addSection(gotpltSection);
     }
 
     // make .rela.plt section for function references
     {
-        auto relaPltSection = new Section(".rela.plt",
-            SHT_RELA, SHF_ALLOC | SHF_INFO_LINK);
-        std::string data;
+        /*auto relaPltSection = new Section(".rela.plt",
+            SHT_RELA, SHF_ALLOC | SHF_INFO_LINK);*/
+        auto relaPltSection = (*getData()->getSectionList())[".rela.plt"];
+
         auto content = new DataRelocSectionContent(
             new SectionRef(getData()->getSectionList(), ".dynstr"),
                 getData()->getSectionList());
@@ -604,13 +672,20 @@ void MakeGlobalPLT::makePLTData() {
         }
 
         relaPltSection->setContent(content);
-        getData()->getSectionList()->addSection(relaPltSection);
+        //getData()->getSectionList()->addSection(relaPltSection);
     }
 
     // MakePaddingSection(0x1000, true).execute();
 }
 
 void MakeGlobalPLT::makePLTCode() {
+    {
+        MakePaddingSection makePadding(0);
+        makePadding.setData(getData());
+        makePadding.setConfig(getConfig());
+        makePadding.execute();
+    }
+
     auto pltSection = new Section(".plt",
         SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR);
     auto content = new PLTCodeContent(gotpltSection, pltSection);
@@ -658,6 +733,9 @@ void ElfFileWriter::serialize() {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
             << " of size " << std::dec << section->getContent()->getSize());
+        if(section->getOffset() != fs.tellp()) {
+            LOG(1, " WARNING: section offset does not match file position");
+        }
         fs << *section;
     }
     fs.close();

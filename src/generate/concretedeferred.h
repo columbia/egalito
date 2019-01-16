@@ -226,7 +226,7 @@ struct PLTCodeEntry {
         EntryPush = 6+1,
         EntryJmp2 = 6+5+1
     };
-};
+} __attribute__((packed));
 #else
     #error "Need PLTCodeEntry for current platform!"
 #endif
