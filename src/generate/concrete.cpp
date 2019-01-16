@@ -74,8 +74,8 @@ void BasicElfCreator::execute() {
         auto relaDynSection = new Section(".rela.dyn", SHT_RELA);
         relaDynSection->setContent(relaDyn);
         getSectionList()->addSection(relaDynSection);
-        // .dynamic
 
+        // .dynamic
         auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
         auto dynamic = new DynamicSectionContent();
         dynamicSection->setContent(dynamic);
@@ -171,38 +171,16 @@ void BasicElfStructure::makeSymtabSection() {
     {
         auto strtab = getSection(".strtab")->castAs<DeferredStringList *>();
 
-        #if 0
-        auto symtab = new SymbolTableContent(strtab);
-        auto symtabSection = new Section(".symtab", SHT_SYMTAB);
-        symtabSection->setContent(symtab);
-
-        symtab->addNullSymbol();
-        // other symbols will be added later
-        #endif
-
         auto symtabSection = getSection(".symtab");
         symtabSection->getHeader()->setSectionLink(
             new SectionRef(getSectionList(), ".strtab"));
-        //getSectionList()->addSection(symtabSection);
     }
     if(getConfig()->isDynamicallyLinked()) {
-#if 0
-        auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
-
-        auto dynsym = new SymbolTableContent(dynstr);
-        //auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
-        auto dynsymSection = getSection(".dynsym");
-        dynsymSection->setContent(dynsym);
-
-        dynsym->addNullSymbol();
-        // other symbols will be added later
-#endif
         auto dynsymSection = getSection(".dynsym");
 
         dynsymSection->getHeader()->setSectionLink(
             new SectionRef(getSectionList(), ".dynstr"));
         dynsymSection->getHeader()->setShdrFlags(SHF_ALLOC);
-        //getSectionList()->addSection(dynsymSection);
     }
 }
 
@@ -239,8 +217,6 @@ void GenerateSectionTable::makeShdrTable() {
 
             if(auto symtab = dynamic_cast<SymbolTableContent *>(section->getContent())) {
                 deferred->addFunction([symtab] (ElfXX_Shdr *shdr) {
-                    //auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
-
                     shdr->sh_info = symtab->getFirstGlobalIndex();
                     shdr->sh_entsize = sizeof(ElfXX_Sym);
                     shdr->sh_addralign = 8;
@@ -318,17 +294,6 @@ void BasicElfStructure::makePhdrTable() {
 }
 
 void BasicElfStructure::makeDynamicSection() {
-    #if 0
-    {
-        MakePaddingSection makePadding(0);
-        makePadding.setData(getData());
-        makePadding.setConfig(getConfig());
-        makePadding.execute();
-    }
-    #endif
-
-    //auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
-    //auto dynamic = new DynamicSectionContent();
     auto dynamicSection = getSection(".dynamic");
     auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
 
@@ -360,11 +325,7 @@ void BasicElfStructure::makeDynamicSection() {
 
     dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
 
-    /*
-0x0000000000000003 (PLTGOT)             0x200fa0
-0x0000000000000002 (PLTRELSZ)           96 (bytes)
-0x0000000000000014 (PLTREL)             RELA
-   */
+    // PLT-related entries
     dynamic->addPair(DT_PLTGOT, [this] () {
         auto gotplt = getSection(".g.got.plt");
         return gotplt->getHeader()->getAddress();
@@ -379,11 +340,11 @@ void BasicElfStructure::makeDynamicSection() {
         return relaplt->getHeader()->getAddress();
     });
 
+    // terminating pair
     dynamic->addPair(0, 0);
 
     dynamicSection->setContent(dynamic);
     dynamicSection->getHeader()->setSectionLink(new SectionRef(getSectionList(), ".dynstr"));
-    //getSectionList()->addSection(dynamicSection);
 }
 
 void AssignSectionsToSegments::execute() {
@@ -659,8 +620,6 @@ void MakeGlobalPLT::makePLTData() {
 
     // make .rela.plt section for function references
     {
-        /*auto relaPltSection = new Section(".rela.plt",
-            SHT_RELA, SHF_ALLOC | SHF_INFO_LINK);*/
         auto relaPltSection = (*getData()->getSectionList())[".rela.plt"];
 
         auto content = new DataRelocSectionContent(
