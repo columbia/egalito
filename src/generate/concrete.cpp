@@ -296,6 +296,25 @@ void BasicElfStructure::makeDynamicSection() {
 
     dynamic->addPair(DT_FLAGS, DF_STATIC_TLS);
 
+    /*
+0x0000000000000003 (PLTGOT)             0x200fa0
+0x0000000000000002 (PLTRELSZ)           96 (bytes)
+0x0000000000000014 (PLTREL)             RELA
+   */
+    dynamic->addPair(DT_PLTGOT, [this] () {
+        auto gotplt = getSection(".g.got.plt");
+        return gotplt->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_PLTRELSZ, [this] () {
+        auto relaplt = getSection(".rela.plt");
+        return relaplt->getContent()->getSize();
+    });
+    dynamic->addPair(DT_PLTREL, DT_RELA);
+    dynamic->addPair(DT_JMPREL, [this] () {
+        auto relaplt= getSection(".rela.plt");
+        return relaplt->getHeader()->getAddress();
+    });
+
     dynamic->addPair(0, 0);
 
     dynamicSection->setContent(dynamic);
