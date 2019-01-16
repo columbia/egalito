@@ -177,7 +177,7 @@ public:
     DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
     DeferredType *addDataRef(address_t source, address_t target,
         DataSection *targetSection);
-    DeferredType *addPLTRef(PLTTrampoline *plt, size_t pltIndex);
+    DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);
 };
@@ -213,6 +213,35 @@ public:
     void addCallback(std::function<void ()> func) { callbacks.push_back(func); }
     virtual size_t getSize() const { return array.size() * sizeof(address_t); }
     virtual void writeTo(std::ostream &stream);
+};
+
+#ifdef ARCH_X86_64
+struct PLTCodeEntry {
+    char data[16];
+
+    enum {
+        Entry0Push = 2,
+        Entry0Jmp = 6+2,
+        EntryJmp = 2,
+        EntryPush = 6+1,
+        EntryJmp2 = 6+5+1
+    };
+};
+#else
+    #error "Need PLTCodeEntry for current platform!"
+#endif
+
+class PLTCodeContent : public DeferredMap<PLTTrampoline *, PLTCodeEntry> {
+public:
+    typedef DeferredValueImpl<PLTCodeEntry> DeferredType;
+private:
+    Section *gotpltSection;
+    Section *pltSection;
+public:
+    PLTCodeContent(Section *gotpltSection, Section *pltSection)
+        : gotpltSection(gotpltSection), pltSection(pltSection) {}
+
+    DeferredType *addEntry(PLTTrampoline *plt, size_t index);
 };
 
 #endif

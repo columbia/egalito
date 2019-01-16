@@ -574,7 +574,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
-    ::addPLTRef(PLTTrampoline *plt, size_t pltIndex) {
+    ::addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
@@ -590,16 +590,16 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
-    deferred->addFunction([this, symtab, elfSym, name, pltIndex] (ElfXX_Rela *rela) {
+    deferred->addFunction([this, gotPLT, symtab, elfSym, name, pltIndex]
+        (ElfXX_Rela *rela) {
+
         LOG(1, "Creating PLT reloc for [" << name << "]");
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
         rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
 
-        LOG(1, "    .plt.got address: " << std::hex
-            << (*sectionList)[".plt.got"]->getHeader()->getAddress());
-        rela->r_offset = (*sectionList)[".plt.got"]->getHeader()->getAddress()
+        rela->r_offset = gotPLT->getHeader()->getAddress()
             + (pltIndex * sizeof(address_t));
     });
 
@@ -641,4 +641,74 @@ void InitArraySectionContent::writeTo(std::ostream &stream) {
         std::string str{reinterpret_cast<char *>(&address), sizeof(address_t)};
         stream << str;
     }
+}
+
+/*
+    Example PLT:
+0000000000000610 <.plt>:
+    610:   ff 35 92 09 20 00       push   QWORD PTR [rip+0x200992]
+    616:   ff 25 94 09 20 00       jmp    QWORD PTR [rip+0x200994]
+    61c:   0f 1f 40 00             nop    DWORD PTR [rax+0x0]
+
+0000000000000620 <pthread_create@plt>:
+    620:   ff 25 92 09 20 00       jmp    QWORD PTR [rip+0x200992]
+    626:   68 00 00 00 00          push   0x0
+    62b:   e9 e0 ff ff ff          jmp    610 <.plt>
+
+*/
+
+PLTCodeContent::DeferredType *PLTCodeContent::addEntry(
+    PLTTrampoline *plt, size_t index) {
+
+    auto entry = new PLTCodeEntry();
+    auto deferred = new DeferredType(entry);
+
+    if(index == 0) {
+        std::memcpy(entry->data,
+            "\xff\x35\x00\x00\x00\x00"
+            "\xff\x25\x00\x00\x00\x00"
+            "\x0f\x1f\x40\x00", 16);
+    }
+    else {
+        std::memcpy(entry->data,
+            "\xff\x25\x00\x00\x00\x00"
+            "\x68\x00\x00\x00\x00"
+            "\xe9\x00\x00\x00\x00", 16);
+    }
+
+    deferred->addFunction([this, index] (PLTCodeEntry *entry) {
+#ifdef ARCH_X86_64
+        address_t gotpltaddr = gotpltSection->getHeader()->getAddress();
+        address_t pltaddr = pltSection->getHeader()->getAddress();
+
+        const size_t gotPadding = 3;
+
+        if(index == 0) {
+            ssize_t pushOffset =
+                (gotpltaddr + (1 * sizeof(address_t)))
+                - (pltaddr + 6);
+            ssize_t jmpOffset =
+                (gotpltaddr + (2 * sizeof(address_t)))
+                - (pltaddr + 6+6);
+
+            *(int32_t *)(entry->data + PLTCodeEntry::Entry0Push) = pushOffset;
+            *(int32_t *)(entry->data + PLTCodeEntry::Entry0Jmp) = jmpOffset;
+        }
+        else {
+            ssize_t jmpOffset =
+                (gotpltaddr + ((index-1+gotPadding) * sizeof(address_t)))
+                - (pltaddr + index*0x10 + 6);
+            ssize_t jmp2Offset = pltaddr - (pltaddr + index*0x10 + 6+5+5);
+
+            *(int32_t *)(entry->data + PLTCodeEntry::EntryJmp) = jmpOffset;
+            *(int32_t *)(entry->data + PLTCodeEntry::EntryPush) = index-1;
+            *(int32_t *)(entry->data + PLTCodeEntry::EntryJmp2) = jmp2Offset;
+        }
+#else
+    #error "PLT code generation needed for current platform!"
+#endif
+    });
+
+    DeferredMap<PLTTrampoline *, PLTCodeEntry>::add(plt, deferred);
+    return deferred;
 }

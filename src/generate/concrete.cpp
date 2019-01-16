@@ -321,17 +321,15 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
-        dynSegment->addContains(getSection(".plt.got"));
+        dynSegment->addContains(getSection(".got.plt"));
         dynSegment->addContains(getSection(".rela.dyn"));
         dynSegment->addContains(getSection(".rela.plt"));
         dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
 
-        /*
         auto pltSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x10);
         pltSegment->addContains(getSection(".plt"));
-        phdrTable->add(pltSegment);
-        */
+        phdrTable->add(pltSegment, 0x600000);
 
         auto dynamicSegment = new SegmentInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
         dynamicSegment->addContains(getSection(".dynamic"));
@@ -558,21 +556,31 @@ void MakeGlobalPLT::collectPLTEntries() {
 }
 
 void MakeGlobalPLT::makePLTData() {
-    // make .rela.plt section for function references
-    Section *relaPltSection;
-    DataRelocSectionContent *relaPltContent;
     {
-        relaPltSection = new Section(".rela.plt",
+        gotpltSection = new Section(".got.plt",
+            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+
+        // 3 slots needed for GOT padding
+        size_t contentLength = sizeof(address_t) * (entries.size()+3);
+        char *content = new char[contentLength];
+        std::memset(content, 0, contentLength);
+
+        gotpltSection->setContent(new DeferredString(content, contentLength));
+        getData()->getSectionList()->addSection(gotpltSection);
+    }
+
+    // make .rela.plt section for function references
+    {
+        auto relaPltSection = new Section(".rela.plt",
             SHT_RELA, SHF_ALLOC | SHF_INFO_LINK);
         std::string data;
         auto content = new DataRelocSectionContent(
             new SectionRef(getData()->getSectionList(), ".dynstr"),
                 getData()->getSectionList());
-        relaPltContent = content;
 
         size_t index = 3; // start from index 3
         for(auto plt : entries) {
-            relaPltContent->addPLTRef(plt, index);
+            content->addPLTRef(gotpltSection, plt, index);
             index ++;
         }
 
@@ -580,42 +588,26 @@ void MakeGlobalPLT::makePLTData() {
         getData()->getSectionList()->addSection(relaPltSection);
     }
 
-    {
-        auto pltSection = new Section(".plt.got",
-            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
-        StreamAsString sas;
-
-        // 3 slots needed for GOT padding
-        size_t contentLength = sizeof(address_t) * (entries.size()+3);
-        char *content = new char[contentLength];
-        std::memset(content, 0, contentLength);
-
-        pltSection->setContent(new DeferredString(content, contentLength));
-        getData()->getSectionList()->addSection(pltSection);
-    }
-
     // MakePaddingSection(0x1000, true).execute();
 }
 
 void MakeGlobalPLT::makePLTCode() {
-#if 0
-    auto phdrTable = sectionList["=phdr_table"]->castAs<PhdrTableContent *>();
-    SegmentInfo *segment = new SegmentInfo(PT_LOAD, PF_R | PF_W, 0x16);
-    auto lastSection = sectionList.back();
+    auto pltSection = new Section(".plt",
+        SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR);
+    auto content = new PLTCodeContent(gotpltSection, pltSection);
+    pltSection->setContent(content);
+    getData()->getSectionList()->addSection(pltSection);
 
-    {
-        auto pltSection = new Section(".plt",
-            SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR);
-        std::string data;
-        auto content = new DeferredString(data);
-        pltSection->setContent(content);
-        pltSection->getHeader()->setAddress(section->getAddress());
-        sectionList->addSection(pltSection);
-        segment->addContains(pltSection);
+    // add special entry 0 for name resolution
+    content->addEntry(nullptr, 0);
+    // add the rest of the PLT entries
+    size_t index = 1;
+    for(auto plt : entries) {
+        content->addEntry(plt, index);
+        index ++;
     }
 
     // MakePaddingSection(0x1000, false).execute();
-#endif
 }
 
 void ElfFileWriter::execute() {

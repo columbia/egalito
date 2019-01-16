@@ -69,6 +69,7 @@ class PLTTrampoline;
 class MakeGlobalPLT : public NormalElfOperation {
 private:
     std::vector<PLTTrampoline *> entries;
+    Section *gotpltSection;
 public:
     virtual void execute();
 private:
