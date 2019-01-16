@@ -10,6 +10,7 @@
 
 class Program;
 class ElfOperationTrace;
+class PLTIndexMap;
 
 class ElfData {
 public:
@@ -20,6 +21,7 @@ public:
     virtual SectionList *getSectionList() = 0;
     virtual Section *getSection(const std::string &name) = 0;
     virtual ElfOperationTrace *getOperationTrace() const = 0;
+    virtual PLTIndexMap *getPLTIndexMap() const = 0;
 };
 
 class ElfDataImpl : public ElfData {
@@ -28,6 +30,7 @@ private:
     SandboxBacking *backing;
     SectionList sectionList;
     ElfOperationTrace *opTrace;
+    PLTIndexMap *pltIndexMap;
 public:
     ElfDataImpl(Program *program, SandboxBacking *backing);
     virtual ~ElfDataImpl();
@@ -38,6 +41,7 @@ public:
     virtual Section *getSection(const std::string &name)
         { return sectionList[name]; }
     virtual ElfOperationTrace *getOperationTrace() const { return opTrace; }
+    virtual PLTIndexMap *getPLTIndexMap() const { return pltIndexMap; }
 };
 
 class ElfConfig {
@@ -119,6 +123,22 @@ public:
     virtual void execute();
 private:
     void checkDependencies();
+};
+
+class PLTTrampoline;
+class PLTIndexMap {
+public:
+    typedef std::map<PLTTrampoline *, size_t> EntryMap;
+private:
+    Section *pltSection;
+    EntryMap entryMap;
+public:
+    PLTIndexMap() : pltSection(nullptr) {}
+
+    Section *getPltSection() const { return pltSection; }
+    void setPltSection(Section *section) { pltSection = section; }
+
+    EntryMap &getEntryMap() { return entryMap; }
 };
 
 #endif

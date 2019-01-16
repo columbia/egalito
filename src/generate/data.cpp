@@ -5,6 +5,8 @@ ElfDataImpl::ElfDataImpl(Program *program, SandboxBacking *backing)
     : program(program), backing(backing) {
 
     opTrace = new ElfOperationTrace();
+
+    pltIndexMap = new PLTIndexMap();
 }
 
 ElfDataImpl::~ElfDataImpl() {

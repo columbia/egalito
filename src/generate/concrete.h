@@ -78,6 +78,12 @@ private:
     void makePLTCode();
 };
 
+class UpdatePLTLinks : public NormalElfOperation {
+public:
+    UpdatePLTLinks() {}
+    virtual void execute();
+};
+
 class ElfFileWriter : public ConcreteElfOperation {
 private:
     std::string filename;

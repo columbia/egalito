@@ -3,6 +3,7 @@
 
 #include "basegen.h"
 
+class MakeGlobalPLT;
 class UnionGen : public ElfGeneratorImpl {
 public:
     UnionGen(Program *program, SandboxBacking *backing);

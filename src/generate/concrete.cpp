@@ -12,6 +12,7 @@
 #include "elf/symbol.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
+#include "pass/chunkpass.h"
 #include "log/log.h"
 #include "config.h"
 
@@ -357,7 +358,7 @@ void BasicElfStructure::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
-    dynamic->addPair(DT_FLAGS, DF_STATIC_TLS);
+    dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
 
     /*
 0x0000000000000003 (PLTGOT)             0x200fa0
@@ -414,6 +415,7 @@ void AssignSectionsToSegments::execute() {
 
         auto pltSegment = new SegmentInfo(PT_LOAD, PF_R | PF_X, 0x1000);
         pltSegment->addContains(getSection(".plt"));
+        // XXX: currently 0x600000 is hardcoded in UpdatePLTLinks()
         phdrTable->add(pltSegment, 0x600000);
 
         auto dynamicSegment = new SegmentInfo(PT_DYNAMIC, PF_R | PF_W, 0x8);
@@ -622,6 +624,8 @@ void MakeGlobalPLT::execute() {
 }
 
 void MakeGlobalPLT::collectPLTEntries() {
+    auto &entryMap = getData()->getPLTIndexMap()->getEntryMap();
+
     for(auto module : CIter::children(getData()->getProgram())) {
         for(auto plt : CIter::plts(module)) {
             if(plt->getTarget()) continue;
@@ -634,6 +638,7 @@ void MakeGlobalPLT::collectPLTEntries() {
 
             LOG(9, "Found unresolved PLT entry [" << plt->getName() << "]");
             entries.push_back(plt);
+            entryMap[plt] = entries.size();
         }
     }
     LOG(9, "In MakeGlobalPLT: found " << std::dec << entries.size()
@@ -642,8 +647,6 @@ void MakeGlobalPLT::collectPLTEntries() {
 
 void MakeGlobalPLT::makePLTData() {
     {
-        /*gotpltSection = new Section(".g.got.plt",
-            SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);*/
         gotpltSection = (*getData()->getSectionList())[".g.got.plt"];
 
         // 3 slots needed for GOT padding
@@ -652,7 +655,6 @@ void MakeGlobalPLT::makePLTData() {
         std::memset(content, 0, contentLength);
 
         gotpltSection->setContent(new DeferredString(content, contentLength));
-//        getData()->getSectionList()->addSection(gotpltSection);
     }
 
     // make .rela.plt section for function references
@@ -672,10 +674,7 @@ void MakeGlobalPLT::makePLTData() {
         }
 
         relaPltSection->setContent(content);
-        //getData()->getSectionList()->addSection(relaPltSection);
     }
-
-    // MakePaddingSection(0x1000, true).execute();
 }
 
 void MakeGlobalPLT::makePLTCode() {
@@ -701,7 +700,50 @@ void MakeGlobalPLT::makePLTCode() {
         index ++;
     }
 
-    // MakePaddingSection(0x1000, false).execute();
+    getData()->getPLTIndexMap()->setPltSection(pltSection);
+}
+
+void UpdatePLTLinks::execute() {
+    // now we want to do a pass across everything
+    // and look for PLTTrampoline links.
+    LOG(9, "Updating PLT references...");
+
+    auto &entryMap = getData()->getPLTIndexMap()->getEntryMap();
+
+    class Updater : public ChunkPass {
+    private:
+        std::map<PLTTrampoline *, size_t> &entryMap;
+        address_t pltBase;
+    public:
+        Updater(std::map<PLTTrampoline *, size_t> &entryMap, address_t pltBase)
+            : entryMap(entryMap), pltBase(pltBase) {}
+
+        virtual void visit(Instruction *instruction) {
+            auto cfi =
+                dynamic_cast<ControlFlowInstruction *>(instruction->getSemantic());
+            if(!cfi) return;
+
+            auto link = cfi->getLink();
+            auto pltLink = dynamic_cast<PLTLink *>(link);
+            if(!pltLink) return;
+            auto target = pltLink->getPLTTrampoline();
+            size_t index = entryMap[target];
+            LOG(9, "    redirecting to index " << std::dec << index);
+
+            // this means we don't have a PLT entry for it.
+            if(index == 0) {
+                return;
+            }
+
+            // set the link to target the absolute address of the PLT.
+            address_t address = pltBase + (index * 0x10);
+            cfi->setLink(new UnresolvedRelativeLink(address));
+        }
+    };
+
+    // XXX: this really shouldn't be hardcoded!
+    Updater updater(entryMap, 0x600000);
+    getData()->getProgram()->accept(&updater);
 }
 
 void ElfFileWriter::execute() {

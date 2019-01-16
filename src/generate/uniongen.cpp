@@ -23,6 +23,7 @@ void UnionGen::afterAddressAssign() {
     ElfPipeline pipeline(getData(), getConfig());
     pipeline.addDependency("BasicElfStructure");
     pipeline.add(new MakeInitArray(/*stage=*/ 1));  // AssignSectionsToSegments
+    pipeline.add(new UpdatePLTLinks());
     pipeline.execute();
 }
 

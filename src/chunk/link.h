@@ -345,6 +345,19 @@ public:
     virtual address_t getTargetAddress() const { return target; }
 };
 
+class UnresolvedRelativeLink : public LinkScopeDecorator<
+    Link::SCOPE_UNKNOWN, LinkDefaultAttributeDecorator<Link>> {
+private:
+    address_t target;
+public:
+    UnresolvedRelativeLink(address_t target) : target(target) {}
+
+    virtual ChunkRef getTarget() const { return nullptr; }
+    virtual address_t getTargetAddress() const { return target; }
+
+    virtual bool isRIPRelative() const { return true; }
+};
+
 /** Some x86_64 instructions can contain two links.
 
     Most Link-processing code for Instructions needs to handle this case
