@@ -587,7 +587,9 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     char *name = new char[plt->getExternalSymbol()->getName().length()+1];
     std::strcpy(name, plt->getExternalSymbol()->getName().c_str());
     auto symbol = new Symbol(0, 0, name,
-        Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+        Symbol::TYPE_FUNC,
+        plt->getExternalSymbol()->getBind() /*Symbol::BIND_GLOBAL*/,
+        0, SHN_UNDEF);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, gotPLT, symtab, elfSym, name, pltIndex]
