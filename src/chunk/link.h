@@ -406,6 +406,7 @@ class Conductor;
 class ElfSpace;
 class ExternalSymbol;
 class SymbolVersion;
+class SymbolList;
 
 /** This resolver assumes that we have both relocations and symbols.
  */
@@ -435,6 +436,8 @@ private:
         ElfSpace *space, bool weak, bool relative, bool afterMapping);
     Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
         bool weak, bool relative, bool afterMapping);
+    Link *redirectCopyRelocs(Module *main, Symbol *symbol,
+        SymbolList *list, bool relative);
 };
 
 #endif

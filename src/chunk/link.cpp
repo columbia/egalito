@@ -215,6 +215,28 @@ static Function *getFunctionWithExpansion(address_t address, Module *module) {
     return func;
 }
 
+Link *PerfectLinkResolver::redirectCopyRelocs(Module *main, Symbol *symbol,
+    SymbolList *list, bool relative) {
+
+    auto s = list->find(symbol->getName());
+    auto version = symbol->getVersion();
+    if(!s && version) {
+        std::string versionedName(symbol->getName());
+        versionedName.push_back('@');
+        if(!version->isHidden()) versionedName.push_back('@');
+        versionedName.append(version->getName());
+        s = list->find(versionedName.c_str());
+    }
+    if(s) {
+        auto dlink = LinkFactory::makeDataLink(
+            main, s->getAddress(), relative);
+        LOG(1, "resolved to data in module-(executable): "
+            <<  s->getAddress());
+        return dlink;
+    }
+    return nullptr;
+}
+
 Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
     bool weak, bool relative) {
 
@@ -292,27 +314,17 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
             /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
              * should point at the executable's copy of the global if COPY reloc is present
              */
-            if(true /*module == main*/) {
-                // search first in the executable namespace for COPY
-                if(auto list = main->getElfSpace()->getSymbolList()) {
-                    auto s = list->find(symbol->getName());
-                    auto version = symbol->getVersion();
-                    if(!s && version) {
-                        std::string versionedName(symbol->getName());
-                        versionedName.push_back('@');
-                        if(!version->isHidden()) versionedName.push_back('@');
-                        versionedName.append(version->getName());
-                        s = list->find(versionedName.c_str());
-                        if(s) {
-                            auto dlink = LinkFactory::makeDataLink(
-                                main, s->getAddress(), relative);
-                            LOG(1, "resolved to data in module-(executable): "
-                                <<  s->getAddress());
-                            return dlink;
-                        }
-                    }
+            if(auto symList = main->getElfSpace()->getSymbolList()) {
+                if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
+                    return ret;
                 }
             }
+            if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+                if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
+                    return ret;
+                }
+            }
+
             // value should be S
             addr = symbol->getAddress();
         }
