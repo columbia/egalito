@@ -592,7 +592,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         0, SHN_UNDEF);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
-    deferred->addFunction([this, gotPLT, symtab, elfSym, name, pltIndex]
+    deferred->addFunction([this, gotPLT, plt, symtab, elfSym, name, pltIndex]
         (ElfXX_Rela *rela) {
 
         LOG(1, "Creating PLT reloc for [" << name << "]");
