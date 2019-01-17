@@ -599,7 +599,12 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
-        rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
+        if(plt->isPltGot()) {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+        }
+        else {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
+        }
 
         rela->r_offset = gotPLT->getHeader()->getAddress()
             + (pltIndex * sizeof(address_t));
