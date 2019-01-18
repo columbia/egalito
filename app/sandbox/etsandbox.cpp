@@ -99,8 +99,8 @@ int main(int argc, char *argv[]) {
         std::function<void ()> action;
     } actions[] = {
         // should we show debugging log messages?
-        {"-v", [&quiet] () { quiet = true; }},
-        {"-q", [&quiet] () { quiet = false; }},
+        {"-v", [&quiet] () { quiet = false; }},
+        {"-q", [&quiet] () { quiet = true; }},
     };
 
     for(int a = 1; a < argc; a ++) {
