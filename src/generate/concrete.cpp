@@ -524,18 +524,23 @@ void MakeInitArray::makeInitArraySectionLinks() {
         initArraySection->getContent());
     auto main = getData()->getProgram()->getMain();
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
+    // if we didn't find __libc_csu_init directly, look for it by the link
+    // present in _start during the call to __libc_start_main
     if(!func) {
         auto entry = dynamic_cast<Function *>(getData()->getProgram()->getEntryPoint());
         if(entry) {
             auto block = entry->getChildren()->getIterable()->get(0);
-            int counter = 0;
             for(auto instr : CIter::children(block)) {
                 if(auto link = instr->getSemantic()->getLink()) {
-                    ++counter;
-                    if(counter == 2) {
+#ifdef ARCH_X86_64
+                    auto op1 = instr->getSemantic()->getAssembly()->getAsmOperands()->getOperands()[1];
+                    if(op1.type == X86_OP_REG && op1.reg == X86_REG_RCX) {
                         func = dynamic_cast<Function *>(link->getTarget());
                         break;
                     }
+#else
+    #error "Need __libc_csu_init detection code for current platform!"
+#endif
                 }
             }
         }

@@ -9,6 +9,7 @@
 #include "pass/promotejumps.h"
 #include "pass/ldsorefs.h"
 #include "pass/ifuncplts.h"
+#include "pass/fixenviron.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -33,6 +34,10 @@ static void parse(const std::string& filename, const std::string& output, bool q
         auto program = setup.getConductor()->getProgram();
 
         std::cout << "Preparing for codegen...\n";
+
+        FixEnvironPass fixEnviron;
+        program->accept(&fixEnviron);
+
         CollapsePLTPass collapsePLT(setup.getConductor());
         program->accept(&collapsePLT);
 

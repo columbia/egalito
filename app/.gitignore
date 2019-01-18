@@ -3,6 +3,7 @@
 /etshell
 /etobjdump
 /etsandbox
+/etelf
 /pyshell
 /libsandbox.so
 /build_x86_64
