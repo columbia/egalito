@@ -33,6 +33,7 @@
 #include "pass/endbrenforce.h"
 #include "pass/findsyscalls.h"
 #include "pass/syscallsandbox.h"
+#include "pass/fixenviron.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -503,6 +504,16 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->getConductor()->acceptInAllModules(&collapsePLT, true);
     }, "changes all instructions that target the PLT to use a direct reference");
 
+    topLevel->add("fixenviron", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        FixEnvironPass fixEnviron;
+        setup->getConductor()->getProgram()->accept(&fixEnviron);
+    }, "fixes references to __environ variable during program startup in generate-static");
+
     topLevel->add("vtables", [&] (Arguments args) {
         args.shouldHave(1);
         auto module = CIter::findChild(setup->getConductor()->getProgram(),
@@ -587,6 +598,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
                         << " name " << var->getName();
                     if(var->getDest() && var->getDest()->getTarget()) {
                         std::cout << " link to " << var->getDest()->getTarget()->getName();
+                        std::cout << " at address 0x" << var->getDest()->getTarget()->getAddress();
                     }
                     std::cout << std::endl;
                 }

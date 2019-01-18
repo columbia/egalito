@@ -486,6 +486,7 @@ void MakeInitArray::makeInitArraySections() {
                 }
             }
         }
+
         if(firstInit) {
             content->addPointer([this, module, firstInit] () {
                 Function *function = nullptr;
@@ -504,7 +505,7 @@ void MakeInitArray::makeInitArraySections() {
                             .findFunctionInModule("_init", module);
                     }
                 }
-                LOG(1, "Found _init at " << function->getAddress());
+                LOG(1, "Found _init at " << std::hex << function->getAddress());
                 return function->getAddress();
             });
         }
