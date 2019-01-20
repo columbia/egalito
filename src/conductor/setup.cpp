@@ -15,6 +15,7 @@
 #include "pass/dumplink.h"
 #include "util/feature.h"
 #include "generate/uniongen.h"
+#include "generate/mirrorgen.h"
 #include "generate/kernelgen.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -254,6 +255,32 @@ bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
             // get data sections; allow links to change bytes in data sections
             SegMap::mapAllSegments(this);
             ConductorPasses(conductor).newExecutablePasses(program);
+        }
+        copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
+    //generator.generate(outputFile);
+    generator.generateContent(outputFile);
+    return true;
+}
+
+bool ConductorSetup::generateMirrorELF(const char *outputFile) {
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = MirrorGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        //moveCode(sandbox, true);  // calls sandbox->finalize()
+        moveCodeAssignAddresses(sandbox, true);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newMirrorPasses(program);
         }
         copyCodeToNewAddresses(sandbox, true);
         moveCodeMakeExecutable(sandbox);

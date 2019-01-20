@@ -113,7 +113,17 @@ void ConductorPasses::newExecutablePasses(Program *program) {
     for(auto module : CIter::children(program)) {
         if(!module->getDataRegionList()) continue;
         for(auto region : CIter::children(module->getDataRegionList())) {
-            region->saveDataBytes();    
+            region->saveDataBytes();
+        }
+    }
+}
+
+void ConductorPasses::newMirrorPasses(Program *program) {
+    conductor->fixDataSections(false);
+    for(auto module : CIter::children(program)) {
+        if(!module->getDataRegionList()) continue;
+        for(auto region : CIter::children(module->getDataRegionList())) {
+            region->saveDataBytes();
         }
     }
 }

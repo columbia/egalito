@@ -216,7 +216,17 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->getConductor()->getProgram()->accept(&ifuncPLTs);
 
         setup->generateStaticExecutable(args.front().c_str());
-    }, "writes out the current code to an ELF file");
+    }, "writes out the current code (from parse2) to a merged ELF file");
+
+    topLevel->add("generate-mirror", [&] (Arguments args) {
+        args.shouldHave(1);
+        LdsoRefsPass pass;
+        setup->getConductor()->getProgram()->accept(&pass);
+        IFuncPLTs ifuncPLTs;
+        setup->getConductor()->getProgram()->accept(&ifuncPLTs);
+
+        setup->generateMirrorELF(args.front().c_str());
+    }, "writes out the current code (from parse) to an ELF file");
 
     topLevel->add("generate-kernel", [&] (Arguments args) {
         args.shouldHave(1);
