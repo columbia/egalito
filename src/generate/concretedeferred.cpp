@@ -539,7 +539,6 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
-        //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
         rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
     });
 
@@ -595,7 +594,8 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     deferred->addFunction([this, gotPLT, plt, symtab, elfSym, name, pltIndex]
         (ElfXX_Rela *rela) {
 
-        LOG(1, "Creating PLT reloc for [" << name << "]");
+        LOG(1, "Creating PLT reloc for [" << name << "] at 0x"
+            << std::hex << plt->getAddress());
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);

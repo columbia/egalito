@@ -261,6 +261,11 @@ void GenerateSectionTable::makeSectionSymbols() {
         symtab->addSectionSymbol(symbol);
     }
     symtab->recalculateIndices();
+
+    {
+        auto dynsym = getSection(".dynsym")->castAs<SymbolTableContent *>();
+        dynsym->recalculateIndices();
+    }
 }
 
 
@@ -693,7 +698,8 @@ void UpdatePLTLinks::execute() {
             if(!pltLink) return;
             auto target = pltLink->getPLTTrampoline();
             size_t index = entryMap[target];
-            LOG(9, "    redirecting to index " << std::dec << index);
+            LOG(9, "    redirecting 0x" << std::hex << instruction->getAddress()
+                << " to index " << std::dec << index);
 
             // this means we don't have a PLT entry for it.
             if(index == 0) {
