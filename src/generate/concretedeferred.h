@@ -180,7 +180,7 @@ public:
         DataSection *targetSection);
     DeferredType *addDataFunctionRef(DataVariable *var, Function *function);
     DeferredType *addDataArbitraryRef(DataVariable *var, Chunk *chunk);
-    DeferredType *addDataArbitraryRef2(DataVariable *var,
+    DeferredType *addDataExternalRef(DataVariable *var,
         ExternalSymbol *extSym);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 

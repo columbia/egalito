@@ -229,8 +229,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 LOG(2, "    relocation for external symbol ["
                     << extSymLink->getExternalSymbol()->getName()
                     << "] at 0x" << std::hex << var->getAddress());
-                //relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
-                relaDyn->addDataArbitraryRef2(var, extSymLink->getExternalSymbol());
+                relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol());
             }
         }
     }
