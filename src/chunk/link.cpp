@@ -31,6 +31,15 @@ address_t PLTLink::getTargetAddress() const {
     return pltTrampoline->getAddress();
 }
 
+ChunkRef ExternalSymbolLink::getTarget() const {
+    return externalSymbol->getResolved();
+}
+
+address_t ExternalSymbolLink::getTargetAddress() const {
+    auto resolved = externalSymbol->getResolved();
+    return resolved ? resolved->getAddress() : 0;
+}
+
 ChunkRef JumpTableLink::getTarget() const {
     return jumpTable;
 }

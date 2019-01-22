@@ -225,8 +225,12 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 relaDyn->addUndefinedRef(var,
                     pltLink->getPLTTrampoline()->getExternalSymbol()->getName());
             }
-            else {
+            else if(auto extSymLink = dynamic_cast<ExternalSymbolLink *>(link)) {
+                LOG(2, "    relocation for external symbol ["
+                    << extSymLink->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
                 //relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+                relaDyn->addDataArbitraryRef2(var, extSymLink->getExternalSymbol());
             }
         }
     }

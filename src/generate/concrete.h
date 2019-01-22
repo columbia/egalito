@@ -21,7 +21,11 @@ public:
 };
 
 class BasicElfStructure : public ConcreteElfOperation {
+private:
+    bool addLibDependencies;
 public:
+    BasicElfStructure(bool addLibDependencies = false)
+        : addLibDependencies(addLibDependencies) {}
     virtual void execute();
     virtual std::string getName() const { return "BasicElfStructure"; }
 private:

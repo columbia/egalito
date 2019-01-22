@@ -124,6 +124,12 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
                 << ") in " << module->getName());
             auto l = PerfectLinkResolver().resolveExternally(
                 reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+            if(!l) {
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(reloc->getSymbol());
+                l = new ExternalSymbolLink(externalSymbol);
+            }
+
             LOG(0, "link is " << l);
             return l;
         }

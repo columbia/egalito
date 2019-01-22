@@ -180,6 +180,8 @@ public:
         DataSection *targetSection);
     DeferredType *addDataFunctionRef(DataVariable *var, Function *function);
     DeferredType *addDataArbitraryRef(DataVariable *var, Chunk *chunk);
+    DeferredType *addDataArbitraryRef2(DataVariable *var,
+        ExternalSymbol *extSym);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);

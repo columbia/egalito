@@ -302,11 +302,19 @@ void BasicElfStructure::makeDynamicSection() {
     auto dynamicSection = getSection(".dynamic");
     auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
 
-    // Add DT_NEEDED dependency on ld.so because we combine libc into
-    // our executable, and libc uses _rtld_global{,_ro} from ld.so.
     auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
-    dynamic->addPair(DT_NEEDED,
-        dynstr->add("ld-linux-x86-64.so.2", true));
+    if(addLibDependencies) {
+        for(auto lib : CIter::children(getData()->getProgram()->getLibraryList())) {
+            if(lib->getModule()) continue;
+            dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
+        }
+    }
+    else {
+        // Add DT_NEEDED dependency on ld.so because we combine libc into
+        // our executable, and libc uses _rtld_global{,_ro} from ld.so.
+        dynamic->addPair(DT_NEEDED,
+            dynstr->add("ld-linux-x86-64.so.2", true));
+    }
 
     dynamic->addPair(DT_STRTAB, [this] () {
         auto dynstrSection = getSection(".dynstr");

@@ -15,7 +15,7 @@ void MirrorGen::preCodeGeneration() {
     pipeline.add(new BasicElfCreator());
     pipeline.add(new MakeInitArray(/*stage=*/ 0));  // !AssignSectionsToSegments
     pipeline.add(new MakeGlobalPLT());
-    pipeline.add(new BasicElfStructure());
+    pipeline.add(new BasicElfStructure(/*addLibDependencies=*/ true));
     pipeline.add(new AssignSectionsToSegments());
     pipeline.execute();
 }
@@ -34,7 +34,8 @@ void MirrorGen::generateContent(const std::string &filename) {
 
     for(auto module : CIter::children(getData()->getProgram())) {
         ModuleGen::Config config;
-        config.setUniqueSectionNames(true);
+        config.setUniqueSectionNames(false);
+        config.setRelocsForAbsoluteRefs(true);
         config.setCodeBacking(dynamic_cast<MemoryBufferBacking *>
             (getData()->getBacking()));
         auto moduleGen = ModuleGen(config, module, getData()->getSectionList());
