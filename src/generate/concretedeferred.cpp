@@ -515,21 +515,18 @@ Section *DataRelocSectionContent::getTargetSection() {
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
-    ::addUndefinedRef(DataVariable *var, LDSOLoaderLink *link) {
+    ::addUndefinedRef(DataVariable *var, const std::string &targetName) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
     auto deferred = new DeferredType(rela);
 
-    auto region = var->getParent()->getParent();
-
-    //rela->r_offset  = var->getAddress() - region->getAddress();
     rela->r_offset  = var->getAddress();
     rela->r_info    = 0;
     rela->r_addend  = 0;
 
-    char *name = new char[link->getTargetName().length() + 1];
-    std::strcpy(name, link->getTargetName().c_str());
+    char *name = new char[targetName.length() + 1];
+    std::strcpy(name, targetName.c_str());
     auto symbol = new Symbol(0, 0, name,
         Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
@@ -569,6 +566,56 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     });
 
     DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataFunctionRef(DataVariable *var, Function *function) {
+
+    return addDataArbitraryRef(var, function);
+
+#if 0
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    auto name = function->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        /*size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }*/
+        size_t index = symtab->indexOf(elfSym);
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+#endif
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataArbitraryRef(DataVariable *var, Chunk *chunk) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_64);
+    rela->r_addend  = chunk->getAddress();
+
+    /*deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });*/
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
     return deferred;
 }
 

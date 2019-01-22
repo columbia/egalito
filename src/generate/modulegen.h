@@ -18,6 +18,7 @@ public:
     private:
         bool isDynamicallyLinked;
         bool uniqueSectionNames;
+        bool relocsForAbsoluteRefs;
         bool isFreestandingKernel;
 
         /** If generating a kernel, use a memory backing to store serialized
@@ -27,12 +28,15 @@ public:
         MemoryBufferBacking *backing;
     public:
         Config() : isDynamicallyLinked(false), uniqueSectionNames(false),
-            isFreestandingKernel(false), backing(nullptr) {}
+            relocsForAbsoluteRefs(false), isFreestandingKernel(false),
+            backing(nullptr) {}
 
         void setDynamicallyLinked(bool enable)
             { isDynamicallyLinked = enable; }
         void setUniqueSectionNames(bool enable)
             { uniqueSectionNames = enable; }
+        void setRelocsForAbsoluteRefs(bool enable)
+            { relocsForAbsoluteRefs = enable; }
         void setCodeBacking(MemoryBufferBacking *backing)
             { this->backing = backing; }
         void setFreestandingKernel(bool enable)
@@ -40,6 +44,7 @@ public:
 
         bool getDynamicallyLinked() const { return isDynamicallyLinked; }
         bool getUniqueSectionNames() const { return uniqueSectionNames; }
+        bool getRelocsForAbsoluteRefs() const { return relocsForAbsoluteRefs; }
         MemoryBufferBacking *getCodeBacking() const { return backing; }
         bool isKernel() const { return this->isFreestandingKernel; }
     };

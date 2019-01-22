@@ -178,36 +178,63 @@ void ModuleGen::makeDataSections() {
 }
 
 void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
-    std::vector<DataVariable *> relocVars;
+    std::vector<DataVariable *> ldRelocVars, generalRelocVars;
     for(auto var : CIter::children(section)) {
-        if(!var->getDest()) continue;
+        auto link = var->getDest();
+        if(!link) continue;
+
         if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
-            relocVars.push_back(var);
+            ldRelocVars.push_back(var);
+        }
+        else if(config.getRelocsForAbsoluteRefs()) {
+            generalRelocVars.push_back(var);
         }
     }
-    if(relocVars.empty()) return;
+    LOG(1, "maybeMakeDataRelocs with "
+        << ldRelocVars.size() << ", " << generalRelocVars.size());
+    if(ldRelocVars.empty() && generalRelocVars.empty()) return;
 
-    /*auto otherName = section->getName();
-    auto reloc = new DataRelocSectionContent(
-        new SectionRef(sectionList, otherName), sectionList);
-    auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
-    relocSection->setContent(reloc);*/
-    /*relocSection->getHeader()->setSectionLink(
-        new SectionRef(sectionList, ".symtab"));*/
-
+    LOG(1, "Adding relocations for data section [" << section->getName() << "]");
     auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
-    for(auto var : relocVars) {
+    for(auto var : ldRelocVars) {
+        auto link = var->getDest();
         relaDyn->addUndefinedRef(var,
-            dynamic_cast<LDSOLoaderLink *>(var->getDest()));
+            static_cast<LDSOLoaderLink *>(link)->getTargetName());
+        LOG(2, "    relocation for LDSO ["
+            << static_cast<LDSOLoaderLink *>(link)->getTargetName()
+            << "] at 0x" << std::hex << var->getAddress());
+    }
+    for(auto var : generalRelocVars) {
+        auto link = var->getDest();
+        if(auto target = link->getTarget()) {
+            LOG(2, "    relocation for [" << target->getName()
+                << "] at 0x" << std::hex << var->getAddress());
+            if(auto function = dynamic_cast<Function *>(target)) {
+                relaDyn->addDataFunctionRef(var, function);
+            }
+            else {
+                relaDyn->addDataArbitraryRef(var, target);
+            }
+        }
+        else {
+            if(auto pltLink = dynamic_cast<PLTLink *>(link)) {
+                LOG(2, "    relocation for PLT ["
+                    << pltLink->getPLTTrampoline()->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+                // GLOB_DAT relocation
+                relaDyn->addUndefinedRef(var,
+                    pltLink->getPLTTrampoline()->getExternalSymbol()->getName());
+            }
+            else {
+                //relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+            }
+        }
     }
 
     // very important! dynsyms are created on demand per reloc, which are not
     // necessarily sorted by name, so indices may have been invalidated.
     auto dynsym = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     dynsym->recalculateIndices();
-
-    //sectionList->addSection(relocSection);
-    //relocSections.push_back(relocSection);
 }
 
 void ModuleGen::makeText() {
@@ -345,7 +372,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
     }
 
     // Make symbols for PLT entries
-    for(auto plt : CIter::plts(module)){
+    for(auto plt : CIter::plts(module)) {
         auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
 
         auto external = plt->getExternalSymbol();

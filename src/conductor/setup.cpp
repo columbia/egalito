@@ -76,7 +76,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
         conductor->parseLibraries();
     }
 
-    if(withSharedLibs) {
+    if(true || withSharedLibs) {
         conductor->resolvePLTLinks();
     }
     conductor->resolveData();

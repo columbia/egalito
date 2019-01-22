@@ -174,9 +174,12 @@ public:
 
     Section *getTargetSection();
 
-    DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
+    DeferredType *addUndefinedRef(DataVariable *var,
+        const std::string &targetName);
     DeferredType *addDataRef(address_t source, address_t target,
         DataSection *targetSection);
+    DeferredType *addDataFunctionRef(DataVariable *var, Function *function);
+    DeferredType *addDataArbitraryRef(DataVariable *var, Chunk *chunk);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);
