@@ -127,7 +127,12 @@ void BasicElfStructure::makeHeader() {
     header->e_ident[EI_ABIVERSION] = 0;
 
     // set up other typical ELF fields
-    header->e_type = ET_EXEC;
+    if(!getConfig()->isPositionIndependent()) {
+        header->e_type = ET_EXEC;
+    }
+    else {
+        header->e_type = ET_DYN;
+    }
 #ifdef ARCH_X86_64
     header->e_machine = EM_X86_64;
 #else
@@ -451,6 +456,22 @@ void MakeInitArray::execute() {
     }
 }
 
+void MakeInitArray::addInitFunction(InitArraySectionContent *content,
+    std::function<address_t ()> value) {
+
+    if(getConfig()->isPositionIndependent()) {
+        auto relaDyn = getData()->getSection(".rela.dyn")->castAs<DataRelocSectionContent *>();
+
+        // !!! Hardcoding this address for now. After =elfheader & .interp
+        const address_t INIT_ARRAY_ADDR = 0x20005c;
+        auto offset = content->getSize();
+        relaDyn->addDataAddressRef(INIT_ARRAY_ADDR + offset, value);
+        content->addPointer([] () { return address_t(0); });
+    }
+    else {
+        content->addPointer(value);
+    }
+}
 void MakeInitArray::makeInitArraySections() {
     /*auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
         SHF_WRITE | SHF_ALLOC);*/
@@ -501,7 +522,7 @@ void MakeInitArray::makeInitArraySections() {
         }
 
         if(firstInit) {
-            content->addPointer([this, module, firstInit] () {
+            addInitFunction(content, [this, module, firstInit] () {
                 Function *function = nullptr;
                 if(module->getElfSpace()->getSymbolList()) {
                     auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
@@ -525,7 +546,7 @@ void MakeInitArray::makeInitArraySections() {
     }
 
     for(auto link : initFunctions) {
-        content->addPointer([link] () { return link->getTargetAddress(); });
+        addInitFunction(content, [link] () { return link->getTargetAddress(); });
     }
 
     initArraySection->setContent(content);

@@ -606,6 +606,25 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataAddressRef(address_t source, std::function<address_t ()> getTarget) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_64);
+    rela->r_addend  = 0;
+
+    deferred->addFunction([getTarget] (ElfXX_Rela *rela) {
+        rela->r_addend = getTarget();
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addDataArbitraryRef(DataVariable *var, Chunk *chunk) {
 
     auto rela = new ElfXX_Rela();
@@ -716,7 +735,7 @@ DynamicSectionContent::DeferredType *DynamicSectionContent
 }
 
 void InitArraySectionContent::writeTo(std::ostream &stream) {
-    for(auto func: callbacks) {
+    for(auto func : callbacks) {
         func();
     }
     for(auto func : array) {

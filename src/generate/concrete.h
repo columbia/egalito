@@ -30,7 +30,7 @@ public:
     virtual std::string getName() const { return "BasicElfStructure"; }
 private:
     void makeHeader();
-    void makeSymtabSection();
+    void makeSymtabSection() ;
     void makePhdrTable();
     void makeDynamicSection();
 };
@@ -58,6 +58,7 @@ public:
     virtual std::string getName() const { return "TextSectionCreator"; }
 };
 
+class InitArraySectionContent;
 class MakeInitArray : public NormalElfOperation {
 private:
     int stage;
@@ -67,6 +68,8 @@ public:
 private:
     void makeInitArraySections();
     void makeInitArraySectionLinks();
+    void addInitFunction(InitArraySectionContent *content,
+        std::function<address_t ()> value);
 };
 
 class PLTTrampoline;
