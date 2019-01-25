@@ -23,7 +23,8 @@ void Function::makeCache() {
 }
 
 Function::Function(address_t originalAddress)
-    : symbol(nullptr), nonreturn(false), ifunc(false), cache(nullptr) {
+    : symbol(nullptr), dynamicSymbol(nullptr), nonreturn(false),
+    ifunc(false), cache(nullptr) {
 
     std::ostringstream stream;
     stream << "fuzzyfunc-0x" << std::hex << originalAddress;
@@ -31,7 +32,7 @@ Function::Function(address_t originalAddress)
 }
 
 Function::Function(Symbol *symbol)
-    : symbol(symbol), nonreturn(false), cache(nullptr) {
+    : symbol(symbol), dynamicSymbol(nullptr), nonreturn(false), cache(nullptr) {
 
     name = symbol->getName();
     ifunc = (symbol->getType() == Symbol::TYPE_IFUNC);

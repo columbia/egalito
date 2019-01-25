@@ -93,6 +93,11 @@ public:
     virtual void execute();
 };
 
+class CopyDynsym : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
 class ElfFileWriter : public ConcreteElfOperation {
 private:
     std::string filename;

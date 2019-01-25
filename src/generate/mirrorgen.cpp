@@ -25,6 +25,7 @@ void MirrorGen::afterAddressAssign() {
     pipeline.addDependency("BasicElfStructure");
     pipeline.add(new MakeInitArray(/*stage=*/ 1));  // AssignSectionsToSegments
     pipeline.add(new UpdatePLTLinks());
+    pipeline.add(new CopyDynsym());
     pipeline.execute();
 }
 

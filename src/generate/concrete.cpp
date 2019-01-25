@@ -314,6 +314,7 @@ void BasicElfStructure::makeDynamicSection() {
             dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
         }
 
+#if 0
         if(true || getData()->getProgram()->getMain()->getLibrary()->getRole()
             == Library::ROLE_LIBC) {
 
@@ -322,6 +323,7 @@ void BasicElfStructure::makeDynamicSection() {
         }
 
         dynamic->addPair(DT_SONAME, dynstr->add("libc.so.6", true));
+#endif
     }
     else {
         // Add DT_NEEDED dependency on ld.so because we combine libc into
@@ -764,6 +766,23 @@ void UpdatePLTLinks::execute() {
     // XXX: this really shouldn't be hardcoded!
     Updater updater(entryMap, 0x600000);
     getData()->getProgram()->accept(&updater);
+}
+
+void CopyDynsym::execute() {
+    /*auto oldSymbolList = getData()->getProgram()->getMain()->getElfSpace()
+        ->getDynamicSymbolList();*/
+    auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto func : CIter::children(module->getFunctionList())) {
+            auto dsym = func->getDynamicSymbol();
+            if(!dsym) continue;
+
+            auto value = dynsym->addSymbol(func, dsym);
+            value->addFunction([this] (ElfXX_Sym *symbol) {
+                symbol->st_shndx = getData()->getSectionList()->indexOf(".text");
+            });
+        }
+    }
 }
 
 void ElfFileWriter::execute() {

@@ -656,7 +656,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     auto targetName = extSym->getName();
 
-    auto symbol = makeSymbol(targetName, Symbol::TYPE_OBJECT, extSym->getBind());
+    auto symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
