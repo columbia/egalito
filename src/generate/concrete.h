@@ -58,6 +58,7 @@ public:
     virtual std::string getName() const { return "TextSectionCreator"; }
 };
 
+class Function;
 class InitArraySectionContent;
 class MakeInitArray : public NormalElfOperation {
 private:
@@ -70,6 +71,7 @@ private:
     void makeInitArraySectionLinks();
     void addInitFunction(InitArraySectionContent *content,
         std::function<address_t ()> value);
+    Function *findLibcCsuInit(Chunk *entryPoint);
 };
 
 class PLTTrampoline;

@@ -313,6 +313,15 @@ void BasicElfStructure::makeDynamicSection() {
             if(lib->getModule()) continue;
             dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
         }
+
+        if(true || getData()->getProgram()->getMain()->getLibrary()->getRole()
+            == Library::ROLE_LIBC) {
+
+            dynamic->addPair(DT_NEEDED,
+                dynstr->add("ld-linux-x86-64.so.2", true));
+        }
+
+        dynamic->addPair(DT_SONAME, dynstr->add("libc.so.6", true));
     }
     else {
         // Add DT_NEEDED dependency on ld.so because we combine libc into
@@ -552,6 +561,32 @@ void MakeInitArray::makeInitArraySections() {
     initArraySection->setContent(content);
 }
 
+Function *MakeInitArray::findLibcCsuInit(Chunk *entryPoint) {
+    auto entry = dynamic_cast<Function *>(entryPoint);
+    if(!entry) return nullptr;
+
+    if(entry->getChildren()->genericGetSize() == 0) return nullptr;
+    auto block = entry->getChildren()->getIterable()->get(0);
+
+    for(auto instr : CIter::children(block)) {
+        if(auto link = instr->getSemantic()->getLink()) {
+#ifdef ARCH_X86_64
+            if(!instr->getSemantic()->getAssembly()) continue;
+            auto ops = instr->getSemantic()->getAssembly()->getAsmOperands();
+            if(ops->getOpCount() > 1) { 
+                auto op1 = ops->getOperands()[1];
+                if(op1.type == X86_OP_REG && op1.reg == X86_REG_RCX) {
+                    return dynamic_cast<Function *>(link->getTarget());
+                }
+            }
+#else
+#error "Need __libc_csu_init detection code for current platform!"
+#endif
+        }
+    }
+    return nullptr;
+}
+
 void MakeInitArray::makeInitArraySectionLinks() {
     auto initArraySection = getData()->getSection(".init_array");
     auto content = dynamic_cast<InitArraySectionContent *>(
@@ -561,23 +596,8 @@ void MakeInitArray::makeInitArraySectionLinks() {
     // if we didn't find __libc_csu_init directly, look for it by the link
     // present in _start during the call to __libc_start_main
     if(!func) {
-        auto entry = dynamic_cast<Function *>(getData()->getProgram()->getEntryPoint());
-        if(entry) {
-            auto block = entry->getChildren()->getIterable()->get(0);
-            for(auto instr : CIter::children(block)) {
-                if(auto link = instr->getSemantic()->getLink()) {
-#ifdef ARCH_X86_64
-                    auto op1 = instr->getSemantic()->getAssembly()->getAsmOperands()->getOperands()[1];
-                    if(op1.type == X86_OP_REG && op1.reg == X86_REG_RCX) {
-                        func = dynamic_cast<Function *>(link->getTarget());
-                        break;
-                    }
-#else
-    #error "Need __libc_csu_init detection code for current platform!"
-#endif
-                }
-            }
-        }
+        auto entry = getData()->getProgram()->getEntryPoint();
+        func = findLibcCsuInit(entry);
         if(!func) {
             LOG(1, "Warning: MakeInitArray can't find __libc_csu_init");
             return;
