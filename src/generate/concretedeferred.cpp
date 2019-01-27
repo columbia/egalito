@@ -13,6 +13,9 @@
 #include "config.h"
 
 bool SymbolInTable::operator < (const SymbolInTable &other) const {
+    if(tableIndex < other.tableIndex) return true;
+    if(tableIndex > other.tableIndex) return false;
+
     if(type < other.type) return true;
     if(type > other.type) return false;
 
@@ -47,13 +50,17 @@ bool SymbolInTable::operator < (const SymbolInTable &other) const {
 }
 
 bool SymbolInTable::operator == (const SymbolInTable &other) const {
+#if 1
     // right now we never copy Symbols, so we can just compare addresses
     return sym == other.get();
+#else
     if(sym == other.get()) return true;
     return type == other.type
         && ((sym == nullptr) == (other.get() == nullptr))
         && std::strcmp(sym->getName(), other.get()->getName()) == 0
-        && sym->getSectionIndex() == other.get()->getSectionIndex();
+        && sym->getSectionIndex() == other.get()->getSectionIndex()
+        && tableIndex == other.tableIndex;
+#endif
 }
 
 std::string SymbolInTable::getName() const {

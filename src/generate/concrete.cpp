@@ -59,6 +59,7 @@ void BasicElfCreator::execute() {
         // other symbols will be added later
         getSectionList()->addSection(symtabSection);
 
+        // .dynsym
         auto dynsym = new SymbolTableContent(stringList);
         auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
         //auto dynsymSection = getSection(".dynsym");
@@ -66,6 +67,12 @@ void BasicElfCreator::execute() {
         dynsym->addNullSymbol();
         // other symbols will be added later
         getSectionList()->addSection(dynsymSection);
+
+        // .gnu.hash
+        auto gnuhash = new GnuHashSectionContent();
+        auto gnuhashSection = new Section(".gnu.hash", SHT_GNU_HASH, SHF_ALLOC);
+        gnuhashSection->setContent(gnuhash);
+        getSectionList()->addSection(gnuhashSection);
 
         // .rela.dyn
         auto relaDyn = new DataRelocSectionContent(
@@ -242,6 +249,13 @@ void GenerateSectionTable::makeShdrTable() {
                     shdr->sh_link = sectionList->indexOf(".dynsym");
                 });
             }
+            else if(auto v = dynamic_cast<GnuHashSectionContent *>(section->getContent())) {
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_addralign = 8;
+                    shdr->sh_entsize = 0;
+                    shdr->sh_link = sectionList->indexOf(".dynsym");
+                });
+            }
         }
     }
 
@@ -314,6 +328,8 @@ void BasicElfStructure::makeDynamicSection() {
             dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
         }
 
+        dynamic->addPair(DT_NEEDED,
+            dynstr->add("ld-linux-x86-64.so.2", true));
 #if 0
         if(true || getData()->getProgram()->getMain()->getLibrary()->getRole()
             == Library::ROLE_LIBC) {
@@ -340,6 +356,11 @@ void BasicElfStructure::makeDynamicSection() {
     dynamic->addPair(DT_SYMTAB, [this] () {
         auto dynsymSection = getSection(".dynsym");
         return dynsymSection->getHeader()->getAddress();
+    });
+
+    dynamic->addPair(DT_GNU_HASH, [this] () {
+        auto gnuhashSection = getSection(".gnu.hash");
+        return gnuhashSection->getHeader()->getAddress();
     });
 
     dynamic->addPair(DT_RELA, [this] () {
@@ -394,6 +415,7 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
+        dynSegment->addContains(getSection(".gnu.hash"));
         dynSegment->addContains(getSection(".rela.dyn"));
         dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
@@ -783,6 +805,121 @@ void CopyDynsym::execute() {
             });
         }
     }
+}
+
+// hash function stolen from binutils/bfd/elf.c:221
+static unsigned long
+bfd_elf_gnu_hash (const char *namearg)
+{
+  const unsigned char *name = (const unsigned char *) namearg;
+  unsigned long h = 5381;
+  unsigned char ch;
+
+  while ((ch = *name++) != '\0')
+    h = (h << 5) + h + ch;
+  return h & 0xffffffff;
+}
+
+void MakeDynsymHash::execute() {
+    auto gnuhash = getData()->getSection(".gnu.hash")->castAs<GnuHashSectionContent *>();
+    auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
+    dynsym->recalculateIndices();
+
+    auto dynstr = getData()->getSection(".dynstr")->castAs<DeferredStringList *>();
+    std::ostringstream dynstrStream;
+    dynstr->writeTo(dynstrStream);
+    auto dynstrData = dynstrStream.str();
+
+    bucketList.resize(1011);
+    //bucketList.resize(10007);
+
+    bool hashing = false;
+    size_t firstHashedSymbol = 0;
+    for(auto sym : *dynsym) {
+        auto elfSym = sym->getElfPtr();
+        LOG(1, "elfSym address " << elfSym->st_value);
+        // Skip the undefined symbols (first, address == 0), don't hash them.
+        // These will be looked up in another library, not in our own .dynsym.
+        if(elfSym->st_value) hashing = true;
+        if(!hashing) {
+            firstHashedSymbol ++;
+            continue;
+        }
+
+        auto name = dynstrData.c_str() + elfSym->st_name;
+        auto hash = bfd_elf_gnu_hash(name);
+
+        LOG(1, "elfSym name [" << name << "] hash 0x" << std::hex << hash);
+        bucketList[hash % bucketList.size()].push_back(name);
+    }
+
+    size_t index = 0;
+    for(const auto &bucket : bucketList) {
+        for(const auto &name : bucket) {
+            indexMap[name] = index++;
+        }
+    }
+
+    typedef uint64_t BloomType;  // Assumes ELFCLASS64
+    const uint32_t bloomShift = 5;
+    std::vector<BloomType> bloomList; //= {-1ul, -1ul};
+    for(size_t i = 0; i < 0x100; i ++) bloomList.push_back(-1ul);
+
+    gnuhash->add(static_cast<uint32_t>(bucketList.size()));     // nbuckets
+    gnuhash->add(static_cast<uint32_t>(firstHashedSymbol));     // symoffset
+    gnuhash->add(static_cast<uint32_t>(bloomList.size()));      // bloom_size
+    gnuhash->add(static_cast<uint32_t>(bloomShift));            // bloom_shift
+
+    // bloom_list
+    for(auto bloom : bloomList) {
+        gnuhash->add(bloom);
+    }
+
+    // bucket_list
+    size_t symIndex = firstHashedSymbol;
+    for(const auto &bucket : bucketList) {
+        if(bucket.size()) {
+            gnuhash->add(static_cast<uint32_t>(symIndex));
+            symIndex += bucket.size();
+        }
+        else {
+            // 0's observed in real binaries
+            gnuhash->add(static_cast<uint32_t>(0));
+        }
+    }
+
+    // chain
+    for(const auto &bucket : bucketList) {
+        for(const auto &name : bucket) {
+            auto hash = bfd_elf_gnu_hash(name.c_str());
+            //uint32_t value = (hash % bucketList.size()) & ~1;
+            uint32_t value = hash & ~1;
+            if(name == bucket.back()) value += 1;
+            gnuhash->add(value);
+        }
+    }
+    
+    // .dymsym sorting
+    auto oldValueMap = dynsym->getValueMap();  // deep copy
+    dynsym->clearAll();
+    for(const auto &pair : oldValueMap) {
+        auto key = pair.first;
+        auto val = pair.second;
+        auto it = indexMap.find(key.getName());
+        if(it != indexMap.end()) {
+            LOG(1, "Found symbol index for name [" << (*it).first << "] at index "
+                << (*it).second);
+            key.setTableIndex((*it).second);
+        }
+        dynsym->insertSorted(key, val);
+    }
+
+    dynsym->recalculateIndices();
+
+    //auto newValueMap = dynsym->getValueMap();  // deep copy
+    //for(const auto &val : *dynsym) {
+    //    LOG(1, "new order for symbol with name [" << val->getName() << "]");
+    //}
 }
 
 void ElfFileWriter::execute() {

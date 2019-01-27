@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "deferred.h"
+#include "integerdeferred.h"
 #include "chunk/link.h"
 #include "elf/elfxx.h"
 
@@ -28,17 +29,19 @@ public:
 private:
     type_t type;
     Symbol *sym;
+    size_t tableIndex;  // for ordering .dynsym
 public:
     SymbolInTable(type_t type = TYPE_NULL, Symbol *sym = nullptr)
-        : type(type), sym(sym) {}
+        : type(type), sym(sym), tableIndex(0) {}
     bool operator < (const SymbolInTable &other) const;
     bool operator == (const SymbolInTable &other) const;
     Symbol *get() const { return sym; }
     std::string getName() const;
+    void setTableIndex(size_t index) { tableIndex = index; }
 };
 
 /** Symbol table, either .strtab or .dynstr. The ordering of symbols
-    is determined by the symbolCompare function.
+    is determined by SymbolInTable::operator {<,==}.
 */
 class SymbolTableContent : public DeferredMap<SymbolInTable, ElfXX_Sym> {
 public:
@@ -249,6 +252,11 @@ public:
         : gotpltSection(gotpltSection), pltSection(pltSection) {}
 
     DeferredType *addEntry(PLTTrampoline *plt, size_t index);
+};
+
+class GnuHashSectionContent : public DeferredIntegerList {
+public:
+    using DeferredIntegerList::DeferredIntegerList;
 };
 
 #endif

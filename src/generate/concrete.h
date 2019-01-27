@@ -2,6 +2,7 @@
 #define EGALITO_GENERATE_CONCRETE_H
 
 #include <string>
+#include <vector>
 #include "data.h"
 
 class ConcreteElfOperation : public UnnamedElfOperation {
@@ -94,6 +95,14 @@ public:
 };
 
 class CopyDynsym : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
+class MakeDynsymHash : public NormalElfOperation {
+private:
+    std::vector<std::vector<std::string>> bucketList;
+    std::map<std::string, size_t> indexMap;
 public:
     virtual void execute();
 };
