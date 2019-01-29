@@ -25,6 +25,7 @@ public:
     void add(Module *module);
     void add(Library *library);
 
+    Module *getFirst() const;
     Module *getMain() const;
     Module *getEgalito() const;
     Module *getLibc() const;

@@ -51,7 +51,7 @@ public:
     Program *getProgram() const { return program; }
     LibraryList *getLibraryList() const { return program->getLibraryList(); }
 
-    // deprecated, please use getProgram()->getMain()
+    // deprecated, please use getProgram()->getFirst()
     ElfSpace *getMainSpace() const;
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }

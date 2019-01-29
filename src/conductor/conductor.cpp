@@ -311,11 +311,12 @@ void Conductor::allocateTLSArea(address_t base) {
 
 #ifdef ARCH_X86_64
     // x86: place executable's TLS (if present) right before the header
-    auto executable = program->getMain();
-    if(auto tls = executable->getDataRegionList()->getTLS()) {
-        tls->setBaseAddress(base + offset);
-        tls->setTLSOffset((base + offset) - mainThreadPointer);
-        offset += tls->getSize();
+    if(auto executable = program->getMain()) {
+        if(auto tls = executable->getDataRegionList()->getTLS()) {
+            tls->setBaseAddress(base + offset);
+            tls->setTLSOffset((base + offset) - mainThreadPointer);
+            offset += tls->getSize();
+        }
     }
 #endif
 #endif
@@ -372,7 +373,7 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
 }
 
 ElfSpace *Conductor::getMainSpace() const {
-    return getProgram()->getMain()->getElfSpace();
+    return getProgram()->getFirst()->getElfSpace();
 }
 
 void Conductor::check() {

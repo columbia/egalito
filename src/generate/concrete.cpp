@@ -635,6 +635,7 @@ void MakeInitArray::makeInitArraySectionLinks() {
     auto content = dynamic_cast<InitArraySectionContent *>(
         initArraySection->getContent());
     auto main = getData()->getProgram()->getMain();
+    if(!main) return;
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
     // if we didn't find __libc_csu_init directly, look for it by the link
     // present in _start during the call to __libc_start_main
@@ -810,8 +811,6 @@ void UpdatePLTLinks::execute() {
 }
 
 void CopyDynsym::execute() {
-    /*auto oldSymbolList = getData()->getProgram()->getMain()->getElfSpace()
-        ->getDynamicSymbolList();*/
     auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
     for(auto module : CIter::children(getData()->getProgram())) {
         for(auto func : CIter::children(module->getFunctionList())) {

@@ -364,7 +364,8 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 }
 
 void ConductorSetup::findEntryPointFunction() {
-    auto module = conductor->getMainSpace()->getModule();
+    auto module = conductor->getProgram()->getMain();
+    if(!module) return;
     address_t elfEntry = elf->getEntryPoint();
 
     if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {

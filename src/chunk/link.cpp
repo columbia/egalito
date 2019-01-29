@@ -312,25 +312,19 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                         << std::hex << reloc->getAddress());
             auto program = dynamic_cast<Program *>(module->getParent());
             auto main = program->getMain();
-
-            /*
-            for(auto r : *relocList) {
-                if(r->getAddress() == s && r->getType() == R_X86_64_COPY) {
-
+            if(main) {
+                /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
+                 * should point at the executable's copy of the global if COPY reloc is present
+                 */
+                if(auto symList = main->getElfSpace()->getSymbolList()) {
+                    if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
+                        return ret;
+                    }
                 }
-            }*/
-
-            /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
-             * should point at the executable's copy of the global if COPY reloc is present
-             */
-            if(auto symList = main->getElfSpace()->getSymbolList()) {
-                if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
-                    return ret;
-                }
-            }
-            if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
-                if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
-                    return ret;
+                if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+                    if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
+                        return ret;
+                    }
                 }
             }
 

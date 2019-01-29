@@ -860,13 +860,9 @@ void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
 }
 
 void UseGSTablePass::overwriteBootArguments() {
-    Module *libc = nullptr;
-    for(auto module : CIter::children(conductor->getProgram())) {
-        if(module->getName() == "module-libc.so.6") {
-            libc = module;
-            break;
-        }
-    }
+    if(!conductor->getProgram()->getMain()) return;
+    Module *libc = conductor->getProgram()->getLibc();
+
     Function *i = ChunkFind2(conductor).findFunctionInModule(
         "__libc_csu_init", conductor->getProgram()->getMain());
     Function *f = ChunkFind2(conductor).findFunctionInModule(
