@@ -59,8 +59,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
     this->conductor = new Conductor();
     ::egalito_conductor = conductor;
 
-    this->elf = new ElfMap(executable);
-    auto mainModule = conductor->parseExecutable(elf, executable);
+    auto mainModule = conductor->parseAnything(executable);
+    this->elf = mainModule->getElfSpace()->getElfMap();
 
     findEntryPointFunction();
 

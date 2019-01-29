@@ -45,6 +45,17 @@ Conductor::~Conductor() {
     delete program;
 }
 
+Module *Conductor::parseAnything(const std::string &fullPath, Library::Role role) {
+    if(role == Library::ROLE_UNKNOWN) {
+        role = Library::guessRole(fullPath);
+    }
+    auto elf = new ElfMap(fullPath.c_str());
+    auto internalName = Library::determineInternalName(fullPath, role);
+    auto library = new Library(internalName, role);
+    library->setResolvedPath(fullPath);
+    return parse(elf, library);
+}
+
 Module *Conductor::parseExecutable(ElfMap *elf, const std::string &fullPath) {
     auto library = new Library("(executable)", Library::ROLE_MAIN);
     library->setResolvedPath(fullPath);

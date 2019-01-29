@@ -328,9 +328,7 @@ void BasicElfStructure::makeDynamicSection() {
             dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
         }
 
-        dynamic->addPair(DT_NEEDED,
-            dynstr->add("ld-linux-x86-64.so.2", true));
-#if 0
+#if 1
         if(true || getData()->getProgram()->getMain()->getLibrary()->getRole()
             == Library::ROLE_LIBC) {
 
@@ -373,7 +371,7 @@ void BasicElfStructure::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
-    dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+    dynamic->addPair(DT_FLAGS, /*DF_STATIC_TLS |*/ DF_BIND_NOW);
 
     // PLT-related entries
     dynamic->addPair(DT_PLTGOT, [this] () {
