@@ -41,10 +41,12 @@ void Library::accept(ChunkVisitor *visitor) {
 
 Library::Role Library::guessRole(const std::string &name) {
     if(name.find("libc.so") != std::string::npos) return ROLE_LIBC;
+    if(name.find("libc-") != std::string::npos) return ROLE_LIBC;
     if(name.find("libstdc++.so") != std::string::npos) return ROLE_LIBCPP;
+    if(name.find("libstdc++-") != std::string::npos) return ROLE_LIBCPP;
     if(name.find("libegalito.so") != std::string::npos) return ROLE_EGALITO;
 
-    return (name.find(".so") == name.length() - 3) ? ROLE_NORMAL : ROLE_MAIN;
+    return (name.find(".so") != std::string::npos) ? ROLE_NORMAL : ROLE_MAIN;
 }
 
 std::string Library::determineInternalName(const std::string &fullPath, Role role) {
