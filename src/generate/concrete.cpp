@@ -317,6 +317,23 @@ void BasicElfStructure::makePhdrTable() {
     });
 }
 
+static const char *getSoname(ElfMap *elf) {
+    auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
+    if(!dynamic) return nullptr;  // statically linked
+    auto strtab = elf->getDynstrtab();
+
+    for(unsigned long *pointer = dynamic; *pointer != DT_NULL; pointer += 2) {
+        unsigned long type = pointer[0];
+        unsigned long value = pointer[1];
+
+        if(type == DT_SONAME) {
+            auto name = strtab + value;
+            return name;
+        }
+    }
+    return nullptr;
+}
+
 void BasicElfStructure::makeDynamicSection() {
     auto dynamicSection = getSection(".dynamic");
     auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
@@ -329,14 +346,18 @@ void BasicElfStructure::makeDynamicSection() {
         }
 
 #if 1
-        if(true || getData()->getProgram()->getMain()->getLibrary()->getRole()
-            == Library::ROLE_LIBC) {
-
+        auto first = getData()->getProgram()->getFirst();
+        if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
             dynamic->addPair(DT_NEEDED,
                 dynstr->add("ld-linux-x86-64.so.2", true));
         }
 
-        dynamic->addPair(DT_SONAME, dynstr->add("libc.so.6", true));
+        if(first->getLibrary()->getRole() != Library::ROLE_MAIN) {
+            auto soName = getSoname(first->getElfSpace()->getElfMap());
+            if(soName) {
+                dynamic->addPair(DT_SONAME, dynstr->add(soName, true));
+            }
+        }
 #endif
     }
     else {
