@@ -639,7 +639,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     auto deferred = new DeferredType(rela);
 
     rela->r_offset  = var->getAddress();
-    rela->r_info    = ELF64_R_INFO(0, R_X86_64_GLOB_DAT);
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_RELATIVE);
     rela->r_addend  = chunk->getAddress();
 
     /*deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {

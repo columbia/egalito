@@ -392,7 +392,21 @@ void BasicElfStructure::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
-    dynamic->addPair(DT_FLAGS, /*DF_STATIC_TLS |*/ DF_BIND_NOW);
+    if(addLibDependencies) {
+        auto first = getData()->getProgram()->getFirst();
+        if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
+            dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+        }
+        /*else if(first->getLibrary()->getRole() == Library::ROLE_MAIN) {
+            dynamic->addPair(DT_FLAGS, DF_PIE);
+        }*/
+        else {
+            dynamic->addPair(DT_FLAGS, DF_BIND_NOW);
+        }
+    }
+    else {
+        dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+    }
 
     // PLT-related entries
     dynamic->addPair(DT_PLTGOT, [this] () {
@@ -732,11 +746,27 @@ void MakeGlobalPLT::makePLTData() {
 
         size_t index = 3; // start from index 3
         for(auto plt : entries) {
-            content->addPLTRef(gotpltSection, plt, index);
+            if(!plt->isPltGot()) {
+                content->addPLTRef(gotpltSection, plt, index);
+            }
             index ++;
         }
 
         relaPltSection->setContent(content);
+    }
+
+    // add gotplt relocations to rela.dyn
+    {
+        auto relaDynSection = (*getData()->getSectionList())[".rela.dyn"];
+        auto dynContent = relaDynSection->castAs<DataRelocSectionContent *>();
+
+        size_t index = 3; // start from index 3
+        for(auto plt : entries) {
+            if(plt->isPltGot()) {
+                dynContent->addPLTRef(gotpltSection, plt, index);
+            }
+            index ++;
+        }
     }
 }
 
