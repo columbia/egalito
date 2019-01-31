@@ -68,6 +68,12 @@ void ReloCheckPass::checkDataVariable(Module *module) {
     for(auto region : CIter::regions(module)) {
         for(auto sec : CIter::children(region)) {
             for(auto var : CIter::children(sec)) {
+                if(!var->getDest()) {
+                    LOG(10, " var " << std::hex << var->getAddress()
+                        << " has null link!");
+                    continue;
+                }
+
                 if(auto t = var->getDest()->getTarget()) {
                     LOG(10, " var " << std::hex << var->getAddress()
                         << " resolved to " << t->getName());
@@ -198,7 +204,7 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
             var = dlist->findVariable(addr);
         }
 
-        if(var) {
+        if(var && var->getDest()) {
             if(auto target = var->getDest()->getTarget()) {
                 LOG0(10, ss.str() << " resolved as a data variable pointing to "
                     << target->getName()
@@ -234,6 +240,9 @@ void ReloCheckPass::check(Reloc *r, Module *module) {
                     LOG(1, std::hex << var->getDest()->getTargetAddress());
                 }
             }
+        }
+        else if(var && !var->getDest()) {
+            LOG(1, ss.str() << " NOT resolved! (no link)");
         }
         else {
             LOG0(1, ss.str() << " NOT resolved! (no variable)");

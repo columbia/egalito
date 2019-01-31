@@ -24,8 +24,9 @@ private:
     std::string name;
     Link *dest;
     size_t size;    // != sizeof(address_t) for relative jump table entries
+    Symbol *targetSymbol; // can be nullptr if not known
 public:
-    DataVariable() : dest(nullptr), size(sizeof(address_t)) {}
+    DataVariable() : dest(nullptr), size(sizeof(address_t)), targetSymbol(nullptr) {}
 
     // After constructing, manually append this DataVariable to its Section.
     DataVariable(DataSection *section, address_t address, Link *dest);
@@ -38,6 +39,9 @@ public:
 
     size_t getSize() const { return size; }
     void setSize(size_t size) { this->size = size; }
+
+    Symbol *getTargetSymbol() const { return targetSymbol; }
+    void setTargetSymbol(Symbol *symbol) { targetSymbol = symbol; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

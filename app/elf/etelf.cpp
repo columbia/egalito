@@ -10,6 +10,7 @@
 #include "pass/ldsorefs.h"
 #include "pass/ifuncplts.h"
 #include "pass/fixenviron.h"
+#include "pass/externalsymbollinks.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -37,6 +38,9 @@ static void parse(const std::string& filename, const std::string& output, bool o
         if(oneToOne) {
             PromoteJumpsPass promoteJumps;
             program->accept(&promoteJumps);
+
+            //ExternalSymbolLinksPass externalSymbolLinks;
+            //program->accept(&externalSymbolLinks);
         }
         else {
             FixEnvironPass fixEnviron;
@@ -54,6 +58,10 @@ static void parse(const std::string& filename, const std::string& output, bool o
             std::cout << "Generating mirror executable [" << output << "]...\n";
             LdsoRefsPass ldsoRefs;
             program->accept(&ldsoRefs);
+
+            ExternalSymbolLinksPass externalSymbolLinks;
+            program->accept(&externalSymbolLinks);
+
             IFuncPLTs ifuncPLTs;
             program->accept(&ifuncPLTs);
 

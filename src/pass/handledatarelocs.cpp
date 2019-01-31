@@ -56,7 +56,7 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
         if(section->findVariable(a)) continue;
 
         auto link = resolveVariableLink(reloc, module);
-        if(!link) continue;
+        //if(!link) continue;
 
         DataVariable::create(section, a, link, reloc->getSymbol());
     }
@@ -74,7 +74,7 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
-        if(!link) continue;
+        //if(!link) continue;
 
         DataVariable::create(module, addr, link, reloc->getSymbol());
     }
@@ -124,11 +124,13 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
                 << ") in " << module->getName());
             auto l = PerfectLinkResolver().resolveExternally(
                 reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
-            if(!l) {
+            #if 0 // moved to later pass
+            if(false && !l) {
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(reloc->getSymbol());
                 l = new ExternalSymbolLink(externalSymbol);
             }
+            #endif
 
             LOG(0, "link is " << l);
             return l;

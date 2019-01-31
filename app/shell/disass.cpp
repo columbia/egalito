@@ -34,6 +34,7 @@
 #include "pass/findsyscalls.h"
 #include "pass/syscallsandbox.h"
 #include "pass/fixenviron.h"
+#include "pass/externalsymbollinks.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -222,6 +223,8 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         args.shouldHave(1);
         LdsoRefsPass pass;
         setup->getConductor()->getProgram()->accept(&pass);
+        ExternalSymbolLinksPass externalSymbolLinks;
+        setup->getConductor()->getProgram()->accept(&externalSymbolLinks);
         IFuncPLTs ifuncPLTs;
         setup->getConductor()->getProgram()->accept(&ifuncPLTs);
 
@@ -523,6 +526,16 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         FixEnvironPass fixEnviron;
         setup->getConductor()->getProgram()->accept(&fixEnviron);
     }, "fixes references to __environ variable during program startup in generate-static");
+
+    topLevel->add("extsymlinks", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        ExternalSymbolLinksPass externalSymbolLinks;
+        setup->getConductor()->acceptInAllModules(&externalSymbolLinks, true);
+    }, "finds all null DataVariable links and uses ExternalSymbolLinks");
 
     topLevel->add("vtables", [&] (Arguments args) {
         args.shouldHave(1);

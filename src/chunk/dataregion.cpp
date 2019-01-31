@@ -38,6 +38,7 @@ DataVariable *DataVariable::create(DataSection *section, address_t address,
     auto var = new DataVariable(section, address, dest);
     if(symbol) {
         var->setName(symbol->getName());
+        var->setTargetSymbol(symbol);
     }
     //ChunkMutator(section).append(var);
     var->setParent(section);

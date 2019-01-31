@@ -69,10 +69,12 @@ void BasicElfCreator::execute() {
         getSectionList()->addSection(dynsymSection);
 
         // .gnu.hash
-        auto gnuhash = new GnuHashSectionContent();
-        auto gnuhashSection = new Section(".gnu.hash", SHT_GNU_HASH, SHF_ALLOC);
-        gnuhashSection->setContent(gnuhash);
-        getSectionList()->addSection(gnuhashSection);
+        if(!getConfig()->isUnionOutput()) {
+            auto gnuhash = new GnuHashSectionContent();
+            auto gnuhashSection = new Section(".gnu.hash", SHT_GNU_HASH, SHF_ALLOC);
+            gnuhashSection->setContent(gnuhash);
+            getSectionList()->addSection(gnuhashSection);
+        }
 
         // .rela.dyn
         auto relaDyn = new DataRelocSectionContent(
@@ -377,10 +379,12 @@ void BasicElfStructure::makeDynamicSection() {
         return dynsymSection->getHeader()->getAddress();
     });
 
-    dynamic->addPair(DT_GNU_HASH, [this] () {
-        auto gnuhashSection = getSection(".gnu.hash");
-        return gnuhashSection->getHeader()->getAddress();
-    });
+    if(!getConfig()->isUnionOutput()) {
+        dynamic->addPair(DT_GNU_HASH, [this] () {
+            auto gnuhashSection = getSection(".gnu.hash");
+            return gnuhashSection->getHeader()->getAddress();
+        });
+    }
 
     dynamic->addPair(DT_RELA, [this] () {
         auto relaDyn = getSection(".rela.dyn");
@@ -448,7 +452,9 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
-        dynSegment->addContains(getSection(".gnu.hash"));
+        if(!getConfig()->isUnionOutput()) {
+            dynSegment->addContains(getSection(".gnu.hash"));
+        }
         dynSegment->addContains(getSection(".rela.dyn"));
         dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
