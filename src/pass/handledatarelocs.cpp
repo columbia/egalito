@@ -10,6 +10,7 @@
 
 void HandleDataRelocsPass::visit(Module *module) {
     //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-(executable)");
+    //TemporaryLogLevel tll("pass", 15);
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -56,7 +57,7 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
         if(section->findVariable(a)) continue;
 
         auto link = resolveVariableLink(reloc, module);
-        //if(!link) continue;
+        // always create a DataVariable, even if the link is null
 
         DataVariable::create(section, a, link, reloc->getSymbol());
     }
@@ -74,7 +75,7 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
-        //if(!link) continue;
+        // always create a DataVariable, even if the link is null
 
         DataVariable::create(module, addr, link, reloc->getSymbol());
     }

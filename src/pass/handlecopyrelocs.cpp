@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cassert>
+#include <typeinfo>
 #include "handlecopyrelocs.h"
 #include "conductor/conductor.h"
 #include "elf/elfmap.h"
@@ -13,27 +14,48 @@ void HandleCopyRelocs::visit(Module *module) {
 
     this->module = module;
 
-    //TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll("pass", 15);
     auto relocList = module->getElfSpace()->getRelocList();
     if(!relocList) return;
 
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
-            //TemporaryLogLevel tll("chunk", 10);
+            //TemporaryLogLevel tll("chunk", 15);
 
             assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
+            LOG(10, "    symbol: " << r->getSymbol());
             auto link = PerfectLinkResolver().resolveExternally(
                 r->getSymbol(), conductor, module->getElfSpace(),
                 false, false, true);
+
+            // don't resolve weak symbols because we don't want targets within the same module
+
             if(!link) {
-                link = PerfectLinkResolver().resolveExternally(
-                    r->getSymbol(), conductor, module->getElfSpace(),
-                    true, false, true);
-            }
-            if(!link) {
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(r->getSymbol());
+                link = new CopyRelocLink(externalSymbol);
                 LOG(1, "no link found for R_X86_64_COPY");
+                LOG(1, "update DataVariable to be isCopy");
+                // create a copy DataVariable
+                auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
+                    + r->getAddress();
+                auto region = module->getDataRegionList()->findRegionContaining(addr);
+                auto var = region->findVariable(addr);
+                if(var) {
+                    var->setIsCopy(true);
+                    var->setDest(link);
+                    var->setSize(r->getSymbol()->getSize());
+                }
+                else {
+                    /* for now, this shouldn't happen since HandleDataRelocs goes first. */
+                    LOG(1, "WARNING: shouldn't HandleDataRelocs have handled this?");
+                    auto section = region->findDataSectionContaining(addr);
+                    auto var = DataVariable::create(section, addr, link, r->getSymbol());
+                    var->setSize(r->getSymbol()->getSize());
+                }
+
                 continue;
             }
             else {

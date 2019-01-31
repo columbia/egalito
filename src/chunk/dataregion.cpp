@@ -50,7 +50,7 @@ DataVariable *DataVariable::create(DataSection *section, address_t address,
 }
 
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
-    : dest(dest), size(sizeof(address_t)) {
+    : dest(dest), size(sizeof(address_t)), targetSymbol(nullptr), isCopy(false) {
 
     assert(section != nullptr);
     assert(section->contains(address));

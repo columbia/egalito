@@ -171,6 +171,21 @@ public:
     virtual bool isRIPRelative() const { return false; }
 };
 
+class CopyRelocLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_DATA, LinkDefaultAttributeDecorator<Link>> {
+private:
+    ExternalSymbol *externalSymbol;
+public:
+    CopyRelocLink(ExternalSymbol *externalSymbol)
+        : externalSymbol(externalSymbol) {}
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return false; }
+};
+
 class JumpTable;
 class JumpTableLink : public LinkScopeDecorator<
     Link::SCOPE_WITHIN_MODULE, LinkDefaultAttributeDecorator<Link>> {

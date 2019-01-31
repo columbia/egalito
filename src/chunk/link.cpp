@@ -40,6 +40,15 @@ address_t ExternalSymbolLink::getTargetAddress() const {
     return resolved ? resolved->getAddress() : 0;
 }
 
+ChunkRef CopyRelocLink::getTarget() const {
+    return externalSymbol->getResolved();
+}
+
+address_t CopyRelocLink::getTargetAddress() const {
+    auto resolved = externalSymbol->getResolved();
+    return resolved ? resolved->getAddress() : 0;
+}
+
 ChunkRef JumpTableLink::getTarget() const {
     return jumpTable;
 }
@@ -420,6 +429,13 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
                 return link;
             }
         }
+    }
+
+    // were we asked to look at weak symbols?
+    if(!weak) {
+        LOG(11, "Didn't find strong " << name
+            << " externally, not looking for weak version");
+        return nullptr;
     }
 
     // weak definition

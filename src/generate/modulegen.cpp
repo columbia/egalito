@@ -95,6 +95,7 @@ void ModuleGen::makeDataSections() {
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
                 loadSegment->addContains(bssSection);
+                maybeMakeDataRelocs(section, bssSection);
                 previousEndAddress = section->getAddress() + section->getSize();
                 break;
             }
@@ -231,6 +232,13 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                     << "] at 0x" << std::hex << var->getAddress());
                 relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol());
             }
+            else if(auto copyRelocLink = dynamic_cast<CopyRelocLink *>(link)) {
+                LOG(2, "    relocation for copy reloc ["
+                    << copyRelocLink->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+                relaDyn->addCopyExternalRef(var, copyRelocLink->getExternalSymbol(), sec);
+            }
+            else LOG(1, "Unhandled link type for relocation");
         }
     }
 

@@ -11,6 +11,7 @@ class Section;
 class SectionRef;
 class Symbol;
 class Function;
+class DataVariable;
 class Instruction;
 class ElfSpace;
 class Chunk;
@@ -57,6 +58,8 @@ public:
     void addNullSymbol();
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
+    DeferredType *addDataVarSymbol(DataVariable *var, Symbol *sym,
+        size_t section = SHN_UNDEF);
     DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);
 
@@ -187,6 +190,8 @@ public:
     DeferredType *addDataArbitraryRef(DataVariable *var, Chunk *chunk);
     DeferredType *addDataExternalRef(DataVariable *var,
         ExternalSymbol *extSym);
+    DeferredType *addCopyExternalRef(DataVariable *var,
+        ExternalSymbol *extSym, Section *section);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);

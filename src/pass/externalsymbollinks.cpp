@@ -11,8 +11,14 @@ void ExternalSymbolLinksPass::visit(Module *module) {
 
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(dv->getTargetSymbol());
-                auto link = new ExternalSymbolLink(externalSymbol);
-                dv->setDest(link);
+                if(!dv->getIsCopy()) {
+                    auto link = new ExternalSymbolLink(externalSymbol);
+                    dv->setDest(link);
+                }
+                else {
+                    auto link = new CopyRelocLink(externalSymbol);
+                    dv->setDest(link);
+                }
             }
         }
     }

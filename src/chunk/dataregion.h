@@ -25,8 +25,11 @@ private:
     Link *dest;
     size_t size;    // != sizeof(address_t) for relative jump table entries
     Symbol *targetSymbol; // can be nullptr if not known
+    bool isCopy;
 public:
-    DataVariable() : dest(nullptr), size(sizeof(address_t)), targetSymbol(nullptr) {}
+    DataVariable()
+        : dest(nullptr), size(sizeof(address_t)), targetSymbol(nullptr),
+        isCopy(false) {}
 
     // After constructing, manually append this DataVariable to its Section.
     DataVariable(DataSection *section, address_t address, Link *dest);
@@ -42,6 +45,9 @@ public:
 
     Symbol *getTargetSymbol() const { return targetSymbol; }
     void setTargetSymbol(Symbol *symbol) { targetSymbol = symbol; }
+
+    bool getIsCopy() const { return isCopy; }
+    void setIsCopy(bool copy) { isCopy = copy; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
