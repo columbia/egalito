@@ -36,6 +36,9 @@ static void parse(const std::string& filename, const std::string& output, bool o
 
         std::cout << "Preparing for codegen...\n";
         if(oneToOne) {
+            CollapsePLTPass collapsePLT(setup.getConductor());
+            program->accept(&collapsePLT);
+
             PromoteJumpsPass promoteJumps;
             program->accept(&promoteJumps);
 

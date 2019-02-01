@@ -258,6 +258,11 @@ void GenerateSectionTable::makeShdrTable() {
                     shdr->sh_link = sectionList->indexOf(".dynsym");
                 });
             }
+            else if(auto v = dynamic_cast<TBSSContent *>(section->getContent())) {
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_size = v->getMemSize();
+                });
+            }
         }
     }
 

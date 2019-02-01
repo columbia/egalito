@@ -152,7 +152,8 @@ SymbolTableContent::DeferredType *SymbolTableContent
 }
 
 SymbolTableContent::DeferredType *SymbolTableContent
-    ::addDataVarSymbol(DataVariable *var, Symbol *sym, size_t section) {
+    ::addDataVarSymbol(DataVariable *var, Symbol *sym, address_t address, 
+    size_t section) {
 
     // NOTE: caller may want to override the st_shndx in the symbol in a
     // deferred callback
@@ -178,7 +179,7 @@ SymbolTableContent::DeferredType *SymbolTableContent
         Symbol::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = section;
-    symbol->st_value = var ? var->getAddress() : 0;
+    symbol->st_value = address;
     symbol->st_size = var ? var->getSize() : 0;
     auto value = new DeferredType(symbol);
     if(sym->getBind() == Symbol::BIND_LOCAL) {
@@ -586,7 +587,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
-        LOG(1, "Creating data reloc for [" << targetName << "]");
+        LOG(1, "Creating undefined reloc for [" << targetName << "]");
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
@@ -626,7 +627,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addDataFunctionRef(DataVariable *var, Function *function) {
 
-    return addDataArbitraryRef(var, function);
+    return addDataArbitraryRef(var, function->getAddress());
 
 #if 0
     auto rela = new ElfXX_Rela();
@@ -674,7 +675,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
-    ::addDataArbitraryRef(DataVariable *var, Chunk *chunk) {
+    ::addDataArbitraryRef(DataVariable *var, address_t targetAddress) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
@@ -682,7 +683,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     rela->r_offset  = var->getAddress();
     rela->r_info    = ELF64_R_INFO(0, R_X86_64_RELATIVE);
-    rela->r_addend  = chunk->getAddress();
+    rela->r_addend  = targetAddress;
 
     /*deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
         rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
@@ -693,7 +694,8 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
-    ::addDataExternalRef(DataVariable *var, ExternalSymbol *extSym) {
+    ::addDataExternalRef(DataVariable *var, ExternalSymbol *extSym, Section *section,
+        Module *module) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
@@ -705,9 +707,33 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     auto targetName = extSym->getName();
 
-    auto symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
-    auto elfSym = symtab->addUndefinedSymbol(symbol);
+    SymbolTableContent::DeferredType *elfSym = nullptr;
+    if(extSym->getLocalWeakInstance()) {
+        address_t symbolAddress = 0;
+        {
+            auto sym = var->getTargetSymbol();
+            auto section = module->getElfSpace()->getElfMap()->findSection(
+                sym->getSectionIndex());
+            auto dataSection = module->getDataRegionList()->findDataSection(
+                section->getName());
+            auto offset = sym->getAddress() - section->getVirtualAddress();
+            //rela->r_offset = extSym->getAddress();
+            symbolAddress = dataSection->getAddress() + offset;
+        }
+        char *name = new char[targetName.length() + 1];
+        std::strcpy(name, targetName.c_str());
+        auto symbol = new Symbol(
+            symbolAddress, var->getSize(), name,
+            var->getTargetSymbol()->getType(),
+            var->getTargetSymbol()->getBind(), 0, 0);
+        elfSym = symtab->addDataVarSymbol(var, symbol, symbolAddress,
+            sectionList->indexOf(section));
+    }
+    else {
+        auto symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
+        elfSym = symtab->addUndefinedSymbol(symbol);
+    }
     deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
         LOG(1, "Creating data reloc for [" << targetName << "]");
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
@@ -741,7 +767,8 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         var->getTargetSymbol()->getType(),
         var->getTargetSymbol()->getBind(), 0, 0);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
-    auto elfSym = symtab->addDataVarSymbol(var, symbol, sectionList->indexOf(section));
+    auto elfSym = symtab->addDataVarSymbol(var, symbol, var->getAddress(),
+        sectionList->indexOf(section));
 
     deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
         LOG(1, "Creating copy reloc for [" << targetName << "]");

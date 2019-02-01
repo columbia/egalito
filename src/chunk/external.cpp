@@ -8,6 +8,7 @@
 void ExternalSymbol::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
+    // !!! out of date
     writer.writeString(name);
     writer.write<uint32_t>(type);
     writer.write<uint32_t>(bind);
@@ -61,12 +62,13 @@ void ExternalSymbolList::accept(ChunkVisitor *visitor) {
 
 ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(Symbol *symbol) {
     return makeExternalSymbol(symbol->getName(),
-        symbol->getType(), symbol->getBind(), symbol->getVersion(), nullptr);
+        symbol->getType(), symbol->getBind(), symbol->getVersion(),
+        symbol->getSectionIndex() != SHN_UNDEF, nullptr);
 }
 
 ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(
     const std::string &name, Symbol::SymbolType type, Symbol::BindingType bind,
-    const SymbolVersion *version, Chunk *resolved) {
+    const SymbolVersion *version, bool localWeakInstance, Chunk *resolved) {
 
     auto symbolList = makeExternalSymbolList();
     // !!! linear search
@@ -78,7 +80,7 @@ ExternalSymbol *ExternalSymbolFactory::makeExternalSymbol(
         }
     }
 
-    auto xSymbol = new ExternalSymbol(name, type, bind, version);
+    auto xSymbol = new ExternalSymbol(name, type, bind, version, localWeakInstance);
     xSymbol->setResolved(resolved);
     symbolList->getChildren()->add(xSymbol);
     return xSymbol;

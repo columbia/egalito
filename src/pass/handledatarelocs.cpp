@@ -9,8 +9,9 @@
 #include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
-    //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-(executable)");
-    //TemporaryLogLevel tll("pass", 15);
+    //TemporaryLogLevel tl1("chunk", 10, module->getName() == "module-(executable)");
+    TemporaryLogLevel tl1("chunk", 10);
+    TemporaryLogLevel tl2("pass", 15);
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -125,6 +126,9 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
                 << ") in " << module->getName());
             auto l = PerfectLinkResolver().resolveExternally(
                 reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+            if(!l) {
+                l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+            }
             #if 0 // moved to later pass
             if(false && !l) {
                 auto externalSymbol = ExternalSymbolFactory(module)
@@ -136,6 +140,21 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             LOG(0, "link is " << l);
             return l;
         }
+    }
+    else if(reloc->getType() == R_X86_64_64) {
+        // want a non-relative lookup
+        auto l =  PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+        LOG(0, "reloc 64_64 at 0x" << std::hex << reloc->getAddress() 
+            << ", link = " << std::hex << l);
+        if(auto abs = dynamic_cast<AbsoluteDataLink *>(l)) {
+            LOG(0, "    absolute DOL: " << abs->getTargetAddress());
+        }
+        else if(auto rel = dynamic_cast<DataOffsetLink *>(l)) {
+            LOG(0, "    relative DOL: " << rel->getTargetAddress());
+        }
+        else LOG(0, "??!?");
+        return l;
+        
     }
 #else
     // We can't resolve the address yet, because a link may point to a TLS

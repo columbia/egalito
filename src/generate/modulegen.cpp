@@ -214,7 +214,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 relaDyn->addDataFunctionRef(var, function);
             }
             else {
-                relaDyn->addDataArbitraryRef(var, target);
+                relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
             }
         }
         else {
@@ -230,7 +230,8 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 LOG(2, "    relocation for external symbol ["
                     << extSymLink->getExternalSymbol()->getName()
                     << "] at 0x" << std::hex << var->getAddress());
-                relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol());
+                relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol(), sec,
+                    module);
             }
             else if(auto copyRelocLink = dynamic_cast<CopyRelocLink *>(link)) {
                 LOG(2, "    relocation for copy reloc ["
@@ -523,7 +524,9 @@ void ModuleGen::makeTLS() {
             bssSection->setContent(content);*/
             /*bssSection->setContent(new DeferredString(
                 std::string(section->getSize(), 0x0)));*/
-            bssSection->setContent(new DeferredString(""));
+            //bssSection->setContent(new DeferredString(""));
+            LOG(0, "TLS BSS section is size " << section->getSize());
+            bssSection->setContent(new TBSSContent(section->getSize()));
             bssSection->getHeader()->setAddress(section->getAddress());
             sectionList->addSection(bssSection);
             segment->addContains(bssSection);

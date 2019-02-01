@@ -115,6 +115,10 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
 void ChunkDumper::visit(DataSection *dataSection) {
     LOG(10, "inside " << dataSection->getName() << ":");
     for(auto var : CIter::children(dataSection)) {
+        if(!var->getDest()) {
+            LOG(10, "null var");
+            continue;
+        }
         auto target = var->getDest()->getTarget();
         LOG0(10, "var: " << var->getAddress());
         if(target) {

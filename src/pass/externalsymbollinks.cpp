@@ -1,5 +1,8 @@
 #include "externalsymbollinks.h"
 #include "chunk/link.h"
+#include "chunk/position.h"
+#include "elf/elfspace.h"
+#include "elf/elfmap.h"
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -14,6 +17,18 @@ void ExternalSymbolLinksPass::visit(Module *module) {
                 if(!dv->getIsCopy()) {
                     auto link = new ExternalSymbolLink(externalSymbol);
                     dv->setDest(link);
+#if 0
+                    if(externalSymbol->getLocalWeakInstance()) {
+                        auto sym = dv->getTargetSymbol();
+                        auto section = module->getElfSpace()->getElfMap()->findSection(
+                            sym->getSectionIndex());
+                        auto dataSection = module->getDataRegionList()->findDataSection(
+                            section->getName());
+                        auto offset = sym->getAddress() - section->getVirtualAddress();
+                        externalSymbol->setPosition(new AbsoluteOffsetPosition(
+                            externalSymbol, offset));
+                    }
+#endif
                 }
                 else {
                     auto link = new CopyRelocLink(externalSymbol);

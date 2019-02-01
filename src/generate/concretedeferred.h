@@ -59,7 +59,7 @@ public:
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
     DeferredType *addDataVarSymbol(DataVariable *var, Symbol *sym,
-        size_t section = SHN_UNDEF);
+        address_t address, size_t section = SHN_UNDEF);
     DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);
 
@@ -187,9 +187,9 @@ public:
     DeferredType *addDataFunctionRef(DataVariable *var, Function *function);
     DeferredType *addDataAddressRef(address_t source,
         std::function<address_t ()> getTarget);
-    DeferredType *addDataArbitraryRef(DataVariable *var, Chunk *chunk);
+    DeferredType *addDataArbitraryRef(DataVariable *var, address_t targetAddress);
     DeferredType *addDataExternalRef(DataVariable *var,
-        ExternalSymbol *extSym);
+        ExternalSymbol *extSym, Section *section, Module *module);
     DeferredType *addCopyExternalRef(DataVariable *var,
         ExternalSymbol *extSym, Section *section);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
@@ -262,6 +262,15 @@ public:
 class GnuHashSectionContent : public DeferredIntegerList {
 public:
     using DeferredIntegerList::DeferredIntegerList;
+};
+
+class TBSSContent : public DeferredString {
+private:
+    size_t memSize;
+public:
+    TBSSContent(size_t memSize) : DeferredString(""), memSize(memSize) {}
+
+    size_t getMemSize() const { return memSize; }
 };
 
 #endif
