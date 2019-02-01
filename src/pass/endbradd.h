@@ -8,6 +8,7 @@ class EndbrAddPass : public ChunkPass {
 private:
     bool haveCollapsedPLT;
     std::set<Function *> indirectTargets;
+    std::set<Block *> indirectBlockTargets;
 public:
     EndbrAddPass(bool haveCollapsedPLT = true) 
         : haveCollapsedPLT(haveCollapsedPLT) {}
@@ -21,7 +22,12 @@ public:
     virtual void visit(PLTTrampoline *pltTrampoline);
     virtual void visit(InitFunctionList *initFunctionList);
     virtual void visit(InitFunction *initFunction);
+    virtual void visit(JumpTableList *jumpTableList);
+    virtual void visit(JumpTable *jumpTable);
+    virtual void visit(JumpTableEntry *jumpTableEntry);
     virtual void visit(Instruction *instruction);
+private:
+    void handleIndirectTarget(Block *block, bool incomingJumps);
 };
 
 #endif
