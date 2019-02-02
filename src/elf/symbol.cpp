@@ -315,6 +315,19 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfMap) {
         sym->setVersion(new SymbolVersion(verName, verHidden));
     }
 
+    SymbolAliasFinder aliasFinder(list);
+    aliasFinder.constructByAddress();
+    for(size_t i = 0; i < list->getCount(); i++) {
+        auto rep = aliasFinder.getRepresentativeIndex(i);
+        if(rep != i) {
+            auto sym = aliasFinder.getSymbol(i);
+            auto repSym = aliasFinder.getSymbol(rep);
+            sym->setAliasFor(repSym);
+            repSym->addAlias(sym);
+            LOG(6, "dynsym ALIAS: " << repSym->getName() << " : " << sym->getName());
+        }
+    }
+
     return list;
 }
 
