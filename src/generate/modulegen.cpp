@@ -1,9 +1,10 @@
 #include <set>
 #include <fstream>
-#include <string.h>
+#include <cstring>
 #include "modulegen.h"
 #include "concretedeferred.h"
 #include "transform/sandbox.h"
+#include "chunk/aliasmap.h"
 #include "chunk/concrete.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
@@ -213,8 +214,15 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
             if(auto function = dynamic_cast<Function *>(target)) {
                 relaDyn->addDataFunctionRef(var, function);
             }
-            else {
+            else if(auto intAndExt = dynamic_cast<InternalAndExternalDataLink *>(link)) {
+                relaDyn->addDataExternalRef(var, intAndExt->getExternalSymbol(), sec,
+                    module);
+            }
+            else if(link->isAbsolute()) {
                 relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+            }
+            else {
+                // relative internal references do not need relocations 
             }
         }
         else {
@@ -428,6 +436,18 @@ void ModuleGen::makeSymbolInText(Function *func, const std::string &textSection)
         // skip functions with the same name (due to versioning)
         if(alias->getName() == func->getName()) continue;
 
+        /*auto aliasNameStr = FunctionAliasMap::getNameWithoutVersion(alias->getName());
+        if(aliasNameStr != alias->getName()) {
+            char *aliasName = new char[aliasNameStr.length() + 1];
+            std::strcpy(aliasName, aliasNameStr.c_str());
+            LOG(1, "replacing symbol alias [" << alias->getName() << "] -> ["
+                << aliasNameStr << "]");
+            alias = new Symbol(alias->getAddress(), alias->getSize(), aliasName,
+                alias->getType(), alias->getBind(), alias->getIndex(),
+                alias->getSectionIndex());
+        }*/
+        LOG(1, "writing symbol for alias [" << alias->getName() << "]");
+
         // add name to string table
         auto value = symtab->addSymbol(func, alias);
         value->addFunction([this, textSection] (ElfXX_Sym *symbol) {
@@ -522,11 +542,11 @@ void ModuleGen::makeTLS() {
             /*auto content = new DeferredString(region->getDataBytes()
                 .substr(section->getOriginalOffset(), section->getSize()));
             bssSection->setContent(content);*/
-            /*bssSection->setContent(new DeferredString(
-                std::string(section->getSize(), 0x0)));*/
+            bssSection->setContent(new DeferredString(
+                std::string(section->getSize(), 0x0)));
             //bssSection->setContent(new DeferredString(""));
             LOG(0, "TLS BSS section is size " << section->getSize());
-            bssSection->setContent(new TBSSContent(section->getSize()));
+            //bssSection->setContent(new TBSSContent(section->getSize()));
             bssSection->getHeader()->setAddress(section->getAddress());
             sectionList->addSection(bssSection);
             segment->addContains(bssSection);

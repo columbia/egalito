@@ -340,6 +340,20 @@ public:
 
     virtual bool isAbsolute() const { return true; }
 };
+class InternalAndExternalDataLink : public AbsoluteDataLink {
+private:
+    ExternalSymbol *externalSymbol;
+public:
+    InternalAndExternalDataLink(ExternalSymbol *externalSymbol,
+        AbsoluteDataLink *other) : AbsoluteDataLink(*other),
+        externalSymbol(externalSymbol) {}
+    InternalAndExternalDataLink(ExternalSymbol *externalSymbol,
+        DataSection *section, address_t target,
+        Link::LinkScope scope = Link::LinkScope::SCOPE_UNKNOWN)
+        : AbsoluteDataLink(section, target, scope), externalSymbol(externalSymbol) {}
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
+};
 
 class TLSDataRegion;
 class TLSDataOffsetLink : public LinkScopeDecorator<Link::SCOPE_WITHIN_MODULE,

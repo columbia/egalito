@@ -864,8 +864,8 @@ void CopyDynsym::execute() {
             });
 
             for(auto alias : dsym->getAliases()) {
-                LOG(1, "dynamic symbol alias [" << dsym->getName() << "] -> ["
-                    << alias->getName() << "]");
+                /*LOG(1, "dynamic symbol alias [" << dsym->getName() << "] -> ["
+                    << alias->getName() << "]");*/
                 auto value = dynsym->addSymbol(func, alias);
                 value->addFunction([this] (ElfXX_Sym *symbol) {
                     symbol->st_shndx = getData()->getSectionList()->indexOf(".text");

@@ -1,7 +1,9 @@
+#include <typeinfo>
 #include <cstring>
 #include <cassert>
 #include "handledatarelocs.h"
 #include "chunk/link.h"
+#include "chunk/external.h"
 #include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/reloc.h"
@@ -139,6 +141,19 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
 
             LOG(0, "link is " << l);
             return l;
+        }
+        else {
+            LOG(0, "checking GLOB_DAT relocation ["
+                << reloc->getSymbol()->getName() << "] for internal link");
+            auto l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+            if(auto v = dynamic_cast<AbsoluteDataLink *>(l)) {
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(reloc->getSymbol());
+                auto newLink = new InternalAndExternalDataLink(externalSymbol, v);
+                delete v;
+                return newLink;
+            }
+            return nullptr;
         }
     }
     else if(reloc->getType() == R_X86_64_64) {
