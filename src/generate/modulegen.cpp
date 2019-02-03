@@ -90,7 +90,7 @@ void ModuleGen::makeDataSections() {
                     auto content = new DeferredString(region->getDataBytes()
                         .substr(section->getOriginalOffset(), section->getSize()));
                     bssSection->setContent(content);
-                    LOG(1, "   Initializing bss with data bytes");
+                    LOG(1, "   Initializing bss with " << section->getSize() << " data bytes");
                 }
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
@@ -180,10 +180,17 @@ void ModuleGen::makeDataSections() {
 }
 
 void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
+    std::set<DataVariable *> jumpTableVars; //jump table entries
+    for(auto jt : CIter::children(module->getJumpTableList())) {
+        for(auto entry : CIter::children(jt)) {
+            jumpTableVars.insert(entry->getDataVariable());
+        }
+    }
     std::vector<DataVariable *> ldRelocVars, generalRelocVars;
     for(auto var : CIter::children(section)) {
         auto link = var->getDest();
         if(!link) continue;
+        if(jumpTableVars.find(var) != jumpTableVars.end()) continue;
 
         if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
             ldRelocVars.push_back(var);
@@ -215,7 +222,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 if(function->isIFunc()) {
                     relaDyn->addDataIFuncRef(var, function->getAddress());
                 }
-                else if(link->isAbsolute()) {
+                else {
                     relaDyn->addDataFunctionRef(var, function);
                 }
             }
@@ -231,12 +238,15 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                 relaDyn->addDataExternalRef(var, intAndExt->getExternalSymbol(), sec,
                     module);
             }
-            else if(link->isAbsolute()) {
+            else /*if(link->isAbsolute())*/ {
                 relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
             }
-            else {
+            /*else {
                 // relative internal references do not need relocations 
-            }
+                LOG(3, "        skipping relocation for internal reference ["
+                    << target->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+            }*/
         }
         else {
             if(auto pltLink = dynamic_cast<PLTLink *>(link)) {
