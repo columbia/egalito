@@ -188,6 +188,7 @@ public:
     DeferredType *addDataAddressRef(address_t source,
         std::function<address_t ()> getTarget);
     DeferredType *addDataArbitraryRef(DataVariable *var, address_t targetAddress);
+    DeferredType *addDataIFuncRef(DataVariable *var, address_t targetAddress);
     DeferredType *addDataExternalRef(DataVariable *var,
         ExternalSymbol *extSym, Section *section, Module *module);
     DeferredType *addCopyExternalRef(DataVariable *var,

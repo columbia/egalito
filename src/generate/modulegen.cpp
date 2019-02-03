@@ -212,7 +212,20 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
             LOG(2, "    relocation for [" << target->getName()
                 << "] at 0x" << std::hex << var->getAddress());
             if(auto function = dynamic_cast<Function *>(target)) {
-                relaDyn->addDataFunctionRef(var, function);
+                if(function->isIFunc()) {
+                    relaDyn->addDataIFuncRef(var, function->getAddress());
+                }
+                else if(link->isAbsolute()) {
+                    relaDyn->addDataFunctionRef(var, function);
+                }
+            }
+            else if(auto plt = dynamic_cast<PLTTrampoline *>(target)) {
+                if(plt->isIFunc()) {
+                    relaDyn->addDataIFuncRef(var, plt->getAddress());
+                }
+                else {
+                    relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+                }
             }
             else if(auto intAndExt = dynamic_cast<InternalAndExternalDataLink *>(link)) {
                 relaDyn->addDataExternalRef(var, intAndExt->getExternalSymbol(), sec,

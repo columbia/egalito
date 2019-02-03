@@ -852,6 +852,7 @@ void UpdatePLTLinks::execute() {
 }
 
 void CopyDynsym::execute() {
+    // generating dynsym entries for functions
     auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
     for(auto module : CIter::children(getData()->getProgram())) {
         for(auto func : CIter::children(module->getFunctionList())) {

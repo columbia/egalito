@@ -694,6 +694,21 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataIFuncRef(DataVariable *var, address_t targetAddress) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_IRELATIVE);
+    rela->r_addend  = targetAddress;
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addDataExternalRef(DataVariable *var, ExternalSymbol *extSym, Section *section,
         Module *module) {
 
