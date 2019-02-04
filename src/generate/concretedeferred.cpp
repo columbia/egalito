@@ -724,6 +724,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     SymbolTableContent::DeferredType *elfSym = nullptr;
+    Symbol *symbol = nullptr;
     if(extSym->getLocalWeakInstance()) {
         address_t symbolAddress = 0;
         {
@@ -738,7 +739,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         }
         char *name = new char[targetName.length() + 1];
         std::strcpy(name, targetName.c_str());
-        auto symbol = new Symbol(
+        symbol = new Symbol(
             symbolAddress, var->getSize(), name,
             var->getTargetSymbol()->getType(),
             var->getTargetSymbol()->getBind(), 0, 0);
@@ -746,15 +747,20 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
             sectionList->indexOf(section));
     }
     else {
-        auto symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
+        symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
         elfSym = symtab->addUndefinedSymbol(symbol);
     }
-    deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
+    deferred->addFunction([this, symtab, symbol, elfSym, targetName] (ElfXX_Rela *rela) {
         LOG(1, "Creating data reloc for [" << targetName << "]");
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
-        rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+        if(symbol->getType() == Symbol::TYPE_FUNC) {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
+        }
+        else {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+        }
     });
 
     DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
