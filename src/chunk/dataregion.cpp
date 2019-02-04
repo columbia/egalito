@@ -483,6 +483,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
         auto ds = new DataSection(elfMap, region->getAddress(), shdr);
+        //LOG(0, "    Adding [" << ds->getName() << "] to " << region->getName());
         ChunkMutator(region).append(ds);
     }
 

@@ -195,6 +195,9 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
         if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
             ldRelocVars.push_back(var);
         }
+        else if(dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
+            // handled elsewhere
+        }
         else if(config.getRelocsForAbsoluteRefs()) {
             generalRelocVars.push_back(var);
         }
@@ -540,6 +543,7 @@ void ModuleGen::makeTLS() {
     if(!tlsRegion) return;
     SegmentInfo *segment = new SegmentInfo(PT_TLS, PF_R | PF_W, 0x8);
     makePaddingSection(tlsRegion->getAddress() & (0x1000-1));
+    LOG(0, "making TLS in modulegen for " << module->getName());
     for(auto section : CIter::children(tlsRegion)) {
         switch(section->getType()) {
         case DataSection::TYPE_DATA: {
@@ -565,9 +569,9 @@ void ModuleGen::makeTLS() {
             /*auto content = new DeferredString(region->getDataBytes()
                 .substr(section->getOriginalOffset(), section->getSize()));
             bssSection->setContent(content);*/
-            bssSection->setContent(new DeferredString(
-                std::string(section->getSize(), 0x0)));
-            //bssSection->setContent(new DeferredString(""));
+            /*bssSection->setContent(new DeferredString(
+                std::string(section->getSize(), 0x0)));*/
+            bssSection->setContent(new DeferredString(""));
             LOG(0, "TLS BSS section is size " << section->getSize());
             //bssSection->setContent(new TBSSContent(section->getSize()));
             bssSection->getHeader()->setAddress(section->getAddress());
@@ -581,6 +585,8 @@ void ModuleGen::makeTLS() {
             break;
         }
     }
+
+    //makePaddingSection(0x1000);
 
     phdrTable->add(segment);
     makeTLSRelocs(tlsRegion);

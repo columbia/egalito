@@ -401,6 +401,15 @@ void BasicElfStructure::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
+    dynamic->addPair(DT_INIT_ARRAY, [this] () {
+        auto initArray = getSection(".init_array");
+        return initArray->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_INIT_ARRAYSZ, [this] () {
+        auto initArray = getSection(".init_array");
+        return initArray->getContent()->getSize();
+    });
+
     if(addLibDependencies) {
         auto first = getData()->getProgram()->getFirst();
         if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
