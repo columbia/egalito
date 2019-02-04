@@ -42,7 +42,7 @@ void MirrorGen::generateContent(const std::string &filename) {
         auto moduleGen = ModuleGen(config, module, getData()->getSectionList());
         moduleGen.makeDataSections();
         moduleGen.makeTextAccumulative();
-        if(module->getLibrary()->getRole() == Library::ROLE_LIBC) {
+        if(true || module->getLibrary()->getRole() == Library::ROLE_LIBC) {
             moduleGen.makeTLS();
         }
     }
