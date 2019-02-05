@@ -35,6 +35,7 @@
 #include "pass/syscallsandbox.h"
 #include "pass/fixenviron.h"
 #include "pass/externalsymbollinks.h"
+#include "pass/permutedata.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -767,6 +768,22 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "enforce syscalls");
+
+    topLevel->add("permutedata", [&] (Arguments args) {
+        PermuteDataPass pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+    }, "permute data sections");
 
     topLevel->add("initfunctions", [&] (Arguments args) {
         ChunkDumper dump;

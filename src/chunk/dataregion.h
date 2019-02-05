@@ -121,6 +121,7 @@ public:
     DataSection(ElfMap *elfMap, address_t segmentAddress, ElfXX_Shdr *shdr);
 
     virtual std::string getName() const;
+    void setName(const std::string &n) { name = n; }
     bool contains(address_t address);
 
     DataVariable *findVariable(const std::string &name);
@@ -130,6 +131,7 @@ public:
     address_t getOriginalOffset() const { return originalOffset; }
     uint64_t getPermissions() const { return permissions; }
     Type getType() const { return type; }
+    void setType(Type t) { type = t; }
     bool isCode() const { return type == TYPE_CODE; }
     bool isBss() const { return type == TYPE_BSS; }
 
@@ -161,6 +163,7 @@ public:
 
     virtual std::string getName() const;
     virtual size_t getSize() const { return size; }
+    virtual void setSize(size_t sz) { size = sz; }
     const std::string &getDataBytes() const { return dataBytes; }
     size_t getSizeOfInitializedData() const { return dataBytes.length(); }
     void saveDataBytes(bool captureUninitializedData = true);
