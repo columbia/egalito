@@ -31,6 +31,7 @@
 #include "pass/findendbr.h"
 #include "pass/endbradd.h"
 #include "pass/endbrenforce.h"
+#include "pass/shadowstack.h"
 #include "pass/findsyscalls.h"
 #include "pass/syscallsandbox.h"
 #include "archive/filesystem.h"
@@ -690,6 +691,22 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "add endbr-based control flow integrity checks on indirect jumps");
+    
+    topLevel->add("shadowstack", [&] (Arguments args) {
+        ShadowStackPass pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+    }, "add shadow stack enforcement (CET emulation)");
 
     topLevel->add("findsyscalls", [&] (Arguments args) {
         FindSyscalls pass;
