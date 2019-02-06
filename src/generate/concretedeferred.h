@@ -11,6 +11,7 @@ class Section;
 class SectionRef;
 class Symbol;
 class Function;
+class GlobalVariable;
 class DataVariable;
 class Instruction;
 class ElfSpace;
@@ -59,6 +60,8 @@ public:
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
     DeferredType *addDataVarSymbol(DataVariable *var, Symbol *sym,
+        address_t address, size_t section = SHN_UNDEF);
+    DeferredType *addGlobalVarSymbol(GlobalVariable *var, Symbol *sym,
         address_t address, size_t section = SHN_UNDEF);
     DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);

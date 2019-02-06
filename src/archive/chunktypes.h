@@ -25,6 +25,7 @@ enum EgalitoChunkType {
     TYPE_TLSDataRegion,
     TYPE_DataSection,
     TYPE_DataVariable,
+    TYPE_GlobalVariable,
     TYPE_MarkerList,
     TYPE_Marker,
     TYPE_VTable,

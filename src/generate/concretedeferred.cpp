@@ -152,7 +152,50 @@ SymbolTableContent::DeferredType *SymbolTableContent
 }
 
 SymbolTableContent::DeferredType *SymbolTableContent
-    ::addDataVarSymbol(DataVariable *var, Symbol *sym, address_t address, 
+    ::addDataVarSymbol(DataVariable *var, Symbol *sym, address_t address,
+    size_t section) {
+
+    // NOTE: caller may want to override the st_shndx in the symbol in a
+    // deferred callback
+
+    assert(sym);
+
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = section;
+    symbol->st_value = address;
+    symbol->st_size = var ? var->getSize() : 0;
+    auto value = new DeferredType(symbol);
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        insertSorted(sit, value);
+        firstGlobalIndex ++;
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
+        insertSorted(sit, value);
+    }
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
+    ::addGlobalVarSymbol(GlobalVariable *var, Symbol *sym, address_t address,
     size_t section) {
 
     // NOTE: caller may want to override the st_shndx in the symbol in a

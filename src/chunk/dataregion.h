@@ -15,6 +15,41 @@ class Module;
 
 class DataRegion;
 
+/** Represents a variable that has a symbol of some sort that needs to be
+    preserved.
+*/
+class GlobalVariable : public ChunkSerializerImpl<TYPE_GlobalVariable,
+    AddressableChunkImpl> {
+private:
+    Symbol *symbol; // can be NULL
+    Symbol *dynamicSymbol; // can be NULL
+    std::string name;
+    size_t size;
+public:
+    GlobalVariable() : symbol(nullptr), dynamicSymbol(nullptr) {}
+
+    Symbol *getSymbol() const { return symbol; }
+    Symbol *getDynamicSymbol() const { return dynamicSymbol; }
+    Symbol *getNonNullSymbol() const;
+
+    std::string getName() const { return name; }
+    void setName(const std::string &name) { this->name = name; }
+
+    size_t getSize() const { return size; }
+
+    virtual void serialize(ChunkSerializerOperations &op,
+        ArchiveStreamWriter &writer);
+    virtual bool deserialize(ChunkSerializerOperations &op,
+        ArchiveStreamReader &reader);
+
+    virtual void accept(ChunkVisitor *visitor);
+
+    static GlobalVariable *createStatic(DataSection *section,
+        address_t address, Symbol *symbol);
+    static GlobalVariable *createDynamic(DataSection *section,
+        address_t address, Symbol *symbol);
+};
+
 /** Represents a variable within a global data section that points at another
     Chunk.
 */
@@ -54,7 +89,7 @@ public:
     virtual bool deserialize(ChunkSerializerOperations &op,
         ArchiveStreamReader &reader);
 
-    virtual void accept(ChunkVisitor *visitor); 
+    virtual void accept(ChunkVisitor *visitor);
 
     static DataVariable *create(DataSection *section, address_t address,
         Link *dest, Symbol *symbol);
@@ -79,6 +114,7 @@ private:
     address_t alignment;
     address_t originalOffset;
     Type type;
+    std::vector<GlobalVariable *> globalVariables;
 public:
     DataSection() : alignment(0), originalOffset(0), type(TYPE_UNKNOWN) {}
     DataSection(ElfMap *elfMap, address_t segmentAddress, ElfXX_Shdr *shdr);
@@ -94,6 +130,11 @@ public:
     Type getType() const { return type; }
     bool isCode() const { return type == TYPE_CODE; }
     bool isBss() const { return type == TYPE_BSS; }
+
+    const std::vector<GlobalVariable *> &getGlobalVariables() const
+        { return globalVariables; }
+    void addGlobalVariable(GlobalVariable *global)
+        { globalVariables.push_back(global); }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
