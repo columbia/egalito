@@ -96,6 +96,7 @@ ChunkRef TLSDataOffsetLink::getTarget() const {
 }
 
 address_t TLSDataOffsetLink::getTargetAddress() const {
+    if(!tls) return 0;
     LOG(1, "calling TLSDataOffsetLink::getTargetAddress(), "
         "target equals " << std::hex << tls->getTLSOffset()
         << " + " << target);

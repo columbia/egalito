@@ -12,8 +12,8 @@
 
 void HandleDataRelocsPass::visit(Module *module) {
     //TemporaryLogLevel tl1("chunk", 10, module->getName() == "module-(executable)");
-    TemporaryLogLevel tl1("chunk", 10);
-    TemporaryLogLevel tl2("pass", 15);
+    //TemporaryLogLevel tl1("chunk", 10);
+    //TemporaryLogLevel tl2("pass", 15);
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -111,6 +111,12 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     }
     else if(reloc->getType() == R_X86_64_DTPMOD64) {
         LOG(0, "WARNING: skipping R_X86_64_DTPMOD64 ("
+            << std::hex << reloc->getAddress()
+            << ") in " << module->getName());
+        return nullptr;
+    }
+    else if(reloc->getType() == R_X86_64_DTPOFF64) {
+        LOG(0, "WARNING: skipping R_X86_64_DTPOFF64 ("
             << std::hex << reloc->getAddress()
             << ") in " << module->getName());
         return nullptr;
