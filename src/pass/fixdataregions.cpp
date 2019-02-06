@@ -30,6 +30,8 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
             if(!var->getDest()) {
                 continue;
             }
+            if(var->getIsCopy()) continue;
+
             if(isForIFuncJumpSlot(var)) {
                 continue;
             }

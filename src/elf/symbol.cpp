@@ -243,7 +243,9 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
             auto repSym = aliasFinder.getSymbol(rep);
             sym->setAliasFor(repSym);
             repSym->addAlias(sym);
-            LOG(6, "ALIAS: " << repSym->getName() << " : " << sym->getName());
+            LOG(6, "ALIAS: " << std::hex << repSym->getName() << " at address 0x"
+                << repSym->getAddress() << " : " << sym->getName()
+                << " at address 0x" << sym->getAddress());
         }
     }
 
@@ -324,7 +326,9 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfMap) {
             auto repSym = aliasFinder.getSymbol(rep);
             sym->setAliasFor(repSym);
             repSym->addAlias(sym);
-            LOG(6, "dynsym ALIAS: " << repSym->getName() << " : " << sym->getName());
+            LOG(6, "dynsym ALIAS: " << std::hex << repSym->getName() << " at address 0x"
+                << repSym->getAddress() << " : " << sym->getName()
+                << " at address 0x" << sym->getAddress());
         }
     }
 

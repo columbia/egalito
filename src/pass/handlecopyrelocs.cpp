@@ -42,6 +42,12 @@ void HandleCopyRelocs::visit(Module *module) {
                 auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
                     + r->getAddress();
                 auto region = module->getDataRegionList()->findRegionContaining(addr);
+                if(!region) {
+                    LOG(1, "ERROR: Could not find region containing 0x"
+                        << std::hex << addr << " ["
+                        << r->getSymbol()->getName() << "]");
+                    continue;
+                }
                 auto var = region->findVariable(addr);
                 if(var) {
                     var->setIsCopy(true);

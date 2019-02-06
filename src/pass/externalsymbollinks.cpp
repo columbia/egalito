@@ -12,6 +12,9 @@ void ExternalSymbolLinksPass::visit(Module *module) {
             for(auto dv : CIter::children(ds)) {
                 if(dv->getDest()) continue;
 
+                // If no target symbol, relocation type is probably not supported
+                if(!dv->getTargetSymbol()) continue;
+
                 auto externalSymbol = ExternalSymbolFactory(module)
                     .makeExternalSymbol(dv->getTargetSymbol());
                 if(!dv->getIsCopy()) {
