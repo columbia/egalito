@@ -180,7 +180,7 @@ SymbolTableContent::DeferredType *SymbolTableContent
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = section;
     symbol->st_value = address;
-    symbol->st_size = var ? var->getSize() : 0;
+    symbol->st_size = sym->getSize();
     auto value = new DeferredType(symbol);
     if(sym->getBind() == Symbol::BIND_LOCAL) {
         auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
@@ -740,7 +740,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         char *name = new char[targetName.length() + 1];
         std::strcpy(name, targetName.c_str());
         symbol = new Symbol(
-            symbolAddress, var->getSize(), name,
+            symbolAddress, var->getTargetSymbol()->getSize(), name,
             var->getTargetSymbol()->getType(),
             var->getTargetSymbol()->getBind(), 0, 0);
         elfSym = symtab->addDataVarSymbol(var, symbol, symbolAddress,
@@ -784,7 +784,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     std::strcpy(name, targetName.c_str());
 
     auto symbol = new Symbol(
-        var->getAddress(), var->getSize(), name,
+        var->getAddress(), var->getTargetSymbol()->getSize(), name,
         var->getTargetSymbol()->getType(),
         var->getTargetSymbol()->getBind(), 0, 0);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
