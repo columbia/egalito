@@ -113,10 +113,11 @@ private:
     std::string name;
     address_t alignment;
     address_t originalOffset;
+    uint64_t permissions;
     Type type;
     std::vector<GlobalVariable *> globalVariables;
 public:
-    DataSection() : alignment(0), originalOffset(0), type(TYPE_UNKNOWN) {}
+    DataSection() : alignment(0), originalOffset(0), permissions(0), type(TYPE_UNKNOWN) {}
     DataSection(ElfMap *elfMap, address_t segmentAddress, ElfXX_Shdr *shdr);
 
     virtual std::string getName() const;
@@ -127,6 +128,7 @@ public:
 
     size_t getAlignment() const { return alignment; }
     address_t getOriginalOffset() const { return originalOffset; }
+    uint64_t getPermissions() const { return permissions; }
     Type getType() const { return type; }
     bool isCode() const { return type == TYPE_CODE; }
     bool isBss() const { return type == TYPE_BSS; }

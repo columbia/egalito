@@ -44,9 +44,30 @@ void ModuleGen::makeDataSections() {
         makePaddingSection((*sectionMap.begin()).second->getAddress() & (0x200000-1));
 
         address_t previousEndAddress = 0;
-        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
+        uint64_t previousFlags = 0;
+        //auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
+        SegmentInfo *loadSegment = nullptr;
         for(auto kv: sectionMap) {
             auto section = kv.second;
+            uint64_t flags = SHF_ALLOC;
+            if(section->getPermissions() & SHF_WRITE) flags |=  SHF_WRITE;
+
+            if(/*section->getAddress() != previousEndAddress
+                ||*/ (!previousFlags || flags != previousFlags)) {
+
+                if(loadSegment) {
+                    if(!loadSegment->getContainsList().empty()) {
+                        phdrTable->add(loadSegment);
+                    }
+                    else delete loadSegment;
+                }
+                int segmentFlags = PF_R;
+                if(section->getPermissions() & SHF_WRITE) {
+                    segmentFlags |= PF_W;
+                }
+                loadSegment = new SegmentInfo(PT_LOAD, segmentFlags, /*0x200000*/ 0x1000);
+                previousFlags = flags;
+            }
 
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
@@ -57,7 +78,7 @@ void ModuleGen::makeDataSections() {
 
                 // by default, make everything writable
                 auto dataSection = new Section(section->getName(),
-                    SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                    SHT_PROGBITS, flags);
                 auto content = new DeferredString(region->getDataBytes()
                     .substr(section->getOriginalOffset(), section->getSize()));
                 dataSection->setContent(content);
@@ -66,6 +87,7 @@ void ModuleGen::makeDataSections() {
                 loadSegment->addContains(dataSection);
                 maybeMakeDataRelocs(section, dataSection);
                 previousEndAddress = section->getAddress() + section->getSize();
+                previousFlags = flags;
                 break;
             }
             case DataSection::TYPE_BSS: {
@@ -79,7 +101,7 @@ void ModuleGen::makeDataSections() {
                 if(previousEndAddress) loadSegment->addContains(padding);
 
                 auto bssSection = new Section(section->getName(),
-                    /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                    /*SHT_NOBITS*/ SHT_PROGBITS, flags);
                 //if(region == regionList->getTLS()) {
                 if(false && section->getParent() == regionList->getTLS()) {
                     bssSection->setContent(new DeferredString(
@@ -98,6 +120,7 @@ void ModuleGen::makeDataSections() {
                 loadSegment->addContains(bssSection);
                 maybeMakeDataRelocs(section, bssSection);
                 previousEndAddress = section->getAddress() + section->getSize();
+                previousFlags = flags;
                 break;
             }
             case DataSection::TYPE_UNKNOWN:
@@ -106,7 +129,13 @@ void ModuleGen::makeDataSections() {
             }
         }
 
-        phdrTable->add(loadSegment);
+        if(loadSegment) {
+            if(!loadSegment->getContainsList().empty()) {
+                phdrTable->add(loadSegment);
+            }
+            else delete loadSegment;
+        }
+
 #if 0
         SegmentInfo *loadSegment = nullptr;
         address_t previousEndAddress = 0;

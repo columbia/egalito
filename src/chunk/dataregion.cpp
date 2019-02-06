@@ -148,6 +148,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     name = std::string(elfMap->getSHStrtab() + shdr->sh_name);
     alignment = shdr->sh_addralign;
     originalOffset = shdr->sh_addr - segmentAddress; //shdr->sh_addr - phdr->p_vaddr;
+    permissions = shdr->sh_flags;
     setPosition(new AbsoluteOffsetPosition(this, originalOffset));
     setSize(shdr->sh_size);
 
