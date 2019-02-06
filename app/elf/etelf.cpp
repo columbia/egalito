@@ -24,7 +24,12 @@ static void parse(const std::string& filename, const std::string& output, bool o
 
     try {
         if(ElfMap::isElf(filename.c_str())) {
-            std::cout << "Parsing ELF file and all shared library dependencies...\n";
+            if(oneToOne) {
+                std::cout << "Parsing ELF file...\n";
+            }
+            else {
+                std::cout << "Parsing ELF file and all shared library dependencies...\n";
+            }
             setup.parseElfFiles(filename.c_str(), /*recursive=*/ !oneToOne, false);
         }
         else {
