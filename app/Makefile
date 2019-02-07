@@ -138,9 +138,13 @@ $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
 
+$(BUILDDIR)sandbox/inject/%.o: sandbox/inject/%.c
+	$(CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
 $(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libsandbox.so $^ -o $@
 
+$(BUILDDIR)cet/inject/%.o: cet/inject/%.c
+	$(CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
 $(CET_LIBRARY): $(LIBCET_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libcet.so $^ -o $@
 
