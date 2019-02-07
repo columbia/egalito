@@ -6,33 +6,6 @@
 #include "instr/concrete.h"
 #include "log/log.h"
 
-void EndbrAddPass::handleIndirectTarget(Block *block, bool incomingJumps) {
-    auto instr1 = block->getChildren()->getIterable()->get(0);
-    auto semantic = instr1->getSemantic();
-    if(auto v = dynamic_cast<IsolatedInstruction *>(semantic)) {
-#ifdef ARCH_X86_64
-        if(v->getAssembly()->getId() == X86_INS_ENDBR64) {
-            // already an endbr
-            return;
-        }
-#endif
-    }
-
-    {
-#ifdef ARCH_X86_64
-        //    0:   f3 0f 1e fa             endbr64
-        auto endbr = Disassemble::instruction({ 0xf3, 0x0f, 0x1e, 0xfa});
-        if(incomingJumps) {
-            ChunkMutator(block, true).insertBeforeJumpTo(instr1, endbr);
-        }
-        else {
-            ChunkMutator(block, true).insertBefore(instr1, endbr);
-        }
-        LOG(13, "    add endbr in [" << block->getName() << "]");
-#endif
-    }
-}
-
 void EndbrAddPass::visit(Program *program) {
     LOG(1, "Adding endbr instructions to all modules");
 
@@ -56,11 +29,25 @@ void EndbrAddPass::visit(Program *program) {
     for(auto function : indirectTargets) {
         LOG(12, "    indirect target " << function->getName());
         auto block1 = function->getChildren()->getIterable()->get(0);
-        handleIndirectTarget(block1, false);
-    }
-    for(auto block : indirectBlockTargets) {
-        LOG(12, "    indirect target " << block->getName());
-        handleIndirectTarget(block, true);
+        auto instr1 = block1->getChildren()->getIterable()->get(0);
+        auto semantic = instr1->getSemantic();
+        if(auto v = dynamic_cast<IsolatedInstruction *>(semantic)) {
+#ifdef ARCH_X86_64
+            if(v->getAssembly()->getId() == X86_INS_ENDBR64) {
+                // already an endbr
+                continue;
+            }
+#endif
+        }
+
+        {
+#ifdef ARCH_X86_64
+            //    0:   f3 0f 1e fa             endbr64
+            auto endbr = Disassemble::instruction({ 0xf3, 0x0f, 0x1e, 0xfa});
+            ChunkMutator(block1, true).insertBefore(instr1, endbr);
+            LOG(13, "    add endbr in [" << function->getName() << "]");
+#endif
+        }
     }
 }
 
@@ -71,7 +58,6 @@ void EndbrAddPass::visit(Module *module) {
     recurse(module->getPLTList());  // to get IFUNC plt refs
     recurse(module->getInitFunctionList());
     recurse(module->getFiniFunctionList());
-    recurse(module->getJumpTableList());
 
     static const char *entryPoints[] = {
         "_init",
@@ -135,39 +121,6 @@ void EndbrAddPass::visit(InitFunction *initFunction) {
     }
 }
 
-void EndbrAddPass::visit(JumpTableList *jumpTableList) {
-    recurse(jumpTableList);
-}
-
-void EndbrAddPass::visit(JumpTable *jumpTable) {
-    recurse(jumpTable);
-}
-
-void EndbrAddPass::visit(JumpTableEntry *jumpTableEntry) {
-    auto link = jumpTableEntry->getLink();
-    auto target = link->getTarget();
-    if(!target) return;
-
-    if(auto v = dynamic_cast<Block *>(target)) {
-        //if(indirectTargets.find(v->getParent() == indirectTargets.end());
-        indirectBlockTargets.insert(v);
-    }
-    else if(auto v = dynamic_cast<Instruction *>(target)) {
-        auto block = static_cast<Block *>(v->getParent());
-        if(block->getChildren()->getIterable()->getCount() == 0) return;
-        auto instr1 = block->getChildren()->getIterable()->get(0);
-        if(v != instr1) {
-            LOG(1, "Error: jump table entry targets middle of block "
-                << block->getName() << ", needs splitting");
-            return;
-        }
-        indirectBlockTargets.insert(block);
-    }
-    else {
-        LOG(1, "Warning: jump table entry target is not block or instruction.");
-    }
-}
-
 void EndbrAddPass::visit(Instruction *instruction) {
     // should be a linked instruction
     auto li = dynamic_cast<LinkedInstruction *>(instruction->getSemantic());
@@ -191,3 +144,4 @@ void EndbrAddPass::visit(Instruction *instruction) {
         }
     }
 }
+

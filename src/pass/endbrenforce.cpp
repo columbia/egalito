@@ -128,9 +128,9 @@ void EndbrEnforcePass::visit(Function *function) {
 void EndbrEnforcePass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
     if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
-        //if(!v->isForJumpTable()) {
+        if(!v->isForJumpTable()) {
             makeEnforcementCode(instruction);
-        //}
+        }
     }
     else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
         makeEnforcementCode(instruction);
