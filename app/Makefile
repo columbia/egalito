@@ -15,6 +15,8 @@ CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
 
 SANDBOX_SOURCES         = $(wildcard sandbox/*.c sandbox/*.cpp)
 SANDBOX_INJECT_SOURCES  = $(wildcard sandbox/inject/*.c sandbox/inject/*.cpp)
+CET_SOURCES             = $(wildcard cet/*.c cet/*.cpp)
+CET_INJECT_SOURCES      = $(wildcard cet/inject/*.c cet/inject/*.cpp)
 SHELL_SOURCES           = $(wildcard shell/*.cpp)
 OBJDUMP_SOURCES         = $(wildcard objdump/*.cpp)
 PYTHON_SOURCES          = $(wildcard python/*.cpp)
@@ -29,10 +31,16 @@ ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
 ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
 ETSANDBOX_SOURCES = $(SANDBOX_SOURCES)
 ETSANDBOX_OBJECTS = $(call obj-filename,$(ETSANDBOX_SOURCES))
+ETCET_SOURCES = $(CET_SOURCES)
+ETCET_OBJECTS = $(call obj-filename,$(ETCET_SOURCES))
 LIBSANDBOX_SOURCES = $(SANDBOX_INJECT_SOURCES)
 LIBSANDBOX_OBJECTS = $(call obj-filename,$(LIBSANDBOX_SOURCES))
+LIBCET_SOURCES = $(CET_INJECT_SOURCES)
+LIBCET_OBJECTS = $(call obj-filename,$(LIBCET_SOURCES))
 
-ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES))
+ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) \
+    $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES) \
+    $(ETCET_SOURCES) $(LIBCET_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
@@ -41,11 +49,13 @@ BUILDTREE = $(sort $(dir $(ALL_OBJECTS) $(PYTHON_OBJECTS)))
 ETSHELL = $(BUILDDIR)etshell
 ETOBJDUMP = $(BUILDDIR)etobjdump
 ETSANDBOX = $(BUILDDIR)etsandbox
+ETCET = $(BUILDDIR)etcet
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
+CET_LIBRARY = $(BUILDDIR)libcet.so
 
-OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY)
+OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETCET) $(CET_LIBRARY)
 
 # Default target
 .PHONY: all
@@ -75,6 +85,8 @@ $(BUILDTREE): ../config/config.h
 	@ln -sf $(ETOBJDUMP)
 	@ln -sf $(ETSANDBOX)
 	@ln -sf $(SANDBOX_LIBRARY)
+	@ln -sf $(ETCET)
+	@ln -sf $(CET_LIBRARY)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
 .PHONY: rebuild-src
@@ -108,6 +120,10 @@ $(ETSANDBOX): $(ETSANDBOX_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETSANDBOX): ../src/$(BUILDDIR)libegalito.so
 
+$(ETCET): $(ETCET_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETCET): ../src/$(BUILDDIR)libegalito.so
+
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
@@ -115,7 +131,10 @@ $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 $(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libsandbox.so $^ -o $@
 
+$(CET_LIBRARY): $(LIBCET_OBJECTS)
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libcet.so $^ -o $@
+
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump etsandbox libsandbox.so
+	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump etsandbox libsandbox.so etcet libcet.so
