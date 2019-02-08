@@ -16,6 +16,55 @@
 #include "log/temp.h"
 #include "chunk/dump.h"
 
+
+Symbol *GlobalVariable::getNonNullSymbol() const {
+    if(dynamicSymbol) return dynamicSymbol;
+    if(symbol) return symbol;
+    return nullptr;
+}
+
+void GlobalVariable::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    // NYI
+}
+
+bool GlobalVariable::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    // NYI
+    return false;
+}
+
+GlobalVariable *GlobalVariable::createStatic(DataSection *section,
+    address_t address, Symbol *symbol) {
+
+    return nullptr;
+}
+
+GlobalVariable *GlobalVariable::createDynamic(DataSection *section,
+    address_t address, Symbol *symbol) {
+
+    GlobalVariable *ret = new GlobalVariable();
+    ret->dynamicSymbol = symbol;
+
+    off_t offset = address - section->getAddress();
+    LOG(1, "offset into DataSection: " << offset);
+
+    ret->setPosition(new AbsoluteOffsetPosition(ret, offset));
+    ret->setName(symbol->getName());
+    ret->size = symbol->getSize();
+
+    section->addGlobalVariable(ret);
+    ret->setParent(section);
+
+    return ret;
+}
+
+void GlobalVariable::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
 DataVariable *DataVariable::create(Module *module, address_t address,
     Link *dest, Symbol *symbol) {
 
@@ -99,6 +148,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     name = std::string(elfMap->getSHStrtab() + shdr->sh_name);
     alignment = shdr->sh_addralign;
     originalOffset = shdr->sh_addr - segmentAddress; //shdr->sh_addr - phdr->p_vaddr;
+    permissions = shdr->sh_flags;
     setPosition(new AbsoluteOffsetPosition(this, originalOffset));
     setSize(shdr->sh_size);
 

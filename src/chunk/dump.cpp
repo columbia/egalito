@@ -126,6 +126,9 @@ void ChunkDumper::visit(DataSection *dataSection) {
         }
         else LOG(10, "");
     }
+    for(auto var : dataSection->getGlobalVariables()) {
+        LOG0(10, "global var: " << var->getAddress());
+    }
 }
 
 void ChunkDumper::visit(DataVariable *dataVariable) {
@@ -135,6 +138,10 @@ void ChunkDumper::visit(DataVariable *dataVariable) {
         LOG(1, " --> " << target->getName());
     }
     else LOG(1, "");
+}
+
+void ChunkDumper::visit(GlobalVariable *globalVariable) {
+    LOG(1, "global variable at " << globalVariable->getAddress());
 }
 
 void ChunkDumper::visit(MarkerList *markerList) {

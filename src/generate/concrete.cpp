@@ -883,6 +883,31 @@ void CopyDynsym::execute() {
             }
         }
     }
+    LOG(5, "CopyDynsym::execute(), global variables");
+    // generate dynsym entries for global variables
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+                for(auto var : section->getGlobalVariables()) {
+                    Symbol *origsym = var->getDynamicSymbol();
+                    if(!origsym) continue;
+
+                    address_t address = var->getAddress();
+
+                    char *name = new char[var->getName().length() + 1];
+                    std::strcpy(name, var->getName().c_str());
+                    LOG(10, "adding dynsym for " << var->getName());
+
+                    auto symbol = new Symbol(
+                        address, var->getSize(), name,
+                        origsym->getType(), origsym->getBind(), 0, 0);
+
+                    dynsym->addGlobalVarSymbol(var, symbol, address);
+                    // TODO: set section index properly...
+                }
+            }
+        }
+    }
 }
 
 // hash function stolen from binutils/bfd/elf.c:221

@@ -26,6 +26,7 @@
 #include "pass/jtoverestimate.h"
 #include "pass/removepadding.h"
 #include "pass/updatelink.h"
+#include "pass/collectglobals.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -92,6 +93,9 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     }
 #endif
     RUN_PASS(InferLinksPass(elf), module);
+
+    // this can run pretty much whenever, but let's put it here for now.
+    RUN_PASS(CollectGlobalsPass(), module);
 
     // DataVariables created later in Conductor::resolveData().
 }
