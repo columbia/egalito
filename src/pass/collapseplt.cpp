@@ -37,7 +37,7 @@ static Function *findFunction(Conductor *conductor, const char *name) {
 CollapsePLTPass::CollapsePLTPass(Conductor *conductor)
     : conductor(conductor) {
 
-    TemporaryLogLevel tll("pass", 20);
+    //TemporaryLogLevel tll("pass", 20);
     Function *function = nullptr;
 #if 0
 #define KNOWN_IFUNC_ENTRY(name, target) \

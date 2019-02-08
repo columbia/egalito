@@ -10,7 +10,7 @@ EOF
         | perl -pe '/Contents of the \.debug.* section:/ && exit' \
         >tmp/dwarf-diff.objdump
     cat tmp/dwarf-diff.egalito | sed '1,3 d' | head -n -1 > tmp/dwarf-diff.egalito.2
-    diff tmp/dwarf-diff.objdump tmp/dwarf-diff.egalito.2
+    diff -B tmp/dwarf-diff.objdump tmp/dwarf-diff.egalito.2
 
     if [ "$?" != 0 ]; then
         echo test failed, $program

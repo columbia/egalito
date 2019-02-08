@@ -28,7 +28,6 @@ test:
 	./codeform-debloat.sh
 	./hello-process.sh
 	./hello-thread.sh
-	./generate-hi5.sh
 	./nginx.sh
 	./nginx-thread.sh
 	$(call x86_only,./coreutils.sh)
