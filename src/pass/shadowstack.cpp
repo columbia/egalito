@@ -9,21 +9,10 @@
 #include "pass/switchcontext.h"
 #include "types.h"
 
-/*
-   0:   4c 8b 1c 24             mov    (%rsp),%r11
-   4:   4c 89 9c 24 00 00 b0    mov    %r11,0xb00000(%rsp)
-   b:   00
-   c:   90                      nop
-   d:   4c 8b 1c 24             mov    (%rsp),%r11
-  11:   4c 39 9c 24 00 00 b0    cmp    %r11,0xb00000(%rsp)
-  18:   00
-  19:   0f 85 00 00 00 00       jne    0x1f
-*/
-
 void ShadowStackPass::visit(Program *program) {
     auto allocateFunc = ChunkFind2(program).findFunction(
         "egalito_allocate_shadow_stack");
-    //assert(allocateFunc);
+
     if(allocateFunc) {
         SwitchContextPass switchContext;
         allocateFunc->accept(&switchContext);
@@ -45,8 +34,6 @@ void ShadowStackPass::visit(Program *program) {
                 ChunkMutator m(block1, true);
                 m.prepend(call);
             }
-
-            ChunkMutator(sourceFunc, true);
         }
     }
 
@@ -54,9 +41,6 @@ void ShadowStackPass::visit(Program *program) {
 }
 
 void ShadowStackPass::visit(Module *module) {
-   // if(module->getLibrary()->getRole() == Library::ROLE_LIBC) return;
-   // if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
-
 #ifdef ARCH_X86_64
     auto instr = Disassemble::instruction({0x0f, 0x0b});  // ud2
     auto block = new Block();
@@ -87,13 +71,6 @@ void ShadowStackPass::visit(Function *function) {
     if(function->getName() == "mmap64") return;
     if(function->getName() == "mmap") return;
     if(function->getName() == "arch_prctl") return;
-    //if(function->getName() == "__libc_csu_init") return;
-//    if(function->getName() == "_init") return;
-    //if(function->getName() == "frame_dummy") return;
-    //if(function->getName() == "register_tm_clones") return;
-    //if(function->getName() == "deregister_tm_clones") return;
-//    if(function->getName() == "call_init") return;
-//    if(function->getName() == "__cxa_atexit") return;
 
     pushToShadowStack(function);
     recurse(function);
@@ -171,7 +148,6 @@ void ShadowStackPass::pushToShadowStackGS(Function *function) {
             std::vector<Instruction *>{ mov1Instr, leaInstr, mov2Instr,
 		 		mov3Instr, mov4Instr }, false);
     }
-    ChunkMutator(function, true);
 }
 
 void ShadowStackPass::popFromShadowStack(Instruction *instruction) {
@@ -245,5 +221,4 @@ void ShadowStackPass::popFromShadowStackGS(Instruction *instruction) {
         ChunkMutator m(block, true);
         m.splitBlockBefore(instruction);
     }
-    ChunkMutator(block->getParent(), true);
 }
