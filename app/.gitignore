@@ -3,9 +3,12 @@
 /etshell
 /etobjdump
 /etsandbox
+/etcet
 /pyshell
 /libsandbox.so
+/libcet.so
 /build_x86_64
 /build_aarch64
 /.etshell_history
 /core
+
