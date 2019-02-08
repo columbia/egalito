@@ -15,7 +15,7 @@
 #include "log/registry.h"
 #include "log/temp.h"
 
-static void parse(const std::string& filename, const std::string& output, bool quiet) {
+static void parse(const std::string& filename, const std::string& output, bool quiet, bool gsMode) {
     ConductorSetup setup;
     std::cout << "Transforming file [" << filename << "]\n";
 
@@ -38,7 +38,8 @@ static void parse(const std::string& filename, const std::string& output, bool q
         setup.addExtraLibraries(std::vector<std::string>{"libcet.so"});
 
         std::cout << "Adding shadow stack...\n";
-        ShadowStackPass shadowStack(ShadowStackPass::MODE_GS);
+        ShadowStackPass shadowStack(gsMode
+            ? ShadowStackPass::MODE_GS : ShadowStackPass::MODE_CONST);
         program->accept(&shadowStack);
 
         std::cout << "Adding endbr CFI...\n";
@@ -78,6 +79,8 @@ static void printUsage(const char *program) {
         "Options:\n"
         "    -v     Verbose mode, print logging messages\n"
         "    -q     Quiet mode (default), suppress logging messages\n"
+        "    -g     GS shadow stack implementation\n"
+        "    -c     Constant offset shadow stack implementation\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
 }
 
@@ -93,6 +96,7 @@ int main(int argc, char *argv[]) {
     }
 
     bool quiet = true;
+    bool gsMode = true;
 
     struct {
         const char *str;
@@ -101,6 +105,9 @@ int main(int argc, char *argv[]) {
         // should we show debugging log messages?
         {"-v", [&quiet] () { quiet = false; }},
         {"-q", [&quiet] () { quiet = true; }},
+        // should we show debugging log messages?
+        {"-g", [&gsMode] () { gsMode = true; }},
+        {"-c", [&gsMode] () { gsMode = false; }},
     };
 
     for(int a = 1; a < argc; a ++) {
@@ -119,7 +126,7 @@ int main(int argc, char *argv[]) {
             }
         }
         else if(argv[a] && argv[a + 1]) {
-            parse(argv[a], argv[a + 1], quiet);
+            parse(argv[a], argv[a + 1], quiet, gsMode);
             break;
         }
         else {

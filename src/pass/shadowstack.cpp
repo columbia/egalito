@@ -11,7 +11,8 @@
 
 void ShadowStackPass::visit(Program *program) {
     auto allocateFunc = ChunkFind2(program).findFunction(
-        "egalito_allocate_shadow_stack");
+        mode == MODE_GS ? "egalito_allocate_shadow_stack_gs"
+        : "egalito_allocate_shadow_stack_const");
 
     if(allocateFunc) {
         SwitchContextPass switchContext;
@@ -64,7 +65,8 @@ void ShadowStackPass::visit(Module *module) {
 void ShadowStackPass::visit(Function *function) {
     if(function->getName() == "egalito_endbr_violation") return;
     if(function->getName() == "egalito_shadowstack_violation") return;
-    if(function->getName() == "egalito_allocate_shadow_stack") return;
+    if(function->getName() == "egalito_allocate_shadow_stack_gs") return;
+    if(function->getName() == "egalito_allocate_shadow_stack_const") return;
 
     if(function->getName() == "_start") return;
     if(function->getName() == "__libc_start_main") return;
