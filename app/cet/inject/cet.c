@@ -8,8 +8,7 @@
 
 int arch_prctl(int code, void *addr);
 
-__attribute__ (( __constructor__ ))
-void allocate_shadow_stack(void) {
+void egalito_allocate_shadow_stack(void) {
     void *memory = mmap(0,
         SHADOW_STACK_SIZE,
         PROT_READ | PROT_WRITE,

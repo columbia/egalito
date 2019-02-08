@@ -705,7 +705,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
     }, "add endbr-based control flow integrity checks on indirect jumps");
     
     topLevel->add("shadowstack", [&] (Arguments args) {
-        ShadowStackPass pass;
+        ShadowStackPass pass(ShadowStackPass::MODE_GS);
         if (args.size() == 0) {
             setup->getConductor()->getProgram()->accept(&pass);
         }

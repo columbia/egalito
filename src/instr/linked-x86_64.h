@@ -95,6 +95,7 @@ public:
     int getId() const { return id; }
     void setDisplacementSize(int ds) { displacementSize = ds; }
     void setOpcode(const std::string &string) { opcode = string; }
+    void setSource(Instruction *source) { this->source = source; }
     void setMnemonic(const std::string &string) { mnemonic = string; }
 public:
     diff_t calculateDisplacement();
