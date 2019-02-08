@@ -5,6 +5,8 @@
 #include "instr/register.h"
 #include "instr/concrete.h"
 #include "operation/mutator.h"
+#include "operation/find2.h"
+#include "pass/switchcontext.h"
 #include "types.h"
 
 /*
@@ -18,7 +20,43 @@
   19:   0f 85 00 00 00 00       jne    0x1f
 */
 
+void ShadowStackPass::visit(Program *program) {
+    auto allocateFunc = ChunkFind2(program).findFunction(
+        "egalito_allocate_shadow_stack");
+    //assert(allocateFunc);
+    if(allocateFunc) {
+        SwitchContextPass switchContext;
+        allocateFunc->accept(&switchContext);
+
+        // add call to shadow stack allocation function in __libc_start_main
+        auto call = new Instruction();
+        auto callSem = new ControlFlowInstruction(
+            X86_INS_CALL, call, "\xe8", "call", 4);
+        callSem->setLink(new NormalLink(allocateFunc, Link::SCOPE_EXTERNAL_JUMP));
+        call->setSemantic(callSem);
+        
+        {
+            auto sourceFunc = ChunkFind2(program).findFunction(
+                "__libc_start_main");
+            assert(sourceFunc);
+            auto block1 = sourceFunc->getChildren()->getIterable()->get(0);
+
+            {
+                ChunkMutator m(block1, true);
+                m.prepend(call);
+            }
+
+            ChunkMutator(sourceFunc, true);
+        }
+    }
+
+    recurse(program);
+}
+
 void ShadowStackPass::visit(Module *module) {
+   // if(module->getLibrary()->getRole() == Library::ROLE_LIBC) return;
+   // if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
+
 #ifdef ARCH_X86_64
     auto instr = Disassemble::instruction({0x0f, 0x0b});  // ud2
     auto block = new Block();
@@ -42,6 +80,20 @@ void ShadowStackPass::visit(Module *module) {
 void ShadowStackPass::visit(Function *function) {
     if(function->getName() == "egalito_endbr_violation") return;
     if(function->getName() == "egalito_shadowstack_violation") return;
+    if(function->getName() == "egalito_allocate_shadow_stack") return;
+
+    if(function->getName() == "_start") return;
+    if(function->getName() == "__libc_start_main") return;
+    if(function->getName() == "mmap64") return;
+    if(function->getName() == "mmap") return;
+    if(function->getName() == "arch_prctl") return;
+    //if(function->getName() == "__libc_csu_init") return;
+//    if(function->getName() == "_init") return;
+    //if(function->getName() == "frame_dummy") return;
+    //if(function->getName() == "register_tm_clones") return;
+    //if(function->getName() == "deregister_tm_clones") return;
+//    if(function->getName() == "call_init") return;
+//    if(function->getName() == "__cxa_atexit") return;
 
     pushToShadowStack(function);
     recurse(function);
@@ -53,19 +105,21 @@ void ShadowStackPass::visit(Instruction *instruction) {
     if(auto v = dynamic_cast<ReturnInstruction *>(semantic)) {
         popFromShadowStack(instruction);
     }
-    //else if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
-    //    if(v->getLink() && v->getLink()->isExternalJump()) {
-    //        pushToShadowStack(instruction, v);
-    //    }
-    //}
-    //else if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
-    //    if(!v->isForJumpTable()) {
-    //        pushToShadowStack(instruction, v);
-    //    }
-    //}
-    //else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
-    //    pushToShadowStack(instruction, v);
-    //}
+    else if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
+        if(v->getMnemonic() != "callq"
+            && v->getLink() && v->getLink()->isExternalJump()) {  // tail recursion
+
+            popFromShadowStack(instruction);
+        }
+    }
+    else if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
+        if(!v->isForJumpTable()) {  // indirect tail recursion
+            popFromShadowStack(instruction);
+        }
+    }
+    /*else if(dynamic_cast<IndirectCallInstruction *>(semantic)) {
+        popFromShadowStack(instruction);
+    }*/
 }
 
 void ShadowStackPass::pushToShadowStack(Function *function) {
@@ -89,11 +143,11 @@ void ShadowStackPass::pushToShadowStackConst(Function *function) {
     {
         ChunkMutator m(block1, true);
         m.insertBefore(instr1,
-            std::vector<Instruction *>{ mov1Instr, mov2Instr }, true);
+            std::vector<Instruction *>{ mov1Instr, mov2Instr }, false);
     }
 }
 
-void ShadowStackPass::pushToShadowStackGS(Function *function){
+void ShadowStackPass::pushToShadowStackGS(Function *function) {
     /*  
 	   0:   65 4c 8b 1c 25 00 00    mov    %gs:0x0,%r11
 	   7:   00 00
@@ -115,8 +169,9 @@ void ShadowStackPass::pushToShadowStackGS(Function *function){
         ChunkMutator m(block1, true);
         m.insertBefore(instr1,
             std::vector<Instruction *>{ mov1Instr, leaInstr, mov2Instr,
-		 		mov3Instr, mov4Instr }, true);
+		 		mov3Instr, mov4Instr }, false);
     }
+    ChunkMutator(function, true);
 }
 
 void ShadowStackPass::popFromShadowStack(Instruction *instruction) {
@@ -148,7 +203,7 @@ void ShadowStackPass::popFromShadowStackConst(Instruction *instruction) {
     {
         ChunkMutator m(block, true);
         m.insertBefore(instruction,
-            std::vector<Instruction *>{ movInstr, cmpInstr, jne }, false);
+            std::vector<Instruction *>{ movInstr, cmpInstr, jne }, true);
     }
     if(0) {
         ChunkMutator m(block, true);
@@ -184,10 +239,11 @@ void ShadowStackPass::popFromShadowStackGS(Instruction *instruction) {
     {
         ChunkMutator m(block, true);
         m.insertBefore(instruction,
-            std::vector<Instruction *>{ mov1Instr, mov2Instr, cmpInstr, jne, leaInstr, mov3Instr }, false);
+            std::vector<Instruction *>{ mov1Instr, mov2Instr, cmpInstr, jne, leaInstr, mov3Instr }, true);
     }
     if(0) {
         ChunkMutator m(block, true);
         m.splitBlockBefore(instruction);
     }
+    ChunkMutator(block->getParent(), true);
 }

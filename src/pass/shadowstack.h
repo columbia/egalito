@@ -15,6 +15,7 @@ private:
 public:
     ShadowStackPass(Mode mode = MODE_CONST) : mode(mode),
         violationTarget(nullptr) {}
+    virtual void visit(Program *program);
     virtual void visit(Module *module);
     virtual void visit(Function *function);
     virtual void visit(Instruction *instruction);

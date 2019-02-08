@@ -37,16 +37,16 @@ static void parse(const std::string& filename, const std::string& output, bool q
 
         setup.addExtraLibraries(std::vector<std::string>{"libcet.so"});
 
+        std::cout << "Adding shadow stack...\n";
+        ShadowStackPass shadowStack(ShadowStackPass::MODE_GS);
+        program->accept(&shadowStack);
+
         std::cout << "Adding endbr CFI...\n";
         EndbrAddPass endbradd;
         program->accept(&endbradd);
 
         EndbrEnforcePass endbrEnforce;
         program->accept(&endbrEnforce);
-
-        std::cout << "Adding shadow stack...\n";
-        ShadowStackPass shadowStack(ShadowStackPass::MODE_GS);
-        program->accept(&shadowStack);
 
         std::cout << "Preparing for codegen...\n";
         CollapsePLTPass collapsePLT(setup.getConductor());
