@@ -168,27 +168,17 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
     newChunk->setSemantic(sem1);
 
     if(auto linked = dynamic_cast<LinkedInstructionBase *>(sem1)) {
-        linked->clearAssembly();
         linked->setInstruction(newChunk);
     }
     if(auto linked = dynamic_cast<ControlFlowInstructionBase *>(sem1)) {
         linked->setSource(newChunk);
     }
     if(auto linked = dynamic_cast<LinkedInstructionBase *>(sem2)) {
-        linked->clearAssembly();
         linked->setInstruction(insertPoint);
     }
     if(auto linked = dynamic_cast<ControlFlowInstructionBase *>(sem2)) {
         linked->setSource(insertPoint);
     }
-
-#if 0  // these should be set by insertAfter()
-    // insertPoint is still first, its prev is unchanged.
-    setNextSibling(insertPoint, newChunk);
-    setPreviousSibling(newChunk, insertPoint);
-    setNextSibling(newChunk, chunk3);
-    if(chunk3) setPreviousSibling(chunk3, newChunk);
-#endif
 }
 
 void ChunkMutator::insertBefore(Instruction *insertPoint,
