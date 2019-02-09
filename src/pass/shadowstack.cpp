@@ -112,10 +112,10 @@ void ShadowStackPass::pushToShadowStack(Function *function) {
 
 void ShadowStackPass::pushToShadowStackConst(Function *function) {
     //0:   4c 8b 1c 24             mov    (%rsp),%r11
-    //4:   4c 89 9c 24 00 00 b0    mov    %r11,0xb00000(%rsp)
-    //b:   00
+    //4:   4c 89 9c 24 00 00 50    mov    %r11,-0xb00000(%rsp)
+    //b:   ff
 	auto mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x1c, 0x24});
-	auto mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24, 0x00, 0x00, 0xb0, 0x00});
+	auto mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24, 0x00, 0x00, 0x50, 0xff});
 
 	auto block1 = function->getChildren()->getIterable()->get(0);
 	auto instr1 = block1->getChildren()->getIterable()->get(0);
@@ -164,12 +164,12 @@ void ShadowStackPass::popFromShadowStack(Instruction *instruction) {
 void ShadowStackPass::popFromShadowStackConst(Instruction *instruction) {
     /*
        d:   4c 8b 1c 24             mov    (%rsp),%r11
-      11:   4c 39 9c 24 00 00 b0    cmp    %r11,0xb00000(%rsp)
-      18:   00
+      11:   4c 39 9c 24 00 00 50    cmp    %r11,-0xb00000(%rsp)
+      18:   ff
       19:   0f 85 00 00 00 00       jne    0x1f
     */
 	auto movInstr = Disassemble::instruction({0x4c, 0x8b, 0x1c, 0x24});
-	auto cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24, 0x00, 0x00, 0xb0, 0x00});
+	auto cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24, 0x00, 0x00, 0x50, 0xff});
 
     auto jne = new Instruction();
     auto jneSem = new ControlFlowInstruction(
