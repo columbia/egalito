@@ -6,13 +6,20 @@
 
 class PermuteDataPass : public ChunkPass {
 private:
-    std::map<DataVariable *, DataVariable *> dvmap;
+    // old data section, new data section
     DataSection *ds, *nds;
+    // stores map of datavariables (in ds) to dvs (in nds)
+    std::map<DataVariable *, DataVariable *> dvmap;
+    // stores map of offsets (in ds) to offsets (in nds)
+    std::map<address_t, Range> newlayout;
 public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instr);
 private:
     Link *updatedLink(Link *link);
+private:
+    address_t newAddress(address_t address);
+    address_t newOffset(address_t offset);
 };
 
 #endif
