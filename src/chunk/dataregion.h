@@ -30,6 +30,7 @@ public:
 
     Symbol *getSymbol() const { return symbol; }
     Symbol *getDynamicSymbol() const { return dynamicSymbol; }
+    void setDynamicSymbol(Symbol *symbol) { dynamicSymbol = symbol; }
     Symbol *getNonNullSymbol() const;
 
     std::string getName() const { return name; }
@@ -44,9 +45,9 @@ public:
 
     virtual void accept(ChunkVisitor *visitor);
 
-    static GlobalVariable *createStatic(DataSection *section,
+    static GlobalVariable *createSymtab(DataSection *section,
         address_t address, Symbol *symbol);
-    static GlobalVariable *createDynamic(DataSection *section,
+    static GlobalVariable *createDynsym(DataSection *section,
         address_t address, Symbol *symbol);
 };
 

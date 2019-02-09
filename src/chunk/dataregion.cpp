@@ -36,20 +36,31 @@ bool GlobalVariable::deserialize(ChunkSerializerOperations &op,
     return false;
 }
 
-GlobalVariable *GlobalVariable::createStatic(DataSection *section,
+GlobalVariable *GlobalVariable::createSymtab(DataSection *section,
     address_t address, Symbol *symbol) {
 
-    return nullptr;
+    GlobalVariable *ret = new GlobalVariable();
+    ret->symbol = symbol;
+
+    off_t offset = address - section->getAddress();
+
+    ret->setPosition(new AbsoluteOffsetPosition(ret, offset));
+    ret->setName(symbol->getName());
+    ret->size = symbol->getSize();
+
+    section->addGlobalVariable(ret);
+    ret->setParent(section);
+
+    return ret;
 }
 
-GlobalVariable *GlobalVariable::createDynamic(DataSection *section,
+GlobalVariable *GlobalVariable::createDynsym(DataSection *section,
     address_t address, Symbol *symbol) {
 
     GlobalVariable *ret = new GlobalVariable();
     ret->dynamicSymbol = symbol;
 
     off_t offset = address - section->getAddress();
-    LOG(1, "offset into DataSection: " << offset);
 
     ret->setPosition(new AbsoluteOffsetPosition(ret, offset));
     ret->setName(symbol->getName());

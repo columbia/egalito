@@ -10,9 +10,12 @@ void CollectGlobalsPass::visit(Module *module) {
     auto elfspace = module->getElfSpace();
     if(!elfspace) return;
 
+    auto syms = elfspace->getSymbolList();
     auto dynsyms = elfspace->getDynamicSymbolList();
 
-    for(auto symbol : (*dynsyms)) {
+    std::map<address_t, GlobalVariable *> variables;
+
+    for(auto symbol : *syms) {
         if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
 
         address_t address = symbol->getAddress();
@@ -21,8 +24,29 @@ void CollectGlobalsPass::visit(Module *module) {
 
         if(!section) continue;
 
-        LOG(10, "global variable [" << (symbol->getName()) << "] found");
+        LOG(10, "symtab global variable [" << (symbol->getName()) << "] found");
 
-        GlobalVariable::createDynamic(section, address, symbol);
+        variables[address] =
+            GlobalVariable::createSymtab(section, address, symbol);
+    }
+
+    for(auto symbol : *dynsyms) {
+        if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
+
+        address_t address = symbol->getAddress();
+        DataSection *section =
+            module->getDataRegionList()->findDataSectionContaining(address);
+
+        if(!section) continue;
+
+        LOG(10, "dynsym global variable [" << (symbol->getName()) << "] found");
+
+        if(variables.count(address)) {
+            variables[address]->setDynamicSymbol(symbol);
+        }
+        else {
+            variables[address] =
+                GlobalVariable::createDynsym(section, address, symbol);
+        }
     }
 }
