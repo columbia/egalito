@@ -622,7 +622,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
                         << " name " << var->getName();
                     if(var->getDest() && var->getDest()->getTarget()) {
                         std::cout << " link to " << var->getDest()->getTarget()->getName();
-                        std::cout << " at address 0x" << var->getDest()->getTarget()->getAddress();
+                        std::cout << " at address 0x" << var->getDest()->getTargetAddress();
                     }
                     std::cout << std::endl;
                 }
