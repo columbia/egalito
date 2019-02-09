@@ -131,6 +131,7 @@ public:
     size_t getAlignment() const { return alignment; }
     address_t getOriginalOffset() const { return originalOffset; }
     uint64_t getPermissions() const { return permissions; }
+    void setPermissions(uint64_t perm) { permissions = perm; }
     Type getType() const { return type; }
     void setType(Type t) { type = t; }
     bool isCode() const { return type == TYPE_CODE; }
@@ -158,7 +159,9 @@ private:
     address_t alignment;
     std::string dataBytes;
 public:
-    DataRegion() : originalAddress(0), size(0), permissions(0), alignment(0) {}
+    DataRegion(address_t originalAddress = 0)
+        : originalAddress(originalAddress), size(0), permissions(0),
+        alignment(0) {}
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
     virtual ~DataRegion() {}
 
@@ -174,6 +177,7 @@ public:
     bool readable() const { return permissions & PF_R; }
     bool writable() const { return permissions & PF_W; }
     bool executable() const { return permissions & PF_X; }
+    void setPermissions(uint32_t perm) { permissions = perm; }
 
     void updateAddressFor(address_t baseAddress);
     address_t getOriginalAddress() const { return originalAddress; }

@@ -20,9 +20,12 @@ void PermuteDataPass::visit(Module *module) {
     LOG(1, "\thigh address:" << highaddr);
 
     // step 2: create new dataregion
-    DataRegion *ndr = new DataRegion();
+    highaddr = (highaddr + 0xfff) & ~0xfff;
+    DataRegion *ndr = new DataRegion(highaddr);
+
     ndr->setPosition(new AbsolutePosition(highaddr));
     ndr->setParent(module->getDataRegionList());
+    ndr->setPermissions(PF_R | PF_W);
     module->getDataRegionList()->getChildren()->add(ndr);
 
     // step 3: create new datasection to mirror original .data datasection
@@ -36,6 +39,7 @@ void PermuteDataPass::visit(Module *module) {
 
     nds->setType(DataSection::TYPE_DATA);
     nds->setSize(ds->getSize());
+    nds->setPermissions(SHF_WRITE);
     ndr->setSize(ds->getSize());
     nds->setPosition(new AbsolutePosition(highaddr));
     nds->setName(".data.permuted");
