@@ -17,6 +17,7 @@ void CollectGlobalsPass::visit(Module *module) {
 
     for(auto symbol : *syms) {
         if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
+        if(symbol->getAliasFor()) continue;
 
         address_t address = symbol->getAddress();
         DataSection *section =
@@ -32,6 +33,7 @@ void CollectGlobalsPass::visit(Module *module) {
 
     for(auto symbol : *dynsyms) {
         if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
+        if(symbol->getAliasFor()) continue;
 
         address_t address = symbol->getAddress();
         DataSection *section =

@@ -894,16 +894,23 @@ void CopyDynsym::execute() {
 
                     address_t address = var->getAddress();
 
-                    char *name = new char[var->getName().length() + 1];
-                    std::strcpy(name, var->getName().c_str());
-                    LOG(10, "adding dynsym for " << var->getName());
+                    auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                        const char *oname = osymbol->getName();
+                        LOG(10, "adding dynsym for " << oname);
 
-                    auto symbol = new Symbol(
-                        address, var->getSize(), name,
-                        origsym->getType(), origsym->getBind(), 0, 0);
+                        auto nsymbol = new Symbol(
+                            address, osymbol->getSize(), oname,
+                            osymbol->getType(), osymbol->getBind(), 0, 0);
 
-                    dynsym->addGlobalVarSymbol(var, symbol, address);
-                    // TODO: set section index properly...
+                        dynsym->addGlobalVarSymbol(var, nsymbol, address);
+                        // TODO: set section index properly...
+                    };
+
+                    handleGlobal(origsym);
+
+                    for(auto alias : origsym->getAliases()) {
+                        handleGlobal(alias);
+                    }
                 }
             }
         }
