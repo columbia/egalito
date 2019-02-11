@@ -193,7 +193,7 @@ public:
     DeferredType *addDataArbitraryRef(DataVariable *var, address_t targetAddress);
     DeferredType *addDataIFuncRef(DataVariable *var, address_t targetAddress);
     DeferredType *addDataExternalRef(DataVariable *var,
-        ExternalSymbol *extSym, Section *section, Module *module);
+        ExternalSymbol *extSym, Section *section, Module *module, address_t addend);
     DeferredType *addCopyExternalRef(DataVariable *var,
         ExternalSymbol *extSym, Section *section);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);

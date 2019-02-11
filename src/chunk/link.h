@@ -160,13 +160,15 @@ class ExternalSymbolLink : public LinkScopeDecorator<
     Link::SCOPE_EXTERNAL_DATA, LinkDefaultAttributeDecorator<Link>> {
 private:
     ExternalSymbol *externalSymbol;
+    address_t offset;
 public:
-    ExternalSymbolLink(ExternalSymbol *externalSymbol)
-        : externalSymbol(externalSymbol) {}
+    ExternalSymbolLink(ExternalSymbol *externalSymbol, address_t offset = 0)
+        : externalSymbol(externalSymbol), offset(offset) {}
 
     ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
+    address_t getOffset() const { return offset; }
 
     virtual bool isRIPRelative() const { return false; }
 };

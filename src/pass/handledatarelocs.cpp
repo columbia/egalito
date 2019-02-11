@@ -173,7 +173,12 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         else if(auto rel = dynamic_cast<DataOffsetLink *>(l)) {
             LOG(0, "    relative DOL: " << rel->getTargetAddress());
         }
-        else LOG(0, "??!?");
+        else if(!l) {
+            auto externalSymbol = ExternalSymbolFactory(module)
+                .makeExternalSymbol(reloc->getSymbol());
+            l = new ExternalSymbolLink(externalSymbol, reloc->getAddend());
+        }
+        else LOG(0, "unknown 64_64 reloc!");
         return l;
         
     }
