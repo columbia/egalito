@@ -40,7 +40,6 @@ static void parse(const std::string& filename, const std::string& output, bool o
 
         auto program = setup.getConductor()->getProgram();
 
-        
         if(oneToOne) {
             PermuteDataPass permuteData;
             program->accept(&permuteData);

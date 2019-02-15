@@ -51,8 +51,67 @@ void PermuteDataPass::visit(Module *module) {
     // step 4: generate list of data ranges that we have to move together
     std::set<address_t> splitPoints;
     address_t lastAddress = 0;
-    GlobalVariable *lastVariable = 0;
+    lastVariable = nullptr;
+
+    // very simple heuristic: if two adjacent global variables are accessed
+    // in the same function, treat them as one (i.e. remove the split point)
+    std::set<GlobalVariable *> ignore;
+
+    LOG(1, "Searching for adjacent variable accesses.");
+    for(auto &func : CIter::children(module->getFunctionList())) {
+        LOG(1, "\tin function " << func->getName());
+        std::map<address_t, GlobalVariable *> touched;
+        for(auto &block : CIter::children(func)) {
+            for(auto &instr : CIter::children(block)) {
+                auto sem = instr->getSemantic();
+                if(!sem) continue;
+                auto li = dynamic_cast<LinkedInstructionBase *>(sem);
+                if(!li) continue;
+                auto link = li->getLink();
+                if(!link) continue;
+                address_t taddress = link->getTargetAddress();
+
+                if(auto dol = dynamic_cast<DataOffsetLink *>(link)) {
+                    // TODO: more efficient way of doing this...
+                    for(auto dr : CIter::children(module->getDataRegionList())) {
+                        for(auto ds : CIter::children(dr)) {
+                            for(auto gv : ds->getGlobalVariables()) {
+                                if(gv->getRange().contains(taddress)) 
+                                    touched[link->getTargetAddress()] = gv;
+                            }
+                        }
+                    }
+                }
+                else if(dynamic_cast<NormalLink *>(li->getLink())) continue;
+                else {
+                    LOG(1, "unhandled link type " << typeid(*li->getLink()).name() << " when searching for adjacent globalvariable references");
+                }
+            }
+        }
+
+        LOG(1, "touched.size(): " << touched.size());
+        if(touched.size() <= 1) continue;
+
+        auto lastit = touched.begin();
+        auto it = ++touched.begin();
+        do {
+            auto lastgv = (*lastit).second;
+            auto curgv = (*it).second;
+            //LOG(1, "Considering " << lastgv->getName() << "/" << curgv->getName());
+            //LOG(1, "ranges:" << lastgv->getRange() << " and " << curgv->getRange());
+            if(lastgv->getRange().getEnd() == curgv->getAddress()) {
+                LOG(1, "merging " << lastgv->getName() << " and " << curgv->getName());
+                // adjacent accesses, so we forbid the splitpoint
+                ignore.insert(curgv);
+            }
+
+            lastit ++;
+            it ++;
+        } while(it != touched.end());
+    }
+
     for(auto gv : ds->getGlobalVariables()) {
+        if(ignore.count(gv)) continue;
         splitPoints.insert(gv->getAddress());
         if(gv->getAddress() > lastAddress) {
             lastAddress = gv->getAddress();
@@ -60,9 +119,15 @@ void PermuteDataPass::visit(Module *module) {
         }
     }
 
-    //address_t lastAddress = (*(--splitPoints.end()));
-    //LOG(1, "Marking last variable @" << lastAddress << " as immobile");
+    if(lastVariable == nullptr) {
+        LOG(1, "Not enough non-merged global variables to perform randomization.");
+        return;
+    }
+
     immobileVariables[lastVariable->getRange()] = lastVariable;
+
+    // TODO: propagate all immobile variables properly instead of relying
+    // on the fact that only the last variable in a section is immobile.
 
     std::vector<Range> ranges;
     address_t prev = 0;
@@ -145,10 +210,16 @@ void PermuteDataPass::visit(Module *module) {
                 }
 
                 if(section == ds) {
+                    #if 0
                     bool found = false;
                     for(auto imm : immobileVariables) {
                         if(imm.first.contains(var->getAddress())) found = true;
                     }
+                    #else
+                    bool found = false;
+                    // only the last variable is immobile.
+                    if(lastVariable->getAddress() <= var->getAddress()) found = true;
+                    #endif
                     /*
                     auto it = immobileVariables.upper_bound(
                         );
@@ -231,10 +302,17 @@ Link *PermuteDataPass::updatedLink(Link *link) {
         // don't update for immobile variables
         //if(immobileVariableAddresses.count(dol->getTargetAddress())) return link;
 
+
+        #if 0
         bool found = false;
         for(auto imm : immobileVariables) {
             if(imm.first.contains(dol->getTargetAddress())) found = true;
         }
+        #else
+        bool found = false;
+        // only the last variable is immobile.
+        if(lastVariable->getAddress() <= dol->getTargetAddress()) found = true;
+        #endif
         /*
         auto it = immobileVariables.upper_bound(
             Range::fromPoint(dol->getTargetAddress()));

@@ -15,6 +15,7 @@ private:
     // set of variables that have to remain in place
     std::map<Range, GlobalVariable *> immobileVariables;
     Module *curModule;
+    GlobalVariable *lastVariable;
 public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instr);
