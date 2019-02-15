@@ -11,6 +11,7 @@
 #include "pass/ifuncplts.h"
 #include "pass/fixenviron.h"
 #include "pass/externalsymbollinks.h"
+#include "pass/permutedata.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -38,6 +39,16 @@ static void parse(const std::string& filename, const std::string& output, bool o
         }
 
         auto program = setup.getConductor()->getProgram();
+
+        
+        if(oneToOne) {
+            PermuteDataPass permuteData;
+            program->accept(&permuteData);
+        }
+        else {
+            PermuteDataPass permuteData;
+            program->accept(&permuteData);
+        }
 
         std::cout << "Preparing for codegen...\n";
         if(oneToOne) {

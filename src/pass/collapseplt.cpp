@@ -109,6 +109,8 @@ void CollapsePLTPass::visit(DataSection *section) {
         auto dest = var->getDest();
         if(!dest) continue;
 
+        LOG(1, "link type: " << typeid(*dest).name());
+
         if(auto f = dynamic_cast<Function *>(dest->getTarget())) {
             auto it = ifuncMap.find(f->getName());
             if(it != ifuncMap.end()) {

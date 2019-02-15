@@ -173,7 +173,10 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         else if(auto rel = dynamic_cast<DataOffsetLink *>(l)) {
             LOG(0, "    relative DOL: " << rel->getTargetAddress());
         }
-        else LOG(0, "??!?");
+        else {
+            LOG(0, "l: " << l);
+            if(l) LOG(0, "    " << typeid(*l).name());
+        }
         return l;
         
     }

@@ -274,6 +274,11 @@ void DataRegion::saveDataBytes(bool captureUninitializedData) {
     dataBytes.assign(address, size);
 }
 
+void DataRegion::saveDataBytes(const std::string &str) {
+    assert(str.length() == size);
+    dataBytes = str;
+}
+
 std::string DataRegion::getName() const {
     StreamAsString stream;
     stream << "region-0x" << std::hex << originalAddress;

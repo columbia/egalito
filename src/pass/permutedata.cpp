@@ -9,6 +9,7 @@
 #include "log/log.h"
 
 void PermuteDataPass::visit(Module *module) {
+    curModule = module;
     LOG(1, "Permuting data sections in module " << module->getName());
     // step 1: find highest address in module
     address_t highaddr = 0;
@@ -49,9 +50,19 @@ void PermuteDataPass::visit(Module *module) {
 
     // step 4: generate list of data ranges that we have to move together
     std::set<address_t> splitPoints;
+    address_t lastAddress = 0;
+    GlobalVariable *lastVariable = 0;
     for(auto gv : ds->getGlobalVariables()) {
         splitPoints.insert(gv->getAddress());
+        if(gv->getAddress() > lastAddress) {
+            lastAddress = gv->getAddress();
+            lastVariable = gv;
+        }
     }
+
+    //address_t lastAddress = (*(--splitPoints.end()));
+    //LOG(1, "Marking last variable @" << lastAddress << " as immobile");
+    immobileVariables[lastVariable->getRange()] = lastVariable;
 
     std::vector<Range> ranges;
     address_t prev = 0;
@@ -77,7 +88,23 @@ void PermuteDataPass::visit(Module *module) {
         lastend = newend;
     }
 
-    // step 5: re-create all datavariables (with empty links) in new datasection
+    // step 5a: re-create all globalvariables in new datasection
+    std::map<address_t, GlobalVariable *> newglobals;
+    for(auto gv : ds->getGlobalVariables()) {
+        GlobalVariable *ngv;
+        if(gv->getSymbol()) {
+            ngv = GlobalVariable::createSymtab(
+                nds, newAddress(gv->getAddress()), gv->getSymbol());
+            ngv->setDynamicSymbol(gv->getDynamicSymbol());
+        }
+        else {
+            ngv = GlobalVariable::createDynsym(
+                nds, newAddress(gv->getAddress()), gv->getDynamicSymbol());
+            ngv->setDynamicSymbol(gv->getDynamicSymbol());
+        }
+    }
+
+    // step 5b: re-create all datavariables (with empty links) in new datasection
     std::map<address_t, DataVariable *> newvars;
     for(auto dv : CIter::children(ds)) {
         auto ndv = new DataVariable();
@@ -94,6 +121,7 @@ void PermuteDataPass::visit(Module *module) {
         ndv->setParent(nds);
         newvars[noff] = ndv;
 
+        LOG(1, "\tdv address: " << dv->getAddress());
         LOG(1, "\tndv address: " << ndv->getAddress());
         LOG(1, "\tnds address: " << nds->getAddress());
 
@@ -106,10 +134,36 @@ void PermuteDataPass::visit(Module *module) {
         for(auto section : CIter::children(region)) {
             for(auto var : CIter::children(section)) {
                 auto link = var->getDest();
-                if(!link) continue;
+                if(!link) {
+                    if(section == ds && var->getTargetSymbol()) {
+                       LOG(1, "updating var w/symb @" << dvmap[var]->getAddress());
+                       dvmap[var]->setTargetSymbol(var->getTargetSymbol());
+                    }
+                    else 
+                        LOG(1, "skipping update var @" << var->getAddress() << ", null link and null symbol");
+                    continue;
+                }
 
                 if(section == ds) {
-                    dvmap[var]->setDest(updatedLink(link));
+                    bool found = false;
+                    for(auto imm : immobileVariables) {
+                        if(imm.first.contains(var->getAddress())) found = true;
+                    }
+                    /*
+                    auto it = immobileVariables.upper_bound(
+                        );
+
+                    if(it != immobileVariables.begin() &&
+                        (*--it).first.contains(var->getAddress())) {*/
+                    if(found) {
+                        // do nothing, no updates
+                        LOG(1, "skipping var update @" << var->getAddress());
+                    }
+                    else {
+                        LOG(1, "updating var @" << dvmap[var]->getAddress() << " and killing var @" << var->getAddress());
+                        dvmap[var]->setDest(updatedLink(link));
+                        var->setDest(nullptr);
+                    }
                 }
                 else {
                     var->setDest(updatedLink(link));
@@ -121,6 +175,32 @@ void PermuteDataPass::visit(Module *module) {
     // step 6: iterate through all instructions, update all links to point to new
     //          datavariables and datasections (for dataoffsetlinks)
     recurse(module);
+
+    // step 7: copy over data from original data region into new data region
+    // NOTE: this only needs to be done for .data, not for (eventually) .bss
+    auto dr = (DataRegion *)ds->getParent();
+    const std::string &old_data = dr->getDataBytes();
+    std::string new_data(ds->getSize(), '\x00');
+
+    lastend = 0;
+
+    for(auto nr : shuffle) {
+        address_t newend = lastend + nr.getSize();
+
+        LOG(1, "Moving data block " << nr << " to 0x" << std::hex << lastend);
+        std::copy(
+            old_data.begin() + ds->getOriginalOffset() + nr.getStart(),
+            old_data.begin() + ds->getOriginalOffset() + nr.getEnd(),
+            new_data.begin() + lastend);
+
+        // newlayout[nr.getStart()] = Range::fromEndpoints(lastend, newend);
+        lastend = newend;
+    }
+
+    ndr->saveDataBytes(new_data);
+
+    // TODO: remove data section from data region
+    curModule = nullptr;
 }
 
 void PermuteDataPass::visit(Instruction *instr) {
@@ -133,6 +213,7 @@ void PermuteDataPass::visit(Instruction *instr) {
 
 Link *PermuteDataPass::updatedLink(Link *link) {
     if(auto nl = dynamic_cast<NormalLink *>(link)) {
+        // shouldn't have to do anything, NormalLinks won't reference ds
         #if 0
         if(auto vdest = dynamic_cast<DataVariable *>(nl->getTarget())) {
             // only care about DataVariables in the .data section
@@ -147,10 +228,30 @@ Link *PermuteDataPass::updatedLink(Link *link) {
         // only care about updating DataOffsetLinks that reference ds
         if(dol->getTarget() != ds) return link;
 
-        off_t off =
-            dol->getTargetAddress() - dol->getTarget()->getAddress();
-        delete link;
-        return new DataOffsetLink(nds, newOffset(off));
+        // don't update for immobile variables
+        //if(immobileVariableAddresses.count(dol->getTargetAddress())) return link;
+
+        bool found = false;
+        for(auto imm : immobileVariables) {
+            if(imm.first.contains(dol->getTargetAddress())) found = true;
+        }
+        /*
+        auto it = immobileVariables.upper_bound(
+            Range::fromPoint(dol->getTargetAddress()));
+
+        if(it != immobileVariables.begin() &&
+            (*--it).first.contains(dol->getTargetAddress())) {
+            */
+        if(found) {
+            // do nothing, no updates
+            LOG(1, "skipping var update targeting " << dol->getTargetAddress() << " in updatedLink()");
+        }
+        else {
+            off_t off =
+                dol->getTargetAddress() - dol->getTarget()->getAddress();
+            // delete link;
+            return new DataOffsetLink(nds, newOffset(off));
+        }
     }
     else if(auto adl = dynamic_cast<AbsoluteDataLink *>(link)) {
         // only care about updating DataOffsetLinks that reference ds
@@ -158,8 +259,27 @@ Link *PermuteDataPass::updatedLink(Link *link) {
 
         off_t off =
             adl->getTargetAddress() - adl->getTarget()->getAddress();
-        delete link;
+        // delete link;
         return new AbsoluteDataLink(nds, newOffset(off));
+    }
+    else if(auto ml = dynamic_cast<MarkerLink *>(link)) {
+        LOG(1, "XXX: MarkerLink NYI!");
+        Marker *marker = ml->getMarker();
+
+        // only care about markers to ds
+        if(marker->getBase() != ds) return link;
+
+        // XXX: assuming that we have a Marker, not one of the derived types
+        Marker *newMarker = new Marker(nds, marker->getAddend());
+
+        curModule->getMarkerList()->getChildren()->add(newMarker);
+
+        return new MarkerLink(newMarker);
+
+        /*LOG(1, "\tmarker base @" << marker->getBase()->getAddress());
+        LOG(1, "\tmarker base type " << typeid(*marker->getBase()).name());
+        
+        LOG(1, "\tmarker type " << typeid(*marker).name() << " not handled");*/
     }
     else {
         LOG(1, "\tlink type " << typeid(*link).name() << " not handled");

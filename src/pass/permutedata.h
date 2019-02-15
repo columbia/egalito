@@ -12,6 +12,9 @@ private:
     std::map<DataVariable *, DataVariable *> dvmap;
     // stores map of offsets (in ds) to offsets (in nds)
     std::map<address_t, Range> newlayout;
+    // set of variables that have to remain in place
+    std::map<Range, GlobalVariable *> immobileVariables;
+    Module *curModule;
 public:
     virtual void visit(Module *module);
     virtual void visit(Instruction *instr);
