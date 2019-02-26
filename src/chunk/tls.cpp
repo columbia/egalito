@@ -3,13 +3,13 @@
 #ifdef ARCH_X86_64
 #define GET_FROM_TLS(name)  \
     __asm__ __volatile__ (  \
-        "mov %@:%p1, %0"    \
+        "mov %%fs:%p1, %0"    \
             : "=r"(name) \
             : "i"(offsetof(EgalitoTLS, name)-sizeof(EgalitoTLS)) \
     );
 #define SET_TO_TLS(name)    \
     __asm__ __volatile__ (  \
-        "mov %0, %@:%p1"    \
+        "mov %0, %%fs:%p1"    \
             :   \
             : "r"(name), \
               "i"(offsetof(EgalitoTLS, name)-sizeof(EgalitoTLS)) \
