@@ -11,7 +11,7 @@ void FixDataRegionsPass::visit(Program *program) {
 }
 
 void FixDataRegionsPass::visit(Module *module) {
-    TemporaryLogLevel tll("pass", 10);
+    //TemporaryLogLevel tll("pass", 10);
     LOG(10, "Fixing variables in regions for " << module->getName());
     this->module = module;
     visit(module->getDataRegionList());
@@ -28,17 +28,10 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
-            if(var->getAddress() == 0x1021efc0) {
-                LOG(0, "__libc_start_main var, type " << typeid(var).name() << ", dest is " << var->getDest());
-            }
-            if(!var->getDest()) {
-                continue;
-            }
+            if(!var->getDest()) continue;
             if(var->getIsCopy()) continue;
+            if(isForIFuncJumpSlot(var)) continue;
 
-            if(isForIFuncJumpSlot(var)) {
-                continue;
-            }
             auto target = var->getDest()->getTargetAddress();
             address_t address = var->getAddress();
             LOG(0, "set variable " << std::hex << address << " => " << target << " (size " << var->getSize() << ")");

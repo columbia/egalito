@@ -74,15 +74,7 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto addr = reloc->getAddress() + module->getBaseAddress();
         auto region = list->findRegionContaining(addr);
         auto section = region->findDataSectionContaining(addr);
-        if(auto other = section->findVariable(addr)) continue;
-
-        /*if(auto other = section->findVariable(addr)) {
-            if(auto otherLink = other->getDest()) {
-                if(!dynamic_cast<InternalAndExternalDataLink *>(otherLink)) {
-                    continue;
-                }
-            }
-        }*/
+        if(section->findVariable(addr)) continue;
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
@@ -145,14 +137,6 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             if(!l) {
                 l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
             }
-            #if 0 // moved to later pass
-            if(false && !l) {
-                auto externalSymbol = ExternalSymbolFactory(module)
-                    .makeExternalSymbol(reloc->getSymbol());
-                l = new ExternalSymbolLink(externalSymbol);
-            }
-            #endif
-
             LOG(0, "link is " << l);
             return l;
         }
