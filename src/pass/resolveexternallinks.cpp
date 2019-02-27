@@ -1,4 +1,3 @@
-#include <typeinfo>
 #include "resolveexternallinks.h"
 #include "chunk/link.h"
 #include "conductor/conductor.h"
@@ -22,23 +21,50 @@ void ResolveExternalLinksPass::visit(Module *module) {
             for(auto dv : CIter::children(ds)) {
                 auto link = dv->getDest();
                 if(!link && dv->getTargetSymbol()) {
+#if 1
                     auto symbol = dv->getTargetSymbol();
                     auto l = reResolveTarget(symbol, conductor, module);
                     if(l) {
                         LOG(0, "change null link from ["
-                            << symbol->getName() << "] => " << l << ", " << typeid(*l).name());
+                            << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
                         dv->setDest(l);
                     }
+#else
+                    auto symbol = dv->getTargetSymbol();
+                    auto main = conductor->getProgram()->getMain();
+                    if(main) {
+                        // Cloned from link.cpp
+                        /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
+                         * should point at the executable's copy of the global if COPY reloc is present
+                         */
+                        if(auto symList = main->getElfSpace()->getSymbolList()) {
+                            if(auto l = PerfectLinkResolver().redirectCopyRelocs(main, symbol, symList, false)) {
+                                LOG(0, "change InternalAndExternalDataLink COPY from ["
+                                    << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                                dv->setDest(l);
+                                delete link;
+                            }
+                        }
+                        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+                            if(auto l = PerfectLinkResolver().redirectCopyRelocs(main, symbol, dynList, false)) {
+                                LOG(0, "change InternalAndExternalDataLink COPY from ["
+                                    << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                                dv->setDest(l);
+                                delete link;
+                            }
+                        }
+                    }
+#endif
                 }
                 else if(auto v = dynamic_cast<InternalAndExternalDataLink *>(link)) {
-                    auto extSym = v->getExternalSymbol();
+                    /*auto extSym = v->getExternalSymbol();
                     auto l = reResolveTarget(extSym, conductor, module);
                     if(l) {
                         LOG(0, "change InternalAndExternalDataLink from ["
                             << extSym->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
                         dv->setDest(l);
                         delete link;
-                    }
+                    }*/
                 }
                 else if(auto v = dynamic_cast<ExternalSymbolLink *>(link)) {
                     auto extSym = v->getExternalSymbol();

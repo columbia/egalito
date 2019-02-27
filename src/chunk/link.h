@@ -483,7 +483,10 @@ private:
         ElfSpace *space, bool weak, bool relative, bool afterMapping);
     Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
         bool weak, bool relative, bool afterMapping);
+public:
     Link *redirectCopyRelocs(Module *main, Symbol *symbol,
+        SymbolList *list, bool relative);
+    Link *redirectCopyRelocs(Module *main, ExternalSymbol *extSym,
         SymbolList *list, bool relative);
 };
 
