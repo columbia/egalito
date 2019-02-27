@@ -225,6 +225,20 @@ void Generator::generateCode(Module *module) {
     }
 }
 
+void Generator::assignAddressForFunction(Function *function) {
+    auto slot = sandbox->allocate(function->getSize());
+    LOG(1, "Assigning address to 0x" << std::hex << slot.getAddress()
+        << " for [" << function->getName()
+        << "] size " << std::dec << function->getSize());
+    GeneratorHelper<Function>().assignAddress(function, slot);
+}
+
+void Generator::generateCodeForFunction(Function *function) {
+    LOG(1, "Copying function [" << function->getName() << "] at 0x"
+        << std::hex << function->getAddress());
+    GeneratorHelper<Function>().copyToSandbox(function, sandbox);
+}
+
 // These two functions are only used during JIT-Shuffling
 void Generator::pickFunctionAddressInSandbox(Function *function) {
     auto slot = sandbox->allocate(function->getSize());
