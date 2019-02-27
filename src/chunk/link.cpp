@@ -256,6 +256,28 @@ Link *PerfectLinkResolver::redirectCopyRelocs(Module *main, Symbol *symbol,
     return nullptr;
 }
 
+Link *PerfectLinkResolver::redirectCopyRelocs(Module *main,
+    ExternalSymbol *extSym, SymbolList *list, bool relative) {
+
+    auto s = list->find(extSym->getName().c_str());
+    auto version = extSym->getVersion();
+    if(!s && version) {
+        std::string versionedName(extSym->getName());
+        versionedName.push_back('@');
+        if(!version->isHidden()) versionedName.push_back('@');
+        versionedName.append(version->getName());
+        s = list->find(versionedName.c_str());
+    }
+    if(s) {
+        auto dlink = LinkFactory::makeDataLink(
+            main, s->getAddress(), relative);
+        LOG(1, "resolved to data in module-(executable): "
+            <<  s->getAddress());
+        return dlink;
+    }
+    return nullptr;
+}
+
 Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
     bool weak, bool relative) {
 

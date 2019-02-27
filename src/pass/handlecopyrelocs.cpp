@@ -84,6 +84,7 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
         << " size " << size);
     LOG(0, "the value is " << std::hex <<  *(unsigned long *)address);
 
+#if 0
     Range range(from, size);
     auto section = dynamic_cast<DataSection *>(&*link->getTarget());
     std::vector<DataVariable *> existing;
@@ -98,4 +99,5 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
     if(!existing.empty()) {
         LOG(0, "copyAndDuplicate: duplication is NYI");
     }
+#endif
 }

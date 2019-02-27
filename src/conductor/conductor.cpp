@@ -20,6 +20,7 @@
 #include "pass/fixjumptables.h"
 #include "pass/ifunclazy.h"
 #include "pass/fixdataregions.h"
+#include "pass/resolveexternallinks.h"
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "pass/encodingcheckpass.h"
@@ -255,6 +256,9 @@ void Conductor::fixDataSections(bool allocateTLS) {
         allocateTLSArea(base);
         loadTLSData();
     }
+
+    ResolveExternalLinksPass resolveExternalLinks(this);
+    program->accept(&resolveExternalLinks);
 
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);

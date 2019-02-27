@@ -485,6 +485,9 @@ private:
         bool weak, bool relative, bool afterMapping);
     Link *redirectCopyRelocs(Module *main, Symbol *symbol,
         SymbolList *list, bool relative);
+public:
+    Link *redirectCopyRelocs(Module *main, ExternalSymbol *extSym,
+        SymbolList *list, bool relative);
 };
 
 #endif

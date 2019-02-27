@@ -3,6 +3,7 @@
 
 #include "chunkpass.h"
 
+/** Find all links whose target is null, replace with ExternalSymbolLink. */
 class ExternalSymbolLinksPass : public ChunkPass {
 public:
     virtual void visit(Module *module);

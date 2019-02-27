@@ -74,7 +74,15 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto addr = reloc->getAddress() + module->getBaseAddress();
         auto region = list->findRegionContaining(addr);
         auto section = region->findDataSectionContaining(addr);
-        if(section->findVariable(addr)) continue;
+        if(auto other = section->findVariable(addr)) continue;
+
+        /*if(auto other = section->findVariable(addr)) {
+            if(auto otherLink = other->getDest()) {
+                if(!dynamic_cast<InternalAndExternalDataLink *>(otherLink)) {
+                    continue;
+                }
+            }
+        }*/
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
