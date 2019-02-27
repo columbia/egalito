@@ -20,6 +20,9 @@ public:
     void assignAddresses(Module *module);
     void generateCode(Module *module);
 
+    // For function generation
+    void generateCodeForFunction(Function *function);
+
     // For JIT-Shuffling. Assign an address and generate code.
     void assignAndGenerate(Function *function);
     void assignAndGenerate(PLTTrampoline *trampoline);
