@@ -3,6 +3,8 @@
 #include <typeinfo>
 #include "handlecopyrelocs.h"
 #include "conductor/conductor.h"
+#include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
 

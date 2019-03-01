@@ -4,6 +4,7 @@
 #include "handledatarelocs.h"
 #include "chunk/link.h"
 #include "chunk/external.h"
+#include "chunk/resolver.h"
 #include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/reloc.h"

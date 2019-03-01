@@ -1,5 +1,5 @@
 #include "resolveexternallinks.h"
-#include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "conductor/conductor.h"
 #include "elf/elfspace.h"
 #include "log/log.h"

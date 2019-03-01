@@ -6,6 +6,8 @@
 #include "chunk/visitor.h"
 #include "util/timing.h"
 
+class Conductor;  // used by many subclasses
+
 #if 1  // enable pass profiling
     #define RUN_PASS(passConstructor, module) \
         { \

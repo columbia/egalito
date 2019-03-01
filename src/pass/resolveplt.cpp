@@ -1,4 +1,5 @@
 #include "resolveplt.h"
+#include "chunk/resolver.h"
 #include "elf/symbol.h"
 #include "chunk/program.h"
 #include "load/emulator.h"

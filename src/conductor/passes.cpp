@@ -1,4 +1,5 @@
 #include "passes.h"
+#include "conductor.h"
 
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
@@ -9,7 +10,6 @@
 #include "chunk/aliasmap.h"
 #include "chunk/tls.h"
 #include "chunk/dataregion.h"
-#include "conductor/conductor.h"
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
 #include "pass/collapseplt.h"

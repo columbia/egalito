@@ -3,6 +3,8 @@
 
 #include "elf/elfspace.h"
 
+class Conductor;
+
 class ConductorPasses {
 private:
     Conductor *conductor;
