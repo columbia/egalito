@@ -10,9 +10,8 @@
 #include "log/temp.h"
 
 void HandleCopyRelocs::visit(Module *module) {
+    if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
     if(!module->getElfSpace()) return;
-
-    this->module = module;
 
     //TemporaryLogLevel tll("pass", 15);
     auto relocList = module->getElfSpace()->getRelocList();
@@ -21,8 +20,6 @@ void HandleCopyRelocs::visit(Module *module) {
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
             //TemporaryLogLevel tll("chunk", 15);
-
-            assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             LOG(10, "    symbol: " << r->getSymbol());
@@ -83,21 +80,4 @@ void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
     LOG(0, "copy from " << std::hex << from << " to " << address
         << " size " << size);
     LOG(0, "the value is " << std::hex <<  *(unsigned long *)address);
-
-#if 0
-    Range range(from, size);
-    auto section = dynamic_cast<DataSection *>(&*link->getTarget());
-    std::vector<DataVariable *> existing;
-    for(auto var : CIter::children(section)) {
-        LOG(1, "var = " << std::hex << var->getAddress());
-        if(range.contains(var->getAddress())) {
-            if(dynamic_cast<NormalLink *>(var->getDest())) {
-                existing.push_back(var);
-            }
-        }
-    }
-    if(!existing.empty()) {
-        LOG(0, "copyAndDuplicate: duplication is NYI");
-    }
-#endif
 }

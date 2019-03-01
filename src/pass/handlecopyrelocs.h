@@ -10,7 +10,6 @@ class Link;
 class HandleCopyRelocs : public ChunkPass {
 private:
     Conductor *conductor;
-    Module *module;
 public:
     HandleCopyRelocs(Conductor *conductor) : conductor(conductor) {}
     virtual void visit(Module *module);

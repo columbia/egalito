@@ -25,7 +25,7 @@ void ResolveExternalLinksPass::visit(Module *module) {
                     auto symbol = dv->getTargetSymbol();
                     auto l = reResolveTarget(symbol, conductor, module);
                     if(l) {
-                        LOG(0, "change null link from ["
+                        LOG(0, "change null link in " << module->getName() << " from ["
                             << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
                         dv->setDest(l);
                     }
@@ -57,14 +57,16 @@ void ResolveExternalLinksPass::visit(Module *module) {
 #endif
                 }
                 else if(auto v = dynamic_cast<InternalAndExternalDataLink *>(link)) {
-                    /*auto extSym = v->getExternalSymbol();
-                    auto l = reResolveTarget(extSym, conductor, module);
-                    if(l) {
-                        LOG(0, "change InternalAndExternalDataLink from ["
-                            << extSym->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
-                        dv->setDest(l);
-                        delete link;
-                    }*/
+                    if(!dv->getIsCopy()) {
+                        auto extSym = v->getExternalSymbol();
+                        auto l = reResolveTarget(extSym, conductor, module);
+                        if(l) {
+                            LOG(0, "change InternalAndExternalDataLink in " << module->getName() << " from ["
+                                << extSym->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                            dv->setDest(l);
+                            delete link;
+                        }
+                    }
                 }
                 else if(auto v = dynamic_cast<ExternalSymbolLink *>(link)) {
                     auto extSym = v->getExternalSymbol();

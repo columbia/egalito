@@ -491,6 +491,9 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     const SymbolVersion *version,
     ElfSpace *space, bool weak, bool relative, bool afterMapping) {
 
+    LOG(1, "        resolveNameAsLinkHelper (" << name << ") " << "inside "
+        << space->getModule()->getName());
+
     if(auto link = resolveNameAsLinkHelper2(
         name, space, weak, relative, afterMapping)) {
 
@@ -510,7 +513,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     }
     std::string versionedName2(name);
     versionedName2.append("@@");
-    versionedName1.append(version->getName());
+    versionedName2.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
         versionedName2.c_str(), space, weak, relative, afterMapping)) {
 
