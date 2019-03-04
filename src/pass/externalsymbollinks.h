@@ -3,7 +3,9 @@
 
 #include "chunkpass.h"
 
-/** Find all links whose target is null, replace with ExternalSymbolLink. */
+/** Find all links whose target is null, replace with ExternalSymbolLink.
+    Used in mirrorgen when parsing only one Module.
+*/
 class ExternalSymbolLinksPass : public ChunkPass {
 public:
     virtual void visit(Module *module);

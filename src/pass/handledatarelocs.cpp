@@ -63,7 +63,8 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
         auto link = resolveVariableLink(reloc, module);
         // always create a DataVariable, even if the link is null
 
-        DataVariable::create(section, a, link, reloc->getSymbol());
+        auto var = DataVariable::create(section, a, link, reloc->getSymbol());
+        finalizeDataVariable(reloc, var, module);
     }
 }
 
@@ -81,12 +82,12 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto link = resolveVariableLink(reloc, module);
         // always create a DataVariable, even if the link is null
 
-        DataVariable::create(module, addr, link, reloc->getSymbol());
+        auto var = DataVariable::create(module, addr, link, reloc->getSymbol());
+        finalizeDataVariable(reloc, var, module);
     }
 }
 
 Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
-
     Symbol *symbol = reloc->getSymbol();
 
 #ifdef ARCH_X86_64
@@ -123,9 +124,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         return nullptr;
     }
     else if(reloc->getType() == R_X86_64_COPY) {
-        LOG(10, "WARNING: skipping R_X86_64_COPY ("
-            << std::hex << reloc->getAddress()
-            << ") in " << module->getName());
+        // handled in finalizeDataVariable() below
         return nullptr;
     }
     else if(reloc->getType() == R_X86_64_GLOB_DAT) {
@@ -134,7 +133,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
                 << std::hex << reloc->getAddress()
                 << ") in " << module->getName());
             auto l = PerfectLinkResolver().resolveExternally(
-                reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+                reloc->getSymbol(), conductor, module, weak, false, true);
             if(!l) {
                 l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
             }
@@ -212,7 +211,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     if(std::strcmp(symbol->getName(), "") != 0) {
         if(weak || symbol->getBind() != Symbol::BIND_WEAK) {
             auto link = PerfectLinkResolver().resolveExternally(
-                symbol, conductor, module->getElfSpace(), weak, false);
+                symbol, conductor, module, weak, false);
             if(link && reloc->getAddend() > 0) {
                 if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
                     dlink->setAddend(reloc->getAddend());
@@ -225,4 +224,23 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         }
     }
     return nullptr;
+}
+
+void HandleDataRelocsPass::finalizeDataVariable(Reloc *reloc, DataVariable *var,
+    Module *module) {
+
+#ifdef ARCH_X86_64
+    if(reloc->getType() == R_X86_64_COPY) {
+        LOG(10, "Marking R_X86_64_COPY as COPY DataVariable ("
+            << std::hex << reloc->getAddress()
+            << ") in " << module->getName());
+
+        auto externalSymbol = ExternalSymbolFactory(module)
+            .makeExternalSymbol(reloc->getSymbol());
+        auto link = new CopyRelocLink(externalSymbol);
+        var->setIsCopy(true);
+        var->setDest(link);
+        var->setSize(reloc->getSymbol()->getSize());
+    }
+#endif
 }

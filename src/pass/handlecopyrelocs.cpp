@@ -11,6 +11,7 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+#if 0
 void HandleCopyRelocs::visit(Module *module) {
     if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
     if(!module->getElfSpace()) return;
@@ -73,13 +74,31 @@ void HandleCopyRelocs::visit(Module *module) {
         }
     }
 }
+#else
+void HandleCopyRelocs::visit(Module *module) {
+    if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
 
-void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
+    for(auto region : CIter::regions(module)) {
+        for(auto section : CIter::children(region)) {
+            for(auto var : CIter::children(section)) {
+                if(!var->getIsCopy()) continue;
+
+                // NOTE: Addresses must include the base address, we are memcpy'ing
+                copyAndDuplicate(var->getDest(), var->getAddress(), var->getSize());
+            }
+        }
+    }
+}
+#endif
+
+void HandleCopyRelocs::copyAndDuplicate(Link *sourceLink, address_t destAddress,
     size_t size) {
 
-    auto from = link->getTargetAddress();
-    std::memcpy((void *)address, (void *)from, size);
-    LOG(0, "copy from " << std::hex << from << " to " << address
+    auto sourceAddress = sourceLink->getTargetAddress();
+    if(!sourceAddress || !destAddress) return;
+
+    std::memcpy((void *)destAddress, (void *)sourceAddress, size);
+    LOG(0, "copy from 0x" << std::hex << sourceAddress << " to 0x" << destAddress
         << " size " << size);
-    LOG(0, "the value is " << std::hex <<  *(unsigned long *)address);
+    LOG(0, "the value is 0x" << std::hex << *(unsigned long *)destAddress);
 }

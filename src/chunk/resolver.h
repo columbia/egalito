@@ -6,7 +6,7 @@
 class Reloc;
 class Instruction;
 class Conductor;
-class ElfSpace;
+class Module;
 class ExternalSymbol;
 class SymbolVersion;
 class SymbolList;
@@ -21,10 +21,15 @@ public:
         bool relative=true);
 
     /* Resolve outside the module using symbol info. */
+    Link *resolveExternallyStrongWeak(Symbol *symbol, Conductor *conductor,
+        Module *module, bool relative, bool afterMapping=false);
+    Link *resolveExternallyStrongWeak(ExternalSymbol *externalSymbol, Conductor *conductor,
+        Module *module, bool relative, bool afterMapping=false);
+
     Link *resolveExternally(Symbol *symbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
+        Module *module, bool weak, bool relative, bool afterMapping=false);
     Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
+        Module *module, bool weak, bool relative, bool afterMapping=false);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
@@ -32,14 +37,17 @@ public:
         Module *module, bool relative);
 
 private:
-    Link *resolveExternally2(const char *name, const SymbolVersion *version,
-        Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+    Link *resolveExternallyHelper(const char *name, const SymbolVersion *version,
+        Conductor *conductor, Module *module, bool weak, bool relative,
         bool afterMapping);
     Link *resolveNameAsLinkHelper(const char *name, const SymbolVersion *version,
-        ElfSpace *space, bool weak, bool relative, bool afterMapping);
-    Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
+        Module *module, bool weak, bool relative, bool afterMapping);
+    Link *resolveNameAsLinkHelper2(const char *name, Module *module,
         bool weak, bool relative, bool afterMapping);
 public:
+    // redirectCopyRelocs assumes afterMapping=true
+    Link *redirectCopyRelocs(Conductor *conductor, Symbol *symbol, bool relative);
+    Link *redirectCopyRelocs(Conductor *conductor, ExternalSymbol *symbol, bool relative);
     Link *redirectCopyRelocs(Module *main, Symbol *symbol,
         SymbolList *list, bool relative);
     Link *redirectCopyRelocs(Module *main, ExternalSymbol *extSym,

@@ -6,11 +6,18 @@
 
 template <typename SymbolType>
 static Link *reResolveTarget(SymbolType *symbol, Conductor *conductor, Module *module) {
-    auto l = PerfectLinkResolver().resolveExternally(
-        symbol, conductor, module->getElfSpace(), /*weak=*/ false, false, true);
+    // note: only called on datavariable links
+    auto l = PerfectLinkResolver().redirectCopyRelocs(conductor, symbol, false);
+    if(l) {
+        LOG(1, "IT'S A COPY!");
+    }
     if(!l) {
-        l = PerfectLinkResolver().resolveExternally(
-            symbol, conductor, module->getElfSpace(), /*weak=*/ true, false, true);
+        l = PerfectLinkResolver().resolveExternally(symbol, conductor,
+            module, false, true, /*afterMapping=*/ true);
+        if(!l) {
+            l = PerfectLinkResolver().resolveExternally(symbol, conductor,
+                module, true, true, /*afterMapping=*/ true);
+        }
     }
     return l;
 }
@@ -21,59 +28,59 @@ void ResolveExternalLinksPass::visit(Module *module) {
             for(auto dv : CIter::children(ds)) {
                 auto link = dv->getDest();
                 if(!link && dv->getTargetSymbol()) {
-#if 1
                     auto symbol = dv->getTargetSymbol();
                     auto l = reResolveTarget(symbol, conductor, module);
                     if(l) {
                         LOG(0, "change null link in " << module->getName() << " from ["
-                            << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                            << symbol->getName() << "] => " << l << " ("
+                            << std::hex << l->getTargetAddress() << ")");
                         dv->setDest(l);
                     }
-#else
-                    auto symbol = dv->getTargetSymbol();
-                    auto main = conductor->getProgram()->getMain();
-                    if(main) {
-                        // Cloned from link.cpp
-                        /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
-                         * should point at the executable's copy of the global if COPY reloc is present
-                         */
-                        if(auto symList = main->getElfSpace()->getSymbolList()) {
-                            if(auto l = PerfectLinkResolver().redirectCopyRelocs(main, symbol, symList, false)) {
-                                LOG(0, "change InternalAndExternalDataLink COPY from ["
-                                    << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
-                                dv->setDest(l);
-                                delete link;
-                            }
+                }
+                else if(auto v = dynamic_cast<CopyRelocLink *>(link)) {
+                    /*auto extSym = v->getExternalSymbol();
+                    if(!extSym->getResolved()) {
+                        auto l = reResolveTarget(extSym, conductor, module);
+                        if(l) {
+                            LOG(0, "change CopyRelocLink in " << module->getName()
+                                << " from [" << extSym->getName() << "] => " << l << " ("
+                                << std::hex << l->getTargetAddress() << ")");
+                            dv->setDest(l);
                         }
-                        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
-                            if(auto l = PerfectLinkResolver().redirectCopyRelocs(main, symbol, dynList, false)) {
-                                LOG(0, "change InternalAndExternalDataLink COPY from ["
-                                    << symbol->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
-                                dv->setDest(l);
-                                delete link;
-                            }
+                    }*/
+                    auto extSym = v->getExternalSymbol();
+                    if(!extSym->getResolved()) {
+                        auto l = PerfectLinkResolver().resolveExternallyStrongWeak(
+                            extSym, conductor, module, true, /*afterMapping=*/ true);
+                        if(l) {
+                            LOG(0, "change CopyRelocLink in " << module->getName()
+                                << " from [" << extSym->getName() << "] => " << l << " ("
+                                << std::hex << l->getTargetAddress() << ")");
+                            dv->setDest(l);
                         }
                     }
-#endif
                 }
                 else if(auto v = dynamic_cast<InternalAndExternalDataLink *>(link)) {
-                    if(!dv->getIsCopy()) {
+                    //if(!dv->getIsCopy()) {
                         auto extSym = v->getExternalSymbol();
                         auto l = reResolveTarget(extSym, conductor, module);
                         if(l) {
-                            LOG(0, "change InternalAndExternalDataLink in " << module->getName() << " from ["
-                                << extSym->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                            LOG(0, "change InternalAndExternalDataLink in "
+                                << module->getName() << " from ["
+                                << extSym->getName() << "] => " << l
+                                << " (" << std::hex << l->getTargetAddress() << ")");
                             dv->setDest(l);
                             delete link;
                         }
-                    }
+                    //}
                 }
                 else if(auto v = dynamic_cast<ExternalSymbolLink *>(link)) {
                     auto extSym = v->getExternalSymbol();
                     auto l = reResolveTarget(extSym, conductor, module);
                     if(l) {
                         LOG(0, "change ExternalSymbolLink from ["
-                            << extSym->getName() << "] => " << l << " (" << std::hex << l->getTargetAddress() << ")");
+                            << extSym->getName() << "] => " << l << " ("
+                            << std::hex << l->getTargetAddress() << ")");
                         dv->setDest(l);
                         delete link;
                     }

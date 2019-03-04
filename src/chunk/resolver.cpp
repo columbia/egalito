@@ -112,22 +112,75 @@ static Function *getFunctionWithExpansion(address_t address, Module *module) {
     return func;
 }
 
+Link *PerfectLinkResolver::redirectCopyRelocs(Conductor *conductor, Symbol *symbol,
+    bool relative) {
+
+    auto program = conductor->getProgram();
+    auto main = program->getMain();
+    if(main && main->getElfSpace()) {
+        /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
+         * should point at the executable's copy of the global if COPY reloc is present
+         */
+        if(auto symList = main->getElfSpace()->getSymbolList()) {
+            if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
+                return ret;
+            }
+        }
+        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+            if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
+                return ret;
+            }
+        }
+    }
+    return nullptr;
+}
+
+Link *PerfectLinkResolver::redirectCopyRelocs(Conductor *conductor, ExternalSymbol *symbol,
+    bool relative) {
+
+    auto program = conductor->getProgram();
+    auto main = program->getMain();
+    if(main && main->getElfSpace()) {
+        /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
+         * should point at the executable's copy of the global if COPY reloc is present
+         */
+        if(auto symList = main->getElfSpace()->getSymbolList()) {
+            if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
+                return ret;
+            }
+        }
+        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+            if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
+                return ret;
+            }
+        }
+    }
+    return nullptr;
+}
+
 Link *PerfectLinkResolver::redirectCopyRelocs(Module *main, Symbol *symbol,
     SymbolList *list, bool relative) {
+
+    LOG(1, "redirect copy relocs [" << symbol->getName() << "]");
 
     auto s = list->find(symbol->getName());
     auto version = symbol->getVersion();
     if(!s && version) {
         std::string versionedName(symbol->getName());
         versionedName.push_back('@');
-        if(!version->isHidden()) versionedName.push_back('@');
         versionedName.append(version->getName());
         s = list->find(versionedName.c_str());
+        if(!s) {
+            std::string versionedName(symbol->getName());
+            versionedName.append("@@");
+            versionedName.append(version->getName());
+            s = list->find(versionedName.c_str());
+        }
     }
     if(s) {
         auto dlink = LinkFactory::makeDataLink(
-            main, s->getAddress(), relative);
-        LOG(1, "resolved to data in module-(executable): "
+            main, main->getBaseAddress() + s->getAddress(), relative);
+        LOG(1, "    COPY resolved to data in module-(executable): "
             <<  s->getAddress());
         return dlink;
     }
@@ -137,18 +190,25 @@ Link *PerfectLinkResolver::redirectCopyRelocs(Module *main, Symbol *symbol,
 Link *PerfectLinkResolver::redirectCopyRelocs(Module *main,
     ExternalSymbol *extSym, SymbolList *list, bool relative) {
 
+    LOG(1, "redirect copy relocs [" << extSym->getName() << "]");
+
     auto s = list->find(extSym->getName().c_str());
     auto version = extSym->getVersion();
     if(!s && version) {
         std::string versionedName(extSym->getName());
         versionedName.push_back('@');
-        if(!version->isHidden()) versionedName.push_back('@');
         versionedName.append(version->getName());
         s = list->find(versionedName.c_str());
+        if(!s) {
+            std::string versionedName(extSym->getName());
+            versionedName.append("@@");
+            versionedName.append(version->getName());
+            s = list->find(versionedName.c_str());
+        }
     }
     if(s) {
         auto dlink = LinkFactory::makeDataLink(
-            main, s->getAddress(), relative);
+            main, main->getBaseAddress() + s->getAddress(), relative);
         LOG(1, "resolved to data in module-(executable): "
             <<  s->getAddress());
         return dlink;
@@ -283,25 +343,53 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
     return nullptr;
 }
 
-Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
-    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+Link *PerfectLinkResolver::resolveExternallyStrongWeak(Symbol *symbol,
+    Conductor *conductor, Module *module, bool relative,
     bool afterMapping) {
 
-    return resolveExternally2(symbol->getName(), symbol->getVersion(),
-        conductor, elfSpace, weak, relative, afterMapping);
+    auto l = resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
+        conductor, module, /*weak=*/ false, relative, afterMapping);
+    if(!l) {
+        l = resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
+            conductor, module, /*weak=*/ true, relative, afterMapping);
+    }
+    return l;
+}
+
+Link *PerfectLinkResolver::resolveExternallyStrongWeak(ExternalSymbol *externalSymbol,
+    Conductor *conductor, Module *module, bool relative,
+    bool afterMapping) {
+
+    auto l = resolveExternallyHelper(externalSymbol->getName().c_str(),
+        externalSymbol->getVersion(), conductor, module, /*weak=*/ false,
+        relative, afterMapping);
+    if(!l) {
+        l = resolveExternallyHelper(externalSymbol->getName().c_str(),
+            externalSymbol->getVersion(), conductor, module, /*weak=*/ true,
+            relative, afterMapping);
+    }
+    return l;
+}
+
+Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
+    Conductor *conductor, Module *module, bool weak, bool relative,
+    bool afterMapping) {
+
+    return resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
+        conductor, module, weak, relative, afterMapping);
 }
 
 Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
-    Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
+    Conductor *conductor, Module *module, bool weak, bool relative,
     bool afterMapping) {
 
-    return resolveExternally2(externalSymbol->getName().c_str(),
-        externalSymbol->getVersion(), conductor, elfSpace, weak,
+    return resolveExternallyHelper(externalSymbol->getName().c_str(),
+        externalSymbol->getVersion(), conductor, module, weak,
         relative, afterMapping);
 }
 
-Link *PerfectLinkResolver::resolveExternally2(const char *name,
-    const SymbolVersion *version, Conductor *conductor, ElfSpace *elfSpace,
+Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
+    const SymbolVersion *version, Conductor *conductor, Module *module,
     bool weak, bool relative, bool afterMapping) {
 
     LOG(10, "(resolveExternally) SEARCH for " << name << ", weak? " << weak);
@@ -317,15 +405,15 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
         return link;
     }
 
-    auto dependencies = elfSpace->getModule()->getLibrary()->getDependencies();
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        if(dependencies.find(module->getLibrary()) == dependencies.end()) {
+    auto dependencies = module->getLibrary()->getDependencies();
+    for(auto m : CIter::modules(conductor->getProgram())) {
+        if(dependencies.find(m->getLibrary()) == dependencies.end()) {
             continue;
         }
-        auto space = module->getElfSpace();
-        if(space && space != elfSpace) {
+        
+        if(m != module) {
             if(auto link = resolveNameAsLinkHelper(name, version,
-                space, weak, relative, afterMapping)) {
+                m, weak, relative, afterMapping)) {
 
                 return link;
             }
@@ -341,21 +429,18 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
     // weak definition
     if(auto link = resolveNameAsLinkHelper(name, version,
-        elfSpace, weak, relative, afterMapping)) {
+        module, weak, relative, afterMapping)) {
 
-        LOG(10, "    link to weak definition in "
-            << elfSpace->getModule()->getName());
+        LOG(10, "    link to weak definition in " << module->getName());
         return link;
     }
 
     // weak reference
-    for(auto module : CIter::modules(conductor->getProgram())) {
-        auto space = module->getElfSpace();
+    for(auto m : CIter::modules(conductor->getProgram())) {
         if(auto link = resolveNameAsLinkHelper(name, version,
-            space, weak, relative, afterMapping)) {
+            m, weak, relative, afterMapping)) {
 
-            LOG(10, "    link (weak) to definition in "
-                << space->getModule()->getName());
+            LOG(10, "    link (weak) to definition in " << m->getName());
             return link;
         }
     }
@@ -367,13 +452,13 @@ Link *PerfectLinkResolver::resolveExternally2(const char *name,
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     const SymbolVersion *version,
-    ElfSpace *space, bool weak, bool relative, bool afterMapping) {
+    Module *module, bool weak, bool relative, bool afterMapping) {
 
-    LOG(1, "        resolveNameAsLinkHelper (" << name << ") " << "inside "
-        << space->getModule()->getName());
+    LOG(1, "        resolveNameAsLinkHelper (" << name << ") inside "
+        << module->getName());
 
     if(auto link = resolveNameAsLinkHelper2(
-        name, space, weak, relative, afterMapping)) {
+        name, module, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -385,7 +470,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName1.append("@");
     versionedName1.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName1.c_str(), space, weak, relative, afterMapping)) {
+        versionedName1.c_str(), module, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -393,7 +478,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName2.append("@@");
     versionedName2.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName2.c_str(), space, weak, relative, afterMapping)) {
+        versionedName2.c_str(), module, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -401,32 +486,31 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
-    ElfSpace *space, bool weak, bool relative, bool afterMapping) {
+    Module *module, bool weak, bool relative, bool afterMapping) {
 
     Symbol *symbol = nullptr;
-    auto list = space->getDynamicSymbolList();
+    auto list = module->getElfSpace()->getDynamicSymbolList();
     if(!list) {
-        LOG(11, "no dynamic symbol list " << space->getModule()->getName());
+        LOG(11, "no dynamic symbol list " << module->getName());
         return nullptr;
     }
     symbol = list->find(name);
     if(!symbol) {
-        LOG(11, "no symbol " << space->getModule()->getName());
+        LOG(11, "no symbol " << module->getName());
         return nullptr;
     }
 
     // early out if we are not searching for weak symbols
     if(!weak && symbol->getBind() == Symbol::BIND_WEAK) return nullptr;
 
-    auto f = CIter::named(space->getModule()->getFunctionList())
-        ->find(name);
+    auto f = CIter::named(module->getFunctionList())->find(name);
     if(f) {
         LOG(10, "    ...found as function! at "
             << std::hex << f->getAddress());
         return new NormalLink(f, Link::SCOPE_EXTERNAL_CODE);
     }
 
-    auto alias = space->getAliasMap()->find(name);
+    auto alias = module->getElfSpace()->getAliasMap()->find(name);
     if(alias) {
         LOG(10, "    ...found as alias! " << alias->getName()
             << " at " << std::hex << alias->getAddress());
@@ -438,8 +522,8 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
     // in other words, there should be no markers
 #if 0
     if(symbol->isMarker()) {
-        return LinkFactory::makeMarkerLink(space->getModule(),
-            space->getElfMap()->getBaseAddress() + symbol->getAddress(),
+        return LinkFactory::makeMarkerLink(module,
+            module->getElfSpace()->getElfMap()->getBaseAddress() + symbol->getAddress(),
             symbol, relative);
     }
 #endif
@@ -449,13 +533,19 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
 
         LOG(10, "    ...found as data ref! at "
             << std::hex << symbol->getAddress() << " in "
-            << space->getModule()->getName());
+            << module->getName());
         auto address = symbol->getAddress();
         if(afterMapping) {
-            address += space->getElfMap()->getBaseAddress();
+            address += module->getBaseAddress();
         }
-        return LinkFactory::makeDataLink(space->getModule(),
-            address, true);
+        if(address == 0x399204) {
+            LOG(1, "    special case");
+        }
+        auto t = LinkFactory::makeDataLink(module, address, true);
+
+        LOG(1, "    address 0x" << std::hex << address << " -> " << t);
+//        return LinkFactory::makeDataLink(module, address, true);
+          return t;
     }
 
     return nullptr;
