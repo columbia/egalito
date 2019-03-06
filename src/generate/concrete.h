@@ -2,6 +2,7 @@
 #define EGALITO_GENERATE_CONCRETE_H
 
 #include <string>
+#include <vector>
 #include "data.h"
 
 class ConcreteElfOperation : public UnnamedElfOperation {
@@ -21,12 +22,16 @@ public:
 };
 
 class BasicElfStructure : public ConcreteElfOperation {
+private:
+    bool addLibDependencies;
 public:
+    BasicElfStructure(bool addLibDependencies = false)
+        : addLibDependencies(addLibDependencies) {}
     virtual void execute();
     virtual std::string getName() const { return "BasicElfStructure"; }
 private:
     void makeHeader();
-    void makeSymtabSection();
+    void makeSymtabSection() ;
     void makePhdrTable();
     void makeDynamicSection();
 };
@@ -54,6 +59,8 @@ public:
     virtual std::string getName() const { return "TextSectionCreator"; }
 };
 
+class Function;
+class InitArraySectionContent;
 class MakeInitArray : public NormalElfOperation {
 private:
     int stage;
@@ -63,6 +70,9 @@ public:
 private:
     void makeInitArraySections();
     void makeInitArraySectionLinks();
+    void addInitFunction(InitArraySectionContent *content,
+        std::function<address_t ()> value);
+    Function *findLibcCsuInit(Chunk *entryPoint);
 };
 
 class PLTTrampoline;
@@ -81,6 +91,19 @@ private:
 class UpdatePLTLinks : public NormalElfOperation {
 public:
     UpdatePLTLinks() {}
+    virtual void execute();
+};
+
+class CopyDynsym : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
+class MakeDynsymHash : public NormalElfOperation {
+private:
+    std::vector<std::vector<std::string>> bucketList;
+    std::map<std::string, size_t> indexMap;
+public:
     virtual void execute();
 };
 

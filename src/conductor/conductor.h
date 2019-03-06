@@ -26,6 +26,8 @@ public:
     Conductor();
     ~Conductor();
 
+    Module *parseAnything(const std::string &fullPath,
+        Library::Role role = Library::ROLE_UNKNOWN);
     Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
     Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
     void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
@@ -37,7 +39,7 @@ public:
 
     void resolvePLTLinks();
     void resolveTLSLinks();
-    void resolveData(bool justBridge = false);
+    void resolveData(bool multipleElf = false, bool justBridge = false);
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections(bool allocateTLS = true);
@@ -49,7 +51,7 @@ public:
     Program *getProgram() const { return program; }
     LibraryList *getLibraryList() const { return program->getLibraryList(); }
 
-    // deprecated, please use getProgram()->getMain()
+    // deprecated, please use getProgram()->getFirst()
     ElfSpace *getMainSpace() const;
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }

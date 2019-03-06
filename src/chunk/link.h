@@ -155,6 +155,39 @@ public:
     virtual bool isRIPRelative() const { return true; }
 };
 
+class ExternalSymbol;
+class ExternalSymbolLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_DATA, LinkDefaultAttributeDecorator<Link>> {
+private:
+    ExternalSymbol *externalSymbol;
+    address_t offset;
+public:
+    ExternalSymbolLink(ExternalSymbol *externalSymbol, address_t offset = 0)
+        : externalSymbol(externalSymbol), offset(offset) {}
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+    address_t getOffset() const { return offset; }
+
+    virtual bool isRIPRelative() const { return false; }
+};
+
+class CopyRelocLink : public LinkScopeDecorator<
+    Link::SCOPE_EXTERNAL_DATA, LinkDefaultAttributeDecorator<Link>> {
+private:
+    ExternalSymbol *externalSymbol;
+public:
+    CopyRelocLink(ExternalSymbol *externalSymbol)
+        : externalSymbol(externalSymbol) {}
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
+    virtual ChunkRef getTarget() const;
+    virtual address_t getTargetAddress() const;
+
+    virtual bool isRIPRelative() const { return false; }
+};
+
 class JumpTable;
 class JumpTableLink : public LinkScopeDecorator<
     Link::SCOPE_WITHIN_MODULE, LinkDefaultAttributeDecorator<Link>> {
@@ -309,6 +342,20 @@ public:
 
     virtual bool isAbsolute() const { return true; }
 };
+class InternalAndExternalDataLink : public AbsoluteDataLink {
+private:
+    ExternalSymbol *externalSymbol;
+public:
+    InternalAndExternalDataLink(ExternalSymbol *externalSymbol,
+        AbsoluteDataLink *other) : AbsoluteDataLink(*other),
+        externalSymbol(externalSymbol) {}
+    InternalAndExternalDataLink(ExternalSymbol *externalSymbol,
+        DataSection *section, address_t target,
+        Link::LinkScope scope = Link::LinkScope::SCOPE_UNKNOWN)
+        : AbsoluteDataLink(section, target, scope), externalSymbol(externalSymbol) {}
+
+    ExternalSymbol *getExternalSymbol() const { return externalSymbol; }
+};
 
 class TLSDataRegion;
 class TLSDataOffsetLink : public LinkScopeDecorator<Link::SCOPE_WITHIN_MODULE,
@@ -396,48 +443,6 @@ public:
         bool isRelative);
     static Link *makeInferredMarkerLink(Module *module, address_t address,
         bool isRelative);
-};
-
-// --- link resolver ---
-
-class Reloc;
-class Instruction;
-class Conductor;
-class ElfSpace;
-class ExternalSymbol;
-class SymbolVersion;
-class SymbolList;
-
-/** This resolver assumes that we have both relocations and symbols.
- */
-class PerfectLinkResolver {
-public:
-    /* Resolve within the same module using address info in a relocation.
-     * Only returns nullptr if undefined within the module. */
-    Link *resolveInternally(Reloc *reloc, Module *module, bool weak,
-        bool relative=true);
-
-    /* Resolve outside the module using symbol info. */
-    Link *resolveExternally(Symbol *symbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
-    Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
-        ElfSpace *elfSpace, bool weak, bool relative, bool afterMapping=false);
-
-    /* Resolve within the same module using address obtained by data flow
-     * analysis. */
-    Link *resolveInferred(address_t address, Instruction *instruction,
-        Module *module, bool relative);
-
-private:
-    Link *resolveExternally2(const char *name, const SymbolVersion *version,
-        Conductor *conductor, ElfSpace *elfSpace, bool weak, bool relative,
-        bool afterMapping);
-    Link *resolveNameAsLinkHelper(const char *name, const SymbolVersion *version,
-        ElfSpace *space, bool weak, bool relative, bool afterMapping);
-    Link *resolveNameAsLinkHelper2(const char *name, ElfSpace *space,
-        bool weak, bool relative, bool afterMapping);
-    Link *redirectCopyRelocs(Module *main, Symbol *symbol,
-        SymbolList *list, bool relative);
 };
 
 #endif

@@ -10,10 +10,12 @@
 #include "pass/ldsorefs.h"
 #include "pass/ifuncplts.h"
 #include "pass/fixenviron.h"
+#include "pass/externalsymbollinks.h"
+#include "pass/permutedata.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
-static void parse(const std::string& filename, const std::string& output, bool quiet) {
+static void parse(const std::string& filename, const std::string& output, bool oneToOne, bool quiet) {
     ConductorSetup setup;
     std::cout << "Transforming file [" << filename << "]\n";
 
@@ -23,8 +25,13 @@ static void parse(const std::string& filename, const std::string& output, bool q
 
     try {
         if(ElfMap::isElf(filename.c_str())) {
-            std::cout << "Parsing ELF file and all shared library dependencies...\n";
-            setup.parseElfFiles(filename.c_str(), /*recursive=*/ true, false);
+            if(oneToOne) {
+                std::cout << "Parsing ELF file...\n";
+            }
+            else {
+                std::cout << "Parsing ELF file and all shared library dependencies...\n";
+            }
+            setup.parseElfFiles(filename.c_str(), /*recursive=*/ !oneToOne, false);
         }
         else {
             std::cout << "Parsing archive...\n";
@@ -33,20 +40,54 @@ static void parse(const std::string& filename, const std::string& output, bool q
 
         auto program = setup.getConductor()->getProgram();
 
+        if(oneToOne) {
+            PermuteDataPass permuteData;
+            program->accept(&permuteData);
+        }
+        else {
+            PermuteDataPass permuteData;
+            program->accept(&permuteData);
+        }
+
         std::cout << "Preparing for codegen...\n";
+        if(oneToOne) {
+            CollapsePLTPass collapsePLT(setup.getConductor());
+            program->accept(&collapsePLT);
 
-        FixEnvironPass fixEnviron;
-        program->accept(&fixEnviron);
+            PromoteJumpsPass promoteJumps;
+            program->accept(&promoteJumps);
 
-        CollapsePLTPass collapsePLT(setup.getConductor());
-        program->accept(&collapsePLT);
+            //ExternalSymbolLinksPass externalSymbolLinks;
+            //program->accept(&externalSymbolLinks);
+        }
+        else {
+            FixEnvironPass fixEnviron;
+            program->accept(&fixEnviron);
 
-        PromoteJumpsPass promoteJumps;
-        program->accept(&promoteJumps);
+            CollapsePLTPass collapsePLT(setup.getConductor());
+            program->accept(&collapsePLT);
 
-        // generate static executable.
-        {
-            std::cout << "Generating executable [" << output << "]...\n";
+            PromoteJumpsPass promoteJumps;
+            program->accept(&promoteJumps);
+        }
+
+        if(oneToOne) {
+            // generate mirror executable.
+            std::cout << "Generating mirror executable [" << output << "]...\n";
+            LdsoRefsPass ldsoRefs;
+            program->accept(&ldsoRefs);
+
+            ExternalSymbolLinksPass externalSymbolLinks;
+            program->accept(&externalSymbolLinks);
+
+            IFuncPLTs ifuncPLTs;
+            program->accept(&ifuncPLTs);
+
+            setup.generateMirrorELF(output.c_str());
+        }
+        else {
+            // generate static executable.
+            std::cout << "Generating union executable [" << output << "]...\n";
             LdsoRefsPass ldsoRefs;
             program->accept(&ldsoRefs);
             IFuncPLTs ifuncPLTs;
@@ -65,6 +106,8 @@ static void printUsage(const char *program) {
         "    Transforms an executable to a new ELF file.\n"
         "\n"
         "Options:\n"
+        "    -m     Perform mirror elf generation (1-1 output)\n"
+        "    -u     Perform union elf generation (merged output)\n"
         "    -v     Verbose mode, print logging messages\n"
         "    -q     Quiet mode (default), suppress logging messages\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
@@ -81,12 +124,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    bool oneToOne = false;
     bool quiet = true;
 
     struct {
         const char *str;
         std::function<void ()> action;
     } actions[] = {
+        // which elf gen should we perform?
+        {"-m", [&oneToOne] () { oneToOne = true; }},
+        {"-u", [&oneToOne] () { oneToOne = false; }},
+
         // should we show debugging log messages?
         {"-v", [&quiet] () { quiet = false; }},
         {"-q", [&quiet] () { quiet = true; }},
@@ -109,7 +157,7 @@ int main(int argc, char *argv[]) {
             }
         }
         else if(argv[a] && argv[a + 1]) {
-            parse(argv[a], argv[a + 1], quiet);
+            parse(argv[a], argv[a + 1], oneToOne, quiet);
             break;
         }
         else {

@@ -40,6 +40,11 @@ void Program::add(Library *library) {
     }
 }
 
+Module *Program::getFirst() const {
+    if(getChildren()->genericGetSize() == 0) return nullptr;
+    return getChildren()->getIterable()->get(0);
+}
+
 Module *Program::getMain() const {
     if(!libraryList) return nullptr;
     return libraryList->moduleByRole(Library::ROLE_MAIN);

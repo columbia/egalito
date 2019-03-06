@@ -15,6 +15,7 @@
 #include "pass/dumplink.h"
 #include "util/feature.h"
 #include "generate/uniongen.h"
+#include "generate/mirrorgen.h"
 #include "generate/kernelgen.h"
 #include "log/registry.h"
 #include "log/log.h"
@@ -58,8 +59,8 @@ void ConductorSetup::parseElfFiles(const char *executable,
     this->conductor = new Conductor();
     ::egalito_conductor = conductor;
 
-    this->elf = new ElfMap(executable);
-    auto mainModule = conductor->parseExecutable(elf, executable);
+    auto mainModule = conductor->parseAnything(executable);
+    this->elf = mainModule->getElfSpace()->getElfMap();
 
     findEntryPointFunction();
 
@@ -75,10 +76,10 @@ void ConductorSetup::parseElfFiles(const char *executable,
         conductor->parseLibraries();
     }
 
-    if(withSharedLibs) {
+    if(true || withSharedLibs) {
         conductor->resolvePLTLinks();
     }
-    conductor->resolveData();
+    conductor->resolveData(withSharedLibs);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 
@@ -118,7 +119,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     if(false) {
         conductor->resolvePLTLinks();
     }
-    conductor->resolveData(true);
+    conductor->resolveData(false, true);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 }
@@ -184,7 +185,7 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
     }
 
     conductor->resolvePLTLinks();
-    conductor->resolveData();
+    conductor->resolveData(true);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 
@@ -254,6 +255,32 @@ bool ConductorSetup::generateStaticExecutable(const char *outputFile) {
             // get data sections; allow links to change bytes in data sections
             SegMap::mapAllSegments(this);
             ConductorPasses(conductor).newExecutablePasses(program);
+        }
+        copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
+    //generator.generate(outputFile);
+    generator.generateContent(outputFile);
+    return true;
+}
+
+bool ConductorSetup::generateMirrorELF(const char *outputFile) {
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = MirrorGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        //moveCode(sandbox, true);  // calls sandbox->finalize()
+        moveCodeAssignAddresses(sandbox, true);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newMirrorPasses(program);
         }
         copyCodeToNewAddresses(sandbox, true);
         moveCodeMakeExecutable(sandbox);
@@ -337,7 +364,8 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 }
 
 void ConductorSetup::findEntryPointFunction() {
-    auto module = conductor->getMainSpace()->getModule();
+    auto module = conductor->getProgram()->getMain();
+    if(!module) return;
     address_t elfEntry = elf->getEntryPoint();
 
     if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {

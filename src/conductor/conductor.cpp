@@ -20,6 +20,7 @@
 #include "pass/fixjumptables.h"
 #include "pass/ifunclazy.h"
 #include "pass/fixdataregions.h"
+#include "pass/resolveexternallinks.h"
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "pass/encodingcheckpass.h"
@@ -43,6 +44,17 @@ Conductor::Conductor() : mainThreadPointer(0), ifuncList(nullptr) {
 
 Conductor::~Conductor() {
     delete program;
+}
+
+Module *Conductor::parseAnything(const std::string &fullPath, Library::Role role) {
+    if(role == Library::ROLE_UNKNOWN) {
+        role = Library::guessRole(fullPath);
+    }
+    auto elf = new ElfMap(fullPath.c_str());
+    auto internalName = Library::determineInternalName(fullPath, role);
+    auto library = new Library(internalName, role);
+    library->setResolvedPath(fullPath);
+    return parse(elf, library);
 }
 
 Module *Conductor::parseExecutable(ElfMap *elf, const std::string &fullPath) {
@@ -176,7 +188,7 @@ void Conductor::resolveTLSLinks() {
     program->accept(&resolveTLS);
 }
 
-void Conductor::resolveData(bool justBridge) {
+void Conductor::resolveData(bool multipleElf, bool justBridge) {
     if(auto egalito = program->getEgalito()) {
         InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
         egalito->accept(&bridge);
@@ -210,6 +222,11 @@ void Conductor::resolveData(bool justBridge) {
 
         // requires DataVariables
         RUN_PASS(FindInitFuncs(), module);
+    }
+
+    if(multipleElf) {
+        ResolveExternalLinksPass resolveExternalLinks(this);
+        program->accept(&resolveExternalLinks);
     }
 }
 
@@ -300,11 +317,12 @@ void Conductor::allocateTLSArea(address_t base) {
 
 #ifdef ARCH_X86_64
     // x86: place executable's TLS (if present) right before the header
-    auto executable = program->getMain();
-    if(auto tls = executable->getDataRegionList()->getTLS()) {
-        tls->setBaseAddress(base + offset);
-        tls->setTLSOffset((base + offset) - mainThreadPointer);
-        offset += tls->getSize();
+    if(auto executable = program->getMain()) {
+        if(auto tls = executable->getDataRegionList()->getTLS()) {
+            tls->setBaseAddress(base + offset);
+            tls->setTLSOffset((base + offset) - mainThreadPointer);
+            offset += tls->getSize();
+        }
     }
 #endif
 #endif
@@ -361,7 +379,7 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
 }
 
 ElfSpace *Conductor::getMainSpace() const {
-    return getProgram()->getMain()->getElfSpace();
+    return getProgram()->getFirst()->getElfSpace();
 }
 
 void Conductor::check() {

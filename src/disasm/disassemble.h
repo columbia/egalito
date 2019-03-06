@@ -26,7 +26,7 @@ public:
         SymbolList *dynamicSymbolList = nullptr,
         RelocList *relocList = nullptr);
     static Function *function(ElfMap *elfMap, Symbol *symbol,
-        SymbolList *symbolList);
+        SymbolList *symbolList, SymbolList *dynamicSymbolList = nullptr);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
     static Instruction *instruction(DisasmHandle &handle,
@@ -43,7 +43,7 @@ public:
 
 private:
     static Module *makeModuleFromSymbols(ElfMap *elfMap,
-        SymbolList *symbolList);
+        SymbolList *symbolList, SymbolList *dynamicSymbolList);
     static Module *makeModuleFromDwarfInfo(ElfMap *elfMap,
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
         RelocList *relocList);
@@ -80,7 +80,8 @@ class DisassembleX86Function : public DisassembleFunctionBase {
 public:
     using DisassembleFunctionBase::DisassembleFunctionBase;
 
-    Function *function(Symbol *symbol, SymbolList *symbolList);
+    Function *function(Symbol *symbol, SymbolList *symbolList,
+        SymbolList *dynamicSymbolList);
     Function *fuzzyFunction(const Range &range, ElfSection *section);
     FunctionList *linearDisassembly(const char *sectionName,
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,

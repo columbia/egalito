@@ -1,9 +1,10 @@
 #include <set>
 #include <fstream>
-#include <string.h>
+#include <cstring>
 #include "modulegen.h"
 #include "concretedeferred.h"
 #include "transform/sandbox.h"
+#include "chunk/aliasmap.h"
 #include "chunk/concrete.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
@@ -43,9 +44,30 @@ void ModuleGen::makeDataSections() {
         makePaddingSection((*sectionMap.begin()).second->getAddress() & (0x200000-1));
 
         address_t previousEndAddress = 0;
-        auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
+        uint64_t previousFlags = 0;
+        //auto loadSegment = new SegmentInfo(PT_LOAD, PF_R | PF_W, /*0x200000*/ 0x1000);
+        SegmentInfo *loadSegment = nullptr;
         for(auto kv: sectionMap) {
             auto section = kv.second;
+            uint64_t flags = SHF_ALLOC;
+            if(section->getPermissions() & SHF_WRITE) flags |=  SHF_WRITE;
+
+            if(/*section->getAddress() != previousEndAddress
+                ||*/ (!previousFlags || flags != previousFlags)) {
+
+                if(loadSegment) {
+                    if(!loadSegment->getContainsList().empty()) {
+                        phdrTable->add(loadSegment);
+                    }
+                    else delete loadSegment;
+                }
+                int segmentFlags = PF_R;
+                if(section->getPermissions() & SHF_WRITE) {
+                    segmentFlags |= PF_W;
+                }
+                loadSegment = new SegmentInfo(PT_LOAD, segmentFlags, /*0x200000*/ 0x1000);
+                previousFlags = flags;
+            }
 
             switch(section->getType()) {
             case DataSection::TYPE_DATA: {
@@ -56,7 +78,7 @@ void ModuleGen::makeDataSections() {
 
                 // by default, make everything writable
                 auto dataSection = new Section(section->getName(),
-                    SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                    SHT_PROGBITS, flags);
                 auto content = new DeferredString(region->getDataBytes()
                     .substr(section->getOriginalOffset(), section->getSize()));
                 dataSection->setContent(content);
@@ -65,6 +87,7 @@ void ModuleGen::makeDataSections() {
                 loadSegment->addContains(dataSection);
                 maybeMakeDataRelocs(section, dataSection);
                 previousEndAddress = section->getAddress() + section->getSize();
+                previousFlags = flags;
                 break;
             }
             case DataSection::TYPE_BSS: {
@@ -78,7 +101,7 @@ void ModuleGen::makeDataSections() {
                 if(previousEndAddress) loadSegment->addContains(padding);
 
                 auto bssSection = new Section(section->getName(),
-                    /*SHT_NOBITS*/ SHT_PROGBITS, SHF_ALLOC | SHF_WRITE);
+                    /*SHT_NOBITS*/ SHT_PROGBITS, flags);
                 //if(region == regionList->getTLS()) {
                 if(false && section->getParent() == regionList->getTLS()) {
                     bssSection->setContent(new DeferredString(
@@ -89,13 +112,15 @@ void ModuleGen::makeDataSections() {
                     auto content = new DeferredString(region->getDataBytes()
                         .substr(section->getOriginalOffset(), section->getSize()));
                     bssSection->setContent(content);
-                    LOG(1, "   Initializing bss with data bytes");
+                    LOG(1, "   Initializing bss with " << section->getSize() << " data bytes");
                 }
                 //bssSection->setContent(new DeferredString(""));
                 bssSection->getHeader()->setAddress(section->getAddress());
                 sectionList->addSection(bssSection);
                 loadSegment->addContains(bssSection);
+                maybeMakeDataRelocs(section, bssSection);
                 previousEndAddress = section->getAddress() + section->getSize();
+                previousFlags = flags;
                 break;
             }
             case DataSection::TYPE_UNKNOWN:
@@ -104,7 +129,13 @@ void ModuleGen::makeDataSections() {
             }
         }
 
-        phdrTable->add(loadSegment);
+        if(loadSegment) {
+            if(!loadSegment->getContainsList().empty()) {
+                phdrTable->add(loadSegment);
+            }
+            else delete loadSegment;
+        }
+
 #if 0
         SegmentInfo *loadSegment = nullptr;
         address_t previousEndAddress = 0;
@@ -178,36 +209,107 @@ void ModuleGen::makeDataSections() {
 }
 
 void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
-    std::vector<DataVariable *> relocVars;
-    for(auto var : CIter::children(section)) {
-        if(!var->getDest()) continue;
-        if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
-            relocVars.push_back(var);
+    std::set<DataVariable *> jumpTableVars; //jump table entries
+    for(auto jt : CIter::children(module->getJumpTableList())) {
+        for(auto entry : CIter::children(jt)) {
+            jumpTableVars.insert(entry->getDataVariable());
         }
     }
-    if(relocVars.empty()) return;
+    std::vector<DataVariable *> ldRelocVars, generalRelocVars;
+    for(auto var : CIter::children(section)) {
+        auto link = var->getDest();
+        if(!link) continue;
+        if(jumpTableVars.find(var) != jumpTableVars.end()) continue;
 
-    /*auto otherName = section->getName();
-    auto reloc = new DataRelocSectionContent(
-        new SectionRef(sectionList, otherName), sectionList);
-    auto relocSection = new Section(".rela" + otherName, SHT_RELA, SHF_INFO_LINK);
-    relocSection->setContent(reloc);*/
-    /*relocSection->getHeader()->setSectionLink(
-        new SectionRef(sectionList, ".symtab"));*/
+        if(dynamic_cast<LDSOLoaderLink *>(var->getDest())) {
+            ldRelocVars.push_back(var);
+        }
+        else if(dynamic_cast<TLSDataOffsetLink *>(var->getDest())) {
+            // handled elsewhere
+        }
+        else if(config.getRelocsForAbsoluteRefs()) {
+            generalRelocVars.push_back(var);
+        }
+    }
+    LOG(1, "maybeMakeDataRelocs with "
+        << ldRelocVars.size() << ", " << generalRelocVars.size());
+    if(ldRelocVars.empty() && generalRelocVars.empty()) return;
 
+    LOG(1, "Adding relocations for data section [" << section->getName() << "]");
     auto relaDyn = (*sectionList)[".rela.dyn"]->castAs<DataRelocSectionContent *>();
-    for(auto var : relocVars) {
+    for(auto var : ldRelocVars) {
+        auto link = var->getDest();
         relaDyn->addUndefinedRef(var,
-            dynamic_cast<LDSOLoaderLink *>(var->getDest()));
+            static_cast<LDSOLoaderLink *>(link)->getTargetName());
+        LOG(2, "    relocation for LDSO ["
+            << static_cast<LDSOLoaderLink *>(link)->getTargetName()
+            << "] at 0x" << std::hex << var->getAddress());
+    }
+    for(auto var : generalRelocVars) {
+        auto link = var->getDest();
+        if(auto target = link->getTarget()) {
+            LOG(2, "    relocation for [" << target->getName()
+                << "] at 0x" << std::hex << var->getAddress());
+            if(auto function = dynamic_cast<Function *>(target)) {
+                if(function->isIFunc()) {
+                    relaDyn->addDataIFuncRef(var, function->getAddress());
+                }
+                else {
+                    relaDyn->addDataFunctionRef(var, function);
+                }
+            }
+            else if(auto plt = dynamic_cast<PLTTrampoline *>(target)) {
+                if(plt->isIFunc()) {
+                    relaDyn->addDataIFuncRef(var, plt->getAddress());
+                }
+                else {
+                    relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+                }
+            }
+            else if(auto intAndExt = dynamic_cast<InternalAndExternalDataLink *>(link)) {
+                relaDyn->addDataExternalRef(var, intAndExt->getExternalSymbol(), sec,
+                    module, 0);
+            }
+            else /*if(link->isAbsolute())*/ {
+                relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
+            }
+            /*else {
+                // relative internal references do not need relocations 
+                LOG(3, "        skipping relocation for internal reference ["
+                    << target->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+            }*/
+        }
+        else {
+            if(auto pltLink = dynamic_cast<PLTLink *>(link)) {
+                LOG(2, "    relocation for PLT ["
+                    << pltLink->getPLTTrampoline()->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+                // GLOB_DAT relocation
+                relaDyn->addUndefinedRef(var,
+                    pltLink->getPLTTrampoline()->getExternalSymbol()->getName());
+            }
+            else if(auto extSymLink = dynamic_cast<ExternalSymbolLink *>(link)) {
+                LOG(2, "    relocation for external symbol ["
+                    << extSymLink->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+                relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol(), sec,
+                    module, extSymLink->getOffset());
+            }
+            else if(auto copyRelocLink = dynamic_cast<CopyRelocLink *>(link)) {
+                LOG(2, "    relocation for copy reloc ["
+                    << copyRelocLink->getExternalSymbol()->getName()
+                    << "] at 0x" << std::hex << var->getAddress());
+                relaDyn->addCopyExternalRef(var, copyRelocLink->getExternalSymbol(), sec);
+            }
+            else LOG(1, "Unhandled link type for relocation");
+        }
     }
 
     // very important! dynsyms are created on demand per reloc, which are not
     // necessarily sorted by name, so indices may have been invalidated.
     auto dynsym = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     dynsym->recalculateIndices();
-
-    //sectionList->addSection(relocSection);
-    //relocSections.push_back(relocSection);
 }
 
 void ModuleGen::makeText() {
@@ -345,7 +447,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
     }
 
     // Make symbols for PLT entries
-    for(auto plt : CIter::plts(module)){
+    for(auto plt : CIter::plts(module)) {
         auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
 
         auto external = plt->getExternalSymbol();
@@ -388,6 +490,18 @@ void ModuleGen::makeSymbolInText(Function *func, const std::string &textSection)
     if(func->getSymbol()) for(auto alias : func->getSymbol()->getAliases()) {
         // skip functions with the same name (due to versioning)
         if(alias->getName() == func->getName()) continue;
+
+        /*auto aliasNameStr = FunctionAliasMap::getNameWithoutVersion(alias->getName());
+        if(aliasNameStr != alias->getName()) {
+            char *aliasName = new char[aliasNameStr.length() + 1];
+            std::strcpy(aliasName, aliasNameStr.c_str());
+            LOG(1, "replacing symbol alias [" << alias->getName() << "] -> ["
+                << aliasNameStr << "]");
+            alias = new Symbol(alias->getAddress(), alias->getSize(), aliasName,
+                alias->getType(), alias->getBind(), alias->getIndex(),
+                alias->getSectionIndex());
+        }*/
+        LOG(1, "writing symbol for alias [" << alias->getName() << "]");
 
         // add name to string table
         auto value = symtab->addSymbol(func, alias);
@@ -458,6 +572,7 @@ void ModuleGen::makeTLS() {
     if(!tlsRegion) return;
     SegmentInfo *segment = new SegmentInfo(PT_TLS, PF_R | PF_W, 0x8);
     makePaddingSection(tlsRegion->getAddress() & (0x1000-1));
+    LOG(0, "making TLS in modulegen for " << module->getName());
     for(auto section : CIter::children(tlsRegion)) {
         switch(section->getType()) {
         case DataSection::TYPE_DATA: {
@@ -486,6 +601,8 @@ void ModuleGen::makeTLS() {
             /*bssSection->setContent(new DeferredString(
                 std::string(section->getSize(), 0x0)));*/
             bssSection->setContent(new DeferredString(""));
+            LOG(0, "TLS BSS section is size " << section->getSize());
+            //bssSection->setContent(new TBSSContent(section->getSize()));
             bssSection->getHeader()->setAddress(section->getAddress());
             sectionList->addSection(bssSection);
             segment->addContains(bssSection);
@@ -497,6 +614,8 @@ void ModuleGen::makeTLS() {
             break;
         }
     }
+
+    //makePaddingSection(0x1000);
 
     phdrTable->add(segment);
     makeTLSRelocs(tlsRegion);

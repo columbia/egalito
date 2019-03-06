@@ -35,6 +35,8 @@
 #include "pass/findsyscalls.h"
 #include "pass/syscallsandbox.h"
 #include "pass/fixenviron.h"
+#include "pass/externalsymbollinks.h"
+#include "pass/permutedata.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -217,7 +219,19 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->getConductor()->getProgram()->accept(&ifuncPLTs);
 
         setup->generateStaticExecutable(args.front().c_str());
-    }, "writes out the current code to an ELF file");
+    }, "writes out the current code (from parse2) to a merged ELF file");
+
+    topLevel->add("generate-mirror", [&] (Arguments args) {
+        args.shouldHave(1);
+        LdsoRefsPass pass;
+        setup->getConductor()->getProgram()->accept(&pass);
+        ExternalSymbolLinksPass externalSymbolLinks;
+        setup->getConductor()->getProgram()->accept(&externalSymbolLinks);
+        IFuncPLTs ifuncPLTs;
+        setup->getConductor()->getProgram()->accept(&ifuncPLTs);
+
+        setup->generateMirrorELF(args.front().c_str());
+    }, "writes out the current code (from parse) to an ELF file");
 
     topLevel->add("generate-kernel", [&] (Arguments args) {
         args.shouldHave(1);
@@ -515,6 +529,16 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         setup->getConductor()->getProgram()->accept(&fixEnviron);
     }, "fixes references to __environ variable during program startup in generate-static");
 
+    topLevel->add("extsymlinks", [&] (Arguments args) {
+        if(!setup->getConductor()) {
+            std::cout << "no ELF files loaded\n";
+            return;
+        }
+        args.shouldHave(0);
+        ExternalSymbolLinksPass externalSymbolLinks;
+        setup->getConductor()->acceptInAllModules(&externalSymbolLinks, true);
+    }, "finds all null DataVariable links and uses ExternalSymbolLinks");
+
     topLevel->add("vtables", [&] (Arguments args) {
         args.shouldHave(1);
         auto module = CIter::findChild(setup->getConductor()->getProgram(),
@@ -599,7 +623,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
                         << " name " << var->getName();
                     if(var->getDest() && var->getDest()->getTarget()) {
                         std::cout << " link to " << var->getDest()->getTarget()->getName();
-                        std::cout << " at address 0x" << var->getDest()->getTarget()->getAddress();
+                        std::cout << " at address 0x" << var->getDest()->getTargetAddress();
                     }
                     std::cout << std::endl;
                 }
@@ -761,6 +785,22 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "enforce syscalls");
+
+    topLevel->add("permutedata", [&] (Arguments args) {
+        PermuteDataPass pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+    }, "permute data sections");
 
     topLevel->add("initfunctions", [&] (Arguments args) {
         ChunkDumper dump;

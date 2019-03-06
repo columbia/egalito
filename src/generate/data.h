@@ -47,14 +47,21 @@ public:
 class ElfConfig {
 private:
     bool dynamicallyLinked;
+    bool positionIndependent;
+    bool unionOutput;
     bool freestandingKernel;
 public:
-    ElfConfig() : dynamicallyLinked(false), freestandingKernel(false) {}
+    ElfConfig() : dynamicallyLinked(false), positionIndependent(false),
+        unionOutput(false), freestandingKernel(false) {}
 
     void setDynamicallyLinked(bool enable) { dynamicallyLinked = enable; }
+    void setPositionIndependent(bool enable) { positionIndependent = enable; }
+    void setUnionOutput(bool enable) { unionOutput = enable; }
     void setFreestandingKernel(bool enable) { freestandingKernel = enable; }
 
     bool isDynamicallyLinked() const { return dynamicallyLinked; }
+    bool isPositionIndependent() const { return positionIndependent; }
+    bool isUnionOutput() const { return unionOutput; }
     bool isFreestandingKernel() const { return freestandingKernel; }
 };
 

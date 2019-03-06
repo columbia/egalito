@@ -3,6 +3,8 @@
 
 #include "elf/elfspace.h"
 
+class Conductor;
+
 class ConductorPasses {
 private:
     Conductor *conductor;
@@ -11,6 +13,7 @@ public:
     void newElfPasses(ElfSpace *space);
     void newArchivePasses(Program *program);
     void newExecutablePasses(Program *program);
+    void newMirrorPasses(Program *program);
     void reloadedArchivePasses(Module *module);
 };
 

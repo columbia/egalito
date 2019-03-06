@@ -16,6 +16,66 @@
 #include "log/temp.h"
 #include "chunk/dump.h"
 
+
+Symbol *GlobalVariable::getNonNullSymbol() const {
+    if(dynamicSymbol) return dynamicSymbol;
+    if(symbol) return symbol;
+    return nullptr;
+}
+
+void GlobalVariable::serialize(ChunkSerializerOperations &op,
+    ArchiveStreamWriter &writer) {
+
+    // NYI
+}
+
+bool GlobalVariable::deserialize(ChunkSerializerOperations &op,
+    ArchiveStreamReader &reader) {
+
+    // NYI
+    return false;
+}
+
+GlobalVariable *GlobalVariable::createSymtab(DataSection *section,
+    address_t address, Symbol *symbol) {
+
+    GlobalVariable *ret = new GlobalVariable();
+    ret->symbol = symbol;
+
+    off_t offset = address - section->getAddress();
+
+    ret->setPosition(new AbsoluteOffsetPosition(ret, offset));
+    ret->setName(symbol->getName());
+    ret->size = symbol->getSize();
+
+    section->addGlobalVariable(ret);
+    ret->setParent(section);
+
+    return ret;
+}
+
+GlobalVariable *GlobalVariable::createDynsym(DataSection *section,
+    address_t address, Symbol *symbol) {
+
+    GlobalVariable *ret = new GlobalVariable();
+    ret->dynamicSymbol = symbol;
+
+    off_t offset = address - section->getAddress();
+
+    ret->setPosition(new AbsoluteOffsetPosition(ret, offset));
+    ret->setName(symbol->getName());
+    ret->size = symbol->getSize();
+
+    section->addGlobalVariable(ret);
+    ret->setParent(section);
+
+    return ret;
+}
+
+void GlobalVariable::accept(ChunkVisitor *visitor) {
+    visitor->visit(this);
+}
+
 DataVariable *DataVariable::create(Module *module, address_t address,
     Link *dest, Symbol *symbol) {
 
@@ -38,6 +98,7 @@ DataVariable *DataVariable::create(DataSection *section, address_t address,
     auto var = new DataVariable(section, address, dest);
     if(symbol) {
         var->setName(symbol->getName());
+        var->setTargetSymbol(symbol);
     }
     //ChunkMutator(section).append(var);
     var->setParent(section);
@@ -49,7 +110,7 @@ DataVariable *DataVariable::create(DataSection *section, address_t address,
 }
 
 DataVariable::DataVariable(DataSection *section, address_t address, Link *dest)
-    : dest(dest), size(sizeof(address_t)) {
+    : dest(dest), size(sizeof(address_t)), targetSymbol(nullptr), isCopy(false) {
 
     assert(section != nullptr);
     assert(section->contains(address));
@@ -98,6 +159,7 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     name = std::string(elfMap->getSHStrtab() + shdr->sh_name);
     alignment = shdr->sh_addralign;
     originalOffset = shdr->sh_addr - segmentAddress; //shdr->sh_addr - phdr->p_vaddr;
+    permissions = shdr->sh_flags;
     setPosition(new AbsoluteOffsetPosition(this, originalOffset));
     setSize(shdr->sh_size);
 
@@ -210,6 +272,11 @@ void DataRegion::saveDataBytes(bool captureUninitializedData) {
     size_t size = captureUninitializedData ? getSize() : dataBytes.size();
 
     dataBytes.assign(address, size);
+}
+
+void DataRegion::saveDataBytes(const std::string &str) {
+    assert(str.length() == size);
+    dataBytes = str;
 }
 
 std::string DataRegion::getName() const {
@@ -482,6 +549,7 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
         auto ds = new DataSection(elfMap, region->getAddress(), shdr);
+        //LOG(0, "    Adding [" << ds->getName() << "] to " << region->getName());
         ChunkMutator(region).append(ds);
     }
 

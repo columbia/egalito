@@ -43,6 +43,7 @@ public:
     Sandbox *makeStaticExecutableSandbox(const char *outputFile);
     Sandbox *makeKernelSandbox(const char *outputFile);
     bool generateStaticExecutable(const char *outputFile);
+    bool generateMirrorELF(const char *outputFile);
     bool generateKernel(const char *outputFile);
     void moveCode(Sandbox *sandbox, bool useDisps = true);
 public:

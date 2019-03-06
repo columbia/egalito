@@ -6,6 +6,7 @@
 #include "elf/symbol.h"
 
 class Module;
+class Instruction;
 class RelocList;
 
 class Marker : public ChunkImpl {
@@ -20,6 +21,9 @@ public:
 
     virtual address_t getAddress() const;
     virtual void setAddress(address_t address);
+
+    Chunk *getBase() const { return base; }
+    size_t getAddend() const { return addend; }
 };
 
 class SectionStartMarker : public Marker {

@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <algorithm>
+#include <sstream>
 #include "types.h"
 
 /** Base class for any output value which may need further computation.
@@ -76,6 +77,7 @@ public:
     virtual void add(ValueType value) { valueList.push_back(value); }
     virtual void insertAt(IteratorType it, ValueType value)
         { valueList.insert(it, value); }
+    virtual void clearAll() { valueList.clear(); }
 
     IteratorType begin() { return valueList.begin(); }
     IteratorType end() { return valueList.end(); }
@@ -122,6 +124,8 @@ public:
         { return valueMap.find(key) != valueMap.end(); }
     ValueType find(KeyType key) { return valueMap[key]; }
     KeyType getKey(ValueType value) { return reverseMap[value]; }
+    const ValueMapType& getValueMap() const { return valueMap; }
+    virtual void clearAll() { valueMap.clear(); reverseMap.clear(); BaseType::clearAll(); }
 };
 
 template <typename BaseType, typename KeyType>
@@ -162,6 +166,7 @@ public:
 
     /** Must be called if insertAt() is used and shifts existing elements. */
     void recalculateIndices();
+    virtual void clearAll() { indexMap.clear(); BaseType::clearAll(); }
 };
 
 template <typename BaseType>

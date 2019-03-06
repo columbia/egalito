@@ -13,6 +13,7 @@
 #include "analysis/pointerdetection.h"
 #include "chunk/concrete.h"
 #include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "disasm/disassemble.h"
 #include "elf/elfspace.h"
 #include "operation/find.h"

@@ -1,4 +1,5 @@
 #include "resolveplt.h"
+#include "chunk/resolver.h"
 #include "elf/symbol.h"
 #include "chunk/program.h"
 #include "load/emulator.h"
@@ -22,12 +23,8 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     if(pltTrampoline->getTarget()) return;  // already resolved
 
     auto symbol = pltTrampoline->getExternalSymbol();
-    auto link = PerfectLinkResolver().resolveExternally(symbol, conductor,
-        module->getElfSpace(), false, true);
-    if(!link) {
-        link = PerfectLinkResolver().resolveExternally(symbol, conductor,
-            module->getElfSpace(), true, true);
-    }
+    auto link = PerfectLinkResolver().resolveExternallyStrongWeak(
+        symbol, conductor, module, true);
     Chunk *target = nullptr;
     if(link) {
         target = link->getTarget();

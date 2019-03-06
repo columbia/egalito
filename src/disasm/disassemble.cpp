@@ -29,7 +29,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
 
     if(symbolList) {
         LOG(1, "Creating module from symbol info");
-        return makeModuleFromSymbols(elfMap, symbolList);
+        return makeModuleFromSymbols(elfMap, symbolList, dynamicSymbolList);
     }
     else if(dwarfInfo) {
         LOG(1, "Creating module from dwarf info");
@@ -79,7 +79,7 @@ Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
 }
 
 Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
@@ -93,7 +93,8 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
 
-        Function *function = Disassemble::function(elfMap, sym, symbolList);
+        Function *function = Disassemble::function(elfMap, sym, symbolList,
+            dynamicSymbolList);
         functionList->getChildren()->add(function);
         function->setParent(functionList);
         LOG(10, "adding function " << function->getName()
@@ -156,11 +157,15 @@ FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     DisasmHandle handle(true);
     DisassembleFunction disassembler(handle, elfMap);
+#ifdef ARCH_X86_64
+    return disassembler.function(symbol, symbolList, dynamicSymbolList);
+#else
     return disassembler.function(symbol, symbolList);
+#endif
 }
 
 bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
@@ -400,7 +405,7 @@ rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 // --- X86_64 disassembly code
 
 Function *DisassembleX86Function::function(Symbol *symbol,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
@@ -409,9 +414,14 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
-
     function->setPosition(
         positionFactory->makeAbsolutePosition(symbolAddress));
+
+    if(dynamicSymbolList) {
+        if(auto dsym = dynamicSymbolList->find(symbolAddress)) {
+            function->setDynamicSymbol(dsym); 
+        }
+    }
 
     auto readAddress =
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
@@ -693,6 +703,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             LOG(12, "    renaming fuzzy function [" << function->getName()
                 << "] to [" << dsym->getName() << "]");
             function->setName(dsym->getName());
+            function->setDynamicSymbol(dsym);
         }
 
         functionList->getChildren()->add(function);

@@ -20,6 +20,7 @@ class JumpTableEntry;
 class DataRegion;
 class DataSection;
 class DataVariable;
+class GlobalVariable;
 class MarkerList;
 class Marker;
 class VTable;

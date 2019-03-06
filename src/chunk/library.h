@@ -65,7 +65,8 @@ public:
 
     virtual void accept(ChunkVisitor *visitor);
 public:
-    static Library::Role guessRole(const std::string &name);
+    static Role guessRole(const std::string &name);
+    static std::string determineInternalName(const std::string &fullPath, Role role);
     static const char *roleAsString(Role role);
 };
 

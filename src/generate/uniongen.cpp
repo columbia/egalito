@@ -7,6 +7,7 @@ UnionGen::UnionGen(Program *program, SandboxBacking *backing)
     : ElfGeneratorImpl(program, backing) {
 
     getConfig()->setDynamicallyLinked(true);
+    getConfig()->setUnionOutput(true);
 }
 
 void UnionGen::preCodeGeneration() {

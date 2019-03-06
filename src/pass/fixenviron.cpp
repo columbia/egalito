@@ -17,7 +17,7 @@ void FixEnvironPass::visit(Program *program) {
     }
 
     // find dynsym
-    auto module = program->getMain();
+    auto module = program->getFirst();
     auto dynsymlist = module->getElfSpace()->getDynamicSymbolList();
 
     // find data section it belongs to

@@ -13,11 +13,13 @@ static Function *findFunction(Conductor *conductor, const char *name) {
     //ChunkFind2() doesn't work here for now
     //return ChunkFind2(conductor).findFunction(#target);
 
-    for(auto f : CIter::functions(conductor->getProgram()->getLibc())) {
-        if(!f->isIFunc() && f->hasName(name)) {
-            LOG(12, "found ifunc target [" << f->getName()
-                << "] for " << name);
-            return f;
+    if(auto libc = conductor->getProgram()->getLibc()) {
+        for(auto f : CIter::functions(libc)) {
+            if(!f->isIFunc() && f->hasName(name)) {
+                LOG(12, "found ifunc target [" << f->getName()
+                    << "] for " << name);
+                return f;
+            }
         }
     }
     for(auto module : CIter::modules(conductor->getProgram())) {
@@ -106,6 +108,8 @@ void CollapsePLTPass::visit(DataSection *section) {
     for(auto var : CIter::children(section)) {
         auto dest = var->getDest();
         if(!dest) continue;
+
+        LOG(1, "link type: " << typeid(*dest).name());
 
         if(auto f = dynamic_cast<Function *>(dest->getTarget())) {
             auto it = ifuncMap.find(f->getName());

@@ -41,10 +41,23 @@ void Library::accept(ChunkVisitor *visitor) {
 
 Library::Role Library::guessRole(const std::string &name) {
     if(name.find("libc.so") != std::string::npos) return ROLE_LIBC;
+    if(name.find("libc-") != std::string::npos) return ROLE_LIBC;
     if(name.find("libstdc++.so") != std::string::npos) return ROLE_LIBCPP;
+    if(name.find("libstdc++-") != std::string::npos) return ROLE_LIBCPP;
     if(name.find("libegalito.so") != std::string::npos) return ROLE_EGALITO;
 
-    return ROLE_NORMAL;
+    return (name.find(".so") != std::string::npos) ? ROLE_NORMAL : ROLE_MAIN;
+}
+
+std::string Library::determineInternalName(const std::string &fullPath, Role role) {
+    switch(role) {
+    case ROLE_UNKNOWN:  return "(unknown)";
+    case ROLE_MAIN:     return "(executable)";
+    case ROLE_EGALITO:  return "(egalito)";
+    case ROLE_EXTRA:    return "(extra)-" + fullPath;
+    case ROLE_SUPPORT:  return "(addon)";
+    default:            return fullPath;
+    }
 }
 
 const char *Library::roleAsString(Role role) {
@@ -55,6 +68,7 @@ const char *Library::roleAsString(Role role) {
     case ROLE_LIBC:     return "LIBC";
     case ROLE_LIBCPP:   return "LIBCPP";
     case ROLE_NORMAL:   return "NORMAL";
+    case ROLE_EXTRA:    return "EXTRA";
     case ROLE_SUPPORT:  return "SUPPORT";
     default:            return "???";
     }

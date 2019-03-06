@@ -13,6 +13,9 @@
 #include "config.h"
 
 bool SymbolInTable::operator < (const SymbolInTable &other) const {
+    if(tableIndex < other.tableIndex) return true;
+    if(tableIndex > other.tableIndex) return false;
+
     if(type < other.type) return true;
     if(type > other.type) return false;
 
@@ -47,13 +50,17 @@ bool SymbolInTable::operator < (const SymbolInTable &other) const {
 }
 
 bool SymbolInTable::operator == (const SymbolInTable &other) const {
+#if 1
     // right now we never copy Symbols, so we can just compare addresses
     return sym == other.get();
+#else
     if(sym == other.get()) return true;
     return type == other.type
         && ((sym == nullptr) == (other.get() == nullptr))
         && std::strcmp(sym->getName(), other.get()->getName()) == 0
-        && sym->getSectionIndex() == other.get()->getSectionIndex();
+        && sym->getSectionIndex() == other.get()->getSectionIndex()
+        && tableIndex == other.tableIndex;
+#endif
 }
 
 std::string SymbolInTable::getName() const {
@@ -139,6 +146,92 @@ SymbolTableContent::DeferredType *SymbolTableContent
         auto sit = SymbolInTable(func
             ? SymbolInTable::TYPE_GLOBAL
             : SymbolInTable::TYPE_UNDEF, sym);
+        insertSorted(sit, value);
+    }
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
+    ::addDataVarSymbol(DataVariable *var, Symbol *sym, address_t address,
+    size_t section) {
+
+    // NOTE: caller may want to override the st_shndx in the symbol in a
+    // deferred callback
+
+    assert(sym);
+
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = section;
+    symbol->st_value = address;
+    symbol->st_size = var ? var->getSize() : 0;
+    auto value = new DeferredType(symbol);
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        insertSorted(sit, value);
+        firstGlobalIndex ++;
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
+        insertSorted(sit, value);
+    }
+    return value;
+}
+
+SymbolTableContent::DeferredType *SymbolTableContent
+    ::addGlobalVarSymbol(GlobalVariable *var, Symbol *sym, address_t address,
+    size_t section) {
+
+    // NOTE: caller may want to override the st_shndx in the symbol in a
+    // deferred callback
+
+    assert(sym);
+
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
+        if(contains(sit)) return find(sit);
+    }
+
+    auto name = std::string(sym->getName());
+    auto index = strtab->add(name, true);  // add name to string table
+
+    ElfXX_Sym *symbol = new ElfXX_Sym();
+    symbol->st_name = static_cast<ElfXX_Word>(index);
+    symbol->st_info = ELFXX_ST_INFO(
+        Symbol::bindFromInternalToElf(sym->getBind()),
+        Symbol::typeFromInternalToElf(sym->getType()));
+    symbol->st_other = STV_DEFAULT;
+    symbol->st_shndx = section;
+    symbol->st_value = address;
+    symbol->st_size = sym->getSize();
+    auto value = new DeferredType(symbol);
+    if(sym->getBind() == Symbol::BIND_LOCAL) {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_LOCAL, sym);
+        insertSorted(sit, value);
+        firstGlobalIndex ++;
+    }
+    else {
+        auto sit = SymbolInTable(SymbolInTable::TYPE_GLOBAL, sym);
         insertSorted(sit, value);
     }
     return value;
@@ -514,32 +607,33 @@ Section *DataRelocSectionContent::getTargetSection() {
     return outer->get();
 }
 
+static Symbol *makeSymbol(const std::string &targetName,
+    Symbol::SymbolType symbolType, Symbol::BindingType bindType) {
+
+    char *name = new char[targetName.length() + 1];
+    std::strcpy(name, targetName.c_str());
+    return new Symbol(0, 0, name, symbolType, bindType, 0, SHN_UNDEF);
+}
+
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
-    ::addUndefinedRef(DataVariable *var, LDSOLoaderLink *link) {
+    ::addUndefinedRef(DataVariable *var, const std::string &targetName) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
     auto deferred = new DeferredType(rela);
 
-    auto region = var->getParent()->getParent();
-
-    //rela->r_offset  = var->getAddress() - region->getAddress();
     rela->r_offset  = var->getAddress();
     rela->r_info    = 0;
     rela->r_addend  = 0;
 
-    char *name = new char[link->getTargetName().length() + 1];
-    std::strcpy(name, link->getTargetName().c_str());
-    auto symbol = new Symbol(0, 0, name,
-        Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL, 0, SHN_UNDEF);
+    auto symbol = makeSymbol(targetName, Symbol::TYPE_OBJECT, Symbol::BIND_GLOBAL);
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
-    deferred->addFunction([this, symtab, elfSym, name] (ElfXX_Rela *rela) {
-        LOG(1, "Creating data reloc for [" << name << "]");
+    deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
+        LOG(1, "Creating undefined reloc for [" << targetName << "]");
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
-        //rela->r_info = ELFXX_R_INFO(index, R_X86_64_PLT32);
         rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
     });
 
@@ -574,6 +668,185 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 }
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataFunctionRef(DataVariable *var, Function *function) {
+
+    return addDataArbitraryRef(var, function->getAddress());
+
+#if 0
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    auto name = function->getName();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        /*size_t sectionSymbolIndex = symtab->indexOfSectionSymbol(
+            name, sectionList);
+        if(sectionSymbolIndex == (size_t)-1) {
+            LOG(1, "can't find section symbol for [" << name << "]");
+        }*/
+        size_t index = symtab->indexOf(elfSym);
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+#endif
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataAddressRef(address_t source, std::function<address_t ()> getTarget) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = source;
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_64);
+    rela->r_addend  = 0;
+
+    deferred->addFunction([getTarget] (ElfXX_Rela *rela) {
+        rela->r_addend = getTarget();
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(source, deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataArbitraryRef(DataVariable *var, address_t targetAddress) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_RELATIVE);
+    rela->r_addend  = targetAddress;
+
+    /*deferred->addFunction([this, symtab, name] (ElfXX_Rela *rela) {
+        rela->r_info = ELF64_R_INFO(0, R_X86_64_64);
+    });*/
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataIFuncRef(DataVariable *var, address_t targetAddress) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = ELF64_R_INFO(0, R_X86_64_IRELATIVE);
+    rela->r_addend  = targetAddress;
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addDataExternalRef(DataVariable *var, ExternalSymbol *extSym, Section *section,
+        Module *module, address_t addend) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = 0;
+    rela->r_addend  = addend;
+
+    auto targetName = extSym->getName();
+
+    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    SymbolTableContent::DeferredType *elfSym = nullptr;
+    Symbol *symbol = nullptr;
+    if(extSym->getLocalWeakInstance()) {
+        address_t symbolAddress = 0;
+        {
+            auto sym = var->getTargetSymbol();
+            auto section = module->getElfSpace()->getElfMap()->findSection(
+                sym->getSectionIndex());
+            auto dataSection = module->getDataRegionList()->findDataSection(
+                section->getName());
+            auto offset = sym->getAddress() - section->getVirtualAddress();
+            //rela->r_offset = extSym->getAddress();
+            symbolAddress = dataSection->getAddress() + offset;
+        }
+        char *name = new char[targetName.length() + 1];
+        std::strcpy(name, targetName.c_str());
+        symbol = new Symbol(
+            symbolAddress, var->getTargetSymbol()->getSize(), name,
+            var->getTargetSymbol()->getType(),
+            var->getTargetSymbol()->getBind(), 0, 0);
+        elfSym = symtab->addDataVarSymbol(var, symbol, symbolAddress,
+            sectionList->indexOf(section));
+    }
+    else {
+        symbol = makeSymbol(targetName, extSym->getType(), extSym->getBind());
+        elfSym = symtab->addUndefinedSymbol(symbol);
+    }
+    deferred->addFunction([this, symtab, symbol, elfSym, targetName] (ElfXX_Rela *rela) {
+        LOG(1, "Creating data reloc for [" << targetName << "]");
+        LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
+        size_t index = symtab->indexOf(elfSym);
+        LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
+        if(symbol->getType() == Symbol::TYPE_FUNC) {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_JUMP_SLOT);
+        }
+        else {
+            rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);
+        }
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
+    ::addCopyExternalRef(DataVariable *var, ExternalSymbol *extSym, Section *section) {
+
+    auto rela = new ElfXX_Rela();
+    std::memset(rela, 0, sizeof(*rela));
+    auto deferred = new DeferredType(rela);
+
+    rela->r_offset  = var->getAddress();
+    rela->r_info    = 0;
+    rela->r_addend  = 0;
+
+    auto targetName = extSym->getName();
+
+    char *name = new char[targetName.length() + 1];
+    std::strcpy(name, targetName.c_str());
+
+    auto symbol = new Symbol(
+        var->getAddress(), var->getTargetSymbol()->getSize(), name,
+        var->getTargetSymbol()->getType(),
+        var->getTargetSymbol()->getBind(), 0, 0);
+    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    auto elfSym = symtab->addDataVarSymbol(var, symbol, var->getAddress(),
+        sectionList->indexOf(section));
+
+    deferred->addFunction([this, symtab, elfSym, targetName] (ElfXX_Rela *rela) {
+        LOG(1, "Creating copy reloc for [" << targetName << "]");
+        LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
+        size_t index = symtab->indexOf(elfSym);
+        LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
+        rela->r_info = ELF64_R_INFO(index, R_X86_64_COPY);
+    });
+
+    DeferredMap<address_t, ElfXX_Rela>::add(var->getAddress(), deferred);
+    return deferred;
+}
+
+DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex) {
 
     auto rela = new ElfXX_Rela();
@@ -584,18 +857,16 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     rela->r_info    = 0;
     rela->r_addend  = 0;
 
-    char *name = new char[plt->getExternalSymbol()->getName().length()+1];
-    std::strcpy(name, plt->getExternalSymbol()->getName().c_str());
-    auto symbol = new Symbol(0, 0, name,
-        Symbol::TYPE_FUNC,
-        plt->getExternalSymbol()->getBind() /*Symbol::BIND_GLOBAL*/,
-        0, SHN_UNDEF);
+    auto extSymbol = plt->getExternalSymbol();
+    auto symbol = makeSymbol(extSymbol->getName(),
+        Symbol::TYPE_FUNC, extSymbol->getBind());
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
     auto elfSym = symtab->addUndefinedSymbol(symbol);
-    deferred->addFunction([this, gotPLT, plt, symtab, elfSym, name, pltIndex]
+    deferred->addFunction([this, gotPLT, plt, symtab, elfSym, extSymbol, pltIndex]
         (ElfXX_Rela *rela) {
 
-        LOG(1, "Creating PLT reloc for [" << name << "]");
+        LOG(1, "Creating PLT reloc for [" << extSymbol->getName() << "] at 0x"
+            << std::hex << plt->getAddress());
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
@@ -639,7 +910,7 @@ DynamicSectionContent::DeferredType *DynamicSectionContent
 }
 
 void InitArraySectionContent::writeTo(std::ostream &stream) {
-    for(auto func: callbacks) {
+    for(auto func : callbacks) {
         func();
     }
     for(auto func : array) {

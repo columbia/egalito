@@ -1,4 +1,5 @@
 #include "passes.h"
+#include "conductor.h"
 
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
@@ -9,7 +10,6 @@
 #include "chunk/aliasmap.h"
 #include "chunk/tls.h"
 #include "chunk/dataregion.h"
-#include "conductor/conductor.h"
 #include "operation/find2.h"
 #include "disasm/disassemble.h"
 #include "pass/collapseplt.h"
@@ -26,6 +26,7 @@
 #include "pass/jtoverestimate.h"
 #include "pass/removepadding.h"
 #include "pass/updatelink.h"
+#include "pass/collectglobals.h"
 #include "analysis/jumptable.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -93,6 +94,9 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
 #endif
     RUN_PASS(InferLinksPass(elf), module);
 
+    // this can run pretty much whenever, but let's put it here for now.
+    RUN_PASS(CollectGlobalsPass(), module);
+
     // DataVariables created later in Conductor::resolveData().
 }
 
@@ -113,7 +117,17 @@ void ConductorPasses::newExecutablePasses(Program *program) {
     for(auto module : CIter::children(program)) {
         if(!module->getDataRegionList()) continue;
         for(auto region : CIter::children(module->getDataRegionList())) {
-            region->saveDataBytes();    
+            region->saveDataBytes();
+        }
+    }
+}
+
+void ConductorPasses::newMirrorPasses(Program *program) {
+    conductor->fixDataSections(false);
+    for(auto module : CIter::children(program)) {
+        if(!module->getDataRegionList()) continue;
+        for(auto region : CIter::children(module->getDataRegionList())) {
+            region->saveDataBytes();
         }
     }
 }

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "deferred.h"
+#include "integerdeferred.h"
 #include "chunk/link.h"
 #include "elf/elfxx.h"
 
@@ -10,6 +11,8 @@ class Section;
 class SectionRef;
 class Symbol;
 class Function;
+class GlobalVariable;
+class DataVariable;
 class Instruction;
 class ElfSpace;
 class Chunk;
@@ -28,17 +31,19 @@ public:
 private:
     type_t type;
     Symbol *sym;
+    size_t tableIndex;  // for ordering .dynsym
 public:
     SymbolInTable(type_t type = TYPE_NULL, Symbol *sym = nullptr)
-        : type(type), sym(sym) {}
+        : type(type), sym(sym), tableIndex(0) {}
     bool operator < (const SymbolInTable &other) const;
     bool operator == (const SymbolInTable &other) const;
     Symbol *get() const { return sym; }
     std::string getName() const;
+    void setTableIndex(size_t index) { tableIndex = index; }
 };
 
 /** Symbol table, either .strtab or .dynstr. The ordering of symbols
-    is determined by the symbolCompare function.
+    is determined by SymbolInTable::operator {<,==}.
 */
 class SymbolTableContent : public DeferredMap<SymbolInTable, ElfXX_Sym> {
 public:
@@ -54,6 +59,10 @@ public:
     void addNullSymbol();
     void addSectionSymbol(Symbol *sym);
     DeferredType *addSymbol(Function *func, Symbol *sym);
+    DeferredType *addDataVarSymbol(DataVariable *var, Symbol *sym,
+        address_t address, size_t section = SHN_UNDEF);
+    DeferredType *addGlobalVarSymbol(GlobalVariable *var, Symbol *sym,
+        address_t address, size_t section = SHN_UNDEF);
     DeferredType *addPLTSymbol(PLTTrampoline *plt, Symbol *sym);
     DeferredType *addUndefinedSymbol(Symbol *sym);
 
@@ -174,9 +183,19 @@ public:
 
     Section *getTargetSection();
 
-    DeferredType *addUndefinedRef(DataVariable *var, LDSOLoaderLink *link);
+    DeferredType *addUndefinedRef(DataVariable *var,
+        const std::string &targetName);
     DeferredType *addDataRef(address_t source, address_t target,
         DataSection *targetSection);
+    DeferredType *addDataFunctionRef(DataVariable *var, Function *function);
+    DeferredType *addDataAddressRef(address_t source,
+        std::function<address_t ()> getTarget);
+    DeferredType *addDataArbitraryRef(DataVariable *var, address_t targetAddress);
+    DeferredType *addDataIFuncRef(DataVariable *var, address_t targetAddress);
+    DeferredType *addDataExternalRef(DataVariable *var,
+        ExternalSymbol *extSym, Section *section, Module *module, address_t addend);
+    DeferredType *addCopyExternalRef(DataVariable *var,
+        ExternalSymbol *extSym, Section *section);
     DeferredType *addPLTRef(Section *gotPLT, PLTTrampoline *plt, size_t pltIndex);
 
     DeferredType *addTLSOffsetRef(address_t source, TLSDataOffsetLink *link);
@@ -242,6 +261,20 @@ public:
         : gotpltSection(gotpltSection), pltSection(pltSection) {}
 
     DeferredType *addEntry(PLTTrampoline *plt, size_t index);
+};
+
+class GnuHashSectionContent : public DeferredIntegerList {
+public:
+    using DeferredIntegerList::DeferredIntegerList;
+};
+
+class TBSSContent : public DeferredString {
+private:
+    size_t memSize;
+public:
+    TBSSContent(size_t memSize) : DeferredString(""), memSize(memSize) {}
+
+    size_t getMemSize() const { return memSize; }
 };
 
 #endif
