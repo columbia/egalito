@@ -105,13 +105,13 @@ DEPEND_FILES = $(call dep-filename,$(ALL_SOURCES))
 
 # Special files
 $(BUILDDIR)python/%.o: python/%.cpp
-	$(CXX) $(CXXFLAGS) -I $(PYTHON_INC_DIR) -fPIC $(DEPFLAGS) -c -o $@ $<
+	$(SHORT_CXX) $(CXXFLAGS) -I $(PYTHON_INC_DIR) -fPIC $(DEPFLAGS) -c -o $@ $<
 
 $(BUILDDIR)shell/shell.o: shell/shell.cpp
 	$(SHORT_CXX) $(CXXFLAGS) $(DEPFLAGS) -DGIT_VERSION=$(shell git rev-parse --short HEAD) -c -o $@ $<
 
 $(PYTHON_BINDING): $(PYTHON_OBJECTS) ../src/$(BUILDDIR)libegalito.a
-	$(CXX) $(CXXFLAGS) -fPIC -o $@ $< -l$(BOOST_PYTHON_LIB) -l$(PYTHON_LIB)  $(CLDFLAGS) -shared
+	$(SHORT_CXX) $(CXXFLAGS) -fPIC -o $@ $< -l$(BOOST_PYTHON_LIB) -l$(PYTHON_LIB)  $(CLDFLAGS) -shared
 
 # Programs and libraries
 $(ETSHELL): $(ETSHELL_OBJECTS)
@@ -139,12 +139,12 @@ $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	chmod +x $(BUILDDIR)pyshell
 
 $(BUILDDIR)sandbox/inject/%.o: sandbox/inject/%.c
-	$(CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
+	$(SHORT_CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
 $(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libsandbox.so $^ -o $@
 
 $(BUILDDIR)cet/inject/%.o: cet/inject/%.c
-	$(CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
+	$(SHORT_CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
 $(CET_LIBRARY): $(LIBCET_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libcet.so $^ -o $@
 
