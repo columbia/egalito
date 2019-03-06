@@ -45,6 +45,10 @@ public:
     */
     void insertBefore(Chunk *insertPoint, Chunk *newChunk);
 
+    /** Adds a list of instructions after insertPoint. */
+    void insertAfter(Instruction *insertPoint, 
+        const std::vector<Instruction *> &toBeInserted);
+
     /** Adds a list of instructions before insertPoint. */
     void insertBefore(Instruction *insertPoint, 
         const std::vector<Instruction *> &toBeInserted, 

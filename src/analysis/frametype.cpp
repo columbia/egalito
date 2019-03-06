@@ -18,7 +18,7 @@
 FrameType::FrameType(Function *function)
     : setBPInstr(nullptr), setSPInstr(nullptr) {
 
-    this->hasFrame = detectFrame(function);
+    this->hasFrame = hasStackFrame(function);
 
     // first find setBPInstr
     if(hasFrame) {
@@ -188,7 +188,7 @@ FrameType::FrameType(Function *function)
     }
 }
 
-bool FrameType::detectFrame(Function *function) {
+bool FrameType::hasStackFrame(Function *function) {
 #ifdef ARCH_X86_64
     for(auto block : CIter::children(function)) {
         for(auto ins : CIter::children(block)) {

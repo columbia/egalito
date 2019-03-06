@@ -28,8 +28,8 @@ public:
     void fixEpilogue(Instruction *oldInstr, Instruction *newInstr);
     void setSetBPInstr(Instruction *newInstr) { setBPInstr = newInstr; }
     void dump();
-private:
-    bool detectFrame(Function *function);
+
+    static bool hasStackFrame(Function *function);
 };
 
 
