@@ -15,40 +15,44 @@ void CollectGlobalsPass::visit(Module *module) {
 
     std::map<address_t, GlobalVariable *> variables;
 
-    for(auto symbol : *syms) {
-        if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
-        if(symbol->getAliasFor()) continue;
+    if(syms) {
+        for(auto symbol : *syms) {
+            if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
+            if(symbol->getAliasFor()) continue;
 
-        address_t address = symbol->getAddress();
-        DataSection *section =
-            module->getDataRegionList()->findDataSectionContaining(address);
+            address_t address = symbol->getAddress();
+            DataSection *section =
+                module->getDataRegionList()->findDataSectionContaining(address);
 
-        if(!section) continue;
+            if(!section) continue;
 
-        LOG(10, "symtab global variable [" << (symbol->getName()) << "] found");
+            LOG(10, "symtab global variable [" << (symbol->getName()) << "] found");
 
-        variables[address] =
-            GlobalVariable::createSymtab(section, address, symbol);
+            variables[address] =
+                GlobalVariable::createSymtab(section, address, symbol);
+        }
     }
 
-    for(auto symbol : *dynsyms) {
-        if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
-        if(symbol->getAliasFor()) continue;
+    if(dynsyms) {
+        for(auto symbol : *dynsyms) {
+            if(symbol->getType() != Symbol::TYPE_OBJECT) continue;
+            if(symbol->getAliasFor()) continue;
 
-        address_t address = symbol->getAddress();
-        DataSection *section =
-            module->getDataRegionList()->findDataSectionContaining(address);
+            address_t address = symbol->getAddress();
+            DataSection *section =
+                module->getDataRegionList()->findDataSectionContaining(address);
 
-        if(!section) continue;
+            if(!section) continue;
 
-        LOG(10, "dynsym global variable [" << (symbol->getName()) << "] found");
+            LOG(10, "dynsym global variable [" << (symbol->getName()) << "] found");
 
-        if(variables.count(address)) {
-            variables[address]->setDynamicSymbol(symbol);
-        }
-        else {
-            variables[address] =
-                GlobalVariable::createDynsym(section, address, symbol);
+            if(variables.count(address)) {
+                variables[address]->setDynamicSymbol(symbol);
+            }
+            else {
+                variables[address] =
+                    GlobalVariable::createDynsym(section, address, symbol);
+            }
         }
     }
 }
