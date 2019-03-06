@@ -188,7 +188,7 @@ void Conductor::resolveTLSLinks() {
     program->accept(&resolveTLS);
 }
 
-void Conductor::resolveData(bool justBridge) {
+void Conductor::resolveData(bool multipleElf, bool justBridge) {
     if(auto egalito = program->getEgalito()) {
         InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
         egalito->accept(&bridge);
@@ -223,6 +223,11 @@ void Conductor::resolveData(bool justBridge) {
         // requires DataVariables
         RUN_PASS(FindInitFuncs(), module);
     }
+
+    if(multipleElf) {
+        ResolveExternalLinksPass resolveExternalLinks(this);
+        program->accept(&resolveExternalLinks);
+    }
 }
 
 void Conductor::resolveVTables() {
@@ -256,9 +261,6 @@ void Conductor::fixDataSections(bool allocateTLS) {
         allocateTLSArea(base);
         loadTLSData();
     }
-
-    ResolveExternalLinksPass resolveExternalLinks(this);
-    program->accept(&resolveExternalLinks);
 
     FixDataRegionsPass fixDataRegions;
     program->accept(&fixDataRegions);

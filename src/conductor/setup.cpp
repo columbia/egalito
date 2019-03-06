@@ -79,7 +79,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     if(true || withSharedLibs) {
         conductor->resolvePLTLinks();
     }
-    conductor->resolveData();
+    conductor->resolveData(withSharedLibs);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 
@@ -119,7 +119,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
     if(false) {
         conductor->resolvePLTLinks();
     }
-    conductor->resolveData(true);
+    conductor->resolveData(false, true);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 }
@@ -185,7 +185,7 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
     }
 
     conductor->resolvePLTLinks();
-    conductor->resolveData();
+    conductor->resolveData(true);
     conductor->resolveTLSLinks();
     conductor->resolveVTables();
 
