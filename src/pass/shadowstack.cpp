@@ -5,6 +5,7 @@
 #include "instr/register.h"
 #include "instr/concrete.h"
 #include "operation/mutator.h"
+#include "operation/addinline.h"
 #include "operation/find2.h"
 #include "pass/switchcontext.h"
 #include "types.h"
@@ -111,24 +112,38 @@ void ShadowStackPass::pushToShadowStack(Function *function) {
 }
 
 void ShadowStackPass::pushToShadowStackConst(Function *function) {
-    // 0:   41 53                   push   %r11
-    // 2:   4c 8b 5c 24 08          mov    0x8(%rsp),%r11
-    // 7:   4c 89 9c 24 00 00 50    mov    %r11,-0xb00000(%rsp)
-    // e:   ff
-    // f:   41 5b                   pop    %r11
+    ChunkAddInline ai({X86_REG_R11}, [] (bool redzone) {
+        // 0:   41 53                   push   %r11
+        // 2:   4c 8b 5c 24 08          mov    0x8(%rsp),%r11
+        // 7:   4c 89 9c 24 00 00 50    mov    %r11,-0xb00000(%rsp)
+        // e:   ff
+        // f:   41 5b                   pop    %r11
 
-	auto pushInstr = Disassemble::instruction({0x41, 0x53});
-	auto mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x08});
-	auto mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24, 0x00, 0x00, 0x50, 0xff});
-	auto popInstr = Disassemble::instruction({0x41, 0x5b});
+        //auto pushInstr = Disassemble::instruction({0x41, 0x53});
+        Instruction *mov1Instr = nullptr;
+        if(redzone) {
+            //   5:    4c 8b 9c 24 88 00 00    mov    0x88(%rsp),%r11
+            //   c:    00 
+            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, 0x88, 0x00, 0x00, 0x00});
+        } else {
+            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x08});
+        }
+        Instruction *mov2Instr = nullptr;
+        {
+            unsigned int offset = -0xb00000;
+            if(redzone) offset += 0x80;
+#define BITS_FROM(x, shift) static_cast<unsigned char>(((x) >> shift) & 0xff)
+            mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24,
+                BITS_FROM(offset, 0), BITS_FROM(offset, 8), BITS_FROM(offset, 16), BITS_FROM(offset, 24)});
+#undef BITS_FROM
+        }
+        //auto popInstr = Disassemble::instruction({0x41, 0x5b});
 
+        return std::vector<Instruction *>{ mov1Instr, mov2Instr };
+    });
 	auto block1 = function->getChildren()->getIterable()->get(0);
 	auto instr1 = block1->getChildren()->getIterable()->get(0);
-    {
-        ChunkMutator m(block1, true);
-        m.insertBefore(instr1,
-            std::vector<Instruction *>{ pushInstr, mov1Instr, mov2Instr, popInstr }, false);
-    }
+    ai.insertBefore(instr1, false);
 }
 
 void ShadowStackPass::pushToShadowStackGS(Function *function) {
@@ -167,36 +182,48 @@ void ShadowStackPass::popFromShadowStack(Instruction *instruction) {
 }
 
 void ShadowStackPass::popFromShadowStackConst(Instruction *instruction) {
-    /*
-        0:   41 53                   push   %r11
-        2:   4c 8b 5c 24 08          mov    0x8(%rsp),%r11
-        7:   4c 39 9c 24 00 00 50    cmp    %r11,-0xb00000(%rsp)
-        e:   ff
-        f:   0f 85 00 00 00 00       jne    0x15
-       15:   41 5b                   pop    %r11
-    */
-	auto pushInstr = Disassemble::instruction({0x41, 0x53});
-	auto movInstr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x08});
-	auto cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24, 0x00, 0x00, 0x50, 0xff});
-	// jne goes here
-	auto popInstr = Disassemble::instruction({0x41, 0x5b});
+    ChunkAddInline ai({X86_REG_EFLAGS, X86_REG_R11}, [this] (bool redzone) {
+        /*
+                                         pushfd
+            0:   41 53                   push   %r11
+            2:   4c 8b 5c 24 08          mov    0x8(%rsp),%r11
+            7:   4c 39 9c 24 00 00 50    cmp    %r11,-0xb00000(%rsp)
+            e:   ff
+            f:   0f 85 00 00 00 00       jne    0x15
+           15:   41 5b                   pop    %r11
+                                         popfd
+        */
+        //auto pushInstr = Disassemble::instruction({0x41, 0x53});
+        Instruction *movInstr = nullptr;
+        if(redzone) {
+            //   5:    4c 8b 9c 24 88 00 00    mov    0x88(%rsp),%r11
+            //   c:    00 
+            // (optional 0x80 for redzone), 0x8 for pushfd, 0x8 for push %r11
+            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, 0x90, 0x00, 0x00, 0x00});
+        } else {
+            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x10});
+        }
+        Instruction *cmpInstr = nullptr;
+        {
+            unsigned int offset = -0xb00000;
+            offset += 0x8;  // pushfd
+            if(redzone) offset += 0x80;
+#define BITS_FROM(x, shift) static_cast<unsigned char>(((x) >> shift) & 0xff)
+            cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24,
+                BITS_FROM(offset, 0), BITS_FROM(offset, 8), BITS_FROM(offset, 16), BITS_FROM(offset, 24)});
+#undef BITS_FROM
+        }
+        // jne goes here
+        //auto popInstr = Disassemble::instruction({0x41, 0x5b});
 
-    auto jne = new Instruction();
-    auto jneSem = new ControlFlowInstruction(
-        X86_INS_JNE, jne, "\x0f\x85", "jnz", 4);
-    jneSem->setLink(new NormalLink(violationTarget, Link::SCOPE_EXTERNAL_JUMP));
-    jne->setSemantic(jneSem);
-
-    auto block = static_cast<Block *>(instruction->getParent());
-    {
-        ChunkMutator m(block, true);
-        m.insertBefore(instruction,
-            std::vector<Instruction *>{ pushInstr, movInstr, cmpInstr, jne, popInstr }, true);
-    }
-    if(0) {
-        ChunkMutator m(block, true);
-        m.splitBlockBefore(instruction);
-    }
+        auto jne = new Instruction();
+        auto jneSem = new ControlFlowInstruction(
+            X86_INS_JNE, jne, "\x0f\x85", "jnz", 4);
+        jneSem->setLink(new NormalLink(violationTarget, Link::SCOPE_EXTERNAL_JUMP));
+        jne->setSemantic(jneSem);
+        return std::vector<Instruction *>{ movInstr, cmpInstr, jne };
+    });
+    ai.insertBefore(instruction, true);
 }
 
 void ShadowStackPass::popFromShadowStackGS(Instruction *instruction) {

@@ -14,18 +14,18 @@ public:
     class Modification {
     public:
         virtual ~Modification() {}
-        virtual InstrList getNewCode() = 0;
+        virtual InstrList getNewCode(bool redzone) = 0;
         virtual RegList getClobberedRegisters() = 0;
     };
 
     class ModificationImpl : public Modification {
     private:
         RegList regList;
-        std::function<InstrList ()> makeCodeCallback;
+        std::function<InstrList (bool)> makeCodeCallback;
     public:
-        ModificationImpl(RegList regList, std::function<InstrList ()> callback)
+        ModificationImpl(RegList regList, std::function<InstrList (bool)> callback)
             : regList(regList), makeCodeCallback(callback) {}
-        virtual InstrList getNewCode() { return makeCodeCallback(); }
+        virtual InstrList getNewCode(bool redzone) { return makeCodeCallback(redzone); }
         virtual RegList getClobberedRegisters() { return regList; }
     };
 private:
@@ -52,13 +52,12 @@ public:
     // allow this modification to be applied in multiple places.
     // takes ownership of modification and will free it.
     ChunkAddInline(Modification *modification);
+    ChunkAddInline(std::vector<Register> regList,
+        std::function<std::vector<Instruction *> (bool)> generator);
     ~ChunkAddInline() { delete modification; }
 
     void insertBefore(Instruction *point, bool beforeJumpTo);
     void insertAfter(Instruction *point);
-
-    static Modification *makeModification(std::vector<Register> regList,
-        std::function<std::vector<Instruction *> ()> generator);
 private:
     std::vector<Instruction *> getFullCode(Instruction *point);
     void extendList(std::vector<Instruction *> &list,

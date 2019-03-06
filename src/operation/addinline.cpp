@@ -12,6 +12,12 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+ChunkAddInline::ChunkAddInline(std::vector<Register> regList,
+    std::function<std::vector<Instruction *> (bool)> generator) {
+
+    modification = new ModificationImpl(regList, generator);
+}
+
 std::vector<Instruction *> ChunkAddInline::getFullCode(Instruction *point) {
     auto function = dynamic_cast<Function *>(point->getParent()->getParent());
     assert(function != nullptr);
@@ -23,7 +29,7 @@ std::vector<Instruction *> ChunkAddInline::getFullCode(Instruction *point) {
 
     std::vector<Instruction *> instrList;
     extendList(instrList, saveRestore.getRegSaveCode(regList));
-    extendList(instrList, modification->getNewCode());
+    extendList(instrList, modification->getNewCode(redzone));
     extendList(instrList, saveRestore.getRegRestoreCode(regList));
 
     return std::move(instrList);
@@ -41,17 +47,10 @@ void ChunkAddInline::insertAfter(Instruction *point) {
     ChunkMutator(block, true).insertAfter(point, newCode);
 }
 
-ChunkAddInline::Modification *ChunkAddInline::makeModification(
-    std::vector<Register> regList,
-    std::function<std::vector<Instruction *> ()> generator) {
-
-    return new ModificationImpl(regList, generator);
-}
-
 void ChunkAddInline::extendList(std::vector<Instruction *> &list,
     const std::vector<Instruction *> &additions) {
     
-    std::copy(additions.begin(), additions.end(), list.end());
+    list.insert(list.end(), additions.begin(), additions.end());
 }
 
 ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegSaveCode(
@@ -91,7 +90,8 @@ ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegRestoreCod
     const RegList &regList) {
 
     InstrList results;
-    for(auto reg : regList) {
+    for(auto it = regList.rbegin(); it != regList.rend(); it++) {
+        auto reg = *it;
         switch(reg) {
         case X86_REG_EFLAGS:
             results.push_back(Disassemble::instruction({0x9d}));  // popfd 
