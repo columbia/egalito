@@ -1,3 +1,4 @@
+#include <typeinfo>
 #include <cassert>
 #include "fixdataregions.h"
 #include "elf/symbol.h"
@@ -27,14 +28,10 @@ void FixDataRegionsPass::visit(DataRegion *dataRegion) {
 
     for(auto dsec : CIter::children(dataRegion)) {
         for(auto var : CIter::children(dsec)) {
-            if(!var->getDest()) {
-                continue;
-            }
+            if(!var->getDest()) continue;
             if(var->getIsCopy()) continue;
+            if(isForIFuncJumpSlot(var)) continue;
 
-            if(isForIFuncJumpSlot(var)) {
-                continue;
-            }
             auto target = var->getDest()->getTargetAddress();
             address_t address = var->getAddress();
             LOG(0, "set variable " << std::hex << address << " => " << target << " (size " << var->getSize() << ")");

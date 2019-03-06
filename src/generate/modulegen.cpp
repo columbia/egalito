@@ -268,7 +268,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
             }
             else if(auto intAndExt = dynamic_cast<InternalAndExternalDataLink *>(link)) {
                 relaDyn->addDataExternalRef(var, intAndExt->getExternalSymbol(), sec,
-                    module);
+                    module, 0);
             }
             else /*if(link->isAbsolute())*/ {
                 relaDyn->addDataArbitraryRef(var, link->getTargetAddress());
@@ -294,7 +294,7 @@ void ModuleGen::maybeMakeDataRelocs(DataSection *section, Section *sec) {
                     << extSymLink->getExternalSymbol()->getName()
                     << "] at 0x" << std::hex << var->getAddress());
                 relaDyn->addDataExternalRef(var, extSymLink->getExternalSymbol(), sec,
-                    module);
+                    module, extSymLink->getOffset());
             }
             else if(auto copyRelocLink = dynamic_cast<CopyRelocLink *>(link)) {
                 LOG(2, "    relocation for copy reloc ["

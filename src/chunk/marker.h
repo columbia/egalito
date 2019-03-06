@@ -6,6 +6,7 @@
 #include "elf/symbol.h"
 
 class Module;
+class Instruction;
 class RelocList;
 
 class Marker : public ChunkImpl {

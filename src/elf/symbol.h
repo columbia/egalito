@@ -12,6 +12,14 @@ class ElfMap;
 class SharedLib;
 class SymbolVersion;
 
+/*class AbstractSymbol {
+public:
+    const char *getName() const { return name; }
+    const SymbolVersion *getVersion() const { return version; }
+    address_t getAddress() const { return address; }
+    size_t getSize() const { return size; }
+};*/
+
 class Symbol {
 public:
     enum SymbolType {

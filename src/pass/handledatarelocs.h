@@ -25,6 +25,7 @@ private:
     void resolveGeneralRelocSection(RelocSection *relocSection,
         Module *module);
     Link *resolveVariableLink(Reloc *reloc, Module *module);
+    void finalizeDataVariable(Reloc *reloc, DataVariable *var, Module *module);
 };
 
 class HandleDataRelocsInternalStrong : public HandleDataRelocsPass {

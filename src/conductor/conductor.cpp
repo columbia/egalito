@@ -20,6 +20,7 @@
 #include "pass/fixjumptables.h"
 #include "pass/ifunclazy.h"
 #include "pass/fixdataregions.h"
+#include "pass/resolveexternallinks.h"
 #include "pass/populateplt.h"
 #include "pass/relocheck.h"
 #include "pass/encodingcheckpass.h"
@@ -187,7 +188,7 @@ void Conductor::resolveTLSLinks() {
     program->accept(&resolveTLS);
 }
 
-void Conductor::resolveData(bool justBridge) {
+void Conductor::resolveData(bool multipleElf, bool justBridge) {
     if(auto egalito = program->getEgalito()) {
         InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
         egalito->accept(&bridge);
@@ -221,6 +222,11 @@ void Conductor::resolveData(bool justBridge) {
 
         // requires DataVariables
         RUN_PASS(FindInitFuncs(), module);
+    }
+
+    if(multipleElf) {
+        ResolveExternalLinksPass resolveExternalLinks(this);
+        program->accept(&resolveExternalLinks);
     }
 }
 

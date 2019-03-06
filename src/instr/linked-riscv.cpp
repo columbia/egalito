@@ -4,6 +4,7 @@
 #include "config.h"
 
 #include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "chunk/concrete.h"
 #include "analysis/dataflow.h"
 #include "analysis/liveregister.h"

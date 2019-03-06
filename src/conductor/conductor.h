@@ -39,7 +39,7 @@ public:
 
     void resolvePLTLinks();
     void resolveTLSLinks();
-    void resolveData(bool justBridge = false);
+    void resolveData(bool multipleElf = false, bool justBridge = false);
     void resolveVTables();
     void setupIFuncLazySelector();
     void fixDataSections(bool allocateTLS = true);

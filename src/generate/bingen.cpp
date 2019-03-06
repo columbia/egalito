@@ -12,7 +12,6 @@
 #include "load/segmap.h"
 #include "operation/find.h"
 #include "operation/mutator.h"
-#include "pass/relocdata.h"
 #include "pass/fixdataregions.h"
 #include "pass/instrumentcalls.h"
 #include "pass/switchcontext.h"

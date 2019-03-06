@@ -3,16 +3,18 @@
 #include <typeinfo>
 #include "handlecopyrelocs.h"
 #include "conductor/conductor.h"
+#include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
 
 #include "log/log.h"
 #include "log/temp.h"
 
+#if 0
 void HandleCopyRelocs::visit(Module *module) {
+    if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
     if(!module->getElfSpace()) return;
-
-    this->module = module;
 
     //TemporaryLogLevel tll("pass", 15);
     auto relocList = module->getElfSpace()->getRelocList();
@@ -21,8 +23,6 @@ void HandleCopyRelocs::visit(Module *module) {
     for(auto r : *relocList) {
         if(r->getType() == R_X86_64_COPY) {
             //TemporaryLogLevel tll("chunk", 15);
-
-            assert(module->getName() == "module-(executable)");
 
             LOG(10, "R_X86_64_COPY!! at " << r->getAddress());
             LOG(10, "    symbol: " << r->getSymbol());
@@ -74,28 +74,31 @@ void HandleCopyRelocs::visit(Module *module) {
         }
     }
 }
+#else
+void HandleCopyRelocs::visit(Module *module) {
+    if(module->getLibrary()->getRole() != Library::ROLE_MAIN) return;
 
-void HandleCopyRelocs::copyAndDuplicate(Link *link, address_t address,
-    size_t size) {
+    for(auto region : CIter::regions(module)) {
+        for(auto section : CIter::children(region)) {
+            for(auto var : CIter::children(section)) {
+                if(!var->getIsCopy()) continue;
 
-    auto from = link->getTargetAddress();
-    std::memcpy((void *)address, (void *)from, size);
-    LOG(0, "copy from " << std::hex << from << " to " << address
-        << " size " << size);
-    LOG(0, "the value is " << std::hex <<  *(unsigned long *)address);
-
-    Range range(from, size);
-    auto section = dynamic_cast<DataSection *>(&*link->getTarget());
-    std::vector<DataVariable *> existing;
-    for(auto var : CIter::children(section)) {
-        LOG(1, "var = " << std::hex << var->getAddress());
-        if(range.contains(var->getAddress())) {
-            if(dynamic_cast<NormalLink *>(var->getDest())) {
-                existing.push_back(var);
+                // NOTE: Addresses must include the base address, we are memcpy'ing
+                copyAndDuplicate(var->getDest(), var->getAddress(), var->getSize());
             }
         }
     }
-    if(!existing.empty()) {
-        LOG(0, "copyAndDuplicate: duplication is NYI");
-    }
+}
+#endif
+
+void HandleCopyRelocs::copyAndDuplicate(Link *sourceLink, address_t destAddress,
+    size_t size) {
+
+    auto sourceAddress = sourceLink->getTargetAddress();
+    if(!sourceAddress || !destAddress) return;
+
+    std::memcpy((void *)destAddress, (void *)sourceAddress, size);
+    LOG(0, "copy from 0x" << std::hex << sourceAddress << " to 0x" << destAddress
+        << " size " << size);
+    LOG(0, "the value is 0x" << std::hex << *(unsigned long *)destAddress);
 }

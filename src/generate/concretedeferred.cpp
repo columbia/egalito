@@ -753,7 +753,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
 DataRelocSectionContent::DeferredType *DataRelocSectionContent
     ::addDataExternalRef(DataVariable *var, ExternalSymbol *extSym, Section *section,
-        Module *module) {
+        Module *module, address_t addend) {
 
     auto rela = new ElfXX_Rela();
     std::memset(rela, 0, sizeof(*rela));
@@ -761,7 +761,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
 
     rela->r_offset  = var->getAddress();
     rela->r_info    = 0;
-    rela->r_addend  = 0;
+    rela->r_addend  = addend;
 
     auto targetName = extSym->getName();
 
