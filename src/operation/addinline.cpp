@@ -13,7 +13,7 @@
 #include "log/temp.h"
 
 ChunkAddInline::ChunkAddInline(std::vector<Register> regList,
-    std::function<std::vector<Instruction *> (bool)> generator) {
+    std::function<std::vector<Instruction *> (unsigned int)> generator) {
 
     modification = new ModificationImpl(regList, generator);
 }
@@ -26,10 +26,13 @@ std::vector<Instruction *> ChunkAddInline::getFullCode(Instruction *point) {
     SaveRestoreRegisters saveRestore(point, redzone);
 
     auto regList = modification->getClobberedRegisters();
+    unsigned int stackBytesAdded = 0;
+    stackBytesAdded += regList.size() * 8;  // for pushes
+    if(redzone) stackBytesAdded += 0x80;
 
     std::vector<Instruction *> instrList;
     extendList(instrList, saveRestore.getRegSaveCode(regList));
-    extendList(instrList, modification->getNewCode(redzone));
+    extendList(instrList, modification->getNewCode(stackBytesAdded));
     extendList(instrList, saveRestore.getRegRestoreCode(regList));
 
     return std::move(instrList);

@@ -111,8 +111,12 @@ void ShadowStackPass::pushToShadowStack(Function *function) {
 	}
 }
 
+#define FITS_IN_ONE_BYTE(x) ((x) < 0x80)  /* signed 1-byte operand */
+#define GET_BYTE(x, shift) static_cast<unsigned char>(((x) >> (shift*8)) & 0xff)
+#define GET_BYTES(x) GET_BYTE((x),0), GET_BYTE((x),1), GET_BYTE((x),2), GET_BYTE((x),3)
+
 void ShadowStackPass::pushToShadowStackConst(Function *function) {
-    ChunkAddInline ai({X86_REG_R11}, [] (bool redzone) {
+    ChunkAddInline ai({X86_REG_R11}, [] (unsigned int stackBytesAdded) {
         // 0:   41 53                   push   %r11
         // 2:   4c 8b 5c 24 08          mov    0x8(%rsp),%r11
         // 7:   4c 89 9c 24 00 00 50    mov    %r11,-0xb00000(%rsp)
@@ -121,21 +125,17 @@ void ShadowStackPass::pushToShadowStackConst(Function *function) {
 
         //auto pushInstr = Disassemble::instruction({0x41, 0x53});
         Instruction *mov1Instr = nullptr;
-        if(redzone) {
+        if(FITS_IN_ONE_BYTE(stackBytesAdded)) {
+            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, GET_BYTE(stackBytesAdded,0)});
+        } else {
             //   5:    4c 8b 9c 24 88 00 00    mov    0x88(%rsp),%r11
             //   c:    00 
-            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, 0x88, 0x00, 0x00, 0x00});
-        } else {
-            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x08});
+            mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, GET_BYTES(stackBytesAdded)});
         }
         Instruction *mov2Instr = nullptr;
         {
-            unsigned int offset = -0xb00000;
-            if(redzone) offset += 0x80;
-#define BITS_FROM(x, shift) static_cast<unsigned char>(((x) >> shift) & 0xff)
-            mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24,
-                BITS_FROM(offset, 0), BITS_FROM(offset, 8), BITS_FROM(offset, 16), BITS_FROM(offset, 24)});
-#undef BITS_FROM
+            unsigned int offset = -0xb00000 + stackBytesAdded;
+            mov2Instr = Disassemble::instruction({0x4c, 0x89, 0x9c, 0x24, GET_BYTES(offset)});
         }
         //auto popInstr = Disassemble::instruction({0x41, 0x5b});
 
@@ -182,7 +182,7 @@ void ShadowStackPass::popFromShadowStack(Instruction *instruction) {
 }
 
 void ShadowStackPass::popFromShadowStackConst(Instruction *instruction) {
-    ChunkAddInline ai({X86_REG_EFLAGS, X86_REG_R11}, [this] (bool redzone) {
+    ChunkAddInline ai({X86_REG_EFLAGS, X86_REG_R11}, [this] (unsigned int stackBytesAdded) {
         /*
                                          pushfd
             0:   41 53                   push   %r11
@@ -195,23 +195,18 @@ void ShadowStackPass::popFromShadowStackConst(Instruction *instruction) {
         */
         //auto pushInstr = Disassemble::instruction({0x41, 0x53});
         Instruction *movInstr = nullptr;
-        if(redzone) {
-            //   5:    4c 8b 9c 24 88 00 00    mov    0x88(%rsp),%r11
+        if(FITS_IN_ONE_BYTE(stackBytesAdded)) {
+            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, GET_BYTE(stackBytesAdded,0)});
+        } else {
+            //   5:    4c 8b 9c 24 88 00 00    mov    0x90(%rsp),%r11
             //   c:    00 
             // (optional 0x80 for redzone), 0x8 for pushfd, 0x8 for push %r11
-            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, 0x90, 0x00, 0x00, 0x00});
-        } else {
-            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x5c, 0x24, 0x10});
+            movInstr = Disassemble::instruction({0x4c, 0x8b, 0x9c, 0x24, GET_BYTES(stackBytesAdded)});
         }
         Instruction *cmpInstr = nullptr;
         {
-            unsigned int offset = -0xb00000;
-            offset += 0x8;  // pushfd
-            if(redzone) offset += 0x80;
-#define BITS_FROM(x, shift) static_cast<unsigned char>(((x) >> shift) & 0xff)
-            cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24,
-                BITS_FROM(offset, 0), BITS_FROM(offset, 8), BITS_FROM(offset, 16), BITS_FROM(offset, 24)});
-#undef BITS_FROM
+            unsigned int offset = -0xb00000 + stackBytesAdded;
+            cmpInstr = Disassemble::instruction({0x4c, 0x39, 0x9c, 0x24, GET_BYTES(offset)});
         }
         // jne goes here
         //auto popInstr = Disassemble::instruction({0x41, 0x5b});
@@ -261,3 +256,6 @@ void ShadowStackPass::popFromShadowStackGS(Instruction *instruction) {
         m.splitBlockBefore(instruction);
     }
 }
+
+#undef GET_BYTE
+#undef GET_BYTES
