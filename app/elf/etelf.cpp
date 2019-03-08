@@ -1,91 +1,35 @@
 #include <iostream>
-#include <functional>
 #include <string>
 #include <cstring>  // for std::strcmp
 #include "etelf.h"
-#include "conductor/conductor.h"
-#include "conductor/setup.h"
-#include "pass/collapseplt.h"
-#include "pass/promotejumps.h"
-#include "pass/ldsorefs.h"
-#include "pass/ifuncplts.h"
-#include "pass/fixenviron.h"
-#include "pass/externalsymbollinks.h"
-#include "pass/permutedata.h"
-#include "log/registry.h"
-#include "log/temp.h"
+#include "conductor/interface.h"
 
-static void parse(const std::string& filename, const std::string& output, bool oneToOne, bool quiet) {
-    ConductorSetup setup;
+static void parse(const std::string &filename, const std::string &output,
+    bool oneToOne, bool quiet) {
+
+    EgalitoInterface egalito(true, false);
+
     std::cout << "Transforming file [" << filename << "]\n";
 
-    if(quiet) {
-        GroupRegistry::getInstance()->muteAllSettings();
-    }
+    if(quiet) egalito.muteOutput();
+    egalito.parseLoggingEnvVar( /*default*/ );
 
     try {
-        if(ElfMap::isElf(filename.c_str())) {
-            if(oneToOne) {
-                std::cout << "Parsing ELF file...\n";
-            }
-            else {
-                std::cout << "Parsing ELF file and all shared library dependencies...\n";
-            }
-            setup.parseElfFiles(filename.c_str(), /*recursive=*/ !oneToOne, false);
-        }
-        else {
-            std::cout << "Parsing archive...\n";
-            setup.parseEgalitoArchive(filename.c_str());
-        }
-
-        auto program = setup.getConductor()->getProgram();
-
-        std::cout << "Preparing for codegen...\n";
-        if(oneToOne) {
-            CollapsePLTPass collapsePLT(setup.getConductor());
-            program->accept(&collapsePLT);
-
-            PromoteJumpsPass promoteJumps;
-            program->accept(&promoteJumps);
-
-            //ExternalSymbolLinksPass externalSymbolLinks;
-            //program->accept(&externalSymbolLinks);
-        }
-        else {
-            FixEnvironPass fixEnviron;
-            program->accept(&fixEnviron);
-
-            CollapsePLTPass collapsePLT(setup.getConductor());
-            program->accept(&collapsePLT);
-
-            PromoteJumpsPass promoteJumps;
-            program->accept(&promoteJumps);
-        }
+        egalito.initializeParsing();
 
         if(oneToOne) {
-            // generate mirror executable.
-            std::cout << "Generating mirror executable [" << output << "]...\n";
-            LdsoRefsPass ldsoRefs;
-            program->accept(&ldsoRefs);
-
-            ExternalSymbolLinksPass externalSymbolLinks;
-            program->accept(&externalSymbolLinks);
-
-            IFuncPLTs ifuncPLTs;
-            program->accept(&ifuncPLTs);
-
-            setup.generateMirrorELF(output.c_str());
+            std::cout << "Parsing ELF file...\n";
         }
         else {
-            // generate static executable.
-            std::cout << "Generating union executable [" << output << "]...\n";
-            LdsoRefsPass ldsoRefs;
-            program->accept(&ldsoRefs);
-            IFuncPLTs ifuncPLTs;
-            program->accept(&ifuncPLTs);
-
-            setup.generateStaticExecutable(output.c_str());
+            std::cout << "Parsing ELF file and all shared library dependencies...\n";
         }
+        egalito.parse(filename, !oneToOne);
+
+        //auto program = egalito.getProgram();
+
+        std::cout << "Performing code generation into [" << output << "]...\n";
+        egalito.generate(output, !oneToOne);
+
     }
     catch(const char *message) {
         std::cout << "Exception: " << message << std::endl;
@@ -110,12 +54,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
-        printUsage(argv[0]);
-        return 1;
-    }
-
-    bool oneToOne = false;
+    bool oneToOne = true;
     bool quiet = true;
 
     struct {
