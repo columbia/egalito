@@ -1,5 +1,5 @@
-#ifndef EGALITO_APP_SANDBOX_H
-#define EGALITO_APP_SANDBOX_H
+#ifndef EGALITO_APP_HARDEN_H
+#define EGALITO_APP_HARDEN_H
 
 #include "conductor/interface.h"
 

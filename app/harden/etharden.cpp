@@ -2,7 +2,7 @@
 #include <functional>
 #include <string>
 #include <cstring>  // for std::strcmp
-#include "etcet.h"
+#include "etharden.h"
 #include "pass/chunkpass.h"
 #include "pass/stackxor.h"
 #include "pass/endbradd.h"

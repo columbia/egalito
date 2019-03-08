@@ -16,7 +16,7 @@ CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
 ELF_SOURCES             = $(wildcard elf/*.cpp)
 SANDBOX_SOURCES         = $(wildcard sandbox/*.c sandbox/*.cpp)
 SANDBOX_INJECT_SOURCES  = $(wildcard sandbox/inject/*.c sandbox/inject/*.cpp)
-CET_SOURCES             = $(wildcard cet/*.c cet/*.cpp)
+HARDEN_SOURCES          = $(wildcard harden/*.cpp)
 CET_INJECT_SOURCES      = $(wildcard cet/inject/*.c cet/inject/*.cpp)
 SHELL_SOURCES           = $(wildcard shell/*.cpp)
 OBJDUMP_SOURCES         = $(wildcard objdump/*.cpp)
@@ -32,8 +32,8 @@ ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
 ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
 ETSANDBOX_SOURCES = $(SANDBOX_SOURCES)
 ETSANDBOX_OBJECTS = $(call obj-filename,$(ETSANDBOX_SOURCES))
-ETCET_SOURCES = $(CET_SOURCES)
-ETCET_OBJECTS = $(call obj-filename,$(ETCET_SOURCES))
+ETHARDEN_SOURCES = $(HARDEN_SOURCES)
+ETHARDEN_OBJECTS = $(call obj-filename,$(ETHARDEN_SOURCES))
 LIBSANDBOX_SOURCES = $(SANDBOX_INJECT_SOURCES)
 LIBSANDBOX_OBJECTS = $(call obj-filename,$(LIBSANDBOX_SOURCES))
 LIBCET_SOURCES = $(CET_INJECT_SOURCES)
@@ -43,7 +43,7 @@ ETELF_OBJECTS = $(call obj-filename,$(ETELF_SOURCES))
 
 ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETOBJDUMP_SOURCES) \
     $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES) \
-    $(ETCET_SOURCES) $(LIBCET_SOURCES) \
+    $(ETHARDEN_SOURCES) $(LIBCET_SOURCES) \
     $(ETELF_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
@@ -53,14 +53,14 @@ BUILDTREE = $(sort $(dir $(ALL_OBJECTS) $(PYTHON_OBJECTS)))
 ETSHELL = $(BUILDDIR)etshell
 ETOBJDUMP = $(BUILDDIR)etobjdump
 ETSANDBOX = $(BUILDDIR)etsandbox
-ETCET = $(BUILDDIR)etcet
+ETHARDEN = $(BUILDDIR)etharden
 ETELF = $(BUILDDIR)etelf
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
 CET_LIBRARY = $(BUILDDIR)libcet.so
 
-OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETCET) $(CET_LIBRARY) $(ETELF)
+OUTPUTS = $(ETSHELL) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF)
 
 # Default target
 .PHONY: all
@@ -90,7 +90,7 @@ $(BUILDTREE): ../config/config.h
 	@ln -sf $(ETOBJDUMP)
 	@ln -sf $(ETSANDBOX)
 	@ln -sf $(SANDBOX_LIBRARY)
-	@ln -sf $(ETCET)
+	@ln -sf $(ETHARDEN)
 	@ln -sf $(CET_LIBRARY)
 	@ln -sf $(ETELF)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
@@ -126,9 +126,9 @@ $(ETSANDBOX): $(ETSANDBOX_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETSANDBOX): ../src/$(BUILDDIR)libegalito.so
 
-$(ETCET): $(ETCET_OBJECTS)
+$(ETHARDEN): $(ETHARDEN_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
-$(ETCET): ../src/$(BUILDDIR)libegalito.so
+$(ETHARDEN): ../src/$(BUILDDIR)libegalito.so
 
 $(ETELF): $(ETELF_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
@@ -151,4 +151,4 @@ $(CET_LIBRARY): $(LIBCET_OBJECTS)
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump etsandbox libsandbox.so etcet libcet.so etelf
+	-rm -rf $(BUILDDIR) .symlinks etshell pyshell etobjdump etsandbox libsandbox.so etharden libcet.so etelf
