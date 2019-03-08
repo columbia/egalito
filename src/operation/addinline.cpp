@@ -60,7 +60,7 @@ ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegSaveCode(
     const RegList &regList) {
 
     InstrList results;
-    if(redzone) {
+    if(redzone && regList.size() > 0) {
         // lea -0x80(%rsp), %rsp
         results.push_back(Disassemble::instruction({0x48, 0x8d, 0x64, 0x24, 0x80}));
     }
@@ -116,7 +116,7 @@ ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegRestoreCod
             break;
         }
     }
-    if(redzone) {
+    if(redzone && regList.size() > 0) {
         // lea 0x80(%rsp), %rsp
         results.push_back(Disassemble::instruction(
             {0x48, 0x8d, 0xa4, 0x24, 0x80, 0x00, 0x00, 0x00}));
