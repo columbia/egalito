@@ -53,16 +53,37 @@ void ConductorSetup::parseEgalito(bool fromArchive) {
     LoaderEmulator::getInstance().setup(conductor);
 }
 
-void ConductorSetup::parseElfFiles(const char *executable,
-    bool withSharedLibs, bool injectEgalito) {
-
+void ConductorSetup::createNewProgram() {
     this->conductor = new Conductor();
     ::egalito_conductor = conductor;
+    this->elf = nullptr;
+    this->egalito = nullptr;
+}
 
-    auto mainModule = conductor->parseAnything(executable);
-    this->elf = mainModule->getElfSpace()->getElfMap();
+Module *ConductorSetup::parseElfFiles(const char *executable,
+    bool withSharedLibs, bool injectEgalito) {
 
-    findEntryPointFunction();
+    createNewProgram();
+    return injectElfFiles(executable, withSharedLibs, injectEgalito);
+}
+
+Module *ConductorSetup::injectElfFiles(const char *executable,
+    bool withSharedLibs, bool injectEgalito) {
+
+    return injectElfFiles(executable, Library::ROLE_UNKNOWN, withSharedLibs, injectEgalito);
+}
+
+Module *ConductorSetup::injectElfFiles(const char *executable, Library::Role role,
+    bool withSharedLibs, bool injectEgalito) {
+
+    if(!conductor) createNewProgram();
+
+    // executable can be a shared library. this->elf stores main module
+    auto firstModule = conductor->parseAnything(executable);
+    if(firstModule->getLibrary()->getRole() == Library::ROLE_MAIN) {
+        this->elf = firstModule->getElfSpace()->getElfMap();
+        findEntryPointFunction();
+    }
 
     if(injectEgalito) {
         this->parseEgalito();
@@ -91,6 +112,7 @@ void ConductorSetup::parseElfFiles(const char *executable,
     // been performed (except for special cases)
 
     setBaseAddresses();
+    return firstModule;
 }
 
 void ConductorSetup::parseEgalitoArchive(const char *archive) {

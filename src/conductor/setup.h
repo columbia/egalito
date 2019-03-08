@@ -31,13 +31,18 @@ private:
 public:
     ConductorSetup() : elf(nullptr), egalito(nullptr), conductor(nullptr),
         sandboxBase(SANDBOX_BASE_ADDRESS) {}
-    void parseElfFiles(const char *executable, bool withSharedLibs = true,
+    Module *parseElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
+    Module *injectElfFiles(const char *executable, bool withSharedLibs = true,
+        bool injectEgalito = false);
+    Module *injectElfFiles(const char *executable, Library::Role role,
+        bool withSharedLibs = true, bool injectEgalito = false);
     void parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);
     std::vector<Module *> addExtraLibraries(
         const std::vector<std::string> &filenames);
     void ensureBaseAddresses();
+    void createNewProgram();  // optional
     Sandbox *makeLoaderSandbox();
     ShufflingSandbox *makeShufflingSandbox();
     Sandbox *makeFileSandbox(const char *outputFile);
