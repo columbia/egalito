@@ -70,14 +70,34 @@ void ShadowStackPass::visit(Function *function) {
     if(function->getName() == "egalito_allocate_shadow_stack_const") return;
     if(function->getName() == "get_gs") return;
 
+    if(function->getName() == "obstack_free") return;  // jne tail rec, for const ss
+
     if(function->getName() == "_start") return;
     if(function->getName() == "__libc_start_main") return;
     if(function->getName() == "mmap64") return;
     if(function->getName() == "mmap") return;
     if(function->getName() == "arch_prctl") return;
 
+    // const shadow stack needs these
     if(function->getName() == "__longjmp") return;
     if(function->getName() == "__longjmp_chk") return;
+
+    // mempcpy does jmp into middle of this:
+    //if(function->getName() == "__memcpy_avx_unaligned_erms") return;
+    if(function->getName().find("memcpy") != std::string::npos) return;
+
+    // this has ja, conditional tail recursion
+    //if(function->getName() == "__memset_avx2_unaligned_erms") return;
+    if(function->getName().find("memset") != std::string::npos) return;
+    //if(function->getName().find("mem") != std::string::npos) return;
+
+    // this has jne, conditional tail recursion
+    // __strncasecmp_l_avx
+    //if(function->getName() == "__strncasecmp_l_avx") return;
+    if(function->getName().find("str") != std::string::npos) return;
+
+    // sphinx3, function does tail recursion to itself
+    if(function->getName() == "mdef_phone_id") return;
 
     pushToShadowStack(function);
     recurse(function);
@@ -98,6 +118,11 @@ void ShadowStackPass::visit(Instruction *instruction) {
     }
     else if(auto v = dynamic_cast<IndirectJumpInstruction *>(semantic)) {
         if(!v->isForJumpTable()) {  // indirect tail recursion
+            popFromShadowStack(instruction);
+        }
+    }
+    else if(auto v = dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+        if(!v->isCall()) {
             popFromShadowStack(instruction);
         }
     }
