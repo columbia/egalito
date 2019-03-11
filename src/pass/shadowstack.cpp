@@ -68,12 +68,16 @@ void ShadowStackPass::visit(Function *function) {
     if(function->getName() == "egalito_shadowstack_violation") return;
     if(function->getName() == "egalito_allocate_shadow_stack_gs") return;
     if(function->getName() == "egalito_allocate_shadow_stack_const") return;
+    if(function->getName() == "get_gs") return;
 
     if(function->getName() == "_start") return;
     if(function->getName() == "__libc_start_main") return;
     if(function->getName() == "mmap64") return;
     if(function->getName() == "mmap") return;
     if(function->getName() == "arch_prctl") return;
+
+    if(function->getName() == "__longjmp") return;
+    if(function->getName() == "__longjmp_chk") return;
 
     pushToShadowStack(function);
     recurse(function);
