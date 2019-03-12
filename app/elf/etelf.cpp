@@ -7,26 +7,31 @@
 static void parse(const std::string &filename, const std::string &output,
     bool oneToOne, bool quiet) {
 
-    EgalitoInterface egalito(true, false);
-
     std::cout << "Transforming file [" << filename << "]\n";
 
+    // Set logging levels according to quiet and EGALITO_DEBUG env var.
+    EgalitoInterface egalito(/*verboseLogging=*/ true, /*useLoggingEnvVar=*/ false);
     if(quiet) egalito.muteOutput();
     egalito.parseLoggingEnvVar( /*default*/ );
 
+    // Parsing ELF files can throw exceptions.
     try {
-        egalito.initializeParsing();
+        egalito.initializeParsing();  // Creates Conductor and Program
 
-        if(oneToOne) {
-            std::cout << "Parsing ELF file...\n";
-        }
-        else {
-            std::cout << "Parsing ELF file and all shared library dependencies...\n";
-        }
+        // Parse a filename; if second arg is true, parse shared libraries
+        // recursively. This parse() can be called repeatedly to inject other
+        // dependencies, and the recursive closure can be parsed with
+        // parseRecursiveDependencies() at any later stage.
+        std::cout << "Parsing ELF file"
+            << (oneToOne ? "" : " and all shared library dependencies") << "...\n";
         egalito.parse(filename, !oneToOne);
 
+        // This is where transformations, if any, should be applied to program.
         //auto program = egalito.getProgram();
 
+        // Generate output, mirrorgen or uniongen. If only one argument is
+        // given to generate(), automatically guess based on whether multiple
+        // Modules are present.
         std::cout << "Performing code generation into [" << output << "]...\n";
         egalito.generate(output, !oneToOne);
 
