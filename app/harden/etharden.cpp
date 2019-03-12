@@ -93,7 +93,6 @@ static void printUsage(const char *program) {
 }
 
 void HardenApp::run(int argc, char **argv) {
-    bool quiet = true;
     bool oneToOne = true;
     std::vector<std::string> ops;
 
@@ -102,8 +101,8 @@ void HardenApp::run(int argc, char **argv) {
         std::function<void ()> action;
     } actions[] = {
         // should we show debugging log messages?
-        {"-v", [&quiet] () { quiet = false; }},
-        {"-q", [&quiet] () { quiet = true; }},
+        {"-v", [this] () { quiet = false; }},
+        {"-q", [this] () { quiet = true; }},
 
         // which elf gen should we perform?
         {"-m", [&oneToOne] () { oneToOne = true; }},

@@ -29,7 +29,7 @@ void ShadowStackPass::visit(Program *program) {
         {
             auto sourceFunc = ChunkFind2(program).findFunction(
                 "__libc_start_main");
-            assert(sourceFunc);
+            assert(sourceFunc && "ShadowStackPass requires libc to be present (uniongen)");
             auto block1 = sourceFunc->getChildren()->getIterable()->get(0);
 
             {

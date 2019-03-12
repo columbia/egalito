@@ -8,6 +8,7 @@ private:
     bool quiet;
     EgalitoInterface *egalito;
 public:
+    HardenApp() : quiet(true) {}
     void run(int argc, char **argv);
     void parse(const std::string &filename, bool oneToOne);
     void generate(const std::string &filename, bool oneToOne);
