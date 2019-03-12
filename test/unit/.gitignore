@@ -1,6 +1,5 @@
 *.swp
 /.symlinks
-/itest
 /runner
 /build_x86_64
 /build_aarch64
