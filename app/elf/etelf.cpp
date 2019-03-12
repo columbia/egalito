@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <functional>
 #include <cstring>  // for std::strcmp
 #include "etelf.h"
 #include "conductor/interface.h"
