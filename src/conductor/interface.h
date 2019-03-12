@@ -21,13 +21,10 @@ private:
 public:
     /** Creates an EgalitoInterface. One EgalitoInterface can be reused,
         or multiple instances can be created (sequentially). Default arguments
-        cause debugging info to be logged, use functions below to control
-        logging more precisely.
+        cause debugging info to be logged and EGALITO_DEBUG to be honoured. To
+        control logging levels at runtime, try TemporaryLogLevel.
     */
     EgalitoInterface(bool verboseLogging = true, bool useLoggingEnvVar = true);
-    bool parseLoggingEnvVar(const char *envVar = "EGALITO_DEBUG");
-    void muteOutput();
-    bool setLogLevel(const char *logname, int level);
 
     /** Creates Program. Call this before any invocation of parse(), and may be
         called repeatedly to reset the Program.
@@ -81,6 +78,10 @@ public:
     */
     void generate(const std::string &outputName, bool isUnion);
 public:
+    // Public functions, but this interface could change.
+    bool parseLoggingEnvVar(const char *envVar = "EGALITO_DEBUG");
+    void muteOutput();
+    bool setLogLevel(const char *logname, int level);
     void prepareForGeneration(bool isUnion);
     void assignNewFunctionAddresses();
 };

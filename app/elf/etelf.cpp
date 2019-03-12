@@ -10,9 +10,7 @@ static void parse(const std::string &filename, const std::string &output,
     std::cout << "Transforming file [" << filename << "]\n";
 
     // Set logging levels according to quiet and EGALITO_DEBUG env var.
-    EgalitoInterface egalito(/*verboseLogging=*/ true, /*useLoggingEnvVar=*/ false);
-    if(quiet) egalito.muteOutput();
-    egalito.parseLoggingEnvVar( /*default*/ );
+    EgalitoInterface egalito(/*verboseLogging=*/ !quiet, /*useLoggingEnvVar=*/ true);
 
     // Parsing ELF files can throw exceptions.
     try {

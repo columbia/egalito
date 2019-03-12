@@ -13,12 +13,9 @@
 #include "log/temp.h"
 
 void HardenApp::parse(const std::string &filename, bool oneToOne) {
-    egalito = new EgalitoInterface(true, false);
+    egalito = new EgalitoInterface(!quiet, true);
 
     std::cout << "Transforming file [" << filename << "]\n";
-
-    if(quiet) egalito->muteOutput();
-    egalito->parseLoggingEnvVar( /*default*/ );
 
     try {
         egalito->initializeParsing();
