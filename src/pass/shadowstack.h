@@ -26,6 +26,8 @@ private:
     void popFromShadowStack(Instruction *instruction);
     void popFromShadowStackConst(Instruction *instruction);
     void popFromShadowStackGS(Instruction *instruction);
+    void instrumentLongjmpGS(Function *function);
+    void instrumentSetjmpGS(Function *function);
 };
 
 

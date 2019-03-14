@@ -64,6 +64,20 @@ void ShadowStackPass::visit(Module *module) {
 }
 
 void ShadowStackPass::visit(Function *function) {
+    if(mode == MODE_GS) {
+        if(function->getName() == "__longjmp") {
+            instrumentLongjmpGS(function);
+            return;
+        }
+        if(function->getName() == "__sigsetjmp") {
+            instrumentSetjmpGS(function);
+            return;
+        }
+        if(function->getName() == "__sigjmp_save") return; // setjmp mod needs this
+        if(function->getName() == "setjmp") return;
+        if(function->getName() == "_setjmp") return;
+    }
+
     if(function->getName() == "egalito_endbr_violation") return;
     if(function->getName() == "egalito_shadowstack_violation") return;
     if(function->getName() == "egalito_allocate_shadow_stack_gs") return;
@@ -297,6 +311,56 @@ void ShadowStackPass::popFromShadowStackGS(Instruction *instruction) {
         return std::vector<Instruction *>{ mov1Instr, mov2Instr, cmpInstr, jne, leaInstr, mov3Instr };
     });
     ai.insertBefore(instruction, true);
+}
+
+void ShadowStackPass::instrumentLongjmpGS(Function *function) {
+    /*
+       d:	4c 8b 47 48          	mov    0x48(%rdi),%r8
+      11:	65 4c 89 04 25 00 00 	mov    %r8,%gs:0x0
+      18:	00 00
+                                    #mov (JB_RSP*8)(%rdi),%R8_LP # orig
+	*/
+    ChunkAddInline ai({}, [this] (unsigned int stackBytesAdded) {
+        auto mov1Instr = Disassemble::instruction({0x4c, 0x8b, 0x47, 0x48});
+        auto mov2Instr = Disassemble::instruction({0x65, 0x4c, 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00});
+
+        return std::vector<Instruction *>{ mov1Instr, mov2Instr };
+    });
+    auto block1 = function->getChildren()->getIterable()->get(0);
+    auto instr1 = block1->getChildren()->getIterable()->get(0);
+    ai.insertBefore(instr1, false);
+}
+
+void ShadowStackPass::instrumentSetjmpGS(Function *function) {
+	/*
+                                    #movq %rax, (JB_PC*8)(%rdi)  # orig
+       0:	65 48 8b 04 25 00 00 	mov    %gs:0x0,%rax
+       7:	00 00
+       9:	48 89 47 48          	mov    %rax,0x48(%rdi)
+    */
+    ChunkAddInline ai({}, [this] (unsigned int stackBytesAdded) {
+        auto mov1Instr = Disassemble::instruction({0x65, 0x48, 0x8b, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00});
+        auto mov2Instr = Disassemble::instruction({0x48, 0x89, 0x47, 0x48});
+
+        return std::vector<Instruction *>{ mov1Instr, mov2Instr };
+    });
+    Instruction *point = nullptr;
+    for(auto block : CIter::children(function)) {
+        for(auto instr : CIter::children(block)) {
+            auto s = instr->getSemantic();
+            if(auto v = dynamic_cast<IsolatedInstruction *>(s)) {
+                auto ops = v->getAssembly()->getAsmOperands();
+                if(ops->getMode() == AssemblyOperands::MODE_REG_MEM
+                    && ops->getOperands()[0].reg == X86_REG_RAX) {
+
+                    point = instr;
+                    break;
+                }
+            }
+        }
+        if(point) break;
+    }
+    if(point) ai.insertAfter(point);
 }
 
 #undef FITS_IN_ONE_BYTE
