@@ -30,6 +30,8 @@ public:
         Module *module, bool weak, bool relative, bool afterMapping=false);
     Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
         Module *module, bool weak, bool relative, bool afterMapping=false);
+    Link *resolveExternally(ExternalSymbol *externalSymbol, Conductor *conductor,
+        Module *module, int addend, bool weak, bool relative, bool afterMapping=false);
 
     /* Resolve within the same module using address obtained by data flow
      * analysis. */
@@ -38,12 +40,12 @@ public:
 
 private:
     Link *resolveExternallyHelper(const char *name, const SymbolVersion *version,
-        Conductor *conductor, Module *module, bool weak, bool relative,
+        Conductor *conductor, Module *module, int addend, bool weak, bool relative,
         bool afterMapping);
     Link *resolveNameAsLinkHelper(const char *name, const SymbolVersion *version,
-        Module *module, bool weak, bool relative, bool afterMapping);
+        Module *module, int addend, bool weak, bool relative, bool afterMapping);
     Link *resolveNameAsLinkHelper2(const char *name, Module *module,
-        bool weak, bool relative, bool afterMapping);
+        int addend, bool weak, bool relative, bool afterMapping);
 public:
     // redirectCopyRelocs assumes afterMapping=true
     Link *redirectCopyRelocs(Conductor *conductor, Symbol *symbol, bool relative);

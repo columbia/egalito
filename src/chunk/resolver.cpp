@@ -348,10 +348,10 @@ Link *PerfectLinkResolver::resolveExternallyStrongWeak(Symbol *symbol,
     bool afterMapping) {
 
     auto l = resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
-        conductor, module, /*weak=*/ false, relative, afterMapping);
+        conductor, module, 0, /*weak=*/ false, relative, afterMapping);
     if(!l) {
         l = resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
-            conductor, module, /*weak=*/ true, relative, afterMapping);
+            conductor, module, 0, /*weak=*/ true, relative, afterMapping);
     }
     return l;
 }
@@ -361,11 +361,11 @@ Link *PerfectLinkResolver::resolveExternallyStrongWeak(ExternalSymbol *externalS
     bool afterMapping) {
 
     auto l = resolveExternallyHelper(externalSymbol->getName().c_str(),
-        externalSymbol->getVersion(), conductor, module, /*weak=*/ false,
+        externalSymbol->getVersion(), conductor, module, 0, /*weak=*/ false,
         relative, afterMapping);
     if(!l) {
         l = resolveExternallyHelper(externalSymbol->getName().c_str(),
-            externalSymbol->getVersion(), conductor, module, /*weak=*/ true,
+            externalSymbol->getVersion(), conductor, module, 0, /*weak=*/ true,
             relative, afterMapping);
     }
     return l;
@@ -376,7 +376,7 @@ Link *PerfectLinkResolver::resolveExternally(Symbol *symbol,
     bool afterMapping) {
 
     return resolveExternallyHelper(symbol->getName(), symbol->getVersion(),
-        conductor, module, weak, relative, afterMapping);
+        conductor, module, 0, weak, relative, afterMapping);
 }
 
 Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
@@ -384,13 +384,22 @@ Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
     bool afterMapping) {
 
     return resolveExternallyHelper(externalSymbol->getName().c_str(),
-        externalSymbol->getVersion(), conductor, module, weak,
+        externalSymbol->getVersion(), conductor, module, 0, weak,
+        relative, afterMapping);
+}
+
+Link *PerfectLinkResolver::resolveExternally(ExternalSymbol *externalSymbol,
+    Conductor *conductor, Module *module, int addend, bool weak, bool relative,
+    bool afterMapping) {
+
+    return resolveExternallyHelper(externalSymbol->getName().c_str(),
+        externalSymbol->getVersion(), conductor, module, addend, weak,
         relative, afterMapping);
 }
 
 Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
     const SymbolVersion *version, Conductor *conductor, Module *module,
-    bool weak, bool relative, bool afterMapping) {
+    int addend, bool weak, bool relative, bool afterMapping) {
 
     LOG(10, "(resolveExternally) SEARCH for " << name << ", weak? " << weak);
 
@@ -413,7 +422,7 @@ Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
         
         if(m != module) {
             if(auto link = resolveNameAsLinkHelper(name, version,
-                m, weak, relative, afterMapping)) {
+                m, addend, weak, relative, afterMapping)) {
 
                 return link;
             }
@@ -429,7 +438,7 @@ Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
 
     // weak definition
     if(auto link = resolveNameAsLinkHelper(name, version,
-        module, weak, relative, afterMapping)) {
+        module, addend, weak, relative, afterMapping)) {
 
         LOG(10, "    link to weak definition in " << module->getName());
         return link;
@@ -438,7 +447,7 @@ Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
     // weak reference
     for(auto m : CIter::modules(conductor->getProgram())) {
         if(auto link = resolveNameAsLinkHelper(name, version,
-            m, weak, relative, afterMapping)) {
+            m, addend, weak, relative, afterMapping)) {
 
             LOG(10, "    link (weak) to definition in " << m->getName());
             return link;
@@ -451,14 +460,14 @@ Link *PerfectLinkResolver::resolveExternallyHelper(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
-    const SymbolVersion *version,
-    Module *module, bool weak, bool relative, bool afterMapping) {
+    const SymbolVersion *version, Module *module, int addend,
+    bool weak, bool relative, bool afterMapping) {
 
     LOG(1, "        resolveNameAsLinkHelper (" << name << ") inside "
         << module->getName());
 
     if(auto link = resolveNameAsLinkHelper2(
-        name, module, weak, relative, afterMapping)) {
+        name, module, addend, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -470,7 +479,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName1.append("@");
     versionedName1.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName1.c_str(), module, weak, relative, afterMapping)) {
+        versionedName1.c_str(), module, addend, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -478,7 +487,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
     versionedName2.append("@@");
     versionedName2.append(version->getName());
     if(auto link = resolveNameAsLinkHelper2(
-        versionedName2.c_str(), module, weak, relative, afterMapping)) {
+        versionedName2.c_str(), module, addend, weak, relative, afterMapping)) {
 
         return link;
     }
@@ -486,7 +495,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper(const char *name,
 }
 
 Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
-    Module *module, bool weak, bool relative, bool afterMapping) {
+    Module *module, int addend, bool weak, bool relative, bool afterMapping) {
 
     Symbol *symbol = nullptr;
     auto list = module->getElfSpace()->getDynamicSymbolList();
@@ -538,14 +547,13 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
         if(afterMapping) {
             address += module->getBaseAddress();
         }
-        if(address == 0x399204) {
-            LOG(1, "    special case");
-        }
-        auto t = LinkFactory::makeDataLink(module, address, true);
 
+        address += addend;
+
+        auto t = LinkFactory::makeDataLink(module, address, true);
         LOG(1, "    address 0x" << std::hex << address << " -> " << t);
 //        return LinkFactory::makeDataLink(module, address, true);
-          return t;
+        return t;
     }
 
     return nullptr;
