@@ -58,20 +58,12 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
 
     for(auto reloc : *relocSection) {
         auto a = reloc->getAddress() + module->getBaseAddress();
-        DataVariable *var = nullptr;
-        if(auto oldVar = section->findVariable(a)) {
-            if(oldVar->getDest()) continue;
-            var = oldVar;
-        }
+        if(section->findVariable(a)) continue;
 
-        LOG(10, "trying to resolve specific reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
+        // always create a DataVariable, even if the link is null
 
-        // if DataVariable already exists (null link), update its link.
-        // else create a new DataVariable, even if its link is initially null.
-        if(!var) {
-            var = DataVariable::create(section, a, link, reloc->getSymbol());
-        }
+        auto var = DataVariable::create(section, a, link, reloc->getSymbol());
         finalizeDataVariable(reloc, var, module);
     }
 }
@@ -84,20 +76,13 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto addr = reloc->getAddress() + module->getBaseAddress();
         auto region = list->findRegionContaining(addr);
         auto section = region->findDataSectionContaining(addr);
-        DataVariable *var = nullptr;
-        if(auto oldVar = section->findVariable(addr)) {
-            if(oldVar->getDest()) continue;
-            var = oldVar;
-        }
+        if(section->findVariable(addr)) continue;
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
+        // always create a DataVariable, even if the link is null
 
-        // if DataVariable already exists (null link), update its link.
-        // else create a new DataVariable, even if its link is initially null.
-        if(!var) {
-            var = DataVariable::create(module, addr, link, reloc->getSymbol());
-        }
+        auto var = DataVariable::create(module, addr, link, reloc->getSymbol());
         finalizeDataVariable(reloc, var, module);
     }
 }
