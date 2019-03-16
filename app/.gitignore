@@ -1,6 +1,7 @@
 *.swp
 /.symlinks
 /etshell
+/etshell2
 /etobjdump
 /etsandbox
 /etelf
