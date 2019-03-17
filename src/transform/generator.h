@@ -23,6 +23,9 @@ public:
     // For function generation
     void generateCodeForFunction(Function *function);
 
+    //Generate Code for a specific PLT Entry
+    void generateCodeForPLTTrampoline(PLTTrampoline *tramp);
+
     // For JIT-Shuffling. Assign an address and generate code.
     void assignAndGenerate(Function *function);
     void assignAndGenerate(PLTTrampoline *trampoline);

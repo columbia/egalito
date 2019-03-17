@@ -62,3 +62,33 @@ Function *ChunkFind2::findFunctionContainingInModule(address_t address,
         ->findContaining(address);
     return f;
 }
+
+PLTTrampoline *ChunkFind2::findPLTTrampolineHelper(const char* name, Module *module) {
+     // Search for the PLTTrampoline  by name.
+    auto plt = CIter::named(module->getPLTList())->find(name);
+    if(plt) return plt;
+
+    // Also, check if this is an alias for a known function.
+    //it;t;f(module->getElfSpace()) {
+     //   auto alias = module->getElfSpace()->getAliasMap()->find(name);
+      //  if(alias) return alias;
+    //}
+
+    return nullptr;
+}
+
+PLTTrampoline *ChunkFind2::findPLTTrampoline(const char* name, Module *source) {
+    if(source) {
+        if(auto f = findPLTTrampolineHelper(name, source)) {
+	    return f;
+	}
+    }
+
+    for(auto module : CIter::children(program)) {
+        if(module == source) continue;
+	if(auto f = findPLTTrampolineHelper(name, module)) {
+	    return f;
+	}
+    }
+    return nullptr;
+}

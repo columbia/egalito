@@ -7,6 +7,7 @@ class Conductor;
 class Program;
 class Module;
 class Function;
+class PLTTrampoline;
 
 class ChunkFind2 {
 private:
@@ -21,8 +22,14 @@ public:
 
     Function *findFunctionContaining(address_t address);
     Function *findFunctionContainingInModule(address_t address, Module *module);
+    
+    
+    PLTTrampoline *findPLTTrampoline(const char* name, Module *source = nullptr);
+
+ 
 private:
     Function *findFunctionHelper(const char *name, Module *module);
+    PLTTrampoline *findPLTTrampolineHelper(const char* name, Module *module);
 };
 
 #endif

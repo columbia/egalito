@@ -231,6 +231,12 @@ void Generator::generateCodeForFunction(Function *function) {
   GeneratorHelper<Function>().copyToSandbox(function, sandbox);
 }
 
+void Generator::generateCodeForPLTTrampoline(PLTTrampoline *tramp) {
+  LOG(1, "Copying PLTTrampoline [" << tramp->getName() << "] at 0x"
+     << std::hex << tramp->getAddress());
+  GeneratorHelper<PLTTrampoline>().copyToSandbox(tramp, sandbox);
+}
+
 // These two functions are only used during JIT-Shuffling
 void Generator::pickFunctionAddressInSandbox(Function *function) {
     auto slot = sandbox->allocate(function->getSize());
