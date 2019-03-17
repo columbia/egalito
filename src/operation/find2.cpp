@@ -68,12 +68,6 @@ PLTTrampoline *ChunkFind2::findPLTTrampolineHelper(const char* name, Module *mod
     auto plt = CIter::named(module->getPLTList())->find(name);
     if(plt) return plt;
 
-    // Also, check if this is an alias for a known function.
-    //it;t;f(module->getElfSpace()) {
-     //   auto alias = module->getElfSpace()->getAliasMap()->find(name);
-      //  if(alias) return alias;
-    //}
-
     return nullptr;
 }
 
