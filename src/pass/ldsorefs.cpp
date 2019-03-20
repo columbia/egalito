@@ -6,11 +6,13 @@
 #include "log/log.h"
 
 void LdsoRefsPass::visit(Program *program) {
-    program->getLibc()->accept(this);
+    if(program->getLibc()) {
+        program->getLibc()->accept(this);
+    }
 }
 
 void LdsoRefsPass::visit(Module *module) {
-    auto xorInstr = Disassemble::instruction({0x48, 0x31, 0xc0});
+    auto xorInstr = Disassemble::instruction({0x48, 0x31, 0xc0});  // return 0
     auto retInstr = Disassemble::instruction({0xc3});
     auto block = new Block();
 

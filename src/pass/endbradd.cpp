@@ -18,7 +18,7 @@ void EndbrAddPass::visit(Program *program) {
         if(f) indirectTargets.insert(f);
     }
 
-    {
+    if(program->getMain()) {
         auto f = ChunkFind2(program).findFunctionInModule(
             "_start", program->getMain());
         auto f2 = dynamic_cast<Function *>(program->getEntryPoint());

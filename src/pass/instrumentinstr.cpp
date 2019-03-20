@@ -36,9 +36,6 @@ void InstrumentInstructionPass::addAdvice(
     // pushfd
     auto saveFlagsIns = Disassemble::instruction({0x9c});
 
-    // popfd
-    auto restoreFlagsIns = Disassemble::instruction({0x9d});
-
     // lea -0x80(%rsp), rsp
     auto subIns = Disassemble::instruction({0x48, 0x8d, 0x64, 0x24, 0x80});
 
@@ -50,6 +47,9 @@ void InstrumentInstructionPass::addAdvice(
 
     // lea 0x80(%rsp), rsp
     auto addIns = Disassemble::instruction({0x48, 0x8d, 0xa4, 0x24, 0x80, 0x00, 0x00, 0x00});
+
+    // popfd
+    auto restoreFlagsIns = Disassemble::instruction({0x9d});
 
     auto block = point->getParent();
 

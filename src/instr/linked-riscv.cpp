@@ -4,6 +4,7 @@
 #include "config.h"
 
 #include "chunk/link.h"
+#include "chunk/resolver.h"
 #include "chunk/concrete.h"
 #include "analysis/dataflow.h"
 #include "analysis/liveregister.h"
@@ -68,7 +69,7 @@ void LinkedInstruction::resolveLinks(Module *module,
     for(auto it : list) {
         auto instruction = it.first;
         auto address = it.second;
-        LOG(1, "pointer at 0x" << std::hex << instruction->getAddress()
+        LOG(10, "pointer at 0x" << std::hex << instruction->getAddress()
             << " pointing to 0x" << address);
         auto assembly = instruction->getSemantic()->getAssembly();
         auto linked = new LinkedInstruction(instruction);

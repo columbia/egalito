@@ -82,6 +82,8 @@ void CallInit::makeInitArray(Program *program, int argc, char **argv,
     } while(size != met.size());
 
     for(auto module : CIter::modules(program)) {
+        LOG(1, "here is one library: [" << module->getName() << "]"
+            ", role = " << Library::roleAsString(module->getLibrary()->getRole()));
         if(met.find(module->getLibrary()) == met.end()) {
             auto library = module->getLibrary();
             if(library->getRole() == Library::ROLE_MAIN) continue;

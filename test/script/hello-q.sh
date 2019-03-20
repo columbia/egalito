@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p tmp
 
-ln -s ../../src/libegalito.so
+ln -sf ../../src/libegalito.so
 LD_LIBRARY_PATH=../../src EGALITO_DEBUG=/dev/null ../../src/loader \
 	../binary/build/hello-q \
     >tmp/hello-q.out 2>&1

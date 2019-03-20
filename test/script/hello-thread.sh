@@ -1,7 +1,7 @@
 #!/bin/bash
 mkdir -p tmp
 
-ln -s ../../src/libegalito.so
+ln -sf ../../src/libegalito.so
 LD_LIBRARY_PATH=../../src EGALITO_DEBUG=/dev/null ../../src/loader \
 	../binary/build/thread \
     >tmp/thread.out 2>&1

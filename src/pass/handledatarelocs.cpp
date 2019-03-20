@@ -1,7 +1,10 @@
+#include <typeinfo>
 #include <cstring>
 #include <cassert>
 #include "handledatarelocs.h"
 #include "chunk/link.h"
+#include "chunk/external.h"
+#include "chunk/resolver.h"
 #include "operation/mutator.h"
 #include "elf/elfspace.h"
 #include "elf/reloc.h"
@@ -9,7 +12,9 @@
 #include "log/temp.h"
 
 void HandleDataRelocsPass::visit(Module *module) {
-    //TemporaryLogLevel tll("chunk", 10, module->getName() == "module-(executable)");
+    //TemporaryLogLevel tl1("chunk", 10, module->getName() == "module-(executable)");
+    //TemporaryLogLevel tl1("chunk", 10);
+    //TemporaryLogLevel tl2("pass", 15);
 
     assert(module->getElfSpace() != nullptr);
     auto elfMap = module->getElfSpace()->getElfMap();
@@ -53,12 +58,21 @@ void HandleDataRelocsPass::resolveSpecificRelocSection(
 
     for(auto reloc : *relocSection) {
         auto a = reloc->getAddress() + module->getBaseAddress();
-        if(section->findVariable(a)) continue;
+        DataVariable *var = nullptr;
+        if(auto oldVar = section->findVariable(a)) {
+            if(oldVar->getDest()) continue;
+            var = oldVar;
+        }
 
+        LOG(10, "trying to resolve specific reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
-        if(!link) continue;
 
-        DataVariable::create(section, a, link, reloc->getSymbol());
+        // if DataVariable already exists (null link), update its link.
+        // else create a new DataVariable, even if its link is initially null.
+        if(!var) {
+            var = DataVariable::create(section, a, link, reloc->getSymbol());
+        }
+        finalizeDataVariable(reloc, var, module);
     }
 }
 
@@ -70,18 +84,25 @@ void HandleDataRelocsPass::resolveGeneralRelocSection(
         auto addr = reloc->getAddress() + module->getBaseAddress();
         auto region = list->findRegionContaining(addr);
         auto section = region->findDataSectionContaining(addr);
-        if(section->findVariable(addr)) continue;
+        DataVariable *var = nullptr;
+        if(auto oldVar = section->findVariable(addr)) {
+            if(oldVar->getDest()) continue;
+            var = oldVar;
+        }
 
         LOG(10, "trying to resolve reloc at " << std::hex << addr);
         auto link = resolveVariableLink(reloc, module);
-        if(!link) continue;
 
-        DataVariable::create(module, addr, link, reloc->getSymbol());
+        // if DataVariable already exists (null link), update its link.
+        // else create a new DataVariable, even if its link is initially null.
+        if(!var) {
+            var = DataVariable::create(module, addr, link, reloc->getSymbol());
+        }
+        finalizeDataVariable(reloc, var, module);
     }
 }
 
 Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
-
     Symbol *symbol = reloc->getSymbol();
 
 #ifdef ARCH_X86_64
@@ -111,10 +132,14 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
             << ") in " << module->getName());
         return nullptr;
     }
-    else if(reloc->getType() == R_X86_64_COPY) {
-        LOG(10, "WARNING: skipping R_X86_64_COPY ("
+    else if(reloc->getType() == R_X86_64_DTPOFF64) {
+        LOG(0, "WARNING: skipping R_X86_64_DTPOFF64 ("
             << std::hex << reloc->getAddress()
             << ") in " << module->getName());
+        return nullptr;
+    }
+    else if(reloc->getType() == R_X86_64_COPY) {
+        // handled in finalizeDataVariable() below
         return nullptr;
     }
     else if(reloc->getType() == R_X86_64_GLOB_DAT) {
@@ -123,10 +148,46 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
                 << std::hex << reloc->getAddress()
                 << ") in " << module->getName());
             auto l = PerfectLinkResolver().resolveExternally(
-                reloc->getSymbol(), conductor, module->getElfSpace(), weak, false, true);
+                reloc->getSymbol(), conductor, module, weak, false, true);
+            if(!l) {
+                l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+            }
             LOG(0, "link is " << l);
             return l;
         }
+        else {
+            LOG(0, "checking GLOB_DAT relocation ["
+                << reloc->getSymbol()->getName() << "] for internal link");
+            auto l = PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+            if(auto v = dynamic_cast<AbsoluteDataLink *>(l)) {
+                auto externalSymbol = ExternalSymbolFactory(module)
+                    .makeExternalSymbol(reloc->getSymbol());
+                auto newLink = new InternalAndExternalDataLink(externalSymbol, v);
+                delete v;
+                return newLink;
+            }
+            return nullptr;
+        }
+    }
+    else if(reloc->getType() == R_X86_64_64) {
+        // want a non-relative lookup
+        auto l =  PerfectLinkResolver().resolveInternally(reloc, module, weak, false);
+        LOG(0, "reloc 64_64 at 0x" << std::hex << reloc->getAddress() 
+            << ", link = " << std::hex << l);
+        if(auto abs = dynamic_cast<AbsoluteDataLink *>(l)) {
+            LOG(0, "    absolute DOL: " << abs->getTargetAddress());
+        }
+        else if(auto rel = dynamic_cast<DataOffsetLink *>(l)) {
+            LOG(0, "    relative DOL: " << rel->getTargetAddress());
+        }
+        else if(!l) {
+            auto externalSymbol = ExternalSymbolFactory(module)
+                .makeExternalSymbol(reloc->getSymbol());
+            l = new ExternalSymbolLink(externalSymbol, reloc->getAddend());
+        }
+        else LOG(0, "unknown 64_64 reloc!");
+        return l;
+        
     }
 #else
     // We can't resolve the address yet, because a link may point to a TLS
@@ -165,7 +226,7 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
     if(std::strcmp(symbol->getName(), "") != 0) {
         if(weak || symbol->getBind() != Symbol::BIND_WEAK) {
             auto link = PerfectLinkResolver().resolveExternally(
-                symbol, conductor, module->getElfSpace(), weak, false);
+                symbol, conductor, module, weak, false);
             if(link && reloc->getAddend() > 0) {
                 if(auto dlink = dynamic_cast<DataOffsetLink *>(link)) {
                     dlink->setAddend(reloc->getAddend());
@@ -178,4 +239,23 @@ Link *HandleDataRelocsPass::resolveVariableLink(Reloc *reloc, Module *module) {
         }
     }
     return nullptr;
+}
+
+void HandleDataRelocsPass::finalizeDataVariable(Reloc *reloc, DataVariable *var,
+    Module *module) {
+
+#ifdef ARCH_X86_64
+    if(reloc->getType() == R_X86_64_COPY) {
+        LOG(10, "Marking R_X86_64_COPY as COPY DataVariable ("
+            << std::hex << reloc->getAddress()
+            << ") in " << module->getName());
+
+        auto externalSymbol = ExternalSymbolFactory(module)
+            .makeExternalSymbol(reloc->getSymbol());
+        auto link = new CopyRelocLink(externalSymbol);
+        var->setIsCopy(true);
+        var->setDest(link);
+        var->setSize(reloc->getSymbol()->getSize());
+    }
+#endif
 }

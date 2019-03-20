@@ -17,7 +17,7 @@ void FixEnvironPass::visit(Program *program) {
     }
 
     // find dynsym
-    auto module = program->getMain();
+    auto module = program->getFirst();
     auto dynsymlist = module->getElfSpace()->getDynamicSymbolList();
 
     // find data section it belongs to
@@ -69,11 +69,31 @@ void FixEnvironPass::visit(Program *program) {
     movInstr->setSemantic(movSem);
 
     {
+        // insert after mov %rsp,%rdx in _start and use %rdx
         auto block = start->getChildren()->getIterable()->get(0);
-        // after four instructions
-        auto insertPoint = block->getChildren()->getIterable()->get(4);
-        ChunkMutator(block)
-            .insertBefore(insertPoint, {leaInstr, movInstr});
+        Instruction *insertPoint = nullptr;
+        for(size_t i = 0; i < block->getChildren()->genericGetSize(); i ++) {
+            auto instr = block->getChildren()->getIterable()->get(i);
+            auto assembly = instr->getSemantic()->getAssembly();
+            if(assembly && assembly->getId() == X86_INS_MOV) {
+                auto op = assembly->getAsmOperands();
+                if(op->getMode() == AssemblyOperands::MODE_REG_REG
+                    && op->getOperands()[0].reg == X86_REG_RSP
+                    && op->getOperands()[1].reg == X86_REG_RDX) {
+
+                    insertPoint = instr;
+                    break;
+                }
+            }
+        }
+        if(insertPoint) {
+            ChunkMutator(block)
+                .insertAfter(insertPoint, {leaInstr, movInstr});
+        }
+        else {
+            LOG(0, "ERROR: FixEnvironPass: can't find mov %rsp,%rdx in _start!");
+            std::exit(1);
+        }
     }
     {
         ChunkMutator(start, true);

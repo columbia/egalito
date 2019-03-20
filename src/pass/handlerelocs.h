@@ -26,13 +26,13 @@ private:
 class HandleRelocsStrong : public HandleRelocsPass {
 public:
     HandleRelocsStrong(ElfMap *elf, RelocList *relocList) :
-        HandleRelocsPass(elf, relocList, false) {};
+        HandleRelocsPass(elf, relocList, false) {}
 };
 
 class HandleRelocsWeak : public HandleRelocsPass {
 public:
     HandleRelocsWeak(ElfMap *elf, RelocList *relocList) :
-        HandleRelocsPass(elf, relocList, true) {};
+        HandleRelocsPass(elf, relocList, true) {}
 };
 
 #endif

@@ -223,7 +223,6 @@ InstructionSemantic *MakeSemantic::makeNormalSemantic(
             || ins->op == rv_op_bgtz) {
 
             assert(ins->oper[1].type == rv_oper::rv_oper_imm);
-            CLOG(1, "making new UnresolvedLink, ins->ip is %lx", ins->ip);
             cfi->setLink(new UnresolvedLink(ins->ip + ins->oper[1].value.imm));
         }
         // the rest of the conditional branches

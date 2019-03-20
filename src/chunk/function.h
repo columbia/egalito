@@ -14,13 +14,14 @@ class Function : public ChunkSerializerImpl<TYPE_Function,
     AssignableCompositeChunkImpl<Block>> {
 private:
     Symbol *symbol;
+    Symbol *dynamicSymbol;  // !!! not serialized
     std::string name;
     bool nonreturn;
     bool ifunc;
     ChunkCache *cache;
 public:
-    Function() : symbol(nullptr), nonreturn(false), ifunc(false),
-        cache(nullptr) {}
+    Function() : symbol(nullptr), dynamicSymbol(nullptr), nonreturn(false),
+        ifunc(false), cache(nullptr) {}
 
     /** Create a fuzzy function named according to the original address. */
     Function(address_t originalAddress);
@@ -29,6 +30,8 @@ public:
     Function(Symbol *symbol);
 
     Symbol *getSymbol() const { return symbol; }
+    Symbol *getDynamicSymbol() const { return dynamicSymbol; }
+    virtual void setDynamicSymbol(Symbol *ds) { dynamicSymbol = ds; }
     virtual std::string getName() const { return name; }
     virtual void setName(const std::string &name) { this->name = name; }
 

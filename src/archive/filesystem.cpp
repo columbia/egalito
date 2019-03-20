@@ -27,7 +27,7 @@ std::string ArchiveFileSystem::getArchivePathFor(Module *module,
 std::string ArchiveFileSystem::getArchivePathFor(Program *program,
     const std::string &mode) {
 
-    auto path = program->getMain()->getLibrary()->getResolvedPath();
+    auto path = program->getFirst()->getLibrary()->getResolvedPath();
     auto output = getArchivePath(mode, "program", path);
     LOG(0, "program path is [" << output << "]");
     return output;

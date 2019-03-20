@@ -43,9 +43,6 @@ void InstrumentCallsPass::addAdvice(
     Instruction *point, Function *advice, bool after) {
 
 #ifdef ARCH_X86_64
-    // sub $0x8,%rsp
-    auto subIns = Disassemble::instruction({0x48, 0x83, 0xec, 0x08});
-
     // call f
     auto callIns = new Instruction();
     auto callSem
@@ -53,20 +50,13 @@ void InstrumentCallsPass::addAdvice(
     callSem->setLink(new NormalLink(advice, Link::SCOPE_EXTERNAL_JUMP));
     callIns->setSemantic(callSem);
 
-    // add $0x8,%rsp
-    auto addIns = Disassemble::instruction({0x48, 0x83, 0xc4, 0x08});
-
     auto block = point->getParent();
 
     if(after) {
-        ChunkMutator(block).insertAfter(point, addIns);
         ChunkMutator(block).insertAfter(point, callIns);
-        ChunkMutator(block).insertAfter(point, subIns);
     }
     else {
-        ChunkMutator(block).insertBefore(point, subIns);
         ChunkMutator(block).insertBefore(point, callIns);
-        ChunkMutator(block).insertBefore(point, addIns);
     }
 #elif defined(ARCH_AARCH64)
     /* For an arbitrary cutpoint, the base register must be figured out

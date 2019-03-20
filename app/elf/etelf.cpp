@@ -1,59 +1,39 @@
 #include <iostream>
-#include <functional>
 #include <string>
+#include <functional>
 #include <cstring>  // for std::strcmp
 #include "etelf.h"
-#include "conductor/conductor.h"
-#include "conductor/setup.h"
-#include "pass/collapseplt.h"
-#include "pass/promotejumps.h"
-#include "pass/ldsorefs.h"
-#include "pass/ifuncplts.h"
-#include "pass/fixenviron.h"
-#include "log/registry.h"
-#include "log/temp.h"
+#include "conductor/interface.h"
 
-static void parse(const std::string& filename, const std::string& output, bool quiet) {
-    ConductorSetup setup;
+static void parse(const std::string &filename, const std::string &output,
+    bool oneToOne, bool quiet) {
+
     std::cout << "Transforming file [" << filename << "]\n";
 
-    if(quiet) {
-        GroupRegistry::getInstance()->muteAllSettings();
-    }
+    // Set logging levels according to quiet and EGALITO_DEBUG env var.
+    EgalitoInterface egalito(/*verboseLogging=*/ !quiet, /*useLoggingEnvVar=*/ true);
 
+    // Parsing ELF files can throw exceptions.
     try {
-        if(ElfMap::isElf(filename.c_str())) {
-            std::cout << "Parsing ELF file and all shared library dependencies...\n";
-            setup.parseElfFiles(filename.c_str(), /*recursive=*/ true, false);
-        }
-        else {
-            std::cout << "Parsing archive...\n";
-            setup.parseEgalitoArchive(filename.c_str());
-        }
+        egalito.initializeParsing();  // Creates Conductor and Program
 
-        auto program = setup.getConductor()->getProgram();
+        // Parse a filename; if second arg is true, parse shared libraries
+        // recursively. This parse() can be called repeatedly to inject other
+        // dependencies, and the recursive closure can be parsed with
+        // parseRecursiveDependencies() at any later stage.
+        std::cout << "Parsing ELF file"
+            << (oneToOne ? "" : " and all shared library dependencies") << "...\n";
+        egalito.parse(filename, !oneToOne);
 
-        std::cout << "Preparing for codegen...\n";
+        // This is where transformations, if any, should be applied to program.
+        //auto program = egalito.getProgram();
 
-        FixEnvironPass fixEnviron;
-        program->accept(&fixEnviron);
+        // Generate output, mirrorgen or uniongen. If only one argument is
+        // given to generate(), automatically guess based on whether multiple
+        // Modules are present.
+        std::cout << "Performing code generation into [" << output << "]...\n";
+        egalito.generate(output, !oneToOne);
 
-        CollapsePLTPass collapsePLT(setup.getConductor());
-        program->accept(&collapsePLT);
-
-        PromoteJumpsPass promoteJumps;
-        program->accept(&promoteJumps);
-
-        // generate static executable.
-        {
-            std::cout << "Generating executable [" << output << "]...\n";
-            LdsoRefsPass ldsoRefs;
-            program->accept(&ldsoRefs);
-            IFuncPLTs ifuncPLTs;
-            program->accept(&ifuncPLTs);
-
-            setup.generateStaticExecutable(output.c_str());
-        }
     }
     catch(const char *message) {
         std::cout << "Exception: " << message << std::endl;
@@ -65,6 +45,8 @@ static void printUsage(const char *program) {
         "    Transforms an executable to a new ELF file.\n"
         "\n"
         "Options:\n"
+        "    -m     Perform mirror elf generation (1-1 output)\n"
+        "    -u     Perform union elf generation (merged output)\n"
         "    -v     Verbose mode, print logging messages\n"
         "    -q     Quiet mode (default), suppress logging messages\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
@@ -76,17 +58,17 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if(!SettingsParser().parseEnvVar("EGALITO_DEBUG")) {
-        printUsage(argv[0]);
-        return 1;
-    }
-
+    bool oneToOne = true;
     bool quiet = true;
 
     struct {
         const char *str;
         std::function<void ()> action;
     } actions[] = {
+        // which elf gen should we perform?
+        {"-m", [&oneToOne] () { oneToOne = true; }},
+        {"-u", [&oneToOne] () { oneToOne = false; }},
+
         // should we show debugging log messages?
         {"-v", [&quiet] () { quiet = false; }},
         {"-q", [&quiet] () { quiet = true; }},
@@ -109,7 +91,7 @@ int main(int argc, char *argv[]) {
             }
         }
         else if(argv[a] && argv[a + 1]) {
-            parse(argv[a], argv[a + 1], quiet);
+            parse(argv[a], argv[a + 1], oneToOne, quiet);
             break;
         }
         else {

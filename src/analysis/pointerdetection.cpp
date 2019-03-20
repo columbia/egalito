@@ -64,6 +64,7 @@ void PointerDetection::detect(UDRegMemWorkingSet *working) {
     }
     catch(const char *s) {
         working->getCFG()->dumpDot();
+        LOG(1, "s: " << s);
         assert("pointer detection error" && 0);
     }
 }
@@ -133,9 +134,9 @@ void PointerDetection::detectAtADRP(UDState *state) {
 void PointerDetection::detectAtAUIPC(UDState *state) {
     for(auto& def : state->getRegDefList()) {
         auto reg = def.first;
-        CLOG(1, "auipc @0x%lx defines register %d", state->getInstruction()->getAddress(), reg);
+        CLOG(10, "auipc @0x%lx defines register %d", state->getInstruction()->getAddress(), reg);
         if(auto tree = dynamic_cast<TreeNodeAddress *>(def.second)) {
-            CLOG(1, "address is: 0x%lx", tree->getValue());
+            CLOG(10, "address is: 0x%lx", tree->getValue());
             auto page = tree->getValue();
 
             PageOffsetList offsetList;
@@ -147,7 +148,7 @@ void PointerDetection::detectAtAUIPC(UDState *state) {
                 }
                 else {
                     if(offset != o.second) {
-                        TemporaryLogLevel tll("analysis", 1);
+                        // TemporaryLogLevel tll("analysis", 2);
                         LOG(1, "for page " << std::hex << page << " at 0x"
                             << state->getInstruction()->getAddress());
                         for(auto& o2 : offsetList.getList()) {
@@ -284,9 +285,15 @@ bool PageOffsetList::detectOffsetAfterCopy(UDState *state, int reg) {
             auto regSrc = dynamic_cast<TreeNodePhysicalRegister *>(
                 cap.get(0))->getRegister();
             if(regSrc == reg) {
+                #ifndef ARCH_RISCV
                 auto regDst = def.first;
-                LOG(10, "MOV, recurse with " << std::dec << regDst);
+                LOG(1, "MOV, recurse with " << std::dec << regDst);
                 return detectOffset(state, regDst);
+                #else
+                LOG(1, "found self-mov, assuming addi 0");
+                addToList(state, 0);
+                return true;
+                #endif
             }
         }
     }

@@ -4,6 +4,7 @@
 #include "chunkpass.h"
 
 class ConductorSetup;
+class Conductor;
 class GSTable;
 
 class JitGSSetup : public ChunkPass {

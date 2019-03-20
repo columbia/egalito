@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define SHADOW_STACK_SIZE (12*1024*1024)
+#define SHADOW_STACK_SIZE (10*1024*1024)
 
 int arch_prctl(int code, void *addr);
 
@@ -21,13 +21,27 @@ void egalito_allocate_shadow_stack_gs(void) {
     unsigned long *data = memory;
     data[0] = 2*sizeof(unsigned long);
 
-    arch_prctl(ARCH_SET_GS, memory);
+    //arch_prctl(ARCH_SET_GS, memory);
+    // #define ARCH_SET_GS           0x1001
+    __asm__ __volatile__ (
+        "mov $0x1001, %%rdi\n"
+        "mov %0, %%rsi\n"
+        "mov $158, %%rax\n"  // arch_prctl
+        "syscall\n"
+        : : "r"(memory)
+    );
+}
+
+unsigned long get_gs(void) {
+    unsigned long x;
+    arch_prctl(ARCH_GET_GS, &x);
+    return x;
 }
 
 void egalito_allocate_shadow_stack_const(void) {
     int dummyStackVar = 0xdeadbeef;
     void *dummyStackAddr = (void *)((((unsigned long)&dummyStackVar) 
-        & ~0xfff) - 0x1000 + 0xb00000); 
+        & ~0xfff) - 0x1000 - 2*SHADOW_STACK_SIZE);
     void *memory = mmap(dummyStackAddr,
         SHADOW_STACK_SIZE,
         PROT_READ | PROT_WRITE,

@@ -1,23 +1,25 @@
-Egalito is a binary rewriting framework that combines static and dynamic
-techniques to handle any input binary. It leverages compiler metadata
-whenever possible to get accurate disassembly of code, and defers to runtime
-otherwise. Egalito is meant to be used to implement new security features.
+Egalito is a binary recompiler, designed for implementing security hardening.
+It uses a low-level intermediate representation (EIR or Chunk) that accurately
+reflects all aspects of a program binary. Egalito uses metadata present in
+modern position-independent binaries to turn all cross-references into EIR
+Links, allowing code to be arbitrarily rearranged without additional overhead.
+Output generation in the form of ELFs or union ELFs is supported, and Egalito
+provides a custom loader that allows it to bootstrap into a fully self-hosted
+environment (parsing and transforming libegalito.so).
 
-Egalito also focuses on being able to rewrite all code in a target program,
-including itself. This is important for implementing binary-level security
-schemes since the attacker can easily target the instrumentation framework
-if it is undefended.
+Egalito supports x86_64 and aarch64, with experimental support for RISC-V.
 
-Egalito supports x86_64 and aarch64, with upcoming support for 32-bit arm.
+For more information, please visit https://egalito.org .
 
 To build:
-$ sudo apt-get install libreadline-dev gdb lsb-release
+$ sudo apt-get install make g++ libreadline-dev gdb lsb-release
+$ sudo apt-get install libc6-dbg libstdc++6-7-dbg  # names may differ
 $ git submodule update --init --recursive
-$ make -j 4
+$ make -j 8
 
 To test, try:
-$ cd test && ./runner && cd -
-$ cd test/script && make && cd -
+$ cd test/codegen && make && cd -
+$ cd app && ./etelf -m ../src/ex/hello hello && ./hello && cd -
 $ cd src && ./loader ex/hello && cd -
 $ cd app && ./etshell
 

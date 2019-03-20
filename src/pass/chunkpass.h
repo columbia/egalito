@@ -6,6 +6,8 @@
 #include "chunk/visitor.h"
 #include "util/timing.h"
 
+class Conductor;  // used by many subclasses
+
 #if 1  // enable pass profiling
     #define RUN_PASS(passConstructor, module) \
         { \
@@ -49,6 +51,7 @@ public:
     virtual void visit(DataRegion *dataRegion) { recurse(dataRegion); }
     virtual void visit(DataSection *dataSection) {}
     virtual void visit(DataVariable *dataVariable) {}
+    virtual void visit(GlobalVariable *dataVariable) {}
     virtual void visit(MarkerList *markerList) {}
     virtual void visit(VTable *vtable) {}
     virtual void visit(VTableEntry *vtableEntry) {}

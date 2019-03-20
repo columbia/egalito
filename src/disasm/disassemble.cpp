@@ -29,7 +29,7 @@ Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
 
     if(symbolList) {
         LOG(1, "Creating module from symbol info");
-        return makeModuleFromSymbols(elfMap, symbolList);
+        return makeModuleFromSymbols(elfMap, symbolList, dynamicSymbolList);
     }
     else if(dwarfInfo) {
         LOG(1, "Creating module from dwarf info");
@@ -79,7 +79,7 @@ Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
 }
 
 Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     Module *module = new Module();
     FunctionList *functionList = new FunctionList();
@@ -93,7 +93,8 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
 
-        Function *function = Disassemble::function(elfMap, sym, symbolList);
+        Function *function = Disassemble::function(elfMap, sym, symbolList,
+            dynamicSymbolList);
         functionList->getChildren()->add(function);
         function->setParent(functionList);
         LOG(10, "adding function " << function->getName()
@@ -156,11 +157,15 @@ FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
 }
 
 Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     DisasmHandle handle(true);
     DisassembleFunction disassembler(handle, elfMap);
+#ifdef ARCH_X86_64
+    return disassembler.function(symbol, symbolList, dynamicSymbolList);
+#else
     return disassembler.function(symbol, symbolList);
+#endif
 }
 
 bool DisassembleAARCH64Function::processMappingSymbol(Symbol *symbol) {
@@ -233,8 +238,6 @@ Instruction *DisassembleInstruction::instruction(cs_insn *ins) {
 Instruction *DisassembleInstruction::instruction(rv_instr *ins) {
     auto instr = new Instruction();
     InstructionSemantic *semantic = nullptr;
-
-    LOG(1, "op str: " << ins->op_name);
 
     semantic = MakeSemantic::makeNormalSemantic(instr, ins);
     if(!semantic) {
@@ -400,7 +403,7 @@ rv_instr *DisassembleInstruction::runDisassembly(const uint8_t *bytes,
 // --- X86_64 disassembly code
 
 Function *DisassembleX86Function::function(Symbol *symbol,
-    SymbolList *symbolList) {
+    SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
@@ -409,9 +412,14 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     Function *function = new Function(symbol);
 
     address_t symbolAddress = symbol->getAddress();
-
     function->setPosition(
         positionFactory->makeAbsolutePosition(symbolAddress));
+
+    if(dynamicSymbolList) {
+        if(auto dsym = dynamicSymbolList->find(symbolAddress)) {
+            function->setDynamicSymbol(dsym); 
+        }
+    }
 
     auto readAddress =
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
@@ -693,6 +701,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             LOG(12, "    renaming fuzzy function [" << function->getName()
                 << "] to [" << dsym->getName() << "]");
             function->setName(dsym->getName());
+            function->setDynamicSymbol(dsym);
         }
 
         functionList->getChildren()->add(function);
@@ -1087,7 +1096,8 @@ bool DisassembleAARCH64Function::knownLinkerBytes(Symbol *symbol) {
 Function *DisassembleRISCVFunction::function(Symbol *symbol,
     SymbolList *symbolList) {
 
-    LOG(1, "Disassembling function " << symbol->getName());
+    LOG(1, "Disassembling function " << symbol->getName() << "(" << std::dec
+        << symbol->getSize() << " bytes)");
 
     auto sectionIndex = symbol->getSectionIndex();
     auto section = elfMap->findSection(sectionIndex);
@@ -1104,6 +1114,29 @@ Function *DisassembleRISCVFunction::function(Symbol *symbol,
         section->getReadAddress() + section->convertVAToOffset(symbolAddress);
     auto readSize = symbol->getSize();
     auto virtualAddress = symbol->getAddress();
+
+    // XXX: this is a hack to work around a compiler/linker bug
+    // sometimes the symbol sizes are 4 bytes too small.
+    Symbol *nxt;
+    const std::vector<int> offsets{2,4,6};
+    for(auto off : offsets) {
+        if(symbolList->find(virtualAddress + readSize) == nullptr
+            && (nxt = symbolList->find(virtualAddress + readSize + off)) != nullptr) {
+
+            if(nxt == symbol) {
+                LOG(1, "Found negative-sized function, skipping this size increment.");
+                continue;
+            }
+
+            LOG(1, "Increasing size of function \"" << symbol->getName() << "\"");
+            LOG(1, "\tstarting at address 0x" << std::hex << virtualAddress);
+            LOG(1, "\twhich normally has size " << std::dec << readSize);
+            LOG(1, "\tfound symbol with name \"" << nxt->getName() << "\"");
+            LOG(1, "\t\tat address 0x" << std::hex << (virtualAddress + readSize + 4));
+            readSize += off;
+            break;
+        }
+    }
 
     auto context = ParseOverride::getInstance()->makeContext(
         function->getSymbol()->getName());

@@ -115,12 +115,19 @@ void ChunkDumper::visit(DataRegion *dataRegion) {
 void ChunkDumper::visit(DataSection *dataSection) {
     LOG(10, "inside " << dataSection->getName() << ":");
     for(auto var : CIter::children(dataSection)) {
+        if(!var->getDest()) {
+            LOG(10, "null var");
+            continue;
+        }
         auto target = var->getDest()->getTarget();
         LOG0(10, "var: " << var->getAddress());
         if(target) {
             LOG(10, " --> " << target->getName());
         }
         else LOG(10, "");
+    }
+    for(auto var : dataSection->getGlobalVariables()) {
+        LOG0(10, "global var: " << var->getAddress());
     }
 }
 
@@ -131,6 +138,10 @@ void ChunkDumper::visit(DataVariable *dataVariable) {
         LOG(1, " --> " << target->getName());
     }
     else LOG(1, "");
+}
+
+void ChunkDumper::visit(GlobalVariable *globalVariable) {
+    LOG(1, "global variable at " << globalVariable->getAddress());
 }
 
 void ChunkDumper::visit(MarkerList *markerList) {

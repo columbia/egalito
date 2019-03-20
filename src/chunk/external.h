@@ -18,15 +18,16 @@ private:
     Symbol::SymbolType type;
     Symbol::BindingType bind;
     const SymbolVersion *version;
+    bool localWeakInstance;
     Chunk *resolved;
     Module *resolvedModule;
 public:
     ExternalSymbol() : type(Symbol::TYPE_UNKNOWN), bind(Symbol::BIND_LOCAL),
-        version(nullptr), resolved(nullptr), resolvedModule(nullptr) {}
+        version(nullptr), localWeakInstance(false), resolved(nullptr), resolvedModule(nullptr) {}
     ExternalSymbol(const std::string &name, Symbol::SymbolType type,
-        Symbol::BindingType bind, const SymbolVersion *version)
+        Symbol::BindingType bind, const SymbolVersion *version, bool localWeakInstance)
         : name(name), type(type), bind(bind), version(version),
-        resolved(nullptr), resolvedModule(nullptr) {}
+        localWeakInstance(localWeakInstance), resolved(nullptr), resolvedModule(nullptr) {}
 
     std::string getName() const { return name; }
     void setResolved(Chunk *chunk) { this->resolved = chunk; }
@@ -37,6 +38,7 @@ public:
     Symbol::SymbolType getType() const { return type; }
     Symbol::BindingType getBind() const { return bind; }
     const SymbolVersion *getVersion() const { return version; }
+    bool getLocalWeakInstance() const { return localWeakInstance; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);
@@ -66,7 +68,7 @@ public:
     ExternalSymbol *makeExternalSymbol(Symbol *symbol);
     ExternalSymbol *makeExternalSymbol(const std::string &name,
         Symbol::SymbolType type, Symbol::BindingType bind,
-        const SymbolVersion *version, Chunk *resolved);
+        const SymbolVersion *version, bool localWeakInstance, Chunk *resolved);
 
     void resolveAllSymbols(Program *program);
     static void resolveOneSymbol(Program *program, ExternalSymbol *xSymbol);

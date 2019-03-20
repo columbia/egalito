@@ -59,6 +59,7 @@ void BasicElfCreator::execute() {
         // other symbols will be added later
         getSectionList()->addSection(symtabSection);
 
+        // .dynsym
         auto dynsym = new SymbolTableContent(stringList);
         auto dynsymSection = new Section(".dynsym", SHT_DYNSYM);
         //auto dynsymSection = getSection(".dynsym");
@@ -66,6 +67,14 @@ void BasicElfCreator::execute() {
         dynsym->addNullSymbol();
         // other symbols will be added later
         getSectionList()->addSection(dynsymSection);
+
+        // .gnu.hash
+        if(!getConfig()->isUnionOutput()) {
+            auto gnuhash = new GnuHashSectionContent();
+            auto gnuhashSection = new Section(".gnu.hash", SHT_GNU_HASH, SHF_ALLOC);
+            gnuhashSection->setContent(gnuhash);
+            getSectionList()->addSection(gnuhashSection);
+        }
 
         // .rela.dyn
         auto relaDyn = new DataRelocSectionContent(
@@ -127,7 +136,12 @@ void BasicElfStructure::makeHeader() {
     header->e_ident[EI_ABIVERSION] = 0;
 
     // set up other typical ELF fields
-    header->e_type = ET_EXEC;
+    if(!getConfig()->isPositionIndependent()) {
+        header->e_type = ET_EXEC;
+    }
+    else {
+        header->e_type = ET_DYN;
+    }
 #ifdef ARCH_X86_64
     header->e_machine = EM_X86_64;
 #else
@@ -237,6 +251,18 @@ void GenerateSectionTable::makeShdrTable() {
                     shdr->sh_link = sectionList->indexOf(".dynsym");
                 });
             }
+            else if(auto v = dynamic_cast<GnuHashSectionContent *>(section->getContent())) {
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_addralign = 8;
+                    shdr->sh_entsize = 0;
+                    shdr->sh_link = sectionList->indexOf(".dynsym");
+                });
+            }
+            else if(auto v = dynamic_cast<TBSSContent *>(section->getContent())) {
+                deferred->addFunction([this, sectionList, v] (ElfXX_Shdr *shdr) {
+                    shdr->sh_size = v->getMemSize();
+                });
+            }
         }
     }
 
@@ -261,6 +287,11 @@ void GenerateSectionTable::makeSectionSymbols() {
         symtab->addSectionSymbol(symbol);
     }
     symtab->recalculateIndices();
+
+    {
+        auto dynsym = getSection(".dynsym")->castAs<SymbolTableContent *>();
+        dynsym->recalculateIndices();
+    }
 }
 
 
@@ -293,15 +324,55 @@ void BasicElfStructure::makePhdrTable() {
     });
 }
 
+static const char *getSoname(ElfMap *elf) {
+    auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
+    if(!dynamic) return nullptr;  // statically linked
+    auto strtab = elf->getDynstrtab();
+
+    for(unsigned long *pointer = dynamic; *pointer != DT_NULL; pointer += 2) {
+        unsigned long type = pointer[0];
+        unsigned long value = pointer[1];
+
+        if(type == DT_SONAME) {
+            auto name = strtab + value;
+            return name;
+        }
+    }
+    return nullptr;
+}
+
 void BasicElfStructure::makeDynamicSection() {
     auto dynamicSection = getSection(".dynamic");
     auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
 
-    // Add DT_NEEDED dependency on ld.so because we combine libc into
-    // our executable, and libc uses _rtld_global{,_ro} from ld.so.
     auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
-    dynamic->addPair(DT_NEEDED,
-        dynstr->add("ld-linux-x86-64.so.2", true));
+    if(addLibDependencies) {
+        for(auto lib : CIter::children(getData()->getProgram()->getLibraryList())) {
+            if(lib->getModule()) continue;
+            dynamic->addPair(DT_NEEDED, dynstr->add(lib->getName(), true));
+        }
+
+#if 1
+        auto first = getData()->getProgram()->getFirst();
+        if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
+            dynamic->addPair(DT_NEEDED,
+                dynstr->add("ld-linux-x86-64.so.2", true));
+        }
+
+        if(first->getLibrary()->getRole() != Library::ROLE_MAIN) {
+            auto soName = getSoname(first->getElfSpace()->getElfMap());
+            if(soName) {
+                dynamic->addPair(DT_SONAME, dynstr->add(soName, true));
+            }
+        }
+#endif
+    }
+    else {
+        // Add DT_NEEDED dependency on ld.so because we combine libc into
+        // our executable, and libc uses _rtld_global{,_ro} from ld.so.
+        dynamic->addPair(DT_NEEDED,
+            dynstr->add("ld-linux-x86-64.so.2", true));
+    }
 
     dynamic->addPair(DT_STRTAB, [this] () {
         auto dynstrSection = getSection(".dynstr");
@@ -313,6 +384,13 @@ void BasicElfStructure::makeDynamicSection() {
         return dynsymSection->getHeader()->getAddress();
     });
 
+    if(!getConfig()->isUnionOutput()) {
+        dynamic->addPair(DT_GNU_HASH, [this] () {
+            auto gnuhashSection = getSection(".gnu.hash");
+            return gnuhashSection->getHeader()->getAddress();
+        });
+    }
+
     dynamic->addPair(DT_RELA, [this] () {
         auto relaDyn = getSection(".rela.dyn");
         return relaDyn->getHeader()->getAddress();
@@ -323,7 +401,30 @@ void BasicElfStructure::makeDynamicSection() {
     });
     dynamic->addPair(DT_RELAENT, sizeof(ElfXX_Rela));
 
-    dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+    dynamic->addPair(DT_INIT_ARRAY, [this] () {
+        auto initArray = getSection(".init_array");
+        return initArray->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_INIT_ARRAYSZ, [this] () {
+        auto initArray = getSection(".init_array");
+        return initArray->getContent()->getSize();
+    });
+
+    if(addLibDependencies) {
+        auto first = getData()->getProgram()->getFirst();
+        if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
+            dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+        }
+        /*else if(first->getLibrary()->getRole() == Library::ROLE_MAIN) {
+            dynamic->addPair(DT_FLAGS, DF_PIE);
+        }*/
+        else {
+            dynamic->addPair(DT_FLAGS, DF_BIND_NOW);
+        }
+    }
+    else {
+        dynamic->addPair(DT_FLAGS, DF_STATIC_TLS | DF_BIND_NOW);
+    }
 
     // PLT-related entries
     dynamic->addPair(DT_PLTGOT, [this] () {
@@ -365,6 +466,9 @@ void AssignSectionsToSegments::execute() {
         dynSegment->addContains(getSection(".dynstr"));
         dynSegment->addContains(getSection(".symtab"));
         dynSegment->addContains(getSection(".dynsym"));
+        if(!getConfig()->isUnionOutput()) {
+            dynSegment->addContains(getSection(".gnu.hash"));
+        }
         dynSegment->addContains(getSection(".rela.dyn"));
         dynSegment->addContains(getSection(".dynamic"));
         phdrTable->add(dynSegment, 0x400000);
@@ -438,6 +542,22 @@ void MakeInitArray::execute() {
     }
 }
 
+void MakeInitArray::addInitFunction(InitArraySectionContent *content,
+    std::function<address_t ()> value) {
+
+    if(getConfig()->isPositionIndependent()) {
+        auto relaDyn = getData()->getSection(".rela.dyn")->castAs<DataRelocSectionContent *>();
+
+        // !!! Hardcoding this address for now. After =elfheader & .interp
+        const address_t INIT_ARRAY_ADDR = 0x20005c;
+        auto offset = content->getSize();
+        relaDyn->addDataAddressRef(INIT_ARRAY_ADDR + offset, value);
+        content->addPointer([] () { return address_t(0); });
+    }
+    else {
+        content->addPointer(value);
+    }
+}
 void MakeInitArray::makeInitArraySections() {
     /*auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
         SHF_WRITE | SHF_ALLOC);*/
@@ -488,7 +608,7 @@ void MakeInitArray::makeInitArraySections() {
         }
 
         if(firstInit) {
-            content->addPointer([this, module, firstInit] () {
+            addInitFunction(content, [this, module, firstInit] () {
                 Function *function = nullptr;
                 if(module->getElfSpace()->getSymbolList()) {
                     auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
@@ -512,10 +632,36 @@ void MakeInitArray::makeInitArraySections() {
     }
 
     for(auto link : initFunctions) {
-        content->addPointer([link] () { return link->getTargetAddress(); });
+        addInitFunction(content, [link] () { return link->getTargetAddress(); });
     }
 
     initArraySection->setContent(content);
+}
+
+Function *MakeInitArray::findLibcCsuInit(Chunk *entryPoint) {
+    auto entry = dynamic_cast<Function *>(entryPoint);
+    if(!entry) return nullptr;
+
+    if(entry->getChildren()->genericGetSize() == 0) return nullptr;
+    auto block = entry->getChildren()->getIterable()->get(0);
+
+    for(auto instr : CIter::children(block)) {
+        if(auto link = instr->getSemantic()->getLink()) {
+#ifdef ARCH_X86_64
+            if(!instr->getSemantic()->getAssembly()) continue;
+            auto ops = instr->getSemantic()->getAssembly()->getAsmOperands();
+            if(ops->getOpCount() > 1) { 
+                auto op1 = ops->getOperands()[1];
+                if(op1.type == X86_OP_REG && op1.reg == X86_REG_RCX) {
+                    return dynamic_cast<Function *>(link->getTarget());
+                }
+            }
+#else
+#error "Need __libc_csu_init detection code for current platform!"
+#endif
+        }
+    }
+    return nullptr;
 }
 
 void MakeInitArray::makeInitArraySectionLinks() {
@@ -523,27 +669,13 @@ void MakeInitArray::makeInitArraySectionLinks() {
     auto content = dynamic_cast<InitArraySectionContent *>(
         initArraySection->getContent());
     auto main = getData()->getProgram()->getMain();
+    if(!main) return;
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
     // if we didn't find __libc_csu_init directly, look for it by the link
     // present in _start during the call to __libc_start_main
     if(!func) {
-        auto entry = dynamic_cast<Function *>(getData()->getProgram()->getEntryPoint());
-        if(entry) {
-            auto block = entry->getChildren()->getIterable()->get(0);
-            for(auto instr : CIter::children(block)) {
-                if(auto link = instr->getSemantic()->getLink()) {
-#ifdef ARCH_X86_64
-                    auto op1 = instr->getSemantic()->getAssembly()->getAsmOperands()->getOperands()[1];
-                    if(op1.type == X86_OP_REG && op1.reg == X86_REG_RCX) {
-                        func = dynamic_cast<Function *>(link->getTarget());
-                        break;
-                    }
-#else
-    #error "Need __libc_csu_init detection code for current platform!"
-#endif
-                }
-            }
-        }
+        auto entry = getData()->getProgram()->getEntryPoint();
+        func = findLibcCsuInit(entry);
         if(!func) {
             LOG(1, "Warning: MakeInitArray can't find __libc_csu_init");
             return;
@@ -634,11 +766,27 @@ void MakeGlobalPLT::makePLTData() {
 
         size_t index = 3; // start from index 3
         for(auto plt : entries) {
-            content->addPLTRef(gotpltSection, plt, index);
+            if(!plt->isPltGot()) {
+                content->addPLTRef(gotpltSection, plt, index);
+            }
             index ++;
         }
 
         relaPltSection->setContent(content);
+    }
+
+    // add gotplt relocations to rela.dyn
+    {
+        auto relaDynSection = (*getData()->getSectionList())[".rela.dyn"];
+        auto dynContent = relaDynSection->castAs<DataRelocSectionContent *>();
+
+        size_t index = 3; // start from index 3
+        for(auto plt : entries) {
+            if(plt->isPltGot()) {
+                dynContent->addPLTRef(gotpltSection, plt, index);
+            }
+            index ++;
+        }
     }
 }
 
@@ -693,7 +841,8 @@ void UpdatePLTLinks::execute() {
             if(!pltLink) return;
             auto target = pltLink->getPLTTrampoline();
             size_t index = entryMap[target];
-            LOG(9, "    redirecting to index " << std::dec << index);
+            LOG(9, "    redirecting 0x" << std::hex << instruction->getAddress()
+                << " to index " << std::dec << index);
 
             // this means we don't have a PLT entry for it.
             if(index == 0) {
@@ -709,6 +858,178 @@ void UpdatePLTLinks::execute() {
     // XXX: this really shouldn't be hardcoded!
     Updater updater(entryMap, 0x600000);
     getData()->getProgram()->accept(&updater);
+}
+
+void CopyDynsym::execute() {
+    // generating dynsym entries for functions
+    auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto func : CIter::children(module->getFunctionList())) {
+            auto dsym = func->getDynamicSymbol();
+            if(!dsym) continue;
+
+            auto value = dynsym->addSymbol(func, dsym);
+            value->addFunction([this] (ElfXX_Sym *symbol) {
+                symbol->st_shndx = getData()->getSectionList()->indexOf(".text");
+            });
+
+            for(auto alias : dsym->getAliases()) {
+                /*LOG(1, "dynamic symbol alias [" << dsym->getName() << "] -> ["
+                    << alias->getName() << "]");*/
+                auto value = dynsym->addSymbol(func, alias);
+                value->addFunction([this] (ElfXX_Sym *symbol) {
+                    symbol->st_shndx = getData()->getSectionList()->indexOf(".text");
+                });
+            }
+        }
+    }
+    LOG(5, "CopyDynsym::execute(), global variables");
+    // generate dynsym entries for global variables
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+                for(auto var : section->getGlobalVariables()) {
+                    Symbol *origsym = var->getDynamicSymbol();
+                    if(!origsym) continue;
+
+                    address_t address = var->getAddress();
+
+                    auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                        const char *oname = osymbol->getName();
+                        LOG(10, "adding dynsym for " << oname);
+
+                        auto nsymbol = new Symbol(
+                            address, osymbol->getSize(), oname,
+                            osymbol->getType(), osymbol->getBind(), 0, 0);
+
+                        dynsym->addGlobalVarSymbol(var, nsymbol, address);
+                        // TODO: set section index properly...
+                    };
+
+                    handleGlobal(origsym);
+
+                    for(auto alias : origsym->getAliases()) {
+                        handleGlobal(alias);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// hash function stolen from binutils/bfd/elf.c:221
+static unsigned long
+bfd_elf_gnu_hash (const char *namearg)
+{
+  const unsigned char *name = (const unsigned char *) namearg;
+  unsigned long h = 5381;
+  unsigned char ch;
+
+  while ((ch = *name++) != '\0')
+    h = (h << 5) + h + ch;
+  return h & 0xffffffff;
+}
+
+void MakeDynsymHash::execute() {
+    auto gnuhash = getData()->getSection(".gnu.hash")->castAs<GnuHashSectionContent *>();
+    auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
+    dynsym->recalculateIndices();
+
+    auto dynstr = getData()->getSection(".dynstr")->castAs<DeferredStringList *>();
+    std::ostringstream dynstrStream;
+    dynstr->writeTo(dynstrStream);
+    auto dynstrData = dynstrStream.str();
+
+    bucketList.resize(1011);
+    //bucketList.resize(10007);
+
+    bool hashing = false;
+    size_t firstHashedSymbol = 0;
+    for(auto sym : *dynsym) {
+        auto elfSym = sym->getElfPtr();
+        LOG(1, "elfSym address " << elfSym->st_value);
+        // Skip the undefined symbols (first, address == 0), don't hash them.
+        // These will be looked up in another library, not in our own .dynsym.
+        if(elfSym->st_value) hashing = true;
+        if(!hashing) {
+            firstHashedSymbol ++;
+            continue;
+        }
+
+        auto name = dynstrData.c_str() + elfSym->st_name;
+        auto hash = bfd_elf_gnu_hash(name);
+
+        LOG(1, "elfSym name [" << name << "] hash 0x" << std::hex << hash);
+        bucketList[hash % bucketList.size()].push_back(name);
+    }
+
+    size_t index = 0;
+    for(const auto &bucket : bucketList) {
+        for(const auto &name : bucket) {
+            indexMap[name] = index++;
+        }
+    }
+
+    typedef uint64_t BloomType;  // Assumes ELFCLASS64
+    const uint32_t bloomShift = 5;
+    std::vector<BloomType> bloomList; //= {-1ul, -1ul};
+    for(size_t i = 0; i < 0x100; i ++) bloomList.push_back(-1ul);
+
+    gnuhash->add(static_cast<uint32_t>(bucketList.size()));     // nbuckets
+    gnuhash->add(static_cast<uint32_t>(firstHashedSymbol));     // symoffset
+    gnuhash->add(static_cast<uint32_t>(bloomList.size()));      // bloom_size
+    gnuhash->add(static_cast<uint32_t>(bloomShift));            // bloom_shift
+
+    // bloom_list
+    for(auto bloom : bloomList) {
+        gnuhash->add(bloom);
+    }
+
+    // bucket_list
+    size_t symIndex = firstHashedSymbol;
+    for(const auto &bucket : bucketList) {
+        if(bucket.size()) {
+            gnuhash->add(static_cast<uint32_t>(symIndex));
+            symIndex += bucket.size();
+        }
+        else {
+            // 0's observed in real binaries
+            gnuhash->add(static_cast<uint32_t>(0));
+        }
+    }
+
+    // chain
+    for(const auto &bucket : bucketList) {
+        for(const auto &name : bucket) {
+            auto hash = bfd_elf_gnu_hash(name.c_str());
+            //uint32_t value = (hash % bucketList.size()) & ~1;
+            uint32_t value = hash & ~1;
+            if(name == bucket.back()) value += 1;
+            gnuhash->add(value);
+        }
+    }
+    
+    // .dymsym sorting
+    auto oldValueMap = dynsym->getValueMap();  // deep copy
+    dynsym->clearAll();
+    for(const auto &pair : oldValueMap) {
+        auto key = pair.first;
+        auto val = pair.second;
+        auto it = indexMap.find(key.getName());
+        if(it != indexMap.end()) {
+            LOG(1, "Found symbol index for name [" << (*it).first << "] at index "
+                << (*it).second);
+            key.setTableIndex((*it).second);
+        }
+        dynsym->insertSorted(key, val);
+    }
+
+    dynsym->recalculateIndices();
+
+    //auto newValueMap = dynsym->getValueMap();  // deep copy
+    //for(const auto &val : *dynsym) {
+    //    LOG(1, "new order for symbol with name [" << val->getName() << "]");
+    //}
 }
 
 void ElfFileWriter::execute() {
