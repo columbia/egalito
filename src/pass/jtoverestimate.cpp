@@ -53,11 +53,22 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
             // for relative jump tables
             value += address;
 
-            auto function = currentTable->getDescriptor()->getFunction();
-            if(!function->getRange().contains(value)) {
-                // this entry would be outside the function, stop looking
-                setEntries(currentTable, count);
-                break;
+            auto next = it;
+            next ++;
+            if(next == tableMap.end()) {
+                /* Only care about value-based estimation for last jump table case.
+                    Note: this doesn't work for cross-function jump tables,
+                    which may happen in e.g. LTO-optimized function pieces.
+
+                    This occurs in Debian stable python2.7 in the function
+                    symtable_visit_expr.lto_priv.1839.
+                */
+                auto function = currentTable->getDescriptor()->getFunction();
+                if(!function->getRange().contains(value)) {
+                    // this entry would be outside the function, stop looking
+                    setEntries(currentTable, count);
+                    break;
+                }
             }
         }
     }
