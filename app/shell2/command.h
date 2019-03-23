@@ -77,7 +77,7 @@ private:
 public:
     ArgumentValue() : type(ArgumentSpec::TYPE_NOTHING) {}
     ArgumentValue(const std::string &data, ArgumentSpec::ArgumentType type)
-        : data(data) {}
+        : data(data), type(type) {}
     ArgumentSpec::ArgumentType getType() const { return type; }
 
     bool exists() const { return type != ArgumentSpec::TYPE_NOTHING; }
@@ -110,6 +110,8 @@ public:
     bool getBool(const std::string &name, bool defaultValue = false) const;
     std::string getString(const std::string &name,
         const std::string &defaultValue = "") const;
+    long getNumber(const std::string &name,
+        long defaultValue = 0) const;
     const ArgumentValue &get(const std::string &name,
         const ArgumentValue &defaultValue = ArgumentValue()) const;
 
@@ -117,6 +119,8 @@ public:
     const ArgumentValue &getIndexed(unsigned long index) const
         { return indexArg[index]; }
     const std::vector<ArgumentValue> &getIndexedList() const { return indexArg; }
+
+    void dump();
 };
 
 class Command {

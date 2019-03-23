@@ -194,9 +194,22 @@ std::string ArgumentValueList::getString(const std::string &name,
     return (it == flag.end() ? defaultValue : (*it).second.getString());
 }
 
+long ArgumentValueList::getNumber(const std::string &name,
+    long defaultValue) const {
+
+    auto it = flag.find(name);
+    return (it == flag.end() ? defaultValue : (*it).second.getNumber());
+}
+
 const ArgumentValue &ArgumentValueList::get(const std::string &name,
     const ArgumentValue &defaultValue) const {
 
     auto it = flag.find(name);
     return (it == flag.end() ? defaultValue : (*it).second);
+}
+
+void ArgumentValueList::dump() {
+    for(auto kv : flag) {
+        std::cout << kv.first << " " << kv.second.getType() << std::endl;
+    }
 }

@@ -56,6 +56,16 @@ void Shell2App::parseLine(const std::string &line) {
         commandList.push_back(std::make_pair(command, argList));
     }
 
+    for(size_t i = 1; i < commandList.size(); i ++) {
+        Command *command = commandList[i].first;
+        if(!command->getSpec().getSupportsInStream()) {
+            std::cerr << "Warning: command \"" << command->getName()
+                << "\" used after pipe, but does not read input\n";
+        }
+        //std::cout << "Running \"" << command->getName() << "\" with parameters:\n";
+        //commandList[i].second.dump();
+    }
+
     std::istream *inStream = nullptr;
     std::ostream *outStream = nullptr;
     for(size_t i = 0; i < commandList.size(); i ++) {

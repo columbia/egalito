@@ -14,6 +14,31 @@ FullCommandList::FullCommandList() {
     }), std::bind(&FullCommandList::helpCommand, this,
         std::placeholders::_1, std::placeholders::_2),
         "prints help about all commands or a specific command"));
+    add(new FunctionCommand("wc", ArgumentSpecList({}, {}, 0, true),
+        [] (ShellState &state, ArgumentValueList &args) {
+
+        auto in = args.getInStream();
+        long lineCount = 0;
+        if(in) {
+            std::string line;
+            while(std::getline(*in, line)) lineCount ++;
+        }
+        (*args.getOutStream()) << lineCount << std::endl;
+        return true;
+    }, "counts number of lines in input"));
+    add(new FunctionCommand("head", ArgumentSpecList({
+        {"-n", ArgumentSpec({"-n"}, ArgumentSpec::TYPE_DECIMAL)}
+    }, {}, 0, true), [] (ShellState &state, ArgumentValueList &args) {
+
+        auto in = args.getInStream();
+        auto out = args.getOutStream();
+        long count = args.getNumber("-n", 10);
+        std::string line;
+        for(long i = 0; i < count && std::getline(*in, line); i ++) {
+            (*out) << line << std::endl;
+        }
+        return true;
+    }, "prints the first N lines of output"));
 }
 
 void FullCommandList::add(Command *command) {
