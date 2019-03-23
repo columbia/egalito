@@ -3,9 +3,11 @@
 
 #include <string>
 
+class FullCommandList;
+
 class Readline {
 public:
-    Readline();
+    Readline(FullCommandList *commandList);
     ~Readline();
     std::string get(const std::string &prompt);
 };

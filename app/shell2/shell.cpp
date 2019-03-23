@@ -5,16 +5,11 @@
 #include "log/registry.h"
 
 Shell2App::Shell2App() {
-    commandMap["quit"] = new FunctionCommand("quit", ArgumentSpecList({}, {}),
-        [] (ShellState &state, ArgumentValueList &args) {
-
-        state.setExiting(true);
-        return true;
-    }, "quits the shell");
+    // construct commands in FullCommandList
 }
 
 void Shell2App::mainLoop() {
-    Readline readline;
+    Readline readline(&fullCommandList);
     while(!state.isExiting()) {
         std::ostringstream prompt;
         if(!state.getChunk()) prompt << "egalito> ";
@@ -44,13 +39,12 @@ void Shell2App::parseLine(const std::string &line) {
             return;
         }
 
-        auto commandIterator = commandMap.find(commandName);
-        if(commandIterator == commandMap.end()) {
+        Command *command = fullCommandList.lookup(commandName);
+        if(!command) {
             std::cerr << "Error: unknown command \""
                 << commandName << "\", try \"help\"\n";
             return;
         }
-        Command *command = (*commandIterator).second;
 
         ArgumentValueList argList;
         if(!parsePhrase(command, argStream, argList)) {
@@ -74,6 +68,8 @@ void Shell2App::parseLine(const std::string &line) {
         else {
             outStream = &std::cout;
         }
+        argList.setInStream(inStream);
+        argList.setOutStream(outStream);
 
         try {
             if(!(*command)(state, argList)) {

@@ -4,13 +4,14 @@
 #include <iosfwd>
 #include "state.h"
 #include "command.h"
+#include "code.h"
 #include "conductor/interface.h"
 
 class Shell2App {
 private:
     EgalitoInterface egalito;
     ShellState state;
-    std::map<std::string, Command *> commandMap;
+    FullCommandList fullCommandList;
 public:
     Shell2App();
     void mainLoop();
