@@ -39,6 +39,7 @@ public:
     void setExiting(bool exiting) { this->exiting = exiting; }
     void setChunk(Chunk *chunk);
     void clearReflog() { reflog.clear(); }
+    Chunk *popReflog();
 };
 
 #endif
