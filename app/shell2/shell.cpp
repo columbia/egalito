@@ -2,10 +2,14 @@
 #include <sstream>
 #include "shell.h"
 #include "readline.h"
+#include "chunks.h"
 #include "log/registry.h"
 
 Shell2App::Shell2App() {
     // construct commands in FullCommandList
+
+    ChunkCommands chunkCommands(&fullCommandList);
+    chunkCommands.construct(&egalito);
 }
 
 void Shell2App::mainLoop() {
@@ -124,6 +128,9 @@ bool Shell2App::parsePhrase(Command *command, std::istream &argStream,
                 if(currentFlag->hasFlagValue()) {
                     parseMode = MODE_FLAG_VALUE;
                 }
+                else {
+                    parseFlagValue("", currentFlag, argList);
+                }
                 break;
             }
             else {
@@ -169,7 +176,7 @@ const ArgumentSpec *Shell2App::parseFlag(const std::string &arg,
 bool Shell2App::parseFlagValue(const std::string &arg, const ArgumentSpec *spec,
     ArgumentValueList &argList) {
 
-    if(spec->flagValueMatches(arg)) {
+    if(!spec->hasFlagValue() || spec->flagValueMatches(arg)) {
         auto argValue = ArgumentValue(arg, spec->getType());
         argList.add(spec->getCanonicalFlag(), argValue);
         return true;

@@ -94,6 +94,8 @@ std::string ArgumentValue::getString() const {
 
 bool ArgumentValue::getBool() const {
     switch(type) {
+    case ArgumentSpec::TYPE_FLAG:
+        return true;  // if the argument exists, flag is true
     case ArgumentSpec::TYPE_BOOL:
         if(data == "0") return false;
         if(data == "1") return true;
