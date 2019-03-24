@@ -15,7 +15,24 @@ private:
 public:
     Shell2App();
     void mainLoop();
+
+    enum GlobalParseMode {
+        GMODE_COMMAND,
+        GMODE_FLAG_NAME,
+        GMODE_FLAG_VALUE,
+        GMODE_INDEX_ARG,
+        GMODE_DONE
+    };
+    struct GlobalParseData {
+        std::string partial;
+        Command *command;
+        const ArgumentSpec *arg;
+    };
+    GlobalParseMode testParseLine(const std::string &line, GlobalParseData *data);
+    ShellState *getState() { return &state; }
 private:
+    GlobalParseMode testParsePhrase(Command *command, std::istream &argStream,
+        ArgumentValueList &argList, bool endsWithSeparator, GlobalParseData *data);
     void parseLine(const std::string &line);
     bool parsePhrase(Command *command, std::istream &argStream,
         ArgumentValueList &argList);

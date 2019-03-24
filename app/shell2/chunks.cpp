@@ -50,7 +50,7 @@ void ChunkCommands::construct(EgalitoInterface *egalito) {
 
         for(auto child : chunk->getChildren()->genericIterable()) {
             if(longMode) {
-                (*out) << child->getName() << " " << typeid(child).name() << std::endl;
+                (*out) << child->getName() << " " << typeid(*child).name() << std::endl;
             }
             else {
                 (*out) << child->getName() << std::endl;
@@ -59,7 +59,7 @@ void ChunkCommands::construct(EgalitoInterface *egalito) {
         return true;
     }, "shows all children of current Chunk"));
     fullList->add(new FunctionCommand("cd", ArgumentSpecList({}, {
-        ArgumentSpec(ArgumentSpec::TYPE_STRING)
+        ArgumentSpec(ArgumentSpec::TYPE_CHUNK)
     }),
         [egalito] (ShellState &state, ArgumentValueList &args) {
 

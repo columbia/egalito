@@ -3,11 +3,12 @@
 
 #include <string>
 
+class Shell2App;
 class FullCommandList;
 
 class Readline {
 public:
-    Readline(FullCommandList *commandList);
+    Readline(Shell2App *app, FullCommandList *commandList);
     ~Readline();
     std::string get(const std::string &prompt);
 };
