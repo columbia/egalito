@@ -57,6 +57,7 @@ Shell2App::GlobalParseMode Shell2App::testParseLine(const std::string &line,
         data->partial = commandName;
         return GMODE_COMMAND;
     }
+    data->command = command;
 
     bool endsWithSeparator = (phrase[phrase.length() - 1] == ' ');
     ArgumentValueList argList;
@@ -68,19 +69,24 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
     bool endsWithSeparator, GlobalParseData *data) {
 
     enum {
+        MODE_BEGINNING,
         MODE_BEFORE_FLAG,
         MODE_FLAG_VALUE,
+        MODE_BEGIN_INDEX_ARG,
         MODE_INDEX_ARG
-    } parseMode = MODE_BEFORE_FLAG;
+    } parseMode = MODE_BEGINNING;
     const ArgumentSpec *currentFlag = nullptr;
     ArgumentSpec prevIndexSpec;
     std::vector<ArgumentSpec> indexSpec = command->getSpec().getIndexSpecs();
     std::string arg;
     while(argStream >> arg) {
         switch(parseMode) {
+        case MODE_BEGINNING:
+            parseMode = MODE_BEFORE_FLAG;
+            // fall-through
         case MODE_BEFORE_FLAG:
             if(arg == "--") {
-                parseMode = MODE_INDEX_ARG;
+                parseMode = MODE_BEGIN_INDEX_ARG;
                 break;
             }
             if((currentFlag = parseFlag(arg, command))) {
@@ -93,21 +99,31 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
                 break;
             }
             else {
-                parseMode = MODE_INDEX_ARG;
+                parseMode = MODE_BEGIN_INDEX_ARG;
                 // fall-through
             }
+        case MODE_BEGIN_INDEX_ARG:
         case MODE_INDEX_ARG:
             if(!indexSpec.empty()) prevIndexSpec = indexSpec.front();
             if(!parseIndexArg(arg, indexSpec, argList)) {
+                if(!endsWithSeparator && arg.length() > 0 && arg[0] == '-') {
+                    data->partial = arg;
+                    return GMODE_FLAG_NAME;
+                }
                 if(!indexSpec.empty()) {
                     data->arg = new ArgumentSpec(indexSpec.front());
                     return GMODE_INDEX_ARG;
                 }
                 return GMODE_DONE;
             }
+            parseMode = MODE_INDEX_ARG;
             break;
         case MODE_FLAG_VALUE:
             if(!parseFlagValue(arg, currentFlag, argList)) {
+                if(!endsWithSeparator && arg.length() > 0 && arg[0] == '-') {
+                    data->partial = arg;
+                    return GMODE_FLAG_NAME;
+                }
                 if(currentFlag->hasFlagValue()) {
                     data->arg = currentFlag;
                     return GMODE_FLAG_VALUE;
@@ -118,15 +134,18 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
             break;
         }
     }
+    //std::cout << "((" << arg << "))";
 
     switch(parseMode) {
-    case MODE_BEFORE_FLAG:
-        if(!currentFlag && !endsWithSeparator) {
+    case MODE_BEGINNING:
+        if(!endsWithSeparator) {
             return GMODE_COMMAND;
         }
-        else if(currentFlag && !endsWithSeparator) {
+        // fall-through
+    case MODE_BEFORE_FLAG:
+        if(!endsWithSeparator) {
             data->partial = arg;
-            data->arg = currentFlag;
+            data->arg = currentFlag;  // may be null
             return GMODE_FLAG_NAME;
         }
         else if(!indexSpec.empty()) {
@@ -136,6 +155,12 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
         else {
             return GMODE_FLAG_NAME;
         }
+    case MODE_BEGIN_INDEX_ARG:
+        if(!endsWithSeparator && arg.length() > 0 && arg[0] == '-') {
+            data->partial = arg;
+            return GMODE_FLAG_NAME;
+        }
+        // fall-through
     case MODE_INDEX_ARG:
         if(prevIndexSpec.getType() != ArgumentSpec::TYPE_ANYTHING
             && !endsWithSeparator) {
@@ -152,9 +177,9 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
             return GMODE_DONE;
         }
     case MODE_FLAG_VALUE:
-        if(currentFlag && !endsWithSeparator) {
+        if(!endsWithSeparator) {
             data->partial = arg;
-            data->arg = currentFlag;
+            data->arg = currentFlag;  // should not be null
             return GMODE_FLAG_VALUE;
         }
         else if(!indexSpec.empty()) {

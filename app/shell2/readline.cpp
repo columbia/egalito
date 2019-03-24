@@ -144,6 +144,7 @@ static char *flagCompletionGenerator(const char *text, int state) {
         if(auto command = parseData.command) {
             for(auto kv : command->getSpec().getFlagSpecs()) {
                 for(auto alias : kv.second.getFlagList()) {
+                    //std::cout << "(" << alias << ")";
                     if(prefixMatches(alias, textString)) {
                         matches.push_back(alias);
                     }
