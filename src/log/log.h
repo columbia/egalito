@@ -26,7 +26,18 @@ public:
     int getBound() const { return bound; }
 };
 
-int _log_fprintf(FILE *stream, const char *format, ...);
+class LogStream {
+private:
+    static std::ostream *output;
+public:
+    static std::ostream *getStream() { return output; }
+
+    // pass out=nullptr to reset to standard output
+    static void overrideStream(std::ostream *out);
+};
+
+int _log_printf(const char *format, ...);
+int _log_printf_n(const char *format, ...);
 std::ostream &_log_stream();
 
 #define _APPEND(x, y) x ## y
@@ -60,13 +71,13 @@ std::ostream &_log_stream();
     #define CLOG(level, format, ...) \
         do { \
             if(_logLevel.shouldShow(level)) { \
-                _log_fprintf(stdout, format, ##__VA_ARGS__); \
+                _log_printf_n(format, ##__VA_ARGS__); \
             } \
         } while(0)
     #define CLOG0(level, format, ...) \
         do { \
             if(_logLevel.shouldShow(level)) { \
-                std::printf(format, ##__VA_ARGS__); \
+                _log_printf(format, ##__VA_ARGS__); \
             } \
         } while(0)
 #else

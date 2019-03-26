@@ -23,7 +23,7 @@ FullCommandList::FullCommandList() {
             std::string line;
             while(std::getline(*in, line)) lineCount ++;
         }
-        (*args.getOutStream()) << lineCount << std::endl;
+        (*args.getOutStream()) << std::dec << lineCount << std::endl;
         return true;
     }, "counts number of lines in input"));
     add(new FunctionCommand("head", ArgumentSpecList({

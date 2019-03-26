@@ -5,6 +5,10 @@
 #include "chunks.h"
 #include "log/registry.h"
 
+#define DEBUG_GROUP shell
+#define D_shell 9
+#include "log/log.h"
+
 Shell2App::Shell2App() {
     // construct commands in FullCommandList
 
@@ -245,9 +249,11 @@ void Shell2App::parseLine(const std::string &line) {
 
         if(i + 1 < commandList.size()) {
             outStream = new std::stringstream();
+            LogStream::overrideStream(outStream);
         }
         else {
             outStream = &std::cout;
+            LogStream::overrideStream(nullptr);
         }
         argList.setInStream(inStream);
         argList.setOutStream(outStream);
@@ -274,6 +280,7 @@ void Shell2App::parseLine(const std::string &line) {
     }
     delete inStream;
     if(outStream != &std::cout) delete outStream;
+    LogStream::overrideStream(nullptr);
 }
 
 bool Shell2App::parsePhrase(Command *command, std::istream &argStream,

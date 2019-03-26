@@ -19,7 +19,7 @@ SANDBOX_INJECT_SOURCES  = $(wildcard sandbox/inject/*.c sandbox/inject/*.cpp)
 HARDEN_SOURCES          = $(wildcard harden/*.cpp)
 CET_INJECT_SOURCES      = $(wildcard cet/inject/*.c cet/inject/*.cpp)
 SHELL_SOURCES           = $(wildcard shell/*.cpp)
-SHELL2_SOURCES           = $(wildcard shell2/*.cpp)
+SHELL2_SOURCES          = $(wildcard shell2/*.cpp)
 OBJDUMP_SOURCES         = $(wildcard objdump/*.cpp)
 PYTHON_SOURCES          = $(wildcard python/*.cpp)
 
