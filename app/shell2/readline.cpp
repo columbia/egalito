@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cstring>
+#include <signal.h>
+#include <setjmp.h>
 #include "readline.h"
 #include "code.h"
 #include "shell.h"
@@ -36,9 +38,27 @@ static char *chunkCompletionGenerator(const char *text, int state);
 static Shell2App *app;
 static FullCommandList *commandList;
 static Shell2App::GlobalParseData parseData;
+static bool insideReadline;
+static sigjmp_buf jumpBuffer;
+
+static void handleInterrupt(int sig) {
+    if(insideReadline) {
+        siglongjmp(jumpBuffer, 1);
+    }
+}
+
+static void registerSIGINTHandler() {
+    struct sigaction action;
+    std::memset(&action, 0, sizeof(action));
+    action.sa_handler = handleInterrupt;
+    sigaction(SIGINT, &action, nullptr);
+    rl_catch_signals = 1;
+    rl_set_signals();  // catch control-c
+}
 
 Readline::Readline(Shell2App *app, FullCommandList *commandList) {
     read_history(HISTORY_FILE);
+    registerSIGINTHandler();
     rl_attempted_completion_function = completer;
     ::app = app;
     ::commandList = commandList;
@@ -63,9 +83,17 @@ std::string Readline::get(const std::string &prompt) {
         + prompt
         + UNPRINTABLE("\033[0m");
 
+    while(sigsetjmp(jumpBuffer, 1)) {
+        std::cout << std::endl;  // on ctrl-c, go to next line
+    }
+    insideReadline = true;
     char *line = readline(prompt2.c_str());
+    insideReadline = false;
     if(line && *line) {
         add_history(line);
+    }
+    if(!line) {  // on ctrl-d, print a final newline
+        std::cout << std::endl;
     }
 
     std::string lineCpp(line ? line : "quit");
