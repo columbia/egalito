@@ -144,4 +144,17 @@ void ChunkCommands::construct(EgalitoInterface *egalito) {
         target->accept(&dump);
         return true;
     }, "print a disassembly of a given function (or current Chunk)"));
+    fullList->add(new FunctionCommand("pwd", ArgumentSpecList({}, {}, 0),
+        [] (ShellState &state, ArgumentValueList &args) {
+
+        auto out = args.getOutStream();
+
+        Chunk *chunk = state.getChunk();
+        if(!chunk) return false;
+
+        for(; chunk; chunk = chunk->getParent()) {
+            (*out) << chunk->getName() << std::endl;
+        }
+        return true;
+    }, "recursively print all parent Chunk names"));
 }
