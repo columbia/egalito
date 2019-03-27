@@ -51,9 +51,46 @@ FullCommandList::FullCommandList() {
         ArgumentSpec(ArgumentSpec::TYPE_STRING),
         ArgumentSpec(ArgumentSpec::TYPE_STRING),
         ArgumentSpec(ArgumentSpec::TYPE_STRING),
-    }, 1, true), std::bind(&FullCommandList::runCommand, this,
+    }, 1, true), std::bind(&FullCommandList::runCommand1, this,
         "/bin/grep", std::placeholders::_1, std::placeholders::_2),
-        "prints the first N lines of output"));
+        "searches input lines for a specified regular expression"));
+    add(new FunctionCommand("awk", ArgumentSpecList({}, {
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+    }, 1, true), std::bind(&FullCommandList::runCommand1, this,
+        "/usr/bin/awk", std::placeholders::_1, std::placeholders::_2),
+        "runs awk with the given input"));
+    add(new FunctionCommand("perl", ArgumentSpecList({}, {
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+    }, 1, true), std::bind(&FullCommandList::runCommand1, this,
+        "/usr/bin/perl", std::placeholders::_1, std::placeholders::_2),
+        "runs perl with the given input"));
+    add(new FunctionCommand("sh", ArgumentSpecList({}, {
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+    }, 1, true), std::bind(&FullCommandList::runCommandN, this,
+        "/bin/bash", std::placeholders::_1, std::placeholders::_2,
+        std::vector<const char *>{"-c"}),
+        "runs the bash shell with a given command"));
+    add(new FunctionCommand("exec", ArgumentSpecList({}, {
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+    }, 1, true), std::bind(&FullCommandList::runCommand1, this,
+        nullptr, std::placeholders::_1, std::placeholders::_2),
+        "runs the given command without invoking a shell"));
 }
 
 void FullCommandList::add(Command *command) {
@@ -113,8 +150,8 @@ bool FullCommandList::helpCommand(ShellState &state, ArgumentValueList &args) co
 
 #define PIPE_READ 0
 #define PIPE_WRITE 1
-bool FullCommandList::runCommand(const char *file, ShellState &state,
-    ArgumentValueList &args) const {
+bool FullCommandList::runCommandN(const char *file, ShellState &state,
+    ArgumentValueList &args, std::vector<const char *> extraArgv) const {
 
     int p1[2], p2[2];
     pipe(p1);
@@ -126,14 +163,27 @@ bool FullCommandList::runCommand(const char *file, ShellState &state,
         dup2(p2[PIPE_WRITE], STDOUT_FILENO);
         close(p1[0]); close(p1[1]); close(p2[0]); close(p2[1]);
 
+        unsigned long file0 = (file ? 1 : 0);
+        unsigned long extra = extraArgv.size();
         unsigned long count = args.getIndexedCount();
-        char **argv = static_cast<char **>(malloc((count + 2) * sizeof(*argv)));
-        argv[0] = const_cast<char *>(file);
-        for(unsigned long i = 0; i < count; i ++) {
-            argv[1+i] = strdup(args.getIndexed(i).getString().c_str());
+        char **argv = static_cast<char **>(
+            malloc((file0 + extra + count + 1) * sizeof(*argv)));
+        unsigned long argc = 0;
+        if(file0) argv[argc++] = const_cast<char *>(file);
+        for(unsigned long i = 0; i < extra; i ++) {
+            argv[argc++] = const_cast<char *>(extraArgv[i]);
         }
-        argv[1+count] = nullptr;
-        execvp(file, argv);
+        for(unsigned long i = 0; i < count; i ++) {
+            argv[argc++] = strdup(args.getIndexed(i).getString().c_str());
+        }
+        argv[argc] = nullptr;
+#if 0
+        for(unsigned long i = 0; argv[i]; i ++) {
+            std::cout << "\"" << argv[i] << "\",";
+        }
+        std::cout << std::endl;
+#endif
+        execvp(argv[0], argv);
         std::exit(1);
     }
     else {
