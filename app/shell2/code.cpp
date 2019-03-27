@@ -1,5 +1,11 @@
+#include <iostream>  // for testing
 #include <iomanip>
 #include <functional>
+#include <cstdlib>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 #include "code.h"
 
 FullCommandList::FullCommandList() {
@@ -39,6 +45,15 @@ FullCommandList::FullCommandList() {
         }
         return true;
     }, "prints the first N lines of output"));
+    add(new FunctionCommand("grep", ArgumentSpecList({}, {
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+        ArgumentSpec(ArgumentSpec::TYPE_STRING),
+    }, 1, true), std::bind(&FullCommandList::runCommand, this,
+        "/bin/grep", std::placeholders::_1, std::placeholders::_2),
+        "prints the first N lines of output"));
 }
 
 void FullCommandList::add(Command *command) {
@@ -94,4 +109,67 @@ bool FullCommandList::helpCommand(ShellState &state, ArgumentValueList &args) co
         }
     }
     return true;
+}
+
+#define PIPE_READ 0
+#define PIPE_WRITE 1
+bool FullCommandList::runCommand(const char *file, ShellState &state,
+    ArgumentValueList &args) const {
+
+    int p1[2], p2[2];
+    pipe(p1);
+    pipe(p2);
+
+    auto pid = fork();
+    if(!pid) {
+        dup2(p1[PIPE_READ], STDIN_FILENO);
+        dup2(p2[PIPE_WRITE], STDOUT_FILENO);
+        close(p1[0]); close(p1[1]); close(p2[0]); close(p2[1]);
+
+        unsigned long count = args.getIndexedCount();
+        char **argv = static_cast<char **>(malloc((count + 2) * sizeof(*argv)));
+        argv[0] = const_cast<char *>(file);
+        for(unsigned long i = 0; i < count; i ++) {
+            argv[1+i] = strdup(args.getIndexed(i).getString().c_str());
+        }
+        argv[1+count] = nullptr;
+        execvp(file, argv);
+        std::exit(1);
+    }
+    else {
+        close(p1[PIPE_READ]);
+        close(p2[PIPE_WRITE]);
+        auto flags = fcntl(p2[PIPE_READ], F_GETFL, 0);
+        fcntl(p2[PIPE_READ], F_SETFL, flags | O_NONBLOCK);
+
+        auto in = args.getInStream();
+        auto out = args.getOutStream();
+
+        char buffer[BUFSIZ];
+        ssize_t n = 0;
+        std::string line;
+        if(in) while(std::getline(*in, line)) {
+            //std::cout << "write [" << line << "]\n";
+            line += '\n';
+            write(p1[PIPE_WRITE], line.c_str(), line.length());
+            if((n = read(p2[PIPE_READ], buffer, sizeof buffer)) > 0) {
+                //std::cout << "read [" << buffer << "]\n";
+                out->write(buffer, n);
+            }
+        }
+        close(p1[PIPE_WRITE]);
+
+        fcntl(p2[PIPE_READ], F_SETFL, flags & ~O_NONBLOCK);
+        while((n = read(p2[PIPE_READ], buffer, sizeof buffer)) > 0) {
+            //std::cout << "read [" << buffer << "]\n";
+            out->write(buffer, n);
+        }
+        close(p2[PIPE_READ]);
+
+        int status = 0;
+        waitpid(pid, &status, 0);
+
+        bool normal = (WIFEXITED(status) && WEXITSTATUS(status) == 0);
+        return normal;
+    }
 }

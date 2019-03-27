@@ -18,6 +18,8 @@ public:
     std::vector<std::string> getCommandList() const;
 private:
     bool helpCommand(ShellState &state, ArgumentValueList &args) const;
+    bool runCommand(const char *file, ShellState &state,
+        ArgumentValueList &args) const;
 };
 
 #endif
