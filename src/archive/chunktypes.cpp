@@ -63,3 +63,39 @@ EgalitoChunkType decodeChunkType(uint8_t encoded) {
     }
     return TYPE_UNKNOWN;
 }
+
+const char *getChunkTypeName(EgalitoChunkType type) {
+    switch(type) {
+    case TYPE_UNKNOWN:            return "UNKNOWN";
+    case TYPE_Program:            return "Program";
+    case TYPE_Module:             return "Module";
+    case TYPE_FunctionList:       return "FunctionList";
+    case TYPE_PLTList:            return "PLTList";
+    case TYPE_JumpTableList:      return "JumpTableList";
+    case TYPE_DataRegionList:     return "DataRegionList";
+    case TYPE_InitFunctionList:   return "InitFunctionList";
+    case TYPE_ExternalSymbolList: return "ExternalSymbolList";
+    case TYPE_LibraryList:        return "LibraryList";
+    case TYPE_VTableList:         return "VTableList";
+    case TYPE_Function:           return "Function";
+    case TYPE_Block:              return "Block";
+    case TYPE_Instruction:        return "Instruction";
+    case TYPE_PLTTrampoline:      return "PLTTrampoline";
+    case TYPE_JumpTable:          return "JumpTable";
+    case TYPE_JumpTableEntry:     return "JumpTableEntry";
+    case TYPE_DataRegion:         return "DataRegion";
+    case TYPE_TLSDataRegion:      return "TLSDataRegion";
+    case TYPE_DataSection:        return "DataSection";
+    case TYPE_DataVariable:       return "DataVariable";
+    case TYPE_GlobalVariable:     return "GlobalVariable";
+    case TYPE_MarkerList:         return "MarkerList";
+    case TYPE_Marker:             return "Marker";
+    case TYPE_VTable:             return "VTable";
+    case TYPE_VTableEntry:        return "VTableEntry";
+    case TYPE_InitFunction:       return "InitFunction";
+    case TYPE_ExternalSymbol:     return "ExternalSymbol";
+    case TYPE_Library:            return "Library";
+    case TYPE_TOTAL:              return "TOTAL";
+    }
+    return "???";
+}

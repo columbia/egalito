@@ -33,9 +33,11 @@ enum EgalitoChunkType {
     TYPE_InitFunction,
     TYPE_ExternalSymbol,
     TYPE_Library,
+    TYPE_TOTAL
 };
 
 uint8_t encodeChunkType(EgalitoChunkType type);
 EgalitoChunkType decodeChunkType(uint8_t encoded);
+const char *getChunkTypeName(EgalitoChunkType type);
 
 #endif

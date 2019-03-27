@@ -3,6 +3,7 @@
 #include "shell.h"
 #include "readline.h"
 #include "chunks.h"
+#include "passes.h"
 #include "log/registry.h"
 
 #define DEBUG_GROUP shell
@@ -14,6 +15,9 @@ Shell2App::Shell2App() {
 
     ChunkCommands chunkCommands(&fullCommandList);
     chunkCommands.construct(&egalito);
+
+    PassCommands *passCommands = new PassCommands(&fullCommandList);
+    passCommands->construct(&egalito);
 }
 
 void Shell2App::mainLoop() {

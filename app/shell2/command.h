@@ -70,6 +70,7 @@ public:
     size_t getRequiredArguments() const { return requiredArguments; }
 };
 
+class EgalitoInterface;
 class ArgumentValue {
 private:
     std::string data;
@@ -86,7 +87,7 @@ public:
     address_t getAddress() const;
     long getNumber() const;
     unsigned long getUnsignedNumber() const;
-    Chunk *getChunk(ShellState &state) const;
+    Chunk *getChunk(EgalitoInterface *egalito) const;
 };
 
 class ArgumentValueList {

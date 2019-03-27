@@ -169,7 +169,7 @@ unsigned long ArgumentValue::getUnsignedNumber() const {
     }
 }
 
-Chunk *ArgumentValue::getChunk(ShellState &state) const {
+Chunk *ArgumentValue::getChunk(EgalitoInterface *egalito) const {
     switch(type) {
     case ArgumentSpec::TYPE_CHUNK:
     case ArgumentSpec::TYPE_MODULE:
