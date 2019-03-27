@@ -10,7 +10,7 @@
 #define D_shell 9
 #include "log/log.h"
 
-Shell2App::Shell2App() {
+Shell2App::Shell2App() : fullCommandList(&egalito) {
     // construct commands in FullCommandList
 
     ChunkCommands chunkCommands(&fullCommandList);

@@ -7,8 +7,14 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "code.h"
+#include "conductor/interface.h"
 
-FullCommandList::FullCommandList() {
+#undef DEBUG_GROUP
+#define DEBUG_GROUP shell
+#define D_shell 9
+#include "log/log.h"
+
+FullCommandList::FullCommandList(EgalitoInterface *egalito) {
     add(new FunctionCommand("quit", ArgumentSpecList({}, {}),
         [] (ShellState &state, ArgumentValueList &args) {
 
@@ -91,6 +97,53 @@ FullCommandList::FullCommandList() {
     }, 1, true), std::bind(&FullCommandList::runCommand1, this,
         nullptr, std::placeholders::_1, std::placeholders::_2),
         "runs the given command without invoking a shell"));
+    add(new FunctionCommand("generate",
+        ArgumentSpecList(
+            {
+                {"-m", ArgumentSpec({"-m"}, ArgumentSpec::TYPE_FLAG)},
+                {"-u", ArgumentSpec({"-u"}, ArgumentSpec::TYPE_FLAG)}
+            }, {
+                ArgumentSpec(ArgumentSpec::TYPE_FILENAME),
+            }, 1),
+        [egalito] (ShellState &state, ArgumentValueList &args) {
+            std::string output = args.getIndexed(0).getString();
+
+            bool uniongen;
+            if(args.getBool("-m")) uniongen = false;
+            if(args.getBool("-u")) uniongen = true;
+
+            if(args.getBool("-m") || args.getBool("-u")) {
+                egalito->generate(output, uniongen);
+            }
+            else {
+                egalito->generate(output);
+            }
+            return true;
+        }, "generate an output ELF (-m = mirrorgen, -u = uniongen)"));
+    add(new FunctionCommand("run",
+        ArgumentSpecList({
+            {"-m", ArgumentSpec({"-m"}, ArgumentSpec::TYPE_FLAG)},
+            {"-u", ArgumentSpec({"-u"}, ArgumentSpec::TYPE_FLAG)}
+        }, {}, 0),
+        [this, egalito] (ShellState &state, ArgumentValueList &args) {
+            std::string output = tempnam("/tmp", "ega-");
+
+            bool uniongen;
+            if(args.getBool("-m")) uniongen = false;
+            if(args.getBool("-u")) uniongen = true;
+
+            if(args.getBool("-m") || args.getBool("-u")) {
+                egalito->generate(output, uniongen);
+            }
+            else {
+                egalito->generate(output);
+            }
+            LOG(0, "generated [" << output << "], executing...");
+            LOG(0, "----");
+            bool ok = runGeneratedFile(output.c_str(), state, args);
+            unlink(output.c_str());
+            return ok;
+        }, "generate and run a temporary output ELF (-m = mirrorgen, -u = uniongen)"));
 }
 
 void FullCommandList::add(Command *command) {
@@ -216,6 +269,39 @@ bool FullCommandList::runCommandN(const char *file, ShellState &state,
         }
         close(p2[PIPE_READ]);
 
+        int status = 0;
+        waitpid(pid, &status, 0);
+
+        bool normal = (WIFEXITED(status) && WEXITSTATUS(status) == 0);
+        return normal;
+    }
+}
+
+bool FullCommandList::runGeneratedFile(const char *file, ShellState &state,
+    ArgumentValueList &args) const {
+
+    auto pid = fork();
+    if(!pid) {
+        unsigned long file0 = (file ? 1 : 0);
+        unsigned long count = args.getIndexedCount();
+        char **argv = static_cast<char **>(
+            malloc((file0 + count + 1) * sizeof(*argv)));
+        unsigned long argc = 0;
+        if(file0) argv[argc++] = const_cast<char *>(file);
+        for(unsigned long i = 0; i < count; i ++) {
+            argv[argc++] = strdup(args.getIndexed(i).getString().c_str());
+        }
+        argv[argc] = nullptr;
+#if 0
+        for(unsigned long i = 0; argv[i]; i ++) {
+            std::cout << "\"" << argv[i] << "\",";
+        }
+        std::cout << std::endl;
+#endif
+        execvp(argv[0], argv);
+        std::exit(1);
+    }
+    else {
         int status = 0;
         waitpid(pid, &status, 0);
 

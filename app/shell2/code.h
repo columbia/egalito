@@ -10,7 +10,7 @@ class FullCommandList {
 private:
     std::map<std::string, Command *> commandMap;
 public:
-    FullCommandList();
+    FullCommandList(EgalitoInterface *egalito);
 
     void add(Command *command);
     Command *lookup(const std::string &name) const;
@@ -22,6 +22,8 @@ private:
         { return runCommandN(file, state, args, {}); }
     bool runCommandN(const char *file, ShellState &state,
         ArgumentValueList &args, std::vector<const char *> extraArgv) const;
+    bool runGeneratedFile(const char *file, ShellState &state,
+        ArgumentValueList &args) const;
 };
 
 #endif
