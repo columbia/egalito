@@ -5,6 +5,7 @@
 #include "pass/chunkpass.h"
 #include "util/timing.h"
 
+#undef DEBUG_GROUP
 #define DEBUG_GROUP shell
 #define D_shell 9
 #include "log/log.h"

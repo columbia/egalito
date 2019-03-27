@@ -235,6 +235,7 @@ public:
     void setTLS(TLSDataRegion *tls) { this->tls = tls; }
     TLSDataRegion *getTLS() const { return tls; }
 
+    virtual std::string getName() const { return "dataregionlist"; }
     virtual void accept(ChunkVisitor *visitor);
 
     Link *createDataLink(address_t target, Module *module,

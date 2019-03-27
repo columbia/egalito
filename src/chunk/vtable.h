@@ -55,6 +55,7 @@ public:
     virtual bool deserialize(ChunkSerializerOperations &op,
         ArchiveStreamReader &reader);
 
+    virtual std::string getName() const { return "vtablelist"; }
     virtual void accept(ChunkVisitor *visitor);
 };
 

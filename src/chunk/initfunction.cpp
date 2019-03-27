@@ -39,6 +39,10 @@ bool InitFunctionList::deserialize(ChunkSerializerOperations &op,
     return reader.stillGood();
 }
 
+std::string InitFunctionList::getName() const {
+    return isInit ? "initfunctionlist" : "finifunctionlist";
+}
+
 void InitFunctionList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
