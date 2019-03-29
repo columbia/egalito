@@ -11,6 +11,11 @@ class Instruction;
 class Module;
 class Reloc;
 
+/**
+    NOTE: If manually constructing, and setting a link, make sure to set
+    opIndex to a value other than -1. Otherwise the link target will not
+    be used and will be encoded as all 0's.
+*/
 class LinkedInstructionBase : public LinkDecorator<SemanticImpl> {
 private:
     Instruction *instruction;

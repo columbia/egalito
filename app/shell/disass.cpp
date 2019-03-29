@@ -37,6 +37,7 @@
 #include "pass/fixenviron.h"
 #include "pass/externalsymbollinks.h"
 #include "pass/permutedata.h"
+#include "pass/profileinstrument.h"
 #include "archive/filesystem.h"
 #include "dwarf/parser.h"
 #include "load/segmap.h"
@@ -801,6 +802,22 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             module->accept(&pass);
         }
     }, "permute data sections");
+
+    topLevel->add("profileinstrument", [&] (Arguments args) {
+        ProfileInstrumentPass pass;
+        if (args.size() == 0) {
+            setup->getConductor()->getProgram()->accept(&pass);
+        }
+        else {
+            auto module = CIter::findChild(setup->getConductor()->getProgram(),
+                args.front().c_str());
+            if(!module) {
+                std::cout << "No such module.\n";
+                return;
+            }
+            module->accept(&pass);
+        }
+    }, "add profiling instrumentation");
 
     topLevel->add("initfunctions", [&] (Arguments args) {
         ChunkDumper dump;

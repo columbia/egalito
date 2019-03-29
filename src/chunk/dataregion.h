@@ -129,6 +129,7 @@ public:
     DataVariable *findVariable(address_t address);
 
     size_t getAlignment() const { return alignment; }
+    void setAlignment(size_t align) { alignment = align; }
     address_t getOriginalOffset() const { return originalOffset; }
     uint64_t getPermissions() const { return permissions; }
     void setPermissions(uint64_t perm) { permissions = perm; }

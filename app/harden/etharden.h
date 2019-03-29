@@ -17,6 +17,7 @@ private:
     void doCFI();
     void doShadowStack(bool gsMode);
     void doPermuteData();
+    void doProfiling();
 };
 
 #endif

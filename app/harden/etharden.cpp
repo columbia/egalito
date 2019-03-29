@@ -9,6 +9,7 @@
 #include "pass/endbrenforce.h"
 #include "pass/shadowstack.h"
 #include "pass/permutedata.h"
+#include "pass/profileinstrument.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -65,6 +66,12 @@ void HardenApp::doPermuteData() {
     RUN_PASS(PermuteDataPass(), program);
 }
 
+void HardenApp::doProfiling() {
+    std::cout << "Adding function profiling...\n";
+    auto program = getProgram();
+    RUN_PASS(ProfileInstrumentPass(), program);
+}
+
 static void printUsage(const char *program) {
     std::cout << "Usage: " << program << " [options] [mode] input-file output-file\n"
         "    Transforms an executable by adding CFI and a shadow stack.\n"
@@ -86,6 +93,7 @@ static void printUsage(const char *program) {
         "        --cet-gs        GS shadow stack implementation\n"
         "        --cet-const     Constant offset shadow stack implementation\n"
         "    --permute-data Randomize order of global variables in .data\n"
+        "    --profile      Add profiling counters to each function\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
 }
 
@@ -115,6 +123,7 @@ void HardenApp::run(int argc, char **argv) {
         {"--cet-gs",        [&ops] () { ops.push_back("cet-gs"); }},
         {"--cet-const",     [&ops] () { ops.push_back("cet-const"); }},
         {"--permute-data",  [&ops] () { ops.push_back("permute-data"); }},
+        {"--profile",       [&ops] () { ops.push_back("profile"); }},
     };
 
     std::map<std::string, std::function<void ()>> techniques = {
@@ -125,6 +134,7 @@ void HardenApp::run(int argc, char **argv) {
         {"cet-gs",          [this] () { doShadowStack(true); doCFI(); }},
         {"cet-const",       [this] () { doShadowStack(false); doCFI(); }},
         {"permute-data",    [this] () { doPermuteData(); }},
+        {"profile",         [this] () { doProfiling(); }},
     };
 
     for(int a = 1; a < argc; a ++) {
