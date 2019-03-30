@@ -17,13 +17,13 @@
 	   0:   53                      push   %rbx
 	   1:   48 c7 c0 02 00 00 00    mov    $0x2,%rax
 	   8:   48 8d 3d 00 00 00 00    lea    0x0(%rip),%rdi        # f <profiling_save_bytes+0xf>
-	   f:   48 c7 c6 00 00 00 00    mov    $0x0,%rsi
-	  16:   48 c7 c2 40 04 00 00    mov    $0x440,%rdx
+	   f:   48 c7 c6 01 00 00 00    mov    $0x441,%rsi
+	  16:   48 c7 c2 40 04 00 00    mov    $0x1a4,%rdx
 	  1d:   0f 05                   syscall
 	  1f:   48 89 c3                mov    %rax,%rbx
 	  22:   48 c7 c0 01 00 00 00    mov    $0x1,%rax
 	  29:   48 89 df                mov    %rbx,%rdi
-	  2c:   48 8b 35 00 01 00 00    mov    0x100(%rip),%rsi        # 133 <profiling_save_bytes+0x133>
+	  2c:   48 8d 35 00 01 00 00    lea    0x100(%rip),%rsi        # 133 <profiling_save_bytes+0x133>
 	  33:   48 c7 c2 01 01 00 00    mov    $0x101,%rdx
 	  3a:   0f 05                   syscall
 	  3c:   48 c7 c0 03 00 00 00    mov    $0x3,%rax
@@ -71,18 +71,18 @@ void ProfileSavePass::visit(Module *module) {
         leaInstr->setSemantic(leaSem);
         m.append(leaInstr);
         
-        m.append(Disassemble::instruction({0x48, 0xc7, 0xc6, 0x00, 0x00, 0x00, 0x00}));
-        m.append(Disassemble::instruction({0x48, 0xc7, 0xc2, 0x40, 0x04, 0x00, 0x00}));
+        m.append(Disassemble::instruction({0x48, 0xc7, 0xc6, 0x41, 0x04, 0x00, 0x00}));
+        m.append(Disassemble::instruction({0x48, 0xc7, 0xc2, 0xa4, 0x01, 0x00, 0x00}));
         m.append(Disassemble::instruction({0x0f, 0x05}));
         m.append(Disassemble::instruction({0x48, 0x89, 0xc3}));
         m.append(Disassemble::instruction({0x48, 0xc7, 0xc0, 0x01, 0x00, 0x00, 0x00}));
         m.append(Disassemble::instruction({0x48, 0x89, 0xdf}));
 
-	    //  mov    0x100(%rip),%rsi
+	    //  lea    0x100(%rip),%rsi
         auto mov1Instr = new Instruction();
         auto mov1Sem = new LinkedInstruction(mov1Instr);
         mov1Sem->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
-            std::vector<unsigned char>{0x48, 0x8b, 0x35, 0x00, 0x01, 0x00, 0x00}));
+            std::vector<unsigned char>{0x48, 0x8d, 0x35, 0x00, 0x01, 0x00, 0x00}));
         mov1Sem->setLink(new DataOffsetLink(section, 0, Link::SCOPE_INTERNAL_DATA));
         mov1Sem->setIndex(0);
         mov1Instr->setSemantic(mov1Sem);
