@@ -10,6 +10,7 @@
 #include "pass/shadowstack.h"
 #include "pass/permutedata.h"
 #include "pass/profileinstrument.h"
+#include "pass/profilesave.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -70,6 +71,7 @@ void HardenApp::doProfiling() {
     std::cout << "Adding function profiling...\n";
     auto program = getProgram();
     RUN_PASS(ProfileInstrumentPass(), program);
+    RUN_PASS(ProfileSavePass(), program);
 }
 
 static void printUsage(const char *program) {
