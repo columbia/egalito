@@ -13,18 +13,19 @@ void ProfileInstrumentPass::visit(Function *function) {
     if(function->getName() == "__libc_csu_fini") return;
 
     auto module = static_cast<Module *>(function->getParent()->getParent());
-    auto section = createDataSection(module);
+    auto sectionPair = createDataSection(module);
 
-    ChunkAddInline ai({}, [this, section] (unsigned int stackBytesAdded) {
+    ChunkAddInline ai({}, [this, sectionPair, function] (unsigned int stackBytesAdded) {
         //auto instr = Disassemble::instruction({0xff, 0x05, 0x00, 0x00, 0x00, 0x00});
         DisasmHandle handle(true);
         auto instr = new Instruction();
         auto sem = new LinkedInstruction(instr);
         sem->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
             std::vector<unsigned char>{0xff, 0x05, 0x00, 0x00, 0x00, 0x00}));
-        sem->setLink(addVariable(section));
+        sem->setLink(addVariable(sectionPair.first));
         sem->setIndex(0);
         instr->setSemantic(sem);
+        appendFunctionName(sectionPair.second, function->getName());
 
         return std::vector<Instruction *>{ instr };
     });
@@ -45,13 +46,19 @@ void ProfileInstrumentPass::visit(Function *function) {
 }
 
 #define DATA_REGION_ADDRESS 0x30000000
+#define DATA_NAMEREGION_ADDRESS 0x31000000
 #define DATA_REGION_NAME ("region-" #DATA_REGION_ADDRESS)
 #define DATA_SECTION_NAME ".profiling"
+#define DATA_NAMESECTION_NAME ".profiling.names"
 
-DataSection *ProfileInstrumentPass::createDataSection(Module *module) {
+std::pair<DataSection *, DataSection *> ProfileInstrumentPass
+    ::createDataSection(Module *module) {
+
     auto regionList = module->getDataRegionList();
     if(auto section = regionList->findDataSection(DATA_SECTION_NAME)) {
-        return section;
+        if(auto nameSection = regionList->findDataSection(DATA_NAMESECTION_NAME)) {
+            return std::make_pair(section, nameSection);
+        }
     }
 
     auto region = new DataRegion(DATA_REGION_ADDRESS);
@@ -68,7 +75,21 @@ DataSection *ProfileInstrumentPass::createDataSection(Module *module) {
     region->getChildren()->add(section);
     section->setParent(region);
 
-    return section;
+    auto nameRegion = new DataRegion(DATA_NAMEREGION_ADDRESS);
+    nameRegion->setPosition(new AbsolutePosition(DATA_NAMEREGION_ADDRESS));
+    regionList->getChildren()->add(nameRegion);
+    nameRegion->setParent(regionList);
+
+    auto nameSection = new DataSection();
+    nameSection->setName(DATA_NAMESECTION_NAME);
+    nameSection->setAlignment(0x1);
+    nameSection->setPermissions(SHF_ALLOC);
+    nameSection->setPosition(new AbsoluteOffsetPosition(nameSection, 0));
+    nameSection->setType(DataSection::TYPE_DATA);
+    nameRegion->getChildren()->add(nameSection);
+    nameSection->setParent(nameRegion);
+
+    return std::make_pair(section, nameSection);
 }
 
 Link *ProfileInstrumentPass::addVariable(DataSection *section) {
@@ -78,4 +99,16 @@ Link *ProfileInstrumentPass::addVariable(DataSection *section) {
     region->setSize(region->getSize() + 8);
 
     return new DataOffsetLink(section, offset, Link::SCOPE_INTERNAL_DATA);
+}
+
+void ProfileInstrumentPass::appendFunctionName(DataSection *nameSection,
+    const std::string &name) {
+
+    auto region = static_cast<DataRegion *>(nameSection->getParent());
+    region->setSize(region->getSize() + name.length() + 1);
+    nameSection->setSize(nameSection->getSize() + name.length() + 1);
+
+    auto bytes = region->getDataBytes();
+    bytes.append(name.c_str(), name.length() + 1);
+    region->saveDataBytes(bytes);
 }
