@@ -6,14 +6,20 @@
 void InitFunction::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.writeID(op.assign(functionPointer));
+    writer.write<bool>(init);
+    writer.write<bool>(specialCase);
+    writer.writeID(op.assign(function));
+    writer.writeID(op.assign(dataVariable));
     op.serializeChildren(this, writer);
 }
 
 bool InitFunction::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    functionPointer = op.lookupAs<DataVariable>(reader.readID());
+    init = reader.read<bool>();
+    specialCase = reader.read<bool>();
+    function = op.lookupAs<Function>(reader.readID());
+    dataVariable = op.lookupAs<DataVariable>(reader.readID());
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }
@@ -25,7 +31,7 @@ void InitFunction::accept(ChunkVisitor *visitor) {
 void InitFunctionList::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {
 
-    writer.write<bool>(isInit);
+    writer.write<bool>(init);
     writer.writeID(op.assign(specialCase));
     op.serializeChildren(this, writer);
 }
@@ -33,8 +39,8 @@ void InitFunctionList::serialize(ChunkSerializerOperations &op,
 bool InitFunctionList::deserialize(ChunkSerializerOperations &op,
     ArchiveStreamReader &reader) {
 
-    isInit = reader.read<bool>();
-    setSpecialCaseFunction(op.lookupAs<Function>(reader.readID()));
+    init = reader.read<bool>();
+    setSpecialCase(op.lookupAs<InitFunction>(reader.readID()));
     op.deserializeChildren(this, reader);
     return reader.stillGood();
 }

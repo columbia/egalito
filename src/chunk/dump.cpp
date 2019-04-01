@@ -35,6 +35,9 @@ void ChunkDumper::visit(VTableList *vtableList) {
 }
 void ChunkDumper::visit(InitFunctionList *initFunctionList) {
     LOG(1, "--[init-functions]--");
+    if(auto f = initFunctionList->getSpecialCase()) {
+        LOG(1, "    special case [" << f->getName() << "]");
+    }
     recurse(initFunctionList);
 }
 void ChunkDumper::visit(ExternalSymbolList *externalSymbolList) {
