@@ -35,6 +35,7 @@ static char **completer(const char *text, int start, int end);
 static char *commandCompletionGenerator(const char *text, int state);
 static char *flagCompletionGenerator(const char *text, int state);
 static char *chunkCompletionGenerator(const char *text, int state);
+static char *passCompletionGenerator(const char *text, int state);
 static Shell2App *app;
 static FullCommandList *commandList;
 static Shell2App::GlobalParseData parseData;
@@ -126,6 +127,8 @@ static char **completer(const char *text, int start, int end) {
             return nullptr;
         case ArgumentSpec::TYPE_CHUNK:
             return rl_completion_matches(text, chunkCompletionGenerator);
+        case ArgumentSpec::TYPE_PASS:
+            return rl_completion_matches(text, passCompletionGenerator);
         default:
             return nullptr;
         }
@@ -213,6 +216,31 @@ static char *chunkCompletionGenerator(const char *text, int state) {
             }
         }
 
+        matchIndex = 0;
+    }
+
+    if(matchIndex >= matches.size()) {
+        return nullptr;  // no more matches available
+    }
+    else {
+        // malloc a copy of the match, readline frees it
+        return strdup(matches[matchIndex ++].c_str());
+    }
+}
+
+static char *passCompletionGenerator(const char *text, int state) {
+    static std::vector<std::string> matches;
+    static size_t matchIndex = 0;
+
+    if(state == 0) {
+        // beginning a new completion, pre-resolve the matches for text
+        matches.clear();
+        std::string textString(text);
+        for(auto &name : app->getPassCommands()->getNames()) {
+            if(prefixMatches(name, textString)) {
+                matches.push_back(name);
+            }
+        }
         matchIndex = 0;
     }
 

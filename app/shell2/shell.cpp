@@ -16,7 +16,7 @@ Shell2App::Shell2App() : fullCommandList(&egalito) {
     ChunkCommands chunkCommands(&fullCommandList);
     chunkCommands.construct(&egalito);
 
-    PassCommands *passCommands = new PassCommands(&fullCommandList);
+    passCommands = new PassCommands(&fullCommandList);
     passCommands->construct(&egalito);
 }
 

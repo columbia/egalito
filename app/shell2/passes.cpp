@@ -107,11 +107,15 @@ ChunkPass *PassContext::create(Chunk *chunk) const {
 
 void PassCommands::makePassMap(EgalitoInterface *egalito) {
     passMap["cancelpush"] = PassContext({TYPE_Program, TYPE_Module},
-        [egalito] (Chunk *chunk) -> ChunkPass*
+        [egalito] (Chunk *chunk)
             { return new CancelPushPass(egalito->getProgram()); });
     passMap["collapseplt"] = PassContext(true, {},
-        [egalito] (Chunk *chunk) -> ChunkPass*
+        [egalito] (Chunk *chunk)
             { return new CollapsePLTPass(egalito->getConductor()); });
+    passMap["endbradd"] = PassContext(true, {},
+        [] (Chunk *chunk) { return new EndbrAddPass(); });
+    passMap["endbrenforce"] = PassContext(true, {},
+        [] (Chunk *chunk) { return new EndbrEnforcePass(); });
 
 #if 0
 pass/clearplts.h
@@ -123,8 +127,6 @@ pass/detectnullptr.h
 pass/dumplink.h
 pass/dumptlsinstr.h
 pass/encodingcheckpass.h
-pass/endbradd.h
-pass/endbrenforce.h
 pass/externalcalls.h
 pass/externalsymbollinks.h
 pass/fallthrough.h
@@ -258,12 +260,12 @@ bool PassCommands::listPassesCommand(ShellState &state, ArgumentValueList &args)
 void PassCommands::construct(EgalitoInterface *egalito) {
     makePassMap(egalito);
 
-    fullList->add(new FunctionCommand("ls-passes",
+    fullList->add(new FunctionCommand("lspass",
         ArgumentSpecList(
             {
                 {"-l", ArgumentSpec({"-l"}, ArgumentSpec::TYPE_FLAG)}
             }, {
-                ArgumentSpec(ArgumentSpec::TYPE_STRING)
+                ArgumentSpec(ArgumentSpec::TYPE_PASS)
             }),
         std::bind(&PassCommands::listPassesCommand, this,
             std::placeholders::_1, std::placeholders::_2),
@@ -274,10 +276,18 @@ void PassCommands::construct(EgalitoInterface *egalito) {
                 {"-f", ArgumentSpec({"-f"}, ArgumentSpec::TYPE_FLAG)},
                 {"-t", ArgumentSpec({"-t"}, ArgumentSpec::TYPE_FLAG)},
             }, {
-                ArgumentSpec(ArgumentSpec::TYPE_STRING),
+                ArgumentSpec(ArgumentSpec::TYPE_PASS),
                 ArgumentSpec(ArgumentSpec::TYPE_STRING)
             }, 1),
         std::bind(&PassCommands::runPassCommand, this,
             egalito, std::placeholders::_1, std::placeholders::_2),
         "runs an arbitrary pass at the current Chunk location"));
+}
+
+std::vector<std::string> PassCommands::getNames() const {
+    std::vector<std::string> names;
+    for(auto kv : passMap) {
+        names.push_back(kv.first); 
+    }
+    return std::move(names);
 }

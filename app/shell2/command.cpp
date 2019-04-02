@@ -32,6 +32,8 @@ const char *ArgumentSpec::getExpectedMessage(ArgumentType type) {
         return "expected name of module e.g. module-(executable)";
     case TYPE_FUNCTION:
         return "expected name of function e.g. _start";
+    case TYPE_PASS:
+        return "expected name of chunk pass";
     case TYPE_ANYTHING:
         return nullptr;
     }
@@ -54,6 +56,7 @@ const char *ArgumentSpec::getTypeName(ArgumentType type) {
     case TYPE_CHUNK:            return "CHUNK";
     case TYPE_MODULE:           return "MODULE";
     case TYPE_FUNCTION:         return "FUNCTION";
+    case TYPE_PASS:             return "PASS";
     case TYPE_ANYTHING:         return "ANYTHING";
 	default:				    return "";
 	}
@@ -91,6 +94,7 @@ bool ArgumentSpec::flagValueMatches(const std::string &data) const {
     case TYPE_CHUNK:
     case TYPE_MODULE:
     case TYPE_FUNCTION:
+    case TYPE_PASS:
     case TYPE_ANYTHING:
         return true;
     }

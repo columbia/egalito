@@ -5,6 +5,7 @@
 #include "state.h"
 #include "command.h"
 #include "code.h"
+#include "passes.h"
 #include "conductor/interface.h"
 
 class Shell2App {
@@ -12,6 +13,7 @@ private:
     EgalitoInterface egalito;
     ShellState state;
     FullCommandList fullCommandList;
+    PassCommands *passCommands;
 public:
     Shell2App();
     void mainLoop();
@@ -30,6 +32,8 @@ public:
     };
     GlobalParseMode testParseLine(const std::string &line, GlobalParseData *data);
     ShellState *getState() { return &state; }
+public:
+    PassCommands *getPassCommands() const { return passCommands; }
 private:
     GlobalParseMode testParsePhrase(Command *command, std::istream &argStream,
         ArgumentValueList &argList, bool endsWithSeparator, GlobalParseData *data);

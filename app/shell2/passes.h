@@ -34,6 +34,7 @@ private:
 public:
     PassCommands(FullCommandList *fullList) : fullList(fullList) {}
     void construct(EgalitoInterface *egalito);
+    std::vector<std::string> getNames() const;
 private:
     void makePassMap(EgalitoInterface *egalito);
     bool runPassCommand(EgalitoInterface *egalito, ShellState &state,

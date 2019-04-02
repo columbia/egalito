@@ -27,6 +27,7 @@ public:
         TYPE_CHUNK,
         TYPE_MODULE,
         TYPE_FUNCTION,
+        TYPE_PASS,
         TYPE_ANYTHING
     };
 private:
