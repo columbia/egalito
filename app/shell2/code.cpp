@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include "code.h"
 #include "conductor/interface.h"
+#include "log/temp.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP shell
@@ -21,10 +22,15 @@ FullCommandList::FullCommandList(EgalitoInterface *egalito) {
         state.setExiting(true);
         return true;
     }, "quits the shell"));
-    add(new FunctionCommand("help", ArgumentSpecList({}, {
-        ArgumentSpec(ArgumentSpec::TYPE_STRING)
-    }), std::bind(&FullCommandList::helpCommand, this,
-        std::placeholders::_1, std::placeholders::_2),
+    add(new FunctionCommand("help",
+        ArgumentSpecList(
+            {
+                {"-l", ArgumentSpec({"-l"}, ArgumentSpec::TYPE_FLAG)}
+            }, {
+                ArgumentSpec(ArgumentSpec::TYPE_STRING)
+            }),
+        std::bind(&FullCommandList::helpCommand, this,
+            std::placeholders::_1, std::placeholders::_2),
         "prints help about all commands or a specific command"));
     add(new FunctionCommand("wc", ArgumentSpecList({}, {}, 0, true),
         [] (ShellState &state, ArgumentValueList &args) {
@@ -123,7 +129,8 @@ FullCommandList::FullCommandList(EgalitoInterface *egalito) {
     add(new FunctionCommand("run",
         ArgumentSpecList({
             {"-m", ArgumentSpec({"-m"}, ArgumentSpec::TYPE_FLAG)},
-            {"-u", ArgumentSpec({"-u"}, ArgumentSpec::TYPE_FLAG)}
+            {"-u", ArgumentSpec({"-u"}, ArgumentSpec::TYPE_FLAG)},
+            {"-k", ArgumentSpec({"-k"}, ArgumentSpec::TYPE_FLAG)}
         }, {}, 0),
         [this, egalito] (ShellState &state, ArgumentValueList &args) {
             std::string output = tempnam("/tmp", "ega-");
@@ -133,15 +140,17 @@ FullCommandList::FullCommandList(EgalitoInterface *egalito) {
             if(args.getBool("-u")) uniongen = true;
 
             if(args.getBool("-m") || args.getBool("-u")) {
+                TemporaryLogMuter muter;
                 egalito->generate(output, uniongen);
             }
             else {
+                TemporaryLogMuter muter;
                 egalito->generate(output);
             }
             LOG(0, "generated [" << output << "], executing...");
             LOG(0, "----");
             bool ok = runGeneratedFile(output.c_str(), state, args);
-            unlink(output.c_str());
+            if(!args.getBool("-k")) unlink(output.c_str());
             return ok;
         }, "generate and run a temporary output ELF (-m = mirrorgen, -u = uniongen)"));
 }
@@ -177,16 +186,37 @@ std::vector<std::string> FullCommandList::getCommandList() const {
     return list;
 }
 
-static void printHelpFor(Command *command, std::ostream &out) {
-    out << std::left << std::setw(10) << command->getName()
+static void printHelpFor(Command *command, bool showFlags, std::ostream &out) {
+    static const int COMMAND_WIDTH = 10;
+    out << std::left << std::setw(COMMAND_WIDTH - 1) << command->getName()
         << " " << command->getDescription() << std::endl;
+    if(showFlags) {
+        for(auto kv : command->getSpec().getFlagSpecs()) {
+            auto &spec = kv.second;
+            out << std::string(COMMAND_WIDTH, ' ');
+            for(auto a : spec.getFlagList()) {
+                out << a << " ";
+            }
+            out << ": takes type "
+                << ArgumentSpec::getTypeName(spec.getType()) << std::endl;
+        }
+        if(command->getSpec().getIndexSpecs().size() > 0) {
+            out << std::string(COMMAND_WIDTH, ' ');
+            for(auto &spec : command->getSpec().getIndexSpecs()) {
+                out << "<" << ArgumentSpec::getTypeName(spec.getType()) << "> ";
+            }
+            out << std::endl;
+        }
+        out << std::endl;
+    }
 }
 
 bool FullCommandList::helpCommand(ShellState &state, ArgumentValueList &args) const {
+    bool showFlags = args.getBool("-l");
     if(args.getIndexedCount() >= 1) {
         auto name = args.getIndexed(0).getString();
         if(auto command = lookup(name)) {
-            printHelpFor(command, *args.getOutStream());
+            printHelpFor(command, showFlags, *args.getOutStream());
         }
         else {
             (*args.getOutStream()) << "Error: command \""
@@ -195,7 +225,7 @@ bool FullCommandList::helpCommand(ShellState &state, ArgumentValueList &args) co
     }
     else {
         for(const auto &kv : commandMap) {
-            printHelpFor(kv.second, *args.getOutStream());
+            printHelpFor(kv.second, showFlags, *args.getOutStream());
         }
     }
     return true;

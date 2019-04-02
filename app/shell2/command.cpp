@@ -38,6 +38,28 @@ const char *ArgumentSpec::getExpectedMessage(ArgumentType type) {
     return nullptr;
 }
 
+const char *ArgumentSpec::getTypeName(ArgumentType type) {
+    switch(type) {
+    case TYPE_NOTHING:          return "NOTHING";
+    case TYPE_FLAG:             return "FLAG";
+    case TYPE_BOOL:             return "BOOL";
+    case TYPE_STRING:           return "STRING";
+    case TYPE_FILENAME:         return "FILENAME";
+    case TYPE_VARIABLE:         return "VARIABLE";
+    case TYPE_ADDRESS:          return "ADDRESS";
+    case TYPE_HEX:              return "HEX";
+    case TYPE_DECIMAL:          return "DECIMAL";
+    case TYPE_NUMBER:           return "NUMBER";
+    case TYPE_UNSIGNED_NUMBER:  return "UNSIGNED_NUMBER";
+    case TYPE_CHUNK:            return "CHUNK";
+    case TYPE_MODULE:           return "MODULE";
+    case TYPE_FUNCTION:         return "FUNCTION";
+    case TYPE_ANYTHING:         return "ANYTHING";
+	default:				    return "";
+	}
+    return "";
+}
+
 #define CHECK_STR_TO_INT(data, strtoX, base) do { \
         const char *str = data.c_str(); \
         char *end = nullptr; \

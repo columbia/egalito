@@ -51,6 +51,7 @@ public:
 
     const char *getExpectedMessage() const { return getExpectedMessage(type); }
     static const char *getExpectedMessage(ArgumentType type);
+    static const char *getTypeName(ArgumentType type);
 };
 
 class ArgumentSpecList {
