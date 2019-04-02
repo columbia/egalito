@@ -29,6 +29,7 @@ public:
     virtual void genericRemoveLast() = 0;
     virtual Chunk *genericGetLast() = 0;
     virtual Chunk *genericGetAt(size_t index) = 0;
+    virtual Chunk *genericFind(const std::string &name) = 0;
     virtual void genericInsertAt(size_t index, Chunk *child) = 0;
     virtual size_t genericIndexOf(Chunk *child) = 0;
     virtual size_t genericGetSize() = 0;
@@ -58,6 +59,8 @@ public:
     virtual void genericRemoveLast() { removeLast(); }
     virtual Chunk *genericGetLast() { return iterable.getLast(); }
     virtual Chunk *genericGetAt(size_t index) { return iterable.get(index); }
+    virtual Chunk *genericFind(const std::string &name)
+        { if(!named) createNamed(); return named->find(name); }
     virtual void genericInsertAt(size_t index, Chunk *child)
         { auto v = dynamic_cast<ChildType *>(child); if(v) iterable.insertAt(index, v); }
     virtual size_t genericIndexOf(Chunk *child)

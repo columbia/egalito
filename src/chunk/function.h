@@ -60,6 +60,7 @@ public:
     virtual void setSize(size_t newSize) {}  // ignored
     virtual void addToSize(diff_t add) {}  // ignored
     virtual void accept(ChunkVisitor *visitor);
+    virtual std::string getName() const { return "functionlist"; }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

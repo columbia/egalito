@@ -4,24 +4,9 @@
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "chunk/visitor.h"
-#include "util/timing.h"
+#include "run.h"
 
 class Conductor;  // used by many subclasses
-
-#if 1  // enable pass profiling
-    #define RUN_PASS(passConstructor, module) \
-        { \
-            EgalitoTiming timing(#passConstructor); \
-            auto pass = passConstructor; \
-            module->accept(&pass); \
-        }
-#else
-    #define RUN_PASS(passConstructor, module) \
-        { \
-            auto pass = passConstructor; \
-            module->accept(&pass); \
-        }
-#endif
 
 class ChunkPass : public ChunkVisitor {
 protected:

@@ -125,3 +125,11 @@ void SettingsParser::parseSetting(const std::string &setting) {
 bool SettingsParser::applySetting(const std::string &name, int value) {
     return GroupRegistry::getInstance()->applySetting(name, value);
 }
+
+std::vector<std::string> GroupRegistry::getSettingNames() const {
+    std::vector<std::string> names;
+    for(auto kv : groupMap) {
+        names.push_back(kv.first);
+    }
+    return std::move(names);
+}

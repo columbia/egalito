@@ -86,9 +86,15 @@ void ShadowStackPass::visit(Function *function) {
     //if(function->getName() == "__memcpy_avx_unaligned_erms") return;
     if(function->getName().find("memcpy") != std::string::npos) return;
 
+    // memcpy does jmp into middle of this:
+    //if(function->getName() == "__memmove_sse2_unaligned_erms") return;
+    if(function->getName().find("memmove") != std::string::npos) return;
+
     // this has ja, conditional tail recursion
     //if(function->getName() == "__memset_avx2_unaligned_erms") return;
     if(function->getName().find("memset") != std::string::npos) return;
+
+    // blacklist all mem* functions?
     //if(function->getName().find("mem") != std::string::npos) return;
 
     // this has jne, conditional tail recursion
