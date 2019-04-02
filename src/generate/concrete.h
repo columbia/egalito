@@ -73,7 +73,7 @@ public:
 private:
     void makeInitArraySections();
     void makeInitArraySectionHelper(const char *type,
-        InitArraySectionContent *content);
+        InitArraySectionContent *content, bool isInit);
     void makeInitArraySectionLinks();
     void addInitFunction(InitArraySectionContent *content,
         std::function<address_t ()> value);

@@ -30,6 +30,7 @@ public:
     DataVariable *getDataVariable() const { return dataVariable; }
     Link *getLink() const { return dataVariable ? dataVariable->getDest() : nullptr; }
     Function *getFunction() const { return function; }
+    virtual std::string getName() const { return function->getName(); }
 
     virtual void serialize(ChunkSerializerOperations &op,
         ArchiveStreamWriter &writer);

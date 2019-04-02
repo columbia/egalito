@@ -3,6 +3,7 @@
 #include "operation/mutator.h"
 #include "disasm/disassemble.h"
 #include "chunk/module.h"
+#include "chunk/initfunction.h"
 #include "instr/concrete.h"
 #include "log/log.h"
 
@@ -102,6 +103,10 @@ void ProfileSavePass::visit(Module *module) {
 
     module->getFunctionList()->getChildren()->add(function);
     function->setParent(module->getFunctionList());
+
+    auto finiFunction = new InitFunction(false, function);
+    module->getFiniFunctionList()->getChildren()->add(finiFunction);
+    finiFunction->setParent(module->getFiniFunctionList());
 }
 
 std::pair<DataSection *, DataSection *> ProfileSavePass

@@ -36,7 +36,7 @@ void ChunkDumper::visit(VTableList *vtableList) {
 void ChunkDumper::visit(InitFunctionList *initFunctionList) {
     LOG(1, "--[init-functions]--");
     if(auto f = initFunctionList->getSpecialCase()) {
-        LOG(1, "    special case [" << f->getName() << "]");
+        LOG(1, "    special case is [" << f->getName() << "]");
     }
     recurse(initFunctionList);
 }
@@ -170,10 +170,16 @@ void ChunkDumper::visit(VTableEntry *vtableEntry) {
 }
 
 void ChunkDumper::visit(InitFunction *initFunction) {
-    auto link = initFunction->getLink();
-    std::string name = link->getTarget() ? link->getTarget()->getName() : "???";
-    LOG(1, "    init function at 0x" << std::hex << initFunction->getAddress()
-        << " refers to 0x" << link->getTargetAddress() << " [" << name << "]");
+    if(auto link = initFunction->getLink()) {
+        std::string name = link->getTarget() ? link->getTarget()->getName() : "???";
+        LOG(1, "    init function at 0x" << std::hex << initFunction->getAddress()
+            << " refers to 0x" << link->getTargetAddress() << " [" << name << "]");
+    }
+    else {
+        auto function = initFunction->getFunction();
+        LOG(1, "    init function [" << function->getName() << "] at 0x"
+            << std::hex << function->getAddress());
+    }
 }
 
 void ChunkDumper::visit(ExternalSymbol *externalSymbol) {

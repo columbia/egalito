@@ -573,7 +573,7 @@ void MakeInitArray::addInitFunction(InitArraySectionContent *content,
     }
 }
 void MakeInitArray::makeInitArraySectionHelper(const char *type,
-    InitArraySectionContent *content) {
+    InitArraySectionContent *content, bool isInit) {
 
 #if 0
     address_t firstInit = 0;
@@ -650,19 +650,21 @@ void MakeInitArray::makeInitArraySectionHelper(const char *type,
     Function *firstInit = nullptr;
     std::vector<Function *> initFunctions;
     for(auto module : CIter::children(getData()->getProgram())) {
-        if(auto list = module->getInitFunctionList()) {
-            for(auto initFunc : CIter::children(list)) {
-                auto function = initFunc->getFunction();
-                if(initFunc->isSpecialCase()) {
-                    LOG(1, "Found " << type << " special func at 0x"
-                        << std::hex << function->getAddress());
-                    firstInit = function;
-                }
-                else {
-                    LOG(0, "Adding " << type << " function 0x" << std::hex
-                        << function->getAddress() << " to ." << type << "_array");
-                    initFunctions.push_back(function);
-                }
+        InitFunctionList *list = nullptr;
+        if(isInit) list = module->getInitFunctionList();
+        else list = module->getFiniFunctionList();
+
+        for(auto initFunc : CIter::children(list)) {
+            auto function = initFunc->getFunction();
+            if(initFunc->isSpecialCase()) {
+                LOG(1, "Found " << type << " special func at 0x"
+                    << std::hex << function->getAddress());
+                firstInit = function;
+            }
+            else {
+                LOG(0, "Adding " << type << " function 0x" << std::hex
+                    << function->getAddress() << " to ." << type << "_array");
+                initFunctions.push_back(function);
             }
         }
     }
@@ -679,7 +681,8 @@ void MakeInitArray::makeInitArraySections() {
     {
         auto initArraySection = getData()->getSection(".init_array");
         auto content = new InitArraySectionContent();
-        makeInitArraySectionHelper("init", content);
+
+        makeInitArraySectionHelper("init", content, true);
 
         initArraySection->setContent(content);
         initArraySize = content->getSize();  // must happen before fini code
@@ -688,7 +691,7 @@ void MakeInitArray::makeInitArraySections() {
     {
         auto finiArraySection = getData()->getSection(".fini_array");
         auto content = new InitArraySectionContent();
-        makeInitArraySectionHelper("fini", content);
+        makeInitArraySectionHelper("fini", content, false);
         finiArraySection->setContent(content);
     }
 }
