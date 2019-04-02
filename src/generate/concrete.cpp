@@ -564,6 +564,7 @@ void MakeInitArray::makeInitArraySections() {
     auto initArraySection = getData()->getSection(".init_array");
     auto content = new InitArraySectionContent();
 
+#if 0
     address_t firstInit = 0;
     std::vector<Link *> initFunctions;
     for(auto module : CIter::children(getData()->getProgram())) {
@@ -634,6 +635,34 @@ void MakeInitArray::makeInitArraySections() {
     for(auto link : initFunctions) {
         addInitFunction(content, [link] () { return link->getTargetAddress(); });
     }
+#else
+    Function *firstInit = nullptr;
+    std::vector<Function *> initFunctions;
+    for(auto module : CIter::children(getData()->getProgram())) {
+        if(auto list = module->getInitFunctionList()) {
+            for(auto initFunc : CIter::children(list)) {
+                auto function = initFunc->getFunction();
+                if(initFunc->isSpecialCase()) {
+                    LOG(1, "Found init special func at 0x"
+                        << std::hex << function->getAddress());
+                    firstInit = function;
+                }
+                else {
+                    LOG(0, "Adding init function 0x" << std::hex
+                        << function->getAddress() << " to .init_array");
+                    initFunctions.push_back(function);
+                }
+            }
+        }
+    }
+
+    if(firstInit) {
+        addInitFunction(content, [firstInit] () { return firstInit->getAddress(); });
+    }
+    for(auto function : initFunctions) {
+        addInitFunction(content, [function] () { return function->getAddress(); });
+    }
+#endif
 
     initArraySection->setContent(content);
 }
