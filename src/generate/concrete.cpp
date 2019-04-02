@@ -23,10 +23,14 @@ void BasicElfCreator::execute() {
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
     getSectionList()->addSection(interpSection);
     
-    if (makeInitArray) {
+    if(makeInitArray) {
         auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
             SHF_WRITE | SHF_ALLOC);
         getSectionList()->addSection(initArraySection);
+
+        auto finiArraySection = new Section(".fini_array", SHT_FINI_ARRAY,
+            SHF_WRITE | SHF_ALLOC);
+        getSectionList()->addSection(finiArraySection);
     }
 
     auto phdrTable = new PhdrTableContent(getSectionList());
@@ -410,6 +414,15 @@ void BasicElfStructure::makeDynamicSection() {
         return initArray->getContent()->getSize();
     });
 
+    dynamic->addPair(DT_FINI_ARRAY, [this] () {
+        auto finiArray = getSection(".fini_array");
+        return finiArray->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_FINI_ARRAYSZ, [this] () {
+        auto finiArray = getSection(".fini_array");
+        return finiArray->getContent()->getSize();
+    });
+
     if(addLibDependencies) {
         auto first = getData()->getProgram()->getFirst();
         if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
@@ -454,6 +467,7 @@ void AssignSectionsToSegments::execute() {
     loadSegment->addContains(getSection("=elfheader"));  // constant size
     loadSegment->addContains(getSection(".interp"));     // constant size
     if(auto s = getSection(".init_array")) loadSegment->addContains(s);
+    if(auto s = getSection(".fini_array")) loadSegment->addContains(s);
     loadSegment->addContains(getSection("=phdr_table"));
     //loadSegment->addContains(getSection(".strtab"));
     //loadSegment->addContains(getSection(".shstrtab"));
@@ -530,12 +544,12 @@ void TextSectionCreator::execute() {
     phdrTable->add(loadSegment);
 }
 
-MakeInitArray::MakeInitArray(int stage) : stage(stage) {
+MakeInitArray::MakeInitArray(int stage) : stage(stage), initArraySize(0) {
     setName(StreamAsString() << "MakeInitArray{stage=" << stage << "}");
 }
 
 void MakeInitArray::execute() {
-    if(stage==0) {
+    if(stage == 0) {
         makeInitArraySections();
     } else {
         makeInitArraySectionLinks();
@@ -549,7 +563,7 @@ void MakeInitArray::addInitFunction(InitArraySectionContent *content,
         auto relaDyn = getData()->getSection(".rela.dyn")->castAs<DataRelocSectionContent *>();
 
         // !!! Hardcoding this address for now. After =elfheader & .interp
-        const address_t INIT_ARRAY_ADDR = 0x20005c;
+        const address_t INIT_ARRAY_ADDR = 0x20005c + initArraySize;
         auto offset = content->getSize();
         relaDyn->addDataAddressRef(INIT_ARRAY_ADDR + offset, value);
         content->addPointer([] () { return address_t(0); });
@@ -558,11 +572,8 @@ void MakeInitArray::addInitFunction(InitArraySectionContent *content,
         content->addPointer(value);
     }
 }
-void MakeInitArray::makeInitArraySections() {
-    /*auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
-        SHF_WRITE | SHF_ALLOC);*/
-    auto initArraySection = getData()->getSection(".init_array");
-    auto content = new InitArraySectionContent();
+void MakeInitArray::makeInitArraySectionHelper(const char *type,
+    InitArraySectionContent *content) {
 
 #if 0
     address_t firstInit = 0;
@@ -643,13 +654,13 @@ void MakeInitArray::makeInitArraySections() {
             for(auto initFunc : CIter::children(list)) {
                 auto function = initFunc->getFunction();
                 if(initFunc->isSpecialCase()) {
-                    LOG(1, "Found init special func at 0x"
+                    LOG(1, "Found " << type << " special func at 0x"
                         << std::hex << function->getAddress());
                     firstInit = function;
                 }
                 else {
-                    LOG(0, "Adding init function 0x" << std::hex
-                        << function->getAddress() << " to .init_array");
+                    LOG(0, "Adding " << type << " function 0x" << std::hex
+                        << function->getAddress() << " to ." << type << "_array");
                     initFunctions.push_back(function);
                 }
             }
@@ -663,9 +674,25 @@ void MakeInitArray::makeInitArraySections() {
         addInitFunction(content, [function] () { return function->getAddress(); });
     }
 #endif
-
-    initArraySection->setContent(content);
 }
+void MakeInitArray::makeInitArraySections() {
+    {
+        auto initArraySection = getData()->getSection(".init_array");
+        auto content = new InitArraySectionContent();
+        makeInitArraySectionHelper("init", content);
+
+        initArraySection->setContent(content);
+        initArraySize = content->getSize();  // must happen before fini code
+    }
+
+    {
+        auto finiArraySection = getData()->getSection(".fini_array");
+        auto content = new InitArraySectionContent();
+        makeInitArraySectionHelper("fini", content);
+        finiArraySection->setContent(content);
+    }
+}
+
 
 Function *MakeInitArray::findLibcCsuInit(Chunk *entryPoint) {
     auto entry = dynamic_cast<Function *>(entryPoint);

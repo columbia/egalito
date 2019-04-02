@@ -64,11 +64,16 @@ class InitArraySectionContent;
 class MakeInitArray : public NormalElfOperation {
 private:
     int stage;
+
+    // size of .init_array in bytes, used to offset .fini_array afterwards
+    size_t initArraySize;
 public:
     MakeInitArray(int stage);
     virtual void execute();
 private:
     void makeInitArraySections();
+    void makeInitArraySectionHelper(const char *type,
+        InitArraySectionContent *content);
     void makeInitArraySectionLinks();
     void addInitFunction(InitArraySectionContent *content,
         std::function<address_t ()> value);
