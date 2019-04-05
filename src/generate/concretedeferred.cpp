@@ -861,12 +861,15 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     auto symbol = makeSymbol(extSymbol->getName(),
         Symbol::TYPE_FUNC, extSymbol->getBind());
     auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
-    auto elfSym = symtab->addUndefinedSymbol(symbol);
+    auto elfSym = plt->getTarget()
+        ? symtab->addPLTSymbol(plt, symbol)
+        : symtab->addUndefinedSymbol(symbol);
     deferred->addFunction([this, gotPLT, plt, symtab, elfSym, extSymbol, pltIndex]
         (ElfXX_Rela *rela) {
 
         LOG(1, "Creating PLT reloc for [" << extSymbol->getName() << "] at 0x"
             << std::hex << plt->getAddress());
+        LOG(1, "    PLT target is " << (plt->getTarget() ? plt->getTarget()->getName() : "null"));
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
         size_t index = symtab->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);

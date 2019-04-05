@@ -626,6 +626,16 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     IntervalTree splitRanges(sectionRange);
     splitRanges.add(sectionRange);
     splitRanges.splitAt(elfMap->getEntryPoint());
+    if(auto s = elfMap->findSection(".init_array")) {
+        for(size_t i = 0; i < s->getSize(); i ++) {
+            splitRanges.splitAt(*reinterpret_cast<address_t *>(s->getReadAddress() + i));
+        }
+    }
+    if(auto s = elfMap->findSection(".fini_array")) {
+        for(size_t i = 0; i < s->getSize(); i ++) {
+            splitRanges.splitAt(*reinterpret_cast<address_t *>(s->getReadAddress() + i));
+        }
+    }
 
     IntervalTree functionPadding(sectionRange);
     firstDisassemblyPass(section, splitRanges, functionPadding);

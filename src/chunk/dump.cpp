@@ -136,7 +136,7 @@ void ChunkDumper::visit(DataSection *dataSection) {
 
 void ChunkDumper::visit(DataVariable *dataVariable) {
     LOG0(1, "data variable at " << dataVariable->getAddress());
-    auto target = dataVariable->getDest()->getTarget();
+    auto target = dataVariable->getDest() ? dataVariable->getDest()->getTarget() : nullptr;
     if(target) {
         LOG(1, " --> " << target->getName());
     }
@@ -175,10 +175,12 @@ void ChunkDumper::visit(InitFunction *initFunction) {
         LOG(1, "    init function at 0x" << std::hex << initFunction->getAddress()
             << " refers to 0x" << link->getTargetAddress() << " [" << name << "]");
     }
-    else {
-        auto function = initFunction->getFunction();
+    else if(auto function = initFunction->getFunction()) {
         LOG(1, "    init function [" << function->getName() << "] at 0x"
             << std::hex << function->getAddress());
+    }
+    else {
+        LOG(1, "    init function with NULL target function!");
     }
 }
 
