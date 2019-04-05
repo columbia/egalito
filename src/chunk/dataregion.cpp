@@ -172,7 +172,8 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
         if(name.substr(0, 7) == "__libc_") type = TYPE_DATA;
         else if(shdr->sh_flags & SHF_EXECINSTR) type = TYPE_CODE;
         else if(name == ".data" || name == ".tdata" || name == ".rodata"
-            || name == ".data.rel.ro"
+            || name == ".data.rel.ro" || name == ".data.rel.ro.local"
+            || name == "malloc_hook" || name == "google_malloc"
             || name == ".got" || name == ".got.plt"
             /*|| name == ".data..percpu"*/ || name == ".init.data"
             || name == ".data_nosave" || name == ".altinstr_aux"
