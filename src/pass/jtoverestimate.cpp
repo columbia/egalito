@@ -1,6 +1,7 @@
 #include <sys/mman.h>
 #include "jtoverestimate.h"
 #include "elf/elfspace.h"
+#include "operation/find.h"
 #include "analysis/jumptable.h"
 #include "jumptablepass.h"
 
@@ -70,6 +71,18 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
                     break;
                 }
             }
+            else {
+                /* Make sure we target *some* instruction, even if it's in a
+                    different function. See comment above.
+                */
+                auto found = ChunkFind().findInnermostInsideInstruction(
+                    module->getFunctionList(), value);
+                if(!found) {
+                    // this entry would be outside all functions
+                    setEntries(currentTable, count);
+                    break;
+                }
+            }
         }
     }
 }
@@ -82,6 +95,14 @@ void JumpTableOverestimate::setEntries(JumpTable *jumpTable, int count) {
     LOG(5, "APPARENTLY, table " << std::hex << jumpTable->getAddress()
             << " in [" << jumpTable->getFunction()->getName()
             << "] has " << std::dec << count << " entries");
+    int made = JumpTablePass(module).makeChildren(jumpTable, count);
+    if(made != count) {
+        LOG(5, "    BUT makeChildren only found " << made
+            << " children, updating bound " << std::hex
+            << jumpTable->getAddress()
+            << " in [" << jumpTable->getFunction()->getName()
+            << "] has " << std::dec << count << " entries");
+        count = made;
+    }
     jumpTable->getDescriptor()->setEntries(count);
-    JumpTablePass(module).makeChildren(jumpTable, count);
 }
