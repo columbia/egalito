@@ -27,8 +27,11 @@ private:
     size_t size;
 public:
     GlobalVariable() : symbol(nullptr), dynamicSymbol(nullptr) {}
+    GlobalVariable(const std::string &name) : symbol(nullptr),
+        dynamicSymbol(nullptr), name(name) {}
 
     Symbol *getSymbol() const { return symbol; }
+    void setSymbol(Symbol *symbol) { this->symbol = symbol; }
     Symbol *getDynamicSymbol() const { return dynamicSymbol; }
     void setDynamicSymbol(Symbol *symbol) { dynamicSymbol = symbol; }
     Symbol *getNonNullSymbol() const;

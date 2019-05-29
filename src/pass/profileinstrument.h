@@ -11,7 +11,7 @@ public:
     virtual void visit(Function *function);
 private:
     std::pair<DataSection *, DataSection*> createDataSection(Module *module);
-    Link *addVariable(DataSection *section);
+    Link *addVariable(DataSection *section, Function *function);
     void appendFunctionName(DataSection *nameSection, const std::string &name);
 };
 

@@ -273,6 +273,17 @@ void GenerateSectionTable::makeShdrTable() {
     getSectionList()->addSection(shdrTableSection);
 }
 
+void DumpSymbolTable::execute() {
+    auto symtab = getData()->getSection(".symtab")->castAs<SymbolTableContent *>();
+
+    LOG(1, "---dump symbol table");
+    for(auto kv : symtab->getValueMap()) {
+        LOG(1, "symbol in table " << kv.first.getName()
+            << " with size " << (kv.first.get() ? kv.first.get()->getSize() : -1)
+            << " with type " << (kv.first.get() ? kv.first.get()->getType() : -1));
+    }
+}
+
 void GenerateSectionTable::makeSectionSymbols() {
     // update section indices in symbol table
     auto shdrTable = getSection("=shdr_table")->castAs<ShdrTableContent *>();
@@ -948,28 +959,49 @@ void CopyDynsym::execute() {
         for(auto region : CIter::regions(module)) {
             for(auto section : CIter::children(region)) {
                 for(auto var : section->getGlobalVariables()) {
-                    Symbol *origsym = var->getDynamicSymbol();
-                    if(!origsym) continue;
+                    if(auto origsym = var->getDynamicSymbol()) {
+                        address_t address = var->getAddress();
 
-                    address_t address = var->getAddress();
+                        auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                            const char *oname = osymbol->getName();
+                            if(osymbol->getType() != Symbol::TYPE_OBJECT) return;
+                            LOG(10, "adding dynsym for " << oname);
 
-                    auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
-                        const char *oname = osymbol->getName();
-                        LOG(10, "adding dynsym for " << oname);
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
 
-                        auto nsymbol = new Symbol(
-                            address, osymbol->getSize(), oname,
-                            osymbol->getType(), osymbol->getBind(), 0, 0);
+                            dynsym->addGlobalVarSymbol(var, nsymbol, address);
+                            // TODO: set section index properly...
+                        };
 
-                        dynsym->addGlobalVarSymbol(var, nsymbol, address);
-                        // TODO: set section index properly...
-                    };
+                        handleGlobal(origsym);
 
-                    handleGlobal(origsym);
-
-                    for(auto alias : origsym->getAliases()) {
-                        handleGlobal(alias);
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
                     }
+                    /*else if(auto origsym = var->getSymbol()) {
+                        address_t address = var->getAddress();
+
+                        auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                            const char *oname = osymbol->getName();
+                            LOG(10, "adding sym for " << oname);
+
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
+
+                            symtab->addGlobalVarSymbol(var, nsymbol, address);
+                            // TODO: set section index properly...
+                        };
+
+                        handleGlobal(origsym);
+
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
+                    }*/
                 }
             }
         }
@@ -1089,6 +1121,63 @@ void MakeDynsymHash::execute() {
     //for(const auto &val : *dynsym) {
     //    LOG(1, "new order for symbol with name [" << val->getName() << "]");
     //}
+}
+
+void MakeGlobalSymbols::execute() {
+    auto symtab = getData()->getSection(".symtab")->castAs<SymbolTableContent *>();
+
+    LOG(5, "MakeGlobalSymbols::execute()");
+    // generate symtab entries for global variables
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+#if 0  // sections aren't added to list yet, so this fails
+                if(getData()->getSectionList()->indexOf(section->getName()) < 0) {
+                    // not generating this output section, don't create symbols for it
+                    continue;
+                }
+#endif
+                if(section->getType() != DataSection::TYPE_DATA
+                    && section->getType() != DataSection::TYPE_BSS) {
+                    // not generating this output section, don't create symbols for it
+                    continue;
+                }
+                for(auto var : section->getGlobalVariables()) {
+                    if(auto origsym = var->getSymbol()) {
+
+                        address_t address = var->getAddress();
+
+                        auto handleGlobal = [this, section, address, symtab, var]
+                            (Symbol *osymbol) {
+
+                            const char *oname = osymbol->getName();
+                            if(osymbol->getType() != Symbol::TYPE_OBJECT) return;
+                            LOG(10, "adding symtab entry for " << oname << ", type "
+                                << osymbol->getType());
+
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
+
+                            auto v = symtab->addGlobalVarSymbol(var, nsymbol, address);
+
+                            v->addFunction([this, symtab, section] (ElfXX_Sym *symbol) {
+                                symbol->st_shndx = symtab
+                                    ->indexOfSectionSymbol(section->getName(),
+                                        getData()->getSectionList());
+                            });
+                        };
+
+                        handleGlobal(origsym);
+
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void ElfFileWriter::execute() {

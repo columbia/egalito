@@ -53,6 +53,11 @@ private:
     void makeSectionSymbols();
 };
 
+class DumpSymbolTable : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
 class TextSectionCreator : public ConcreteElfOperation {
 public:
     virtual void execute();
@@ -108,6 +113,11 @@ class MakeDynsymHash : public NormalElfOperation {
 private:
     std::vector<std::vector<std::string>> bucketList;
     std::map<std::string, size_t> indexMap;
+public:
+    virtual void execute();
+};
+
+class MakeGlobalSymbols : public NormalElfOperation {
 public:
     virtual void execute();
 };

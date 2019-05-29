@@ -1,3 +1,4 @@
+#include <cstring>  // for memset
 #include "profileinstrument.h"
 #include "operation/addinline.h"
 #include "operation/mutator.h"
@@ -22,7 +23,7 @@ void ProfileInstrumentPass::visit(Function *function) {
         auto sem = new LinkedInstruction(instr);
         sem->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
             std::vector<unsigned char>{0xff, 0x05, 0x00, 0x00, 0x00, 0x00}));
-        sem->setLink(addVariable(sectionPair.first));
+        sem->setLink(addVariable(sectionPair.first, function));
         sem->setIndex(0);
         instr->setSemantic(sem);
         appendFunctionName(sectionPair.second, function->getName());
@@ -92,9 +93,27 @@ std::pair<DataSection *, DataSection *> ProfileInstrumentPass
     return std::make_pair(section, nameSection);
 }
 
-Link *ProfileInstrumentPass::addVariable(DataSection *section) {
+Link *ProfileInstrumentPass::addVariable(DataSection *section, Function *function) {
     auto region = static_cast<DataRegion *>(section->getParent());
     auto offset = section->getSize();
+
+    const size_t VAR_SIZE = 8;
+
+    auto var = new GlobalVariable("__counter_" + function->getName());
+    var->setPosition(new AbsolutePosition(section->getAddress()+section->getSize()));
+
+    char *name = new char[var->getName().length() + 1];
+    std::strcpy(name, var->getName().c_str());
+
+    auto nsymbol = new Symbol(
+        var->getAddress(), VAR_SIZE, name,
+        Symbol::TYPE_OBJECT, Symbol::BIND_LOCAL, 0, 0);
+    var->setSymbol(nsymbol);
+
+    section->addGlobalVariable(var);
+
+    LOG(0, name << " is a global symbol");
+
     section->setSize(section->getSize() + 8);
     region->setSize(region->getSize() + 8);
 

@@ -26,6 +26,7 @@ void MirrorGen::afterAddressAssign() {
     pipeline.add(new MakeInitArray(/*stage=*/ 1));  // AssignSectionsToSegments
     pipeline.add(new UpdatePLTLinks());
     pipeline.add(new CopyDynsym());
+    pipeline.add(new MakeGlobalSymbols());
     pipeline.execute();
 }
 
