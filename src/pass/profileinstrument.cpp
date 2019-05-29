@@ -17,12 +17,18 @@ void ProfileInstrumentPass::visit(Function *function) {
     auto sectionPair = createDataSection(module);
 
     ChunkAddInline ai({}, [this, sectionPair, function] (unsigned int stackBytesAdded) {
+        /*
+           ff 05 f8 01 00 f0            incl   -0xffffe08(%rip)
+
+           48 ff 05 f8 01 00 f0         incq   -0xffffe08(%rip)
+        */
+
         //auto instr = Disassemble::instruction({0xff, 0x05, 0x00, 0x00, 0x00, 0x00});
         DisasmHandle handle(true);
         auto instr = new Instruction();
         auto sem = new LinkedInstruction(instr);
         sem->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(
-            std::vector<unsigned char>{0xff, 0x05, 0x00, 0x00, 0x00, 0x00}));
+            std::vector<unsigned char>{0x48, 0xff, 0x05, 0x00, 0x00, 0x00, 0x00}));
         sem->setLink(addVariable(sectionPair.first, function));
         sem->setIndex(0);
         instr->setSemantic(sem);
