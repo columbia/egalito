@@ -18,6 +18,7 @@ private:
     void doShadowStack(bool gsMode);
     void doPermuteData();
     void doProfiling();
+    void doWatching();
 };
 
 #endif

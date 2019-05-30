@@ -34,6 +34,8 @@ public:
     void regenerateAssembly();
 
     void setIndex(int index) { opIndex = index; makeDisplacementInfo(); }
+    void setIndex(int index, size_t dispSize, size_t dispOffset)
+        { opIndex = index; displacementSize = dispSize; displacementOffset = dispOffset; }
     int getIndex() const { return opIndex; }
 
     // should be only necessary in insertBeforeJumpTo

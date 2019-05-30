@@ -11,6 +11,7 @@
 #include "pass/permutedata.h"
 #include "pass/profileinstrument.h"
 #include "pass/profilesave.h"
+#include "pass/condwatchpoint.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -74,6 +75,13 @@ void HardenApp::doProfiling() {
     RUN_PASS(ProfileSavePass(), program);
 }
 
+void HardenApp::doWatching() {
+    std::cout << "Adding conditional watchpoint...\n";
+    auto program = getProgram();
+    RUN_PASS(CondWatchpointPass(), program);
+    //RUN_PASS(ProfileSavePass(), program);
+}
+
 static void printUsage(const char *program) {
     std::cout << "Usage: " << program << " [options] [mode] input-file output-file\n"
         "    Transforms an executable by adding CFI and a shadow stack.\n"
@@ -96,6 +104,7 @@ static void printUsage(const char *program) {
         "        --cet-const     Constant offset shadow stack implementation\n"
         "    --permute-data Randomize order of global variables in .data\n"
         "    --profile      Add profiling counters to each function\n"
+        "    --cond-watchpoint   Add conditional watchpoints for GDB\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
 }
 
@@ -126,6 +135,7 @@ void HardenApp::run(int argc, char **argv) {
         {"--cet-const",     [&ops] () { ops.push_back("cet-const"); }},
         {"--permute-data",  [&ops] () { ops.push_back("permute-data"); }},
         {"--profile",       [&ops] () { ops.push_back("profile"); }},
+        {"--cond-watchpoint", [&ops] () { ops.push_back("cond-watchpoint"); }},
     };
 
     std::map<std::string, std::function<void ()>> techniques = {
@@ -137,6 +147,7 @@ void HardenApp::run(int argc, char **argv) {
         {"cet-const",       [this] () { doShadowStack(false); doCFI(); }},
         {"permute-data",    [this] () { doPermuteData(); }},
         {"profile",         [this] () { doProfiling(); }},
+        {"cond-watchpoint", [this] () { doWatching(); }},
     };
 
     for(int a = 1; a < argc; a ++) {
