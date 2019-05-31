@@ -445,7 +445,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
             func->getPosition()->set(backing->getBase() + func->getAddress());
         }
     }
-
+#if 0
     // Make symbols for PLT entries
     for(auto plt : CIter::plts(module)) {
         auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
@@ -462,6 +462,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
             symbol->st_shndx = shdrIndexOf(textSection);
         });
     }
+#endif
 
 #if 0
     // Handle any other types of symbols that need generating.

@@ -89,7 +89,8 @@ void BasicElfCreator::execute() {
         getSectionList()->addSection(relaDynSection);
 
         // .dynamic
-        auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
+        auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC,
+            SHF_ALLOC | SHF_WRITE);
         auto dynamic = new DynamicSectionContent();
         dynamicSection->setContent(dynamic);
         getSectionList()->addSection(dynamicSection);
@@ -464,6 +465,10 @@ void BasicElfStructure::makeDynamicSection() {
         auto relaplt= getSection(".rela.plt");
         return relaplt->getHeader()->getAddress();
     });
+
+    // without this, gdb (elf_locate_base in gdb/solib-svr4.c) thinks
+    // this is a static executable and cannot identify shared libraries
+    dynamic->addPair(DT_DEBUG, 0x0);
 
     // terminating pair
     dynamic->addPair(0, 0);
