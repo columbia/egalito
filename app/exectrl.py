@@ -1,5 +1,27 @@
 import gdb
 
+class CounterState:
+    # state: dictionary of names => counter values
+    def __init__(self, state={}):
+        self.state = state.copy()
+
+    def add(self, other_state):
+        for c in other_state.state:
+            self.state[c] += other_state.state[c]
+
+    def subtract(self, other_state):
+        for c in other_state.state:
+            self.state[c] -= other_state.state[c]
+
+    def get(self, key):
+        if key in self.state:
+            return self.state[key]
+        return 0
+
+recent_checkpoint = "1"
+virtual_state = CounterState()
+last_printed_state = CounterState()
+
 # pcount [diff]
 # pcount save
 # pcount abs
@@ -47,15 +69,36 @@ class CondGoCommand(gdb.Command):
             return
 
         count = int(gdb.parse_and_eval("'__counter_" + function + "'"))
+        count += virtual_state.get("__counter_" + function)
         target_count = count + delta
         if(target_count <= 0):
             print("Warning:", function,
                 "hasn't been called that many times, going to first call")
             target_count = 1
 
-        cmd = "restart 1"
+        global recent_checkpoint
+        cmd = "restart " + recent_checkpoint
         gdb.execute(cmd, to_string=True)
+
+        gdb.execute("checkpoint", to_string=True)
+
+        checkpoints = gdb.execute("info checkpoints", to_string=True)
+        print(checkpoints)
+        last_c = checkpoints.split('\n')[-2]
+        print(last_c)
+        c = last_c[2:].split()[0]
+        print(c)
+        recent_checkpoint = c
+
         restart_count = int(gdb.parse_and_eval("'__counter_" + function + "'"))
+        restart_count += virtual_state.get("__counter_" + function)
+
+        value = {}
+        global last_printed_state
+        for c in last_printed_state.state:
+            value[c] = int(gdb.parse_and_eval("'" + c + "'"))
+            value[c] += virtual_state.get(c)
+        last_printed_state = CounterState(value)
 
         final_count = restart_count - target_count
         if(final_count >= 0):
@@ -65,6 +108,7 @@ class CondGoCommand(gdb.Command):
         print(function, count, "=>", target_count)
         cmd = "set var '__counter_{}'={}".format(function, final_count)
         gdb.execute(cmd, to_string=True)
+        virtual_state.state["__counter_" + function] = target_count
 
         b = gdb.Breakpoint("egalito_cond_watchpoint_hit")
         #b.commands = "set var '__counter_{}'={}".format(function, target_count)
@@ -78,8 +122,6 @@ class PrintCountersCommand(gdb.Command):
         super(PrintCountersCommand, self).__init__("pcount",
             gdb.COMMAND_RUNNING,
             gdb.COMPLETE_NONE, True)
-
-        self.old_value = {}
 
     def invoke(self, arg, from_tty):
         data = gdb.execute("info variables __counter_", to_string=True)
@@ -96,18 +138,23 @@ class PrintCountersCommand(gdb.Command):
         for c in self.counters:
             value[c] = int(gdb.parse_and_eval("'" + c + "'"))
 
-        diff_value = {}
-        for c in self.counters:
-            if c in self.old_value:
-                # print(c,"was",self.old_value[c],"and is now",value[c])
-                diff_value[c] = value[c] - self.old_value[c]
-            else:
-                diff_value[c] = value[c]
-            self.old_value[c] = value[c]
+        #diff_value = {}
+        #for c in self.counters:
+        #    if c in self.old_value:
+        #        # print(c,"was",self.old_value[c],"and is now",value[c])
+        #        diff_value[c] = value[c] - self.old_value[c]
+        #    else:
+        #        diff_value[c] = value[c]
+        #    self.old_value[c] = value[c]
+        diff_value = CounterState(value)
+        global last_printed_state
+        diff_value.subtract(last_printed_state)
+        diff_value.add(virtual_state)
+        last_printed_state = CounterState(value)
 
         #self.print_alphabetical()
         #print()
-        self.print_magnitude(diff_value)
+        self.print_magnitude(diff_value.state)
 
     def print_alphabetical(self):
         for name in sorted(self.counters):
