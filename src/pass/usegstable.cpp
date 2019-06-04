@@ -16,7 +16,7 @@
 void UseGSTablePass::visit(Program *program) {
     redirectEgalitoFunctionPointers();
     recurse(program);
-    overwriteBootArguments();
+    if(runtime) overwriteBootArguments();
 }
 
 void UseGSTablePass::visit(Module *module) {
@@ -845,6 +845,7 @@ void UseGSTablePass::rewritePointerLoad(Block *block, Instruction *instr) {
 }
 
 void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
+    if(!runtime) return;
     auto i = static_cast<ReturnInstruction *>(instr->getSemantic());
     DisasmHandle handle(true);
 

@@ -24,7 +24,7 @@ GSTableEntry *GSTable::makeReservedEntryFor(Chunk *target) {
 }
 
 GSTableEntry *GSTable::makeJITEntryFor(Chunk *target) {
-    assert(!reserving());
+    //assert(!reserving());
     return makeEntryFor(target);
 }
 

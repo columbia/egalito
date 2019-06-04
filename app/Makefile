@@ -23,6 +23,7 @@ SHELL2_SOURCES          = $(wildcard shell2/*.cpp)
 OBJDUMP_SOURCES         = $(wildcard objdump/*.cpp)
 PROFILE_SOURCES         = $(wildcard profile/*.cpp)
 PYTHON_SOURCES          = $(wildcard python/*.cpp)
+TWOCODE_SOURCES         = $(wildcard twocode/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -46,11 +47,13 @@ ETELF_SOURCES = $(ELF_SOURCES)
 ETELF_OBJECTS = $(call obj-filename,$(ETELF_SOURCES))
 ETPROFILE_SOURCES = $(PROFILE_SOURCES)
 ETPROFILE_OBJECTS = $(call obj-filename,$(ETPROFILE_SOURCES))
+ETTWOCODE_SOURCES = $(TWOCODE_SOURCES)
+ETTWOCODE_OBJECTS = $(call obj-filename,$(ETTWOCODE_SOURCES))
 
 ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETSHELL2_SOURCES) $(ETOBJDUMP_SOURCES) \
     $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES) \
     $(ETHARDEN_SOURCES) $(LIBCET_SOURCES) \
-    $(ETELF_SOURCES) $(ETPROFILE_SOURCES))
+    $(ETELF_SOURCES) $(ETPROFILE_SOURCES) $(ETTWOCODE_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
@@ -67,8 +70,9 @@ PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
 CET_LIBRARY = $(BUILDDIR)libcet.so
+ETTWOCODE = $(BUILDDIR)ettwocode
 
-OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE)
+OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE) $(ETTWOCODE)
 
 # Default target
 .PHONY: all
@@ -103,6 +107,7 @@ $(BUILDTREE): ../config/config.h
 	@ln -sf $(CET_LIBRARY)
 	@ln -sf $(ETELF)
 	@ln -sf $(ETPROFILE)
+	@ln -sf $(ETTWOCODE)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
 .PHONY: rebuild-src
@@ -154,6 +159,10 @@ $(ETPROFILE): $(ETPROFILE_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETPROFILE): ../src/$(BUILDDIR)libegalito.so
 
+$(ETTWOCODE): $(ETTWOCODE_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETTWOCODE): ../src/$(BUILDDIR)libegalito.so
+
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
 	chmod +x $(BUILDDIR)pyshell
@@ -171,4 +180,4 @@ $(CET_LIBRARY): $(LIBCET_OBJECTS)
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell etshell2 pyshell etobjdump etsandbox libsandbox.so etharden libcet.so etelf etprofile
+	-rm -rf $(BUILDDIR) .symlinks etshell etshell2 pyshell etobjdump etsandbox libsandbox.so etharden libcet.so etelf etprofile ettwocode

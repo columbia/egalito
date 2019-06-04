@@ -182,7 +182,7 @@ void HardenApp::run(int argc, char **argv) {
 
 int main(int argc, char *argv[]) {
     if(argc < 3) {
-        printUsage(argv[0] ? argv[0] : "etcet");
+        printUsage(argv[0] ? argv[0] : "etharden");
         return 0;
     }
 

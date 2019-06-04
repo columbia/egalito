@@ -54,7 +54,6 @@ void ProfileInstrumentPass::visit(Function *function) {
 
 #define DATA_REGION_ADDRESS 0x30000000
 #define DATA_NAMEREGION_ADDRESS 0x31000000
-#define DATA_REGION_NAME ("region-" #DATA_REGION_ADDRESS)
 #define DATA_SECTION_NAME ".profiling"
 #define DATA_NAMESECTION_NAME ".profiling.names"
 
