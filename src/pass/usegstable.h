@@ -35,8 +35,8 @@ public:
         ifuncList(ifuncList), runtime(runtime) {}
 
     virtual void visit(Program *program);
-private:
     virtual void visit(Module *module);
+private:
     virtual void visit(Function *function);
     virtual void visit(Block *block);
     virtual void visit(DataRegion *dataRegion);

@@ -39,6 +39,7 @@ void UseGSTablePass::visit(Function *function) {
 
     recurse(function);
     convert();
+    //ChunkMutator(function, true);
 }
 
 void UseGSTablePass::visit(Block *block) {
@@ -617,6 +618,7 @@ void UseGSTablePass::visit(PLTTrampoline *trampoline) {
     if(trampoline->isIFunc()) {
         recurse(trampoline);
         convert();
+        //ChunkMutator(trampoline, true);
     }
 }
 

@@ -53,18 +53,27 @@ void TwocodeVarsPass::visit(Module *module) {
     // orig values
     for(auto entry : CIter::children(gsTable)) {
         auto target = entry->getTarget();
-        addVariable(regionConfig[1].section, target, "$0");
+        LOG(0, "    gs " << entry->getIndex()
+            << " is for " << entry->getTarget()->getName());
+        addVariable(regionConfig[1].section, target, "$table0");
     }
 
     // new/other values
     if(otherModule) {
         for(auto entry : CIter::children(gsTable)) {
+#if 1
             Function *newFunc = nullptr;
             if(auto origFunc = dynamic_cast<Function *>(entry->getTarget())) {
+                auto newName = origFunc->getName();
                 newFunc = ChunkFind2(program)
-                    .findFunctionInModule(origFunc->getName().c_str(), otherModule);
+                    .findFunctionInModule(newName.c_str(), otherModule);
             }
-            addVariable(regionConfig[2].section, newFunc, "$1");
+            LOG(0, "    gs for " << entry->getTarget()->getName()
+                << " + $rhs => " << newFunc);
+#else
+            auto newFunc = entry->getOtherTarget();
+#endif
+            addVariable(regionConfig[2].section, newFunc, "$table1");
         }
     }
 }
@@ -113,6 +122,11 @@ void TwocodeVarsPass::addVariable(DataSection *section, Chunk *target,
                 function->getAddress(), VAR_SIZE, name,
                 Symbol::TYPE_OBJECT, Symbol::BIND_LOCAL, 0, 0);
             targetSymbol = function->getSymbol();
+
+            auto gvar = new GlobalVariable(name);
+            gvar->setPosition(new AbsolutePosition(address));
+            gvar->setSymbol(nsymbol);
+            section->addGlobalVariable(gvar);
 
             LOG(0, "added symbol [" << name << "] for twocode");
         }

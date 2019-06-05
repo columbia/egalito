@@ -65,6 +65,7 @@ public:
     size_t getSectionIndex() const { return shndx; }
     size_t getIndex() const { return index; }
 
+    void setName(const char *name) { this->name = name; }
     void setSize(size_t size) { this->size = size; }
     void setVersion(SymbolVersion *version) { this->version = version; }
     void setAliasFor(Symbol *aliasFor) { this->aliasFor = aliasFor; }

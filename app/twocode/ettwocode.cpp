@@ -8,10 +8,13 @@
 #include "pass/usegstable.h"
 #include "pass/condwatchpoint.h"
 #include "pass/twocodevars.h"
+#include "pass/twocodemerge.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
-void TwocodeApp::parse(const std::string &filename, bool oneToOne) {
+void TwocodeApp::parse(const std::string &filename, const std::string &extra,
+    bool oneToOne) {
+
     egalito = new EgalitoInterface(!quiet, true);
 
     std::cout << "Transforming file [" << filename << "]\n";
@@ -26,6 +29,7 @@ void TwocodeApp::parse(const std::string &filename, bool oneToOne) {
             std::cout << "Parsing ELF file and all shared library dependencies...\n";
         }
         egalito->parse(filename, !oneToOne);
+        extraModule = egalito->parse(extra, Library::ROLE_EXTRA, false);
     }
     catch(const char *message) {
         std::cout << "Exception: " << message << std::endl;
@@ -50,12 +54,20 @@ void TwocodeApp::doTwocode() {
 
     auto gsTable = new GSTable();
     auto ifuncList = new IFuncList();
-    RUN_PASS(UseGSTablePass(egalito->getConductor(), gsTable, ifuncList, false), program);
-    RUN_PASS(TwocodeVarsPass(gsTable, nullptr), program);
+
+    auto module = program->getMain();
+
+    TwocodeMergePass merge(extraModule);
+    module->accept(&merge);
+    merge.copyFunctionsTo(module);
+
+    RUN_PASS(UseGSTablePass(egalito->getConductor(), gsTable, ifuncList, false), module);
+    RUN_PASS(TwocodeVarsPass(gsTable, extraModule), module);  // after UseGSTablePass
 }
 
 static void printUsage(const char *program) {
-    std::cout << "Usage: " << program << " [options] [mode] input-file output-file\n"
+    std::cout << "Usage: " << program << " [options] [mode] "
+            "base-input-file extra-input-file output-file\n"
         "    Transforms an executable by adding CFI and a shadow stack.\n"
         "\n"
         "Options:\n"
@@ -108,12 +120,12 @@ void TwocodeApp::run(int argc, char **argv) {
                 std::cout << "Warning: unrecognized option \"" << arg << "\"\n";
             }
         }
-        else if(argv[a] && argv[a + 1]) {
-            parse(argv[a], oneToOne);
+        else if(argv[a] && argv[a + 1] && argv[a + 2]) {
+            parse(argv[a], argv[a+1], oneToOne);
             for(auto op : ops) {
                 techniques[op]();
             }
-            generate(argv[a + 1], oneToOne);
+            generate(argv[a + 2], oneToOne);
             break;
         }
         else {

@@ -12,13 +12,16 @@ public:
 private:
     Chunk *target;
     IndexType index;
+    Chunk *otherTarget;
 public:
     GSTableEntry(Chunk *target, uint32_t index)
-        : target(target), index(index) {}
+        : target(target), index(index), otherTarget(nullptr) {}
 
     Chunk *getTarget() const { return target; }
     IndexType getIndex() const { return index; }
     IndexType getOffset() const;
+    void setOtherTarget(Chunk *other) { otherTarget = other; }
+    Chunk *getOtherTarget() const { return otherTarget; }
 
     virtual void accept(ChunkVisitor *visitor);
 };
