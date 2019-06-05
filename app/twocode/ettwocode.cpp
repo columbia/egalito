@@ -5,10 +5,11 @@
 #include "ettwocode.h"
 #include "chunk/concrete.h"
 #include "pass/chunkpass.h"
-#include "pass/usegstable.h"
 #include "pass/condwatchpoint.h"
 #include "pass/twocodevars.h"
 #include "pass/twocodemerge.h"
+#include "pass/twocodegs.h"
+#include "pass/twocodealloc.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -61,8 +62,12 @@ void TwocodeApp::doTwocode() {
     module->accept(&merge);
     merge.copyFunctionsTo(module);
 
-    RUN_PASS(UseGSTablePass(egalito->getConductor(), gsTable, ifuncList, false), module);
-    RUN_PASS(TwocodeVarsPass(gsTable, extraModule), module);  // after UseGSTablePass
+    RUN_PASS(TwocodeGSPass(egalito->getConductor(), gsTable, ifuncList), module);
+
+    TwocodeVarsPass varsPass(gsTable, extraModule);
+    module->accept(&varsPass);  // after UseGSTablePass
+
+    RUN_PASS(TwocodeAllocPass(gsTable, varsPass.getGSSection()), program);
 }
 
 static void printUsage(const char *program) {

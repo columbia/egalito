@@ -11,11 +11,13 @@ class TwocodeVarsPass : public ChunkPass {
 private:
     GSTable *gsTable;
     Module *otherModule;
+    DataSection *gsSection;
 public:
     TwocodeVarsPass(GSTable *gsTable, Module *otherModule) : gsTable(gsTable),
-        otherModule(otherModule) {}
+        otherModule(otherModule), gsSection(nullptr) {}
 
     virtual void visit(Module *module);
+    DataSection *getGSSection() const { return gsSection; }
 private:
     static void addGSValue(DataSection *section, GSTableEntry *entry);
     static void addVariable(DataSection *section, Chunk *target, const char *suffix);

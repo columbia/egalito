@@ -49,6 +49,7 @@ void TwocodeVarsPass::visit(Module *module) {
         LOG(0, "adding gsvalue 0x" << std::hex << entry->getTarget()->getAddress());
         addGSValue(regionConfig[0].section, entry);
     }
+    this->gsSection = regionConfig[0].section;
 
     // orig values
     for(auto entry : CIter::children(gsTable)) {
