@@ -60,7 +60,6 @@ void TwocodeApp::doTwocode() {
 
     TwocodeMergePass merge(extraModule);
     module->accept(&merge);
-    merge.copyFunctionsTo(module);
 
     RUN_PASS(TwocodeGSPass(egalito->getConductor(), gsTable, ifuncList), module);
 
@@ -68,6 +67,16 @@ void TwocodeApp::doTwocode() {
     module->accept(&varsPass);  // after UseGSTablePass
 
     RUN_PASS(TwocodeAllocPass(gsTable, varsPass.getGSSection()), program);
+
+    std::vector<Module *> otherModules;
+    for(auto m : CIter::children(program)) {
+        if(m == program->getMain()) continue;
+        otherModules.push_back(m);
+    }
+    for(auto m : otherModules) {
+        program->getChildren()->getIterable()->remove(m); 
+    }
+    // now only getMain() remains
 }
 
 static void printUsage(const char *program) {

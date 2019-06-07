@@ -769,8 +769,8 @@ void MakeInitArray::makeInitArraySectionLinks() {
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
-                    LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr << " for " << instr->getAddress());
+                    LOG(0, "Change link from 0x" << std::hex << link->getTargetAddress()
+                        << " to 0x" << addr << " for 0x" << instr->getAddress());
                 //});
             }
             if(counter == 2) {
@@ -781,8 +781,8 @@ void MakeInitArray::makeInitArraySectionLinks() {
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
-                    LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr << " for " << instr->getAddress());
+                    LOG(0, "Change link from 0x" << std::hex << link->getTargetAddress()
+                        << " to 0x" << addr << " for 0x" << instr->getAddress());
                 //});
             }
 
