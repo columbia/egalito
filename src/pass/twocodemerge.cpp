@@ -28,7 +28,10 @@ void TwocodeMergePass::visit(Module *module) {
 
                 LOG(0, "    link to " << link->getTargetAddress() << ", type "
                     << typeid(*link).name());
-                if(auto v = dynamic_cast<NormalLink *>(link)) {
+                if(auto v = dynamic_cast<AbsoluteNormalLink *>(link)) {
+                    assert(false && "Did not expect AbsoluteNormalLink in twocode");
+                }
+                else if(auto v = dynamic_cast<NormalLink *>(link)) {
                     if(auto oldRef = dynamic_cast<Function *>(link->getTarget())) {
                         auto newRef = ChunkFind2(program).findFunctionInModule(
                             oldRef->getName().c_str(), module);
@@ -41,11 +44,58 @@ void TwocodeMergePass::visit(Module *module) {
                         allResolved = false;
                     }
                 }
+                else if(auto v = dynamic_cast<PLTLink *>(link)) {
+                    auto oldRef = v->getPLTTrampoline();
+                    auto newRef = CIter::named(module->getPLTList())->find(
+                        oldRef->getName());
+                    if(newRef) {
+                        otherInstr->getSemantic()->setLink(
+                            new PLTLink(newRef->getAddress(), newRef));  // address 0???
+                    }
+                    else {
+                        LOG(0, "    PLTLink targets unknown function ["
+                            << oldRef->getName() << "]");
+                        allResolved = false;
+                    }
+                }
                 else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
-                    allResolved = false;
+                    assert(false && "Did not expect AbsoluteDataLink in twocode");
                 }
                 else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {
-                    allResolved = false;
+                    auto section = static_cast<DataSection *>(v->getTarget());
+                    auto addend = v->getAddend();
+                    auto offset = v->getTargetAddress() - section->getAddress() - addend;
+
+                    if(section->getType() == DataSection::TYPE_DATA
+                        || section->getType() == DataSection::TYPE_BSS) {
+
+                        //if(section->getName() == ".rodata") {
+                        if(!static_cast<DataRegion *>(section->getParent())->writable()) {
+                            // nothing, allow using rhs section for e.g. .rodata
+                        }
+                        else {
+                            // assume data sections have the same layout
+                            auto newRef = module->getDataRegionList()->findDataSection(
+                                section->getName());
+                            if(newRef) {
+                                auto newLink = new DataOffsetLink(
+                                    newRef, newRef->getAddress(), v->getScope());
+                                newLink->setAddend(addend);
+                                otherInstr->getSemantic()->setLink(newLink);
+                            }
+                            else {
+                                LOG(0, "    DataOffsetLink targets section ["
+                                    << section->getName()
+                                    << "] which does not occur in lhs");
+                                allResolved = false;
+                            }
+                        }
+                    }
+                    else {
+                        LOG(0, "    DataOffsetLink targets section ["
+                            << section->getName() << "] of unsupported type");
+                        allResolved = false;
+                    }
                 }
                 else {
                     allResolved = false;
@@ -55,6 +105,7 @@ void TwocodeMergePass::visit(Module *module) {
         if(allResolved) {
             transformed.push_back(otherFunc);
         }
+        else LOG(0, "    SOME UNHANDLED LINK TYPES ABOVE");
     }
 }
 void TwocodeMergePass::copyFunctionsTo(Module *module) {

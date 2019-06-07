@@ -139,6 +139,7 @@ public:
     Type getType() const { return type; }
     void setType(Type t) { type = t; }
     bool isCode() const { return type == TYPE_CODE; }
+    bool isData() const { return type == TYPE_DATA; }
     bool isBss() const { return type == TYPE_BSS; }
 
     const std::vector<GlobalVariable *> &getGlobalVariables() const

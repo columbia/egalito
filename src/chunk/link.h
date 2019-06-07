@@ -323,6 +323,7 @@ public:
         target(target), addend(0) {}
 
     void setAddend(size_t addend) { this->addend = addend; }
+    size_t getAddend() const { return this->addend; }
     virtual ChunkRef getTarget() const;
     virtual address_t getTargetAddress() const;
 };
