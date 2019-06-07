@@ -19,6 +19,7 @@ public:
     virtual void visit(Module *module);
     DataSection *getGSSection() const { return gsSection; }
 private:
+    static void addBaseSymbol(DataSection *section, const char *symbolName);
     static void addGSValue(DataSection *section, GSTableEntry *entry);
     static void addVariable(DataSection *section, Chunk *target, const char *suffix);
 };

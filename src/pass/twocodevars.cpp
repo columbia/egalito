@@ -77,6 +77,24 @@ void TwocodeVarsPass::visit(Module *module) {
             addVariable(regionConfig[2].section, newFunc, "$table1");
         }
     }
+
+    addBaseSymbol(regionConfig[0].section, "egalito_gs_base");
+    addBaseSymbol(regionConfig[1].section, "egalito_table0_base");
+    addBaseSymbol(regionConfig[2].section, "egalito_table1_base");
+}
+
+void TwocodeVarsPass::addBaseSymbol(DataSection *section, const char *symbolName) {
+    auto address = section->getAddress();
+    auto nsymbol = new Symbol(
+        address, section->getSize(), symbolName,
+        Symbol::TYPE_OBJECT, Symbol::BIND_LOCAL, 0, 0);
+
+    auto gvar = new GlobalVariable(symbolName);
+    gvar->setPosition(new AbsolutePosition(address));
+    gvar->setSymbol(nsymbol);
+    section->addGlobalVariable(gvar);
+
+    LOG(0, "added base symbol [" << symbolName << "]");
 }
 
 void TwocodeVarsPass::addGSValue(DataSection *section, GSTableEntry *entry) {
