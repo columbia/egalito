@@ -13,3 +13,7 @@
 [submodule "dep/keystone"]
 	path = dep/keystone
 	url = git@github.com:keystone-engine/keystone.git
+[submodule "dep/pe-parse"]
+	path = dep/pe-parse
+	url = git@github.com:trailofbits/pe-parse.git
+	branch = master
