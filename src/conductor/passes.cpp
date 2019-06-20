@@ -31,7 +31,7 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-void ConductorPasses::newElfPasses(ElfSpace *space) {
+Module *ConductorPasses::newElfPasses(ElfSpace *space) {
     ElfMap *elf = space->getElfMap();
     RelocList *relocList = space->getRelocList();
 
@@ -98,6 +98,7 @@ void ConductorPasses::newElfPasses(ElfSpace *space) {
     RUN_PASS(CollectGlobalsPass(), module);
 
     // DataVariables created later in Conductor::resolveData().
+    return module;
 }
 
 void ConductorPasses::newArchivePasses(Program *program) {

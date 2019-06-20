@@ -463,9 +463,9 @@ void ConductorSetup::moveCodeMakeExecutable(Sandbox *sandbox) {
     sandbox->finalize();
 }
 
-void ConductorSetup::dumpElfSpace(ElfSpace *space) {
+void ConductorSetup::dumpModule(Module *module) {
     ChunkDumper dumper;
-    space->getModule()->accept(&dumper);
+    module->accept(&dumper);
 }
 
 void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {

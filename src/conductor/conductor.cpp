@@ -169,9 +169,7 @@ Module *Conductor::parse(ElfMap *elf, Library *library,
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");
-    ConductorPasses(this).newElfPasses(space);
-
-    auto module = space->getModule();  // created in previous line
+    auto module = ConductorPasses(this).newElfPasses(space);
     program->add(module);
     module->setParent(program);
 

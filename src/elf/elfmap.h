@@ -7,6 +7,7 @@
 #include "types.h"
 #include <elf.h>
 #include "elfxx.h"
+#include "exefile/exemap.h"
 
 class ElfSection {
 private:
@@ -32,7 +33,7 @@ public:
     size_t getAlignment() const { return shdr->sh_addralign; }
 };
 
-class ElfMap {
+class ElfMap : public ExeMap {
 private:
     /** Memory map of executable image.
     */

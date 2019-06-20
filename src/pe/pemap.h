@@ -6,10 +6,11 @@
 #include <vector>
 #include <string>
 #include "types.h"
+#include "exefile/exemap.h"
 
 #include "parser-library/parse.h"
 
-class PEMap {
+class PEMap : public ExeMap {
 private:
     peparse::parsed_pe *peRef;
 private:
@@ -99,6 +100,11 @@ T PEMap::getSectionReadPtr(const char *name) {
     return getSectionReadPtr<T>(section);
 }
 #endif
+
+#else
+
+class PEMap {
+};
 
 #endif  // USE_WIN64_PE
 #endif
