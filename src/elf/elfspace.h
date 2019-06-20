@@ -29,7 +29,7 @@ public:
         const std::string &fullPath);
     ~ElfSpace();
 
-    void findSymbolsAndRelocs();
+    void findSymbolsAndRelocs(const std::string &symbolFile = "");
 
     ElfMap *getElfMap() const { return elf; }
     Module *getModule() const { return module; }

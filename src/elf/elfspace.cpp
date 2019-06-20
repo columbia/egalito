@@ -38,10 +38,13 @@ ElfSpace::~ElfSpace() {
     delete aliasMap;
 }
 
-void ElfSpace::findSymbolsAndRelocs() {
-    if(fullPath.size() > 0) {
-        auto symbolFile = getAlternativeSymbolFile();
+void ElfSpace::findSymbolsAndRelocs(const std::string &symbolFile) {
+    if(symbolFile.size() > 0) {
         this->symbolList = SymbolList::buildSymbolList(elf, symbolFile);
+    }
+    else if(fullPath.size() > 0) {
+        auto altSymbolFile = getAlternativeSymbolFile();
+        this->symbolList = SymbolList::buildSymbolList(elf, altSymbolFile);
     }
     else {
         this->symbolList = SymbolList::buildSymbolList(elf);
@@ -52,12 +55,14 @@ void ElfSpace::findSymbolsAndRelocs() {
         this->dwarf = dwarfParser.getUnwindInfo();
     }
 
-    if(elf->isDynamic()) {
+    if(elf && elf->isDynamic()) {
         this->dynamicSymbolList = SymbolList::buildDynamicSymbolList(elf);
     }
 
-    this->relocList
-        = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+    if(elf) {
+        this->relocList
+            = RelocList::buildRelocList(elf, symbolList, dynamicSymbolList);
+    }
 }
 
 std::string ElfSpace::getAlternativeSymbolFile() const {

@@ -4,6 +4,7 @@
 #include <string>
 #include <set>
 #include "types.h"
+#include "filetype.h"
 #include "chunk/program.h"
 #include "chunk/module.h"
 #include "chunk/library.h"
@@ -27,6 +28,9 @@ public:
     ~Conductor();
 
     Module *parseAnything(const std::string &fullPath,
+        Library::Role role = Library::ROLE_UNKNOWN);
+    Module *parseAnythingWithSymbols(const std::string &fullPath,
+        const std::string &symbolFile, ExeFileType fileType = EXE_UNKNOWN,
         Library::Role role = Library::ROLE_UNKNOWN);
     Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
     Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
@@ -61,7 +65,8 @@ public:
 
     void check();
 private:
-    Module *parse(ElfMap *elf, Library *library);
+    Module *parse(ElfMap *elf, Library *library,
+        const std::string &symbolFile = "");
     void allocateTLSArea(address_t base);
     void loadTLSData();
     void backupTLSData();

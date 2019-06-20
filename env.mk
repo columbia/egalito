@@ -6,6 +6,7 @@ EGALITO_ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 # Optional settings:
 #   USE_KEYSTONE=1
 #   USE_LOADER=1
+#   USE_WIN64_PE=1
 #   VERBOSE=1
 #   PROFILE=1
 #   STACK_PROTECTOR=1
@@ -67,6 +68,10 @@ ifeq ($(USE_KEYSTONE),1)
 KEYSTONE_DIR = $(EGALITO_ROOT_DIR)/dep/keystone
 GENERIC_FLAGS += -I $(KEYSTONE_DIR)/include
 endif
+ifeq ($(USE_WIN64_PE),1)
+WIN64_PE_DIR = $(EGALITO_ROOT_DIR)/dep/pe-parse
+GENERIC_FLAGS += -I $(WIN64_PE_DIR)/pe-parser-library/include
+endif
 ifeq ($(USE_LOADER),1)
 GENERIC_FLAGS += -DUSE_LOADER
 endif
@@ -85,6 +90,12 @@ ifdef USE_KEYSTONE  # set USE_KEYSTONE=1 to link with str->instr assembler
 	    -Wl,-rpath,$(abspath $(KEYSTONE_DIR)/build/llvm/lib)
 	CFLAGS += -D USE_KEYSTONE
 	CXXFLAGS += -D USE_KEYSTONE
+endif
+
+ifdef USE_WIN64_PE  # set USE_WIN64_PE=1 to link with str->instr assembler
+	CLDFLAGS        += -L $(WIN64_PE_DIR)/build/pe-parser-library -lpe-parser-library
+	CFLAGS += -D USE_WIN64_PE
+	CXXFLAGS += -D USE_WIN64_PE
 endif
 
 ifdef PROFILE  # set PROFILE=1 to enable gprof profiling

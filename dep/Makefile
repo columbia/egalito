@@ -5,8 +5,8 @@ include ../env.mk
 # 'next' as of 11/13/17 returns wrong imm for backward TBZ/TBNZ
 capstone-VERSION=$(if $(filter aarch64,$(P_ARCH)),3.0.4,egalito)
 
-.PHONY: all rtld ifunc capstone keystone distorm3 clean realclean
-all: rtld ifunc capstone keystone distorm3
+.PHONY: all rtld ifunc capstone keystone distorm3 pe-parse clean realclean
+all: rtld ifunc capstone keystone distorm3 pe-parse
 	-@touch built
 clean:
 	-$(call short-make,rtld,clean)
@@ -18,6 +18,7 @@ realclean:
 	-$(call short-make,distorm3/make/linux,clean)
 	-$(call short-make,capstone,clean)
 	-@rm -rf keystone/build
+	-@rm -rf pe-parse/build
 	-@rm -f built
 
 ifeq ($(USE_LOADER),1)
@@ -55,4 +56,15 @@ keystone:
 		&& ../make-lib.sh
 else
 keystone:
+endif
+
+ifeq ($(USE_WIN64_PE),1)
+pe-parse:
+	-@cd pe-parse \
+		&& mkdir build \
+		&& cd build \
+		&& cmake .. \
+	    && $(MAKE)
+else
+pe-parse:
 endif

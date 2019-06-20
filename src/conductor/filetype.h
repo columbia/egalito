@@ -1,0 +1,10 @@
+#ifndef EGALITO_CONDUCTOR_FILETYPE_H
+#define EGALITO_CONDUCTOR_FILETYPE_H
+
+enum ExeFileType {
+    EXE_ELF,
+    EXE_PE,
+    EXE_UNKNOWN
+};
+
+#endif

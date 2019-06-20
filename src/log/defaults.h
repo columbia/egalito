@@ -22,6 +22,7 @@
 #define D_main          -1
 #define D_operation     -1
 #define D_pass          -1
+#define D_pe            -1
 #define D_snippet       -1
 #define D_transform     -1
 #define D_util          -1
@@ -51,6 +52,7 @@
 #define D_main          9
 #define D_operation     9
 #define D_pass          9
+#define D_pe            9
 #define D_snippet       9
 #define D_transform     9
 #define D_util          9

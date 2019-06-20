@@ -115,6 +115,50 @@ Module *ConductorSetup::injectElfFiles(const char *executable, Library::Role rol
     return firstModule;
 }
 
+Module *ConductorSetup::injectFiles(const char *executable, const char *symbolFile,
+    ExeFileType fileType, Library::Role role,
+    bool withSharedLibs, bool injectEgalito) {
+
+    if(!conductor) createNewProgram();
+
+    // executable can be a shared library. this->elf stores main module
+    auto firstModule = conductor->parseAnythingWithSymbols(executable,
+        symbolFile, fileType, role);
+    if(firstModule->getLibrary()->getRole() == Library::ROLE_MAIN) {
+        this->elf = firstModule->getElfSpace()->getElfMap();
+        findEntryPointFunction();
+    }
+
+    if(injectEgalito) {
+        this->parseEgalito();
+    }
+    else {
+        // !!! this should be done differently
+        LoaderEmulator::getInstance().setupForExecutableGen(conductor);
+    }
+
+    if(withSharedLibs) {
+        conductor->parseLibraries();
+    }
+
+    if(true || withSharedLibs) {
+        conductor->resolvePLTLinks();
+    }
+    conductor->resolveData(withSharedLibs);
+    conductor->resolveTLSLinks();
+    conductor->resolveVTables();
+
+#ifndef RELEASE_BUILD
+    conductor->check();
+#endif
+
+    // At this point, all the effort for resolving the links should have
+    // been performed (except for special cases)
+
+    setBaseAddresses();
+    return firstModule;
+}
+
 void ConductorSetup::parseEgalitoArchive(const char *archive) {
     this->conductor = new Conductor();
 
@@ -408,7 +452,7 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 
 void ConductorSetup::findEntryPointFunction() {
     auto module = conductor->getProgram()->getMain();
-    if(!module) return;
+    if(!module || !elf) return;
     address_t elfEntry = elf->getEntryPoint();
 
     if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {

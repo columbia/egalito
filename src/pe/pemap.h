@@ -1,83 +1,47 @@
-#ifndef EGALITO_ELF_ELFMAP_H
-#define EGALITO_ELF_ELFMAP_H
+#ifndef EGALITO_PE_PEMAP_H
+#define EGALITO_PE_PEMAP_H
 
-#include <map>
+#ifdef USE_WIN64_PE
+
 #include <vector>
 #include <string>
 #include "types.h"
-#include <elf.h>
-#include "elfxx.h"
 
-class ElfSection {
+#include "parser-library/parse.h"
+
+class PEMap {
 private:
-    int ndx;
-    std::string name;
-    ElfXX_Shdr *shdr;
-    address_t virtualAddress;
-    address_t readAddress;
-public:
-    ElfSection(int ndx, std::string name, ElfXX_Shdr *shdr)
-        : ndx(ndx), name(name), shdr(shdr), virtualAddress(0), readAddress(0) {}
-
-    int getNdx() { return ndx; }
-    std::string getName() { return name; }
-    ElfXX_Shdr *getHeader() { return shdr; }
-    address_t getVirtualAddress() { return virtualAddress; }
-    address_t getReadAddress() { return readAddress; }
-    void setVirtualAddress(address_t address) { virtualAddress = address; }
-    void setReadAddress(address_t address) { readAddress = address; }
-    address_t convertOffsetToVA(size_t offset);
-    address_t convertVAToOffset(address_t va);
-    size_t getSize() const { return shdr->sh_size; }
-    size_t getAlignment() const { return shdr->sh_addralign; }
-};
-
-class ElfMap {
-private:
-    /** Memory map of executable image.
-    */
-    void *map;
-
-    /** Size of memory map.
-    */
-    size_t length;
-
-    /** File descriptor associated with memory map.
-    */
-    int fd;
+    peparse::parsed_pe *peRef;
 private:
     const char *shstrtab;
     const char *strtab;
     const char *dynstr;
-    std::map<std::string, ElfSection *> sectionMap;
-    std::vector<ElfSection *> sectionList;
-    std::vector<void *> segmentList;
+    //std::map<std::string, ElfSection *> sectionMap;
+    //std::vector<ElfSection *> sectionList;
+    //std::vector<void *> segmentList;
     const char *interpreter;
 private:
     address_t baseAddress;
     address_t copyBase;
     address_t rwCopyBase;
-private:
-    ElfMap();
 public:
-    ElfMap(pid_t pid);
-    ElfMap(const char *filename);
-    ElfMap(void *self);
-    ~ElfMap();
-    static bool isElf(const char *filename);
+    PEMap(const std::string &filename);
+    ~PEMap();
+    static bool isPE(const std::string &filename);
 private:
+    void throwError(const std::string &err);
     void setup();
-    void parseElf(const char *filename);
-    void verifyElf();
-    void makeSectionMap();
-    void makeSegmentList();
-    void makeVirtualAddresses();
+    void parsePE(const std::string &filename);
+    void verifyPE();
+    //void makeSectionMap();
+    //void makeSegmentList();
+    //void makeVirtualAddresses();
 public:
     void setBaseAddress(address_t base) { baseAddress = base; }
     address_t getBaseAddress() const { return baseAddress; }
     address_t getCopyBaseAddress() const { return copyBase; }
     address_t getRWCopyBaseAddress() const { return rwCopyBase; }
-    size_t getLength() const { return length; }
+    /*size_t getLength() const { return length; }
     const char *getStrtab() const { return strtab; }
     const char *getDynstrtab() const { return dynstr; }
     const char *getSHStrtab() const { return shstrtab; }
@@ -110,16 +74,17 @@ public:
     const std::vector<void *> &getSegmentList() const
         { return segmentList; }
     const std::vector<ElfSection *> &getSectionList() const
-        { return sectionList; }
+        { return sectionList; }*/
 };
 
+#if 0
 template <typename T>
-T ElfMap::getSectionReadPtr(ElfSection *section) {
+T PEMap::getSectionReadPtr(ElfSection *section) {
     return reinterpret_cast<T>(section->getReadAddress());
 }
 
 template <typename T>
-T ElfMap::getSectionReadPtr(int index) {
+T PEMap::getSectionReadPtr(int index) {
     ElfSection *section = findSection(index);
     if (!section) return static_cast<T>(0);
 
@@ -127,11 +92,13 @@ T ElfMap::getSectionReadPtr(int index) {
 }
 
 template <typename T>
-T ElfMap::getSectionReadPtr(const char *name) {
+T PEMap::getSectionReadPtr(const char *name) {
     auto section = findSection(name);
     if (!section) return static_cast<T>(0);
 
     return getSectionReadPtr<T>(section);
 }
+#endif
 
+#endif  // USE_WIN64_PE
 #endif
