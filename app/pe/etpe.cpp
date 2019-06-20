@@ -4,6 +4,7 @@
 #include <cstring>  // for std::strcmp
 #include "etpe.h"
 #include "pe/pemap.h"
+#include "exefile/exefile.h"
 #include "conductor/filetype.h"
 #include "conductor/conductor.h"
 #include "conductor/interface.h"
@@ -23,10 +24,13 @@ static void parse(const std::string &filename, const std::string &symbolFile,
 
     try {
         egalito.initializeParsing();  // Creates Conductor and Program
-        //PEMap pe(filename);
+        PEMap *peMap = new PEMap(filename);
+        ExeFile *exeFile = new PEExeFile(peMap, filename, filename);
 
-        egalito.getConductor()->parseAnythingWithSymbols(filename, symbolFile,
-            EXE_PE, Library::ROLE_MAIN);
+        exeFile->parseSymbolsAndRelocs(symbolFile);
+
+        /*egalito.getConductor()->parseAnythingWithSymbols(filename, symbolFile,
+            EXE_PE, Library::ROLE_MAIN);*/
     }
     catch(const char *message) {
         std::cout << "Exception: " << message << std::endl;

@@ -65,7 +65,8 @@ public:
     ElfMap *getEgalitoElfMap() const { return egalito; }
     Conductor *getConductor() const { return conductor; }
 public:
-    void dumpElfSpace(ElfSpace *space);
+    void dumpElfSpace(ElfSpace *space) {}  // DEPRECATED function.
+    void dumpModule(Module *module);
     void dumpFunction(const char *function, ElfSpace *space = nullptr);
     address_t getEntryPoint();
 private:

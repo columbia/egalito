@@ -1,6 +1,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <iomanip>
 #include "symbolparser.h"
 #include "log/log.h"
 
@@ -70,7 +71,7 @@ SymbolList *PESymbolParser::buildSymbolList(const std::string &symbolFile) {
         if(symbol) list->add(symbol, symbol->getIndex());
     }
 
-    LOG(0, "Found " << list->getCount() << " PE symbols");
+    LOG(0, "Found " << std::dec << list->getCount() << " PE symbols");
     return list;
 }
 

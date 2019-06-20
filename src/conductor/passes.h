@@ -4,13 +4,14 @@
 #include "elf/elfspace.h"
 
 class Conductor;
+class Module;
 
 class ConductorPasses {
 private:
     Conductor *conductor;
 public:
     ConductorPasses(Conductor *conductor) : conductor(conductor) {}
-    void newElfPasses(ElfSpace *space);
+    Module *newElfPasses(ElfSpace *space);
     void newArchivePasses(Program *program);
     void newExecutablePasses(Program *program);
     void newMirrorPasses(Program *program);
