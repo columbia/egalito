@@ -641,15 +641,17 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
     // Find known functions from DWARF info
     IntervalTree knownFunctions(sectionRange);
-    for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
-        DwarfFDE *fde = *it;
-        Range range(fde->getPcBegin(), fde->getPcRange());
-        if(knownFunctions.add(range)) {
-            LOG(12, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
-                << fde->getPcRange() << "]");
-        }
-        else {
-            LOG(1, "FDE is out of bounds of .text section, skipping");
+    if(dwarfInfo) {
+        for(auto it = dwarfInfo->fdeBegin(); it != dwarfInfo->fdeEnd(); it ++) {
+            DwarfFDE *fde = *it;
+            Range range(fde->getPcBegin(), fde->getPcRange());
+            if(knownFunctions.add(range)) {
+                LOG(12, "DWARF FDE at [" << std::hex << fde->getPcBegin() << ",+"
+                    << fde->getPcRange() << "]");
+            }
+            else {
+                LOG(1, "FDE is out of bounds of .text section, skipping");
+            }
         }
     }
 
@@ -738,11 +740,13 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
             << section->convertVAToOffset(range.getStart()));
         Function *function = fuzzyFunction(range, section);
 
-        if(auto dsym = dynamicSymbolList->find(range.getStart())) {
-            LOG(12, "    renaming fuzzy function [" << function->getName()
-                << "] to [" << dsym->getName() << "]");
-            function->setName(dsym->getName());
-            function->setDynamicSymbol(dsym);
+        if(dynamicSymbolList) {
+            if(auto dsym = dynamicSymbolList->find(range.getStart())) {
+                LOG(12, "    renaming fuzzy function [" << function->getName()
+                    << "] to [" << dsym->getName() << "]");
+                function->setName(dsym->getName());
+                function->setDynamicSymbol(dsym);
+            }
         }
 
         functionList->getChildren()->add(function);

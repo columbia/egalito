@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include "config.h"
+#include "filetype.h"
 #include "elf/elfmap.h"
 #include "elf/elfspace.h"
 #include "transform/sandbox.h"
@@ -36,6 +37,9 @@ public:
     Module *injectElfFiles(const char *executable, bool withSharedLibs = true,
         bool injectEgalito = false);
     Module *injectElfFiles(const char *executable, Library::Role role,
+        bool withSharedLibs = true, bool injectEgalito = false);
+    Module *injectFiles(const char *executable, const char *symbolFile,
+        ExeFileType fileType = EXE_UNKNOWN, Library::Role role = Library::ROLE_UNKNOWN,
         bool withSharedLibs = true, bool injectEgalito = false);
     void parseEgalitoArchive(const char *archive);
     void injectLibrary(const char *filename);

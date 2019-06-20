@@ -30,6 +30,10 @@
 
 #include "parseoverride.h"
 
+#ifdef USE_WIN64_PE
+#include "pe/pemap.h"
+#endif
+
 #include "log/log.h"
 #include "log/temp.h"
 
@@ -55,6 +59,33 @@ Module *Conductor::parseAnything(const std::string &fullPath, Library::Role role
     auto library = new Library(internalName, role);
     library->setResolvedPath(fullPath);
     return parse(elf, library);
+}
+
+Module *Conductor::parseAnythingWithSymbols(const std::string &fullPath,
+    const std::string &symbolFile, ExeFileType fileType, Library::Role role) {
+
+    if(role == Library::ROLE_UNKNOWN) {
+        role = Library::guessRole(fullPath);
+    }
+#ifdef USE_WIN64_PE
+    if(fileType == EXE_UNKNOWN) {
+        if(ElfMap::isElf(fullPath.c_str())) fileType = EXE_ELF;
+        else fileType = EXE_PE;
+    }
+    ElfMap *elf = nullptr;
+    if(fileType == EXE_ELF) {
+        elf = new ElfMap(fullPath.c_str());
+    }
+    else {
+        auto pe = new PEMap(fullPath);
+    }
+#else
+    auto elf = new ElfMap(fullPath.c_str());
+#endif
+    auto internalName = Library::determineInternalName(fullPath, role);
+    auto library = new Library(internalName, role);
+    library->setResolvedPath(fullPath);
+    return parse(elf, library, symbolFile);
 }
 
 Module *Conductor::parseExecutable(ElfMap *elf, const std::string &fullPath) {
@@ -121,7 +152,9 @@ Module *Conductor::parseExtraLibrary(ElfMap *elf, const std::string &name) {
     return module;
 }
 
-Module *Conductor::parse(ElfMap *elf, Library *library) {
+Module *Conductor::parse(ElfMap *elf, Library *library,
+    const std::string &symbolFile) {
+
     program->add(library);  // add current lib before its dependencies
 
     ElfSpace *space = new ElfSpace(elf, library->getName(),
@@ -131,8 +164,8 @@ Module *Conductor::parse(ElfMap *elf, Library *library) {
 
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
         << space->getName() << "] ===");
-    space->findSymbolsAndRelocs();
-    ElfDynamic(getLibraryList()).parse(elf, library);
+    space->findSymbolsAndRelocs(symbolFile);
+    if(elf) ElfDynamic(getLibraryList()).parse(elf, library);
 
     LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
         << space->getName() << "] ---");

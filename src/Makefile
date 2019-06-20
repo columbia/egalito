@@ -23,6 +23,11 @@ endif
 LOG_SOURCES         = $(wildcard log/*.cpp)
 OPERATION_SOURCES   = $(wildcard operation/*.cpp)
 PASS_SOURCES        = $(wildcard pass/*.cpp)
+ifeq ($(USE_WIN64_PE),1)
+    PE_SOURCES      = $(wildcard pe/*.cpp)
+else
+    PE_SOURCES      =
+endif
 RUNTIME_SOURCES     = $(wildcard runtime/*.cpp)
 TRANSFORM_SOURCES   = $(wildcard transform/*.cpp)
 UTIL_SOURCES        = $(wildcard util/*.c util/*.cpp)
@@ -43,8 +48,8 @@ TYPICAL_SOURCES = $(CHUNK_SOURCES) $(ELF_SOURCES) $(TRANSFORM_SOURCES) \
 		$(LOG_SOURCES) $(PASS_SOURCES) $(DISASM_SOURCES) $(CONDUCTOR_SOURCES) \
 		$(ANALYSIS_SOURCES) $(CMINUS_SOURCES) $(GENERATE_SOURCES) $(INSTR_SOURCES) \
 		$(OPERATION_SOURCES) $(DWARF_SOURCES) $(ARCHIVE_SOURCES) $(UTIL_SOURCES) \
-		$(SNIPPET_SOURCES) $(RUNTIME_SOURCES) load/emulator.cpp load/segmap.cpp \
-		load/callinit.cpp
+		$(SNIPPET_SOURCES) $(RUNTIME_SOURCES) $(PE_SOURCES) \
+        load/emulator.cpp load/segmap.cpp load/callinit.cpp
 TYPICAL_OBJECTS = $(call obj-filename,$(TYPICAL_SOURCES))
 LOADER_SOURCES = $(TYPICAL_SOURCES) $(BREAK_SOURCES) $(LOAD_SOURCES)
 LOADER_OBJECTS = $(call obj-filename,$(LOADER_SOURCES))

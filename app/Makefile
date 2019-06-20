@@ -27,6 +27,7 @@ ORDER_SOURCES           = $(wildcard order/*.cpp)
 PROFILE_SOURCES         = $(wildcard profile/*.cpp)
 PYTHON_SOURCES          = $(wildcard python/*.cpp)
 TWOCODE_SOURCES         = $(wildcard twocode/*.cpp)
+PE_SOURCES              = $(wildcard pe/*.cpp)
 
 exe-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)))
 obj-filename = $(foreach s,$1,$(BUILDDIR)$(dir $s)$(basename $(notdir $s)).o)
@@ -58,12 +59,14 @@ ETTWOCODE_SOURCES = $(TWOCODE_SOURCES)
 ETTWOCODE_OBJECTS = $(call obj-filename,$(ETTWOCODE_SOURCES))
 ETORDER_SOURCES = $(ORDER_SOURCES)
 ETORDER_OBJECTS = $(call obj-filename,$(ETORDER_SOURCES))
+ETPE_SOURCES = $(PE_SOURCES)
+ETPE_OBJECTS = $(call obj-filename,$(ETPE_SOURCES))
 
 ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETSHELL2_SOURCES) $(ETOBJDUMP_SOURCES) \
     $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES) \
     $(ETCOVERAGE_SOURCES) $(LIBCOVERAGE_SOURCES) \
     $(ETHARDEN_SOURCES) $(LIBCET_SOURCES) \
-    $(ETELF_SOURCES) $(ETPROFILE_SOURCES) $(ETTWOCODE_SOURCES) $(ETORDER_SOURCES))
+    $(ETELF_SOURCES) $(ETPROFILE_SOURCES) $(ETTWOCODE_SOURCES) $(ETORDER_SOURCES) $(ETPE_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
 
 PYTHON_OBJECTS = $(call obj-filename,$(PYTHON_SOURCES))
@@ -85,8 +88,10 @@ PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
 COVERAGE_LIBRARY = $(BUILDDIR)libcoverage.so
 CET_LIBRARY = $(BUILDDIR)libcet.so
+ETTWOCODE = $(BUILDDIR)ettwocode
+ETPE = $(BUILDDIR)etpe
 
-OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETCOVERAGE) $(COVERAGE_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE) $(ETTWOCODE) $(ETORDER)
+OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETCOVERAGE) $(COVERAGE_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE) $(ETTWOCODE) $(ETORDER) $(ETPE)
 
 # Default target
 .PHONY: all
@@ -125,6 +130,7 @@ $(BUILDTREE): ../config/config.h
 	@ln -sf $(ETPROFILE)
 	@ln -sf $(ETTWOCODE)
 	@ln -sf $(ETORDER)
+	@ln -sf $(ETPE)
 	@ln -sf $(shell pwd)/../src/$(BUILDDIR)libegalito.so $(BUILDDIR)libegalito.so
 
 .PHONY: rebuild-src
@@ -187,6 +193,10 @@ $(ETTWOCODE): ../src/$(BUILDDIR)libegalito.so
 $(ETORDER): $(ETORDER_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETORDER): ../src/$(BUILDDIR)libegalito.so
+
+$(ETPE): $(ETPE_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETPE): ../src/$(BUILDDIR)libegalito.so
 
 $(PYSHELL): $(PYTHON_BINDING) python/shell.py
 	cp python/shell.py $(BUILDDIR)pyshell
