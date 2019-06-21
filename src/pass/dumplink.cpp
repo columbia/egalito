@@ -16,7 +16,7 @@ void DumpLinkPass::visit(Module *module) {
     LOG(11, "Dumping Links for " << module->getName());
 
     this->module = module;
-    this->mapbase = module->getElfSpace()->getElfMap()->getBaseAddress();
+    this->mapbase = module->getBaseAddress();
 
     ClearSpatialPass clearSpatial;
     module->accept(&clearSpatial);
