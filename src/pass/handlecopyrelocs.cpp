@@ -39,8 +39,7 @@ void HandleCopyRelocs::visit(Module *module) {
                 LOG(1, "no link found for R_X86_64_COPY");
                 LOG(1, "update DataVariable to be isCopy");
                 // create a copy DataVariable
-                auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
-                    + r->getAddress();
+                auto addr = module->getBaseAddress() + r->getAddress();
                 auto region = module->getDataRegionList()->findRegionContaining(addr);
                 if(!region) {
                     LOG(1, "ERROR: Could not find region containing 0x"
@@ -65,8 +64,7 @@ void HandleCopyRelocs::visit(Module *module) {
                 continue;
             }
             else {
-                auto addr = module->getElfSpace()->getElfMap()->getBaseAddress()
-                    + r->getAddress();
+                auto addr = module->getBaseAddress() + r->getAddress();
                 size_t size = r->getSymbol()->getSize();
                 copyAndDuplicate(link, addr, size);
                 delete link;
