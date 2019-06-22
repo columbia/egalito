@@ -5,6 +5,7 @@
 #include <set>
 #include "types.h"
 #include "filetype.h"
+#include "exefile/exefile.h"
 #include "chunk/program.h"
 #include "chunk/module.h"
 #include "chunk/library.h"
@@ -30,11 +31,12 @@ public:
     Module *parseAnything(const std::string &fullPath,
         Library::Role role = Library::ROLE_UNKNOWN);
     Module *parseAnythingWithSymbols(const std::string &fullPath,
-        const std::string &symbolFile, ExeFileType fileType = EXE_UNKNOWN,
+        const std::string &symbolFile,
+        ExeFile::ExeFileType fileType = ExeFile::EXE_UNKNOWN,
         Library::Role role = Library::ROLE_UNKNOWN);
     Module *parseExecutable(ElfMap *elf, const std::string &fullPath = "");
     Module *parseEgalito(ElfMap *elf, const std::string &fullPath = "");
-    void parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
+    void parseEgalitoExeFileOnly(ElfMap *elf, Module *module,
         const std::string &fullPath);
     void parseLibraries();
     Module *parseAddOnLibrary(ElfMap *elf);
@@ -56,7 +58,7 @@ public:
     LibraryList *getLibraryList() const { return program->getLibraryList(); }
 
     // deprecated, please use getProgram()->getFirst()
-    ElfSpace *getMainSpace() const;
+    ExeFile *getMainExeFile() const;
 
     address_t getMainThreadPointer() const { return mainThreadPointer; }
     IFuncList *getIFuncList() const { return ifuncList; }
@@ -65,7 +67,7 @@ public:
 
     void check();
 private:
-    Module *parse(ElfMap *elf, Library *library,
+    Module *parse(ExeMap *exeMap, Library *library,
         const std::string &symbolFile = "");
     void allocateTLSArea(address_t base);
     void loadTLSData();

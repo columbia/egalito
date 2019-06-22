@@ -7,6 +7,7 @@
 #include "chunk/tls.h"
 #include "elf/elfmap.h"
 #include "elf/elfdynamic.h"
+#include "exefile/exefile.h"
 #include "generate/debugelf.h"
 #include "operation/find2.h"
 #include "pass/handlerelocs.h"
@@ -51,41 +52,21 @@ Conductor::~Conductor() {
 }
 
 Module *Conductor::parseAnything(const std::string &fullPath, Library::Role role) {
-    if(role == Library::ROLE_UNKNOWN) {
-        role = Library::guessRole(fullPath);
-    }
-    auto elf = new ElfMap(fullPath.c_str());
-    auto internalName = Library::determineInternalName(fullPath, role);
-    auto library = new Library(internalName, role);
-    library->setResolvedPath(fullPath);
-    return parse(elf, library);
+    return parseAnythingWithSymbols(fullPath, "", ExeFile::EXE_UNKNOWN, role);
 }
 
 Module *Conductor::parseAnythingWithSymbols(const std::string &fullPath,
-    const std::string &symbolFile, ExeFileType fileType, Library::Role role) {
+    const std::string &symbolFile, ExeFile::ExeFileType fileType,
+    Library::Role role) {
 
     if(role == Library::ROLE_UNKNOWN) {
         role = Library::guessRole(fullPath);
     }
-#ifdef USE_WIN64_PE
-    if(fileType == EXE_UNKNOWN) {
-        if(ElfMap::isElf(fullPath.c_str())) fileType = EXE_ELF;
-        else fileType = EXE_PE;
-    }
-    ElfMap *elf = nullptr;
-    if(fileType == EXE_ELF) {
-        elf = new ElfMap(fullPath.c_str());
-    }
-    else {
-        auto pe = new PEMap(fullPath);
-    }
-#else
-    auto elf = new ElfMap(fullPath.c_str());
-#endif
+    auto exeMap = ExeFile::createMap(fullPath);
     auto internalName = Library::determineInternalName(fullPath, role);
     auto library = new Library(internalName, role);
     library->setResolvedPath(fullPath);
-    return parse(elf, library, symbolFile);
+    return parse(exeMap, library, symbolFile);
 }
 
 Module *Conductor::parseExecutable(ElfMap *elf, const std::string &fullPath) {
@@ -100,27 +81,27 @@ Module *Conductor::parseEgalito(ElfMap *elf, const std::string &fullPath) {
     return parse(elf, library);
 }
 
-void Conductor::parseEgalitoElfSpaceOnly(ElfMap *elf, Module *module,
+void Conductor::parseEgalitoExeFileOnly(ElfMap *elf, Module *module,
     const std::string &fullPath) {
 
     auto library = module->getLibrary();
     library->setResolvedPath(fullPath);
 
-    ElfSpace *space = new ElfSpace(elf, library->getName(),
+    ExeFile *exeFile = new ElfExeFile(elf, library->getName(),
         library->getResolvedPath());
 
     LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
-        << space->getName() << "] ===");
-    space->findSymbolsAndRelocs();
+        << exeFile->getName() << "] ===");
+    exeFile->parseSymbolsAndRelocs();
     //ElfDynamic(getLibraryList()).parse(elf, library);
 
-    module->setElfSpace(space);
-    space->setModule(module);
+    module->setExeFile(exeFile);
+    //exeFile->setModule(module);
 
     //LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
-    //    << space->getName() << "] ---");
-    //ConductorPasses(this).newElfPasses(space);
-    // needs module->getElfSpace()
+    //    << exeFile->getName() << "] ---");
+    //ConductorPasses(this).newExePasses(exeFile);
+    // needs module->getExeFile()
     ConductorPasses(this).reloadedArchivePasses(module);
 }
 
@@ -152,24 +133,32 @@ Module *Conductor::parseExtraLibrary(ElfMap *elf, const std::string &name) {
     return module;
 }
 
-Module *Conductor::parse(ElfMap *elf, Library *library,
+Module *Conductor::parse(ExeMap *exeMap, Library *library,
     const std::string &symbolFile) {
 
     program->add(library);  // add current lib before its dependencies
-
-    ElfSpace *space = new ElfSpace(elf, library->getName(),
-        library->getResolvedPath());
+    ExeFile *exeFile = nullptr;
+    if(auto elf = dynamic_cast<ElfMap *>(exeMap)) {
+        exeFile = new ElfExeFile(elf, library->getName(),
+            library->getResolvedPath());
+    }
+    else if(auto pe = dynamic_cast<PEMap *>(exeMap)) {
+        exeFile = new PEExeFile(pe, library->getName(),
+            library->getResolvedPath());
+    }
 
     ParseOverride::getInstance()->setCurrentModule("module-" + library->getName());
 
-    LOG(1, "\n=== BUILDING ELF DATA STRUCTURES for ["
-        << space->getName() << "] ===");
-    space->findSymbolsAndRelocs(symbolFile);
-    if(elf) ElfDynamic(getLibraryList()).parse(elf, library);
+    LOG(1, "\n=== BUILDING DATA STRUCTURES for ["
+        << exeFile->getName() << "] ===");
+    exeFile->parseSymbolsAndRelocs(symbolFile);
+    if(auto elfFile = exeFile->asElf()) {
+        ElfDynamic(getLibraryList()).parse(elfFile->getMap(), library);
+    }
 
-    LOG(1, "--- RUNNING DEFAULT ELF PASSES for ["
-        << space->getName() << "] ---");
-    auto module = ConductorPasses(this).newElfPasses(space);
+    LOG(1, "--- RUNNING DEFAULT PASSES for ["
+        << exeFile->getName() << "] ---");
+    auto module = ConductorPasses(this).newExePasses(exeFile);
     program->add(module);
     module->setParent(program);
 
@@ -221,34 +210,36 @@ void Conductor::resolveTLSLinks() {
 
 void Conductor::resolveData(bool multipleElf, bool justBridge) {
     if(auto egalito = program->getEgalito()) {
-        InjectBridgePass bridge(egalito->getElfSpace()->getRelocList());
+        InjectBridgePass bridge(egalito->getExeFile()->getRelocList());
         egalito->accept(&bridge);
     }
     if(justBridge) return;
 
     for(auto module : CIter::modules(program)) {
-        auto space = module->getElfSpace();
+        auto exeFile = module->getExeFile();
+        auto elfMap = ExeAccessor::map<ElfMap>(exeFile);
+        if(!elfMap) continue;
 
         if(resolveFinished.count(module)) continue;
 
         LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
-        RUN_PASS(HandleDataRelocsInternalStrong(space->getRelocList(), this), module);
+        RUN_PASS(HandleDataRelocsInternalStrong(exeFile->getRelocList(), this), module);
 
         LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
         HandleRelocsWeak handleRelocsPass(
-            space->getElfMap(), space->getRelocList());
+            elfMap, exeFile->getRelocList());
         module->accept(&handleRelocsPass);
 
         LOG(10, "[[[2 HandleDataRelocsExternalStrong]]] " << module->getName());
-        HandleDataRelocsExternalStrong pass1(space->getRelocList(), this);
+        HandleDataRelocsExternalStrong pass1(exeFile->getRelocList(), this);
         module->accept(&pass1);
 
         LOG(10, "[[[3 HandleDataRelocsInternalWeak]]] " << module->getName());
-        HandleDataRelocsInternalWeak pass2(space->getRelocList());
+        HandleDataRelocsInternalWeak pass2(exeFile->getRelocList());
         module->accept(&pass2);
 
         LOG(10, "[[[4 HandleDataRelocsExternalWeak]]] " << module->getName());
-        HandleDataRelocsExternalWeak pass3(space->getRelocList(), this);
+        HandleDataRelocsExternalWeak pass3(exeFile->getRelocList(), this);
         module->accept(&pass3);
 
         // requires DataVariables
@@ -263,16 +254,18 @@ void Conductor::resolveData(bool multipleElf, bool justBridge) {
 
 void Conductor::resolveVTables() {
     for(auto module : CIter::modules(program)) {
-        if(!module->getElfSpace()) continue;
+        auto exeFile = module->getExeFile();
+        auto elfMap = ExeAccessor::map<ElfMap>(module);
+        if(!exeFile || !elfMap) continue;
 
         if(resolveFinished.count(module)) continue;
         resolveFinished.insert(module);
 
         // this needs data regions
         module->setVTableList(DisassembleVTables().makeVTableList(
-            module->getElfSpace()->getElfMap(),
-            module->getElfSpace()->getSymbolList(),
-            module->getElfSpace()->getRelocList(), module, program));
+            elfMap,
+            exeFile->getSymbolList(),
+            exeFile->getRelocList(), module, program));
     }
 }
 
@@ -409,8 +402,8 @@ void Conductor::acceptInAllModules(ChunkVisitor *visitor, bool inEgalito) {
     }
 }
 
-ElfSpace *Conductor::getMainSpace() const {
-    return getProgram()->getFirst()->getElfSpace();
+ExeFile *Conductor::getMainExeFile() const {
+    return getProgram()->getFirst()->getExeFile();
 }
 
 void Conductor::check() {

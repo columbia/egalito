@@ -23,6 +23,15 @@
 
 #include "chunk/dump.h"
 
+Module *Disassemble::module(ElfExeFile *elfFile) {
+    return module(elfFile->getMap(),
+        elfFile->getSymbolList(),
+        elfFile->getDwarfInfo(),
+        elfFile->getDynamicSymbolList(),
+        elfFile->getRelocList());
+}
+
+// DEPRECATED function
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
     RelocList *relocList) {

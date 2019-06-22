@@ -18,13 +18,13 @@ void FixEnvironPass::visit(Program *program) {
 
     // find dynsym
     auto module = program->getFirst();
-    auto dynsymlist = module->getElfSpace()->getDynamicSymbolList();
+    auto dynsymlist = module->getExeFile()->getDynamicSymbolList();
 
     // find data section it belongs to
     auto environ = dynsymlist->find("__environ");
     if(!environ && program->getLibc()) {
         module = program->getLibc();
-        dynsymlist = module->getElfSpace()->getDynamicSymbolList();
+        dynsymlist = module->getExeFile()->getDynamicSymbolList();
 
         environ = dynsymlist->find("__environ");
     }

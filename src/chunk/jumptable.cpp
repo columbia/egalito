@@ -6,7 +6,6 @@
 #include "analysis/jumptable.h"
 #include "instr/concrete.h"
 #include "instr/serializer.h"
-#include "elf/elfmap.h"
 #include "log/log.h"
 
 Link *JumpTableEntry::getLink() const {
@@ -39,7 +38,7 @@ void JumpTableEntry::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
 
-JumpTable::JumpTable(ElfMap *elf, JumpTableDescriptor *descriptor)
+JumpTable::JumpTable(JumpTableDescriptor *descriptor)
     : descriptor(descriptor) {
 
     setPosition(PositionFactory::getInstance()

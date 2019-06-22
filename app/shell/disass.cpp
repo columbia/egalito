@@ -150,7 +150,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         }
 
         auto conductor = setup->getConductor();
-        auto mainModule = conductor->getMainSpace()->getModule();
+        auto mainModule = conductor->getProgram()->getFirst();
         if(findInstrInModule(mainModule, addr)) return;
 
         for(auto module : CIter::modules(conductor->getProgram())) {
@@ -428,8 +428,11 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
     topLevel->add("dwarf", [&] (Arguments args) {
         args.shouldHave(0);
-        auto elf = setup->getConductor()->getMainSpace()->getElfMap();
-        DwarfParser parser(elf);
+
+        auto program = setup->getConductor()->getProgram();
+        if(auto elfFile = program->getFirst()->getExeFile()->asElf()) {
+            DwarfParser parser(elfFile->getMap());
+        }
     }, "parses DWARF unwind info for the main ELF file");
 
     topLevel->add("extend", [&] (Arguments args) {

@@ -11,7 +11,7 @@
 #include "operation/find.h"
 #include "operation/find2.h"
 #include "operation/mutator.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP djumptable
@@ -111,8 +111,7 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
             }
         }
         else {
-            jumpTable = new JumpTable(
-                module->getElfSpace()->getElfMap(), descriptor);
+            jumpTable = new JumpTable(descriptor);
             count = jumpTable->getEntryCount();
             jumpTableList->getChildren()->add(jumpTable);
         }
@@ -129,16 +128,14 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
 }
 
 size_t JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
-    auto elfMap = module->getElfSpace()->getElfMap();
+    auto elfMap = ExeAccessor::map<ElfMap>(module);
+    if(!elfMap) return (size_t)-1;
     auto descriptor = jumpTable->getDescriptor();
 
     auto section = descriptor->getContentSection();
 
-    auto elfSection =
-        module->getElfSpace()->getElfMap()->findSection(
-            section->getName().c_str());
-    auto tableReadPtr = module->getElfSpace()->getElfMap()
-        ->getSectionReadPtr<unsigned char *>(elfSection);
+    auto elfSection = elfMap->findSection(section->getName().c_str());
+    auto tableReadPtr = elfMap->getSectionReadPtr<unsigned char *>(elfSection);
 
     for(int i = 0; i < count; i ++) {
         auto address = jumpTable->getAddress() + i*descriptor->getScale();
@@ -273,7 +270,7 @@ bool JumpTablePass::loadFromFile(JumpTableList *jumpTableList) {
 
         d->setScale(scale);
         d->setEntries(entries);
-        auto jumpTable = new JumpTable(module->getElfSpace()->getElfMap(), d);
+        auto jumpTable = new JumpTable(d);
         jumpTableList->getChildren()->add(jumpTable);
         auto n = makeChildren(jumpTable, entries);
         assert(n == (size_t)entries);

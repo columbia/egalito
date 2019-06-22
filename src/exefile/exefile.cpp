@@ -16,6 +16,72 @@
 #include "conductor/filesystem.h"
 #include "log/log.h"
 
+template <>
+ElfExeFile *ExeAccessor::file<ElfExeFile>(Module *module) {
+    return (module->getExeFile() ? module->getExeFile()->asElf() : nullptr);
+}
+template <>
+PEExeFile *ExeAccessor::file<PEExeFile>(Module *module) {
+    return (module->getExeFile() ? module->getExeFile()->asPE() : nullptr);
+}
+
+template <>
+ElfExeFile *ExeAccessor::file<ElfExeFile>(ExeFile *exeFile) {
+    return (exeFile ? exeFile->asElf() : nullptr);
+}
+template <>
+PEExeFile *ExeAccessor::file<PEExeFile>(ExeFile *exeFile) {
+    return (exeFile ? exeFile->asPE() : nullptr);
+}
+
+template <>
+ElfMap *ExeAccessor::map<ElfMap>(Module *module) {
+    return (module->getExeFile() && module->getExeFile()->asElf()
+        ? module->getExeFile()->asElf()->getMap() : nullptr);
+}
+template <>
+PEMap *ExeAccessor::map<PEMap>(Module *module) {
+    return (module->getExeFile() && module->getExeFile()->asPE()
+        ? module->getExeFile()->asPE()->getMap() : nullptr);
+}
+
+template <>
+ElfMap *ExeAccessor::map<ElfMap>(ExeFile *exeFile) {
+    return (exeFile && exeFile->asElf() ? exeFile->asElf()->getMap() : nullptr);
+}
+template <>
+PEMap *ExeAccessor::map<PEMap>(ExeFile *exeFile) {
+    return (exeFile && exeFile->asPE() ? exeFile->asPE()->getMap() : nullptr);
+}
+
+template <>
+ElfMap *ExeAccessor::map<ElfMap>(ExeMap *exeMap) {
+    return dynamic_cast<ElfMap *>(exeMap);
+}
+template <>
+PEMap *ExeAccessor::map<PEMap>(ExeMap *exeMap) {
+    return dynamic_cast<PEMap *>(exeMap);
+}
+
+ExeMap *ExeFile::createMap(const std::string &filename, ExeFileType exeFileType) {
+    if(exeFileType == EXE_UNKNOWN) {
+#ifdef USE_WIN64_PE
+        exeFileType = (ElfMap::isElf(filename.c_str()) ? EXE_ELF : EXE_PE);
+#else
+        exeFileType = EXE_ELF;
+#endif
+    }
+
+    switch(exeFileType) {
+    case EXE_ELF:
+        return new ElfMap(filename.c_str());
+    case EXE_PE:
+        return new PEMap(filename);
+    default:
+        return nullptr;
+    }
+}
+
 void ElfExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
     auto elf = getMap();
     if(symbolFile.size() > 0) {

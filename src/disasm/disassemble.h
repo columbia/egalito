@@ -8,6 +8,7 @@
 #include "riscv-disas.h"
 #include "elf/elfmap.h"
 #include "elf/symbol.h"
+#include "exefile/exefile.h"
 #include "dwarf/entry.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
@@ -21,10 +22,11 @@ class IntervalTree;
 
 class Disassemble {
 public:
+    static Module *module(ElfExeFile *elfFile);
     static Module *module(ElfMap *elfMap, SymbolList *symbolList,
         DwarfUnwindInfo *dwarfInfo = nullptr,
         SymbolList *dynamicSymbolList = nullptr,
-        RelocList *relocList = nullptr);
+        RelocList *relocList = nullptr);  // DEPRECATED function
     static Function *function(ElfMap *elfMap, Symbol *symbol,
         SymbolList *symbolList, SymbolList *dynamicSymbolList = nullptr);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,

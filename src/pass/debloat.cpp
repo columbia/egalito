@@ -2,8 +2,9 @@
 #include "debloat.h"
 #include "analysis/walker.h"
 #include "chunk/concrete.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/elfmap.h"
+#include "elf/elfxx.h"
 #include "instr/semantic.h"
 #include "operation/find2.h"
 #include "operation/mutator.h"
@@ -55,7 +56,9 @@ void DebloatPass::visit(Module *module) {
 
 void DebloatPass::useFromDynamicInitFini() {
     for(auto module : CIter::children(program)) {
-        auto elfMap = module->getElfSpace()->getElfMap();
+        auto elfFile = module->getExeFile()->asElf();
+        if(!elfFile) continue;
+        auto elfMap = elfFile->getMap();
         auto dynamic = elfMap->findSection(".dynamic");
         if(!dynamic) continue;
 
@@ -100,7 +103,7 @@ void DebloatPass::useFromPointerArray(address_t start, size_t size,
     // since this is dynamic, all the pointers in this array should have
     // a relocation (so don't read the value)
 
-    auto relocList = module->getElfSpace()->getRelocList();
+    auto relocList = module->getExeFile()->getRelocList();
     if(!relocList) return;
 
     for(size_t sz = 0; sz < size; sz += sizeof(address_t)) {

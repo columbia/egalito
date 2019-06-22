@@ -1,6 +1,6 @@
 #include <sys/mman.h>
 #include "jtoverestimate.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "operation/find.h"
 #include "analysis/jumptable.h"
 #include "jumptablepass.h"
@@ -29,10 +29,12 @@ void JumpTableOverestimate::visit(JumpTableList *jumpTableList) {
         auto contentSection =
             currentTable->getDescriptor()->getContentSection();
         if(!contentSection) continue;
-        auto tableSection =
-            module->getElfSpace()->getElfMap()->findSection(
-                contentSection->getName().c_str());
-        auto tableReadPtr = module->getElfSpace()->getElfMap()
+
+        if(!module->getExeFile() || !module->getExeFile()->asElf()) continue;
+        ElfMap *elfMap = module->getExeFile()->asElf()->getMap();
+        auto tableSection = elfMap->findSection(
+            contentSection->getName().c_str());
+        auto tableReadPtr = elfMap
             ->getSectionReadPtr<unsigned char *>(tableSection);
 
         int scale = currentTable->getDescriptor()->getScale();

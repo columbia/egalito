@@ -11,7 +11,7 @@ private:
     Conductor *conductor;
 public:
     ConductorPasses(Conductor *conductor) : conductor(conductor) {}
-    Module *newElfPasses(ElfSpace *space);
+    Module *newExePasses(ExeFile *exeFile);
     void newArchivePasses(Program *program);
     void newExecutablePasses(Program *program);
     void newMirrorPasses(Program *program);

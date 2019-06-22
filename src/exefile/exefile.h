@@ -9,6 +9,10 @@
 
 class SymbolList;
 class RelocList;
+class Module;
+
+class ElfExeFile;
+class PEExeFile;
 
 class ExeFile {
 public:
@@ -24,14 +28,37 @@ public:
     virtual void parseSymbolsAndRelocs(const std::string &symbolFile) = 0;
 
     virtual ExeFileType getFileType() const = 0;
-    virtual ExeMap *getMap() const = 0;
+    virtual ElfExeFile *asElf() = 0;
+    virtual PEExeFile *asPE() = 0;
 
+    virtual ExeMap *getMap() const = 0;
     virtual std::string getName() const = 0;
     virtual std::string getFullPath() const = 0;
 
     virtual SymbolList *getSymbolList() const = 0;
     virtual SymbolList *getDynamicSymbolList() const = 0;
     virtual RelocList *getRelocList() const = 0;
+public:
+    static ExeMap *createMap(const std::string &filename,
+        ExeFileType exeFileType = EXE_UNKNOWN);
+};
+
+class ExeAccessor {
+public:
+    template <typename FileType>
+    static FileType *file(Module *module);
+
+    template <typename FileType>
+    static FileType *file(ExeFile *exeFile);
+
+    template <typename MapType>
+    static MapType *map(Module *module);
+
+    template <typename MapType>
+    static MapType *map(ExeFile *exeFile);
+
+    template <typename MapType>
+    static MapType *map(ExeMap *exeMap);
 };
 
 template <typename MapType, ExeFile::ExeFileType FileType = ExeFile::EXE_UNKNOWN>
@@ -49,8 +76,10 @@ public:
     virtual void parseSymbolsAndRelocs(const std::string &symbolFile) = 0;
 
     virtual ExeFileType getFileType() const { return FileType; }
-    virtual MapType *getMap() const { return map; }
+    virtual ElfExeFile *asElf() { return nullptr; }
+    virtual PEExeFile *asPE() { return nullptr; }
 
+    virtual MapType *getMap() const { return map; }
     virtual std::string getName() const { return name; }
     virtual std::string getFullPath() const { return fullPath; }
 };
@@ -86,6 +115,8 @@ public:
         : SymbolRelocExeFileDecorator<ExeFileImpl<ElfMap, ExeFile::EXE_ELF>>(
         elf, name, fullPath), dwarf(nullptr), aliasMap(nullptr) {}
 
+    virtual ElfExeFile *asElf() { return this; }
+
     virtual void parseSymbolsAndRelocs(const std::string &symbolFile);
 
     DwarfUnwindInfo *getDwarfInfo() const { return dwarf; }
@@ -102,6 +133,8 @@ public:
     PEExeFile(PEMap *pe, const std::string &name, const std::string &fullPath)
         : SymbolRelocExeFileDecorator<ExeFileImpl<PEMap, ExeFile::EXE_PE>>(
         pe, name, fullPath) {}
+
+    virtual PEExeFile *asPE() { return this; }
 
     virtual void parseSymbolsAndRelocs(const std::string &symbolFile);
 };

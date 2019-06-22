@@ -10,12 +10,12 @@
 void DetectNullPtrPass::visit(Module *module) {
 #ifdef ARCH_X86_64
     LOG(1, "adding null pointer checks...");
-    auto elfSpace = module->getElfSpace();
+    auto exeFile = module->getExeFile();
 
-    auto index = elfSpace->getSymbolList()->getCount();
+    auto index = exeFile->getSymbolList()->getCount();
     failFunc = new Symbol(0x0, 0x0, "egalito_null_ptr_check_fail",
         Symbol::TYPE_FUNC, Symbol::BIND_GLOBAL, index, 0);
-    elfSpace->getSymbolList()->add(failFunc, index);
+    exeFile->getSymbolList()->add(failFunc, index);
     recurse(module);
 #endif
 }

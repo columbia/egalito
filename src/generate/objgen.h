@@ -2,19 +2,20 @@
 #define EGALITO_ELF_OBJGEN_H
 
 #include "transform/sandbox.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "section.h"
 #include "sectionlist.h"
 
 class ObjGen {
 private:
-    ElfSpace *elfSpace;
+    Module *module;
+    ElfExeFile *elfFile;
     MemoryBacking *backing;
     std::string filename;
     SectionList sectionList;
     int sectionSymbolCount;
 public:
-    ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename);
+    ObjGen(Module *module, MemoryBacking *backing, std::string filename);
 public:
     void generate();
 private:

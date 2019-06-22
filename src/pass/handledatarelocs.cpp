@@ -6,7 +6,7 @@
 #include "chunk/external.h"
 #include "chunk/resolver.h"
 #include "operation/mutator.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/reloc.h"
 #include "log/log.h"
 #include "log/temp.h"
@@ -16,12 +16,14 @@ void HandleDataRelocsPass::visit(Module *module) {
     //TemporaryLogLevel tl1("chunk", 10);
     //TemporaryLogLevel tl2("pass", 15);
 
-    assert(module->getElfSpace() != nullptr);
-    auto elfMap = module->getElfSpace()->getElfMap();
+    if(!module->getExeFile()) return;
+    auto elfFile = module->getExeFile()->asElf();
+    if(!elfFile) return;
+    auto elfMap = elfFile->getMap();
 
     // make DataVariables for every relocation in every ElfSection
     for(ElfSection *section : elfMap->getSectionList()) {
-        auto relocSection = module->getElfSpace()->getRelocList()->getSection(
+        auto relocSection = elfFile->getRelocList()->getSection(
             section->getName());
         if(!relocSection) continue;  // no relocs in this ElfSection
 

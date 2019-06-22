@@ -6,10 +6,9 @@
 
 class InferLinksPass : public ChunkPass {
 private:
-    ElfMap *elf;
     Module *module;
 public:
-    InferLinksPass(ElfMap *elf) : elf(elf), module(nullptr) {}
+    InferLinksPass() : module(nullptr) {}
     virtual void visit(Module *module);
     virtual void visit(Instruction *instruction);
 };

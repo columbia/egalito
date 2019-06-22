@@ -1,19 +1,24 @@
 #include <string>
 #include "module.h"
 #include "library.h"
+#include "dataregion.h"
+#include "plt.h"
+#include "jumptable.h"
+#include "vtable.h"
 #include "initfunction.h"
-#include "elf/elfspace.h"
+#include "external.h"
+#include "exefile/exefile.h"
 #include "elf/sharedlib.h"
 #include "serializer.h"
 #include "visitor.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
 
-void Module::setElfSpace(ElfSpace *elfSpace) {
-    this->elfSpace = elfSpace;
+void Module::setExeFile(ExeFile *exeFile) {
+    this->exeFile = exeFile;
 
-    // set name based on ElfSpace
-    setName(StreamAsString() << "module-" << elfSpace->getName());
+    // set name based on ExeFile
+    setName(StreamAsString() << "module-" << exeFile->getName());
 }
 
 void Module::setLibrary(Library *library) {

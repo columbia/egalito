@@ -14,7 +14,7 @@ class Function;
 class GlobalVariable;
 class DataVariable;
 class Instruction;
-class ElfSpace;
+class ElfExeFile;
 class Chunk;
 class SectionList;
 
@@ -137,11 +137,11 @@ public:
 private:
     SectionRef *outer;
     SectionList *sectionList;
-    ElfSpace *elfSpace;
+    ElfExeFile *elfFile;
 public:
     RelocSectionContent(SectionRef *outer, SectionList *sectionList,
-        ElfSpace *elfSpace) : outer(outer), sectionList(sectionList),
-        elfSpace(elfSpace) {}
+        ElfExeFile *elfFile) : outer(outer), sectionList(sectionList),
+        elfFile(elfFile) {}
 
     Section *getTargetSection();
 

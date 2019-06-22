@@ -9,7 +9,6 @@ class DataVariable;
 class JumpTableDescriptor;
 class Function;
 class Instruction;
-class ElfMap;
 
 class JumpTableEntry : public ChunkSerializerImpl<TYPE_JumpTableEntry,
     AddressableChunkImpl> {
@@ -46,7 +45,7 @@ private:
     std::vector<Instruction *> jumpInstrList;
 public:
     JumpTable() : descriptor(nullptr) {}
-    JumpTable(ElfMap *elf, JumpTableDescriptor *descriptor);
+    JumpTable(JumpTableDescriptor *descriptor);
 
     Function *getFunction() const;
     std::vector<Instruction *> getJumpInstructionList() const;

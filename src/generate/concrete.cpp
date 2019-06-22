@@ -8,7 +8,7 @@
 #include "transform/sandbox.h"
 #include "chunk/concrete.h"
 #include "operation/find2.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/symbol.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
@@ -376,7 +376,7 @@ void BasicElfStructure::makeDynamicSection() {
         }
 
         if(first->getLibrary()->getRole() != Library::ROLE_MAIN) {
-            auto soName = getSoname(first->getElfSpace()->getElfMap());
+            auto soName = getSoname(ExeAccessor::map<ElfMap>(first));
             if(soName) {
                 dynamic->addPair(DT_SONAME, dynstr->add(soName, true));
             }
@@ -608,7 +608,7 @@ void MakeInitArray::makeInitArraySectionHelper(const char *type,
                 }
                 if(section->getType() == DataSection::TYPE_DYNAMIC) {
 #if 0
-                    auto elf = module->getElfSpace()->getElfMap();
+                    auto elf = ExeAccessor::map<ElfMap>(module);
                     auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
                     for(unsigned long *pointer = dynamic; *pointer != DT_NULL; pointer += 2) {
                         unsigned long type = pointer[0];
@@ -638,8 +638,8 @@ void MakeInitArray::makeInitArraySectionHelper(const char *type,
         if(firstInit) {
             addInitFunction(content, [this, module, firstInit] () {
                 Function *function = nullptr;
-                if(module->getElfSpace()->getSymbolList()) {
-                    auto symbol = module->getElfSpace()->getSymbolList()->find(firstInit);
+                if(module->getExeFile()->getSymbolList()) {
+                    auto symbol = module->getExeFile()->getSymbolList()->find(firstInit);
                     function = ChunkFind2(getData()->getProgram())
                         .findFunctionInModule(symbol->getName(), module);
                 }
