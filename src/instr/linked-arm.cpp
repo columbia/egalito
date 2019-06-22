@@ -7,7 +7,7 @@
 #include "analysis/slicingmatch.h"
 #include "chunk/link.h"
 #include "disasm/disassemble.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "util/streamasstring.h"
 #include "log/log.h"
 

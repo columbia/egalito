@@ -4,11 +4,12 @@
 #include <fstream>
 #include "data.h"
 #include "chunk/tls.h"
+#include "chunk/dataregion.h"
 #ifdef USE_LOADER
     #include "../dep/rtld/pthread.h"
     #include "../dep/rtld/tcbhead.h"
 #endif
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "log/log.h"
 #include "log/temp.h"
 

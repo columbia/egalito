@@ -5,7 +5,7 @@
 #include <string>
 #include "config.h"
 #include "filetype.h"
-#include "elf/elfmap.h"
+#include "chunk/library.h"
 #include "exefile/exefile.h"
 #include "transform/sandbox.h"
 
@@ -61,11 +61,8 @@ public:
     void copyCodeToNewAddresses(Sandbox *sandbox, bool useDisps);
     void moveCodeMakeExecutable(Sandbox *sandbox);
 public:
-    ElfMap *getElfMap() const { return nullptr; }  // DEPRECATED function
-    ElfMap *getEgalitoElfMap() const { return nullptr; }  // DEPRECATED function
     Conductor *getConductor() const { return conductor; }
 public:
-    void dumpElfSpace(ElfSpace *space) {}  // DEPRECATED function.
     void dumpModule(Module *module);
     void dumpFunction(const char *function, Module *module = nullptr);
     address_t getEntryPoint();

@@ -1,7 +1,8 @@
 #ifndef EGALITO_CONDUCTOR_PASSES_H
 #define EGALITO_CONDUCTOR_PASSES_H
 
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
+#include "chunk/program.h"
 
 class Conductor;
 class Module;

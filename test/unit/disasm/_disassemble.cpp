@@ -7,7 +7,6 @@
 #include "chunk/module.h"
 #include "chunk/dump.h"
 #include "elf/symbol.h"
-#include "elf/elfspace.h"
 #include "elf/elfmap.h"
 #include "instr/isolated.h"
 

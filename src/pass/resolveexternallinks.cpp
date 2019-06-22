@@ -1,7 +1,7 @@
 #include "resolveexternallinks.h"
 #include "chunk/resolver.h"
 #include "conductor/conductor.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "log/log.h"
 
 template <typename SymbolType>

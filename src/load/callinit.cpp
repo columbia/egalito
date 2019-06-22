@@ -2,7 +2,7 @@
 #include <cstring>
 #include "callinit.h"
 #include "conductor/conductor.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "chunk/concrete.h"
 #include "chunk/gstable.h"
 #include "operation/find2.h"

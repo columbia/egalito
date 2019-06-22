@@ -1,8 +1,8 @@
 #include "framework/include.h"
 #include "elf/elfmap.h"
-#include "elf/elfspace.h"
 #include "analysis/walker.h"
 #include "analysis/controlflow.h"
+#include "chunk/concrete.h"
 #include "conductor/conductor.h"
 #include "log/registry.h"
 
@@ -18,7 +18,7 @@ TEST_CASE("CFG walker", "[analysis][fast][.]") {
     Conductor conductor;
     conductor.parseExecutable(&elf);
 
-    auto module = conductor.getMainSpace()->getModule();
+    auto module = conductor.getProgram()->getFirst();
     auto f = CIter::named(module->getFunctionList())->find("main");
 
     REQUIRE(f != nullptr);

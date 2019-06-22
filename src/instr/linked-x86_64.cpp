@@ -2,7 +2,7 @@
 #include <cstring>
 #include "linked-x86_64.h"
 #include "chunk/resolver.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/reloc.h"
 #include "disasm/disassemble.h"
 #include "disasm/makesemantic.h"  // for determineDisplacementSize

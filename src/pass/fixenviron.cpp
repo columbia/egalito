@@ -1,5 +1,5 @@
 #include "fixenviron.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/symbol.h"
 #include "chunk/link.h"
 #include "chunk/dataregion.h"

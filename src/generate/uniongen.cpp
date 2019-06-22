@@ -2,6 +2,7 @@
 #include "modulegen.h"
 #include "data.h"
 #include "concrete.h"
+#include "chunk/concrete.h"
 
 UnionGen::UnionGen(Program *program, SandboxBacking *backing)
     : ElfGeneratorImpl(program, backing) {

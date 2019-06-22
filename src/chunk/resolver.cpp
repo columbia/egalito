@@ -6,7 +6,7 @@
 #include "conductor/bridge.h"
 #include "disasm/disassemble.h"
 #include "elf/reloc.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "load/emulator.h"
 #include "operation/find.h"
 #include "operation/mutator.h"

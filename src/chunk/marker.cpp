@@ -5,7 +5,7 @@
 #include "chunk/dataregion.h"
 #include "chunk/module.h"
 #include "chunk/visitor.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/reloc.h"
 #include "instr/concrete.h"
 #include "operation/find.h"

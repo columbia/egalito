@@ -8,7 +8,7 @@
 #include "instr/serializer.h"
 #include "visitor.h"
 #include "chunk/aliasmap.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "operation/find.h"
 #include "operation/mutator.h"
 #include "util/streamasstring.h"

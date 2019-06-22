@@ -6,7 +6,7 @@
 #include <string>
 #include "slot.h"
 #include "types.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 
 #define MAX_SANDBOX_SIZE (16 * 0x1000 * 0x1000)
 

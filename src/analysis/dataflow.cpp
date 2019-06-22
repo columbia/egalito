@@ -2,7 +2,7 @@
 #include "analysis/walker.h"
 #include "analysis/usedef.h"
 #include "analysis/usedefutil.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "chunk/concrete.h"
 #include "instr/semantic.h"
 #include "instr/linked-aarch64.h"
