@@ -1,5 +1,5 @@
 #include "resolvetls.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 
 #include "log/log.h"
 
@@ -39,7 +39,7 @@ void ResolveTLSPass::resolveTLSLink(TLSDataOffsetLink *link) {
     for(auto m : CIter::children(program)) {
         if(m == module) continue;
 
-        if(auto list = m->getElfSpace()->getSymbolList()) {
+        if(auto list = m->getExeFile()->getSymbolList()) {
             if(auto targetSym = list->find(sym->getName())) {
 
                 if(targetSym->getSectionIndex() == SHN_UNDEF) continue;

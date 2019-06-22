@@ -43,6 +43,13 @@ Module *EgalitoInterface::parse(const std::string &filename, Library::Role role,
     return setup.injectElfFiles(filename.c_str(), role, recursiveDependencies, false);
 }
 
+Module *EgalitoInterface::parse(const std::string &filename,
+    const std::string &symbolFile, Library::Role role, bool recursiveDependencies) {
+
+    return setup.injectFiles(filename.c_str(), symbolFile.c_str(),
+        ExeFile::EXE_UNKNOWN, role, recursiveDependencies, false);
+}
+
 void EgalitoInterface::parseRecursiveDependencies() {
     setup.getConductor()->parseLibraries();
     setup.addExtraLibraries(std::vector<std::string>{});  // force resolve* functions

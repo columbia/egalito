@@ -174,8 +174,8 @@ LinkedInstructionBase *LinkedInstruction::makeLinked(Module *module,
             dispIndex = i;
         }
         else if(op->type == X86_OP_IMM) {
-            auto elfMap = module->getElfSpace()->getElfMap();
-            if(elfMap->isExecutable() && !elfMap->hasRelocations()) {
+            auto elfMap = ExeAccessor::map<ElfMap>(module);
+            if(elfMap && elfMap->isExecutable() && !elfMap->hasRelocations()) {
                 address_t target = op->imm;
                 auto found = CIter::spatial(module->getFunctionList())
                     ->find(target);

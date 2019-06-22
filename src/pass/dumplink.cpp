@@ -3,7 +3,7 @@
 #include "analysis/jumptable.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "instr/concrete.h"
 #include "operation/find.h"
 #include "pass/clearspatial.h"
@@ -25,7 +25,7 @@ void DumpLinkPass::visit(Module *module) {
     }
 
     LOG(11, "    from relocation");
-    if(auto relocList = module->getElfSpace()->getRelocList()) {
+    if(auto relocList = module->getExeFile()->getRelocList()) {
         for(auto r : *relocList) {
             dump(r, module);
         }

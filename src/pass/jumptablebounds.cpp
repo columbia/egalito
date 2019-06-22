@@ -1,5 +1,5 @@
 #include "jumptablebounds.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "analysis/jumptable.h"
 
 #undef DEBUG_GROUP
@@ -9,16 +9,17 @@
 void JumpTableBounds::visit(Module *module) {
     //LOG(1, "BEGIN jump table bounds pass");
     this->module = module;
-    if(!module->getElfSpace()->getElfMap()->hasRelocations()) return;
-
-    visit(module->getJumpTableList());
+    ElfMap *elfMap = ExeAccessor::map<ElfMap>(module);
+    if(elfMap && elfMap->hasRelocations()) {
+        visit(module->getJumpTableList());
+    }
 }
 
 void JumpTableBounds::visit(JumpTableList *jumpTableList) {
     recurse(jumpTableList);
 
     // Note: we assume here that relocList is sorted by increasing address.
-    auto relocList = module->getElfSpace()->getRelocList();
+    auto relocList = module->getExeFile()->getRelocList();
     JumpTable *currentTable = nullptr;
     int count = 0;
     for(auto reloc : *relocList) {

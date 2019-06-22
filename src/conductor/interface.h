@@ -44,6 +44,12 @@ public:
     Module *parse(const std::string &filename, Library::Role role,
         bool recursiveDependencies = false);
 
+    /** Parse the ELF or Windows PE executable in filename for a specific role,
+        using the symbol table given in symbolFile (in ELF or .csv form).
+    */
+    Module *parse(const std::string &filename, const std::string &symbolFile,
+        Library::Role role, bool recursiveDependencies = false);
+
     /** Recursively process all shared library dependencies. Can be called
         repeatedly with no issues. Normally called after all parse() calls if
         doing uniongen or recursive analyses.

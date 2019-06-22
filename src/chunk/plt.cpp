@@ -289,7 +289,7 @@ PLTList *PLTList::parse(RelocList *relocList, ElfMap *elf, Module *module) {
             if(r) {
                 auto symbol = r->getSymbol();
                 if(!symbol) {
-                    symbol = module->getElfSpace()->getSymbolList()
+                    symbol = module->getExeFile()->getSymbolList()
                         ->find(r->getAddend());
                 }
                 auto externalSymbol = ExternalSymbolFactory(module)

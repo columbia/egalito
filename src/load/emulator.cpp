@@ -5,7 +5,7 @@
 #include "chunk/link.h"
 #include "chunk/concrete.h"
 #include "chunk/tls.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
 #include "operation/mutator.h"
@@ -104,7 +104,7 @@ static void createDataVariable2(Symbol *source, void *target,
     Module *egalito) {
 
     address_t address = source->getAddress();
-    address += egalito->getElfSpace()->getElfMap()->getBaseAddress();
+    address += egalito->getExeFile()->getMap()->getBaseAddress();
 
     address_t targetAddress = reinterpret_cast<address_t>(target);
     auto link = new StackLink(targetAddress);
@@ -113,8 +113,9 @@ static void createDataVariable2(Symbol *source, void *target,
 }
 
 void LoaderEmulator::setStackLinks(char **argv, char **envp) {
-    if(!egalito || !egalito->getElfSpace()) return;
-    auto symbolList = egalito->getElfSpace()->getSymbolList();
+    auto elfFile = ExeAccessor::file<ElfExeFile>(egalito);
+    if(!egalito || !elfFile) return;
+    auto symbolList = elfFile->getSymbolList();
 
     auto dl_argv = symbolList->find("_ZN9Emulation8_dl_argvE");
     createDataVariable2(dl_argv, argv, egalito);
@@ -177,7 +178,7 @@ void LoaderEmulator::setup(Conductor *conductor) {
         "__pointer_chk_guard", "_ZN9Emulation19__pointer_chk_guardE",
 #endif
     };
-    auto symbolList = egalito->getElfSpace()->getSymbolList();
+    auto symbolList = egalito->getExeFile()->getSymbolList();
     for(auto& d : data) {
         auto sym = symbolList->find(d.emulationName);
         auto addr = sym->getAddress();
@@ -228,7 +229,7 @@ Link *LoaderEmulator::makeDataLink(const std::string &symbol,
         return new LDSOLoaderLink(symbol);
     }
     if(afterMapping) {
-        addr += egalito->getElfSpace()->getElfMap()->getBaseAddress();
+        addr += egalito->getExeFile()->getMap()->getBaseAddress();
     }
 
     return LinkFactory::makeDataLink(egalito, addr, true);

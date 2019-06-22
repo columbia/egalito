@@ -4,7 +4,7 @@
 #include "analysis/usedef.h"
 #include "analysis/usedefutil.h"
 #include "chunk/concrete.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "instr/concrete.h"
 #include "operation/find.h"
 
@@ -1918,7 +1918,8 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 }
             }
             if(indexTableEntries > 0) {
-                auto elfMap = module->getElfSpace()->getElfMap();
+                auto elfMap = ExeAccessor::map<ElfMap>(module);
+                if(!elfMap) return false;
                 auto copyBase = elfMap->getCopyBaseAddress();
                 address_t mapEnd = reinterpret_cast<address_t>(
                     elfMap->getCharmap() + elfMap->getLength());

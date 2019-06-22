@@ -6,7 +6,7 @@
 #include "chunk/concrete.h"
 #include "conductor/conductor.h"
 #include "conductor/setup.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "instr/semantic.h"
 #include "instr/writer.h"
 #include "load/segmap.h"
@@ -273,9 +273,8 @@ void BinGen::dePLT(void) {
 
 
 void BinGen::changeMapAddress(Module *module, address_t address) {
-    auto bias = mainModule->getElfSpace()->getElfMap()->findSection(".text")
-        ->getVirtualAddress();
-    auto map = module->getElfSpace()->getElfMap();
+    auto map = ExeAccessor::map<ElfMap>(module);
+    auto bias = map->findSection(".text")->getVirtualAddress();
     map->setBaseAddress(address - bias);
     LOG(1, "base address of " << module->getName() << " set to " << std::hex
         << map->getBaseAddress());
@@ -287,7 +286,8 @@ void BinGen::changeMapAddress(Module *module, address_t address) {
 }
 
 address_t BinGen::makeImageBox() {
-    auto mainMap = setup->getConductor()->getMainSpace()->getElfMap();
+    auto mainMap = ExeAccessor::map<ElfMap>(
+        setup->getConductor()->getProgram()->getFirst());
 
     address_t startAddr = 0;
     for(void *s : mainMap->getSegmentList()) {
@@ -300,7 +300,7 @@ address_t BinGen::makeImageBox() {
 
     size_t length = mainMap->getLength();
     if(addon) {
-        length += addon->getElfSpace()->getElfMap()->getLength();
+        length += ExeAccessor::map<ElfMap>(addon)->getLength();
     }
 
     return startAddr;
@@ -339,7 +339,7 @@ void BinGen::interleaveData() {
 
 address_t BinGen::alignUp(address_t pos, const char *name) {
     size_t align = 0x1000;
-    if(auto sec = mainModule->getElfSpace()->getElfMap()->findSection(name)) {
+    if(auto sec = ExeAccessor::map<ElfMap>(mainModule)->findSection(name)) {
         // must be at least PAGE_SIZE for MMU
         align = std::max(align, sec->getAlignment());
     }
@@ -502,7 +502,7 @@ void BinGen::fixMarkers() {
 }
 
 address_t BinGen::getSectionEndAddress(const char *sectionName) const {
-    auto sec = mainModule->getElfSpace()->getElfMap()->findSection(sectionName);
+    auto sec = ExeAccessor::map<ElfMap>(mainModule)->findSection(sectionName);
     for(auto region : CIter::regions(mainModule)) {
         for(auto ds : CIter::children(region)) {
             auto original

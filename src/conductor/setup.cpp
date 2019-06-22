@@ -21,8 +21,6 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-address_t runEgalito(ElfMap *elf, ElfMap *egalito);
-
 ConductorSetup *egalito_conductor_setup __attribute__((weak));
 Conductor *egalito_conductor __attribute__((weak));
 
@@ -38,13 +36,13 @@ void ConductorSetup::parseEgalito(bool fromArchive) {
 #endif
     LOG(1, "egalito is at " << path);
 
-    this->egalito = new ElfMap(path);
+    auto egalito = new ElfMap(path);
     Module *egalitoModule = nullptr;
     if(fromArchive) {
         auto library = conductor->getProgram()->getLibraryList()
             ->byRole(Library::ROLE_EGALITO);
         egalitoModule = library->getModule();
-        conductor->parseEgalitoElfSpaceOnly(egalito, egalitoModule, path);
+        conductor->parseEgalitoExeFileOnly(egalito, egalitoModule, path);
     }
     else {
         egalitoModule = conductor->parseEgalito(egalito, path);
@@ -56,8 +54,6 @@ void ConductorSetup::parseEgalito(bool fromArchive) {
 void ConductorSetup::createNewProgram() {
     this->conductor = new Conductor();
     ::egalito_conductor = conductor;
-    this->elf = nullptr;
-    this->egalito = nullptr;
 }
 
 Module *ConductorSetup::parseElfFiles(const char *executable,
@@ -78,10 +74,9 @@ Module *ConductorSetup::injectElfFiles(const char *executable, Library::Role rol
 
     if(!conductor) createNewProgram();
 
-    // executable can be a shared library. this->elf stores main module
+    // executable can be a shared library
     auto firstModule = conductor->parseAnything(executable, role);
     if(firstModule->getLibrary()->getRole() == Library::ROLE_MAIN) {
-        this->elf = firstModule->getElfSpace()->getElfMap();
         findEntryPointFunction();
     }
 
@@ -116,16 +111,15 @@ Module *ConductorSetup::injectElfFiles(const char *executable, Library::Role rol
 }
 
 Module *ConductorSetup::injectFiles(const char *executable, const char *symbolFile,
-    ExeFileType fileType, Library::Role role,
+    ExeFile::ExeFileType fileType, Library::Role role,
     bool withSharedLibs, bool injectEgalito) {
 
     if(!conductor) createNewProgram();
 
-    // executable can be a shared library. this->elf stores main module
+    // executable can be a shared library
     auto firstModule = conductor->parseAnythingWithSymbols(executable,
         symbolFile, fileType, role);
     if(firstModule->getLibrary()->getRole() == Library::ROLE_MAIN) {
-        this->elf = firstModule->getElfSpace()->getElfMap();
         findEntryPointFunction();
     }
 
@@ -160,13 +154,10 @@ Module *ConductorSetup::injectFiles(const char *executable, const char *symbolFi
 }
 
 void ConductorSetup::parseEgalitoArchive(const char *archive) {
-    this->conductor = new Conductor();
-
-    this->elf = nullptr;
-    this->egalito = nullptr;
+    createNewProgram();
 
     conductor->parseEgalitoArchive(archive);
-    //this->parseEgalito(true);  // add ElfSpace to libegalito.so module
+    //this->parseEgalito(true);  // add ExeFile to libegalito.so module
 
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto library = module->getLibrary();
@@ -174,7 +165,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
             || library->getRole() == Library::ROLE_LIBCPP) {
 
             auto elfMap = new ElfMap(library->getResolvedPathCStr());
-            conductor->parseEgalitoElfSpaceOnly(elfMap, module,
+            conductor->parseEgalitoExeFileOnly(elfMap, module,
                 library->getResolvedPathCStr());
         }
     }
@@ -193,14 +184,14 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 void ConductorSetup::setBaseAddresses() {
     int i = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
-        auto elfMap = module->getElfSpace()
-            ? module->getElfSpace()->getElfMap() : nullptr;
+        auto exeMap = module->getExeFile()
+            ? module->getExeFile()->getMap() : nullptr;
         // this address has to be low enough to express negative offset in
         // jump table slots (to represent an index)
 #if 0 // use 0x1X000000 for module addrs (X starts at 0)
-        if(setBaseAddress(module, elfMap, 0x10000000 + i*0x1000000)) {
+        if(setBaseAddress(module, exeMap, 0x10000000 + i*0x1000000)) {
 #else // use 0x0X000000 for module addrs (X starts at 1)
-        if(setBaseAddress(module, elfMap, (i+1)*0x1000000)) {
+        if(setBaseAddress(module, exeMap, (i+1)*0x1000000)) {
 #endif
             i ++;
         }
@@ -279,9 +270,7 @@ void ConductorSetup::ensureBaseAddresses() {
         if(module->getBaseAddress() != 0) continue;
         maxAddress += 0x100000000;
 
-        auto elfMap = module->getElfSpace()
-            ? module->getElfSpace()->getElfMap() : nullptr;
-
+        auto elfMap = ExeAccessor::map<ElfMap>(module);
         setBaseAddress(module, elfMap, maxAddress);
     }
 }
@@ -468,11 +457,10 @@ void ConductorSetup::dumpModule(Module *module) {
     module->accept(&dumper);
 }
 
-void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
+void ConductorSetup::dumpFunction(const char *function, Module *module) {
     Function *f = nullptr;
-    if(space) {
-        f = ChunkFind2(conductor)
-            .findFunctionInModule(function, space->getModule());
+    if(module) {
+        f = ChunkFind2(conductor).findFunctionInModule(function, module); 
     }
     else {
         f = ChunkFind2(conductor).findFunction(function);
@@ -489,8 +477,8 @@ void ConductorSetup::dumpFunction(const char *function, ElfSpace *space) {
 
 void ConductorSetup::findEntryPointFunction() {
     auto module = conductor->getProgram()->getMain();
-    if(!module || !elf) return;
-    address_t elfEntry = elf->getEntryPoint();
+    if(!module) return;
+    address_t elfEntry = module->getExeFile()->getMap()->getEntryPoint();
 
     if(auto f = CIter::spatial(module->getFunctionList())->find(elfEntry)) {
         LOG(0, "found entry function [" << f->getName() << "]");
@@ -505,7 +493,7 @@ address_t ConductorSetup::getEntryPoint() {
     return getConductor()->getProgram()->getEntryPointAddress();
 }
 
-bool ConductorSetup::setBaseAddress(Module *module, ElfMap *map, address_t base) {
+bool ConductorSetup::setBaseAddress(Module *module, ExeMap *map, address_t base) {
     module->setBaseAddress(base);
     if(!map) {
         // If the map is not present, we loaded from an archive and should
@@ -515,7 +503,8 @@ bool ConductorSetup::setBaseAddress(Module *module, ElfMap *map, address_t base)
         return /*false*/ true;
     }
 
-    if(map->isSharedLibrary()) {
+    auto elfMap = ExeAccessor::map<ElfMap>(map);
+    if(elfMap && elfMap->isSharedLibrary()) {
         LOG(1, "set base address to " << std::hex << base);
         map->setBaseAddress(base);
         return true;

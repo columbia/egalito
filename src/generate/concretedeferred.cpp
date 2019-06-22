@@ -2,10 +2,9 @@
 #include "concretedeferred.h"
 #include "section.h"
 #include "sectionlist.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/symbol.h"
-#include "chunk/function.h"
-#include "chunk/dataregion.h"
+#include "chunk/concrete.h"
 #include "chunk/link.h"
 #include "instr/instr.h"
 #include "instr/concrete.h"
@@ -511,7 +510,7 @@ RelocSectionContent::DeferredType *RelocSectionContent
     auto destAddress = link->getTargetAddress();
 
     rela->r_addend += destAddress - dest->getAddress();
-    auto rodata = elfSpace->getElfMap()->findSection(".rodata")->getHeader();
+    auto rodata = elfFile->getMap()->findSection(".rodata")->getHeader();
     rela->r_addend -= rodata->sh_offset;  // offset of original .rodata
 
     auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
@@ -772,7 +771,7 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
         address_t symbolAddress = 0;
         {
             auto sym = var->getTargetSymbol();
-            auto section = module->getElfSpace()->getElfMap()->findSection(
+            auto section = ExeAccessor::map<ElfMap>(module)->findSection(
                 sym->getSectionIndex());
             auto dataSection = module->getDataRegionList()->findDataSection(
                 section->getName());

@@ -1,7 +1,7 @@
 #include "passes.h"
 #include "conductor.h"
 
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/symbol.h"
 #include "elf/elfdynamic.h"
 #include "dwarf/parser.h"
@@ -31,33 +31,39 @@
 #include "log/log.h"
 #include "log/temp.h"
 
-Module *ConductorPasses::newElfPasses(ElfSpace *space) {
-    ElfMap *elf = space->getElfMap();
-    RelocList *relocList = space->getRelocList();
+Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
+    ExeMap *exeMap = exeFile->getMap();
 
-    Module *module = Disassemble::module(elf,
-        space->getSymbolList(), space->getDwarfInfo(),
-        space->getDynamicSymbolList(), relocList);
-    space->setModule(module);
-    module->setElfSpace(space);
+    Module *module = nullptr;
+    if(auto elfFile = exeFile->asElf()) {
+        module = Disassemble::module(elfFile);
+        module->setExeFile(elfFile);
 
 #ifdef ARCH_AARCH64
-    // this needs to run even for binaries with symbols
-    RUN_PASS(RemovePadding(), module);
+        // this needs to run even for binaries with symbols
+        RUN_PASS(RemovePadding(), module);
 #endif
+    }
 
-    space->setAliasMap(new FunctionAliasMap(module));
+    if(auto elfFile = exeFile->asElf()) {
+        elfFile->setAliasMap(new FunctionAliasMap(module));
 
-    //RUN_PASS(ChunkDumper(), module);
+        RUN_PASS(FallThroughFunctionPass(), module);
 
-    RUN_PASS(FallThroughFunctionPass(), module);
+        DataRegionList::buildDataRegionList(elfFile->getMap(), module);
+        module->getChildren()->add(module->getDataRegionList());
 
-    DataRegionList::buildDataRegionList(elf, module);
-    module->getChildren()->add(module->getDataRegionList());
+        auto relocList = elfFile->getRelocList();
+        PLTList::parsePLTList(elfFile->getMap(), relocList, module);
 
-    PLTList::parsePLTList(elf, relocList, module);
+        RUN_PASS(HandleRelocsStrong(elfFile->getMap(), relocList), module);
+    }
+    else {  // PE
+        RUN_PASS(FallThroughFunctionPass(), module);
 
-    RUN_PASS(HandleRelocsStrong(elf, relocList), module);
+        //DataRegionList::buildDataRegionList(exeMap, module);
+        //module->getChildren()->add(module->getDataRegionList());
+    }
     RUN_PASS(InternalCalls(), module);
 
     if(module->getPLTList()) {
@@ -86,13 +92,13 @@ Module *ConductorPasses::newElfPasses(ElfSpace *space) {
     // need SplitBasicBlock()
     RUN_PASS(NonReturnFunction(), module);
 #ifdef ARCH_AARCH64
-    if(!space->getSymbolList()) {
+    if(!exeFile->getSymbolList()) {
         RUN_PASS(SplitFunction(), module);
         RUN_PASS(RemovePadding(), module);
         RUN_PASS(UpdateLink(), module);
     }
 #endif
-    RUN_PASS(InferLinksPass(elf), module);
+    RUN_PASS(InferLinksPass(), module);
 
     // this can run pretty much whenever, but let's put it here for now.
     RUN_PASS(CollectGlobalsPass(), module);
@@ -134,5 +140,8 @@ void ConductorPasses::newMirrorPasses(Program *program) {
 }
 
 void ConductorPasses::reloadedArchivePasses(Module *module) {
-    module->getElfSpace()->setAliasMap(new FunctionAliasMap(module));
+    auto elfFile = ExeAccessor::file<ElfExeFile>(module);
+    if(elfFile) {
+        elfFile->setAliasMap(new FunctionAliasMap(module));
+    }
 }

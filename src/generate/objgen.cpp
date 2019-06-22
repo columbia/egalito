@@ -10,8 +10,9 @@
 #include "log/log.h"
 #include "util/streamasstring.h"
 
-ObjGen::ObjGen(ElfSpace *elfSpace, MemoryBacking *backing, std::string filename) :
-    elfSpace(elfSpace), backing(backing), filename(filename) {
+ObjGen::ObjGen(Module *module, MemoryBacking *backing, std::string filename)
+    : module(module), elfFile(module->getExeFile()->asElf()), backing(backing),
+    filename(filename) {
 
     auto header = new Section(".elfheader");
     sectionList.addSection(header);
@@ -38,7 +39,7 @@ void ObjGen::generate() {
 }
 
 void ObjGen::makeHeader() {
-    auto elfMap = elfSpace->getElfMap();
+    auto elfMap = elfFile->getMap();
 
     // The first data in the elfMap contains the elf header.
     // Make a mutable copy for our own use.
@@ -69,7 +70,7 @@ void ObjGen::makeText() {
     // Split separate pages into their own LOAD sections.
     // First, find the set of all pages that are used.
     std::set<address_t> pagesUsed;
-    for(auto func : CIter::functions(elfSpace->getModule())) {
+    for(auto func : CIter::functions(module)) {
         address_t start = func->getAddress() & ~0xfff;
         address_t end = ((func->getAddress() + func->getSize()) + 0xfff) & ~0xfff;
         for(address_t page = start; page < end; page += 0x1000) {
@@ -126,7 +127,7 @@ void ObjGen::makeSymbolInfo() {
 
 void ObjGen::makeRelocInfo(const std::string &textSection) {
     auto reloc = new RelocSectionContent(
-        new SectionRef(&sectionList, textSection), &sectionList, elfSpace);
+        new SectionRef(&sectionList, textSection), &sectionList, elfFile);
     auto relocSection = new Section(".rela" + textSection, SHT_RELA, SHF_INFO_LINK);
     relocSection->setContent(reloc);
 
@@ -138,7 +139,7 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 
     // Add symbols to the symbol list, but only for those functions
     // which fall into the given range [begin, begin+size).
-    for(auto func : CIter::functions(elfSpace->getModule())) {
+    for(auto func : CIter::functions(module)) {
         if(blacklistedSymbol(func->getName())) {
             continue;  // skip making a symbol for this function
         }
@@ -160,7 +161,7 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
     }
 
     // Handle any other types of symbols that need generating.
-    for(auto sym : *elfSpace->getSymbolList()) {
+    for(auto sym : *elfFile->getSymbolList()) {
         if(sym->isFunction()) continue;  // already handled
         if(blacklistedSymbol(sym->getName())) continue;  // blacklisted
 
@@ -221,7 +222,7 @@ void ObjGen::makeRelocInText(Function *func, const std::string &textSection) {
 }
 
 void ObjGen::makeRoData() {
-    auto elfMap = elfSpace->getElfMap();
+    auto elfMap = elfFile->getMap();
     auto oldRoData = elfMap->findSection(".rodata");
     if(!oldRoData) return;
     auto oldRoDataShdr = oldRoData->getHeader();

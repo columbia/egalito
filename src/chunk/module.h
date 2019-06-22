@@ -6,7 +6,7 @@
 #include "archive/chunktypes.h"
 
 class Library;
-class ElfSpace;
+class ExeFile;
 class FunctionList;
 class PLTList;
 class JumpTableList;
@@ -22,7 +22,7 @@ private:
     std::string name;
     address_t baseAddress;
     Library *library;
-    ElfSpace *elfSpace;
+    ExeFile *exeFile;
 private:
     FunctionList *functionList;
     PLTList *pltList;
@@ -34,7 +34,7 @@ private:
     InitFunctionList *finiFunctionList;
     ExternalSymbolList *externalSymbolList;
 public:
-    Module() : baseAddress(0), library(nullptr), elfSpace(nullptr),
+    Module() : baseAddress(0), library(nullptr), exeFile(nullptr),
         functionList(nullptr), pltList(nullptr), jumpTableList(nullptr),
         dataRegionList(nullptr), markerList(nullptr), vtableList(nullptr),
         initFunctionList(nullptr), finiFunctionList(nullptr),
@@ -45,8 +45,8 @@ public:
     address_t getBaseAddress() const { return baseAddress; }
     void setBaseAddress(address_t address) { baseAddress = address; }
 
-    void setElfSpace(ElfSpace *elfSpace);
-    ElfSpace *getElfSpace() const { return elfSpace; }
+    void setExeFile(ExeFile *exeFile);
+    ExeFile *getExeFile() const { return exeFile; }
     void setLibrary(Library *library);
     Library *getLibrary() const { return library; }
 

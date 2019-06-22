@@ -117,16 +117,16 @@ Link *PerfectLinkResolver::redirectCopyRelocs(Conductor *conductor, Symbol *symb
 
     auto program = conductor->getProgram();
     auto main = program->getMain();
-    if(main && main->getElfSpace()) {
+    if(main && main->getExeFile()) {
         /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
          * should point at the executable's copy of the global if COPY reloc is present
          */
-        if(auto symList = main->getElfSpace()->getSymbolList()) {
+        if(auto symList = main->getExeFile()->getSymbolList()) {
             if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
                 return ret;
             }
         }
-        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+        if(auto dynList = main->getExeFile()->getDynamicSymbolList()) {
             if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
                 return ret;
             }
@@ -140,16 +140,16 @@ Link *PerfectLinkResolver::redirectCopyRelocs(Conductor *conductor, ExternalSymb
 
     auto program = conductor->getProgram();
     auto main = program->getMain();
-    if(main && main->getElfSpace()) {
+    if(main && main->getExeFile()) {
         /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
          * should point at the executable's copy of the global if COPY reloc is present
          */
-        if(auto symList = main->getElfSpace()->getSymbolList()) {
+        if(auto symList = main->getExeFile()->getSymbolList()) {
             if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
                 return ret;
             }
         }
-        if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+        if(auto dynList = main->getExeFile()->getDynamicSymbolList()) {
             if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
                 return ret;
             }
@@ -286,12 +286,12 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
                 /* relocations in every library, e.g. a PLT reloc for cerr in libstdc++,
                  * should point at the executable's copy of the global if COPY reloc is present
                  */
-                if(auto symList = main->getElfSpace()->getSymbolList()) {
+                if(auto symList = main->getExeFile()->getSymbolList()) {
                     if(auto ret = redirectCopyRelocs(main, symbol, symList, relative)) {
                         return ret;
                     }
                 }
-                if(auto dynList = main->getElfSpace()->getDynamicSymbolList()) {
+                if(auto dynList = main->getExeFile()->getDynamicSymbolList()) {
                     if(auto ret = redirectCopyRelocs(main, symbol, dynList, relative)) {
                         return ret;
                     }
@@ -489,7 +489,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
     Module *module, bool weak, bool relative, bool afterMapping) {
 
     Symbol *symbol = nullptr;
-    auto list = module->getElfSpace()->getDynamicSymbolList();
+    auto list = module->getExeFile()->getDynamicSymbolList();
     if(!list) {
         LOG(11, "no dynamic symbol list " << module->getName());
         return nullptr;
@@ -510,11 +510,13 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
         return new NormalLink(f, Link::SCOPE_EXTERNAL_CODE);
     }
 
-    auto alias = module->getElfSpace()->getAliasMap()->find(name);
-    if(alias) {
-        LOG(10, "    ...found as alias! " << alias->getName()
-            << " at " << std::hex << alias->getAddress());
-        return new NormalLink(alias, Link::SCOPE_EXTERNAL_CODE);
+    if(auto elfFile = module->getExeFile()->asElf()) {
+        auto alias = elfFile->getAliasMap()->find(name);
+        if(alias) {
+            LOG(10, "    ...found as alias! " << alias->getName()
+                << " at " << std::hex << alias->getAddress());
+            return new NormalLink(alias, Link::SCOPE_EXTERNAL_CODE);
+        }
     }
 
     // resolving by name means that we are resolving to outside the module
@@ -523,7 +525,7 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
 #if 0
     if(symbol->isMarker()) {
         return LinkFactory::makeMarkerLink(module,
-            module->getElfSpace()->getElfMap()->getBaseAddress() + symbol->getAddress(),
+            module->getExeFile()->getMap()->getBaseAddress() + symbol->getAddress(),
             symbol, relative);
     }
 #endif
