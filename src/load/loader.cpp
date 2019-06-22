@@ -82,7 +82,9 @@ bool EgalitoLoader::parse(const char *filename) {
 }
 
 void EgalitoLoader::setupEnvironment(int argc, char *argv[]) {
-    adjustAuxiliaryVector(argv, setup->getElfMap(), nullptr);
+    auto elfMap = ExeAccessor::map<ElfMap>(
+        setup->getConductor()->getProgram()->getFirst());
+    adjustAuxiliaryVector(argv, elfMap, nullptr);
     auto adjust = removeLoaderFromArgv(argv);
     egalito_initial_stack += adjust;
     argv = (char **)((char *)argv + adjust);

@@ -1,6 +1,6 @@
 #include <cassert>
 #include "handlerelocs.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "chunk/chunk.h"
 #include "chunk/concrete.h"
 #include "chunk/dump.h"

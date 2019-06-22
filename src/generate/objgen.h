@@ -3,6 +3,8 @@
 
 #include "transform/sandbox.h"
 #include "exefile/exefile.h"
+#include "chunk/module.h"
+#include "chunk/function.h"
 #include "section.h"
 #include "sectionlist.h"
 

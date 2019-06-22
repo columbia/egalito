@@ -1,11 +1,11 @@
 #include "framework/include.h"
+#include "exefile/exefile.h"
 #include "elf/elfmap.h"
-#include "elf/elfspace.h"
 #include "elf/symbol.h"
 
 TEST_CASE("Build Symbol List", "[elf][symbollist]") {
     ElfMap *elf = new ElfMap(TESTDIR "hello");
-    ElfSpace *elfSpace = new ElfSpace(elf, "", "");
+    ElfExeFile *elfFile = new ElfExeFile(elf, "", "");
 
     SymbolList *symbolList = SymbolList::buildSymbolList(elf);
     CHECK(symbolList->getCount() > 0);

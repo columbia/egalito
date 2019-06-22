@@ -15,7 +15,7 @@
 #include "chunk/link.h"
 #include "chunk/resolver.h"
 #include "disasm/disassemble.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "operation/find.h"
 #include "operation/find2.h"
 #include "util/streamasstring.h"

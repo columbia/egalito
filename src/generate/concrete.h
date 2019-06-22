@@ -5,6 +5,8 @@
 #include <vector>
 #include "data.h"
 
+class Chunk;
+
 class ConcreteElfOperation : public UnnamedElfOperation {
 protected:
     Section *getSection(const std::string &name) const

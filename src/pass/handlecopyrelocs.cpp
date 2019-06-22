@@ -6,7 +6,7 @@
 #include "chunk/link.h"
 #include "chunk/resolver.h"
 #include "elf/elfmap.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 
 #include "log/log.h"
 #include "log/temp.h"

@@ -2,7 +2,7 @@
 #include "instr/instr.h"
 #include "instr/concrete.h"
 #include "elf/symbol.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "operation/mutator.h"
 #include "disasm/disassemble.h"
 #include "log/log.h"

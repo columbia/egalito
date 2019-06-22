@@ -3,6 +3,7 @@
 #include <algorithm>  // for std::max
 #include "position.h"
 #include "chunk.h"
+#include "gstable.h"
 #include "chunklist.h"  // for getChildren()
 #include "log/log.h"
 

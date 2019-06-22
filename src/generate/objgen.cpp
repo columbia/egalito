@@ -4,6 +4,7 @@
 #include <elf.h>
 #include "objgen.h"
 #include "deferred.h"
+#include "chunk/concrete.h"
 #include "concretedeferred.h"
 #include "instr/semantic.h"
 #include "log/registry.h"

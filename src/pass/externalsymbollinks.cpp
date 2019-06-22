@@ -1,7 +1,7 @@
 #include "externalsymbollinks.h"
 #include "chunk/link.h"
 #include "chunk/position.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/elfmap.h"
 #include "log/log.h"
 #include "log/temp.h"

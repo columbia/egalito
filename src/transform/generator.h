@@ -5,6 +5,10 @@
 #include "sandbox.h"
 
 class PLTTrampoline;
+class Program;
+class Module;
+class Function;
+class PLTTrampoline;
 
 class Generator {
 private:

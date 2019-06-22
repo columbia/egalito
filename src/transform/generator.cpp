@@ -4,6 +4,10 @@
 #include <cstring>
 #include "generator.h"
 #include "chunk/cache.h"
+#include "chunk/program.h"
+#include "chunk/module.h"
+#include "chunk/function.h"
+#include "chunk/plt.h"
 #include "operation/mutator.h"
 #include "operation/find2.h"
 #include "pass/clearspatial.h"

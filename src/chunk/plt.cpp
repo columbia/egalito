@@ -10,7 +10,7 @@
 #include "dump.h"
 #include "chunk/cache.h"
 #include "operation/mutator.h"
-#include "elf/elfspace.h"
+#include "exefile/exefile.h"
 #include "elf/symbol.h"
 #include "instr/writer.h"
 #include "disasm/disassemble.h"

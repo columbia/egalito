@@ -1,5 +1,6 @@
 #include <signal.h>
 #include "chunk/tls.h"
+#include "chunk/gstable.h"
 #include "cminus/print.h"
 
 // this is tailored for nginx JIT-shuffling. For other applications, the
