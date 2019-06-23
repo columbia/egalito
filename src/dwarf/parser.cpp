@@ -56,7 +56,7 @@ DwarfParser::DwarfParser(ElfMap *elfMap) : info(nullptr) {
     ElfSection *section = elfMap->findSection(".eh_frame");
 
     if(section) {
-        this->readAddress = section->getReadAddress();
+        this->readAddress = reinterpret_cast<address_t>(section->getReadAddress());
         this->virtualAddress = section->getVirtualAddress();
         parse(section->getSize());
     }

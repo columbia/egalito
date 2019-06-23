@@ -44,6 +44,10 @@ Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
         RUN_PASS(RemovePadding(), module);
 #endif
     }
+    else if(auto peFile = exeFile->asPE()) {  // PE
+        module = Disassemble::module(peFile);
+        module->setExeFile(peFile);
+    }
 
     if(auto elfFile = exeFile->asElf()) {
         elfFile->setAliasMap(new FunctionAliasMap(module));

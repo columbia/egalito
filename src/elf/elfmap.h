@@ -9,7 +9,7 @@
 #include "elfxx.h"
 #include "exefile/exemap.h"
 
-class ElfSection {
+class ElfSection : public ExeSectionImpl {
 private:
     int ndx;
     std::string name;
@@ -17,19 +17,11 @@ private:
     address_t virtualAddress;
     address_t readAddress;
 public:
-    ElfSection(int ndx, std::string name, ElfXX_Shdr *shdr)
-        : ndx(ndx), name(name), shdr(shdr), virtualAddress(0), readAddress(0) {}
+    ElfSection(int index, const std::string &name, ElfXX_Shdr *shdr)
+        : ExeSectionImpl(index, name), shdr(shdr) {}
 
-    int getNdx() { return ndx; }
-    std::string getName() { return name; }
     ElfXX_Shdr *getHeader() { return shdr; }
-    address_t getVirtualAddress() { return virtualAddress; }
-    address_t getReadAddress() { return readAddress; }
-    void setVirtualAddress(address_t address) { virtualAddress = address; }
-    void setReadAddress(address_t address) { readAddress = address; }
-    address_t convertOffsetToVA(size_t offset);
-    address_t convertVAToOffset(address_t va);
-    size_t getSize() const { return shdr->sh_size; }
+    virtual size_t getSize() const { return shdr->sh_size; }
     size_t getAlignment() const { return shdr->sh_addralign; }
 };
 
@@ -112,6 +104,7 @@ public:
         { return segmentList; }
     const std::vector<ElfSection *> &getSectionList() const
         { return sectionList; }
+    virtual size_t getSectionCount() const { return sectionList.size(); }
 };
 
 template <typename T>
