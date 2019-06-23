@@ -31,6 +31,10 @@ Module *Disassemble::module(ElfExeFile *elfFile) {
         elfFile->getRelocList());
 }
 
+Module *Disassemble::module(PEExeFile *peFile) {
+    return nullptr;
+}
+
 // DEPRECATED function
 Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
@@ -463,7 +467,7 @@ Function *DisassembleX86Function::fuzzyFunction(const Range &range,
     ElfSection *section) {
 
     address_t virtualAddress = section->getVirtualAddress();
-    address_t readAddress = section->getReadAddress()
+    auto readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     address_t intervalVirtualAddress = range.getStart();
     address_t intervalOffset = intervalVirtualAddress - virtualAddress;
@@ -490,7 +494,7 @@ void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
 
     // Get address of region to disassemble
     address_t virtualAddress = section->getVirtualAddress();
-    address_t readAddress = section->getReadAddress()
+    auto readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
@@ -937,7 +941,7 @@ void DisassembleAARCH64Function::firstDisassemblyPass(ElfSection *section,
     IntervalTree &splitRanges) {
 
     address_t virtualAddress = section->getVirtualAddress();
-    address_t readAddress = section->getReadAddress()
+    auto readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     size_t readSize = section->getSize();
 
@@ -973,7 +977,7 @@ void DisassembleAARCH64Function::finalDisassemblyPass(ElfSection *section,
 
     for(auto const& range : splitRanges.getAllData()) {
         address_t virtualAddress = range.getStart();
-        address_t readAddress = section->getReadAddress()
+        auto readAddress = section->getReadAddress()
             + section->convertVAToOffset(virtualAddress);
         address_t readSize = range.getSize();
 
@@ -1035,7 +1039,7 @@ Function *DisassembleAARCH64Function::fuzzyFunction(const Range &range,
     ElfSection *section) {
 
     address_t virtualAddress = section->getVirtualAddress();
-    address_t readAddress = section->getReadAddress()
+    auto readAddress = section->getReadAddress()
         + section->convertVAToOffset(virtualAddress);
     address_t intervalVirtualAddress = range.getStart();
     address_t intervalOffset = intervalVirtualAddress - virtualAddress;
@@ -1058,7 +1062,7 @@ Function *DisassembleAARCH64Function::fuzzyFunction(const Range &range,
 }
 
 void DisassembleAARCH64Function::disassembleBlocks(bool literal,
-    Function *function, address_t readAddress, size_t readSize,
+    Function *function, char *readAddress, size_t readSize,
     address_t virtualAddress) {
 
     if(literal) {
@@ -1071,7 +1075,7 @@ void DisassembleAARCH64Function::disassembleBlocks(bool literal,
 }
 
 void DisassembleAARCH64Function::processLiterals(Function *function,
-    address_t readAddress, size_t readSize, address_t virtualAddress) {
+    char *readAddress, size_t readSize, address_t virtualAddress) {
 
     LOG(10, "literals embedded in " << function->getName()
         << " at address 0x" << std::hex << virtualAddress);
@@ -1092,7 +1096,7 @@ void DisassembleAARCH64Function::processLiterals(Function *function,
 
         auto instr = new Instruction();
         std::string raw;
-        raw.assign(reinterpret_cast<char *>(readAddress + sz), literalSize);
+        raw.assign(readAddress + sz, literalSize);
         SemanticImpl *li = nullptr;
         li = new LiteralInstruction();
         li->setData(raw);
@@ -1208,7 +1212,7 @@ FunctionList *DisassembleRISCVFunction::linearDisassembly(
 
 
 void DisassembleFunctionBase::disassembleBlocks(Function *function,
-    address_t readAddress, size_t readSize, address_t virtualAddress) {
+    char *readAddress, size_t readSize, address_t virtualAddress) {
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
 
@@ -1326,7 +1330,7 @@ void DisassembleFunctionBase::disassembleBlocks(Function *function,
 }
 
 void DisassembleFunctionBase::disassembleCustomBlocks(Function *function,
-    address_t readAddress, address_t virtualAddress,
+    char *readAddress, address_t virtualAddress,
     const std::vector<std::pair<address_t, size_t>> &blockBoundaries) {
 
     LOG(1, "disassembling function using custom block layout");

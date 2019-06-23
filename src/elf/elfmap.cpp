@@ -130,7 +130,7 @@ void ElfMap::makeVirtualAddresses() {
     for(std::map<std::string, ElfSection *>::iterator it = sectionMap.begin(); it != sectionMap.end(); ++it) {
         auto section = it->second;
         auto header = section->getHeader();
-        section->setReadAddress((address_t)charmap + header->sh_offset);
+        section->setReadAddress(charmap + header->sh_offset);
         section->setVirtualAddress(header->sh_addr);
     }
 
@@ -214,15 +214,6 @@ std::vector<void *> ElfMap::findSectionsByFlag(long flag) const {
     }
 
     return sections;
-}
-
-
-address_t ElfSection::convertOffsetToVA(size_t offset) {
-    return virtualAddress + offset;
-}
-
-address_t ElfSection::convertVAToOffset(address_t va) {
-    return va - virtualAddress;
 }
 
 size_t ElfMap::getEntryPoint() const {

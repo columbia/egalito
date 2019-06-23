@@ -1,6 +1,14 @@
 #include "pemap.h"
 #include "log/log.h"
 
+PESection::PESection(int index, const std::string &name, address_t baseAddress,
+    peparse::image_section_header header, peparse::bounded_buffer *buffer)
+    : ExeSectionImpl(index, name, baseAddress, reinterpret_cast<char *>(buffer->buf)),
+    buffer(buffer) {
+
+    
+}
+
 PEMap::PEMap(const std::string &filename) : peRef(nullptr) {
     parsePE(filename);
     setup();
@@ -133,31 +141,27 @@ void PEMap::verifyPE() {
     }
 }
 
-#if 0
 void PEMap::makeSectionMap() {
-    char *charmap = static_cast<char *>(map);
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    if(sizeof(ElfXX_Shdr) != header->e_shentsize) {
-        throw "header shentsize mismatch\n";
-    }
+    using namespace peparse;
+    IterSec(peRef, [] (void *data, VA sectionBase, std::string &name,
+        image_section_header header, bounded_buffer *buffer) {
+        auto _this = static_cast<PEMap *>(data);
 
-    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
-    //Elf64_Phdr *pheader = (Elf64_Phdr *)(charmap + header->e_phoff);
-
-    this->shstrtab = charmap + sheader[header->e_shstrndx].sh_offset;
-
-    for(int i = 0; i < header->e_shnum; i ++) {
-        ElfXX_Shdr *s = &sheader[i];
-        const char *name = shstrtab + s->sh_name;
-        ElfSection *section = new ElfSection(i, name, s);
-        //std::cout << "section [" << name << "]\n";
-
-        sectionMap[name] = section;
-        sectionList.push_back(section);
-        LOG(11, "found section [" << name << "] in elf file");
-    }
+        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase);
+        auto section = new PESection(_this->getSectionCount(), name,
+            sectionBase, header, buffer);
+        _this->addSection(section);
+        return 0;
+    }, this);
 }
 
+address_t PEMap::getEntryPoint() const {
+    peparse::VA va;
+    GetEntryPoint(peRef, va);
+    return static_cast<address_t>(va);
+}
+
+#if 0
 void PEMap::makeSegmentList() {
     char *charmap = static_cast<char *>(map);
     ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;

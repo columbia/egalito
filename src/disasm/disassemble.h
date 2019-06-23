@@ -23,6 +23,7 @@ class IntervalTree;
 class Disassemble {
 public:
     static Module *module(ElfExeFile *elfFile);
+    static Module *module(PEExeFile *peFile);
     static Module *module(ElfMap *elfMap, SymbolList *symbolList,
         DwarfUnwindInfo *dwarfInfo = nullptr,
         SymbolList *dynamicSymbolList = nullptr,
@@ -63,9 +64,9 @@ public:
         : handle(handle), elfMap(elfMap) {}
 protected:
     Block *makeBlock(Function *function, Block *prev);
-    void disassembleBlocks(Function *function, address_t readAddress,
+    void disassembleBlocks(Function *function, char *readAddress,
         size_t readSize, address_t virtualAddress);
-    void disassembleCustomBlocks(Function *function, address_t readAddress,
+    void disassembleCustomBlocks(Function *function, char *readAddress,
         address_t virtualAddress,
         const std::vector<std::pair<address_t, size_t>> &blockBoundaries);
 
@@ -111,8 +112,8 @@ private:
     void splitByRelocations(RelocList *relocList, IntervalTree &splitRanges);
     Function *fuzzyFunction(const Range &range, ElfSection *section);
     void disassembleBlocks(bool literal, Function *function,
-        address_t readAddress, size_t readSize, address_t virtualAddress);
-    void processLiterals(Function *function, address_t readAddress,
+        char *readAddress, size_t readSize, address_t virtualAddress);
+    void processLiterals(Function *function, char *readAddress,
         size_t readSize, address_t virtualAddress);
 
     bool processMappingSymbol(Symbol *symbol);
