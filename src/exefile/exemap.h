@@ -110,6 +110,8 @@ public:
         { return sectionList; }
 protected:
     void addSection(SectionType *section);
+    std::map<std::string, SectionType *> &getSectionMap()
+        { return sectionMap; }
 };
 
 template <typename SectionType>

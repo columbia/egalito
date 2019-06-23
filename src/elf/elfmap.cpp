@@ -104,8 +104,7 @@ void ElfMap::makeSectionMap() {
         ElfSection *section = new ElfSection(i, name, s);
         //std::cout << "section [" << name << "]\n";
 
-        sectionMap[name] = section;
-        sectionList.push_back(section);
+        addSection(section);
         LOG(11, "found section [" << name << "] in elf file");
     }
 }
@@ -122,10 +121,13 @@ void ElfMap::makeSegmentList() {
 }
 
 void ElfMap::makeVirtualAddresses() {
-    baseAddress = 0;
+    setBaseAddress(0);
     copyBase = 0;
+    rwCopyBase = 0;
     interpreter = nullptr;
     char *charmap = static_cast<char *>(map);
+
+    auto &sectionMap = getSectionMap();
 
     for(std::map<std::string, ElfSection *>::iterator it = sectionMap.begin(); it != sectionMap.end(); ++it) {
         auto section = it->second;
@@ -163,22 +165,6 @@ void ElfMap::makeVirtualAddresses() {
             interpreter = charmap + phdr->p_offset;
         }
     }
-}
-
-ElfSection *ElfMap::findSection(const char *name) const {
-    auto it = sectionMap.find(name);
-    if(it == sectionMap.end()) return nullptr;
-
-    return it->second;
-}
-
-ElfSection *ElfMap::findSection(int index) const {
-    if(static_cast<std::vector<ElfSection *>::size_type>(index)
-        < sectionList.size()) {
-
-        return sectionList[index];
-    }
-    return nullptr;
 }
 
 std::vector<void *> ElfMap::findSectionsByType(int type) const {
