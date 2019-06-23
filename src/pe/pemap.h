@@ -42,7 +42,7 @@ public:
 
 #else
 
-class PEMap {
+class PEMap : public ExeMap {
 };
 
 #endif  // USE_WIN64_PE
