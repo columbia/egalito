@@ -23,6 +23,9 @@ public:
     ElfXX_Shdr *getHeader() { return shdr; }
     virtual size_t getSize() const { return shdr->sh_size; }
     size_t getAlignment() const { return shdr->sh_addralign; }
+
+    virtual bool isExecutable() const
+        { return (shdr->sh_flags & SHF_EXECINSTR); }
 };
 
 class ElfMap : public ExeMapImpl<ElfSection> {

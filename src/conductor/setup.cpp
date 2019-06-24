@@ -200,6 +200,8 @@ void ConductorSetup::setBaseAddresses() {
     ClearSpatialPass clearSpatial;
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto baseAddress = module->getBaseAddress();
+        if(!module->getDataRegionList()) continue;
+
         for(auto region : CIter::regions(module)) {
             region->updateAddressFor(baseAddress);
             module->accept(&clearSpatial);

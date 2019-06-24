@@ -24,11 +24,11 @@ class Disassemble {
 public:
     static Module *module(ElfExeFile *elfFile);
     static Module *module(PEExeFile *peFile);
-    static Module *module(ElfMap *elfMap, SymbolList *symbolList,
+    static Module *module(ExeMap *exeMap, SymbolList *symbolList,
         DwarfUnwindInfo *dwarfInfo = nullptr,
         SymbolList *dynamicSymbolList = nullptr,
         RelocList *relocList = nullptr);  // DEPRECATED function
-    static Function *function(ElfMap *elfMap, Symbol *symbol,
+    static Function *function(ExeMap *exeMap, Symbol *symbol,
         SymbolList *symbolList, SymbolList *dynamicSymbolList = nullptr);
     static Instruction *instruction(const std::vector<unsigned char> &bytes,
         bool details = true, address_t address = 0);
@@ -45,12 +45,12 @@ public:
         address_t address = 0);
 
 private:
-    static Module *makeModuleFromSymbols(ElfMap *elfMap,
+    static Module *makeModuleFromSymbols(ExeMap *exeMap,
         SymbolList *symbolList, SymbolList *dynamicSymbolList);
-    static Module *makeModuleFromDwarfInfo(ElfMap *elfMap,
+    static Module *makeModuleFromDwarfInfo(ExeMap *exeMap,
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
         RelocList *relocList);
-    static FunctionList *linearDisassembly(ElfMap *elfMap,
+    static FunctionList *linearDisassembly(ExeMap *exeMap,
         const char *sectionName, DwarfUnwindInfo *dwarfInfo,
         SymbolList *dynamicSymbolList, RelocList *relocList);
 };
@@ -58,10 +58,10 @@ private:
 class DisassembleFunctionBase {
 protected:
     DisasmHandle &handle;
-    ElfMap *elfMap;
+    ExeMap *exeMap;
 public:
-    DisassembleFunctionBase(DisasmHandle &handle, ElfMap *elfMap)
-        : handle(handle), elfMap(elfMap) {}
+    DisassembleFunctionBase(DisasmHandle &handle, ExeMap *exeMap)
+        : handle(handle), exeMap(exeMap) {}
 protected:
     Block *makeBlock(Function *function, Block *prev);
     void disassembleBlocks(Function *function, char *readAddress,
@@ -85,14 +85,14 @@ public:
 
     Function *function(Symbol *symbol, SymbolList *symbolList,
         SymbolList *dynamicSymbolList);
-    Function *fuzzyFunction(const Range &range, ElfSection *section);
+    Function *fuzzyFunction(const Range &range, ExeSection *section);
     FunctionList *linearDisassembly(const char *sectionName,
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
         RelocList *relocList);
 private:
-    void firstDisassemblyPass(ElfSection *section,
+    void firstDisassemblyPass(ExeSection *section,
         IntervalTree &splitRanges, IntervalTree &functionPadding);
-    void disassembleCrtBeginFunctions(ElfSection *section, Range crtbegin,
+    void disassembleCrtBeginFunctions(ExeSection *section, Range crtbegin,
         IntervalTree &splitRanges);
 };
 
@@ -105,12 +105,12 @@ public:
         DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
         RelocList *relocList);
 private:
-    void firstDisassemblyPass(ElfSection *section, IntervalTree &splitRanges);
-    void finalDisassemblyPass(ElfSection *section, IntervalTree &splitRanges);
+    void firstDisassemblyPass(ExeSection *section, IntervalTree &splitRanges);
+    void finalDisassemblyPass(ExeSection *section, IntervalTree &splitRanges);
     void splitByDynamicSymbols(SymbolList *dynamicSymbolList,
         IntervalTree &splitRanges);
     void splitByRelocations(RelocList *relocList, IntervalTree &splitRanges);
-    Function *fuzzyFunction(const Range &range, ElfSection *section);
+    Function *fuzzyFunction(const Range &range, ExeSection *section);
     void disassembleBlocks(bool literal, Function *function,
         char *readAddress, size_t readSize, address_t virtualAddress);
     void processLiterals(Function *function, char *readAddress,

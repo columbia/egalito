@@ -3,6 +3,7 @@
 #include <cstring>
 #include <iomanip>
 #include "symbolparser.h"
+#include "pemap.h"
 #include "log/log.h"
 
 SymbolList *PESymbolParser::buildSymbolList(const std::string &symbolFile) {
@@ -84,11 +85,15 @@ Symbol *PESymbolParser::makeSymbol(address_t address, size_t size,
     Symbol::BindingType bind = Symbol::BIND_GLOBAL;
     if(tag == "SymTagData") {
         type = Symbol::TYPE_OBJECT;
-        shndx = 1;  // make up an index for data section
+        if(auto section = map->findSection(".data")) {
+            shndx = section->getIndex();
+        }
     }
     else if(tag == "SymTagFunction") {
         type = Symbol::TYPE_FUNC;
-        shndx = 2;  // make up an index for text section
+        if(auto section = map->findSection(".text")) {
+            shndx = section->getIndex();
+        }
     }
     else if(tag == "SymTagPublicSymbol") {
         type = Symbol::TYPE_FUNC;

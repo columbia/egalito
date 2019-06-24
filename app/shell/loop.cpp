@@ -63,6 +63,10 @@ void mainLoop() {
         args.shouldHave(1);
         setup.parseEgalitoArchive(args.front().c_str());
     }, "parses and reassembles an Egalito archive");
+    topLevel.add("parse-with-symbols", [&] (Arguments args) {
+        args.shouldHave(2);
+        setup.injectFiles(args.get(0).c_str(), args.get(1).c_str());
+    }, "parses the given ELF with the given symbols file");
 
     topLevel.add("inject", [&] (Arguments args) {
         args.shouldHave(1);

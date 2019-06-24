@@ -127,11 +127,7 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap,
             return buildSymbolList(symbolElf);
         }
         catch(const char *s) {
-            // the debug symbol file does not exist, or is not an ELF
-#ifdef USE_WIN64_PE
-            auto symList = PESymbolParser().buildSymbolList(symbolFile);
-            if(symList) return symList;
-#endif
+            // the debug symbol file does not exist
         }
     }
 

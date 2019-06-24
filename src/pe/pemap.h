@@ -19,6 +19,8 @@ public:
 
     peparse::bounded_buffer *getBuffer() const { return buffer; }
     virtual size_t getSize() const { return buffer->bufLen; }
+
+    virtual bool isExecutable() const { return true; }
 };
 
 class PEMap : public ExeMapImpl<PESection> {

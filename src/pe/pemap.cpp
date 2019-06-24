@@ -147,9 +147,9 @@ void PEMap::makeSectionMap() {
         image_section_header header, bounded_buffer *buffer) {
         auto _this = static_cast<PEMap *>(data);
 
-        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase);
         auto section = new PESection(_this->getSectionCount(), name,
             sectionBase, header, buffer);
+        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase << ", index " << section->getIndex());
         _this->addSection(section);
         return 0;
     }, this);
