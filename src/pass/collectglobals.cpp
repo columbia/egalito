@@ -7,11 +7,12 @@
 #include "log/log.h"
 
 void CollectGlobalsPass::visit(Module *module) {
-    auto elfspace = module->getExeFile();
-    if(!elfspace) return;
+    auto exeFile = module->getExeFile();
+    if(!exeFile) return;
+    if(!module->getDataRegionList()) return;
 
-    auto syms = elfspace->getSymbolList();
-    auto dynsyms = elfspace->getDynamicSymbolList();
+    auto syms = exeFile->getSymbolList();
+    auto dynsyms = exeFile->getDynamicSymbolList();
 
     std::map<address_t, GlobalVariable *> variables;
 

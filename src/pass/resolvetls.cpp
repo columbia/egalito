@@ -10,7 +10,9 @@ void ResolveTLSPass::visit(Program *program) {
 
 void ResolveTLSPass::visit(Module *module) {
     this->module = module;
-    recurse(module->getDataRegionList());
+    if(module->getDataRegionList()) {
+        recurse(module->getDataRegionList());
+    }
 }
 
 void ResolveTLSPass::visit(DataRegion *dataRegion) {

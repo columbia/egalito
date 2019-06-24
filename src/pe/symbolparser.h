@@ -8,8 +8,13 @@
 #include "types.h"
 #include "elf/symbol.h"
 
+class PEMap;
+
 class PESymbolParser {
+private:
+    PEMap *map;
 public:
+    PESymbolParser(PEMap *map) : map(map) {}
     SymbolList *buildSymbolList(const std::string &symbolFile);
 private:
     Symbol *makeSymbol(address_t address, size_t size,

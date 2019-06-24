@@ -34,6 +34,7 @@ static Link *reResolveTarget(SymbolType *symbol, Conductor *conductor,
 }
 
 void ResolveExternalLinksPass::visit(Module *module) {
+    if(!module->getDataRegionList()) return;
     for(auto dr : CIter::regions(module)) {
         for(auto ds : CIter::children(dr)) {
             for(auto dv : CIter::children(ds)) {

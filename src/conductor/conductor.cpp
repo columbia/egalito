@@ -261,11 +261,13 @@ void Conductor::resolveVTables() {
         if(resolveFinished.count(module)) continue;
         resolveFinished.insert(module);
 
-        // this needs data regions
-        module->setVTableList(DisassembleVTables().makeVTableList(
-            elfMap,
-            exeFile->getSymbolList(),
-            exeFile->getRelocList(), module, program));
+        // this needs data regions to be fully constructed
+        if(module->getDataRegionList()) {
+            module->setVTableList(DisassembleVTables().makeVTableList(
+                elfMap,
+                exeFile->getSymbolList(),
+                exeFile->getRelocList(), module, program));
+        }
     }
 }
 

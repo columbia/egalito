@@ -32,27 +32,28 @@ Module *Disassemble::module(ElfExeFile *elfFile) {
 }
 
 Module *Disassemble::module(PEExeFile *peFile) {
-    return nullptr;
+    return makeModuleFromSymbols(peFile->getMap(),
+        peFile->getSymbolList(), nullptr);
 }
 
 // DEPRECATED function
-Module *Disassemble::module(ElfMap *elfMap, SymbolList *symbolList,
+Module *Disassemble::module(ExeMap *exeMap, SymbolList *symbolList,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
     RelocList *relocList) {
 
     if(symbolList) {
         LOG(1, "Creating module from symbol info");
-        return makeModuleFromSymbols(elfMap, symbolList, dynamicSymbolList);
+        return makeModuleFromSymbols(exeMap, symbolList, dynamicSymbolList);
     }
     else if(dwarfInfo) {
         LOG(1, "Creating module from dwarf info");
         return makeModuleFromDwarfInfo(
-            elfMap, dwarfInfo, dynamicSymbolList, relocList);
+            exeMap, dwarfInfo, dynamicSymbolList, relocList);
     }
     else {
         LOG(1, "Creating module without symbol info or dwarf info");
         return makeModuleFromDwarfInfo(
-            elfMap, nullptr, dynamicSymbolList, relocList);
+            exeMap, nullptr, dynamicSymbolList, relocList);
     }
 }
 
@@ -91,7 +92,7 @@ Assembly Disassemble::makeAssembly(const std::vector<unsigned char> &str,
     return DisassembleInstruction(handle, true).makeAssembly(str, address);
 }
 
-Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
+Module *Disassemble::makeModuleFromSymbols(ExeMap *exeMap,
     SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     Module *module = new Module();
@@ -137,7 +138,7 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
 
-        Function *function = Disassemble::function(elfMap, sym, symbolList,
+        Function *function = Disassemble::function(exeMap, sym, symbolList,
             dynamicSymbolList);
         functionList->getChildren()->add(function);
         function->setParent(functionList);
@@ -152,9 +153,9 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
             // for literals (__multc3 in libm compiled with old gcc)
             if(sym->getSize() == 0) continue;
             if(sym->getAliasFor()) continue;
-            auto sec = elfMap->findSection(sym->getSectionIndex());
-            if(!sec) continue;  // ABS
-            if(!(sec->getHeader()->sh_flags & SHF_EXECINSTR)) continue;
+            auto sec = exeMap->findSection(sym->getSectionIndex());
+            if(!sec) continue;  // ABS (elf)
+            if(!sec->isExecutable()) continue;
             if(sec->getName() == ".plt") continue;
             if(CIter::spatial(functionList)->findContaining(
                 sym->getAddress())) {
@@ -162,7 +163,7 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
                 continue;
             }
             Function *function
-                = Disassemble::function(elfMap, sym, symbolList);
+                = Disassemble::function(exeMap, sym, symbolList);
             functionList->getChildren()->add(function);
             function->setParent(functionList);
             LOG(10, "adding literal only function " << function->getName()
@@ -175,13 +176,13 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
     return module;
 }
 
-Module *Disassemble::makeModuleFromDwarfInfo(ElfMap *elfMap,
+Module *Disassemble::makeModuleFromDwarfInfo(ExeMap *exeMap,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
     RelocList *relocList) {
 
     Module *module = new Module();
 
-    FunctionList *functionList = linearDisassembly(elfMap, ".text",
+    FunctionList *functionList = linearDisassembly(exeMap, ".text",
         dwarfInfo, dynamicSymbolList, relocList);
     module->getChildren()->add(functionList);
     module->setFunctionList(functionList);
@@ -190,21 +191,21 @@ Module *Disassemble::makeModuleFromDwarfInfo(ElfMap *elfMap,
     return module;
 }
 
-FunctionList *Disassemble::linearDisassembly(ElfMap *elfMap,
+FunctionList *Disassemble::linearDisassembly(ExeMap *exeMap,
     const char *sectionName, DwarfUnwindInfo *dwarfInfo,
     SymbolList *dynamicSymbolList, RelocList *relocList) {
 
     DisasmHandle handle(true);
-    DisassembleFunction disassembler(handle, elfMap);
+    DisassembleFunction disassembler(handle, exeMap);
     return disassembler.linearDisassembly(
         sectionName, dwarfInfo, dynamicSymbolList, relocList);
 }
 
-Function *Disassemble::function(ElfMap *elfMap, Symbol *symbol,
+Function *Disassemble::function(ExeMap *exeMap, Symbol *symbol,
     SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     DisasmHandle handle(true);
-    DisassembleFunction disassembler(handle, elfMap);
+    DisassembleFunction disassembler(handle, exeMap);
 #ifdef ARCH_X86_64
     return disassembler.function(symbol, symbolList, dynamicSymbolList);
 #else
@@ -450,7 +451,7 @@ Function *DisassembleX86Function::function(Symbol *symbol,
     SymbolList *symbolList, SymbolList *dynamicSymbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
-    auto section = elfMap->findSection(sectionIndex);
+    auto section = exeMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new Function(symbol);
@@ -495,7 +496,7 @@ Function *DisassembleX86Function::function(Symbol *symbol,
 }
 
 Function *DisassembleX86Function::fuzzyFunction(const Range &range,
-    ElfSection *section) {
+    ExeSection *section) {
 
     address_t virtualAddress = section->getVirtualAddress();
     auto readAddress = section->getReadAddress()
@@ -520,7 +521,7 @@ Function *DisassembleX86Function::fuzzyFunction(const Range &range,
     return function;
 }
 
-void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
+void DisassembleX86Function::firstDisassemblyPass(ExeSection *section,
     IntervalTree &splitRanges, IntervalTree &functionPadding) {
 
     // Get address of region to disassemble
@@ -585,7 +586,7 @@ void DisassembleX86Function::firstDisassemblyPass(ElfSection *section,
 }
 
 // for deregister_tm_clones, register_tm_clones, __do_global_dtors_aux, and frame_dummy
-void DisassembleX86Function::disassembleCrtBeginFunctions(ElfSection *section,
+void DisassembleX86Function::disassembleCrtBeginFunctions(ExeSection *section,
     Range crtbegin, IntervalTree &splitRanges) {
 
     LOG(1, "range: " << std::hex << crtbegin.getStart() << " " << crtbegin.getSize());
@@ -647,7 +648,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     DwarfUnwindInfo *dwarfInfo, SymbolList *dynamicSymbolList,
     RelocList *relocList) {
 
-    auto section = elfMap->findSection(sectionName);
+    auto section = exeMap->findSection(sectionName);
     if(!section) return nullptr;
 
     Range sectionRange(section->getVirtualAddress(), section->getSize());
@@ -671,13 +672,13 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     // Run first disassembly pass, to find obvious function boundaries
     IntervalTree splitRanges(sectionRange);
     splitRanges.add(sectionRange);
-    splitRanges.splitAt(elfMap->getEntryPoint());
-    if(auto s = elfMap->findSection(".init_array")) {
+    splitRanges.splitAt(exeMap->getEntryPoint());
+    if(auto s = exeMap->findSection(".init_array")) {
         for(size_t i = 0; i < s->getSize(); i ++) {
             splitRanges.splitAt(*reinterpret_cast<address_t *>(s->getReadAddress() + i));
         }
     }
-    if(auto s = elfMap->findSection(".fini_array")) {
+    if(auto s = exeMap->findSection(".fini_array")) {
         for(size_t i = 0; i < s->getSize(); i ++) {
             splitRanges.splitAt(*reinterpret_cast<address_t *>(s->getReadAddress() + i));
         }
@@ -726,7 +727,7 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
     functionsWithoutPadding.unionWith(knownFunctions);  // add back in
 
     // Hack to find the crtbegin functions...
-    auto entryPoint = elfMap->getEntryPoint();
+    auto entryPoint = exeMap->getEntryPoint();
     Range crtBeginFunction;  // blob of all crtbegin functions
     if(functionsWithoutPadding.findUpperBound(
         entryPoint, &crtBeginFunction)) {
@@ -737,10 +738,10 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
 
     // Get final list of functions (add special functions outside .text)
     std::vector<Range> intervalList = functionsWithoutPadding.getAllData();
-    if(auto s = elfMap->findSection(".init")) {
+    if(auto s = exeMap->findSection(".init")) {
         intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
     }
-    if(auto s = elfMap->findSection(".fini")) {
+    if(auto s = exeMap->findSection(".fini")) {
         intervalList.push_back(Range(s->getVirtualAddress(), s->getSize()));
     }
 
@@ -778,7 +779,7 @@ Function *DisassembleAARCH64Function::function(Symbol *symbol,
     SymbolList *symbolList) {
 
     auto sectionIndex = symbol->getSectionIndex();
-    auto section = elfMap->findSection(sectionIndex);
+    auto section = exeMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new Function(symbol);
@@ -859,7 +860,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
     const char *sectionName, DwarfUnwindInfo *dwarfInfo,
     SymbolList *dynamicSymbolList, RelocList *relocList) {
 
-    auto section = elfMap->findSection(sectionName);
+    auto section = exeMap->findSection(sectionName);
     if(!section) return nullptr;
 
     //TemporaryLogLevel tll("disasm", 10);
@@ -867,18 +868,11 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
     address_t codeStart = section->getVirtualAddress();
     address_t codeEnd = section->getVirtualAddress() + section->getSize();
 
-    std::vector<ElfSection *> sectionList;
-    auto plt = elfMap->findSection(".plt");
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)elfMap->getMap();
-    ElfXX_Shdr *sheader
-        = (ElfXX_Shdr *)(elfMap->getCharmap() + header->e_shoff);
-    for(int i = 0; i < header->e_shnum; i ++) {
-        ElfXX_Shdr *s = &sheader[i];
-        if(s->sh_flags & SHF_EXECINSTR) {
-            auto sec = elfMap->findSection(i);
-            if(sec == plt) continue;
-            sectionList.push_back(sec);
-        }
+    std::vector<ExeSection *> sectionList;
+    for(auto section : exeMap->getSectionIterable()) {
+        if(!section->isExecutable()) continue;
+        if(section->getName() == ".plt") continue;
+        sectionList.push_back(section);
     }
 
     for(auto s : sectionList) {
@@ -914,7 +908,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
     IF_LOG(10) dump(splitRanges);
 
     // Run first disassembly pass, to find obvious function boundaries
-    splitRanges.splitAt(elfMap->getEntryPoint());
+    splitRanges.splitAt(exeMap->getEntryPoint());
 
     LOG(10, "with DWARF + entryPoint");
     IF_LOG(10) dump(splitRanges);
@@ -968,7 +962,7 @@ FunctionList *DisassembleAARCH64Function::linearDisassembly(
     return functionList;
 }
 
-void DisassembleAARCH64Function::firstDisassemblyPass(ElfSection *section,
+void DisassembleAARCH64Function::firstDisassemblyPass(ExeSection *section,
     IntervalTree &splitRanges) {
 
     address_t virtualAddress = section->getVirtualAddress();
@@ -1003,7 +997,7 @@ void DisassembleAARCH64Function::firstDisassemblyPass(ElfSection *section,
 }
 
 // this could be run multiple times until it converges
-void DisassembleAARCH64Function::finalDisassemblyPass(ElfSection *section,
+void DisassembleAARCH64Function::finalDisassemblyPass(ExeSection *section,
     IntervalTree &splitRanges) {
 
     for(auto const& range : splitRanges.getAllData()) {
@@ -1067,7 +1061,7 @@ void DisassembleAARCH64Function::splitByRelocations(
 }
 
 Function *DisassembleAARCH64Function::fuzzyFunction(const Range &range,
-    ElfSection *section) {
+    ExeSection *section) {
 
     address_t virtualAddress = section->getVirtualAddress();
     auto readAddress = section->getReadAddress()
@@ -1158,7 +1152,7 @@ Function *DisassembleRISCVFunction::function(Symbol *symbol,
         << symbol->getSize() << " bytes)");
 
     auto sectionIndex = symbol->getSectionIndex();
-    auto section = elfMap->findSection(sectionIndex);
+    auto section = exeMap->findSection(sectionIndex);
 
     PositionFactory *positionFactory = PositionFactory::getInstance();
     Function *function = new Function(symbol);

@@ -163,7 +163,7 @@ void PEExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
     auto pe = getMap();
     if(symbolFile.size() > 0) {
 #ifdef USE_WIN64_PE
-        setSymbolList(PESymbolParser().buildSymbolList(symbolFile));
+        setSymbolList(PESymbolParser(pe).buildSymbolList(symbolFile));
 #endif
     }
     else {

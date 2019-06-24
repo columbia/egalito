@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include "types.h"
+#include "util/iter.h"
 
 /** Generic representation of a section inside an executable. Concrete
     subclasses will generally store a header, which contains the size etc.
@@ -21,6 +22,8 @@ public:
 
     virtual void setVirtualAddress(address_t address) = 0;
     virtual void setReadAddress(char *address) = 0;
+
+    virtual bool isExecutable() const = 0;
 
     virtual address_t convertOffsetToVA(size_t offset) = 0;
     virtual address_t convertVAToOffset(address_t va) = 0;
@@ -61,6 +64,7 @@ public:
     virtual ExeSection *findSection(const char *name) const = 0;
     virtual ExeSection *findSection(int index) const = 0;
     virtual size_t getSectionCount() const = 0;
+    virtual Iterable<ExeSection *> getSectionIterable() = 0;
 
     template <typename T>
     T getSectionReadPtr(ExeSection *section);
@@ -106,6 +110,8 @@ public:
     virtual SectionType *findSection(const char *name) const;
     virtual SectionType *findSection(int index) const;
     virtual size_t getSectionCount() const { return sectionList.size(); }
+    virtual Iterable<ExeSection *> getSectionIterable()
+        { return Iterable<ExeSection *>(new STLIteratorGenerator<std::vector<SectionType *>, ExeSection *>(sectionList)); }
     const std::vector<SectionType *> &getSectionList() const
         { return sectionList; }
 protected:

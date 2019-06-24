@@ -12,6 +12,7 @@
 #include "chunk/dump.h"
 
 void ReloCheckPass::visit(Module *module) {
+    if(!module->getDataRegionList()) return;
     LOG(1, "-- checking relocation for module " << module->getName());
 
     ClearSpatialPass clearSpatial;
