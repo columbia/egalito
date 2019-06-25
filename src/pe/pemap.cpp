@@ -101,17 +101,17 @@ const char *GetSymbolTableStorageClassName(std::uint8_t id) {
 
 void PEMap::setup() {
     verifyPE();
-    //makeSectionMap();
+    makeSectionMap();
     //makeSegmentList();
     //makeVirtualAddresses();
 
-    using namespace peparse;
+    /*using namespace peparse;
     IterSec(peRef, [] (void *, VA sectionBase, std::string &name,
         image_section_header header, bounded_buffer *buffer) {
 
         LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase);
         return 0;
-    }, nullptr);
+    }, nullptr);*/
 
     IterSymbols(peRef, [] (void *,
         std::string &name,
@@ -146,6 +146,11 @@ void PEMap::makeSectionMap() {
     IterSec(peRef, [] (void *data, VA sectionBase, std::string &name,
         image_section_header header, bounded_buffer *buffer) {
         auto _this = static_cast<PEMap *>(data);
+
+        // pe-parse adds the base address to section addresses, we undo this.
+        nt_header_32 *nthdr = &_this->peRef->peHeader.nt;
+        address_t baseAddress = nthdr->OptionalHeader64.ImageBase;
+        sectionBase -= baseAddress;
 
         auto section = new PESection(_this->getSectionCount(), name,
             sectionBase, header, buffer);

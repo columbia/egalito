@@ -79,6 +79,8 @@ SymbolList *PESymbolParser::buildSymbolList(const std::string &symbolFile) {
 Symbol *PESymbolParser::makeSymbol(address_t address, size_t size,
     const std::string &tag, const std::string &name, size_t index) {
 
+    if(address >= 0x400000) address -= 0x400000;  // pdbdump default base
+
     size_t shndx = 0;
 
     Symbol::SymbolType type = Symbol::TYPE_UNKNOWN;
