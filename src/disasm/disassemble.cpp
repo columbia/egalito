@@ -105,7 +105,7 @@ Module *Disassemble::makeModuleFromSymbols(ExeMap *exeMap,
 
     for(auto sym : *symbolList) {
         // skip Symbols that we don't think represent functions
-        if(!sym->isFunction()) continue;
+        if(!SymbolClassifier(exeMap).isFunction(sym)) continue;
 
         Function *function = Disassemble::function(exeMap, sym, symbolList,
             dynamicSymbolList);

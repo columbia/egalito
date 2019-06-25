@@ -29,6 +29,9 @@ private:
 public:
     PEMap(const std::string &filename);
     ~PEMap();
+
+    virtual PEMap *asPE() { return this; }
+
     static bool isPE(const std::string &filename);
 private:
     void throwError(const std::string &err);

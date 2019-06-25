@@ -297,8 +297,8 @@ void GenerateSectionTable::makeSectionSymbols() {
         if(section->getHeader()->getShdrType() == SHT_NULL) continue;
 
         auto symbol = new Symbol(0, 0, "",
-            Symbol::typeFromElfToInternal(STT_SECTION),
-            Symbol::bindFromElfToInternal(STB_LOCAL),
+            SymbolBuilder::typeFromElfToInternal(STT_SECTION),
+            SymbolBuilder::bindFromElfToInternal(STB_LOCAL),
             0, getSectionList()->indexOf(section));
         symtab->addSectionSymbol(symbol);
     }

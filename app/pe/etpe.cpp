@@ -1,4 +1,7 @@
 #include <iostream>
+#include <cstdio>
+#include <vector>
+#include <algorithm>
 #include <string>
 #include <functional>
 #include <cstring>  // for std::strcmp
@@ -24,13 +27,35 @@ static void parse(const std::string &filename, const std::string &symbolFile,
 
     try {
         egalito.initializeParsing();  // Creates Conductor and Program
-        PEMap *peMap = new PEMap(filename);
-        ExeFile *exeFile = new PEExeFile(peMap, filename, filename);
+        //PEMap *peMap = new PEMap(filename);
+        //ExeFile *exeFile = new PEExeFile(peMap, filename, filename);
 
-        exeFile->parseSymbolsAndRelocs(symbolFile);
+        //exeFile->parseSymbolsAndRelocs(symbolFile);
 
         /*egalito.getConductor()->parseAnythingWithSymbols(filename, symbolFile,
             EXE_PE, Library::ROLE_MAIN);*/
+        auto module = egalito.parse(filename, symbolFile, Library::ROLE_MAIN);
+        if(!module) return;
+
+        std::vector<Function *> funcList;
+        for(auto func : CIter::functions(module)) {
+            funcList.push_back(func);
+        }
+
+        std::sort(funcList.begin(), funcList.end(),
+            [](Function *a, Function *b) {
+                if(a->getAddress() < b->getAddress()) return true;
+                if(a->getAddress() == b->getAddress()) {
+                    return a->getName() < b->getName();
+                }
+                return false;
+            });
+
+        std::printf("\n========\nFunction list:\n");
+        for(auto func : funcList) {
+            std::printf("0x%08lx 0x%08lx %s\n",
+                func->getAddress(), func->getSize(), func->getName().c_str());
+        }
     }
     catch(const char *message) {
         std::cout << "Exception: " << message << std::endl;

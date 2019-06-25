@@ -85,14 +85,14 @@ ExeMap *ExeFile::createMap(const std::string &filename, ExeFileType exeFileType)
 void ElfExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
     auto elf = getMap();
     if(symbolFile.size() > 0) {
-        setSymbolList(SymbolList::buildSymbolList(elf, symbolFile));
+        setSymbolList(SymbolBuilder::buildSymbolList(elf, symbolFile));
     }
     else if(getFullPath().size() > 0) {
         auto altSymbolFile = getAlternativeSymbolFile();
-        setSymbolList(SymbolList::buildSymbolList(elf, altSymbolFile));
+        setSymbolList(SymbolBuilder::buildSymbolList(elf, altSymbolFile));
     }
     else {
-        setSymbolList(SymbolList::buildSymbolList(elf));
+        setSymbolList(SymbolBuilder::buildSymbolList(elf));
     }
 
     if(!getSymbolList()) {
@@ -101,7 +101,7 @@ void ElfExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
     }
 
     if(elf && elf->isDynamic()) {
-        setDynamicSymbolList(SymbolList::buildDynamicSymbolList(elf));
+        setDynamicSymbolList(SymbolBuilder::buildDynamicSymbolList(elf));
     }
 
     if(elf) {
@@ -167,11 +167,11 @@ void PEExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
 #endif
     }
     else {
-        //setSymbolList(SymbolList::buildSymbolList(elf));
+        //setSymbolList(SymbolBuilder::buildSymbolList(elf));
     }
 
     /*if(elf && elf->isDynamic()) {
-        setDynamicSymbolList(SymbolList::buildDynamicSymbolList(elf));
+        setDynamicSymbolList(SymbolBuilder::buildDynamicSymbolList(elf));
     }*/
 
     /*if(elf) {

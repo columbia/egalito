@@ -81,20 +81,23 @@ Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
     RUN_PASS(SplitBasicBlock(), module);
     RUN_PASS(NonReturnFunction(), module);
 
-    RUN_PASS(JumpTablePass(), module);
+    if(auto elfFile = exeFile->asElf()) {
+        RUN_PASS(JumpTablePass(), module);
 #ifdef ARCH_X86_64
-    RUN_PASS(JumpTableBounds(), module);
-    RUN_PASS(JumpTableOverestimate(), module);
+        RUN_PASS(JumpTableBounds(), module);
+        RUN_PASS(JumpTableOverestimate(), module);
 #endif
 #ifdef ARCH_RISCV
-    RUN_PASS(JumpTableOverestimate(), module);
+        RUN_PASS(JumpTableOverestimate(), module);
 #endif
 
-    // run again with jump table information
-    RUN_PASS(SplitBasicBlock(), module);
+        // run again with jump table information
+        RUN_PASS(SplitBasicBlock(), module);
+    }
 
     // need SplitBasicBlock()
     RUN_PASS(NonReturnFunction(), module);
+    if(auto peFile = exeFile->asPE()) return module;
 #ifdef ARCH_AARCH64
     if(!exeFile->getSymbolList()) {
         RUN_PASS(SplitFunction(), module);

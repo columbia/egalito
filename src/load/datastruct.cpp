@@ -28,7 +28,7 @@ void DataStructMigrator::migrate(ConductorSetup *setup) {
     auto libstdcxxVTableList = libstdcxx->getVTableList();
 
     ElfMap *loaderElf = new ElfMap("/proc/self/exe");
-    SymbolList *loaderSymbolList = SymbolList::buildSymbolList(loaderElf);
+    SymbolList *loaderSymbolList = SymbolBuilder::buildSymbolList(loaderElf);
     RelocList *loaderRelocList = RelocList::buildRelocList(
         loaderElf, loaderSymbolList);
 
