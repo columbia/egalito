@@ -83,8 +83,8 @@ void SymbolTableContent::addSectionSymbol(Symbol *sym) {
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = 0;
     symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
+        SymbolBuilder::bindFromInternalToElf(sym->getBind()),
+        SymbolBuilder::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = sym->getSectionIndex();
     symbol->st_value = 0;
@@ -129,8 +129,8 @@ SymbolTableContent::DeferredType *SymbolTableContent
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = static_cast<ElfXX_Word>(index);
     symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
+        SymbolBuilder::bindFromInternalToElf(sym->getBind()),
+        SymbolBuilder::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = SHN_UNDEF;
     symbol->st_value = func ? func->getAddress() : 0;
@@ -174,8 +174,8 @@ SymbolTableContent::DeferredType *SymbolTableContent
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = static_cast<ElfXX_Word>(index);
     symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
+        SymbolBuilder::bindFromInternalToElf(sym->getBind()),
+        SymbolBuilder::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = section;
     symbol->st_value = address;
@@ -217,8 +217,8 @@ SymbolTableContent::DeferredType *SymbolTableContent
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = static_cast<ElfXX_Word>(index);
     symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
+        SymbolBuilder::bindFromInternalToElf(sym->getBind()),
+        SymbolBuilder::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = section;
     symbol->st_value = address;
@@ -245,8 +245,8 @@ SymbolTableContent::DeferredType *SymbolTableContent
     ElfXX_Sym *symbol = new ElfXX_Sym();
     symbol->st_name = static_cast<ElfXX_Word>(index);
     symbol->st_info = ELFXX_ST_INFO(
-        Symbol::bindFromInternalToElf(sym->getBind()),
-        Symbol::typeFromInternalToElf(sym->getType()));
+        SymbolBuilder::bindFromInternalToElf(sym->getBind()),
+        SymbolBuilder::typeFromInternalToElf(sym->getType()));
     symbol->st_other = STV_DEFAULT;
     symbol->st_shndx = SHN_UNDEF;
     symbol->st_value = plt ? plt->getAddress() : 0;

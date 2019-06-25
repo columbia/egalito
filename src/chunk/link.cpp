@@ -120,6 +120,7 @@ Link *LinkFactory::makeNormalLink(ChunkRef target, bool isRelative,
 Link *LinkFactory::makeDataLink(Module *module, address_t target,
     bool isRelative) {
 
+    // if(!module->getDataRegionList()) return nullptr;
     return module->getDataRegionList()->createDataLink(
         target, module, isRelative);
 }

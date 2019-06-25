@@ -163,7 +163,7 @@ void ObjGen::makeSymbolsAndRelocs(address_t begin, size_t size,
 
     // Handle any other types of symbols that need generating.
     for(auto sym : *elfFile->getSymbolList()) {
-        if(sym->isFunction()) continue;  // already handled
+        if(SymbolClassifier(elfFile->getMap()).isFunction(sym)) continue;  // already handled
         if(blacklistedSymbol(sym->getName())) continue;  // blacklisted
 
         // undefined symbol
@@ -288,8 +288,8 @@ void ObjGen::updateSymbolTable() {
         if(section->getHeader()->getShdrType() == SHT_NULL) continue;
 
         auto symbol = new Symbol(0, 0, "",
-            Symbol::typeFromElfToInternal(STT_SECTION),
-            Symbol::bindFromElfToInternal(STB_LOCAL),
+            SymbolBuilder::typeFromElfToInternal(STT_SECTION),
+            SymbolBuilder::bindFromElfToInternal(STB_LOCAL),
             0, sectionList.indexOf(section));
         symtab->addSectionSymbol(symbol);
     }

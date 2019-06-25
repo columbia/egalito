@@ -58,6 +58,8 @@ public:
     ElfMap(const char *filename);
     ElfMap(void *self);
     ~ElfMap();
+
+    virtual ElfMap *asElf() { return this; }
     static bool isElf(const char *filename);
 private:
     void setup();

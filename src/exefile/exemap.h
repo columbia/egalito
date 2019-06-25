@@ -52,9 +52,14 @@ public:
     virtual address_t convertVAToOffset(address_t va);
 };
 
+class ElfMap;
+class PEMap;
 class ExeMap {
 public:
     virtual ~ExeMap() {}
+
+    virtual ElfMap *asElf() = 0;
+    virtual PEMap *asPE() = 0;
 
     virtual address_t getBaseAddress() const = 0;
     virtual void setBaseAddress(address_t address) = 0;
@@ -102,6 +107,9 @@ private:
     std::map<std::string, SectionType *> sectionMap;
     std::vector<SectionType *> sectionList;
 public:
+    virtual ElfMap *asElf() { return nullptr; }
+    virtual PEMap *asPE() { return nullptr; }
+
     virtual address_t getBaseAddress() const { return baseAddress; }
     virtual void setBaseAddress(address_t address) { baseAddress = address; }
 
