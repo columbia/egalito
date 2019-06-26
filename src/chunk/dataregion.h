@@ -11,6 +11,8 @@
 
 class Link;
 class ElfMap;
+class PEMap;
+class PESection;
 class Module;
 
 class DataRegion;
@@ -113,16 +115,24 @@ public:
         TYPE_FINI_ARRAY,
         TYPE_DYNAMIC,
     };
+    enum Permissions {
+        PERM_NONE   = 0,
+        PERM_READ   = 1 << 0,
+        PERM_WRITE  = 1 << 1,
+        PERM_EXEC   = 1 << 2,
+    };
 private:
     std::string name;
     address_t alignment;
     address_t originalOffset;
-    uint64_t permissions;
+    unsigned permissions;
     Type type;
     std::vector<GlobalVariable *> globalVariables;
 public:
-    DataSection() : alignment(0), originalOffset(0), permissions(0), type(TYPE_UNKNOWN) {}
+    DataSection() : alignment(0), originalOffset(0), permissions(PERM_NONE),
+        type(TYPE_UNKNOWN) {}
     DataSection(ElfMap *elfMap, address_t segmentAddress, ElfXX_Shdr *shdr);
+    DataSection(PEMap *peMap, PESection *peSection);
 
     virtual std::string getName() const;
     void setName(const std::string &n) { name = n; }
@@ -134,8 +144,8 @@ public:
     size_t getAlignment() const { return alignment; }
     void setAlignment(size_t align) { alignment = align; }
     address_t getOriginalOffset() const { return originalOffset; }
-    uint64_t getPermissions() const { return permissions; }
-    void setPermissions(uint64_t perm) { permissions = perm; }
+    unsigned getPermissions() const { return permissions; }
+    void setPermissions(unsigned perm) { permissions = perm; }
     Type getType() const { return type; }
     void setType(Type t) { type = t; }
     bool isCode() const { return type == TYPE_CODE; }
@@ -168,6 +178,7 @@ public:
         : originalAddress(originalAddress), size(0), permissions(0),
         alignment(0) {}
     DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr);
+    DataRegion(PEMap *peMap, PESection *peSection);
     virtual ~DataRegion() {}
 
     virtual std::string getName() const;
@@ -260,6 +271,7 @@ public:
         ArchiveStreamReader &reader);
 
     static void buildDataRegionList(ElfMap *elfMap, Module *module);
+    static void buildDataRegionList(PEMap *peMap, Module *module);
 };
 
 #endif

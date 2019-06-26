@@ -61,8 +61,9 @@ public:
     static MapType *map(ExeMap *exeMap);
 };
 
-template <typename MapType, ExeFile::ExeFileType FileType = ExeFile::EXE_UNKNOWN>
-class ExeFileImpl : public ExeFile {
+template <typename MapType, ExeFile::ExeFileType FileType = ExeFile::EXE_UNKNOWN,
+    typename BaseType = ExeFile>
+class ExeFileImpl : public BaseType {
 private:
     MapType *map;
     std::string name;
@@ -75,7 +76,7 @@ public:
     virtual void parseSymbolsAndRelocs() { parseSymbolsAndRelocs(""); }
     virtual void parseSymbolsAndRelocs(const std::string &symbolFile) = 0;
 
-    virtual ExeFileType getFileType() const { return FileType; }
+    virtual ExeFile::ExeFileType getFileType() const { return FileType; }
     virtual ElfExeFile *asElf() { return nullptr; }
     virtual PEExeFile *asPE() { return nullptr; }
 
@@ -92,7 +93,8 @@ private:
     SymbolListT *dynamicSymbolList;
     RelocListT *relocList;
 public:
-    using BaseType::BaseType;
+    SymbolRelocExeFileDecorator() : symbolList(nullptr),
+        dynamicSymbolList(nullptr), relocList(nullptr) {}
     virtual SymbolListT *getSymbolList() const { return symbolList; }
     virtual SymbolListT *getDynamicSymbolList() const { return dynamicSymbolList; }
     virtual RelocListT *getRelocList() const { return relocList; }
@@ -105,14 +107,14 @@ protected:
 class DwarfUnwindInfo;
 class FunctionAliasMap;
 
-class ElfExeFile : public SymbolRelocExeFileDecorator<ExeFileImpl<
-    ElfMap, ExeFile::EXE_ELF>> {
+class ElfExeFile : public ExeFileImpl<
+    ElfMap, ExeFile::EXE_ELF, SymbolRelocExeFileDecorator<ExeFile>> {
 private:
     DwarfUnwindInfo *dwarf;
     FunctionAliasMap *aliasMap;
 public:
     ElfExeFile(ElfMap *elf, const std::string &name, const std::string &fullPath)
-        : SymbolRelocExeFileDecorator<ExeFileImpl<ElfMap, ExeFile::EXE_ELF>>(
+        : ExeFileImpl<ElfMap, ExeFile::EXE_ELF, SymbolRelocExeFileDecorator<ExeFile>>(
         elf, name, fullPath), dwarf(nullptr), aliasMap(nullptr) {}
 
     virtual ElfExeFile *asElf() { return this; }
@@ -127,11 +129,11 @@ private:
     std::string getAlternativeSymbolFile() const;
 };
 
-class PEExeFile : public SymbolRelocExeFileDecorator<ExeFileImpl<
-    PEMap, ExeFile::EXE_PE>> {
+class PEExeFile : public ExeFileImpl<
+    PEMap, ExeFile::EXE_PE, SymbolRelocExeFileDecorator<ExeFile>> {
 public:
     PEExeFile(PEMap *pe, const std::string &name, const std::string &fullPath)
-        : SymbolRelocExeFileDecorator<ExeFileImpl<PEMap, ExeFile::EXE_PE>>(
+        : ExeFileImpl<PEMap, ExeFile::EXE_PE, SymbolRelocExeFileDecorator<ExeFile>>(
         pe, name, fullPath) {}
 
     virtual PEExeFile *asPE() { return this; }

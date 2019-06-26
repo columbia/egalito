@@ -50,7 +50,7 @@ void ModuleGen::makeDataSections() {
         for(auto kv: sectionMap) {
             auto section = kv.second;
             uint64_t flags = SHF_ALLOC;
-            if(section->getPermissions() & SHF_WRITE) flags |=  SHF_WRITE;
+            if(section->getPermissions() & DataSection::PERM_WRITE) flags |= SHF_WRITE;
 
             if(/*section->getAddress() != previousEndAddress
                 ||*/ (!previousFlags || flags != previousFlags)) {
