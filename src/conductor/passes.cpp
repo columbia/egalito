@@ -62,11 +62,11 @@ Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
 
         RUN_PASS(HandleRelocsStrong(elfFile->getMap(), relocList), module);
     }
-    else {  // PE
+    else if(auto peFile = exeFile->asPE()) {  // PE
         RUN_PASS(FallThroughFunctionPass(), module);
 
-        //DataRegionList::buildDataRegionList(exeMap, module);
-        //module->getChildren()->add(module->getDataRegionList());
+        DataRegionList::buildDataRegionList(peFile->getMap(), module);
+        module->getChildren()->add(module->getDataRegionList());
     }
     RUN_PASS(InternalCalls(), module);
 

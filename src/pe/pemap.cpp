@@ -4,7 +4,7 @@
 PESection::PESection(int index, const std::string &name, address_t baseAddress,
     peparse::image_section_header header, peparse::bounded_buffer *buffer)
     : ExeSectionImpl(index, name, baseAddress, reinterpret_cast<char *>(buffer->buf)),
-    buffer(buffer) {
+    header(header), buffer(buffer), characteristics(header.Characteristics) {
 
     
 }
@@ -152,9 +152,16 @@ void PEMap::makeSectionMap() {
         address_t baseAddress = nthdr->OptionalHeader64.ImageBase;
         sectionBase -= baseAddress;
 
+        bool isR = (header.Characteristics & IMAGE_SCN_MEM_READ) != 0;
+        bool isW = (header.Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+        bool isX = (header.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
+
         auto section = new PESection(_this->getSectionCount(), name,
             sectionBase, header, buffer);
-        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase << ", index " << section->getIndex());
+        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase
+            << ", index " << section->getIndex() << ", perm " << "-R"[isR]
+            << "-W"[isW] << "-X"[isX] << ", size "
+            << buffer->bufLen << ", filesize " << header.SizeOfRawData);
         _this->addSection(section);
         return 0;
     }, this);
@@ -164,6 +171,10 @@ address_t PEMap::getEntryPoint() const {
     peparse::VA va;
     GetEntryPoint(peRef, va);
     return static_cast<address_t>(va);
+}
+
+address_t PEMap::getSectionAlignment() const {
+    return peRef->peHeader.nt.OptionalHeader64.SectionAlignment;
 }
 
 #if 0

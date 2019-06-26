@@ -9,6 +9,7 @@
 #include "visitor.h"
 #include "chunk/aliasmap.h"
 #include "exefile/exefile.h"
+#include "pe/pemap.h"
 #include "operation/find.h"
 #include "operation/mutator.h"
 #include "util/streamasstring.h"
@@ -159,7 +160,11 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
     name = std::string(elfMap->getSHStrtab() + shdr->sh_name);
     alignment = shdr->sh_addralign;
     originalOffset = shdr->sh_addr - segmentAddress; //shdr->sh_addr - phdr->p_vaddr;
-    permissions = shdr->sh_flags;
+
+    permissions = PERM_READ;
+    if(shdr->sh_flags & SHF_WRITE) permissions |= PERM_WRITE;
+    if(shdr->sh_flags & SHF_EXECINSTR) permissions |= PERM_EXEC;
+
     setPosition(new AbsoluteOffsetPosition(this, originalOffset));
     setSize(shdr->sh_size);
 
@@ -188,6 +193,25 @@ DataSection::DataSection(ElfMap *elfMap, address_t segmentAddress,
         }
     }
     else type = TYPE_UNKNOWN;
+}
+
+DataSection::DataSection(PEMap *peMap, PESection *peSection) {
+    name = peSection->getName();
+    alignment = peMap->getSectionAlignment();
+    originalOffset = peSection->getOffset();
+
+    permissions = PERM_NONE;
+    if(peSection->isReadable()) permissions |= PERM_READ;
+    if(peSection->isWritable()) permissions |= PERM_WRITE;
+    if(peSection->isExecutable()) permissions |= PERM_EXEC;
+
+    if(peSection->isCode()) type = TYPE_CODE;
+    else if(peSection->isData()) type = TYPE_DATA;
+    else if(peSection->isBSS()) type = TYPE_BSS;
+    else type = TYPE_UNKNOWN;
+
+    setPosition(new AbsoluteOffsetPosition(this, 0 /*not originalOffset*/));
+    setSize(peSection->getSize());
 }
 
 std::string DataSection::getName() const {
@@ -260,6 +284,20 @@ DataRegion::DataRegion(ElfMap *elfMap, ElfXX_Phdr *phdr) {
 
     auto readAddress = elfMap->getCharmap() + phdr->p_offset;
     dataBytes.assign(readAddress, phdr->p_filesz);
+    // note: dataBytes may store less than getSize(). Padded with zeros.
+}
+
+DataRegion::DataRegion(PEMap *peMap, PESection *peSection) {
+    setPosition(new AbsolutePosition(peSection->getVirtualAddress()));
+    size = peSection->getSize();   // size must not be calculated from children
+    originalAddress = getAddress();
+    permissions = 0;
+    if(peSection->isReadable()) permissions |= PF_R;
+    if(peSection->isWritable()) permissions |= PF_W;
+    if(peSection->isExecutable()) permissions |= PF_X;
+    alignment = peMap->getSectionAlignment();
+
+    dataBytes.assign(peSection->getReadPtr(), peSection->getReadSize());
     // note: dataBytes may store less than getSize(). Padded with zeros.
 }
 
@@ -550,6 +588,34 @@ void DataRegionList::buildDataRegionList(ElfMap *elfMap, Module *module) {
             region = list->findNonTLSRegionContaining(shdr->sh_addr);
         }
         auto ds = new DataSection(elfMap, region->getAddress(), shdr);
+        //LOG(0, "    Adding [" << ds->getName() << "] to " << region->getName());
+        ChunkMutator(region).append(ds);
+    }
+
+    module->setDataRegionList(list);
+    IF_LOG(10) {
+        ChunkDumper dumper;
+        for(auto region : CIter::regions(module)) {
+            region->accept(&dumper);
+        }
+    }
+
+    module->setMarkerList(new MarkerList());
+}
+
+void DataRegionList::buildDataRegionList(PEMap *peMap, Module *module) {
+    auto list = new DataRegionList();
+
+    for(auto peSection : peMap->getSectionList()) {
+        if(!peSection->isAllocated()) continue;
+
+        auto region = new DataRegion(peMap, peSection);
+        LOG(9, "Found data region at 0x"
+            << std::hex << region->getAddress()
+            << " size 0x" << region->getSize());
+        list->getChildren()->add(region);
+
+        auto ds = new DataSection(peMap, peSection);
         //LOG(0, "    Adding [" << ds->getName() << "] to " << region->getName());
         ChunkMutator(region).append(ds);
     }
