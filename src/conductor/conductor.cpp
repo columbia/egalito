@@ -13,6 +13,7 @@
 #include "pass/handlerelocs.h"
 #include "pass/handledatarelocs.h"
 #include "pass/handlecopyrelocs.h"
+#include "pass/handleperelocs.h"
 #include "pass/injectbridge.h"
 #include "chunk/serializer.h"
 #include "pass/internalcalls.h"
@@ -217,33 +218,36 @@ void Conductor::resolveData(bool multipleElf, bool justBridge) {
 
     for(auto module : CIter::modules(program)) {
         auto exeFile = module->getExeFile();
-        auto elfMap = ExeAccessor::map<ElfMap>(exeFile);
-        if(!elfMap) continue;
-
         if(resolveFinished.count(module)) continue;
 
-        LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
-        RUN_PASS(HandleDataRelocsInternalStrong(exeFile->getRelocList(), this), module);
+        if(auto elfMap = ExeAccessor::map<ElfMap>(exeFile)) { 
+            LOG(10, "[[[0 HandleDataRelocsInternalStrong]]] " << module->getName());
+            RUN_PASS(HandleDataRelocsInternalStrong(exeFile->getRelocList(), this), module);
 
-        LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
-        HandleRelocsWeak handleRelocsPass(
-            elfMap, exeFile->getRelocList());
-        module->accept(&handleRelocsPass);
+            LOG(10, "[[[1 HandleRelocsWeak]]] " << module->getName());
+            HandleRelocsWeak handleRelocsPass(
+                elfMap, exeFile->getRelocList());
+            module->accept(&handleRelocsPass);
 
-        LOG(10, "[[[2 HandleDataRelocsExternalStrong]]] " << module->getName());
-        HandleDataRelocsExternalStrong pass1(exeFile->getRelocList(), this);
-        module->accept(&pass1);
+            LOG(10, "[[[2 HandleDataRelocsExternalStrong]]] " << module->getName());
+            HandleDataRelocsExternalStrong pass1(exeFile->getRelocList(), this);
+            module->accept(&pass1);
 
-        LOG(10, "[[[3 HandleDataRelocsInternalWeak]]] " << module->getName());
-        HandleDataRelocsInternalWeak pass2(exeFile->getRelocList());
-        module->accept(&pass2);
+            LOG(10, "[[[3 HandleDataRelocsInternalWeak]]] " << module->getName());
+            HandleDataRelocsInternalWeak pass2(exeFile->getRelocList());
+            module->accept(&pass2);
 
-        LOG(10, "[[[4 HandleDataRelocsExternalWeak]]] " << module->getName());
-        HandleDataRelocsExternalWeak pass3(exeFile->getRelocList(), this);
-        module->accept(&pass3);
+            LOG(10, "[[[4 HandleDataRelocsExternalWeak]]] " << module->getName());
+            HandleDataRelocsExternalWeak pass3(exeFile->getRelocList(), this);
+            module->accept(&pass3);
 
-        // requires DataVariables
-        RUN_PASS(FindInitFuncs(), module);
+            // requires DataVariables
+            RUN_PASS(FindInitFuncs(), module);
+        }
+        else if(auto peMap = ExeAccessor::map<PEMap>(exeFile)) {
+            LOG(10, "[[[HandlePERelocs]]] " << module->getName());
+            RUN_PASS(HandlePERelocsPass(), module);
+        }
     }
 
     if(multipleElf) {

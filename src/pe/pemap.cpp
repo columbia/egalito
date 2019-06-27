@@ -1,6 +1,8 @@
 #include "pemap.h"
 #include "log/log.h"
 
+static const char *GetSymbolTableStorageClassName(std::uint8_t id);
+
 PESection::PESection(int index, const std::string &name, address_t baseAddress,
     peparse::image_section_header header, peparse::bounded_buffer *buffer)
     : ExeSectionImpl(index, name, baseAddress, reinterpret_cast<char *>(buffer->buf)),
@@ -38,7 +40,178 @@ bool PEMap::isPE(const std::string &filename) {
     return true;
 }
 
-const char *GetSymbolTableStorageClassName(std::uint8_t id) {
+void PEMap::setup() {
+    verifyPE();
+    makeSectionMap();
+    findDataDirectories();
+    //findRelocations();
+    //makeSegmentList();
+    //makeVirtualAddresses();
+
+    /*using namespace peparse;
+    IterSec(peRef, [] (void *, VA sectionBase, std::string &name,
+        image_section_header header, bounded_buffer *buffer) {
+
+        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase);
+        return 0;
+    }, nullptr);*/
+
+    /*IterSymbols(peRef, [] (void *,
+        std::string &name,
+        std::uint32_t &value,
+        std::int16_t &sectionIndex,
+        std::uint16_t &type,
+        std::uint8_t &storageClass,
+        std::uint8_t &auxSymCount) {
+
+        LOG(1, "    symbol [" << name << "] at 0x" << std::hex << value
+            << " class " << GetSymbolTableStorageClassName(storageClass));
+        return 0;
+    }, nullptr);*/
+
+    /*IterRelocs(peRef, [] (void *,
+        peparse::VA address, peparse::reloc_type type) {
+        LOG(1, "    reloc 0x" << std::hex << address << " with type " << type);
+        return 0;
+    }, nullptr);*/
+}
+
+void PEMap::parsePE(const std::string &filename) {
+    CLOG(1, "creating PEMap for file [%s]", filename.c_str());
+    peRef = peparse::ParsePEFromFile(filename.c_str());
+    if(!peRef) throwError("ParsePEFromFile");
+
+    verifyPE();
+}
+
+void PEMap::verifyPE() {
+    if(peRef->peHeader.nt.FileHeader.Machine != peparse::IMAGE_FILE_MACHINE_AMD64) {
+        throwError("exe is not 64-bit");
+    }
+}
+
+void PEMap::makeSectionMap() {
+    using namespace peparse;
+    IterSec(peRef, [] (void *data, VA sectionBase, std::string &name,
+        image_section_header header, bounded_buffer *buffer) {
+        auto _this = static_cast<PEMap *>(data);
+
+        // pe-parse adds the base address to section addresses, we undo this.
+        nt_header_32 *nthdr = &_this->peRef->peHeader.nt;
+        address_t baseAddress = nthdr->OptionalHeader64.ImageBase;
+        sectionBase -= baseAddress;
+
+        bool isR = (header.Characteristics & IMAGE_SCN_MEM_READ) != 0;
+        bool isW = (header.Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+        bool isX = (header.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
+
+        auto section = new PESection(_this->getSectionCount(), name,
+            sectionBase, header, buffer);
+        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase
+            << ", index " << section->getIndex() << ", perm " << "-R"[isR]
+            << "-W"[isW] << "-X"[isX] << ", size "
+            << buffer->bufLen << ", filesize " << header.SizeOfRawData);
+        _this->addSection(section);
+        return 0;
+    }, this);
+}
+
+void PEMap::findDataDirectories() {
+    using namespace peparse;
+    data_directory *dir = peRef->peHeader.nt.OptionalHeader64.DataDirectory;
+
+    {
+        address_t importVA = dir[DIR_IMPORT].VirtualAddress;
+        auto importEntry = getReadAddress<const import_dir_entry *>(importVA);
+        for(size_t i = 0; i < dir[DIR_IMPORT].Size / sizeof(*importEntry); i++) {
+            LOG(0, "importEntry ModuleNameRVA " << std::hex << importEntry[i].NameRVA);
+            auto name = getReadAddress<const char *>(importEntry[i].NameRVA);
+            if(name) LOG(0, "    with name [" << name << "]");
+
+            auto funcTable = getReadAddress<address_t *>(importEntry[i].LookupTableRVA);
+            while(funcTable && *funcTable) {
+                auto funcName = getReadAddress<const char *>(*funcTable);
+                if(funcName) {
+                    funcName += 2;  // skip len of string at first 2 chars
+                    LOG(0, "    func [" << funcName << "]"); 
+                }
+                funcTable++; 
+            }
+        }
+    }
+    
+    address_t exportVA = dir[DIR_EXPORT].VirtualAddress;
+    auto exportEntry = getReadAddress<const export_dir_table *>(exportVA);
+    for(size_t i = 0; i < dir[DIR_EXPORT].Size / sizeof(*exportEntry); i++) {
+        LOG(0, "exportEntry ModuleNameRVA " << std::hex << exportEntry[i].NameRVA);
+        auto name = getReadAddress<const char *>(exportEntry[i].NameRVA);
+        if(name) LOG(0, "    with name [" << name << "]");
+
+        auto nameTable = getReadAddress<address_t *>(exportEntry[i].NamePointerRVA);
+        auto addrTable = getReadAddress<address_t *>(exportEntry[i].ExportAddressTableRVA);
+        auto ordinalTable = getReadAddress<unsigned short *>(exportEntry[i].OrdinalTableRVA);
+        for(size_t j = 0; nameTable && nameTable[j]; j++) {
+            auto funcName = getReadAddress<const char *>(nameTable[j]);
+            if(funcName) {
+                funcName += 2;  // skip len of string at first 2 chars
+                LOG(0, "    func [" << funcName << "]"); 
+
+                auto ordinal = ordinalTable[j];
+                auto addr = getReadAddress<const char *>(addrTable[ordinal]);
+                LOG(0, "    at addr 0x" << std::hex << addr);
+            }
+        }
+    }
+}
+
+#if 0
+void PEMap::findRelocations() {
+    IterRelocs(peRef, [] (void *,
+        peparse::VA address, peparse::reloc_type type) {
+
+        // pe-parse adds the base address to section addresses, we undo this.
+        nt_header_32 *nthdr = &_this->peRef->peHeader.nt;
+        address_t baseAddress = nthdr->OptionalHeader64.ImageBase;
+        address -= baseAddress;
+
+        LOG(1, "    reloc 0x" << std::hex << address << " with type " << type);
+        return 0;
+    }, nullptr);
+}
+#endif
+
+address_t PEMap::getEntryPoint() const {
+    peparse::VA va;
+    GetEntryPoint(peRef, va);
+    return static_cast<address_t>(va);
+}
+
+address_t PEMap::getSectionAlignment() const {
+    return peRef->peHeader.nt.OptionalHeader64.SectionAlignment;
+}
+
+PESection *PEMap::findSectionContaining(address_t address) const {
+    for(auto section : getSectionList()) {
+        if(address >= section->getVirtualAddress()
+            && address < section->getVirtualAddress() + section->getSize()) {
+            
+            return section;
+        }
+    }
+    return nullptr;
+}
+
+#if 0
+char *PEMap::getReadAddress(address_t virtualAddress) const {
+    auto section = findSectionContaining(virtualAddress);
+    if(!section) return nullptr;
+
+    return section->getReadAddress()
+        + (virtualAddress - section->getVirtualAddress());
+}
+#endif
+
+static const char *GetSymbolTableStorageClassName(std::uint8_t id) {
   switch (id) {
     case peparse::IMAGE_SYM_CLASS_END_OF_FUNCTION:
       return "CLASS_END_OF_FUNCTION";
@@ -98,211 +271,3 @@ const char *GetSymbolTableStorageClassName(std::uint8_t id) {
       return nullptr;
   }
 }
-
-void PEMap::setup() {
-    verifyPE();
-    makeSectionMap();
-    //makeSegmentList();
-    //makeVirtualAddresses();
-
-    /*using namespace peparse;
-    IterSec(peRef, [] (void *, VA sectionBase, std::string &name,
-        image_section_header header, bounded_buffer *buffer) {
-
-        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase);
-        return 0;
-    }, nullptr);*/
-
-    IterSymbols(peRef, [] (void *,
-        std::string &name,
-        std::uint32_t &value,
-        std::int16_t &sectionIndex,
-        std::uint16_t &type,
-        std::uint8_t &storageClass,
-        std::uint8_t &auxSymCount) {
-
-        LOG(1, "    symbol [" << name << "] at 0x" << std::hex << value
-            << " class " << GetSymbolTableStorageClassName(storageClass));
-        return 0;
-    }, nullptr);
-}
-
-void PEMap::parsePE(const std::string &filename) {
-    CLOG(1, "creating PEMap for file [%s]", filename.c_str());
-    peRef = peparse::ParsePEFromFile(filename.c_str());
-    if(!peRef) throwError("ParsePEFromFile");
-
-    verifyPE();
-}
-
-void PEMap::verifyPE() {
-    if(peRef->peHeader.nt.FileHeader.Machine != peparse::IMAGE_FILE_MACHINE_AMD64) {
-        throwError("exe is not 64-bit");
-    }
-}
-
-void PEMap::makeSectionMap() {
-    using namespace peparse;
-    IterSec(peRef, [] (void *data, VA sectionBase, std::string &name,
-        image_section_header header, bounded_buffer *buffer) {
-        auto _this = static_cast<PEMap *>(data);
-
-        // pe-parse adds the base address to section addresses, we undo this.
-        nt_header_32 *nthdr = &_this->peRef->peHeader.nt;
-        address_t baseAddress = nthdr->OptionalHeader64.ImageBase;
-        sectionBase -= baseAddress;
-
-        bool isR = (header.Characteristics & IMAGE_SCN_MEM_READ) != 0;
-        bool isW = (header.Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
-        bool isX = (header.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
-
-        auto section = new PESection(_this->getSectionCount(), name,
-            sectionBase, header, buffer);
-        LOG(1, "    section [" << name << "] at 0x" << std::hex << sectionBase
-            << ", index " << section->getIndex() << ", perm " << "-R"[isR]
-            << "-W"[isW] << "-X"[isX] << ", size "
-            << buffer->bufLen << ", filesize " << header.SizeOfRawData);
-        _this->addSection(section);
-        return 0;
-    }, this);
-}
-
-address_t PEMap::getEntryPoint() const {
-    peparse::VA va;
-    GetEntryPoint(peRef, va);
-    return static_cast<address_t>(va);
-}
-
-address_t PEMap::getSectionAlignment() const {
-    return peRef->peHeader.nt.OptionalHeader64.SectionAlignment;
-}
-
-#if 0
-void PEMap::makeSegmentList() {
-    char *charmap = static_cast<char *>(map);
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    ElfXX_Phdr *pheader = (ElfXX_Phdr *)(charmap + header->e_phoff);
-
-    for(int i = 0; i < header->e_phnum; i ++) {
-        ElfXX_Phdr *phdr = &pheader[i];
-        segmentList.push_back(static_cast<void *>(phdr));
-    }
-}
-
-void PEMap::makeVirtualAddresses() {
-    baseAddress = 0;
-    copyBase = 0;
-    interpreter = nullptr;
-    char *charmap = static_cast<char *>(map);
-
-    for(std::map<std::string, ElfSection *>::iterator it = sectionMap.begin(); it != sectionMap.end(); ++it) {
-        auto section = it->second;
-        auto header = section->getHeader();
-        section->setReadAddress((address_t)charmap + header->sh_offset);
-        section->setVirtualAddress(header->sh_addr);
-    }
-
-    this->strtab = getSectionReadPtr<const char *>(".strtab");
-    this->dynstr = getSectionReadPtr<const char *>(".dynstr");
-
-    if (isObjectFile()) {
-        copyBase = (address_t)(charmap);
-        rwCopyBase = (address_t)(charmap);
-
-        sectionMap[".data"]->setVirtualAddress(0x20000);
-        sectionMap[".bss"]->setVirtualAddress(sectionMap[".data"]->getVirtualAddress() + sectionMap[".data"]->getHeader()->sh_size);
-        sectionMap[".rodata"]->setVirtualAddress(sectionMap[".bss"]->getVirtualAddress() + sectionMap[".bss"]->getHeader()->sh_size);
-        return;
-    }
-
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    ElfXX_Phdr *pheader = (ElfXX_Phdr *)(charmap + header->e_phoff);
-
-    for(int i = 0; i < header->e_phnum; i ++) {
-        ElfXX_Phdr *phdr = &pheader[i];
-
-        if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_X)) {
-            copyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
-        }
-        if(phdr->p_type == PT_LOAD && phdr->p_flags == (PF_R | PF_W)) {
-            rwCopyBase = (address_t)(charmap + phdr->p_offset - phdr->p_vaddr);
-        }
-        if(phdr->p_type == PT_INTERP) {
-            interpreter = charmap + phdr->p_offset;
-        }
-    }
-}
-
-std::vector<void *> PEMap::findSectionsByType(int type) const {
-    std::vector<void *> sections;
-    ElfXX_Shdr sCast;
-
-    char *charmap = static_cast<char *>(map);
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
-    for(int i = 0; i < header->e_shnum; i ++) {
-        ElfXX_Shdr *s = &sheader[i];
-
-        if(s->sh_type == static_cast<decltype(sCast.sh_type)>(type)) {
-            sections.push_back(static_cast<void *>(s));
-        }
-    }
-
-    return std::move(sections);
-}
-
-std::vector<void *> PEMap::findSectionsByFlag(long flag) const {
-    std::vector<void *> sections;
-
-    char *charmap = static_cast<char *>(map);
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    ElfXX_Shdr *sheader = (ElfXX_Shdr *)(charmap + header->e_shoff);
-    for(int i = 0; i < header->e_shnum; i ++) {
-        ElfXX_Shdr *s = &sheader[i];
-
-        if(s->sh_flags & flag) {
-            sections.push_back(static_cast<void *>(s));
-        }
-    }
-
-    return sections;
-}
-
-
-address_t ElfSection::convertOffsetToVA(size_t offset) {
-    return virtualAddress + offset;
-}
-
-address_t ElfSection::convertVAToOffset(address_t va) {
-    return va - virtualAddress;
-}
-
-size_t PEMap::getEntryPoint() const {
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    return header->e_entry;
-}
-
-bool PEMap::isExecutable() const {
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    return header->e_type == ET_EXEC;
-}
-
-bool PEMap::isSharedLibrary() const {
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    return header->e_type == ET_DYN;
-}
-
-bool PEMap::isObjectFile() const {
-    ElfXX_Ehdr *header = (ElfXX_Ehdr *)map;
-    return header->e_type == ET_REL;
-}
-
-bool PEMap::isDynamic() const {
-    return findSection(".dynamic") != nullptr;
-}
-
-bool PEMap::hasRelocations() const {
-    return !findSectionsByType(SHT_RELA).empty();
-    //return findSection(".rela.text") != nullptr;
-}
-#endif
