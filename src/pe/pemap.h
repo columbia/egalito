@@ -20,7 +20,7 @@ public:
         peparse::image_section_header header, peparse::bounded_buffer *buffer);
 
     //peparse::bounded_buffer *getBuffer() const { return buffer; }
-    char *getReadPtr() const { return reinterpret_cast<char *>(buffer->buf); }
+    const char *getReadPtr() const { return reinterpret_cast<const char *>(buffer->buf); }
     size_t getReadSize() const { return buffer->bufLen; }
     virtual size_t getSize() const { return header.Misc.VirtualSize; }
     size_t getOffset() const { return header.PointerToRawData; }
@@ -47,6 +47,8 @@ public:
     ~PEMap();
 
     virtual PEMap *asPE() { return this; }
+    virtual peparse::parsed_pe *getPERef() { return peRef; }
+    address_t getPEImageBase() { return peRef->peHeader.nt.OptionalHeader64.ImageBase; }
 
     static bool isPE(const std::string &filename);
 private:
@@ -55,12 +57,27 @@ private:
     void parsePE(const std::string &filename);
     void verifyPE();
     void makeSectionMap();
+    void findDataDirectories();
     //void makeSegmentList();
     //void makeVirtualAddresses();
 public:
     virtual address_t getEntryPoint() const;
     virtual address_t getSectionAlignment() const;
+
+    PESection *findSectionContaining(address_t address) const;
+
+    template <typename T>
+    T getReadAddress(address_t virtualAddress);
 };
+
+template <typename T>
+T PEMap::getReadAddress(address_t virtualAddress) {
+    auto section = findSectionContaining(virtualAddress);
+    if(!section) return nullptr;
+
+    return reinterpret_cast<T>(section->getReadAddress()
+        + (virtualAddress - section->getVirtualAddress()));
+}
 
 #else
 

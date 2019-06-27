@@ -8,6 +8,7 @@
 #include "elf/symbol.h"
 #include "elf/elfdynamic.h"
 #include "pe/symbolparser.h"
+#include "pe/makereloc.h"
 #include "dwarf/parser.h"
 #include "chunk/concrete.h"
 #include "chunk/aliasmap.h"
@@ -174,8 +175,6 @@ void PEExeFile::parseSymbolsAndRelocs(const std::string &symbolFile) {
         setDynamicSymbolList(SymbolBuilder::buildDynamicSymbolList(elf));
     }*/
 
-    /*if(elf) {
-        setRelocList(RelocList::buildRelocList(elf,
-            getSymbolList(), getDynamicSymbolList()));
-    }*/
+    setRelocList(PEMakeReloc::buildRelocList(pe,
+        getSymbolList(), getDynamicSymbolList()));
 }
