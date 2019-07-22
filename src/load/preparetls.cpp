@@ -24,7 +24,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     // this should be at %fs:0x28
     uint64_t canary;
     __asm__ __volatile__ (
-        "mov %@:%p1, %0"
+        "mov %%fs:%p1, %0"
             : "=r"(canary)
             : "i"(offsetof(my_tcbhead_t, stack_guard))
     );
@@ -34,7 +34,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
     // this should be at %fs:0x30
     uint64_t pointer_guard;
     __asm__ __volatile__ (
-        "mov %@:%p1, %0"
+        "mov %%fs:%p1, %0"
             : "=r"(pointer_guard)
             : "i"(offsetof(my_tcbhead_t, pointer_guard))
     );
@@ -43,7 +43,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
 #if 0
     uint32_t multiple_threads;
     __asm__ __volatile__ (
-        "mov %@:%p1, %0"
+        "mov %%fs:%p1, %0"
             : "=r"(multiple_threads)
             : "i"(offsetof(my_tcbhead_t, multiple_threads))
     );
