@@ -9,6 +9,7 @@
 void CollectGlobalsPass::visit(Module *module) {
     auto exeFile = module->getExeFile();
     if(!exeFile) return;
+    if(exeFile->asPE()) return;  // for now, not supported on PE
     if(!module->getDataRegionList()) return;
 
     auto syms = exeFile->getSymbolList();

@@ -34,6 +34,9 @@ void InferLinksPass::visit(Instruction *instruction) {
         instruction->setSemantic(linked);
         delete semantic;
     }
+    /*else {
+        LOG(0, "makeLinked could not create link for instruction " << instruction->getName());
+    }*/
 #elif defined(ARCH_ARM)
     auto linked = LinkedInstruction::makeLinked(module, instruction, assembly);
     if(linked) {
