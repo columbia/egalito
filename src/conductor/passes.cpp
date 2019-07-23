@@ -97,7 +97,6 @@ Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
 
     // need SplitBasicBlock()
     RUN_PASS(NonReturnFunction(), module);
-    if(auto peFile = exeFile->asPE()) return module;
 #ifdef ARCH_AARCH64
     if(!exeFile->getSymbolList()) {
         RUN_PASS(SplitFunction(), module);
