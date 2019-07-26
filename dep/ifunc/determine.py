@@ -22,7 +22,7 @@ class DetermineIFuncTarget (gdb.Command):
         value = gdb.parse_and_eval(arg)
         if value is not None:
             #print("trampoline at %x" % value.address)
-            gdb.execute('set $pc = 0x%x' % value.address, False, True)
+            gdb.execute('set $pc = 0x%x' % int(value.address), False, True)
             gdb.execute('si', False, True)
             #print('PC = %x' % gdb.selected_frame().pc())
             name = gdb.selected_frame().name()
