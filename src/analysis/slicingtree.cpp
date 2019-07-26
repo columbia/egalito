@@ -30,7 +30,11 @@ void TreeNodeRegisterRIP::print(const TreePrinter &p) const {
 }
 
 void TreeNodePhysicalRegister::print(const TreePrinter &p) const {
+#ifdef ARCH_X86_64
+    p.stream() << "%" << X86Register::getRepresentativeName(reg);
+#else
     p.stream() << "%R" << std::dec << reg;
+#endif
 }
 
 void TreeNodeUnary::print(const TreePrinter &p) const {

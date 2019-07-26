@@ -29,7 +29,11 @@ TreeNode *DefList::get(int reg) const {
 
 void DefList::dump() const {
     for(auto d : list) {
+#ifdef ARCH_X86_64
+        LOG0(1, X86Register::getRepresentativeName(d.first) << ":  ");
+#else
         LOG0(1, "R" << std::dec << d.first << ":  ");
+#endif
         if(auto tree = d.second) {
             IF_LOG(1) tree->print(TreePrinter(0, 0));
         }
@@ -87,7 +91,11 @@ const std::vector<UDState *>& RefList::get(int reg) const {
 
 void RefList::dump() const {
     for(const auto& r : list) {
+#ifdef ARCH_X86_64
+        LOG0(1, X86Register::getRepresentativeName(r.first) << " <[");
+#else
         LOG0(1, "R" << std::dec << r.first << " <[");
+#endif
         for(auto o : r.second) {
             LOG0(1, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
@@ -135,7 +143,11 @@ const std::vector<UDState *>& UseList::get(int reg) const {
 
 void UseList::dump() const {
     for(const auto& u : list) {
+#ifdef ARCH_X86_64
+        LOG0(1, X86Register::getRepresentativeName(u.first) << " <[");
+#else
         LOG0(1, "R" << std::dec << u.first << " <[");
+#endif
         for(auto o : u.second) {
             LOG0(1, " 0x" << std::hex << o->getInstruction()->getAddress());
         }
