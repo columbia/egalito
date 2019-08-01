@@ -1025,6 +1025,11 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                     break;
                 }
 
+                if(getBoundFromAnd(s, reg, info)) {
+                    found = true;
+                    break;
+                }
+
                 if(getBoundFromMove(s, reg, info)) {
                     found = true;
                     break;
