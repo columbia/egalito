@@ -23,6 +23,7 @@ const int X86Register::mappings[][5] = {
 
 const char *X86Register::getRepresentativeName(int reg) {
     static DisasmHandle handle;
+    if(reg == X86Register::FLAGS) return "flags";
     return cs_reg_name(handle.raw(), mappings[reg][4]);
 }
 
