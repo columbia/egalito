@@ -469,7 +469,7 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
                 TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
             >
         >
-    >> TableAccessForm1;
+    >> TableAccessForm1;  // typical jump table
 
     typedef TreePatternCapture<TreePatternUnary<TreeNodeDereference,
         TreePatternBinary<TreeNodeAddition,
@@ -478,20 +478,44 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
         >
     >> TableAccessForm2;
 
+    typedef TreePatternCapture<TreePatternUnary<TreeNodeDereference,
+        TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
+    >> IndexDerefForm;
+
+    TreeNodeDereference *deref = nullptr;
+    int derefReg = -1;
+    auto indexParser = [&, info](UDState *s, TreeCapture& cap) {
+        if(auto d = dynamic_cast<TreeNodeDereference *>(cap.get(0))) {
+            if(auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1))) {
+                derefReg = regTree->getRegister();
+            }
+            deref = d;
+        }
+        LOG(1, "    looks like DEREF! " << deref);
+        return deref != nullptr;
+    };
+
     bool found = false;
     auto parser = [&, info](UDState *s, TreeCapture& cap) {
         auto regTree1 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(1));
-        auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
         auto scaleTree = dynamic_cast<TreeNodeConstant *>(cap.get(3));
 
         address_t address;
         std::tie(found, address)
             = parseBaseAddress(s, regTree1->getRegister());
         if(found) {
-            LOG(10, "TABLE ACCESS FOUND!");
+            auto regTree2 = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(2));
+            FlowUtil::searchUpDef<IndexDerefForm>(s, reg, indexParser);
+
+            LOG(10, "TABLE ACCESS FOUND! deref=" << deref);
             info->tableBase = address;
             info->scale = scaleTree->getValue();
-            parseBound(s, regTree2->getRegister(), info);
+            if(!deref) {
+                parseBound(s, regTree2->getRegister(), info);
+            }
+            else {
+                parseBoundDeref(s, deref, regTree2->getRegister(), info);
+            }
             return true;
         }
         return false;
@@ -920,9 +944,10 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     bool found = false;
     std::map<UDState *, int> list;
     auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
+        LOG(1, "parser considering register " << r);
         if(r == X86Register::FLAGS) { // cmp + jump
             IF_LOG(10) {
-                LOG(1, "s = " << std::hex << s->getInstruction()->getAddress());
+                LOG(1, "parser s = " << std::hex << s->getInstruction()->getAddress());
                 s->dumpState();
             }
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
@@ -936,7 +961,7 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                     if(valueReaches(
                         s, X86Register::FLAGS, jump, X86Register::FLAGS)) {
 
-                        LOG(10, " FLAGS reaches " << std::hex
+                        LOG(10, " FLAGS reaches" << std::hex
                             << " from " << s->getInstruction()->getAddress()
                             << " to " << state->getInstruction()->getAddress());
                         LOG(10, "FLAGS 0x"
@@ -965,6 +990,7 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
             s->dumpState();
         }
         FlowUtil::searchDownUse<ComparisonForm>(s, reg, parser);
+        LOG(15, "    search in state " << s << " yields " << list.size());
 
         if(!list.empty()) {
             auto prune = [&](int id, int src, int dest) {
@@ -1172,6 +1198,144 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
 #elif defined(ARCH_RISCV)
     // XXX: no idea
     assert(0);
+    return false;
+#endif
+}
+
+bool JumptableDetection::parseBoundDeref(UDState *state, TreeNodeDereference *deref,
+    int reg, JumptableInfo *info) {
+
+    int reg0 = dynamic_cast<TreeNodePhysicalRegister *>(deref->getChild())->getRegister();
+
+    LOG(11, "parseBoundDeref! reg=" << reg << ", reg0=" << reg0);
+
+#ifdef ARCH_X86_64
+    typedef TreePatternBinary<TreeNodeComparison,
+        TreePatternCapture<TreePatternAny>,
+        TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
+    > ComparisonDerefForm;
+
+    bool found = false;
+    std::map<UDState *, int> list;
+    auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
+        if(r != X86Register::FLAGS) return false;
+
+        LOG(11, "        parser sees match in " << s << ", instr="
+            << s->getInstruction()->getName());
+
+        if(auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0))) {
+            // continue
+        }
+        else if(auto derefTree = dynamic_cast<TreeNodeDereference *>(cap.get(0))) {
+            if(reg0 != dynamic_cast<TreeNodePhysicalRegister *>(deref->getChild())->getRegister()) {
+                return false;
+            }
+        }
+        else return false;
+
+#if 1
+        IF_LOG(10) {
+            LOG(1, "parser s = " << std::hex << s->getInstruction()->getAddress());
+            s->dumpState();
+        }
+        auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));
+        if(getBoundFromCompare(s, boundTree->getValue(), info)) {
+            // this check here is too strict and rejects a known jump
+            // table bound in gcc (add_location_or_const_attribute),
+            // but that can be found later by other passes
+            std::vector<UDState *> precList;
+            collectJumpsTo(info->jumpState, info, precList);
+            for(auto jump : precList) {
+                if(valueReaches(
+                    s, X86Register::FLAGS, jump, X86Register::FLAGS)) {
+
+                    LOG(10, " FLAGS reaches" << std::hex
+                        << " from " << s->getInstruction()->getAddress()
+                        << " to " << state->getInstruction()->getAddress());
+                    LOG(10, "FLAGS 0x"
+                        << std::hex << s->getInstruction()->getAddress());
+                    list[s] = info->entries;
+                    found = true;
+                    return true;
+                }
+            }
+            LOG(10, "    condition flags" << std::hex
+                << " set at " << s->getInstruction()->getAddress()
+                << " doesn't reach " << state->getInstruction()->getAddress());
+        }
+#endif
+        return false;
+    };
+
+    LOG(10, "parseBoundDeref 0x"
+        << std::hex << state->getInstruction()->getAddress()
+        << " reg " << std::dec << reg);
+    IF_LOG(10) state->dumpState();
+    for(auto s0 : state->getRegRef(reg)) {
+        LOG(11, "  state " << s0->getInstruction()->getName() << " references " << reg);
+        for(auto s : s0->getRegRef(reg0)) {
+            LOG(11, "    state " << s->getInstruction()->getName() << " references " << reg0);
+            if(s == state) continue;
+            /*IF_LOG(10) {
+                LOG(1, "s : state->getRegRef");
+                s->dumpState();
+            }*/
+            FlowUtil::searchDownUse<ComparisonDerefForm>(s, reg0, parser);
+            //FlowUtil::searchUpDef<ComparisonDerefForm>(s, reg, parser);
+            LOG(15, "    search in state " << s->getInstruction()->getName() << " yields " << list.size());
+
+            if(!list.empty()) {
+                auto prune = [&](int id, int src, int dest) {
+                    return id == state->getNode()->getID();
+                };
+                while (list.size() > 1) {
+                    auto sz = list.size();
+                    auto it = list.begin();
+                    for(const auto &pair : list) {
+                        if(it->first == pair.first) continue;
+
+                        LOG(1, "checking " << std::hex
+                            << pair.first->getInstruction()->getAddress());
+                        if(isReachable(info->cfg,
+                            it->first->getNode()->getID(),
+                            pair.first->getNode()->getID(),
+                            prune)) {
+
+                            LOG(1, "deleting from list " << std::hex
+                                << it->first->getInstruction()->getAddress());
+                            list.erase(it);
+                            break;
+                        }
+                    }
+                    if(sz == list.size()) {
+                        info->cfg->dumpDot();
+                        LOG(1, "multiple bound?");
+                        for(auto pair : list) {
+                            LOG(1, " " << std::hex
+                                << pair.first->getInstruction()->getAddress());
+                            pair.first->dumpState();
+                        }
+                        std::cout.flush();
+                        assert(sz > list.size());
+                    }
+                }
+                info->entries = list.begin()->second;
+                LOG(10, "entries = " << info->entries);
+                break;
+            }
+        }
+    }
+
+    if(found) {
+        LOG(10, "entries = " << std::dec << info->entries);
+    }
+    else {
+        LOG(10, "no condition?");
+    }
+    LOG(10, "======");
+
+    return found;
+#else
     return false;
 #endif
 }
