@@ -50,6 +50,8 @@ public:
     Sandbox *makeKernelSandbox(const char *outputFile);
     bool generateStaticExecutable(const char *outputFile);
     bool generateMirrorELF(const char *outputFile);
+    bool generateMirrorELF(const char *outputFile,
+        const std::vector<Function *> &order);
     bool generateKernel(const char *outputFile);
     void moveCode(Sandbox *sandbox, bool useDisps = true);
 public:
