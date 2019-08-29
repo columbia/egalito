@@ -17,8 +17,14 @@ public:
     void assignAddresses(Program *program);
     void generateCode(Program *program);
 
+    void assignAddresses(Program *program, const std::vector<Function *> &order);
+    void generateCode(Program *program, const std::vector<Function *> &order);
+
     void assignAddresses(Module *module);
     void generateCode(Module *module);
+
+    void assignAddresses(Module *module, const std::vector<Function *> &order);
+    void generateCode(Module *module, const std::vector<Function *> &order);
 
     // For function generation
     void assignAddressForFunction(Function *function);

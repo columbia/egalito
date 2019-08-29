@@ -95,6 +95,26 @@ void EgalitoInterface::generate(const std::string &outputName, bool isUnion) {
     }
 }
 
+void EgalitoInterface::generate(const std::string &outputName,
+    const std::vector<Function *> &order) {
+
+    auto program = getProgram();
+    prepareForGeneration(false);
+
+    // generate mirror executable.
+    LOG(0, "Generating 1-1 executable [" << outputName << "]...");
+    LdsoRefsPass ldsoRefs;
+    program->accept(&ldsoRefs);
+
+    ExternalSymbolLinksPass externalSymbolLinks;
+    program->accept(&externalSymbolLinks);
+
+    IFuncPLTs ifuncPLTs;
+    program->accept(&ifuncPLTs);
+
+    setup.generateMirrorELF(outputName.c_str(), order);
+}
+
 void EgalitoInterface::assignNewFunctionAddresses() {
     auto sandbox = setup.makeLoaderSandbox();
     setup.moveCodeAssignAddresses(sandbox, true);

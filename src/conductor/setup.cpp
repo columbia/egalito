@@ -341,6 +341,36 @@ bool ConductorSetup::generateMirrorELF(const char *outputFile) {
     return true;
 }
 
+bool ConductorSetup::generateMirrorELF(const char *outputFile,
+    const std::vector<Function *> &order) {
+
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = MirrorGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        ////moveCode(sandbox, true);  // calls sandbox->finalize()
+        //moveCodeAssignAddresses(sandbox, true);
+        Generator(sandbox, true).assignAddresses(conductor->getProgram(), order);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newMirrorPasses(program);
+        }
+        //copyCodeToNewAddresses(sandbox, true);
+        Generator(sandbox, true).generateCode(conductor->getProgram(), order);
+        moveCodeMakeExecutable(sandbox);
+    }
+
+    //generator.generate(outputFile);
+    generator.generateContent(outputFile);
+    return true;
+}
+
 bool ConductorSetup::generateKernel(const char *outputFile) {
     auto sandbox = makeKernelSandbox(outputFile);
     auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
