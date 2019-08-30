@@ -105,6 +105,14 @@ void EndbrAddPass::visit(InitFunctionList *initFunctionList) {
 }
 
 void EndbrAddPass::visit(InitFunction *initFunction) {
+    if(initFunction->isSpecialCase()) {
+        auto target = initFunction->getFunction();
+        if(target) {
+            indirectTargets.insert(target);
+        }
+        return;
+    }
+
     auto target = dynamic_cast<Function *>(initFunction->getLink()->getTarget());
     if(target) {
         indirectTargets.insert(target);
