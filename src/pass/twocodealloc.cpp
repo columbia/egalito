@@ -30,6 +30,9 @@ void TwocodeAllocPass::visit(Program *program) {
         {
             auto sourceFunc = ChunkFind2(program).findFunction(
                 "_start");
+            if(!sourceFunc) {
+                sourceFunc = dynamic_cast<Function *>(program->getEntryPoint());
+            }
             assert(sourceFunc);
             auto block1 = sourceFunc->getChildren()->getIterable()->get(0);
 

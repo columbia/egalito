@@ -12,9 +12,10 @@ public:
 private:
     Mode mode;
     Function *violationTarget;
+    Function *entryPoint;
 public:
     ShadowStackPass(Mode mode = MODE_CONST) : mode(mode),
-        violationTarget(nullptr) {}
+        violationTarget(nullptr), entryPoint(nullptr) {}
     virtual void visit(Program *program);
     virtual void visit(Module *module);
     virtual void visit(Function *function);

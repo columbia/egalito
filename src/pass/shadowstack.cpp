@@ -39,6 +39,10 @@ void ShadowStackPass::visit(Program *program) {
         }
     }
 
+    if(auto f = dynamic_cast<Function *>(program->getEntryPoint())) {
+        entryPoint = f;
+    }
+
     recurse(program);
 }
 
@@ -72,7 +76,7 @@ void ShadowStackPass::visit(Function *function) {
 
     if(function->getName() == "obstack_free") return;  // jne tail rec, for const ss
 
-    if(function->getName() == "_start") return;
+    if(function->getName() == "_start" || function == entryPoint) return;
     if(function->getName() == "__libc_start_main") return;
     if(function->getName() == "mmap64") return;
     if(function->getName() == "mmap") return;

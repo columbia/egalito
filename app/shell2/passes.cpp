@@ -116,6 +116,12 @@ void PassCommands::makePassMap(EgalitoInterface *egalito) {
         [] (Chunk *chunk) { return new EndbrAddPass(); });
     passMap["endbrenforce"] = PassContext(true, {},
         [] (Chunk *chunk) { return new EndbrEnforcePass(); });
+    passMap["stackxor"] = PassContext({TYPE_Program},
+        [] (Chunk *chunk) { return new StackXOR(0x28); });
+    passMap["shadowstackconst"] = PassContext(true, {},
+        [] (Chunk *chunk) { return new ShadowStackPass(ShadowStackPass::MODE_CONST); });
+    passMap["shadowstackgs"] = PassContext(true, {},
+        [] (Chunk *chunk) { return new ShadowStackPass(ShadowStackPass::MODE_GS); });
 
 #if 0
 pass/clearplts.h
