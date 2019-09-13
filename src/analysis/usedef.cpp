@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include "chunk/dump.h"
+
 #include "log/log.h"
 
 DefList::~DefList() {
@@ -1646,6 +1647,11 @@ TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
         // use TreeNodeConstant because it can be mem.disp < 0
         memTree = TreeFactory::instance().make<TreeNodeConstant>(mem.disp);
     }
+    if ((mem.disp == 0) && (mem.segment == INVALID_REGISTER) &&
+	(mem.base == INVALID_REGISTER) && (mem.index == INVALID_REGISTER)) {
+	memTree = TreeFactory::instance().make<TreeNodeConstant>(mem.disp);
+    }
+
     if(mem.index != INVALID_REGISTER) {
         int regI;
         size_t widthI;
