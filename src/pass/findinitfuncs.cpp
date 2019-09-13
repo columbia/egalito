@@ -19,6 +19,9 @@ void FindInitFuncs::visit(Module *module) {
                     auto initFunction = new InitFunction(true, var);
                     // TODO: Use a position type to track dataregion address.
                     initFunction->setPosition(new AbsolutePosition(var->getAddress()));
+                    LOG(0, ".init_array entry will be resolved later: 0x"
+                        << std::hex << var->getAddress() << ", target=" <<
+                        var->getDest()->getTarget()->getName());
                     initFunctionList->getChildren()->add(initFunction);
                     initFunction->setParent(initFunctionList);
                 }

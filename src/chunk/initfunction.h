@@ -16,10 +16,7 @@ private:
     DataVariable *dataVariable;  // may be null
 public:
     // ensure that dataVariable->getDest()->getTarget() exists before calling this
-    InitFunction(bool init, DataVariable *dataVariable)
-        : init(init), specialCase(false),
-        function(dynamic_cast<Function *>(dataVariable->getDest()->getTarget())),
-        dataVariable(dataVariable) {}
+    InitFunction(bool init, DataVariable *dataVariable);
     InitFunction(bool init, Function *function, bool specialCase = false)
         : init(init), specialCase(specialCase), function(function),
         dataVariable(nullptr) {}

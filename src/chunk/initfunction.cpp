@@ -2,6 +2,21 @@
 #include "function.h"
 #include "serializer.h"
 #include "visitor.h"
+#include "log/log.h"
+
+InitFunction::InitFunction(bool init, DataVariable *dataVariable)
+    : init(init), specialCase(false), function(nullptr), dataVariable(dataVariable) {
+
+    if(auto v = dynamic_cast<Function *>(dataVariable->getDest()->getTarget())) {
+        function = v;
+    }
+    else if(auto v = dynamic_cast<Instruction *>(dataVariable->getDest()->getTarget())) {
+        function = static_cast<Function *>(v->getParent()->getParent());
+    }
+    else {
+        LOG(0, "ERROR: Init function pointing at unknown Chunk type!");
+    }
+}
 
 void InitFunction::serialize(ChunkSerializerOperations &op,
     ArchiveStreamWriter &writer) {

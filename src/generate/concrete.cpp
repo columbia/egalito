@@ -678,6 +678,7 @@ void MakeInitArray::makeInitArraySectionHelper(const char *type,
                 firstInit = function;
             }
             else {
+                assert(function != nullptr);
                 LOG(0, "Adding " << type << " function 0x" << std::hex
                     << function->getAddress() << " to ." << type << "_array");
                 initFunctions.push_back(function);
