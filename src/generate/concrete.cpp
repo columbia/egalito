@@ -761,6 +761,9 @@ void MakeInitArray::makeInitArraySectionLinks() {
     int counter = 0;
     for(auto instr : CIter::children(block)) {
         if(auto link = instr->getSemantic()->getLink()) {
+            // should be lea's
+            if(instr->getSemantic()->getAssembly()->getId() != X86_INS_LEA) continue;
+
             ++counter;
             if(counter == 1) {
                 // can't be deferred because otherwise code generation picks up old value
