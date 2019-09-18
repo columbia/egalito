@@ -60,6 +60,17 @@ void FindInitFuncs::visit(Module *module) {
         }
     }
 
+    if(module->getLibrary()->getRole() == Library::ROLE_LIBC) {
+        auto program = dynamic_cast<Program *>(module->getParent());
+        //auto func = ChunkFind2(program).findFunctionInModule("__ctype_init", module);
+        auto func = ChunkFind2(program).findFunctionInModule("_init", module);
+        if(func) {
+            auto initFunction = new InitFunction(true, func, false);
+            initFunctionList->getChildren()->getIterable()->add(initFunction);
+            initFunctionList->setSpecialCase(initFunction);
+        }
+    }
+
     module->getChildren()->add(initFunctionList);
     module->setInitFunctionList(initFunctionList);
     initFunctionList->setParent(module);
