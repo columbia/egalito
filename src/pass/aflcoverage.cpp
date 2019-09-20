@@ -106,7 +106,7 @@ void AFLCoveragePass::visit(Block *block) {
 void AFLCoveragePass::addCoverageCode(Block *block) {
     blockID = std::rand(); //% SHM_REGION_SIZE;
 
-    ChunkAddInline ai({X86_REG_R10}, [this] (unsigned int stackBytesAdded) {
+    ChunkAddInline ai({X86_REG_R10, X86_REG_EFLAGS}, [this] (unsigned int stackBytesAdded) {
 #if 1
 		//   0:   41 52                   push   %r10
 		//   2:   4c 8b 15 cc cc 0c 00    mov    0xccccc(%rip),%r10        # 0xcccd5
