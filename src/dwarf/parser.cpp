@@ -208,8 +208,10 @@ DwarfFDE *DwarfParser::parseFDE(DwarfCursor start, DwarfCursor end,
         fde->getPcBegin(), 
         fde->getPcBegin() + fde->getPcRange());
     DwarfInstructionDecoder decoder(start, end, cie, fde->getPcBegin());
-    auto state = decoder.parseInstructions();
-    fde->setState(state);
+    // XXX: temporarily disable DWARF instructions parsing, as we only use the
+    // extracted function bounds.
+    /*auto state = decoder.parseInstructions();
+    fde->setState(state);*/
     return fde;
 }
 
