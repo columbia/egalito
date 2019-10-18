@@ -89,6 +89,37 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
 
     if(!symbolList) return module;
 
+#ifdef ARCH_X86_64
+    /* consider any space between start of .text and first function as
+        potential crt function locations */
+    auto text = elfMap->findSection(".text");
+    address_t smallest = -1u;
+    for(auto it : (*symbolList)) {
+        if(!it->isFunction()) continue;
+
+        if(it->getAddress() >= text->getVirtualAddress()) {
+            address_t gap = it->getAddress() - text->getVirtualAddress();
+            if(gap < smallest) smallest = gap;
+        }
+    }
+    if(smallest != -1u && smallest > 0) {
+        IntervalTree gaptree(Range(text->getVirtualAddress(), text->getSize()));
+        gaptree.add(Range(text->getVirtualAddress(), smallest));
+        DisasmHandle handle(true);
+        DisassembleX86Function dx86(handle, elfMap);
+        dx86.disassembleCrtBeginFunctions(text,
+            Range(text->getVirtualAddress(), smallest), gaptree);
+        for(auto &r : gaptree.getAllData()) {
+            Function *function = dx86.fuzzyFunction(r, text);
+            functionList->getChildren()->add(function);
+            function->setParent(functionList);
+            LOG(10, "adding function " << function->getName()
+                << " at " << std::hex << function->getAddress()
+                << " size " << function->getSize());
+        }
+    }
+#endif
+
     for(auto sym : *symbolList) {
         // skip Symbols that we don't think represent functions
         if(!sym->isFunction()) continue;
