@@ -88,6 +88,7 @@ public:
 private:
     void firstDisassemblyPass(ElfSection *section,
         IntervalTree &splitRanges, IntervalTree &functionPadding);
+public:
     void disassembleCrtBeginFunctions(ElfSection *section, Range crtbegin,
         IntervalTree &splitRanges);
 };
