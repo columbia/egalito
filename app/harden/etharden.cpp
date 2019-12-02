@@ -12,6 +12,7 @@
 #include "pass/profileinstrument.h"
 #include "pass/profilesave.h"
 #include "pass/condwatchpoint.h"
+#include "pass/retpoline.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -82,6 +83,14 @@ void HardenApp::doWatching() {
     //RUN_PASS(ProfileSavePass(), program);
 }
 
+void HardenApp::doRetpolines() {
+    std::cout << "Adding retpolines...\n";
+    auto program = getProgram();
+    for(auto module : CIter::children(program)) {
+        RUN_PASS(RetpolinePass(), module);
+    }
+}
+
 static void printUsage(const char *program) {
     std::cout << "Usage: " << program << " [options] [mode] input-file output-file\n"
         "    Transforms an executable by adding CFI and a shadow stack.\n"
@@ -94,6 +103,7 @@ static void printUsage(const char *program) {
         "\n"
         "Modes:\n"
         "    --nop          No transformation (default)\n"
+        "    --retpolines   Add inline retpolines, SPECTRE mitigation\n"
         "    --cfi          Intel CET endbr-based Control-Flow Integrity\n"
         "    --ss           default shadow stack\n"
         "        --ss-xor        XOR-based shadowstack\n"
@@ -125,6 +135,7 @@ void HardenApp::run(int argc, char **argv) {
         {"-u", [&oneToOne] () { oneToOne = false; }},
 
         {"--nop",           [&ops] () { }},
+        {"--retpolines",    [&ops] () { ops.push_back("retpolines"); }},
         {"--cfi",           [&ops] () { ops.push_back("cfi"); }},
         {"--ss",            [&ops] () { ops.push_back("ss-const"); }},
         {"--ss-xor",        [&ops] () { ops.push_back("ss-xor"); }},
@@ -148,6 +159,7 @@ void HardenApp::run(int argc, char **argv) {
         {"permute-data",    [this] () { doPermuteData(); }},
         {"profile",         [this] () { doProfiling(); }},
         {"cond-watchpoint", [this] () { doWatching(); }},
+        {"retpolines",      [this] () { doRetpolines(); }},
     };
 
     for(int a = 1; a < argc; a ++) {

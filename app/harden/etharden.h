@@ -19,6 +19,7 @@ private:
     void doPermuteData();
     void doProfiling();
     void doWatching();
+    void doRetpolines();
 };
 
 #endif
