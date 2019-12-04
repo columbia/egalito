@@ -1588,7 +1588,9 @@ std::tuple<int, size_t> UseDef::getPhysicalRegister(int reg) {
 // returns nullptr if all is zero (disp == 0); see fillMemToReg
 TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
     TreeNode *memTree = nullptr;
-    if(mem.disp != 0) {
+    if(mem.disp != 0 || (mem.index == INVALID_REGISTER
+        && mem.base == INVALID_REGISTER)) {
+
         // use TreeNodeConstant because it can be mem.disp < 0
         memTree = TreeFactory::instance().make<TreeNodeConstant>(mem.disp);
     }

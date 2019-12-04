@@ -19,6 +19,9 @@ void FindInitFuncs::visit(Module *module) {
                     auto initFunction = new InitFunction(true, var);
                     // TODO: Use a position type to track dataregion address.
                     initFunction->setPosition(new AbsolutePosition(var->getAddress()));
+                    LOG(0, ".init_array entry will be resolved later: 0x"
+                        << std::hex << var->getAddress() << ", target=" <<
+                        var->getDest()->getTarget()->getName());
                     initFunctionList->getChildren()->add(initFunction);
                     initFunction->setParent(initFunctionList);
                 }
@@ -54,6 +57,17 @@ void FindInitFuncs::visit(Module *module) {
                     finiFunctionList->setSpecialCase(finiFunction);
                 }
             }
+        }
+    }
+
+    if(module->getLibrary()->getRole() == Library::ROLE_LIBC) {
+        auto program = dynamic_cast<Program *>(module->getParent());
+        //auto func = ChunkFind2(program).findFunctionInModule("__ctype_init", module);
+        auto func = ChunkFind2(program).findFunctionInModule("_init", module);
+        if(func) {
+            auto initFunction = new InitFunction(true, func, false);
+            initFunctionList->getChildren()->getIterable()->add(initFunction);
+            initFunctionList->setSpecialCase(initFunction);
         }
     }
 

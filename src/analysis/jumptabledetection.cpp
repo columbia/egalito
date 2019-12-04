@@ -944,10 +944,10 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     bool found = false;
     std::map<UDState *, int> list;
     auto parser = [&, info](UDState *s, int r, TreeCapture& cap) {
-        LOG(1, "parser considering register " << r);
+        LOG(11, "parser considering register " << r);
         if(r == X86Register::FLAGS) { // cmp + jump
             IF_LOG(10) {
-                LOG(1, "parser s = " << std::hex << s->getInstruction()->getAddress());
+                LOG(11, "parser s = " << std::hex << s->getInstruction()->getAddress());
                 s->dumpState();
             }
             auto boundTree = dynamic_cast<TreeNodeConstant *>(cap.get(1));

@@ -16,6 +16,8 @@ CLDFLAGS    += -L ../src/$(BUILDDIR) -legalito \
 ELF_SOURCES             = $(wildcard elf/*.cpp)
 SANDBOX_SOURCES         = $(wildcard sandbox/*.c sandbox/*.cpp)
 SANDBOX_INJECT_SOURCES  = $(wildcard sandbox/inject/*.c sandbox/inject/*.cpp)
+COVERAGE_SOURCES        = $(wildcard coverage/*.c coverage/*.cpp)
+COVERAGE_INJECT_SOURCES = $(wildcard coverage/inject/*.c coverage/inject/*.s)
 HARDEN_SOURCES          = $(wildcard harden/*.cpp)
 CET_INJECT_SOURCES      = $(wildcard cet/inject/*.c cet/inject/*.cpp)
 SHELL_SOURCES           = $(wildcard shell/*.cpp)
@@ -37,10 +39,14 @@ ETOBJDUMP_SOURCES = $(OBJDUMP_SOURCES)
 ETOBJDUMP_OBJECTS = $(call obj-filename,$(ETOBJDUMP_SOURCES))
 ETSANDBOX_SOURCES = $(SANDBOX_SOURCES)
 ETSANDBOX_OBJECTS = $(call obj-filename,$(ETSANDBOX_SOURCES))
+ETCOVERAGE_SOURCES = $(COVERAGE_SOURCES)
+ETCOVERAGE_OBJECTS = $(call obj-filename,$(ETCOVERAGE_SOURCES))
 ETHARDEN_SOURCES = $(HARDEN_SOURCES)
 ETHARDEN_OBJECTS = $(call obj-filename,$(ETHARDEN_SOURCES))
 LIBSANDBOX_SOURCES = $(SANDBOX_INJECT_SOURCES)
 LIBSANDBOX_OBJECTS = $(call obj-filename,$(LIBSANDBOX_SOURCES))
+LIBCOVERAGE_SOURCES = $(COVERAGE_INJECT_SOURCES)
+LIBCOVERAGE_OBJECTS = $(call obj-filename,$(LIBCOVERAGE_SOURCES))
 LIBCET_SOURCES = $(CET_INJECT_SOURCES)
 LIBCET_OBJECTS = $(call obj-filename,$(LIBCET_SOURCES))
 ETELF_SOURCES = $(ELF_SOURCES)
@@ -52,6 +58,7 @@ ETTWOCODE_OBJECTS = $(call obj-filename,$(ETTWOCODE_SOURCES))
 
 ALL_SOURCES = $(sort $(ETSHELL_SOURCES) $(ETSHELL2_SOURCES) $(ETOBJDUMP_SOURCES) \
     $(ETSANDBOX_SOURCES) $(LIBSANDBOX_SOURCES) \
+    $(ETCOVERAGE_SOURCES) $(LIBCOVERAGE_SOURCES) \
     $(ETHARDEN_SOURCES) $(LIBCET_SOURCES) \
     $(ETELF_SOURCES) $(ETPROFILE_SOURCES) $(ETTWOCODE_SOURCES))
 ALL_OBJECTS = $(call obj-filename,$(ALL_SOURCES))
@@ -63,16 +70,19 @@ ETSHELL = $(BUILDDIR)etshell
 ETSHELL2 = $(BUILDDIR)etshell2
 ETOBJDUMP = $(BUILDDIR)etobjdump
 ETSANDBOX = $(BUILDDIR)etsandbox
+ETCOVERAGE = $(BUILDDIR)etcoverage
+ETHARDEN = $(BUILDDIR)etharden
 ETHARDEN = $(BUILDDIR)etharden
 ETELF = $(BUILDDIR)etelf
 ETPROFILE = $(BUILDDIR)etprofile
 PYTHON_BINDING = $(BUILDDIR)python_egalito.so
 PYSHELL = $(BUILDDIR)pyshell
 SANDBOX_LIBRARY = $(BUILDDIR)libsandbox.so
+COVERAGE_LIBRARY = $(BUILDDIR)libcoverage.so
 CET_LIBRARY = $(BUILDDIR)libcet.so
 ETTWOCODE = $(BUILDDIR)ettwocode
 
-OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE) $(ETTWOCODE)
+OUTPUTS = $(ETSHELL) $(ETSHELL2) $(ETOBJDUMP) $(ETSANDBOX) $(SANDBOX_LIBRARY) $(ETCOVERAGE) $(COVERAGE_LIBRARY) $(ETHARDEN) $(CET_LIBRARY) $(ETELF) $(ETPROFILE) $(ETTWOCODE)
 
 # Default target
 .PHONY: all
@@ -103,6 +113,8 @@ $(BUILDTREE): ../config/config.h
 	@ln -sf $(ETOBJDUMP)
 	@ln -sf $(ETSANDBOX)
 	@ln -sf $(SANDBOX_LIBRARY)
+	@ln -sf $(ETCOVERAGE)
+	@ln -sf $(COVERAGE_LIBRARY)
 	@ln -sf $(ETHARDEN)
 	@ln -sf $(CET_LIBRARY)
 	@ln -sf $(ETELF)
@@ -147,6 +159,10 @@ $(ETSANDBOX): $(ETSANDBOX_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETSANDBOX): ../src/$(BUILDDIR)libegalito.so
 
+$(ETCOVERAGE): $(ETCOVERAGE_OBJECTS)
+	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
+$(ETCOVERAGE): ../src/$(BUILDDIR)libegalito.so
+
 $(ETHARDEN): $(ETHARDEN_OBJECTS)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ $^ $(CLDFLAGS) -Wl,-rpath=$(abspath ../src)
 $(ETHARDEN): ../src/$(BUILDDIR)libegalito.so
@@ -172,6 +188,11 @@ $(BUILDDIR)sandbox/inject/%.o: sandbox/inject/%.c
 $(SANDBOX_LIBRARY): $(LIBSANDBOX_OBJECTS)
 	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libsandbox.so $^ -o $@
 
+$(BUILDDIR)coverage/inject/%.o: coverage/inject/%.c
+	$(SHORT_CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
+$(COVERAGE_LIBRARY): $(LIBCOVERAGE_OBJECTS)
+	$(SHORT_LINK) -shared -fPIC -Wl,-soname,libcoverage.so $^ -o $@
+
 $(BUILDDIR)cet/inject/%.o: cet/inject/%.c
 	$(SHORT_CC) $(CCFLAGS) -fPIC $(DEPFLAGS) -c -o $@ $<
 $(CET_LIBRARY): $(LIBCET_OBJECTS)
@@ -180,4 +201,4 @@ $(CET_LIBRARY): $(LIBCET_OBJECTS)
 # Other targets
 .PHONY: clean realclean
 clean:
-	-rm -rf $(BUILDDIR) .symlinks etshell etshell2 pyshell etobjdump etsandbox libsandbox.so etharden libcet.so etelf etprofile ettwocode
+	-rm -rf $(BUILDDIR) .symlinks etshell etshell2 pyshell etobjdump etsandbox libsandbox.so etcoverage libcoverage.so etharden libcet.so etelf etprofile ettwocode

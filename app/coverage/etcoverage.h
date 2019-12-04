@@ -1,0 +1,4 @@
+#ifndef EGALITO_APP_COVERAGE_H
+#define EGALITO_APP_COVERAGE_H
+
+#endif
