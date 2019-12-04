@@ -53,6 +53,8 @@ void AFLCoveragePass::visit(Module *module) {
 
 void AFLCoveragePass::visit(Function *function) {
     if(function->getName() == "obstack_free") return;  // jne tail rec, for const ss
+    if(function->getName() == "__GI__IO_file_xsputn") return;
+    if(function->getName() == "vfprintf") return;
 
     if(function->getName() == "_start" || function == entryPoint) return;
     if(function->getName() == "__libc_csu_init") return;
@@ -197,7 +199,7 @@ void AFLCoveragePass::addCoverageCode(Block *block) {
 #endif
     });
 	auto instr1 = block->getChildren()->getIterable()->get(0);
-    ai.insertBefore(instr1, false);
+    ai.insertBefore(instr1, true);
 }
 
 #undef GET_BYTE
