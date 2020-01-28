@@ -538,9 +538,6 @@ Link *PerfectLinkResolver::resolveNameAsLinkHelper2(const char *name,
         if(afterMapping) {
             address += module->getBaseAddress();
         }
-        if(address == 0x399204) {
-            LOG(1, "    special case");
-        }
         auto t = LinkFactory::makeDataLink(module, address, true);
 
         LOG(1, "    address 0x" << std::hex << address << " -> " << t);

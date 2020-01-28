@@ -37,7 +37,8 @@ ChunkRef ExternalSymbolLink::getTarget() const {
 
 address_t ExternalSymbolLink::getTargetAddress() const {
     auto resolved = externalSymbol->getResolved();
-    return resolved ? resolved->getAddress() : 0;
+    /* Note: +getOffset() is not fully tested. */
+    return resolved ? resolved->getAddress() + getOffset() : 0;
 }
 
 ChunkRef CopyRelocLink::getTarget() const {
