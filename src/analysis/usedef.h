@@ -371,7 +371,7 @@ private:
     size_t inferAccessWidth(const cs_x86_op *op);
     std::tuple<int, size_t> getPhysicalRegister(int reg);
     TreeNode *makeMemTree(UDState *state, const x86_op_mem& mem);
-    void fillAddOrSub(UDState *state, AssemblyPtr assembly);
+    void fillAddOrSubOrShift(UDState *state, AssemblyPtr assembly);
     void fillAnd(UDState *state, AssemblyPtr assembly);
     void fillBsf(UDState *state, AssemblyPtr assembly);
     void fillBt(UDState *state, AssemblyPtr assembly);

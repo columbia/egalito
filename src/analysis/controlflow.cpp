@@ -59,6 +59,7 @@ void ControlFlowGraph::construct(Function *function) {
 }
 
 void ControlFlowGraph::construct(Block *block) {
+    assert(blockMapping.count(block));
     auto id = blockMapping[block];
     auto i = block->getChildren()->getIterable()->getLast();
     auto link = i->getSemantic()->getLink();
@@ -104,6 +105,7 @@ void ControlFlowGraph::construct(Block *block) {
 #endif
             auto target = link->getTarget();
             if(auto v = dynamic_cast<Block *>(&*target)) {
+                assert(blockMapping.count(v));
                 auto other = blockMapping[v];
                 graph[id].addLink(ControlFlowLink(other));
                 graph[other].addReverseLink(
@@ -117,12 +119,16 @@ void ControlFlowGraph::construct(Block *block) {
                 // Currently, Blocks can have jumps incoming to the middle
                 // of the Block. So we may have a nonzero offset here.
                 auto parent = dynamic_cast<Block *>(v->getParent());
-                auto parentID = blockMapping[parent];
-                auto offset = link->getTargetAddress() - parent->getAddress();
-                graph[id].addLink(ControlFlowLink(parentID, offset));
-                graph[parentID].addReverseLink(
-                    ControlFlowLink(id,
-                        i->getAddress() - i->getParent()->getAddress()));
+                // is parent block even in this function? normally it's not,
+                // but it might be
+                if(blockMapping.count(parent) > 0) {
+                    auto parentID = blockMapping[parent];
+                    auto offset = link->getTargetAddress() - parent->getAddress();
+                    graph[id].addLink(ControlFlowLink(parentID, offset));
+                    graph[parentID].addReverseLink(
+                        ControlFlowLink(id,
+                            i->getAddress() - i->getParent()->getAddress()));
+                }
             }
         }
     }
@@ -143,7 +149,7 @@ void ControlFlowGraph::construct(Block *block) {
 #endif
         else if(ij->isForJumpTable()) {
             for(auto jt : ij->getJumpTables()) {
-                LOG(10, "jumptable at " << i->getAddress() << " targeting to ");
+                LOG(10, "jumptable at " << std::hex << i->getAddress() << " targeting to ");
                 std::set<address_t> added;
                 for(auto entry : CIter::children(jt)) {
                     auto link = dynamic_cast<NormalLink *>(entry->getLink());
@@ -152,11 +158,16 @@ void ControlFlowGraph::construct(Block *block) {
                         if(it != added.end()) continue;
 
                         added.insert(link->getTargetAddress());
-                        LOG(10, "" << link->getTarget()->getName());
+                        LOG(10, "    " << link->getTarget()->getName());
                         if(auto v = dynamic_cast<Instruction *>(
                             &*link->getTarget())) {
 
                             auto parent = dynamic_cast<Block *>(v->getParent());
+                            // the jump table may not jump to a block in this function
+                            if(blockMapping.count(parent) == 0) {
+                                continue;
+                            }
+                            assert(blockMapping.count(parent));
                             auto parentID = blockMapping[parent];
                             auto offset = link->getTargetAddress()
                                 - parent->getAddress();
@@ -186,6 +197,7 @@ void ControlFlowGraph::construct(Block *block) {
             ->getChildren()->getIterable();
         auto index = list->indexOf(block);
         if(index + 1 < list->getCount()) {
+            assert(blockMapping.count(list->get(index + 1)));
             auto other = blockMapping[list->get(index + 1)];
             graph[id].addLink(ControlFlowLink(other, 0, false));
             graph[other].addReverseLink(
