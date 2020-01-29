@@ -340,9 +340,9 @@ SymbolList *SymbolList::buildAnySymbolList(ElfMap *elfMap,
 
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     // mapping symbols indicate inline data in code section on arm
-    SymbolList *list = new SymbolListWithMapping();
+    SymbolList *list = new SymbolListWithMapping(elfMap);
 #else
-    SymbolList *list = new SymbolList();
+    SymbolList *list = new SymbolList(elfMap);
 #endif
 
     auto section = elfMap->findSection(sectionName);

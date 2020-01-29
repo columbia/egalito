@@ -127,8 +127,12 @@ private:
     typedef std::map<std::string, Symbol *> MapType;
     MapType symbolMap;
     std::map<address_t, Symbol *> spaceMap;
+    // elfmap this symbol list was built from. this may be a separate symbol elfmap.
+    ElfMap *sourceElfMap;
 public:
+    SymbolList(ElfMap *sourceElfMap = nullptr) : sourceElfMap(sourceElfMap) {}
     virtual ~SymbolList() {}
+
     bool add(Symbol *symbol, size_t index);
     void addAlias(Symbol *symbol, size_t otherIndex);
     Symbol *get(size_t index);
@@ -138,6 +142,8 @@ public:
 
     ListType::iterator begin() { return symbolList.begin(); }
     ListType::iterator end() { return symbolList.end(); }
+
+    ElfMap *getSourceElfMap() const { return sourceElfMap; }
 
     size_t estimateSizeOf(Symbol *symbol);
 
@@ -157,8 +163,9 @@ private:
 class SymbolListWithMapping : public SymbolList {
 private:
     std::vector<Symbol *> sortedMappingList;
-
 public:
+    using SymbolList::SymbolList;
+
     virtual void buildMappingList();
     virtual Symbol *findMappingBelowOrAt(Symbol *symbol);
     virtual Symbol *findMappingAbove(Symbol *symbol);
