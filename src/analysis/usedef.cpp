@@ -338,7 +338,7 @@ UDState *UDRegMemWorkingSet::getState(Instruction *instruction) {
 const std::map<int, UseDef::HandlerType> UseDef::handlers = {
 #ifdef ARCH_X86_64
     {X86_INS_AND,       &UseDef::fillAnd},
-    {X86_INS_ADD,       &UseDef::fillAddOrSub},
+    {X86_INS_ADD,       &UseDef::fillAddOrSubOrShift},
     {X86_INS_BSF,       &UseDef::fillBsf},
     {X86_INS_BT,        &UseDef::fillBt},
     {X86_INS_CALL,      &UseDef::fillCall},
@@ -362,7 +362,9 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_MOVZX,     &UseDef::fillMovzx},
     {X86_INS_TEST,      &UseDef::fillTest},
     {X86_INS_PUSH,      &UseDef::fillPush},
-    {X86_INS_SUB,       &UseDef::fillAddOrSub},
+    {X86_INS_SHL,       &UseDef::fillAddOrSubOrShift},
+    {X86_INS_SHR,       &UseDef::fillAddOrSubOrShift},
+    {X86_INS_SUB,       &UseDef::fillAddOrSubOrShift},
     {X86_INS_SYSCALL,   &UseDef::fillSyscall},
     {X86_INS_XOR,       &UseDef::fillXor},
 #elif defined(ARCH_AARCH64)
@@ -721,6 +723,22 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
             reg1, width1);
         tree = TreeFactory::instance().make<TreeNodeSubtraction>(
             reg1Tree, reg0Tree);
+    } else if(id == X86_INS_SHL) {
+        useReg(state, reg1);
+        auto reg0Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg0, width0);
+        auto reg1Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg1, width1);
+        tree = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(
+            reg1Tree, reg0Tree);
+    } else if(id == X86_INS_SHR) {
+        useReg(state, reg1);
+        auto reg0Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg0, width0);
+        auto reg1Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg1, width1);
+        tree = TreeFactory::instance().make<TreeNodeLogicalShiftRight>(
+            reg1Tree, reg0Tree);
     } else if(id == X86_INS_MOV
         || id == X86_INS_MOVSXD
         || id == X86_INS_MOVZX) {
@@ -821,6 +839,17 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     else if(id == X86_INS_LEA) {
         tree = memTree;
     }
+    /*else if(id == X86_INS_ADD) {
+        useMem(state, memTree, reg1);
+        tree = TreeFactory::instance().make<TreeNodeDereference>(
+            memTree, width);
+
+        useReg(state, reg1);
+        auto reg1Tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg1, width1);
+        tree = TreeFactory::instance().make<TreeNodeAddition>(
+            reg1Tree, tree);
+    }*/
     else if(id == X86_INS_MOV
         || id == X86_INS_MOVSXD
         || id == X86_INS_MOVZX) {
@@ -936,6 +965,18 @@ void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
     else if(assembly->getId() == X86_INS_SUB) {
         auto destTree
             = TreeFactory::instance().make<TreeNodeSubtraction>(tree1, tree0);
+        useReg(state, reg1);
+        defReg(state, reg1, destTree);
+    }
+    else if(assembly->getId() == X86_INS_SHL) {
+        auto destTree
+            = TreeFactory::instance().make<TreeNodeLogicalShiftLeft>(tree1, tree0);
+        useReg(state, reg1);
+        defReg(state, reg1, destTree);
+    }
+    else if(assembly->getId() == X86_INS_SHR) {
+        auto destTree
+            = TreeFactory::instance().make<TreeNodeLogicalShiftRight>(tree1, tree0);
         useReg(state, reg1);
         defReg(state, reg1, destTree);
     }
@@ -1640,7 +1681,7 @@ TreeNode *UseDef::makeMemTree(UDState *state, const x86_op_mem& mem) {
     }
     return memTree;
 }
-void UseDef::fillAddOrSub(UDState *state, AssemblyPtr assembly) {
+void UseDef::fillAddOrSubOrShift(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         fillImmToReg(state, assembly);

@@ -372,7 +372,7 @@ bool JumptableDetection::parseJumptableWithIndexTable(UDState *state,
 
             for(auto s : js->getRegRef(reg)) {
                 if(getBoundFromIndexTable(s, reg, info)) {
-                    LOG(1, "getBoundFromIndexTable matches in "
+                    LOG(10, "getBoundFromIndexTable matches in "
                         << s->getInstruction()->getParent()->getParent()
                             ->getName());
                     break;
@@ -625,14 +625,14 @@ bool JumptableDetection::parseTableAccess(UDState *state, int reg,
     bool found_load = false;
 
     auto doubleshift_first_parser = [&](UDState *s, TreeCapture &cap) {
-        LOG(1, "found doubleshift first form");
+        LOG(10, "found doubleshift first form");
         doubleshift_first_amount =
             static_cast<TreeNodeConstant *>(cap.get(1))->getValue();
         return true;
     };
 
     auto doubleshift_second_parser = [&](UDState *s, TreeCapture &cap) {
-        LOG(1, "found doubleshift second form");
+        LOG(10, "found doubleshift second form");
         doubleshift_first_amount = -1;
 
         FlowUtil::searchUpDef<DoubleShiftFirstForm>(s,
@@ -919,7 +919,8 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
 void JumptableDetection::collectJumpsTo(UDState *state, JumptableInfo *info,
     std::vector<UDState *> &result) {
 
-    for(auto link : state->getNode()->backwardLinks()) {
+    for(auto &link : state->getNode()->backwardLinks()) {
+        LOG(10, "    processing link: " << &link);
         auto prec = info->cfg->get(link->getTargetID());
         auto last = info->working->getState(
             prec->getBlock()->getChildren()->getIterable()->getLast());
@@ -958,14 +959,19 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                 std::vector<UDState *> precList;
                 collectJumpsTo(info->jumpState, info, precList);
                 for(auto jump : precList) {
+                    long bound = info->entries;
                     if(valueReaches(
-                        s, X86Register::FLAGS, jump, X86Register::FLAGS)) {
+                        s, X86Register::FLAGS, jump, X86Register::FLAGS, &bound)) {
 
                         LOG(10, " FLAGS reaches" << std::hex
                             << " from " << s->getInstruction()->getAddress()
                             << " to " << state->getInstruction()->getAddress());
                         LOG(10, "FLAGS 0x"
                             << std::hex << s->getInstruction()->getAddress());
+                        if(bound != info->entries) {
+                            LOG(10, "bound changed during valueReaches");
+                        }
+                        info->entries = bound;
                         list[s] = info->entries;
                         found = true;
                         return true;
@@ -986,7 +992,7 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
     for(auto s : state->getRegRef(reg)) {
         if(s == state) continue;
         IF_LOG(10) {
-            LOG(1, "s : state->getRegRef");
+            LOG(10, "s : state->getRegRef");
             s->dumpState();
         }
         FlowUtil::searchDownUse<ComparisonForm>(s, reg, parser);
@@ -1002,22 +1008,17 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                 for(const auto &pair : list) {
                     if(it->first == pair.first) continue;
 
-                    LOG(1, "checking " << std::hex
-                        << pair.first->getInstruction()->getAddress());
                     if(isReachable(info->cfg,
                         it->first->getNode()->getID(),
                         pair.first->getNode()->getID(),
                         prune)) {
 
-                        LOG(1, "deleting from list " << std::hex
-                            << it->first->getInstruction()->getAddress());
                         list.erase(it);
                         break;
                     }
                 }
                 if(sz == list.size()) {
                     info->cfg->dumpDot();
-                    LOG(1, "multiple bound?");
                     for(auto pair : list) {
                         LOG(1, " " << std::hex
                             << pair.first->getInstruction()->getAddress());
@@ -1120,6 +1121,8 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
         LOG(10, "no condition?");
     }
     LOG(10, "======");
+
+    LOG(10, "bound found? " << (found ? "yes" : "no") << " entries: " << std::dec << info->entries << std::hex);
 
     return found;
 #elif defined(ARCH_AARCH64)
@@ -1536,7 +1539,6 @@ bool JumptableDetection::getBoundFromMove(UDState *state, int reg,
                     auto boundTree = dynamic_cast<TreeNodeConstant *>(
                         capture.get(1));
                     if(getBoundFromCompare(s, boundTree->getValue(), info)) {
-                        LOG(10, "found!");
                         return true;
                     }
                 }
@@ -1855,7 +1857,7 @@ bool JumptableDetection::getBoundFromIndexTable(UDState *state, int reg,
                 }
 
                 IF_LOG(10) {
-                    LOG(1, "matched ComparisonForm2 = " << std::hex
+                    LOG(10, "matched ComparisonForm2 = " << std::hex
                         << s->getInstruction()->getAddress());
                     s->dumpState();
                 }
@@ -2166,12 +2168,19 @@ bool JumptableDetection::getBoundFromControlFlow(UDState *state, int reg,
                     // find the common ancestor and see if that value is
                     // never overloaded (modification is fine; no dereference)
                     auto testReg = regTree->getRegister();
-                    bool reaches = valueReaches(test, testReg, state, reg);
+                    long bound = info->entries;
+                    bool reaches = valueReaches(test, testReg, state, reg, &bound);
                     if(!reaches) {
                         LOG(10, "   NO this is false!");
                         info->entries = 0;
                     }
-                    if(reaches) return true;
+                    if(reaches) {
+                        if(bound != info->entries) {
+                            LOG(10, "bound changed during valueReaches");
+                        }
+                        info->entries = bound;
+                        return true;
+                    }
                 }
             }
         }
@@ -2188,8 +2197,8 @@ bool cutsRegFlow(TreeNode *tree) {
     return false;
 }
 
-static bool valueReachesLoop(UDState *state, int reg,
-    UDState *state2, int reg2, std::set<UDState *>& seen) {
+static std::pair<bool, long> valueReachesLoop(UDState *state, int reg,
+    UDState *state2, int reg2, std::set<UDState *>& seen, long origValue) {
 
     LOG(10, "valueReachesLoop: " << std::hex
         << state->getInstruction()->getAddress()
@@ -2197,37 +2206,81 @@ static bool valueReachesLoop(UDState *state, int reg,
         << " ->? "
         << std::hex << state2->getInstruction()->getAddress()
         << " reg " << std::dec << reg2);
-    LOG(10, "from state");
-    IF_LOG(10) state->dumpState();
-    LOG(10, "to state");
-    IF_LOG(10) state2->dumpState();
+    LOG(20, "from state");
+    IF_LOG(20) state->dumpState();
+    LOG(20, "to state");
+    IF_LOG(20) state2->dumpState();
 
-    if(seen.find(state) != seen.end()) return false;
+    if(seen.find(state) != seen.end()) return std::make_pair(false, 0);
     seen.insert(state);
 
     for(auto use : state->getRegUse(reg)) {
         if(use == state2) {
             LOG(10, "  reaches");
-            return true;
+            return std::make_pair(true, origValue);
         }
     }
 
+    /*
+    state (reg)
+        - use (of reg, def of reg_temp)
+    state2 (reg2)
+     */
     for(auto use : state->getRegUse(reg)) {
         for(auto& def : use->getRegDefList()) {
+            if(!def.second) continue;
+
             if(cutsRegFlow(def.second)) {
                 continue;
             }
-            if(valueReachesLoop(use, def.first, state2, reg2, seen)) {
-                return true;
+
+            long subValue = origValue;
+
+            if(auto sr = dynamic_cast<TreeNodeLogicalShiftRight *>(def.second)) {
+                // get shift value
+                auto shift = dynamic_cast<TreeNodeConstant *>(sr->getRight());
+                if(!shift) {
+                    LOG(10, "Non-constant shift");
+                    continue;
+                }
+                else subValue >>= shift->getValue();
             }
+            else if(auto sl = dynamic_cast<TreeNodeLogicalShiftLeft *>(def.second)) {
+                // get shift value
+                auto shift = dynamic_cast<TreeNodeConstant *>(sl->getRight());
+                if(!shift) {
+                    LOG(10, "Non-constant shift");
+                    continue;
+                }
+                else subValue <<= shift->getValue();
+            }
+            else if(dynamic_cast<TreeNodePhysicalRegister *>(def.second)) {
+                /* don't have to do anything, the value doesn't change */
+            }
+            else if(dynamic_cast<TreeNodeRegister *>(def.second)) {
+                /* don't have to do anything, the value doesn't change */
+            }
+            else {
+                IF_LOG(10) {
+                    LOG(10, "skipping TreeNode as potential flow "
+                        "to jump table branch:");
+                    TreePrinter tp;
+                    def.second->print(tp);
+                }
+                continue;
+            }
+
+            auto rv = valueReachesLoop(use, def.first, state2, reg2, seen, subValue);
+            if(rv.first) return rv;
         }
     }
 
     // this should only be effective when common upstream defines a value
     // and it isn't changed (not checked now)
     for(auto ref : state->getRegRef(reg)) {
-        if(valueReachesLoop(ref, reg, state2, reg2, seen)) {
-            return true;
+        auto rv = valueReachesLoop(ref, reg, state2, reg2, seen, origValue);
+        if(rv.first) {
+            return rv;
         }
         if(cutsRegFlow(ref->getRegDef(reg))) {
             LOG(10, "stop looking in the upstream " << std::hex
@@ -2237,13 +2290,16 @@ static bool valueReachesLoop(UDState *state, int reg,
         }
     }
 
-    return false;
+    return std::make_pair(false, 0);
 }
 
 bool JumptableDetection::valueReaches(UDState *state, int reg,
-    UDState *state2, int reg2) {
+    UDState *state2, int reg2, long *boundValue) {
 
     std::set<UDState *> seen;
-    return valueReachesLoop(state, reg, state2, reg2, seen);
+    auto rv = valueReachesLoop(state, reg, state2, reg2, seen, *boundValue);
+
+    if(rv.first && boundValue) *boundValue = rv.second;
+    return rv.first;
 }
 #endif

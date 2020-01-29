@@ -88,7 +88,8 @@ private:
 
     void collectJumpsTo(UDState *state, JumptableInfo *info,
         std::vector<UDState *>& result);
-    bool valueReaches(UDState *state, int reg, UDState *state2, int reg2);
+    bool valueReaches(UDState *state, int reg, UDState *state2, int reg2,
+        long *boundValue);
 };
 
 #endif
