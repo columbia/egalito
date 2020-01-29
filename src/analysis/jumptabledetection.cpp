@@ -1249,14 +1249,19 @@ bool JumptableDetection::parseBoundDeref(UDState *state, TreeNodeDereference *de
             std::vector<UDState *> precList;
             collectJumpsTo(info->jumpState, info, precList);
             for(auto jump : precList) {
+                long bound = info->entries;
                 if(valueReaches(
-                    s, X86Register::FLAGS, jump, X86Register::FLAGS)) {
+                    s, X86Register::FLAGS, jump, X86Register::FLAGS, &bound)) {
 
                     LOG(10, " FLAGS reaches" << std::hex
                         << " from " << s->getInstruction()->getAddress()
                         << " to " << state->getInstruction()->getAddress());
                     LOG(10, "FLAGS 0x"
                         << std::hex << s->getInstruction()->getAddress());
+                    if(bound != info->entries) {
+                        LOG(10, "bound changed during valueReaches");
+                    }
+                    info->entries = bound;
                     list[s] = info->entries;
                     found = true;
                     return true;
