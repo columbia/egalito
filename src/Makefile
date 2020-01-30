@@ -139,6 +139,10 @@ $(LOADERPIE): $(LOADERPIE_OBJECTS) | $(SHARED_LIBRARY)
 	$(SHORT_LINK) $(CXXFLAGS) -o $@ /usr/lib64/crti.o /usr/lib64/gcc/x86_64-suse-linux/7/crtbegin.o $^ $(CLDFLAGS) -nostartfiles -L$(BUILDDIR) -Wl,-rpath=$(abspath .) -legalito $(DISTORM_SO) /usr/lib64/gcc/x86_64-suse-linux/7/crtend.o /usr/lib64/crtn.o
 
 # Other targets
+.PHONY: staticlib
+staticlib: $(LIBRARY)
+	ln -sf $(BUILDDIR)libegalito.a
+
 .PHONY: clean
 clean:
 	-rm -rf $(BUILDDIR) .symlinks $(SYMLINKS) ex example symbols.elf

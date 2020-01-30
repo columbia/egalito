@@ -32,6 +32,10 @@ dep/built: dep/Makefile
 config:
 	$(call short-make,config)
 
+.PHONY: staticlib
+staticlib: config dep
+	$(call short-make,src,staticlib)
+
 clean realclean:
 	$(call short-make,app,clean)
 	$(call short-make,src,clean)
