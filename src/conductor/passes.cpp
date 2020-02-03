@@ -106,6 +106,17 @@ Module *ConductorPasses::newExePasses(ExeFile *exeFile) {
 #endif
     RUN_PASS(InferLinksPass(), module);
 
+    if(auto peFile = exeFile->asPE()) {  // PE
+        RUN_PASS(JumpTablePass(), module);
+#ifdef ARCH_X86_64
+        RUN_PASS(JumpTableBounds(), module);
+        RUN_PASS(JumpTableOverestimate(), module);
+#endif
+
+        // run again with jump table information
+        RUN_PASS(SplitBasicBlock(), module);
+    }
+
     // this can run pretty much whenever, but let's put it here for now.
     RUN_PASS(CollectGlobalsPass(), module);
 

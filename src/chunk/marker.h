@@ -64,6 +64,16 @@ public:
     virtual address_t getAddress() const { return address; }
 };
 
+class RelativeAddressMarker : public Marker {
+private:
+    Module *module;
+    address_t address;
+public:
+    RelativeAddressMarker(Module *module, address_t address);
+
+    virtual address_t getAddress() const;
+};
+
 class MarkerList : public CollectionChunkImpl<Marker> {
 public:
     virtual std::string getName() const { return "markerlist"; }
@@ -79,10 +89,13 @@ public:
     Marker *addStartMarker(DataSection *dataSection);
     Marker *addEndMarker(DataSection *dataSection);
     Marker *addGlobalPointerMarker(address_t address);
+    Marker *addRelativeMarker(Module *module, address_t address);
 
 private:
     Link *createGeneralMarkerLink(Chunk *chunk,
         size_t addend, Module *module, bool isRelative);
+    Link *createRelativeMarkerLink(Module *module,
+        address_t address);
     Link *createStartMarkerLink(
         DataSection *dataSection, Module *module, bool isRelative);
     Link *createEndMarkerLink(
