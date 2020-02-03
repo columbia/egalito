@@ -52,6 +52,15 @@ GlobalPointerMarker::GlobalPointerMarker(address_t address)
     
 }
 
+RelativeAddressMarker::RelativeAddressMarker(Module *module, address_t address)
+    : module(module), address(address) {
+
+}
+
+address_t RelativeAddressMarker::getAddress() const {
+    return module->getBaseAddress() + address;
+}
+
 void MarkerList::accept(ChunkVisitor *visitor) {
     visitor->visit(this);
 }
@@ -121,7 +130,9 @@ Link *MarkerList::createInferredMarkerLink(address_t address,
             return createGeneralMarkerLink(base, addend, module, isRelative);
         }
     }
-    return nullptr;
+    
+    //return nullptr;
+    return createRelativeMarkerLink(module, address - module->getBaseAddress());
 }
 
 Link *MarkerList::createTableJumpTargetMarkerLink(Instruction *jump,
@@ -146,6 +157,15 @@ Link *MarkerList::createGeneralMarkerLink(Chunk *base,
     auto list = module->getMarkerList();
     auto marker = list->addGeneralMarker(base, addend);
     return makeMarkerLink(marker, isRelative);
+}
+
+Link *MarkerList::createRelativeMarkerLink(Module *module,
+    address_t address) {
+
+    LOG(10, "    relative markerLink");
+    auto list = module->getMarkerList();
+    auto marker = list->addRelativeMarker(module, address);
+    return makeMarkerLink(marker, true);
 }
 
 Link *MarkerList::createStartMarkerLink(
@@ -186,6 +206,12 @@ Marker *MarkerList::addEndMarker(DataSection *dataSection) {
 
 Marker *MarkerList::addGlobalPointerMarker(address_t address) {
     auto marker = new GlobalPointerMarker(address);
+    getChildren()->add(marker);
+    return marker;
+}
+
+Marker *MarkerList::addRelativeMarker(Module *module, address_t address) {
+    auto marker = new RelativeAddressMarker(module, address);
     getChildren()->add(marker);
     return marker;
 }
