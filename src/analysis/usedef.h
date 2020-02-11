@@ -22,6 +22,7 @@ private:
     typedef std::map<int, TreeNode *> ListType;
     ListType list;
 public:
+    ~DefList();
     void set(int reg, TreeNode *tree);
     void del(int reg);
     TreeNode *get(int reg) const;
@@ -78,7 +79,6 @@ public:
     size_t getCount() const { return list.size(); }
     void dump() const;
 };
-
 
 class MemOriginList {
 private:

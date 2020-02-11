@@ -104,6 +104,7 @@ private:
 public:
     TreeNodeUnary(TreeNode *node, const char *name)
         : node(node), name(name) {}
+    ~TreeNodeUnary() { if(node) delete node; }
     TreeNode *getChild() const { return node; }
     const char *getName() const { return name; }
     virtual void print(const TreePrinter &p) const;
@@ -157,6 +158,7 @@ private:
 public:
     TreeNodeBinary(TreeNode *left, TreeNode *right, const char *op)
         : left(left), right(right), op(op) {}
+    ~TreeNodeBinary() { if(left) delete left; if(right) delete right; }
     TreeNode *getLeft() const { return left; }
     TreeNode *getRight() const { return right; }
     const char *getOperator() const { return op; }
@@ -231,6 +233,7 @@ private:
 public:
     TreeNodeComparison(TreeNode *left, TreeNode *right)
         : left(left), right(right) {}
+    ~TreeNodeComparison() { if(left) delete left; if(right) delete right; }
     TreeNode *getLeft() const { return left; }
     TreeNode *getRight() const { return right; }
 
