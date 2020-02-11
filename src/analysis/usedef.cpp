@@ -11,6 +11,10 @@
 #include "chunk/dump.h"
 #include "log/log.h"
 
+DefList::~DefList() {
+    for(auto tn : list) delete tn.second;
+}
+
 void DefList::set(int reg, TreeNode *tree) {
     list[reg] = tree;
 }
@@ -593,6 +597,7 @@ void UseDef::defReg(UDState *state, int reg, TreeNode *tree) {
         state->addRegDef(reg, tree);
         working->setAsRegSet(reg, state);
     }
+    else LOG(0, "unknown register in defReg!");
 }
 
 void UseDef::useReg(UDState *state, int reg) {
@@ -1190,6 +1195,12 @@ void UseDef::fillRegToMem(UDState *state, AssemblyPtr assembly, size_t width) {
         auto memTree = TreeFactory::instance().make<TreeNodeSubtraction>(
             rspTree, TreeFactory::instance().make<TreeNodeConstant>(8));
         defReg(state, rsp, memTree);
+
+        // create copy of memTree so we don't free it twice
+        rspTree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            rsp, widthRsp);
+        memTree = TreeFactory::instance().make<TreeNodeSubtraction>(
+            rspTree, TreeFactory::instance().make<TreeNodeConstant>(8));
         defMem(state, memTree, reg0);
     }
     else {  // movl
