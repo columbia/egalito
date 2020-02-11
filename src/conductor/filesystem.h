@@ -14,6 +14,7 @@ public:
         return &instance;
     }
     std::string transform(const std::string &path);
+    std::string untransform(const std::string &path);
 };
 
 #endif
