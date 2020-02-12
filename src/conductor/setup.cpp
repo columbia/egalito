@@ -190,6 +190,7 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
         else modules.push_back(nullptr);
     }
 
+    conductor->parseLibraries();
     conductor->resolvePLTLinks();
     conductor->resolveData();
     conductor->resolveTLSLinks();
