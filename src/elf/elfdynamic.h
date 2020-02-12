@@ -29,6 +29,8 @@ private:
     void setupSearchPath();
     std::vector<std::string> doGlob(std::string pattern);
     bool isValidElf(std::ifstream &file);
+    void parseMuslLdConfig(std::string filename,
+        std::vector<std::string> &searchPath);
     void parseLdConfig(std::string filename,
         std::vector<std::string> &searchPath);
     void processLibrary(const std::string &fullPath,
