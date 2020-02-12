@@ -653,6 +653,30 @@ FunctionList *DisassembleX86Function::linearDisassembly(const char *sectionName,
         }
     }
 
+    // Known functions from symbol information as well
+    for(size_t i = 0; i < dynamicSymbolList->getCount(); i ++) {
+        Symbol *symbol = dynamicSymbolList->get(i);
+        // only care about functions/ifuncs
+        if(symbol->getType() != Symbol::TYPE_FUNC
+            && symbol->getType() != Symbol::TYPE_IFUNC) {
+
+            continue;
+        }
+        if(symbol->getSize() == 0) {
+            LOG(1, "dynamic function [" << symbol->getName()
+                << "] has size 0, skipping.");
+            continue;
+        }
+        Range range(symbol->getAddress(), symbol->getSize());
+        if(knownFunctions.add(range)) {
+            LOG(12, "Dynamic symbol at [" << std::hex << symbol->getAddress()
+                << ",+" << symbol->getSize() << "]");
+        }
+        else {
+            LOG(1, "Dynamic symbol is out of bounds of .text section, skipping");
+        }
+    }
+
     // Run first disassembly pass, to find obvious function boundaries
     IntervalTree splitRanges(sectionRange);
     splitRanges.add(sectionRange);
