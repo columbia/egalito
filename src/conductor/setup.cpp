@@ -124,13 +124,13 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 }
 
 void ConductorSetup::setBaseAddresses() {
-    int i = 0;
+    unsigned long i = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto elfMap = module->getElfSpace()
             ? module->getElfSpace()->getElfMap() : nullptr;
         // this address has to be low enough to express negative offset in
         // jump table slots (to represent an index)
-        if(setBaseAddress(module, elfMap, 0x10000000 + i*0x1000000)) {
+        if(setBaseAddress(module, elfMap, 0x10000000 + i*0x2000000)) {
             i ++;
         }
     }
