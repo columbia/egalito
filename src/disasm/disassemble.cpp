@@ -219,7 +219,11 @@ Instruction *DisassembleInstruction::instruction(const std::string &bytes,
     auto ins = runDisassembly(
         reinterpret_cast<const uint8_t *>(bytes.c_str()),
         bytes.length(), address);
-    return instruction(ins);
+    auto ret = instruction(ins);
+
+    free(ins);
+
+    return ret;
 }
 
 Instruction *DisassembleInstruction::instruction(
@@ -228,7 +232,11 @@ Instruction *DisassembleInstruction::instruction(
     auto ins = runDisassembly(static_cast<const uint8_t *>(bytes.data()),
         bytes.size(), address);
 
-    return instruction(ins);
+    auto ret = instruction(ins);
+
+    free(ins);
+
+    return ret;
 }
 
 Instruction *DisassembleInstruction::instruction(cs_insn *ins) {

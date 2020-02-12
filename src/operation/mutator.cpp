@@ -47,6 +47,7 @@ void ChunkMutator::makePositionFor(Chunk *child) {
 #endif
         pos = positionFactory->makePosition(prevChunk, child, 0);
     }
+    if(child->getPosition()) delete child->getPosition();
     child->setPosition(pos);
 }
 
@@ -365,6 +366,7 @@ void ChunkMutator::splitFunctionBefore(Block *point) {
 
     Chunk *prevChunk = function;
     for(auto child : moveList) {
+        if(child->getPosition()) delete child->getPosition();
         child->setPosition(positionFactory->makePosition(
             prevChunk, child, function2->getSize()));
 
