@@ -86,8 +86,15 @@ void ElfDynamic::setupSearchPath() {
         split(ld_library_path, ':', std::back_inserter(searchPath));
     }
 
+    int musl = isFeatureEnabled("EGALITO_MUSL");
+
     auto cfs = ConductorFilesystem::getInstance();
-    parseLdConfig(cfs->transform("/etc/ld.so.conf"), searchPath);
+    if(musl) {
+        parseMuslLdConfig(cfs->transform("/etc/ld-musl-x86_64.path"), searchPath);
+    }
+    else {
+        parseLdConfig(cfs->transform("/etc/ld.so.conf"), searchPath);
+    }
     searchPath.push_back(cfs->transform("/lib"));
     searchPath.push_back(cfs->transform("/usr/lib"));
     searchPath.push_back(cfs->transform("/lib64"));
@@ -106,6 +113,18 @@ std::vector<std::string> ElfDynamic::doGlob(std::string pattern) {
 
     globfree(&list);
     return std::move(output);
+}
+
+void ElfDynamic::parseMuslLdConfig(std::string filename,
+    std::vector<std::string> &searchPath) {
+
+    std::ifstream file(filename.c_str());
+
+    std::string line;
+    while(std::getline(file, line)) {
+        if(line.size() == 0) continue;
+        searchPath.push_back(ConductorFilesystem::getInstance()->transform(line));
+    }
 }
 
 void ElfDynamic::parseLdConfig(std::string filename,
