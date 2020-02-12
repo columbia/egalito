@@ -65,6 +65,16 @@ static void appendNop(Function *function, size_t size) {
             std::vector<unsigned char>(
                 {0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}));
         break;
+    case 10:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>(
+                {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}));
+        break;
+    case 11:
+        i = DisassembleInstruction(handle).instruction(
+            std::vector<unsigned char>(
+                {0x66, 0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}));
+        break;
     default:
         LOG(1, "NYI: appendNop for " << size);
         break;

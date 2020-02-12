@@ -147,7 +147,7 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 }
 
 void ConductorSetup::setBaseAddresses() {
-    int i = 0;
+    unsigned long i = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto elfMap = module->getElfSpace()
             ? module->getElfSpace()->getElfMap() : nullptr;
@@ -155,8 +155,8 @@ void ConductorSetup::setBaseAddresses() {
         // jump table slots (to represent an index)
 #if 0 // use 0x1X000000 for module addrs (X starts at 0)
         if(setBaseAddress(module, elfMap, 0x10000000 + i*0x1000000)) {
-#else // use 0x0X000000 for module addrs (X starts at 1)
-        if(setBaseAddress(module, elfMap, (i+1)*0x1000000)) {
+#else // use 0x0X000000 for module addrs, for 32MB each (X starts at 1)
+        if(setBaseAddress(module, elfMap, (i+1)*0x2000000)) {
 #endif
             i ++;
         }
