@@ -117,6 +117,11 @@ public:
     virtual void execute();
 };
 
+class MakeVersionSymbols : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
 class MakeGlobalSymbols : public NormalElfOperation {
 public:
     virtual void execute();

@@ -310,11 +310,12 @@ SymbolList *SymbolList::buildDynamicSymbolList(ElfMap *elfMap) {
     for(auto sym : *list) {
         auto index = sym->getIndex();
         auto verName = versionList.getVersionName(index);
+        auto verID = versionList.getVersionID(index);
         bool verHidden = versionList.isHidden(index);
 
         LOG(10, "symbol " << sym->getName() << " has version " << verName
             << " hidden? " << verHidden);
-        sym->setVersion(new SymbolVersion(verName, verHidden));
+        sym->setVersion(new SymbolVersion(verName, verID, verHidden));
     }
 
     SymbolAliasFinder aliasFinder(list);
@@ -531,6 +532,13 @@ const char *SymbolVersionList::getVersionName(size_t symbolIndex) const {
         }
     }
     return "";
+}
+
+size_t SymbolVersionList::getVersionID(size_t symbolIndex) const {
+    if(hasVersionInfo()) {
+        return getVersionIndex(symbolIndex);
+    }
+    return -1u;
 }
 
 void SymbolVersionList::dump() const {

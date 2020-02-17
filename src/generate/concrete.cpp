@@ -10,6 +10,7 @@
 #include "operation/find2.h"
 #include "elf/elfspace.h"
 #include "elf/symbol.h"
+#include "elf/elfxx.h"
 #include "instr/concrete.h"
 #include "util/streamasstring.h"
 #include "pass/chunkpass.h"
@@ -78,6 +79,25 @@ void BasicElfCreator::execute() {
             auto gnuhashSection = new Section(".gnu.hash", SHT_GNU_HASH, SHF_ALLOC);
             gnuhashSection->setContent(gnuhash);
             getSectionList()->addSection(gnuhashSection);
+
+#if 1
+            struct gnuVersionContentType {
+                const char *name;
+                ElfXX_Word type;
+                VersionSymbolSectionContent verType;
+            } gnuVersionContent[] = {
+                {".gnu.version",    SHT_GNU_versym,     VersionSymbolSectionContent::GNU_VERSION},
+                {".gnu.version_d",  SHT_GNU_versym_d,   VersionSymbolSectionContent::GNU_VERSION_D},
+                {".gnu.version_r",  SHT_GNU_versym_r,   VersionSymbolSectionContent::GNU_VERSION_R}
+            };
+            for (size_t i = 0; i < sizeof(gnuVersionContent)/sizeof(*gnuVersionContent); i ++) {
+                const auto &data = gnuVersionContent[i];
+                auto gnuversion = new VersionSymbolSectionContent(data.verType);
+                auto gnuversionSection = new Section(data.name, data.type, SHF_ALLOC);
+                gnuversionSection->setContent(gnuversion);
+                getSectionList()->addSection(gnuversionSection);
+            }
+#endif
         }
 
         // .rela.dyn
@@ -1030,6 +1050,23 @@ bfd_elf_gnu_hash (const char *namearg)
   return h & 0xffffffff;
 }
 
+// stolen from llvm
+// This function returns the hash value for a symbol in the .dynsym section
+// Name of the API remains consistent as specified in the libelf
+// REF : http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#hash
+inline unsigned hashSysV(StringRef SymbolName) {
+  unsigned h = 0, g;
+  for (char C : SymbolName) {
+    h = (h << 4) + C;
+    g = h & 0xf0000000L;
+    if (g != 0)
+      h ^= g >> 24;
+    h &= ~g;
+  }
+  return h;
+}
+
+
 void MakeDynsymHash::execute() {
     auto gnuhash = getData()->getSection(".gnu.hash")->castAs<GnuHashSectionContent *>();
     auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
@@ -1130,6 +1167,80 @@ void MakeDynsymHash::execute() {
     //for(const auto &val : *dynsym) {
     //    LOG(1, "new order for symbol with name [" << val->getName() << "]");
     //}
+}
+
+void MakeVersionSymbols::execute() {
+    auto gnuVer = getData()->getSection(".gnu.version")->castAs<VersionSymbolSectionContent *>();
+    auto gnuVerDef = getData()->getSection(".gnu.version_d")->castAs<VersionSymbolSectionContent *>();
+    auto gnuVerNeed = getData()->getSection(".gnu.version_r")->castAs<VersionSymbolSectionContent *>();
+    auto dynsym = getData()->getSection(".dynsym")->castAs<SymbolTableContent *>();
+    //dynsym->recalculateIndices();
+
+    auto dynstr = getSection(".dynstr")->castAs<DeferredStringList *>();
+
+    std::vector<SymbolVersion *> verList;
+    std::vector<ElfXX_Verneed *> verNeedList;
+    std::vector<ElfXX_Vernaux *> verNauxList;
+    std::set<size_t> verIDSeen;
+
+    for(auto sym : *dynsym) {
+        if(auto v = sym->getVersion()) {
+            auto it = verIDSeen.find(v->getID());
+            if(it == verIDSeen.end()) {
+                verIDSeen.insert(v->getID());
+                verList.push_back(v);
+            }
+        }
+    }
+
+    for(auto sym : *dynsym) {
+        bool present = (sym->getVersion() != nullptr);
+        // uint32_t
+        gnuVer->add(static_cast<Elfxx_Half>(present ? 1 : 0));
+    }
+
+    size_t verIndex = 0;
+    for(auto ver : verList) {
+        auto name = ver->getName();
+        auto nameStr = dynstr->add(name, true);
+
+        // Elfxx_Verdef
+        gnuVerDef->add(static_cast<Elfxx_Half>(1));             // vd_version
+        gnuVerDef->add(static_cast<Elfxx_Half>(VER_FLG_BASE));  // vd_flags
+        gnuVerDef->add(static_cast<Elfxx_Half>(verIndex));      // vd_ndx
+        gnuVerDef->add(static_cast<Elfxx_Half>(1));             // vd_cnt
+        gnuVerDef->add(static_cast<Elfxx_Word>(hashSysV(name)));    // vd_hash
+        gnuVerDef->add(static_cast<Elfxx_Word>(20);             // vd_aux
+        gnuVerDef->add(static_cast<Elfxx_Word>(28);             // vd_next
+
+        // Elfxx_Verdaux
+        gnuVerDef->add(static_cast<Elfxx_Word>(nameStr);        // vda_name
+        gnuVerDef->add(static_cast<Elfxx_Word>(0);              // vda_next
+
+        verIndex ++;
+    }
+
+    size_t verIndex = 0;
+    for(auto &vn : verNeedList) {
+        
+        // Elfxx_Verneed
+        gnuVerNeed->add(static_cast<Elfxx_Half>(1));                // vn_version
+        gnuVerNeed->add(static_cast<Elfxx_Half>(vn.vernauxs.size)); // vn_cnt
+        gnuVerNeed->add(static_cast<Elfxx_Half>(vn.nameStrTab));    // vn_file
+        gnuVerNeed->add(static_cast<Elfxx_Word>(vernaux - verneed); // vn_aux
+        gnuVerNeed->add(static_cast<Elfxx_Word>(28);                // vn_next
+        verNeed++;
+
+        for (auto &vna : verNauxList) {
+            // Elfxx_Vernaux
+            gnuVerNaux->add(static_cast<Elfxx_Word>(vna.hash);          // vna_hash
+            gnuVerNaux->add(static_cast<Elfxx_Word>(0));                // vna_flags
+            gnuVerNaux->add(static_cast<Elfxx_Word>(vna.verneedIndex);  // vda_next
+            gnuVerNaux->add(static_cast<Elfxx_Word>(vna.nameStrTab);    // vda_next
+            gnuVerNaux->add(static_cast<Elfxx_Word>(0));                // vda_next
+            verNaux++;
+        }
+    }
 }
 
 void MakeGlobalSymbols::execute() {

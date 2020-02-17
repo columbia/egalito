@@ -268,6 +268,20 @@ public:
     using DeferredIntegerList::DeferredIntegerList;
 };
 
+class VersionSymbolSectionContent : public DeferredIntegerList {
+public:
+    enum version_t {
+        GNU_VERSION,
+        GNU_VERSION_D,
+        GNU_VERSION_R
+    };
+private:
+    version_t ver;
+public:
+    VersionSymbolSectionContent(version_t ver) : ver(ver) {}
+    version_t getVersionType() const { return ver; }
+};
+
 class TBSSContent : public DeferredString {
 private:
     size_t memSize;

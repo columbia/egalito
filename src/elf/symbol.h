@@ -88,22 +88,27 @@ public:
 class SymbolVersion {
 private:
     const char *name;
+    size_t id;
     bool hidden;    // means the default version to use
 public:
-    SymbolVersion(const char *name, bool hidden)
-        : name(name), hidden(hidden) {}
+    SymbolVersion(const char *name, size_t id, bool hidden)
+        : name(name), id(id), hidden(hidden) {}
     const char *getName() const { return name; }
+    size_t getID() const { return id; }
     bool isHidden() const { return hidden; }
 };
 
 class SymbolVersionList {
 private:
     std::vector<ElfXX_Versym> verList;          // indexed by symbolIndex
+    std::vector<ElfXX_Verneed> verNeedList;
+    std::vector<ElfXX_Vernaux> verNauxList;
     std::map<size_t, const char *> nameList;    // indexed by versionIndex
 public:
     SymbolVersionList(ElfMap *elfMap);
 
     const char *getVersionName(size_t symbolIndex) const;
+    size_t getVersionID(size_t symbolIndex) const;
     bool isHidden(size_t symbolIndex) const;
 
     void dump() const;
