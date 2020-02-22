@@ -143,6 +143,18 @@ void Generator::assignAddresses(Program *program) {
     }
 }
 
+void Generator::generateCode(Program *program, const std::vector<Function *> &order) {
+    for(auto module : CIter::modules(program)) {
+        generateCode(module, order);
+    }
+}
+
+void Generator::assignAddresses(Program *program, const std::vector<Function *> &order) {
+    for(auto module : CIter::modules(program)) {
+        assignAddresses(module, order);
+    }
+}
+
 void Generator::generateCode(Program *program) {
     for(auto module : CIter::modules(program)) {
         generateCode(module);
@@ -229,6 +241,48 @@ void Generator::generateCodeForPLTTrampoline(PLTTrampoline *tramp) {
   LOG(1, "Copying PLTTrampoline [" << tramp->getName() << "] at 0x"
      << std::hex << tramp->getAddress());
   GeneratorHelper<PLTTrampoline>().copyToSandbox(tramp, sandbox);
+}
+
+void Generator::assignAddresses(Module *module, const std::vector<Function *> &order) {
+    for(auto f : order) {
+        auto slot = sandbox->allocate(f->getSize());
+        LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
+            << " for [" << f->getName()
+            << "] size " << std::dec << f->getSize());
+        GeneratorHelper<Function>().assignAddress(f, slot);
+    }
+
+    if(module->getPLTList()) {
+        // these don't have to be contiguous
+        //const size_t pltSize = PLTList::getPLTTrampolineSize();
+        for(auto plt : CIter::plts(module)) {
+            auto slot = sandbox->allocate(plt->getSize());
+            LOG(2, "    alloc 0x" << std::hex << slot.getAddress()
+                << " for [" << plt->getName()
+                << "] size " << std::dec << plt->getSize());
+            GeneratorHelper<PLTTrampoline>().assignAddress(plt, slot);
+        }
+    }
+
+    ClearSpatialPass clearSpatial;
+    module->accept(&clearSpatial);
+}
+
+void Generator::generateCode(Module *module, const std::vector<Function *> &order) {
+    LOG(1, "Copying code into sandbox");
+    for(auto f : order) {
+        LOG(2, "    writing out [" << f->getName() << "] at 0x"
+            << std::hex << f->getAddress());
+
+        GeneratorHelper<Function>().copyToSandbox(f, sandbox);
+    }
+
+    if(module->getPLTList()) {
+        LOG(1, "Copying PLT entries into sandbox");
+        for(auto plt : CIter::plts(module)) {
+            GeneratorHelper<PLTTrampoline>().copyToSandbox(plt, sandbox);
+        }
+    }
 }
 
 void Generator::assignAddressForFunction(Function *function) {

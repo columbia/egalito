@@ -65,6 +65,7 @@ private:
     const static int mappings[R15 - R0 + 1][5];
 
 public:
+    static const char *getRepresentativeName(int reg);
     static int convertToPhysical(int id);
     static size_t getWidth(int pid, int id);
     static int isInteger(int pid) { return (R0 <= pid && pid <= R15); }

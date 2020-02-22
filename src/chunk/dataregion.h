@@ -27,8 +27,11 @@ private:
     size_t size;
 public:
     GlobalVariable() : symbol(nullptr), dynamicSymbol(nullptr) {}
+    GlobalVariable(const std::string &name) : symbol(nullptr),
+        dynamicSymbol(nullptr), name(name) {}
 
     Symbol *getSymbol() const { return symbol; }
+    void setSymbol(Symbol *symbol) { this->symbol = symbol; }
     Symbol *getDynamicSymbol() const { return dynamicSymbol; }
     void setDynamicSymbol(Symbol *symbol) { dynamicSymbol = symbol; }
     Symbol *getNonNullSymbol() const;
@@ -129,12 +132,14 @@ public:
     DataVariable *findVariable(address_t address);
 
     size_t getAlignment() const { return alignment; }
+    void setAlignment(size_t align) { alignment = align; }
     address_t getOriginalOffset() const { return originalOffset; }
     uint64_t getPermissions() const { return permissions; }
     void setPermissions(uint64_t perm) { permissions = perm; }
     Type getType() const { return type; }
     void setType(Type t) { type = t; }
     bool isCode() const { return type == TYPE_CODE; }
+    bool isData() const { return type == TYPE_DATA; }
     bool isBss() const { return type == TYPE_BSS; }
 
     const std::vector<GlobalVariable *> &getGlobalVariables() const
@@ -235,6 +240,7 @@ public:
     void setTLS(TLSDataRegion *tls) { this->tls = tls; }
     TLSDataRegion *getTLS() const { return tls; }
 
+    virtual std::string getName() const { return "dataregionlist"; }
     virtual void accept(ChunkVisitor *visitor);
 
     Link *createDataLink(address_t target, Module *module,

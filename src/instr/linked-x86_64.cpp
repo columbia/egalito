@@ -22,6 +22,11 @@ void LinkedInstructionBase::makeDisplacementInfo() {
 }
 
 unsigned long LinkedInstructionBase::calculateDisplacement() {
+    if(!getLink()) {
+        LOG(0, "WARNING: linked instruction " << instruction->getName()
+            << " has null link");
+        return 0;
+    }
     unsigned long int disp = getLink()->getTargetAddress();
     if(getLink()->isRIPRelative()) {
         disp -= (instruction->getAddress() + getSize());

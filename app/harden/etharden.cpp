@@ -9,6 +9,10 @@
 #include "pass/endbrenforce.h"
 #include "pass/shadowstack.h"
 #include "pass/permutedata.h"
+#include "pass/profileinstrument.h"
+#include "pass/profilesave.h"
+#include "pass/condwatchpoint.h"
+#include "pass/retpoline.h"
 #include "log/registry.h"
 #include "log/temp.h"
 
@@ -65,6 +69,28 @@ void HardenApp::doPermuteData() {
     RUN_PASS(PermuteDataPass(), program);
 }
 
+void HardenApp::doProfiling() {
+    std::cout << "Adding function profiling...\n";
+    auto program = getProgram();
+    RUN_PASS(ProfileInstrumentPass(), program);
+    RUN_PASS(ProfileSavePass(), program);
+}
+
+void HardenApp::doWatching() {
+    std::cout << "Adding conditional watchpoint...\n";
+    auto program = getProgram();
+    RUN_PASS(CondWatchpointPass(), program);
+    //RUN_PASS(ProfileSavePass(), program);
+}
+
+void HardenApp::doRetpolines() {
+    std::cout << "Adding retpolines...\n";
+    auto program = getProgram();
+    for(auto module : CIter::children(program)) {
+        RUN_PASS(RetpolinePass(), module);
+    }
+}
+
 static void printUsage(const char *program) {
     std::cout << "Usage: " << program << " [options] [mode] input-file output-file\n"
         "    Transforms an executable by adding CFI and a shadow stack.\n"
@@ -77,6 +103,7 @@ static void printUsage(const char *program) {
         "\n"
         "Modes:\n"
         "    --nop          No transformation (default)\n"
+        "    --retpolines   Add inline retpolines, SPECTRE mitigation\n"
         "    --cfi          Intel CET endbr-based Control-Flow Integrity\n"
         "    --ss           default shadow stack\n"
         "        --ss-xor        XOR-based shadowstack\n"
@@ -86,6 +113,8 @@ static void printUsage(const char *program) {
         "        --cet-gs        GS shadow stack implementation\n"
         "        --cet-const     Constant offset shadow stack implementation\n"
         "    --permute-data Randomize order of global variables in .data\n"
+        "    --profile      Add profiling counters to each function\n"
+        "    --cond-watchpoint   Add conditional watchpoints for GDB\n"
         "Note: the EGALITO_DEBUG variable is also honoured.\n";
 }
 
@@ -106,6 +135,7 @@ void HardenApp::run(int argc, char **argv) {
         {"-u", [&oneToOne] () { oneToOne = false; }},
 
         {"--nop",           [&ops] () { }},
+        {"--retpolines",    [&ops] () { ops.push_back("retpolines"); }},
         {"--cfi",           [&ops] () { ops.push_back("cfi"); }},
         {"--ss",            [&ops] () { ops.push_back("ss-const"); }},
         {"--ss-xor",        [&ops] () { ops.push_back("ss-xor"); }},
@@ -115,6 +145,8 @@ void HardenApp::run(int argc, char **argv) {
         {"--cet-gs",        [&ops] () { ops.push_back("cet-gs"); }},
         {"--cet-const",     [&ops] () { ops.push_back("cet-const"); }},
         {"--permute-data",  [&ops] () { ops.push_back("permute-data"); }},
+        {"--profile",       [&ops] () { ops.push_back("profile"); }},
+        {"--cond-watchpoint", [&ops] () { ops.push_back("cond-watchpoint"); }},
     };
 
     std::map<std::string, std::function<void ()>> techniques = {
@@ -125,6 +157,9 @@ void HardenApp::run(int argc, char **argv) {
         {"cet-gs",          [this] () { doShadowStack(true); doCFI(); }},
         {"cet-const",       [this] () { doShadowStack(false); doCFI(); }},
         {"permute-data",    [this] () { doPermuteData(); }},
+        {"profile",         [this] () { doProfiling(); }},
+        {"cond-watchpoint", [this] () { doWatching(); }},
+        {"retpolines",      [this] () { doRetpolines(); }},
     };
 
     for(int a = 1; a < argc; a ++) {
@@ -159,7 +194,7 @@ void HardenApp::run(int argc, char **argv) {
 
 int main(int argc, char *argv[]) {
     if(argc < 3) {
-        printUsage(argv[0] ? argv[0] : "etcet");
+        printUsage(argv[0] ? argv[0] : "etharden");
         return 0;
     }
 

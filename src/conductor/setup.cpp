@@ -79,7 +79,7 @@ Module *ConductorSetup::injectElfFiles(const char *executable, Library::Role rol
     if(!conductor) createNewProgram();
 
     // executable can be a shared library. this->elf stores main module
-    auto firstModule = conductor->parseAnything(executable);
+    auto firstModule = conductor->parseAnything(executable, role);
     if(firstModule->getLibrary()->getRole() == Library::ROLE_MAIN) {
         this->elf = firstModule->getElfSpace()->getElfMap();
         findEntryPointFunction();
@@ -147,13 +147,17 @@ void ConductorSetup::parseEgalitoArchive(const char *archive) {
 }
 
 void ConductorSetup::setBaseAddresses() {
-    int i = 0;
+    unsigned long i = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
         auto elfMap = module->getElfSpace()
             ? module->getElfSpace()->getElfMap() : nullptr;
         // this address has to be low enough to express negative offset in
         // jump table slots (to represent an index)
+#if 0 // use 0x1X000000 for module addrs (X starts at 0)
         if(setBaseAddress(module, elfMap, 0x10000000 + i*0x1000000)) {
+#else // use 0x0X000000 for module addrs, for 32MB each (X starts at 1)
+        if(setBaseAddress(module, elfMap, (i+1)*0x2000000)) {
+#endif
             i ++;
         }
     }
@@ -183,16 +187,23 @@ void ConductorSetup::injectLibrary(const char *filename) {
 std::vector<Module *> ConductorSetup::addExtraLibraries(
     const std::vector<std::string> &filenames) {
 
+    std::map<std::string, Module *> pathMap;
     unsigned long maxAddress = 0;
     for(auto module : CIter::modules(conductor->getProgram())) {
         maxAddress = std::max(maxAddress, module->getBaseAddress());
+
+        pathMap[module->getElfSpace()->getFullPath()] = module;
     }
 
     std::vector<Module *> modules;
 
     for(auto filenameCpp : filenames) {
         auto filename = filenameCpp.c_str();
-        if(auto elfmap = new ElfMap(filename)) {
+
+        if(pathMap.count(filenameCpp)) {
+            modules.push_back(pathMap[filenameCpp]);
+        }
+        else if(auto elfmap = new ElfMap(filename)) {
             auto module = conductor->parseExtraLibrary(elfmap, filename);
             maxAddress += 0x60000000;
             setBaseAddress(module, elfmap, maxAddress);
@@ -206,6 +217,7 @@ std::vector<Module *> ConductorSetup::addExtraLibraries(
         else modules.push_back(nullptr);
     }
 
+    conductor->parseLibraries();
     conductor->resolvePLTLinks();
     conductor->resolveData(true);
     conductor->resolveTLSLinks();
@@ -322,6 +334,36 @@ bool ConductorSetup::generateMirrorELF(const char *outputFile) {
             ConductorPasses(conductor).newMirrorPasses(program);
         }
         copyCodeToNewAddresses(sandbox, true);
+        moveCodeMakeExecutable(sandbox);
+    }
+
+    //generator.generate(outputFile);
+    generator.generateContent(outputFile);
+    return true;
+}
+
+bool ConductorSetup::generateMirrorELF(const char *outputFile,
+    const std::vector<Function *> &order) {
+
+    auto sandbox = makeStaticExecutableSandbox(outputFile);
+    auto backing = static_cast<MemoryBufferBacking *>(sandbox->getBacking());
+    auto program = conductor->getProgram();
+
+    auto generator = MirrorGen(program, backing);
+    generator.preCodeGeneration();
+
+    {
+        ////moveCode(sandbox, true);  // calls sandbox->finalize()
+        //moveCodeAssignAddresses(sandbox, true);
+        Generator(sandbox, true).assignAddresses(conductor->getProgram(), order);
+        generator.afterAddressAssign();
+        {
+            // get data sections; allow links to change bytes in data sections
+            SegMap::mapAllSegments(this);
+            ConductorPasses(conductor).newMirrorPasses(program);
+        }
+        //copyCodeToNewAddresses(sandbox, true);
+        Generator(sandbox, true).generateCode(conductor->getProgram(), order);
         moveCodeMakeExecutable(sandbox);
     }
 

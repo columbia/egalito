@@ -186,6 +186,10 @@ void SegMap::mapRegion(DataRegion *region) {
         -1, 0);
     if(mem == nullptr) throw "mmap DataRegion returned NULL!";
     if(mem != (void *)address_rounded) {
+        if(!memsz_pages) {
+            LOG(1, "mmap DataRegion: zero-size data region");
+            throw "error: zero-size data region";
+        }
         LOG(1, "mmap DataRegion: overlapping?");
         throw "error: mapRegion";
     }

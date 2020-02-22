@@ -73,6 +73,7 @@ public:
     virtual bool deserialize(ChunkSerializerOperations &op,
         ArchiveStreamReader &reader);
 
+    virtual std::string getName() const { return "jumptablelist"; }
     virtual void accept(ChunkVisitor *visitor);
 };
 

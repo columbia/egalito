@@ -445,7 +445,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
             func->getPosition()->set(backing->getBase() + func->getAddress());
         }
     }
-
+#if 0
     // Make symbols for PLT entries
     for(auto plt : CIter::plts(module)) {
         auto symtab = getSection(".symtab")->castAs<SymbolTableContent *>();
@@ -462,6 +462,7 @@ void ModuleGen::makeSymbolsAndRelocs(address_t begin, size_t size,
             symbol->st_shndx = shdrIndexOf(textSection);
         });
     }
+#endif
 
 #if 0
     // Handle any other types of symbols that need generating.
@@ -490,6 +491,8 @@ void ModuleGen::makeSymbolInText(Function *func, const std::string &textSection)
     if(func->getSymbol()) for(auto alias : func->getSymbol()->getAliases()) {
         // skip functions with the same name (due to versioning)
         if(alias->getName() == func->getName()) continue;
+        // skip SECTION symbols that alias with _init, _fini, _start
+        if(alias->getType() != func->getSymbol()->getType()) continue;
 
         /*auto aliasNameStr = FunctionAliasMap::getNameWithoutVersion(alias->getName());
         if(aliasNameStr != alias->getName()) {

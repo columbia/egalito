@@ -31,6 +31,7 @@ public:
     bool applySetting(const std::string &name, int value);
     void muteAllSettings();
     int getSetting(const std::string &name);
+    std::vector<std::string> getSettingNames() const;
 
     static GroupRegistry *getInstance() {
         static GroupRegistry instance;

@@ -34,14 +34,20 @@ void ResolvePLTPass::visit(PLTTrampoline *pltTrampoline) {
     if(!target) {
         // sometimes a PLT target is found in itself with version (e.g. __netf2)
         auto version = symbol->getVersion();
-        std::string lookupName;
-        lookupName.append(symbol->getName());
+        std::string lookupName = symbol->getName();
+        LOG(1, "internal lookup of [" << lookupName << "]");
         if(version) {
-            lookupName.push_back('@');
-            if(!version->isHidden()) lookupName.push_back('@');
-            lookupName.append(version->getName());
+            if(!target) target = ChunkFind2().findFunctionInModule(
+                (lookupName + "@@" + version->getName()).c_str(), module);
+            if(!target) target = ChunkFind2().findFunctionInModule(
+                (lookupName + "@" + version->getName()).c_str(), module);
+            //lookupName.push_back('@');
+            //if(!version->isHidden()) lookupName.push_back('@');
+            //lookupName.append(version->getName());
         }
-        target = ChunkFind2().findFunctionInModule(lookupName.c_str(), module);
+        if(!target) {
+            target = ChunkFind2().findFunctionInModule(symbol->getName().c_str(), module);
+        }
     }
     if(target) {
         LOG(10, "PLT to " << symbol->getName()

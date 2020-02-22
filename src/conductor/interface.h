@@ -73,6 +73,9 @@ public:
     */
     void generate(const std::string &outputName);
 
+    void generate(const std::string &outputName,
+        const std::vector<Function *> &order);
+
     /** Generates an output ELF into outputName. If isUnion is true, use
         uniongen, otherwise mirrorgen.
     */

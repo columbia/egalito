@@ -1,4 +1,5 @@
 #include "register.h"
+#include "disasm/handle.h"
 
 #ifdef ARCH_X86_64
 const int X86Register::mappings[][5] = {
@@ -19,6 +20,12 @@ const int X86Register::mappings[][5] = {
     {R14, X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
     {R15, X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15},
 };
+
+const char *X86Register::getRepresentativeName(int reg) {
+    static DisasmHandle handle;
+    if(reg == X86Register::FLAGS) return "flags";
+    return cs_reg_name(handle.raw(), mappings[reg][4]);
+}
 
 int X86Register::convertToPhysicalINT(int id) {
     unsigned int guess = id - X86_REG_AL;

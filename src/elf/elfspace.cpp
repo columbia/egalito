@@ -2,6 +2,7 @@
 #include <libgen.h>  // for dirname() [ARM]
 #include <limits.h>  // for PATH_MAX [ARM]
 #include <unistd.h>  // for access()
+#include <string.h>  // for strdup()
 #include <iomanip>
 #include <sstream>
 #include <elf.h>
@@ -92,17 +93,24 @@ std::string ElfSpace::getAlternativeSymbolFile() const {
 
     std::ostringstream symbolFile;
     symbolFile << ConductorFilesystem::getInstance()->transform("/usr/lib/debug");
-    char realPath[PATH_MAX];
-    if(realpath(fullPath.c_str(), realPath)) {
+    char *realPath = realpath(fullPath.c_str(), NULL);
+    if(realPath) {
+        std::string untransformed =
+            ConductorFilesystem::getInstance()->untransform(realPath);
         auto debuglink = elf->findSection(".gnu_debuglink");
         if(debuglink) {
+            char *utc = strdup(untransformed.c_str());
             auto name = elf->getSectionReadPtr<char *>(debuglink);
-            symbolFile << dirname(realPath) << "/" << name;
+            symbolFile << dirname(utc) << "/" << name;
+            free(utc);
         }
         else {
             symbolFile << realPath << ".debug";
         }
+
+        free(realPath);
         if(access(symbolFile.str().c_str(), F_OK) == 0) return symbolFile.str();
+
     }
 
     return "";

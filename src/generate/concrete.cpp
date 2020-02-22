@@ -23,10 +23,14 @@ void BasicElfCreator::execute() {
     auto interpSection = new Section(".interp", SHT_PROGBITS, 0);
     getSectionList()->addSection(interpSection);
     
-    if (makeInitArray) {
+    if(makeInitArray) {
         auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
             SHF_WRITE | SHF_ALLOC);
         getSectionList()->addSection(initArraySection);
+
+        auto finiArraySection = new Section(".fini_array", SHT_FINI_ARRAY,
+            SHF_WRITE | SHF_ALLOC);
+        getSectionList()->addSection(finiArraySection);
     }
 
     auto phdrTable = new PhdrTableContent(getSectionList());
@@ -85,7 +89,8 @@ void BasicElfCreator::execute() {
         getSectionList()->addSection(relaDynSection);
 
         // .dynamic
-        auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC);
+        auto dynamicSection = new Section(".dynamic", SHT_DYNAMIC,
+            SHF_ALLOC | SHF_WRITE);
         auto dynamic = new DynamicSectionContent();
         dynamicSection->setContent(dynamic);
         getSectionList()->addSection(dynamicSection);
@@ -269,6 +274,17 @@ void GenerateSectionTable::makeShdrTable() {
     getSectionList()->addSection(shdrTableSection);
 }
 
+void DumpSymbolTable::execute() {
+    auto symtab = getData()->getSection(".symtab")->castAs<SymbolTableContent *>();
+
+    LOG(1, "---dump symbol table");
+    for(auto kv : symtab->getValueMap()) {
+        LOG(1, "symbol in table " << kv.first.getName()
+            << " with size " << (kv.first.get() ? kv.first.get()->getSize() : -1)
+            << " with type " << (kv.first.get() ? kv.first.get()->getType() : -1));
+    }
+}
+
 void GenerateSectionTable::makeSectionSymbols() {
     // update section indices in symbol table
     auto shdrTable = getSection("=shdr_table")->castAs<ShdrTableContent *>();
@@ -410,6 +426,15 @@ void BasicElfStructure::makeDynamicSection() {
         return initArray->getContent()->getSize();
     });
 
+    dynamic->addPair(DT_FINI_ARRAY, [this] () {
+        auto finiArray = getSection(".fini_array");
+        return finiArray->getHeader()->getAddress();
+    });
+    dynamic->addPair(DT_FINI_ARRAYSZ, [this] () {
+        auto finiArray = getSection(".fini_array");
+        return finiArray->getContent()->getSize();
+    });
+
     if(addLibDependencies) {
         auto first = getData()->getProgram()->getFirst();
         if(first->getLibrary()->getRole() == Library::ROLE_LIBC) {
@@ -441,6 +466,10 @@ void BasicElfStructure::makeDynamicSection() {
         return relaplt->getHeader()->getAddress();
     });
 
+    // without this, gdb (elf_locate_base in gdb/solib-svr4.c) thinks
+    // this is a static executable and cannot identify shared libraries
+    dynamic->addPair(DT_DEBUG, 0x0);
+
     // terminating pair
     dynamic->addPair(0, 0);
 
@@ -454,6 +483,7 @@ void AssignSectionsToSegments::execute() {
     loadSegment->addContains(getSection("=elfheader"));  // constant size
     loadSegment->addContains(getSection(".interp"));     // constant size
     if(auto s = getSection(".init_array")) loadSegment->addContains(s);
+    if(auto s = getSection(".fini_array")) loadSegment->addContains(s);
     loadSegment->addContains(getSection("=phdr_table"));
     //loadSegment->addContains(getSection(".strtab"));
     //loadSegment->addContains(getSection(".shstrtab"));
@@ -530,12 +560,12 @@ void TextSectionCreator::execute() {
     phdrTable->add(loadSegment);
 }
 
-MakeInitArray::MakeInitArray(int stage) : stage(stage) {
+MakeInitArray::MakeInitArray(int stage) : stage(stage), initArraySize(0) {
     setName(StreamAsString() << "MakeInitArray{stage=" << stage << "}");
 }
 
 void MakeInitArray::execute() {
-    if(stage==0) {
+    if(stage == 0) {
         makeInitArraySections();
     } else {
         makeInitArraySectionLinks();
@@ -549,7 +579,7 @@ void MakeInitArray::addInitFunction(InitArraySectionContent *content,
         auto relaDyn = getData()->getSection(".rela.dyn")->castAs<DataRelocSectionContent *>();
 
         // !!! Hardcoding this address for now. After =elfheader & .interp
-        const address_t INIT_ARRAY_ADDR = 0x20005c;
+        const address_t INIT_ARRAY_ADDR = 0x20005c + initArraySize;
         auto offset = content->getSize();
         relaDyn->addDataAddressRef(INIT_ARRAY_ADDR + offset, value);
         content->addPointer([] () { return address_t(0); });
@@ -558,12 +588,10 @@ void MakeInitArray::addInitFunction(InitArraySectionContent *content,
         content->addPointer(value);
     }
 }
-void MakeInitArray::makeInitArraySections() {
-    /*auto initArraySection = new Section(".init_array", SHT_INIT_ARRAY,
-        SHF_WRITE | SHF_ALLOC);*/
-    auto initArraySection = getData()->getSection(".init_array");
-    auto content = new InitArraySectionContent();
+void MakeInitArray::makeInitArraySectionHelper(const char *type,
+    InitArraySectionContent *content, bool isInit) {
 
+#if 0
     address_t firstInit = 0;
     std::vector<Link *> initFunctions;
     for(auto module : CIter::children(getData()->getProgram())) {
@@ -634,9 +662,57 @@ void MakeInitArray::makeInitArraySections() {
     for(auto link : initFunctions) {
         addInitFunction(content, [link] () { return link->getTargetAddress(); });
     }
+#else
+    Function *firstInit = nullptr;
+    std::vector<Function *> initFunctions;
+    for(auto module : CIter::children(getData()->getProgram())) {
+        InitFunctionList *list = nullptr;
+        if(isInit) list = module->getInitFunctionList();
+        else list = module->getFiniFunctionList();
 
-    initArraySection->setContent(content);
+        for(auto initFunc : CIter::children(list)) {
+            auto function = initFunc->getFunction();
+            if(initFunc->isSpecialCase()) {
+                LOG(1, "Found " << type << " special func at 0x"
+                    << std::hex << function->getAddress());
+                firstInit = function;
+            }
+            else {
+                assert(function != nullptr);
+                LOG(0, "Adding " << type << " function 0x" << std::hex
+                    << function->getAddress() << " to ." << type << "_array");
+                initFunctions.push_back(function);
+            }
+        }
+    }
+
+    if(firstInit) {
+        addInitFunction(content, [firstInit] () { return firstInit->getAddress(); });
+    }
+    for(auto function : initFunctions) {
+        addInitFunction(content, [function] () { return function->getAddress(); });
+    }
+#endif
 }
+void MakeInitArray::makeInitArraySections() {
+    {
+        auto initArraySection = getData()->getSection(".init_array");
+        auto content = new InitArraySectionContent();
+
+        makeInitArraySectionHelper("init", content, true);
+
+        initArraySection->setContent(content);
+        initArraySize = content->getSize();  // must happen before fini code
+    }
+
+    {
+        auto finiArraySection = getData()->getSection(".fini_array");
+        auto content = new InitArraySectionContent();
+        makeInitArraySectionHelper("fini", content, false);
+        finiArraySection->setContent(content);
+    }
+}
+
 
 Function *MakeInitArray::findLibcCsuInit(Chunk *entryPoint) {
     auto entry = dynamic_cast<Function *>(entryPoint);
@@ -685,6 +761,9 @@ void MakeInitArray::makeInitArraySectionLinks() {
     int counter = 0;
     for(auto instr : CIter::children(block)) {
         if(auto link = instr->getSemantic()->getLink()) {
+            // should be lea's
+            if(instr->getSemantic()->getAssembly()->getId() != X86_INS_LEA) continue;
+
             ++counter;
             if(counter == 1) {
                 // can't be deferred because otherwise code generation picks up old value
@@ -694,8 +773,8 @@ void MakeInitArray::makeInitArraySectionLinks() {
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
-                    LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr << " for " << instr->getAddress());
+                    LOG(0, "Change link from 0x" << std::hex << link->getTargetAddress()
+                        << " to 0x" << addr << " for 0x" << instr->getAddress());
                 //});
             }
             if(counter == 2) {
@@ -706,8 +785,8 @@ void MakeInitArray::makeInitArraySectionLinks() {
                     instr->getSemantic()->setLink(new UnresolvedLink(addr));
                     dynamic_cast<LinkedInstruction *>(instr->getSemantic())
                         ->clearAssembly();
-                    LOG(0, "Change link from 0x" << link->getTargetAddress()
-                        << " to 0x" << addr << " for " << instr->getAddress());
+                    LOG(0, "Change link from 0x" << std::hex << link->getTargetAddress()
+                        << " to 0x" << addr << " for 0x" << instr->getAddress());
                 //});
             }
 
@@ -889,28 +968,49 @@ void CopyDynsym::execute() {
         for(auto region : CIter::regions(module)) {
             for(auto section : CIter::children(region)) {
                 for(auto var : section->getGlobalVariables()) {
-                    Symbol *origsym = var->getDynamicSymbol();
-                    if(!origsym) continue;
+                    if(auto origsym = var->getDynamicSymbol()) {
+                        address_t address = var->getAddress();
 
-                    address_t address = var->getAddress();
+                        auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                            const char *oname = osymbol->getName();
+                            if(osymbol->getType() != Symbol::TYPE_OBJECT) return;
+                            LOG(10, "adding dynsym for " << oname);
 
-                    auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
-                        const char *oname = osymbol->getName();
-                        LOG(10, "adding dynsym for " << oname);
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
 
-                        auto nsymbol = new Symbol(
-                            address, osymbol->getSize(), oname,
-                            osymbol->getType(), osymbol->getBind(), 0, 0);
+                            dynsym->addGlobalVarSymbol(var, nsymbol, address);
+                            // TODO: set section index properly...
+                        };
 
-                        dynsym->addGlobalVarSymbol(var, nsymbol, address);
-                        // TODO: set section index properly...
-                    };
+                        handleGlobal(origsym);
 
-                    handleGlobal(origsym);
-
-                    for(auto alias : origsym->getAliases()) {
-                        handleGlobal(alias);
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
                     }
+                    /*else if(auto origsym = var->getSymbol()) {
+                        address_t address = var->getAddress();
+
+                        auto handleGlobal = [address, dynsym, var](Symbol *osymbol) {
+                            const char *oname = osymbol->getName();
+                            LOG(10, "adding sym for " << oname);
+
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
+
+                            symtab->addGlobalVarSymbol(var, nsymbol, address);
+                            // TODO: set section index properly...
+                        };
+
+                        handleGlobal(origsym);
+
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
+                    }*/
                 }
             }
         }
@@ -1030,6 +1130,63 @@ void MakeDynsymHash::execute() {
     //for(const auto &val : *dynsym) {
     //    LOG(1, "new order for symbol with name [" << val->getName() << "]");
     //}
+}
+
+void MakeGlobalSymbols::execute() {
+    auto symtab = getData()->getSection(".symtab")->castAs<SymbolTableContent *>();
+
+    LOG(5, "MakeGlobalSymbols::execute()");
+    // generate symtab entries for global variables
+    for(auto module : CIter::children(getData()->getProgram())) {
+        for(auto region : CIter::regions(module)) {
+            for(auto section : CIter::children(region)) {
+#if 0  // sections aren't added to list yet, so this fails
+                if(getData()->getSectionList()->indexOf(section->getName()) < 0) {
+                    // not generating this output section, don't create symbols for it
+                    continue;
+                }
+#endif
+                if(section->getType() != DataSection::TYPE_DATA
+                    && section->getType() != DataSection::TYPE_BSS) {
+                    // not generating this output section, don't create symbols for it
+                    continue;
+                }
+                for(auto var : section->getGlobalVariables()) {
+                    if(auto origsym = var->getSymbol()) {
+
+                        address_t address = var->getAddress();
+
+                        auto handleGlobal = [this, section, address, symtab, var]
+                            (Symbol *osymbol) {
+
+                            const char *oname = osymbol->getName();
+                            if(osymbol->getType() != Symbol::TYPE_OBJECT) return;
+                            LOG(10, "adding symtab entry for " << oname << ", type "
+                                << osymbol->getType());
+
+                            auto nsymbol = new Symbol(
+                                address, osymbol->getSize(), oname,
+                                osymbol->getType(), osymbol->getBind(), 0, 0);
+
+                            auto v = symtab->addGlobalVarSymbol(var, nsymbol, address);
+
+                            v->addFunction([this, symtab, section] (ElfXX_Sym *symbol) {
+                                symbol->st_shndx = symtab
+                                    ->indexOfSectionSymbol(section->getName(),
+                                        getData()->getSectionList());
+                            });
+                        };
+
+                        handleGlobal(origsym);
+
+                        for(auto alias : origsym->getAliases()) {
+                            handleGlobal(alias);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void ElfFileWriter::execute() {

@@ -9,20 +9,32 @@
 
 FunctionAliasMap::FunctionAliasMap(Module *module) {
     for(auto func : CIter::functions(module)) {
-        auto sym = func->getSymbol();
-        if(!sym) continue;
+        if(auto sym = func->getSymbol()) {
+            for(auto aliasSym : sym->getAliases()) {
+                if(aliasSym->getType() != Symbol::TYPE_FUNC
+                    && aliasSym->getType() != Symbol::TYPE_IFUNC) continue;
+                auto alias = aliasSym->getName();
+                aliasMap[alias] = func;
+                LOG(5, "alias [" << alias << "] to [" << func->getName() << "]");
 
-        for(auto aliasSym : sym->getAliases()) {
-            if(aliasSym->getType() != Symbol::TYPE_FUNC
-                && aliasSym->getType() != Symbol::TYPE_IFUNC) continue;
-            auto alias = aliasSym->getName();
-            aliasMap[alias] = func;
-            LOG(5, "alias [" << alias << "] to [" << func->getName() << "]");
+                maybeSpecialAlias(alias, func);
+            }
 
-            maybeSpecialAlias(alias, func);
+            maybeSpecialAlias(sym->getName(), func);
         }
+        if(auto sym = func->getDynamicSymbol()) {
+            for(auto aliasSym : sym->getAliases()) {
+                if(aliasSym->getType() != Symbol::TYPE_FUNC
+                    && aliasSym->getType() != Symbol::TYPE_IFUNC) continue;
+                auto alias = aliasSym->getName();
+                aliasMap[alias] = func;
+                LOG(5, "alias [" << alias << "] to [" << func->getName() << "]");
 
-        maybeSpecialAlias(sym->getName(), func);
+                maybeSpecialAlias(alias, func);
+            }
+
+            maybeSpecialAlias(sym->getName(), func);
+        }
     }
 }
 

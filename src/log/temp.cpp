@@ -13,3 +13,16 @@ TemporaryLogLevel::TemporaryLogLevel(const std::string &name, int level,
 TemporaryLogLevel::~TemporaryLogLevel() {
     GroupRegistry::getInstance()->applySetting(name, previous);
 }
+
+TemporaryLogMuter::TemporaryLogMuter() {
+    for(auto &name : GroupRegistry::getInstance()->getSettingNames()) {
+        levels[name] = GroupRegistry::getInstance()->getSetting(name);
+    }
+    GroupRegistry::getInstance()->muteAllSettings();
+}
+
+TemporaryLogMuter::~TemporaryLogMuter() {
+    for(auto &name : GroupRegistry::getInstance()->getSettingNames()) {
+        GroupRegistry::getInstance()->applySetting(name, levels[name]);
+    }
+}

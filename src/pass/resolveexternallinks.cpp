@@ -5,7 +5,9 @@
 #include "log/log.h"
 
 template <typename SymbolType>
-static Link *reResolveTarget(SymbolType *symbol, Conductor *conductor, Module *module) {
+static Link *reResolveTarget(SymbolType *symbol, Conductor *conductor,
+    Module *module, address_t addend = 0) {
+
     // note: only called on datavariable links
     auto l = PerfectLinkResolver().redirectCopyRelocs(conductor, symbol, false);
     if(l) {
@@ -17,6 +19,15 @@ static Link *reResolveTarget(SymbolType *symbol, Conductor *conductor, Module *m
         if(!l) {
             l = PerfectLinkResolver().resolveExternally(symbol, conductor,
                 module, true, true, /*afterMapping=*/ true);
+        }
+    }
+    if(l && addend) {
+        if(auto v = dynamic_cast<DataOffsetLinkBase *>(l)) {
+            v->setAddend(addend);
+            LOG(0, "adjust addend to " << v->getAddend());
+        }
+        else {
+            LOG(0, "WARNING: not handling non-zero reloc addend " << addend);
         }
     }
     return l;
@@ -76,7 +87,7 @@ void ResolveExternalLinksPass::visit(Module *module) {
                 }
                 else if(auto v = dynamic_cast<ExternalSymbolLink *>(link)) {
                     auto extSym = v->getExternalSymbol();
-                    auto l = reResolveTarget(extSym, conductor, module);
+                    auto l = reResolveTarget(extSym, conductor, module, v->getOffset());
                     if(l) {
                         LOG(0, "change ExternalSymbolLink from ["
                             << extSym->getName() << "] => " << l << " ("

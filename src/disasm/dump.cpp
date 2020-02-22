@@ -93,7 +93,7 @@ void DisasmDump::printInstructionRaw(unsigned long address, int offset,
         }
     }
 
-    std::printf("%s\n", buffer);
+    LOG(0, buffer);  // adds newline
 }
 #undef APPEND
 

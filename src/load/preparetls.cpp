@@ -43,7 +43,7 @@ void PrepareTLS::prepare(Conductor *conductor) {
 #if 0
     uint32_t multiple_threads;
     __asm__ __volatile__ (
-        "mov %@:%p1, %0"
+        "mov %%fs:%p1, %0"
             : "=r"(multiple_threads)
             : "i"(offsetof(my_tcbhead_t, multiple_threads))
     );

@@ -72,6 +72,8 @@ private:
     std::tuple<bool, address_t> parseComputedAddress(UDState *state, int reg);
 
     bool parseBound(UDState *state, int reg, JumptableInfo *info);
+    bool parseBoundDeref(UDState *state, TreeNodeDereference *deref,
+        int reg, JumptableInfo *info);
     bool getBoundFromCompare(UDState *state, int bound, JumptableInfo *info);
     bool getBoundFromCompareAndBranch(UDState *state, int reg,
         JumptableInfo *info);
@@ -86,7 +88,8 @@ private:
 
     void collectJumpsTo(UDState *state, JumptableInfo *info,
         std::vector<UDState *>& result);
-    bool valueReaches(UDState *state, int reg, UDState *state2, int reg2);
+    bool valueReaches(UDState *state, int reg, UDState *state2, int reg2,
+        long *boundValue);
 };
 
 #endif

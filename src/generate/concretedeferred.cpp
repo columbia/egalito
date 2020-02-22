@@ -860,15 +860,21 @@ DataRelocSectionContent::DeferredType *DataRelocSectionContent
     auto extSymbol = plt->getExternalSymbol();
     auto symbol = makeSymbol(extSymbol->getName(),
         Symbol::TYPE_FUNC, extSymbol->getBind());
-    auto symtab = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
-    auto elfSym = symtab->addUndefinedSymbol(symbol);
-    deferred->addFunction([this, gotPLT, plt, symtab, elfSym, extSymbol, pltIndex]
+    auto dynsym = (*sectionList)[".dynsym"]->castAs<SymbolTableContent *>();
+    auto symtab = (*sectionList)[".symtab"]->castAs<SymbolTableContent *>();
+    auto elfSym = plt->getTarget()
+        ? dynsym->addPLTSymbol(plt, symbol)
+        : dynsym->addUndefinedSymbol(symbol);
+    if(plt->getTarget()) symtab->addPLTSymbol(plt, symbol);
+    else symtab->addUndefinedSymbol(symbol);
+    deferred->addFunction([this, gotPLT, plt, dynsym, elfSym, extSymbol, pltIndex]
         (ElfXX_Rela *rela) {
 
         LOG(1, "Creating PLT reloc for [" << extSymbol->getName() << "] at 0x"
             << std::hex << plt->getAddress());
+        LOG(1, "    PLT target is " << (plt->getTarget() ? plt->getTarget()->getName() : "null"));
         LOG(1, "    elfSym name offset " << elfSym->getElfPtr()->st_name);
-        size_t index = symtab->indexOf(elfSym);
+        size_t index = dynsym->indexOf(elfSym);
         LOG(1, "    index looks like " << index << " for elfSym " << elfSym);
         if(plt->isPltGot()) {
             rela->r_info = ELF64_R_INFO(index, R_X86_64_GLOB_DAT);

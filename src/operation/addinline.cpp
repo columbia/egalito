@@ -65,26 +65,30 @@ ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegSaveCode(
         results.push_back(Disassemble::instruction({0x48, 0x8d, 0x64, 0x24, 0x80}));
     }
     for(auto reg : regList) {
+        std::vector<unsigned char> bytes;
         switch(reg) {
-        case X86_REG_EFLAGS:
-            results.push_back(Disassemble::instruction({0x9c}));  // pushfd
-            break;
-        case X86_REG_RAX:
-            results.push_back(Disassemble::instruction({0x50}));  // push %rax
-            break;
-        case X86_REG_R9:
-            results.push_back(Disassemble::instruction({0x41, 0x51})); // push %r9
-            break;
-        case X86_REG_R10:
-            results.push_back(Disassemble::instruction({0x41, 0x52})); // push %r10
-            break;
-        case X86_REG_R11:
-            results.push_back(Disassemble::instruction({0x41, 0x53})); // push %r11
-            break;
+        case X86_REG_EFLAGS: bytes = {0x9c}; break;               // pushfd
+        case X86_REG_RAX:   bytes = {0x50}; break;                // push %rax
+        case X86_REG_RBX:   bytes = {0x53}; break;                // push %rbx
+        case X86_REG_RCX:   bytes = {0x51}; break;                // push %rcx
+        case X86_REG_RDX:   bytes = {0x52}; break;                // push %rdx
+        case X86_REG_RSI:   bytes = {0x56}; break;                // push %rsi
+        case X86_REG_RDI:   bytes = {0x57}; break;                // push %rdi
+        case X86_REG_RBP:   bytes = {0x55}; break;                // push %rbp
+        case X86_REG_RSP:   bytes = {0x54}; break;                // push %rsp
+        case X86_REG_R8:    bytes = {0x41, 0x50}; break;          // push %r8
+        case X86_REG_R9:    bytes = {0x41, 0x51}; break;          // push %r9
+        case X86_REG_R10:   bytes = {0x41, 0x52}; break;          // push %r10
+        case X86_REG_R11:   bytes = {0x41, 0x53}; break;          // push %r11
+        case X86_REG_R12:   bytes = {0x41, 0x54}; break;          // push %r12
+        case X86_REG_R13:   bytes = {0x41, 0x55}; break;          // push %r13
+        case X86_REG_R14:   bytes = {0x41, 0x56}; break;          // push %r14
+        case X86_REG_R15:   bytes = {0x41, 0x57}; break;          // push %r15
         default:
             LOG(1, "saving unsupported register in ChunkAddInline");
             break;
         }
+        results.push_back(Disassemble::instruction(bytes));
     }
     return results;
 }
@@ -95,26 +99,30 @@ ChunkAddInline::InstrList ChunkAddInline::SaveRestoreRegisters::getRegRestoreCod
     InstrList results;
     for(auto it = regList.rbegin(); it != regList.rend(); it++) {
         auto reg = *it;
+        std::vector<unsigned char> bytes;
         switch(reg) {
-        case X86_REG_EFLAGS:
-            results.push_back(Disassemble::instruction({0x9d}));  // popfd 
-            break;
-        case X86_REG_RAX:
-            results.push_back(Disassemble::instruction({0x58}));  // pop %rax
-            break;
-        case X86_REG_R9:
-            results.push_back(Disassemble::instruction({0x41, 0x59})); // pop %r9
-            break;
-        case X86_REG_R10:
-            results.push_back(Disassemble::instruction({0x41, 0x5a})); // pop %r10
-            break;
-        case X86_REG_R11:
-            results.push_back(Disassemble::instruction({0x41, 0x5b})); // pop %r11
-            break;
+        case X86_REG_EFLAGS: bytes = {0x9d}; break;               // popfd
+        case X86_REG_RAX:   bytes = {0x58}; break;                // pop %rax
+        case X86_REG_RBX:   bytes = {0x5b}; break;                // pop %rbx
+        case X86_REG_RCX:   bytes = {0x59}; break;                // pop %rcx
+        case X86_REG_RDX:   bytes = {0x5a}; break;                // pop %rdx
+        case X86_REG_RSI:   bytes = {0x5e}; break;                // pop %rsi
+        case X86_REG_RDI:   bytes = {0x5f}; break;                // pop %rdi
+        case X86_REG_RBP:   bytes = {0x5d}; break;                // pop %rbp
+        case X86_REG_RSP:   bytes = {0x5c}; break;                // pop %rsp
+        case X86_REG_R8:    bytes = {0x41, 0x58}; break;          // pop %r8
+        case X86_REG_R9:    bytes = {0x41, 0x59}; break;          // pop %r9
+        case X86_REG_R10:   bytes = {0x41, 0x5a}; break;          // pop %r10
+        case X86_REG_R11:   bytes = {0x41, 0x5b}; break;          // pop %r11
+        case X86_REG_R12:   bytes = {0x41, 0x5c}; break;          // pop %r12
+        case X86_REG_R13:   bytes = {0x41, 0x5d}; break;          // pop %r13
+        case X86_REG_R14:   bytes = {0x41, 0x5e}; break;          // pop %r14
+        case X86_REG_R15:   bytes = {0x41, 0x5f}; break;          // pop %r15
         default:
             LOG(1, "restoring unsupported register in ChunkAddInline");
             break;
         }
+        results.push_back(Disassemble::instruction(bytes));
     }
     if(redzone && regList.size() > 0) {
         // lea 0x80(%rsp), %rsp

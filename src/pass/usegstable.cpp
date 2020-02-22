@@ -16,7 +16,7 @@
 void UseGSTablePass::visit(Program *program) {
     redirectEgalitoFunctionPointers();
     recurse(program);
-    overwriteBootArguments();
+    if(runtime) overwriteBootArguments();
 }
 
 void UseGSTablePass::visit(Module *module) {
@@ -39,6 +39,7 @@ void UseGSTablePass::visit(Function *function) {
 
     recurse(function);
     convert();
+    //ChunkMutator(function, true);
 }
 
 void UseGSTablePass::visit(Block *block) {
@@ -617,6 +618,7 @@ void UseGSTablePass::visit(PLTTrampoline *trampoline) {
     if(trampoline->isIFunc()) {
         recurse(trampoline);
         convert();
+        //ChunkMutator(trampoline, true);
     }
 }
 
@@ -845,6 +847,7 @@ void UseGSTablePass::rewritePointerLoad(Block *block, Instruction *instr) {
 }
 
 void UseGSTablePass::rewriteReturn(Block *block, Instruction *instr) {
+    if(!runtime) return;
     auto i = static_cast<ReturnInstruction *>(instr->getSemantic());
     DisasmHandle handle(true);
 

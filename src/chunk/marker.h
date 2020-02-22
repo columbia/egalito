@@ -66,6 +66,7 @@ public:
 
 class MarkerList : public CollectionChunkImpl<Marker> {
 public:
+    virtual std::string getName() const { return "markerlist"; }
     virtual void accept(ChunkVisitor *visitor);
 
     Link *createMarkerLink(Symbol *symbol, size_t addend, Module *module,

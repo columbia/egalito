@@ -53,6 +53,11 @@ private:
     void makeSectionSymbols();
 };
 
+class DumpSymbolTable : public NormalElfOperation {
+public:
+    virtual void execute();
+};
+
 class TextSectionCreator : public ConcreteElfOperation {
 public:
     virtual void execute();
@@ -64,11 +69,16 @@ class InitArraySectionContent;
 class MakeInitArray : public NormalElfOperation {
 private:
     int stage;
+
+    // size of .init_array in bytes, used to offset .fini_array afterwards
+    size_t initArraySize;
 public:
     MakeInitArray(int stage);
     virtual void execute();
 private:
     void makeInitArraySections();
+    void makeInitArraySectionHelper(const char *type,
+        InitArraySectionContent *content, bool isInit);
     void makeInitArraySectionLinks();
     void addInitFunction(InitArraySectionContent *content,
         std::function<address_t ()> value);
@@ -103,6 +113,11 @@ class MakeDynsymHash : public NormalElfOperation {
 private:
     std::vector<std::vector<std::string>> bucketList;
     std::map<std::string, size_t> indexMap;
+public:
+    virtual void execute();
+};
+
+class MakeGlobalSymbols : public NormalElfOperation {
 public:
     virtual void execute();
 };

@@ -42,6 +42,22 @@ void ElfDynamic::addDependency(Library *library, std::string soname) {
     resolveLibraries();
 }
 
+std::string ElfDynamic::findSharedObject(std::string name) {
+    setupSearchPath();
+
+    for(auto path : searchPath) {
+        std::string fullPath = path + "/" + name;
+        std::ifstream file(fullPath);
+        if(file.is_open() && isValidElf(file)) {
+            file.close();
+            return fullPath;
+        }
+    }
+    LOG(0, "WARNING: can't find shared object ["
+        << name << "] in search path");
+    return "";
+}
+
 template <typename Out>
 static void split(const std::string &s, char delim, Out result) {
     std::stringstream ss;
@@ -50,6 +66,40 @@ static void split(const std::string &s, char delim, Out result) {
     while(std::getline(ss, item, delim)) {
         *(result++) = item;
     }
+}
+
+void ElfDynamic::setupSearchPath() {
+    // make idempotent
+    if(searchPath.size()) return;
+
+    const char *egalito_library_path = getenv("EGALITO_LIBRARY_PATH");
+    if(egalito_library_path) {
+        split(egalito_library_path, ':', std::back_inserter(searchPath));
+    }
+
+    if(rpath) {
+        split(rpath, ':', std::back_inserter(searchPath));
+    }
+
+    const char *ld_library_path = getenv("LD_LIBRARY_PATH");
+    if(ld_library_path) {
+        split(ld_library_path, ':', std::back_inserter(searchPath));
+    }
+
+    int musl = isFeatureEnabled("EGALITO_MUSL");
+
+    auto cfs = ConductorFilesystem::getInstance();
+    if(musl) {
+        parseMuslLdConfig(cfs->transform("/etc/ld-musl-x86_64.path"), searchPath);
+    }
+    else {
+        parseLdConfig(cfs->transform("/etc/ld.so.conf"), searchPath);
+    }
+    searchPath.push_back(cfs->transform("/lib"));
+    searchPath.push_back(cfs->transform("/usr/lib"));
+    searchPath.push_back(cfs->transform("/lib64"));
+    searchPath.push_back(cfs->transform("/usr/lib64"));
+    searchPath.push_back(cfs->transform("/usr/local/musl/lib"));
 }
 
 std::vector<std::string> ElfDynamic::doGlob(std::string pattern) {
@@ -63,6 +113,18 @@ std::vector<std::string> ElfDynamic::doGlob(std::string pattern) {
 
     globfree(&list);
     return std::move(output);
+}
+
+void ElfDynamic::parseMuslLdConfig(std::string filename,
+    std::vector<std::string> &searchPath) {
+
+    std::ifstream file(filename.c_str());
+
+    std::string line;
+    while(std::getline(file, line)) {
+        if(line.size() == 0) continue;
+        searchPath.push_back(ConductorFilesystem::getInstance()->transform(line));
+    }
 }
 
 void ElfDynamic::parseLdConfig(std::string filename,
@@ -113,30 +175,7 @@ bool ElfDynamic::isValidElf(std::ifstream &file) {
 }
 
 void ElfDynamic::resolveLibraries() {
-    std::vector<std::string> searchPath;
-
-    const char *egalito_library_path = getenv("EGALITO_LIBRARY_PATH");
-    if(egalito_library_path) {
-        split(egalito_library_path, ':', std::back_inserter(searchPath));
-    }
-
-    if(rpath) {
-        split(rpath, ':', std::back_inserter(searchPath));
-    }
-
-    const char *ld_library_path = getenv("LD_LIBRARY_PATH");
-    if(ld_library_path) {
-        split(ld_library_path, ':', std::back_inserter(searchPath));
-    }
-
-    auto cfs = ConductorFilesystem::getInstance();
-    parseLdConfig(cfs->transform("/etc/ld.so.conf"), searchPath);
-    searchPath.push_back(cfs->transform("/lib"));
-    searchPath.push_back(cfs->transform("/usr/lib"));
-    searchPath.push_back(cfs->transform("/lib64"));
-    searchPath.push_back(cfs->transform("/usr/lib64"));
-    searchPath.push_back(cfs->transform("/usr/local/musl/lib"));
-
+    setupSearchPath();
     for(auto &pair : dependencyList) {
         auto library = pair.first;
         auto sharedLib = pair.second;
@@ -147,23 +186,8 @@ void ElfDynamic::resolveLibraries() {
             continue;
         }
 
-        bool found = false;
-        for(auto path : searchPath) {
-            LOG(10, "        search [" << path << "]");
-            std::string fullPath = path + "/" + library;
-            std::ifstream file(fullPath);
-            if(file.is_open() && isValidElf(file)) {
-                file.close();
-                LOG(2, "    library at [" << fullPath << "]");
-                processLibrary(fullPath, library, sharedLib);
-                found = true;
-                break;
-            }
-        }
-        if(!found) {
-            LOG(0, "WARNING: can't find shared library ["
-                << library << "] in search path");
-        }
+        std::string fullPath = findSharedObject(library);
+        processLibrary(fullPath, library, sharedLib);
     }
 }
 
@@ -186,7 +210,7 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
 
     // don't process this library again if already done
     if(auto library = libraryList->find(filename)) {
-        depend->addDependency(library);
+        if(depend) depend->addDependency(library);
         return;
     }
 
@@ -197,7 +221,7 @@ void ElfDynamic::processLibrary(const std::string &fullPath,
     library->setResolvedPath(fullPath);
     libraryList->add(library);
 
-    depend->addDependency(library);
+    if(depend) depend->addDependency(library);
 
     LOG(2, "    added new library [" << filename << "]");
 }

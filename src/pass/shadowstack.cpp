@@ -39,6 +39,10 @@ void ShadowStackPass::visit(Program *program) {
         }
     }
 
+    if(auto f = dynamic_cast<Function *>(program->getEntryPoint())) {
+        entryPoint = f;
+    }
+
     recurse(program);
 }
 
@@ -72,7 +76,7 @@ void ShadowStackPass::visit(Function *function) {
 
     if(function->getName() == "obstack_free") return;  // jne tail rec, for const ss
 
-    if(function->getName() == "_start") return;
+    if(function->getName() == "_start" || function == entryPoint) return;
     if(function->getName() == "__libc_start_main") return;
     if(function->getName() == "mmap64") return;
     if(function->getName() == "mmap") return;
@@ -86,9 +90,15 @@ void ShadowStackPass::visit(Function *function) {
     //if(function->getName() == "__memcpy_avx_unaligned_erms") return;
     if(function->getName().find("memcpy") != std::string::npos) return;
 
+    // memcpy does jmp into middle of this:
+    //if(function->getName() == "__memmove_sse2_unaligned_erms") return;
+    if(function->getName().find("memmove") != std::string::npos) return;
+
     // this has ja, conditional tail recursion
     //if(function->getName() == "__memset_avx2_unaligned_erms") return;
     if(function->getName().find("memset") != std::string::npos) return;
+
+    // blacklist all mem* functions?
     //if(function->getName().find("mem") != std::string::npos) return;
 
     // this has jne, conditional tail recursion

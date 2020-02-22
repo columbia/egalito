@@ -12,6 +12,7 @@ private:
     Conductor *conductor;
     GSTable *gsTable;
     IFuncList *ifuncList;
+    bool runtime;
 
     std::vector<std::pair<Block *, Instruction *>> directCalls;
     std::vector<std::pair<Block *, Instruction *>> tailRecursions;
@@ -28,12 +29,14 @@ private:
 
     std::vector<std::pair<Block *, Instruction *>> functionReturns;
 public:
-    UseGSTablePass(Conductor *conductor, GSTable *gsTable, IFuncList *ifuncList)
-        : conductor(conductor), gsTable(gsTable), ifuncList(ifuncList) {}
+    UseGSTablePass(Conductor *conductor, GSTable *gsTable, IFuncList *ifuncList,
+        bool runtime = true)
+        : conductor(conductor), gsTable(gsTable),
+        ifuncList(ifuncList), runtime(runtime) {}
 
     virtual void visit(Program *program);
-private:
     virtual void visit(Module *module);
+private:
     virtual void visit(Function *function);
     virtual void visit(Block *block);
     virtual void visit(DataRegion *dataRegion);

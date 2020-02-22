@@ -1,5 +1,5 @@
 #include "framework/include.h"
-#include "framework/StreamAsString.h"
+#include "StreamAsString.h"
 #include "chunk/position.h"
 #include "chunk/dump.h"
 #include "operation/mutator.h"
