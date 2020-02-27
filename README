@@ -12,7 +12,7 @@ Egalito supports x86_64 and aarch64, with experimental support for RISC-V.
 For more information, please visit https://egalito.org.
 
 To build:
-$ sudo apt-get install make g++ libreadline-dev gdb lsb-release
+$ sudo apt-get install make g++ libreadline-dev gdb lsb-release unzip
 $ sudo apt-get install libc6-dbg libstdc++6-7-dbg  # names may differ
 $ git submodule update --init --recursive
 $ make -j `nproc`
