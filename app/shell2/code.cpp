@@ -10,6 +10,8 @@
 #include "conductor/interface.h"
 #include "log/temp.h"
 
+#define TPATH_MAX 64
+
 #undef DEBUG_GROUP
 #define DEBUG_GROUP shell
 #define D_shell 9
@@ -133,7 +135,17 @@ FullCommandList::FullCommandList(EgalitoInterface *egalito) {
             {"-k", ArgumentSpec({"-k"}, ArgumentSpec::TYPE_FLAG)}
         }, {}, 0),
         [this, egalito] (ShellState &state, ArgumentValueList &args) {
-            std::string output = tempnam("/tmp", "ega-");
+            //std::string output = tempnam("/tmp", "ega-");
+            char pfnam[TPATH_MAX];
+            char tfnam[TPATH_MAX];
+
+            memset(pfnam, 0, TPATH_MAX);
+            memset(tfnam, 0, TPATH_MAX);
+
+            snprintf(pfnam, TPATH_MAX-1, "/proc/self/fd/%d",
+                mkstemp((char *)"ega-XXXXXX"));
+            readlink(tfnam, pfnam, TPATH_MAX-1); 
+            std::string output = tfnam;
 
             bool uniongen;
             if(args.getBool("-m")) uniongen = false;

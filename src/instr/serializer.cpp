@@ -231,7 +231,7 @@ InstructionSemantic *InstrSerializer::deserialize(Instruction *instruction,
         semantic->setIndex(reader.read<uint8_t>());
 #endif
 
-        bool isRelative = reader.read<bool>(); // not needed, setLink sets isRelative
+        //bool isRelative = reader.read<bool>(); // not needed, setLink sets isRelative
 
         return semantic;
     }

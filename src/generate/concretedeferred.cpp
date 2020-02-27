@@ -431,7 +431,7 @@ size_t PagePaddingContent::getSize() const {
         size_t roundToPageBoundary = ((lastByte + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
             - lastByte;
         LOG(0, "desiredOffset = " << desiredOffset << ", got = "
-            << (lastByte + (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1)));
+            << ((lastByte + (roundToPageBoundary + desiredOffset)) & (PAGE_SIZE-1)));
         return (roundToPageBoundary + desiredOffset) & (PAGE_SIZE-1);
     }
     else {

@@ -71,7 +71,7 @@ void PermuteDataPass::visit(Module *module) {
                 if(!link) continue;
                 address_t taddress = link->getTargetAddress();
 
-                if(auto dol = dynamic_cast<DataOffsetLink *>(link)) {
+                if(/*auto dol = */dynamic_cast<DataOffsetLink *>(link)) {
                     // TODO: more efficient way of doing this...
                     for(auto dr : CIter::children(module->getDataRegionList())) {
                         for(auto ds : CIter::children(dr)) {
@@ -283,7 +283,7 @@ void PermuteDataPass::visit(Instruction *instr) {
 }
 
 Link *PermuteDataPass::updatedLink(Link *link) {
-    if(auto nl = dynamic_cast<NormalLink *>(link)) {
+    if(/*auto nl = */dynamic_cast<NormalLink *>(link)) {
         // shouldn't have to do anything, NormalLinks won't reference ds
         #if 0
         if(auto vdest = dynamic_cast<DataVariable *>(nl->getTarget())) {

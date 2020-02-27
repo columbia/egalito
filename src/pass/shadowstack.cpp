@@ -116,7 +116,7 @@ void ShadowStackPass::visit(Function *function) {
 
 void ShadowStackPass::visit(Instruction *instruction) {
     auto semantic = instruction->getSemantic();
-    if(auto v = dynamic_cast<ReturnInstruction *>(semantic)) {
+    if(/*auto v = */dynamic_cast<ReturnInstruction *>(semantic)) {
         popFromShadowStack(instruction);
     }
     else if(auto v = dynamic_cast<ControlFlowInstruction *>(semantic)) {
