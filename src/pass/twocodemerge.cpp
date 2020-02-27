@@ -40,10 +40,10 @@ bool TwocodeMergePass::updateLinks(Module *module, Function *otherFunc) {
 
             LOG(0, "    link to " << link->getTargetAddress() << ", type "
                 << typeid(*link).name());
-            if(auto v = dynamic_cast<AbsoluteNormalLink *>(link)) {
+            if(/*auto v = */dynamic_cast<AbsoluteNormalLink *>(link)) {
                 assert(false && "Did not expect AbsoluteNormalLink in twocode");
             }
-            else if(auto v = dynamic_cast<NormalLink *>(link)) {
+            else if(/*auto v = */dynamic_cast<NormalLink *>(link)) {
                 if(auto oldRef = dynamic_cast<Function *>(link->getTarget())) {
                     auto newRef = ChunkFind2(program).findFunctionInModule(
                         oldRef->getName().c_str(), module);
@@ -77,7 +77,7 @@ bool TwocodeMergePass::updateLinks(Module *module, Function *otherFunc) {
                     return false;
                 }
             }
-            else if(auto v = dynamic_cast<AbsoluteDataLink *>(link)) {
+            else if(/*auto v = */dynamic_cast<AbsoluteDataLink *>(link)) {
                 assert(false && "Did not expect AbsoluteDataLink in twocode");
             }
             else if(auto v = dynamic_cast<DataOffsetLink *>(link)) {

@@ -129,7 +129,7 @@ void JumpTablePass::makeJumpTable(JumpTableList *jumpTableList,
 }
 
 size_t JumpTablePass::makeChildren(JumpTable *jumpTable, int count) {
-    auto elfMap = module->getElfSpace()->getElfMap();
+    //auto elfMap = module->getElfSpace()->getElfMap();
     auto descriptor = jumpTable->getDescriptor();
 
     auto section = descriptor->getContentSection();

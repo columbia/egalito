@@ -1226,10 +1226,10 @@ bool JumptableDetection::parseBoundDeref(UDState *state, TreeNodeDereference *de
         LOG(11, "        parser sees match in " << s << ", instr="
             << s->getInstruction()->getName());
 
-        if(auto regTree = dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0))) {
+        if(/*auto regTree = */dynamic_cast<TreeNodePhysicalRegister *>(cap.get(0))) {
             // continue
         }
-        else if(auto derefTree = dynamic_cast<TreeNodeDereference *>(cap.get(0))) {
+        else if(/*auto derefTree = */dynamic_cast<TreeNodeDereference *>(cap.get(0))) {
             if(reg0 != dynamic_cast<TreeNodePhysicalRegister *>(deref->getChild())->getRegister()) {
                 return false;
             }

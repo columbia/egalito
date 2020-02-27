@@ -161,7 +161,7 @@ void ChunkMutator::insertBeforeJumpTo(Instruction *insertPoint, Instruction *new
         return;
     }
 
-    auto chunk3 = insertPoint->getNextSibling();
+    //auto chunk3 = insertPoint->getNextSibling();
     insertAfter(insertPoint, newChunk);
 
     // swap semantics of these two instructions

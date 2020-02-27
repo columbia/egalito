@@ -188,7 +188,7 @@ void BasicElfStructure::makeHeader() {
 
 void BasicElfStructure::makeSymtabSection() {
     {
-        auto strtab = getSection(".strtab")->castAs<DeferredStringList *>();
+        //auto strtab = getSection(".strtab")->castAs<DeferredStringList *>();
 
         auto symtabSection = getSection(".symtab");
         symtabSection->getHeader()->setSectionLink(
@@ -742,8 +742,8 @@ Function *MakeInitArray::findLibcCsuInit(Chunk *entryPoint) {
 
 void MakeInitArray::makeInitArraySectionLinks() {
     auto initArraySection = getData()->getSection(".init_array");
-    auto content = dynamic_cast<InitArraySectionContent *>(
-        initArraySection->getContent());
+    //auto content = dynamic_cast<InitArraySectionContent *>(
+    //    initArraySection->getContent());
     auto main = getData()->getProgram()->getMain();
     if(!main) return;
     auto func = CIter::named(main->getFunctionList())->find("__libc_csu_init");
@@ -1218,7 +1218,7 @@ void ElfFileWriter::serialize() {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
             << " of size " << std::dec << section->getContent()->getSize());
-        if(section->getOffset() != fs.tellp()) {
+        if((std::streamoff)section->getOffset() != fs.tellp()) {
             LOG(1, " WARNING: section offset does not match file position");
         }
         fs << *section;
