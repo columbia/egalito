@@ -6,6 +6,12 @@
 #include "passes.h"
 #include "log/registry.h"
 
+#ifdef __GNUG__
+#define FALLTHROUGH { [[gnu::fallthrough]]; }
+#else
+#define FALLTHROUGH { }
+#endif
+
 #define DEBUG_GROUP shell
 #define D_shell 9
 #include "log/log.h"
@@ -91,7 +97,6 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
         switch(parseMode) {
         case MODE_BEGINNING:
             parseMode = MODE_BEFORE_FLAG;
-            [[fallthrough]];
             // fall-through
         case MODE_BEFORE_FLAG:
             if(arg == "--") {
@@ -109,7 +114,7 @@ Shell2App::GlobalParseMode Shell2App::testParsePhrase(Command *command,
             }
             else {
                 parseMode = MODE_BEGIN_INDEX_ARG;
-                [[fallthrough]];
+                FALLTHROUGH
                 // fall-through
             }
         case MODE_BEGIN_INDEX_ARG:
@@ -319,7 +324,7 @@ bool Shell2App::parsePhrase(Command *command, std::istream &argStream,
             }
             else {
                 parseMode = MODE_INDEX_ARG;
-                [[fallthrough]];
+                FALLTHROUGH 
                 // fall-through
             }
         case MODE_INDEX_ARG:

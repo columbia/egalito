@@ -1218,7 +1218,7 @@ void ElfFileWriter::serialize() {
         LOG(1, "serializing " << section->getName()
             << " @ " << std::hex << section->getOffset()
             << " of size " << std::dec << section->getContent()->getSize());
-        if((std::streamoff)section->getOffset() != fs.tellp()) {
+        if(static_cast<std::streamoff>(section->getOffset()) != fs.tellp()) {
             LOG(1, " WARNING: section offset does not match file position");
         }
         fs << *section;
