@@ -1,6 +1,7 @@
 #include <iostream>  // for testing
 #include <iomanip>
 #include <functional>
+#include <cstdio>
 #include <cstdlib>
 #include <string.h>
 #include <unistd.h>
@@ -136,15 +137,15 @@ FullCommandList::FullCommandList(EgalitoInterface *egalito) {
         }, {}, 0),
         [this, egalito] (ShellState &state, ArgumentValueList &args) {
             //std::string output = tempnam("/tmp", "ega-");
-            char pfnam[TPATH_MAX];
-            char tfnam[TPATH_MAX];
+            char pfnam[TPATH_MAX] = {};
+            char tfnam[TPATH_MAX] = {};
 
-            memset(pfnam, 0, TPATH_MAX);
-            memset(tfnam, 0, TPATH_MAX);
-
-            snprintf(pfnam, TPATH_MAX-1, "/proc/self/fd/%d",
-                mkstemp((char *)"ega-XXXXXX"));
-            readlink(tfnam, pfnam, TPATH_MAX-1); 
+            char tmpl[] = "ega-XXXXXX";
+            int fd = mkstemp(tmpl);
+            
+            std::snprintf(pfnam, TPATH_MAX-1, "/proc/self/fd/%d", fd);
+            readlink(tfnam, pfnam, TPATH_MAX-1);
+            close(fd); 
             std::string output = tfnam;
 
             bool uniongen;

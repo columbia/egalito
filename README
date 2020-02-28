@@ -9,7 +9,7 @@ environment (parsing and transforming libegalito.so).
 
 Egalito supports x86_64 and aarch64, with experimental support for RISC-V.
 
-For more information, please visit https://egalito.org.
+For more information, please visit: https://egalito.org
 
 To build:
 $ sudo apt-get install make g++ libreadline-dev gdb lsb-release unzip
