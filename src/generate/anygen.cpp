@@ -50,7 +50,7 @@ void AnyGen::makeHeader() {
 
     // set up e_ident field
     memset(header->e_ident, 0, EI_NIDENT);
-    strncpy(reinterpret_cast<char *>(header->e_ident), ELFMAG, SELFMAG);
+    memcpy(reinterpret_cast<char *>(header->e_ident), ELFMAG, SELFMAG);
     header->e_ident[EI_CLASS] = ELFCLASS64;
 #ifdef ARCH_X86_64
     header->e_ident[EI_DATA] = ELFDATA2LSB;
