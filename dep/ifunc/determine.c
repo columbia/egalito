@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 
     memset(buf, 0, 10);
     memcpy(buf, buf2, 10);
-    __memcpy_chk(buf, buf2, 10);
+    __memcpy_chk(buf, buf2, 10, 100);
     mempcpy(buf, buf2, 10);
     memmove(buf, buf2, 10);
     if(memcmp(buf, buf2, 11)) {
