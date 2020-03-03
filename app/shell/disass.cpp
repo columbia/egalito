@@ -349,6 +349,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a list of all functions in a module");
+    
     topLevel->add("functions2", [&] (Arguments args) {
         args.shouldHave(1);
         auto module = CIter::findChild(setup->getConductor()->getProgram(),
@@ -370,6 +371,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
             }
         }
     }, "shows a sorted list of all functions in a module, with addresses");
+    
     topLevel->add("functions3", [&] (Arguments args) {
         args.shouldHave(1);
         auto module = CIter::findChild(setup->getConductor()->getProgram(),
@@ -634,6 +636,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
     }, "shows a list of all data variables");
 
     topLevel->add("promotejumps", [&] (Arguments args) {
+        args.shouldHave(0);
         PromoteJumpsPass promoteJumps;
         for(auto module : CIter::modules(setup->getConductor()->getProgram())) {
             for(auto func : CIter::functions(module)) {
