@@ -20,6 +20,8 @@
 #include "log/log.h"
 #include "log/temp.h"
 
+#define PER_MODULE_SIZE 0x2000000
+
 address_t runEgalito(ElfMap *elf, ElfMap *egalito);
 
 ConductorSetup *egalito_conductor_setup __attribute__((weak));
@@ -130,7 +132,7 @@ void ConductorSetup::setBaseAddresses() {
             ? module->getElfSpace()->getElfMap() : nullptr;
         // this address has to be low enough to express negative offset in
         // jump table slots (to represent an index)
-        if(setBaseAddress(module, elfMap, 0x10000000 + i*0x2000000)) {
+        if(setBaseAddress(module, elfMap, 0x10000000 + i*PER_MODULE_SIZE)) {
             i ++;
         }
     }
@@ -207,12 +209,16 @@ void ConductorSetup::ensureBaseAddresses() {
 
     for(auto module : CIter::modules(conductor->getProgram())) {
         if(module->getBaseAddress() != 0) continue;
-        maxAddress += 0x100000000;
+        maxAddress += PER_MODULE_SIZE;
 
         auto elfMap = module->getElfSpace()
             ? module->getElfSpace()->getElfMap() : nullptr;
 
         setBaseAddress(module, elfMap, maxAddress);
+
+        for(auto region : CIter::regions(module)) {
+            region->updateAddressFor(elfMap->getBaseAddress());
+        }
     }
 }
 
