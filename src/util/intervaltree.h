@@ -17,12 +17,12 @@ private:
     IntervalTreeNode(const IntervalTreeNode &other) {}
 public:
     IntervalTreeNode(Range totalRange) : totalRange(totalRange),
-        midpoint((totalRange.getStart() + totalRange.getEnd()) / 2),
+        midpoint(totalRange.getStart() + (totalRange.getSize()/2)),
         lower(nullptr), higher(nullptr) {}
     IntervalTreeNode(IntervalTreeNode &&other) : totalRange(other.totalRange),
         midpoint(other.midpoint), lower(other.lower), higher(other.higher),
         overlapStart(std::move(other.overlapStart)),
-        overlapEnd(std::move(overlapEnd))
+        overlapEnd(std::move(other.overlapEnd))
         { other.lower = nullptr, other.higher = nullptr; }
     ~IntervalTreeNode();
 
