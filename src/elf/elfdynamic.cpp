@@ -29,9 +29,21 @@ void ElfDynamic::parse(ElfMap *elf, Library *library) {
             dependencyList.push_back(std::make_pair(name, library));
         }
         else if(type == DT_RPATH || type == DT_RUNPATH) {
-            this->rpath = strtab + value;
-            LOG(2, "    rpath [" << rpath << "]");
-        }
+	    auto rpath = strtab + value;
+	    auto bin = library->getResolvedPath();
+	    auto pwd = bin.substr(0, bin.rfind("/"));
+
+	    std::string resolvedRpath(rpath);
+
+	    auto rpos = std::string::npos;
+	    while((rpos = resolvedRpath.find("$ORIGIN")) != std::string::npos) {
+		resolvedRpath.replace(rpos, 7, pwd);
+	    }
+
+	    this->rpath = std::string(resolvedRpath);
+            LOG(2, "    rpath [" << rpath
+		<< "], resolved to:  " << resolvedRpath);
+       }
     }
 
     resolveLibraries();
@@ -77,7 +89,7 @@ void ElfDynamic::setupSearchPath() {
         split(egalito_library_path, ':', std::back_inserter(searchPath));
     }
 
-    if(rpath) {
+    if(!rpath.empty()) {
         split(rpath, ':', std::back_inserter(searchPath));
     }
 
