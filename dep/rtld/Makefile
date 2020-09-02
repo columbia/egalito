@@ -5,6 +5,8 @@ include ../../env.mk
 READELF = $(CROSS)readelf
 GDB = $(CROSS)gdb
 
+READELF_FLAGS = -W
+
 CFLAGS = -std=c99 -Wall -Wextra -Wno-format -Wno-int-conversion -Wno-unused-parameter -g
 CFLAGS_D =	-DRTLD_GLOBAL_SIZE=$(shell cat $(BUILDDIR)rtld_global_size) \
 		-DRTLD_GLOBAL_RO_SIZE=$(shell cat $(BUILDDIR)rtld_global_ro_size)
@@ -39,12 +41,12 @@ $(BUILDDIR):
 depends: $(BUILDDIR)interpreter $(BUILDDIR)rtld_global_size $(BUILDDIR)rtld_global_ro_size | $(BUILDDIR)
 
 $(BUILDDIR)interpreter: $(BUILDDIR)load_test
-	$(eval INTERPRETER_NAME = $(shell $(READELF) -l $(BUILDDIR)load_test | perl -ne '/\[Requesting program interpreter: (.*)\/(.*)\]/ && print "$$2\n"'))
+	$(eval INTERPRETER_NAME = $(shell $(READELF) $(READELF_FLAGS) -l $(BUILDDIR)load_test | perl -ne '/\[Requesting program interpreter: (.*)\/(.*)\]/ && print "$$2\n"'))
 	readlink -f $(shell $(CC) --print-file-name=$(INTERPRETER_NAME)) > $@
 $(BUILDDIR)rtld_global_size: $(BUILDDIR)interpreter
-	$(READELF) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global@ | awk '{ print $$3 }' > $@
+	$(READELF) $(READELF_FLAGS) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global@ | awk '{ print $$3 }' > $@
 $(BUILDDIR)rtld_global_ro_size: $(BUILDDIR)interpreter
-	$(READELF) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global_ro@ | awk '{ print $$3 }' > $@
+	$(READELF) $(READELF_FLAGS) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global_ro@ | awk '{ print $$3 }' > $@
 
 $(BUILDDIR)rtld.h: | depends
 	$(RUN_GDB) -x rtld.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -v 'Reading symbols' \
