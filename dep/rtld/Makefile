@@ -13,7 +13,7 @@ CFLAGS_D =	-DRTLD_GLOBAL_SIZE=$(shell cat $(BUILDDIR)rtld_global_size) \
 
 LIBC = $(shell readlink -f $(shell $(CC) --print-file-name=libc.so.6))
 
-RUN_GDB = $(GDB) -n -q -x reconstruct.py
+RUN_GDB = $(GDB) -n -q -x reconstruct.py -x symbols.gdb
 
 GDB_GEN_FILES = rtld.h assign1.c assign2.c generate1.c generate2.c
 GDB_GEN_FILES += pthread.h
@@ -49,18 +49,18 @@ $(BUILDDIR)rtld_global_ro_size: $(BUILDDIR)interpreter
 	$(READELF) $(READELF_FLAGS) --dyn-syms $(shell cat $(BUILDDIR)interpreter) | grep rtld_global_ro@ | awk '{ print $$3 }' > $@
 
 $(BUILDDIR)rtld.h: | depends
-	$(RUN_GDB) -x rtld.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -v 'Reading symbols' \
+	$(RUN_GDB) -x rtld.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -Ev 'Reading symbols|No debugging symbols' \
 		| sed 's/struct rtld/struct my_rtld/' > $@
 $(BUILDDIR)pthread.h: | depends
 	$(RUN_GDB) -x pthread.gdb $(LIBC) | grep -v 'done\.' | grep -v "Reading symbols" \
 		| sed 's/struct pthread/struct my_pthread/' > $@
 $(BUILDDIR)tcbhead.h: | depends
-	$(RUN_GDB) -x tcbhead.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -v "Reading symbols" \
+	$(RUN_GDB) -x tcbhead.gdb $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -Ev 'Reading symbols|No debugging symbols' \
 		| sed 's/tcbhead_t/struct my_tcbhead_t/' \
 		| sed 's/private/my_private/' > $@
 
 $(BUILDDIR)%.c: %.gdb | depends
-	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -v "Reading symbols" > $@
+	$(RUN_GDB) -x $< $(shell cat $(BUILDDIR)interpreter) | grep -v 'done\.' | grep -Ev 'Reading symbols|No debugging symbols' > $@
 ifneq ($(RTLD_EXEC),)
 $(BUILDDIR)rtld_data1.c: test
 	$(RTLD_EXEC) ./test 1 > $@
