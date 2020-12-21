@@ -173,7 +173,7 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
         // TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
         > MakeJumpTargetForm1;*/
     //typedef TreePatternAny MakeJumpTargetForm1;
-    
+
     typedef TreePatternBinary<TreeNodeAddition,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>
@@ -204,7 +204,7 @@ void JumptableDetection::detect(UDRegMemWorkingSet *working) {
                 makeDescriptor(instr, &info);
                 continue;
             }
-            
+
         }
 
     }
@@ -785,7 +785,7 @@ auto JumptableDetection::parseBaseAddress(UDState *state, int reg)
         TreePatternCapture<TreePatternTerminal<TreeNodePhysicalRegister>>,
         TreePatternCapture<TreePatternTerminal<TreeNodeConstant>>
     > AddiForm;
-    
+
     address_t auipc_addr = 0;
     bool found_auipc = false;
     address_t addr = 0;
@@ -910,7 +910,7 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
     FlowUtil::searchUpDef<MakeBaseAddressForm>(state, reg, parser);
     return std::make_tuple(found, addr);
 #elif defined(ARCH_RISCV)
-    
+
     assert(0); // XXX: no idea
     return std::make_tuple(false, 0);
 #endif
