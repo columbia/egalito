@@ -89,7 +89,7 @@ void ElfDynamic::setupSearchPath() {
         split(egalito_library_path, ':', std::back_inserter(searchPath));
     }
 
-    if(rpath) {
+    if(!rpath.empty()) {
         split(rpath, ':', std::back_inserter(searchPath));
     }
 
