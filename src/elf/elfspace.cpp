@@ -39,8 +39,61 @@ ElfSpace::~ElfSpace() {
     delete aliasMap;
 }
 
+
+bool ElfSpace::shouldTryAlternativeSymbolFile() {
+    const char *envp = getenv("EGALITO_DONT_LOAD_SYMBOLS");
+    if (!envp) return true;
+
+    std::string env = envp;
+    if (env == "") return true;
+
+    const std::set<std::string> alwaysLoad = {
+	// Packages in libc6
+	"libc.so.6",
+	"libanl.so.1",
+	"libdl.so.2",
+	"libm.so.6",
+	"libmvec.so.1",
+	"libnsl.so.1",
+	"libnss_compat.so.2",
+	"libnss_dns.so.2",
+	"libnss_files.so.2",
+	"libnss_hesiod.so.2",
+	"libnss_nis.so.2",
+	"libnss_nisplus.so.2",
+	"libpthread.so.0",
+	"libresolv.so.2",
+	"librt.so.1",
+	"libthread_db.so.1",
+	"libutil.so.1",
+
+	// Package
+	"libgnutls.so.30",
+	"libffi.so.6",
+	"libcrypto.so.1.1",
+	"libgcrypt.so.20",
+	"libgnutls.so.30",
+    };
+
+    if (env == "1") {
+        if (alwaysLoad.count(name)) {
+	    return true;
+	} else {
+	    return false;
+	}
+    } else {
+	return true;
+    }
+}
+
 void ElfSpace::findSymbolsAndRelocs() {
-    if(fullPath.size() > 0) {
+    bool loadExternalSymbols = shouldTryAlternativeSymbolFile();
+
+    if (!loadExternalSymbols) {
+	LOG(1, "Loading of external symbol files disabled, not searching for " << name);
+    }
+
+    if(loadExternalSymbols && (fullPath.size() > 0)) {
         auto symbolFile = getAlternativeSymbolFile();
         this->symbolList = SymbolList::buildSymbolList(elf, symbolFile);
     }
