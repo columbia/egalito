@@ -42,6 +42,7 @@ void Library::accept(ChunkVisitor *visitor) {
 Library::Role Library::guessRole(const std::string &name) {
     if(name.find("libc.so") != std::string::npos) return ROLE_LIBC;
     if(name.find("libc-") != std::string::npos) return ROLE_LIBC;
+    if(name.find("libc.") != std::string::npos) return ROLE_LIBC;
     if(name.find("libstdc++.so") != std::string::npos) return ROLE_LIBCPP;
     if(name.find("libstdc++-") != std::string::npos) return ROLE_LIBCPP;
     if(name.find("libegalito.so") != std::string::npos) return ROLE_EGALITO;
