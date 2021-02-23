@@ -8,6 +8,7 @@
 #include "sharedlib.h"
 #include "elfxx.h"
 #include "unionfind.h"
+#include "util/feature.h"
 
 #undef DEBUG_GROUP
 #define DEBUG_GROUP dsymbol
@@ -36,6 +37,7 @@ bool Symbol::isFunction() const {
         << symbolType
         << ", size=" << size
         << ", index=" << index
+	<< ", shndx=" << shndx
         << ", aliasFor=" << (aliasFor ? aliasFor->getName() : "n/a"));
 #endif
     if(symbolType == TYPE_FUNC || symbolType == TYPE_IFUNC) {
@@ -199,6 +201,11 @@ SymbolList *SymbolList::buildSymbolList(ElfMap *elfMap) {
     if(auto s = list->find("_dl_starting_up")) {
         s->setType(Symbol::TYPE_OBJECT);
         LOG(1, "Found symbol _dl_starting_up");
+    }
+    if (isFeatureEnabled("EGALITO_MUSL")) {
+	if(auto s = list->find("_dlstart")) {
+	    s->setSize(22);
+	}
     }
 #if 0
     // for musl only
