@@ -45,6 +45,11 @@ ControlFlowGraph::~ControlFlowGraph() {
     }
 }
 
+std::vector<ControlFlowNode> ControlFlowGraph::getGraph()
+{
+    return graph;
+}
+
 void ControlFlowGraph::construct(Function *function) {
     ControlFlowNode::id_t count = 0;
     for(auto b : function->getChildren()->getIterable()->iterable()) {

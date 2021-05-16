@@ -75,7 +75,7 @@ public:
     virtual size_t getCount() const { return graph.size(); }
 
     id_t getIDFor(Block *block) { return blockMapping[block]; }
-
+    std::vector<ControlFlowNode> getGraph();
     void dump();
     void dumpDot();
 private:
