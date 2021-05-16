@@ -364,6 +364,25 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_MOVABS,    &UseDef::fillMovabs},
     {X86_INS_MOVSXD,    &UseDef::fillMovsxd},
     {X86_INS_MOVZX,     &UseDef::fillMovzx},
+    
+    {X86_INS_CMOVA,     &UseDef::fillCMov },
+    {X86_INS_CMOVAE,    &UseDef::fillCMov },
+    {X86_INS_CMOVB,     &UseDef::fillCMov },
+    {X86_INS_CMOVBE,    &UseDef::fillCMov },
+    {X86_INS_CMOVE,     &UseDef::fillCMov },
+    {X86_INS_CMOVG,     &UseDef::fillCMov },
+    {X86_INS_CMOVGE,    &UseDef::fillCMov },
+    {X86_INS_CMOVL,     &UseDef::fillCMov },
+    {X86_INS_CMOVLE,    &UseDef::fillCMov },
+    {X86_INS_CMOVNE,    &UseDef::fillCMov },
+    {X86_INS_CMOVNO,    &UseDef::fillCMov },
+    {X86_INS_CMOVNP,    &UseDef::fillCMov },
+    {X86_INS_CMOVNS,    &UseDef::fillCMov },
+    {X86_INS_CMOVO,     &UseDef::fillCMov },
+    {X86_INS_CMOVP,     &UseDef::fillCMov },
+    {X86_INS_CMOVS,     &UseDef::fillCMov },
+    {X86_INS_RET,       &UseDef::fillX86Ret},
+
     {X86_INS_TEST,      &UseDef::fillTest},
     {X86_INS_PUSH,      &UseDef::fillPush},
     {X86_INS_SHL,       &UseDef::fillAddOrSubOrShift},
@@ -371,6 +390,7 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_SUB,       &UseDef::fillAddOrSubOrShift},
     {X86_INS_SYSCALL,   &UseDef::fillSyscall},
     {X86_INS_XOR,       &UseDef::fillXor},
+
 #elif defined(ARCH_AARCH64)
     {ARM64_INS_ADD,     &UseDef::fillAddOrSub},
     {ARM64_INS_ADR,     &UseDef::fillAdr},
@@ -751,6 +771,30 @@ void UseDef::fillRegToReg(UDState *state, AssemblyPtr assembly) {
         tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
             reg0, width0);
     }
+    else if( id == X86_INS_CMOVA
+        || id == X86_INS_CMOVAE
+        || id == X86_INS_CMOVB
+        || id == X86_INS_CMOVBE
+        || id == X86_INS_CMOVE
+        || id == X86_INS_CMOVG
+        || id == X86_INS_CMOVGE
+        || id == X86_INS_CMOVL
+        || id == X86_INS_CMOVLE
+        || id == X86_INS_CMOVNE
+        || id == X86_INS_CMOVNO
+        || id == X86_INS_CMOVNP
+        || id == X86_INS_CMOVNS
+        || id == X86_INS_CMOVO
+        || id == X86_INS_CMOVP
+        || id == X86_INS_CMOVS)
+    {
+        tree = TreeFactory::instance().make<TreeNodePhysicalRegister>(
+            reg0, width0);
+        state->addRegDef(reg1, tree);
+        working->addToRegSet(reg1, state);
+        return;
+    }
+
     defReg(state, reg1, tree);
 #elif defined(ARCH_AARCH64)
     auto op0 = assembly->getAsmOperands()->getOperands()[0].reg;
@@ -868,6 +912,38 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
             tree = TreeFactory::instance().make<TreeNodeConstant>(0);
         }
     }
+    else if (id == X86_INS_CMOVA
+        || id == X86_INS_CMOVAE
+        || id == X86_INS_CMOVB
+        || id == X86_INS_CMOVBE
+        || id == X86_INS_CMOVE
+        || id == X86_INS_CMOVG
+        || id == X86_INS_CMOVGE
+        || id == X86_INS_CMOVL
+        || id == X86_INS_CMOVLE
+        || id == X86_INS_CMOVNE
+        || id == X86_INS_CMOVNO
+        || id == X86_INS_CMOVNP
+        || id == X86_INS_CMOVNS
+        || id == X86_INS_CMOVO
+        || id == X86_INS_CMOVP
+        || id == X86_INS_CMOVS
+        )
+    {
+        if(memTree) 
+        {
+            useMem(state, memTree, reg1);
+            tree = TreeFactory::instance().make<TreeNodeDereference>(
+                memTree, width);
+        }
+        else 
+        {
+            tree = TreeFactory::instance().make<TreeNodeConstant>(0);
+        }
+        state->addRegDef(reg1, tree);
+        working->addToRegSet(reg1, state);
+        return;
+    }
     defReg(state, reg1, tree);
 #elif defined(ARCH_AARCH64)
     assert(!assembly->isPostIndex());
@@ -948,6 +1024,11 @@ void UseDef::fillMemToReg(UDState *state, AssemblyPtr assembly, size_t width) {
     defReg(state, rd,
         TreeFactory::instance().make<TreeNodeDereference>(memTree, width));
 #endif
+}
+
+void UseDef::fillX86Ret(UDState *state, AssemblyPtr assembly)
+{
+    useReg(state, X86Register::convertToPhysical(X86_REG_RAX));
 }
 
 void UseDef::fillImmToReg(UDState *state, AssemblyPtr assembly) {
@@ -1765,6 +1846,30 @@ void UseDef::fillBt(UDState *state, AssemblyPtr assembly) {
     }
 }
 void UseDef::fillCall(UDState *state, AssemblyPtr assembly) {
+ 
+    auto instr = state->getInstruction();
+    if(auto ici = dynamic_cast<IndirectCallInstruction *>(instr->getSemantic()))
+    {
+        if(ici->hasMemoryOperand())
+        {
+            auto reg = X86Register::convertToPhysical(ici->getRegister());
+            auto indexReg = X86Register::convertToPhysical(ici->getIndexRegister());
+            if(reg != X86Register::INVALID)
+            {
+                useReg(state, reg);
+            }
+            if(indexReg != X86Register::INVALID)
+            {
+                useReg(state, indexReg);
+            }
+        }
+        else
+        {
+            auto reg = X86Register::convertToPhysical(ici->getRegister());
+            useReg(state, reg);
+
+        }
+    } 
     for(int i = 0; i < 3; i++) {
         useReg(state, i);
         defReg(state, i, nullptr);
@@ -1922,6 +2027,25 @@ void UseDef::fillLea(UDState *state, AssemblyPtr assembly) {
         LOG(10, "skipping mode " << mode);
     }
 }
+
+void UseDef::fillCMov(UDState *state, AssemblyPtr assembly) {
+    auto mode = assembly->getAsmOperands()->getMode();
+    if(mode == AssemblyOperands::MODE_MEM_REG) {
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[1]);
+        fillMemToReg(state, assembly, width);
+        LOG(1, "CMOV MEM TO REG");
+    }
+    else if(mode == AssemblyOperands::MODE_REG_REG) {
+        fillRegToReg(state, assembly);
+        LOG(1, "CMOV REG TO REG");
+    }
+    else {
+        LOG(1, "CMOV skipping mode " << mode);
+    }
+    useReg(state, X86Register::FLAGS);
+}
+
 void UseDef::fillMov(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
     if(mode == AssemblyOperands::MODE_REG_MEM) {
@@ -1946,6 +2070,8 @@ void UseDef::fillMov(UDState *state, AssemblyPtr assembly) {
 }
 void UseDef::fillMovabs(UDState *state, AssemblyPtr assembly) {
     auto mode = assembly->getAsmOperands()->getMode();
+    if(assembly->getId() == X86_INS_MOVABS)
+        mode = AssemblyOperands::MODE_IMM_REG;
     assert(mode == AssemblyOperands::MODE_IMM_REG);
     if(mode == AssemblyOperands::MODE_IMM_REG) {
         fillImmToReg(state, assembly);

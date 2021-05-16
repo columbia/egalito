@@ -391,6 +391,8 @@ private:
     void fillJmp(UDState *state, AssemblyPtr assembly);
     void fillLea(UDState *state, AssemblyPtr assembly);
     void fillMov(UDState *state, AssemblyPtr assembly);
+    void fillCMov(UDState *state, AssemblyPtr assembly);
+    void fillX86Ret(UDState *state, AssemblyPtr assembly);   
     void fillMovabs(UDState *state, AssemblyPtr assembly);
     void fillMovsxd(UDState *state, AssemblyPtr assembly);
     void fillMovzx(UDState *state, AssemblyPtr assembly);
@@ -467,6 +469,7 @@ public:
     bool operator!=(const MemLocation& other) const
         { return !this->reg->equal(other.reg) || this->offset != other.offset; }
     TreeNode *getRegTree() const { return reg; }
+    long int getOffset() { return offset; }
 private:
     void extract(TreeNode *tree);
 };
