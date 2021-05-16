@@ -316,6 +316,12 @@ Link *PerfectLinkResolver::resolveInternally(Reloc *reloc, Module *module,
             // value should be S
             addr = symbol->getAddress();
         }
+        
+        else if(type >= R_X86_64_NUM) {
+           // some ELFs with debug symbols use relocations of type 82 etc
+            LOG(1, "Handing unrecognized relocations ");
+            addr = symbol->getAddress();
+        }
         else {
             // value should be S+A
             addr += symbol->getAddress();
