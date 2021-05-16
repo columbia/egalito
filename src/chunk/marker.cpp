@@ -94,7 +94,7 @@ Link *MarkerList::createMarkerLink(Symbol *symbol, size_t addend,
 #ifndef LINUX_KERNEL_MODE
     // during Linux kernel boot, a pointer must point to a strage address
     // just leave the original
-    assert("couldn't find the base of marker..." && 0);
+    //assert("couldn't find the base of marker..." && 0);
 #endif
     return nullptr;
 }
