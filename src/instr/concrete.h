@@ -3,6 +3,9 @@
 
 #include "semantic.h"
 #include "register.h"
+#include "chunk/ictarget.h"
+#include<vector>
+using namespace std;
 
 class IsolatedInstruction : public SemanticImpl {
 public:
@@ -109,7 +112,16 @@ class IndirectCallInstruction : public IndirectControlFlowInstructionBase {
 public:
     using IndirectControlFlowInstructionBase::IndirectControlFlowInstructionBase;
 
-    virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+private:
+    vector<IndirectCallTarget> targets;
+
+public:
+
+        const std::vector<IndirectCallTarget> getIndirectCallTargets() const { return targets; }
+
+        void addIndirectCallTarget(IndirectCallTarget icTarget) { targets.push_back(icTarget); }
+
+        virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
 // brk and hlt

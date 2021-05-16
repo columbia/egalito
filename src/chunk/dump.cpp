@@ -343,9 +343,27 @@ void InstrDumper::visit(IndirectCallInstruction *semantic) {
     std::string bytes = getBytes(semantic);
     std::string bytes2 = DisasmDump::formatBytes(bytes.c_str(), bytes.size());
 
+    std::string indirectcallTargets;
+    auto icTargets = semantic->getIndirectCallTargets();
+    std::ostringstream targetStream;
+    for(int i=0; i<icTargets.size(); i++) {
+            if(i>0)
+                targetStream << ", ";
+            if(icTargets[i].isUnknown())
+                targetStream << "?";
+            else if(icTargets[i].isGlobal()) {
+                 targetStream << "*(0x" << std::hex << icTargets[i].getAddress() <<") <?>";
+            }
+            else {
+                 targetStream << "0x"<<std::hex << icTargets[i].getAddress() << "<" << icTargets[i].getName() << ">";
+            }
+            indirectcallTargets = targetStream.str();
+    }
     DisasmDump::printInstructionRaw(address,
         pos, "(CALL*)",
-        semantic->getAssembly()->getOpStr().c_str(), nullptr, bytes2.c_str(),
+        semantic->getAssembly()->getOpStr().c_str(),
+        indirectcallTargets.c_str(),
+        bytes2.c_str(),
         false);
 }
 
