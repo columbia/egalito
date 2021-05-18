@@ -43,7 +43,7 @@ void SyspartPass::visit(Module *module) {
 void SyspartPass::visit(Function *func)
 {
 
-    LOG(1, "SID "<<func->getName());
+    
 	if((func->getName() == this->function->getName()) && (func->getAddress() == this->function->getAddress()))
 	{
 		for(auto bl : CIter::children(this->function))
@@ -112,9 +112,10 @@ void SyspartPass::visit(Function *func)
                 auto last =  (Instruction*)bl->getChildren()->genericGetLast();
                 if(auto cfi = dynamic_cast<ControlFlowInstruction *>(last->getSemantic())) 
                 {
-                    cout<<"CFI at "<< std::hex<<last->getAddress()<<endl;
+                    //cout<<"CFI at "<< std::hex<<last->getAddress()<<endl;
                     auto sem1 = last->getSemantic();
-                    if(auto linked = dynamic_cast<LinkedInstructionBase *>(sem1))
+                    /*
+		    if(auto linked = dynamic_cast<LinkedInstructionBase *>(sem1))
                     {
                         cout<<"LINKED INSTRUCTION BASE"<<endl;
                     }
@@ -126,6 +127,7 @@ void SyspartPass::visit(Function *func)
                     {
                        cout<<"JUMP HERE"<<endl;
                     }
+		    */
                 }
                 m1.insertBefore(last, call);
 
