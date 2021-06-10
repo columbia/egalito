@@ -121,6 +121,8 @@ public:
 
         void addIndirectCallTarget(IndirectCallTarget icTarget) { targets.push_back(icTarget); }
 
+        void clearAllTargets() { targets.clear(); };
+
         virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
 };
 
