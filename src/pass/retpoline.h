@@ -19,6 +19,7 @@ private:
     void log_instruction(Instruction *instr, const char *message);
     Function *makeOutlinedTrampoline(Module *module, Instruction *instr);
     std::vector<Instruction *> makeMovInstruction(Instruction *instr);
+    std::vector<Instruction *> makeMovInstructionDataLinked(Instruction *instr);
 };
 
 #endif

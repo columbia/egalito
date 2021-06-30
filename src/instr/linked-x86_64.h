@@ -131,6 +131,8 @@ public:
     virtual bool isControlFlow() const { return true; }
 
     virtual void accept(InstructionVisitor *visitor) { visitor->visit(this); }
+public:
+    using LinkedInstructionBase::calculateDisplacement;
 };
 
 // no link yet
