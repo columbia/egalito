@@ -12,12 +12,18 @@ void RetpolinePass::visit(Module *module) {
 #ifdef ARCH_X86_64
     this->module = module;
     recurse(module->getFunctionList());
+    for(auto f : retpolineList) {
+        module->getFunctionList()->getChildren()->add(f.second);
+    }
 #endif
 }
 
 void RetpolinePass::visit(Function *function) {
 #ifdef ARCH_X86_64
+    LOG(1, "retpoline [" << function->getName() << "]");
+    if(function->getName() == "_start") return;
     if(function->getName().find("_ssse3") != std::string::npos) return;
+    if(function->getName().find("__libc_csu_init") != std::string::npos) return;
 
     for(auto block : CIter::children(function)) {
         for(auto instr : CIter::children(block)) {
@@ -54,9 +60,29 @@ void RetpolinePass::visit(Function *function) {
 
                 log_instruction(instr, "after: ");
             }
+            else if(auto v = dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+                if(v->isCall()) {
+                    log_instruction(instr, "before:");
+
+                    auto trampoline = makeOutlinedTrampoline(module, instr);
+                    auto newSem = new ControlFlowInstruction(
+                        X86_INS_CALL, instr, "\xe8", "callq", 4);
+                    newSem->setLink(new NormalLink(trampoline, Link::SCOPE_EXTERNAL_JUMP));
+                    instr->setSemantic(newSem);
+
+                    ChunkMutator(block, true).modifiedChildSize(instr,
+                        newSem->getSize() - semantic->getSize());
+                    //delete semantic;
+
+                    log_instruction(instr, "after: ");
+                }
+            }
         }
     }
-    ChunkMutator(function, true);
+    {
+        ChunkMutator(function, true);
+    }
+    LOG(1, "DONE with [" << function->getName() << "]");
 #endif
 }
 
@@ -98,6 +124,9 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
         nameStream << "call_";
         CONSTRUCT_NAME(v, nameStream);
     }
+    else if(auto v = dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+        nameStream << "calldl_" << std::hex << "0x" << v->getLink()->getTargetAddress();
+    }
 
     std::string name = nameStream;
     auto found = retpolineList.find(name);
@@ -115,7 +144,7 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
 
     auto function = new Function();
     function->setName(name);
-    function->setPosition(new AbsolutePosition(0x100));
+    function->setPosition(new AbsolutePosition(0x100 * (retpolineList.size() + 1)));
 
     // XXX making a link to a block should be avoided
     {
@@ -158,6 +187,9 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
             if(dynamic_cast<IndirectControlFlowInstructionBase *>(semantic)) {
                 movInsList = makeMovInstruction(instr);
             }
+            else if(dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
+                movInsList = makeMovInstructionDataLinked(instr);
+            }
 
             if(movInsList.empty()) {
                 LOG(1, "WARNING: couldn't rewrite " << instr->getName()
@@ -185,7 +217,10 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
         }
     }
 
-    module->getFunctionList()->getChildren()->add(function);
+    ChunkDumper dump;
+    function->accept(&dump);
+
+    //module->getFunctionList()->getChildren()->add(function);
     module->getFunctionList()->getChildren()->clearSpatial();
     retpolineList[name] = function;
     return function;
@@ -272,6 +307,61 @@ std::vector<Instruction *> RetpolinePass::makeMovInstruction(
     }
     DisasmHandle handle(true);
     auto ins1 = DisassembleInstruction(handle).instruction(bin2);
+
+    // movq %r11, (%rsp)
+    std::vector<unsigned char> bin4{0x4c, 0x89, 0x1c, 0x24};
+    auto ins2 = DisassembleInstruction(handle).instruction(bin4);
+    return {ins1, ins2};
+#else
+    return {};
+#endif
+}
+
+std::vector<Instruction *> RetpolinePass::makeMovInstructionDataLinked(
+    Instruction *instr) {
+
+#ifdef ARCH_X86_64
+    auto semantic = static_cast<DataLinkedControlFlowInstruction *>(instr->getSemantic());
+    int64_t displacement = semantic->calculateDisplacement();
+    LOG(1, "displacement " << std::hex << displacement);
+
+    //    0:   4c 8b 1d 00 30 00 00    mov    0x3000(%rip),%r11        # 0x3007
+    std::vector<unsigned char> bin2;
+    bin2.push_back(0x4c);
+    bin2.push_back(0x8b);
+    bin2.push_back(0x1d);
+    for(int i = 0; i < 4; i++) {
+        bin2.push_back(displacement & 0xff);
+        displacement >>= 8;
+    }
+
+    LOG(1, "A");
+
+    DisasmHandle handle(true);
+#if 0
+    auto ins1 = DisassembleInstruction(handle).instruction(bin2);
+#else
+    auto ins1 = new Instruction();
+    /*auto sem1 = LinkedInstruction::makeLinked(module,
+        Instruction *instruction, AssemblyPtr assembly);*/
+    auto sem1 = new LinkedInstruction(ins1);
+    LOG(1, "B");
+    LOG(1, "BB");
+    //sem1->setLink(instr->getSemantic()->getLink());
+    auto q = instr->getSemantic()->getLink();
+    LOG(1, "C");
+    LOG(1, typeid(*q).name());
+    sem1->setLink(new DataOffsetLink(dynamic_cast<DataSection *>(q->getTarget()),
+        q->getTargetAddress() - q->getTarget()->getAddress()));
+    LOG(1, "CC");
+    sem1->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin2));
+    /*dynamic_cast<LinkedInstructionBase *>(ins1->getSemantic())->setLink(
+        instr->getSemantic()->getLink());*/
+    LOG(1, "D");
+    sem1->setIndex(0);
+    LOG(1, "E");
+    ins1->setSemantic(sem1);
+#endif
 
     // movq %r11, (%rsp)
     std::vector<unsigned char> bin4{0x4c, 0x89, 0x1c, 0x24};
