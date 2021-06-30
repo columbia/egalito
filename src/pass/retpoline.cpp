@@ -60,6 +60,7 @@ void RetpolinePass::visit(Function *function) {
 
                 log_instruction(instr, "after: ");
             }
+#if 0  // this works now though
             else if(auto v = dynamic_cast<DataLinkedControlFlowInstruction *>(semantic)) {
                 if(v->isCall()) {
                     log_instruction(instr, "before:");
@@ -77,6 +78,7 @@ void RetpolinePass::visit(Function *function) {
                     log_instruction(instr, "after: ");
                 }
             }
+#endif
         }
     }
     {
@@ -217,9 +219,6 @@ Function *RetpolinePass::makeOutlinedTrampoline(Module *module, Instruction *ins
         }
     }
 
-    ChunkDumper dump;
-    function->accept(&dump);
-
     //module->getFunctionList()->getChildren()->add(function);
     module->getFunctionList()->getChildren()->clearSpatial();
     retpolineList[name] = function;
@@ -338,30 +337,14 @@ std::vector<Instruction *> RetpolinePass::makeMovInstructionDataLinked(
     LOG(1, "A");
 
     DisasmHandle handle(true);
-#if 0
-    auto ins1 = DisassembleInstruction(handle).instruction(bin2);
-#else
     auto ins1 = new Instruction();
-    /*auto sem1 = LinkedInstruction::makeLinked(module,
-        Instruction *instruction, AssemblyPtr assembly);*/
     auto sem1 = new LinkedInstruction(ins1);
-    LOG(1, "B");
-    LOG(1, "BB");
-    //sem1->setLink(instr->getSemantic()->getLink());
     auto q = instr->getSemantic()->getLink();
-    LOG(1, "C");
-    LOG(1, typeid(*q).name());
     sem1->setLink(new DataOffsetLink(dynamic_cast<DataSection *>(q->getTarget()),
         q->getTargetAddress() - q->getTarget()->getAddress()));
-    LOG(1, "CC");
     sem1->setAssembly(DisassembleInstruction(handle).makeAssemblyPtr(bin2));
-    /*dynamic_cast<LinkedInstructionBase *>(ins1->getSemantic())->setLink(
-        instr->getSemantic()->getLink());*/
-    LOG(1, "D");
     sem1->setIndex(0);
-    LOG(1, "E");
     ins1->setSemantic(sem1);
-#endif
 
     // movq %r11, (%rsp)
     std::vector<unsigned char> bin4{0x4c, 0x89, 0x1c, 0x24};
