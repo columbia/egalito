@@ -357,6 +357,23 @@ static const char *getSoname(ElfMap *elf) {
     return nullptr;
 }
 
+static const char *getRunPath(ElfMap *elf) {
+    auto dynamic = elf->getSectionReadPtr<unsigned long *>(".dynamic");
+    if(!dynamic) return nullptr;  // statically linked
+    auto strtab = elf->getDynstrtab();
+
+    for(unsigned long *pointer = dynamic; *pointer != DT_NULL; pointer += 2) {
+        unsigned long type = pointer[0];
+        unsigned long value = pointer[1];
+
+        if(type == DT_RUNPATH) {
+            auto name = strtab + value;
+            return name;
+        }
+    }
+    return nullptr;
+}
+
 void BasicElfStructure::makeDynamicSection() {
     auto dynamicSection = getSection(".dynamic");
     auto dynamic = dynamicSection->castAs<DynamicSectionContent *>();
@@ -380,6 +397,11 @@ void BasicElfStructure::makeDynamicSection() {
             if(soName) {
                 dynamic->addPair(DT_SONAME, dynstr->add(soName, true));
             }
+        }
+
+        auto runPath = getRunPath(first->getElfSpace()->getElfMap());
+        if(runPath) {
+            dynamic->addPair(DT_RUNPATH, dynstr->add(runPath, true));
         }
 #endif
     }
