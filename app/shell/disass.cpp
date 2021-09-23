@@ -262,7 +262,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
 
         ChunkDumper dump;
         module->getPLTList()->accept(&dump);
-    }, "transforms indirect jumps to use retpolines (Spectre defense)");
+    }, "prints the PLT entries");
 
 #if 0
     // this is currently broken due to Marker rafactoring
@@ -499,7 +499,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
                 serializer.serialize(module, path.c_str());
             }
         }
-    }, "generates an Egalito archive using default filenames");
+    }, "generates an Egalito archive (w/libegalito) using default filenames");
 
     topLevel->add("usegstable", [&] (Arguments args) {
         if(!setup->getConductor()) {
@@ -658,7 +658,7 @@ void DisassCommands::registerCommands(CompositeCommand *topLevel) {
         else {
             std::cout << "can't find function \"" << args.front() << "\"\n";
         }
-    }, "disassembles a single function (like the GDB command)");
+    }, "reorder pushes and pops to minimize gadgets");
 
     topLevel->add("retpoline", [&] (Arguments args) {
         args.shouldHave(1);

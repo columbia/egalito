@@ -58,7 +58,7 @@ void mainLoop() {
     topLevel.add("parse3", [&] (Arguments args) {
         args.shouldHave(1);
         setup.parseElfFiles(args.front().c_str(), true, true);
-    }, "parses the given ELF and all its shared libraries");
+    }, "parses the given ELF and all its shared libraries, plus libegalito");
     topLevel.add("parse-archive", [&] (Arguments args) {
         args.shouldHave(1);
         setup.parseEgalitoArchive(args.front().c_str());
