@@ -370,6 +370,20 @@ const std::map<int, UseDef::HandlerType> UseDef::handlers = {
     {X86_INS_SHL,       &UseDef::fillAddOrSubOrShift},
     {X86_INS_SHR,       &UseDef::fillAddOrSubOrShift},
     {X86_INS_SUB,       &UseDef::fillAddOrSubOrShift},
+    {X86_INS_CMOVA,     &UseDef::fillCmov},
+    {X86_INS_CMOVAE,    &UseDef::fillCmov},
+    {X86_INS_CMOVB,     &UseDef::fillCmov},
+    {X86_INS_CMOVBE,    &UseDef::fillCmov},
+    {X86_INS_CMOVE,     &UseDef::fillCmov},
+    {X86_INS_CMOVNE,    &UseDef::fillCmov},
+    {X86_INS_CMOVG,     &UseDef::fillCmov},
+    {X86_INS_CMOVGE,    &UseDef::fillCmov},
+    {X86_INS_CMOVL,     &UseDef::fillCmov},
+    {X86_INS_CMOVLE,    &UseDef::fillCmov},
+    {X86_INS_CMOVO,     &UseDef::fillCmov},
+    {X86_INS_CMOVNO,    &UseDef::fillCmov},
+    {X86_INS_CMOVP,     &UseDef::fillCmov},
+    {X86_INS_CMOVNP,    &UseDef::fillCmov},
     {X86_INS_SYSCALL,   &UseDef::fillSyscall},
     {X86_INS_XOR,       &UseDef::fillXor},
 #elif defined(ARCH_AARCH64)
@@ -1965,6 +1979,27 @@ void UseDef::fillMovsxd(UDState *state, AssemblyPtr assembly) {
 }
 void UseDef::fillMovzx(UDState *state, AssemblyPtr assembly) {
     fillMov(state, assembly);
+}
+void UseDef::fillCmov(UDState *state, AssemblyPtr assembly) {
+    int reg0, reg1;
+    size_t width0, width1;
+    auto mode = assembly->getAsmOperands()->getMode();
+    if (mode == AssemblyOperands::MODE_REG_REG) {
+        std::tie(reg0, width0)
+            = getPhysicalRegister(assembly->getAsmOperands()->getOperands()[0].reg);
+        std::tie(reg1, width1)
+            = getPhysicalRegister(assembly->getAsmOperands()->getOperands()[1].reg);
+        auto tree = TreeFactory::instance().make<TreeNodeCmov>(
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(reg0, width0),
+            TreeFactory::instance().make<TreeNodePhysicalRegister>(reg1, width1));
+        useReg(state, reg0);
+        useReg(state, reg1);
+        defReg(state, reg1, tree);
+    } else if (mode == AssemblyOperands::MODE_REG_MEM) {
+        size_t width = inferAccessWidth(
+            &assembly->getAsmOperands()->getOperands()[0]);
+        fillRegToMem(state, assembly, width);
+    }
 }
 void UseDef::fillSyscall(UDState *state, AssemblyPtr assembly) {
     // On Linux, syscall uses rax as the syscall number, and then rdi, rsi,

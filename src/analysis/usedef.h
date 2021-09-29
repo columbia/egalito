@@ -394,6 +394,7 @@ private:
     void fillMovabs(UDState *state, AssemblyPtr assembly);
     void fillMovsxd(UDState *state, AssemblyPtr assembly);
     void fillMovzx(UDState *state, AssemblyPtr assembly);
+    void fillCmov(UDState *state, AssemblyPtr assembly);
     void fillSyscall(UDState *state, AssemblyPtr assembly);
     void fillTest(UDState *state, AssemblyPtr assembly);
     void fillPush(UDState *state, AssemblyPtr assembly);

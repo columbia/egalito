@@ -217,6 +217,11 @@ public:
     TreeNodeXor(TreeNode *left, TreeNode *right)
         : TreeNodeBinary(left, right, "^") {}
 };
+class TreeNodeCmov : public TreeNodeBinary {
+public:
+    TreeNodeCmov(TreeNode *src, TreeNode *dst)
+        : TreeNodeBinary(src, dst, "?->") {}
+};
 class TreeNodeDereferenceWithValue : public TreeNodeBinary {
 private:
     size_t width;
