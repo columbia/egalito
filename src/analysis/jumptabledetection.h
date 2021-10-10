@@ -87,7 +87,7 @@ private:
     bool getBoundFromControlFlow(UDState *state, int reg, JumptableInfo *info);
 
     void collectJumpsTo(UDState *state, JumptableInfo *info,
-        std::vector<UDState *>& result);
+        std::set<UDState *>& visited, std::vector<UDState *>& result);
     bool valueReaches(UDState *state, int reg, UDState *state2, int reg2,
         long *boundValue);
 };
