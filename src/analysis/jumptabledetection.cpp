@@ -917,7 +917,11 @@ auto JumptableDetection::parseComputedAddress(UDState *state, int reg)
 }
 
 void JumptableDetection::collectJumpsTo(UDState *state, JumptableInfo *info,
-    std::vector<UDState *> &result) {
+    std::set<UDState *>& visited, std::vector<UDState *> &result) {
+
+    // Avoid visiting the same node twice in case of cycles
+    if(visited.find(state) != visited.end()) return;
+    visited.insert(state);
 
     for(auto &link : state->getNode()->backwardLinks()) {
         LOG(10, "    processing link: " << &link);
@@ -928,7 +932,7 @@ void JumptableDetection::collectJumpsTo(UDState *state, JumptableInfo *info,
             result.push_back(last);
         }
         else {
-            collectJumpsTo(last, info, result);
+            collectJumpsTo(last, info, visited, result);
         }
     }
 }
@@ -956,8 +960,9 @@ bool JumptableDetection::parseBound(UDState *state, int reg,
                 // this check here is too strict and rejects a known jump
                 // table bound in gcc (add_location_or_const_attribute),
                 // but that can be found later by other passes
+                std::set<UDState *> visited;
                 std::vector<UDState *> precList;
-                collectJumpsTo(info->jumpState, info, precList);
+                collectJumpsTo(info->jumpState, info, visited, precList);
                 for(auto jump : precList) {
                     long bound = info->entries;
                     if(valueReaches(
@@ -1246,8 +1251,9 @@ bool JumptableDetection::parseBoundDeref(UDState *state, TreeNodeDereference *de
             // this check here is too strict and rejects a known jump
             // table bound in gcc (add_location_or_const_attribute),
             // but that can be found later by other passes
+            std::set<UDState *> visited;
             std::vector<UDState *> precList;
-            collectJumpsTo(info->jumpState, info, precList);
+            collectJumpsTo(info->jumpState, info, visited, precList);
             for(auto jump : precList) {
                 long bound = info->entries;
                 if(valueReaches(
