@@ -59,7 +59,7 @@ void FindSyscalls::visit(Function *function) {
                 else {
                     func_target = dynamic_cast<Function *>(target);
                 }
-                if (func_target && isSyscallFunction(function)) {
+                if (func_target && isSyscallFunction(func_target)) {
                     LOG(10, "found call to syscall() function");
                     std::set<unsigned long> values;
                     seen.clear();
