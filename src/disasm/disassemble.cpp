@@ -1,7 +1,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <iterator>
 #include <set>
+#include <map>
 #include <sstream>  // for debugging
 #include <capstone/x86.h>
 #include <capstone/arm64.h>
@@ -94,6 +96,9 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
         potential crt function locations */
     auto text = elfMap->findSection(".text");
     address_t smallest = -1u;
+    bool foundCrtBegin = false;
+    IntervalTree gaptree(Range(text->getVirtualAddress(), text->getSize()));
+
     for(auto it : (*symbolList)) {
         if(!it->isFunction()) continue;
 
@@ -102,21 +107,15 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
             if(gap < smallest) smallest = gap;
         }
     }
+
+    DisasmHandle handle(true);
+    DisassembleX86Function dx86(handle, elfMap);
+
     if(smallest != -1u && smallest > 0) {
-        IntervalTree gaptree(Range(text->getVirtualAddress(), text->getSize()));
-        gaptree.add(Range(text->getVirtualAddress(), smallest));
-        DisasmHandle handle(true);
-        DisassembleX86Function dx86(handle, elfMap);
+	foundCrtBegin = true;
+	gaptree.add(Range(text->getVirtualAddress(), smallest));
         dx86.disassembleCrtBeginFunctions(text,
-            Range(text->getVirtualAddress(), smallest), gaptree);
-        for(auto &r : gaptree.getAllData()) {
-            Function *function = dx86.fuzzyFunction(r, text);
-            functionList->getChildren()->add(function);
-            function->setParent(functionList);
-            LOG(10, "adding function " << function->getName()
-                << " at " << std::hex << function->getAddress()
-                << " size " << function->getSize());
-        }
+	    Range(text->getVirtualAddress(), smallest), gaptree);
     }
 #endif
 
@@ -132,6 +131,52 @@ Module *Disassemble::makeModuleFromSymbols(ElfMap *elfMap,
             << " at " << std::hex << function->getAddress()
             << " size " << function->getSize());
     }
+
+#ifdef ARCH_X86_64
+    // If we still haven't found the crtbegin functions,
+    // try searchin the region between the entry point (eg. _start)
+    // and the next function
+    if (!foundCrtBegin) {
+	std::map<address_t, Function *> funcsFound;
+
+	for (auto func : CIter::children(functionList)) {
+	    funcsFound[func->getAddress()] = func;
+	}
+
+	auto startAddr = elfMap->getEntryPoint();
+	auto beforeIt = funcsFound.lower_bound(startAddr);
+	auto afterIt = funcsFound.upper_bound(startAddr);
+	if ((beforeIt != funcsFound.end()) &&
+	    (afterIt != funcsFound.end())) {
+	    Function *startFunc = beforeIt->second;
+	    Function *afterFunc = afterIt->second;
+	    assert(startFunc);
+	    assert(afterFunc);
+
+	    LOG(1, "DM:  Start:  " << startFunc->getAddress()
+		<< ", After:  " << afterFunc->getAddress());
+
+	    Range startGap =
+		Range::fromEndpoints(startFunc->getAddress(),
+				     afterFunc->getAddress());
+	    gaptree.add(startGap);
+	    dx86.disassembleCrtBeginFunctions(text, startGap, gaptree);
+	    foundCrtBegin = true;
+	}
+    }
+
+    if (foundCrtBegin) {
+	for(auto &r : gaptree.getAllData()) {
+	    Function *function = dx86.fuzzyFunction(r, text);
+	    functionList->getChildren()->add(function);
+	    function->setParent(functionList);
+	    LOG(10, "adding function " << function->getName()
+		<< " at " << std::hex << function->getAddress()
+		<< " size " << function->getSize());
+	}
+    }
+#endif
+
 #if defined(ARCH_AARCH64) || defined(ARCH_ARM)
     for(auto sym : *symbolList) {
         if(!sym->isFunction()) {
