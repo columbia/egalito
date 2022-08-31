@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <elf.h>
 #include <glob.h>
+#include <unistd.h>
 
 #include "elfdynamic.h"
 #include "elfmap.h"
@@ -89,6 +90,33 @@ void ElfDynamic::setupSearchPath() {
     int musl = isFeatureEnabled("EGALITO_MUSL");
 
     auto cfs = ConductorFilesystem::getInstance();
+
+    char *cwd = get_current_dir_name();
+    std::string currentPath(cwd);
+    int count=0;
+    int index=-1;
+    std::string parentPath;
+    for(int i=currentPath.length()-1; i>=0; i--)
+    {
+        if(currentPath[i]=='/')
+            count++;
+        if(count==2)
+        {
+            index=i;
+            break;
+        }
+    }
+    if(index != -1)
+    {
+        parentPath=currentPath.substr(0,index);
+    }
+
+    std::string libPath = parentPath + "/binaries/final";
+    std::string libcPath = parentPath + "/binaries/final/libc";
+
+    searchPath.push_back(cfs->transform(libPath));
+    searchPath.push_back(cfs->transform(libcPath));
+
     if(musl) {
         parseMuslLdConfig(cfs->transform("/etc/ld-musl-x86_64.path"), searchPath);
     }
