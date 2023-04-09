@@ -1,15 +1,15 @@
 [submodule "test/binary"]
 	path = test/binary
-	url = git@github.com:columbia/egalito-tests
+	url = https://github.com/columbia/egalito-tests
 [submodule "dep/capstone"]
 	path = dep/capstone
-	url = git@github.com:columbia/egalito-capstone
+	url = https://github.com/columbia/egalito-capstone
 [submodule "dep/distorm3"]
 	path = dep/distorm3
 	url = https://github.com/gdabah/distorm
 [submodule "docs"]
 	path = docs
-	url = git@github.com:columbia/egalito-docs.git
+	url = https://github.com/columbia/egalito-docs
 [submodule "dep/keystone"]
 	path = dep/keystone
-	url = git@github.com:keystone-engine/keystone.git
+	url = https://github.com/keystone-engine/keystone
